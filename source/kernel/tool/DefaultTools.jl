@@ -74,9 +74,9 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "NEVER include code comments."
 
 # The modules a `ToolSet` publishes as resources: the ones it declared, or every
-# submodule of the project when it declared none.
+# module of the whole surface when it declared none.
 _api_modules(set::ToolSet) =
-    isempty(set.api) ? _submodules(_projectured()) :
+    isempty(set.api) ? _collect_surface_modules() :
                        [(nameof(e.module_), e.module_) for e in set.api]
 
 # The types of one module a model may name. An empty declaration is the whole

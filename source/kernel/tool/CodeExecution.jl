@@ -1,41 +1,68 @@
 # Fragment of `ToolModule` — the `execute_julia_code` tool and the persistent
 # namespace it evaluates into.
 
-# The umbrella `Projectured` package (loaded, but not a dependency of the kernel —
-# that would be circular) re-exports every submodule of every package below it,
-# so it alone is enough. In a per-package test environment the umbrella is
-# absent, so fall back to every loaded Projectured package and flat-re-export
-# each of their submodules — the same names then resolve. The set is read at
-# run time rather than written down, because the packages below the umbrella
-# are many and each test environment loads a different subset.
+# The packages of the whole surface. The umbrella `Projectured` package (loaded,
+# but not a dependency of the kernel — that would be circular) re-exports every
+# submodule of every package below it, so it alone is enough. In a per-package
+# test environment the umbrella is absent, and the surface holds every loaded
+# Projectured package. The set is read at run time rather than written down,
+# because the packages below the umbrella are many and each test environment
+# loads a different subset.
+function _collect_surface_packages()
+    loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
+    haskey(loaded, "Projectured") && return Module[loaded["Projectured"]]
+    packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
+    isempty(packages) && return Module[parentmodule(@__MODULE__)]
+    Module[loaded[n] for n in packages]
+end
+
+# The submodules of `package` on the whole surface, each under the name that the
+# package binds it by: a submodule the package defines, or a submodule of a
+# package it reaches but `packages` does not name. The second case is a concrete
+# domain in its own package: the umbrella binds it, so it arrives through that
+# binding. A submodule whose parent IS in `packages` is skipped, so a kernel
+# module that three packages alias is there once. A package module itself
+# (parent `Main`) is not a submodule.
+function _collect_package_submodules(package::Module, packages)
+    found = Pair{Symbol,Module}[]
+    for name in sort!(names(package; all = true))
+        isdefined(package, name) || continue
+        sub = getfield(package, name)
+        (sub isa Module && sub !== package) || continue
+        parent = parentmodule(sub)
+        (parent === package || (parent !== Main && !(parent in packages))) || continue
+        push!(found, name => sub)
+    end
+    found
+end
+
+# The modules of the whole surface, each under the name its package binds it by.
+# An empty declaration is the whole surface: the scratch module binds the names
+# of these modules, and the documentation tools read these modules, so what a
+# model finds and what it can write do not differ.
+function _collect_surface_modules()
+    packages = _collect_surface_packages()
+    Pair{Symbol,Module}[pair for package in packages
+                        for pair in _collect_package_submodules(package, packages)]
+end
+
+# The whole surface as a declaration: each of its modules with every name that
+# it exports, which are the names the scratch module binds.
+_collect_surface_api() =
+    ApiEntry[ApiEntry(mod, nothing) for (_, mod) in _collect_surface_modules()]
+
 function _scratch_sources(set::ToolSet)
     # A declared API is the whole of it. The names a `ToolSet` declares are the
     # names a model may write, and nothing else arrives — not the umbrella, and
     # not a package that happens to be loaded.
     isempty(set.api) || return copy(set.api)
-    whole(mods) = ApiEntry[ApiEntry(mod, nothing) for mod in mods]
-    loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
-    haskey(loaded, "Projectured") && return whole([loaded["Projectured"]])
-    packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
-    isempty(packages) && return whole([parentmodule(@__MODULE__)])
-    whole([loaded[n] for n in packages])
+    ApiEntry[ApiEntry(mod, nothing) for mod in _collect_surface_packages()]
 end
 
 function _flat_reexport!(m::Module, source::Module, sources)
     srcname = nameof(source)
-    for n in names(source; all = true)
-        isdefined(source, n) || continue
-        sub = getfield(source, n)
-        sub isa Module && sub !== source || continue
-        # A submodule this source defines, or a submodule of a package the source
-        # reaches but `sources` does not name. The second case is a concrete
-        # domain in its own package: the umbrella binds it, so it arrives here
-        # through that binding. A submodule whose parent IS in `sources` is
-        # skipped, so a kernel module aliased by three sources is not bound three
-        # times. A package module itself (parent `Main`) is not a submodule.
-        parent = parentmodule(sub)
-        (parent === source || (parent !== Main && !(parent in sources))) || continue
-        syms = [s for s in names(sub) if s !== nameof(sub) && isdefined(sub, s)]
+    for (n, sub) in _collect_package_submodules(source, sources)
+        syms = get_api_entry_names(ApiEntry(sub, nothing))
         isempty(syms) && continue
         # A *relative* path (`using .Source.Module: …`) resolves `Source` in the
         # scratch module, where the caller bound it. An absolute path would ask
@@ -329,8 +356,8 @@ end
 
 # The names the code may write: the declared ones, or every name of the surface.
 _get_writable_names(set::ToolSet) =
-    isempty(set.api) ? String[String(last(split(entry.qualname, '.'))) for entry in _api_index()] :
-                       String[String(name) for entry in set.api for name in get_api_entry_names(entry)]
+    String[String(name) for entry in (isempty(set.api) ? _collect_surface_api() : set.api)
+           for name in get_api_entry_names(entry)]
 
 _suggest_nearest_names(error, set::ToolSet) = ""
 

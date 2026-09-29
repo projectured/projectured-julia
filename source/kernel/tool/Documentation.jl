@@ -215,12 +215,13 @@ function _find_module(name::String, api = ApiEntry[])
         String(nameof(entry.module_)) == name && return entry.module_
     end
     isempty(api) || return nothing
-    proj = _projectured()
-    name == string(nameof(proj)) && return proj
-    sym = Symbol(name)
-    isdefined(proj, sym) || return nothing
-    obj = getfield(proj, sym)
-    obj isa Module ? obj : nothing
+    for package in _collect_surface_packages()
+        name == String(nameof(package)) && return package
+    end
+    for (sym, mod) in _collect_surface_modules()
+        name == String(sym) && return mod
+    end
+    nothing
 end
 
 # Render a doc object (as returned by `Base.Docs._doc`) to plain markdown source.
@@ -403,18 +404,6 @@ function _get_catalogue_summary(doc::AbstractString, name::AbstractString)
     isempty(summary) ? "No description." : summary
 end
 
-function _submodules(proj::Module)
-    mods = Pair{Symbol,Module}[]
-    for name in sort!(collect(names(proj; all = true)))
-        isdefined(proj, name) || continue
-        obj = getfield(proj, name)
-        obj isa Module || continue
-        (obj === proj || obj === Base || obj === Core) && continue
-        push!(mods, name => obj)
-    end
-    mods
-end
-
 # True for compiler-generated names that should never surface to a human/AI:
 # gensym'd closure and method types (`#print_document##0#…`, `##BookBook#1`,
 # `#10#11`). They flood the listings with hundreds of meaningless entries.
@@ -474,7 +463,7 @@ top-level types.
 """
 function list_modules(; api = ApiEntry[])
     modules_info = String[]
-    for (name, mod) in (isempty(api) ? _submodules(_projectured()) :
+    for (name, mod) in (isempty(api) ? _collect_surface_modules() :
                         [(nameof(e.module_), e.module_) for e in api])
         summary = _get_catalogue_summary(_doc_string(mod), String(name))
         structs = [String(n) for (n, _) in _struct_types(mod)]
@@ -848,31 +837,14 @@ function _index_declared(api)
     entries
 end
 
-function _index_api()
-    proj = _projectured()
-    entries = _ApiEntry[]
-    for (mod_sym, mod) in _submodules(proj)
-        mn = String(mod_sym)
-        push!(entries, _make_api_entry("module", mn, _binding_doc(proj, mod_sym)))
-        for (type_sym, type_value) in _struct_types(mod)
-            (_is_private_name(type_sym) || _is_schema_variant(mod, type_sym, type_value)) &&
-                continue
-            push!(entries, _make_api_entry("type", "$mn.$type_sym", _binding_doc(mod, type_sym)))
-        end
-        # A function has no resource of its own: a resource per function fans out
-        # to hundreds, so a hit is read with `read_function_documentation`.
-        for (function_sym, _) in _module_functions(mod)
-            _is_private_name(function_sym) && continue
-            push!(entries, _make_api_entry("function", "$mn.$function_sym",
-                                           _binding_doc(mod, function_sym)))
-        end
-    end
-    entries
-end
+# The index of the whole surface: each of its modules, and the names it exports.
+# The scratch module binds only the exported names, so the index holds no others.
+_index_api() = _index_declared(_collect_surface_api())
 
 # Process-global, deliberately: lazily-built read-only indexes of the project's own
-# guides and API, identical for every editor and derived from sources that do not
-# change at runtime. This is the "state identical for every editor" carve-out
+# guides and API, identical for every editor. The guides do not change at run time,
+# and the API index holds the whole surface of the packages that are loaded when it
+# is first built. This is the "state identical for every editor" carve-out
 # PAR-PER-EDITOR-STATE grants (alongside the wall clock).
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
