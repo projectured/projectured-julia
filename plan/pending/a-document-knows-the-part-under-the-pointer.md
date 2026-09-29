@@ -262,6 +262,37 @@ One at a time, with the owner.
   `nothing` for it, so `CellVector(x, y, z)` with three documents still reaches
   the element sugar. The ways not taken: (a) every layout, (c) a table beside
   the documents.
+- ~~**Q10. A path to a part that is gone.**~~ **Settled** (Claude's choice
+  in step 2; owner 2026-09-29: "Keep it this way"). The chain write keeps the
+  whole path at the root and stops at the last document that exists; no
+  document below it holds a path. It is the rule that ends every path, which
+  often ends inside the value of a document (a range of a string), so it needs
+  no code of its own. No document claims the pointer when it is not on it, and
+  the next move clears the path. A reader must not expect a stored mouse
+  target to resolve: an edit that deletes the part under the pointer leaves
+  the same state, so step 5 skips a stored part that is gone in every case.
+  The ways not taken: cut the path at the last document that exists (the root
+  then holds the empty path, "the pointer is on me", which is false), keep the
+  old value (the old part stays lit), and an error (a move that races with an
+  edit is normal).
+- **Q11. An edit that deletes the part under the pointer.** Open: does the edit
+  clear the mouse target at once, or does it stay until the next move?
+- ~~**Q12. The step 3 scope and an introduced part.**~~ **Settled** (owner
+  2026-09-29). Step 3 found 75 readers in 33 files that take the selection by
+  type, 29 `isa` checks in 17 files, and 7 places in omnet, where the plan had
+  counted six. Three ways were put: (a) every reader takes the supertype of Q7,
+  (b) the kernel asks the selection reader and converts the answer, (c) only
+  the chains that the brackets need. Owner: "I like (a)". Claude's sketch of a
+  reader kept the fallback that puts a flat offset of the text into an
+  introduced reference; owner: "No, an introduced part should also be mapped
+  forward and backward too. Some projections already do this at the innermost
+  part" (the atomic wiring of the rule projections). So step 3 is two steps:
+  3a makes an introduced part map both ways, and 3b is the sweep of (a).
+  Owner: "Yes, but I prefer the mapper functions as one reference_case if
+  possible. Add this to the rules in the documentation". The rules are in
+  `PAR-CROSS-DOMAIN-LATE`, `PAR-MAPPERS-ARE-INVERSES`, `PAR-REFERENCE-DSL` and
+  `PAR-PREFER-REFERENCE-RETARGET` of
+  [architecture-invariants.md](../../documentation/rule/architecture-invariants.md).
 
 ## 7. Steps
 
@@ -345,11 +376,30 @@ already; the sealed selection files do not change (Q4).
   the wide sweep has the counts of step 1 in every suite, with 29 passes more in
   the substrate (the new test); the omnet tests pass; the naming guard passes
   and the documentation check has no note on the changed files.
-- [ ] 3. **The backward map of the operation.** The default reader of a
-  projection and the reader of a rule projection map it backward as they map a
-  selection, and the four containers that put a prefix on by hand handle it
-  (Q7). Tests: a mouse target at a text caret of the JSON chain arrives at the
-  JSON document as the path of the number.
+- [ ] 3a. **An introduced part maps forward and backward** (Q12). Each
+  projection that puts a flat offset of a later stage into an introduced
+  reference (about 34 places, `PositionReferenceStep(flat)` after
+  `_syntax_to_flat`, in the collection, SQL, math, the book, markdown and
+  others) wraps its own output path instead, and its forward map answers that
+  path (`proj(^(p), inner) => inner`); the flat branch of `_syntax_to_flat` for
+  another projection's step goes. A child path maps through the child's own
+  map, not by a change of its head only. Each mapper that changes is one
+  `@reference_case`. `SyntaxCompoundToText` keeps its flat offsets, which are
+  positions in its own output. The selection changes too: a caret on a bracket
+  holds the output path of the node that printed it. Tests: a caret on a
+  bracket goes back and forth in each domain that changes, and lands where it
+  landed before.
+- [ ] 3b. **The backward map of every kind of path** (Q7, option (a)). The 75
+  readers in 33 files that take `ReplaceSelectionOperation` by type, and the 7
+  places of omnet, take `ReplacePathOperation` and answer
+  `make_path_operation(operation, path)`; a reader that only does what the
+  default reader does goes, where no catch-all of its projection hides the
+  default. The 29 `isa` checks in 17 files are read one at a time: a check
+  that maps a path takes the supertype, and a check that belongs to a press
+  (the focus, the whole selection of an Alt+press, the drag) keeps the
+  selection. Tests: a mouse target at a text caret of the JSON chain arrives at
+  the JSON document as the path of the number, and the pointer on the inner
+  `[` of `[1, [2, 3]]` leaves `‹.open{0}›` in the inner array.
 - [ ] 4. **The forward wiring** (M4, Q4). One kernel helper wires every kind of
   path of an output document from the forward map of the place, a dormant
   selection as one; the places that wire the output selection call it. A view

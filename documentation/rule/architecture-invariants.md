@@ -104,7 +104,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
 | [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
 | [PAR-STABLE-IOMAP-IDENTITY](#par-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity |
-| [PAR-CROSS-DOMAIN-LATE](#par-cross-domain-late) | Cross domains as late as possible in the mappers |
+| [PAR-CROSS-DOMAIN-LATE](#par-cross-domain-late) | Cross domains as late as possible in the mappers; an introduced part maps forward and backward |
 | [PAR-HIGHER-ORDER-IS-DOMAIN-FREE](#par-higher-order-is-domain-free) | Higher-order projections touch no domain; generic projections are input-domain-independent |
 | [PAR-USE-PROJECTION-MACRO](#par-use-projection-macro) | Use `@projection` for projection structs with reactive fields, defaulting the supertype |
 
@@ -113,7 +113,7 @@ requirement; the rule is its own lead sentence.
 | ID | Rule |
 | --- | --- |
 | [PAR-ONE-BASED-INDEXING](#par-one-based-indexing) | All indexing is 1-based; distinguish elements from boundaries |
-| [PAR-REFERENCE-DSL](#par-reference-dsl) | Build and match reference paths with the DSL, not by hand |
+| [PAR-REFERENCE-DSL](#par-reference-dsl) | Build and match reference paths with the DSL, not by hand; a mapper is one `@reference_case` |
 | [PAR-EVERY-DOCUMENT-HAS-SELECTION](#par-every-document-has-selection) | Every concrete `Document` has a `selection::Cell`, and every selection-reachable child is itself a `Document` |
 | [PAR-REPLACE-SELECTION](#par-replace-selection) | Change selection with `replace_selection!`, not a bare `set_selection!` |
 | [PAR-SELECTION-WRITTEN-AT-ROOT](#par-selection-written-at-root) | Every write of the live selection starts at the root document; a reader reads its own selection and never searches below |
@@ -517,7 +517,8 @@ pair gives you cursor navigation across the whole pipeline for free.
 **`print_document` uses `map_reference_forward`; `read_intent` uses
 `map_reference_backward`, and the two mappers are mutual inverses.** Keep the
 two mappers as the one place a path's crossing is defined, and keep them
-inverse (modulo the documented `ProjectionReferenceStep`/flat-offset collapse). If
+inverse. A reference to a part that the projection printed itself goes back and
+forth too (PAR-CROSS-DOMAIN-LATE). If
 the two directions ever disagree — with each other or with how the printer
 wired the output selection — the cursor mis-maps.
 
@@ -531,6 +532,13 @@ Add the 4-arg `read_intent(p, recursion, change::Intent, iomap)` method
 (returning an `Intent`) only to do more — retype an operation, recurse then
 lift, probe a child, or route by selection. Do not write the obsolete 3-arg
 shim in new code.
+
+A reader that only maps the path of an operation takes `ReplacePathOperation`
+and answers `make_path_operation(operation, path)`. So one method maps every kind
+of path: the selection, the part under the pointer, and a kind that comes later.
+A reader that must treat one kind in a different way adds a method for that kind.
+A case that belongs to a press, such as the whole selection of an Alt+press,
+names `ReplaceSelectionOperation`, because a move of the pointer must not do it.
 
 ### PAR-NO-NEW-SYNTHETIC-EVENT
 
@@ -608,12 +616,25 @@ and every projection use is `reconcile_child_iomaps` (in the iomap layer).
 ### PAR-CROSS-DOMAIN-LATE
 
 **Cross domains as late as possible in the mappers.** When an output reference
-points at something the projection introduced (a delimiter, bracket, separator,
-indentation) it has no input pre-image: keep input-domain steps for as long as
-the path still has a pre-image, then wrap *only the genuinely output-only tail*
-in `ProjectionReferenceStep(projection, …)` (or collapse a
-non-separately-addressable group to a single flat offset). Because
-`map_reference_forward` strips that same step, the path round-trips.
+points at a part that the projection introduced (a delimiter, a bracket, a
+separator, an indentation), the part has no input pre-image. Keep input-domain
+steps for as long as the path still has a pre-image. Then wrap only the
+output-only tail, with `make_introduced_reference(projection, input, tail)`.
+
+**An introduced part maps forward and backward.** The tail is a path in the
+output of this projection: the path that the backward map got, such as
+`.open{0}` for the bracket of a syntax node. It is never an offset in the output
+of a later stage, because only that stage can read it. The forward map takes off
+the step of its own projection and answers the tail
+(`proj(^(p), inner) => inner`), and the next stage maps the tail forward as any
+path of its input. A flat offset is correct only where it is a position in the
+output of this projection, for a group of parts that has no path of its own. The
+atomic wiring of the rule projections is the model (`_atomic_backward`,
+`_atomic_forward`).
+
+This holds for every kind of path. The pointer on a bracket names the node that
+printed the bracket, as a caret on it does, so that node can draw the bracket
+lit.
 
 ### PAR-HIGHER-ORDER-IS-DOMAIN-FREE
 
@@ -659,6 +680,13 @@ with `@reference` (or `Reference(steps...)` / `@reference_step` for programmatic
 use), and pattern-match them with `@reference_case` in mappers and readers. Do
 not cons `ConcreteReference` cells by hand. `evaluate_reference(document,
 path)` is the canonical `(document, reference) → node` walk.
+
+**A mapper is one `@reference_case`.** Where the patterns can state it, write the
+body of `map_reference_forward` and of `map_reference_backward` as one
+`@reference_case`, with no code before or after it. Its arms are the empty
+path, the introduced reference of the projection, and one arm for each child or
+field. A condition that a pattern can not state is a `when(...)` guard. Code
+by hand in a mapper needs a reason, written next to it.
 
 ### PAR-EVERY-DOCUMENT-HAS-SELECTION
 
