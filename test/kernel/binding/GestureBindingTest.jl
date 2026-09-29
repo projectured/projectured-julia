@@ -68,6 +68,26 @@ end
     nothing                        => "reverse"       => MarkOperation(:reverse)
 end
 
+# A document whose bare name is the concrete `DC` spelling: its table sits on a
+# concrete parameterization of the cell layout, not on a UnionAll.
+@document [DC] struct GestureProbeValue
+    value::Int = 0
+end
+
+@gestures GestureProbeValue begin
+    KeyPress('v')                  => "value"         => MarkOperation(:value)
+end
+
+# A document whose bare name is the plain mutable struct: it holds its selection as a
+# value, not in a cell.
+@document [M, C] struct GestureProbeNative
+    value::Int = 0
+end
+
+@gestures GestureProbeNative begin
+    KeyPress('m')                  => "native"        => MarkOperation(:native)
+end
+
 # A tiny operation stand-in so the binding RHS produces something identifiable.
 struct MarkOperation
     tag::Symbol
@@ -295,6 +315,34 @@ function test_gesture_binding()
         end
         @test overriding !== nothing
         @test occursin("override", sprint(showerror, overriding))
+    end
+
+    @testset "a block takes one precondition" begin
+        second = :(@gestures CommandProbe begin
+            when(sel !== nothing)
+            KeyPress('x') => "cut it" => MarkOperation(:cut)
+            when(sel === nothing)
+            KeyPress('y') => "other" => MarkOperation(:other)
+        end)
+        @test_throws "a block takes one `when(expr)`" macroexpand(@__MODULE__, second)
+    end
+
+    @testset "a table is built once" begin
+        @test get_document_gesture_bindings_own(GestureProbe) ===
+              get_document_gesture_bindings_own(GestureProbe)
+    end
+
+    @testset "a table on a concrete document type fires" begin
+        value = GestureProbeValue()
+        @test read_gesture(value, KeyPress('v'; time = 0.0)) == MarkOperation(:value)
+        @test [b.description for b in get_document_gesture_bindings(value)] == ["value"]
+    end
+
+    @testset "a table on a native document reads its selection" begin
+        native = GestureProbeNative()
+        @test read_gesture(native, KeyPress('m'; time = 0.0)) == MarkOperation(:native)
+        @test length(get_applicable_gesture_bindings(native,
+                         get_document_gesture_bindings(native))) == 1
     end
 
 end

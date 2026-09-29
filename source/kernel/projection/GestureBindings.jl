@@ -30,8 +30,7 @@ A projection that routes its gestures through here needs no separate collector.
 function read_projection_gesture(projection, iomap, event)
     bindings = get_projection_gesture_bindings(projection, iomap)
     isempty(bindings) && return nothing
-    input = hasproperty(iomap, :input) ? iomap.input : nothing
-    selection = (input !== nothing && hasfield(typeof(input), :selection)) ?
-                getfield(input, :selection)[] : nothing
+    input = get_iomap_input(iomap)
+    selection = input isa Document ? get_selection(input) : nothing
     return fire_gesture_bindings(bindings, input, event; selection)
 end

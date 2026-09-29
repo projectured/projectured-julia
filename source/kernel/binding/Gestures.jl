@@ -6,7 +6,7 @@
 # Surface:
 #
 #     @gestures DocumentType begin
-#         when(<precondition over doc, sel>)          # optional, block-level
+#         when(<precondition over doc, sel>)          # optional, one per block
 #         PATTERN => "human description" => rhs        # description optional
 #         nothing => "human description" => rhs        # no gesture: run it by name
 #         when(PATTERN, guard) => "desc" => rhs        # per-rule event guard
@@ -59,8 +59,11 @@ function _parse_gesture_block(entries, domain::String; scope::Module)
 
     for e in entries
         e isa LineNumberNode && continue
-        # Block-level precondition: a bare `when(expr)` call (one argument).
+        # Block-level precondition: a bare `when(expr)` call (one argument). It holds
+        # for every rule of the block, so a block has at most one.
         if e isa Expr && e.head == :call && e.args[1] == :when && length(e.args) == 2
+            precondition === nothing ||
+                error("@gestures: a block takes one `when(expr)`, and `$e` is a second")
             precondition = :(($(esc(:doc)), $(esc(:sel))) -> $(esc(e.args[2])))
             continue
         end
@@ -70,75 +73,86 @@ function _parse_gesture_block(entries, domain::String; scope::Module)
             push!(items, :($(esc(e.args[2]))...))
             continue
         end
-        # A rule: PATTERN => [ "desc" => ] rhs  (or when(PATTERN, guard) => …), with the
-        # pattern optionally wrapped in `override(…)`. Unwrap that first so the event
-        # parser sees the plain rule.
-        (e isa Expr && e.head == :call && e.args[1] == :(=>)) ||
-            error("@gestures: expected `PATTERN => rhs`, `splice(set)`, or `when(expr)`, got `$e`")
-        override = false
-        lhs = e.args[2]
-        if lhs isa Expr && lhs.head == :call && lhs.args[1] == :override
-            length(lhs.args) == 2 ||
-                error("@gestures: `override` wraps exactly one pattern, got `$lhs`")
-            _is_no_pattern(lhs.args[2]) &&
-                error("@gestures: `override(nothing)` is not a rule — override claims a key, and a `nothing` rule has none")
-            override = true
-            e = Expr(:call, :(=>), lhs.args[2], e.args[3])
-        end
-        # A command rule: `nothing => "description" => rhs`. The pattern slot holds
-        # what the field holds, so the absence of a gesture needs no second surface.
-        # The event parser never sees it — it reads a bare symbol as an event type.
-        if _is_no_pattern(lhs)
-            push!(items, _command_binding_expr(e.args[3], domain))
-            continue
-        end
-        rule = parse_event_pattern_rule(e; scope = scope)
-        rule.type === nothing && error("@gestures: `_` catch-all is not allowed")
-
-        # Split an optional leading "description" out of the right side.
-        description, body = if rule.result isa Expr && rule.result.head == :call &&
-                               rule.result.args[1] == :(=>) && rule.result.args[2] isa String
-            (rule.result.args[2], rule.result.args[3])
-        else
-            (nothing, rule.result)
-        end
-
-        event = gensym(:event)
-        document = esc(:doc)
-
-        # Per-rule event guard closure (from `when(PATTERN, cond)`).
-        guard = rule.guard === nothing ? :nothing :
-            :($event -> $(build_event_field_bindings(rule, event, esc(rule.guard))))
-
-        pattern = build_event_pattern_expr(rule, guard)
-
-        # Operation closure: (doc, event) -> rhs, with bound fields in scope.
-        # `build_event_field_bindings` returns the body untouched when the rule binds
-        # no pattern variable, and wraps it in a `let` when it does. Identity of the
-        # result is therefore the answer to "does this rhs read the event?", asked
-        # through the parser's own exported form rather than its field types.
-        escaped_body = esc(body)
-        bound_body = build_event_field_bindings(rule, event, escaped_body)
-        reads_event = bound_body !== escaped_body
-        operation = :(($document, $event) -> $bound_body)
-
-        description_expr = description === nothing ? :(describe_event_pattern($pattern)) : description
-
-        # The name a user types to run the rule from a command list. A rule with no
-        # authored description has no name to type: its description is the gesture
-        # rendering ("Ctrl+K"). A rule that reads the event has no name either,
-        # because a name carries no event.
-        name_expr = (description === nothing || reads_event) ? :nothing : description
-
-        push!(items, :(GestureBinding($pattern, $operation; applicable = _applicable,
-                                      description = $description_expr, domain = $domain,
-                                      override = $override, name = $name_expr)))
+        push!(items, _parse_gesture_rule(e, domain; scope))
     end
 
     applicable = precondition === nothing ?
         :((($(esc(:doc)), $(esc(:sel))) -> true)) : precondition
 
     return (applicable, items)
+end
+
+# `override(PATTERN) => …` is the rule `PATTERN => …` that claims its key. Answer the
+# plain rule, so the event parser sees it, and whether the pattern was wrapped.
+function _unwrap_override(e)
+    lhs = e.args[2]
+    (lhs isa Expr && lhs.head == :call && lhs.args[1] == :override) || return (e, false)
+    length(lhs.args) == 2 ||
+        error("@gestures: `override` wraps exactly one pattern, got `$lhs`")
+    _is_no_pattern(lhs.args[2]) &&
+        error("@gestures: `override(nothing)` is not a rule — override claims a key, " *
+              "and a `nothing` rule has none")
+    (Expr(:call, :(=>), lhs.args[2], e.args[3]), true)
+end
+
+# Build the `GestureBinding(...)` expression for one rule: PATTERN => [ "desc" => ] rhs
+# (or when(PATTERN, guard) => …), with the pattern optionally wrapped in `override(…)`,
+# or a command rule `nothing => "desc" => rhs`.
+function _parse_gesture_rule(e, domain::String; scope::Module)
+    (e isa Expr && e.head == :call && e.args[1] == :(=>)) ||
+        error("@gestures: expected `PATTERN => rhs`, `splice(set)`, or `when(expr)`, " *
+              "got `$e`")
+    e, override = _unwrap_override(e)
+    # A command rule: `nothing => "description" => rhs`. The pattern slot holds
+    # what the field holds, so the absence of a gesture needs no second surface.
+    # The event parser never sees it — it reads a bare symbol as an event type.
+    _is_no_pattern(e.args[2]) && return _command_binding_expr(e.args[3], domain)
+    rule = parse_event_pattern_rule(e; scope = scope)
+    rule.type === nothing && error("@gestures: `_` catch-all is not allowed")
+
+    # Split an optional leading "description" out of the right side.
+    description, body = if rule.result isa Expr && rule.result.head == :call &&
+                           rule.result.args[1] == :(=>) && rule.result.args[2] isa String
+        (rule.result.args[2], rule.result.args[3])
+    else
+        (nothing, rule.result)
+    end
+
+    event = gensym(:event)
+    document = esc(:doc)
+
+    # Per-rule event guard closure (from `when(PATTERN, cond)`).
+    guard = rule.guard === nothing ? :nothing :
+        :($event -> $(build_event_field_bindings(rule, event, esc(rule.guard))))
+
+    # The pattern is built once and named, so the binding and the rendering of its
+    # description read the same object.
+    pattern = gensym(:pattern)
+
+    # Operation closure: (doc, event) -> rhs, with bound fields in scope.
+    # `build_event_field_bindings` returns the body untouched when the rule binds
+    # no pattern variable, and wraps it in a `let` when it does. Identity of the
+    # result is therefore the answer to "does this rhs read the event?", asked
+    # through the parser's own exported form rather than its field types.
+    escaped_body = esc(body)
+    bound_body = build_event_field_bindings(rule, event, escaped_body)
+    reads_event = bound_body !== escaped_body
+    operation = :(($document, $event) -> $bound_body)
+
+    description_expr =
+        description === nothing ? :(describe_event_pattern($pattern)) : description
+
+    # The name a user types to run the rule from a command list. A rule with no
+    # authored description has no name to type: its description is the gesture
+    # rendering ("Ctrl+K"). A rule that reads the event has no name either,
+    # because a name carries no event.
+    name_expr = (description === nothing || reads_event) ? :nothing : description
+
+    :(let $pattern = $(build_event_pattern_expr(rule, guard))
+          GestureBinding($pattern, $operation; applicable = _applicable,
+                         description = $description_expr, domain = $domain,
+                         override = $override, name = $name_expr)
+      end)
 end
 
 """
@@ -164,30 +178,39 @@ of:
     Inside a string the edit is carried, so an ordinary structural rule needs no guard
     against firing mid-text.
   - `when(<expr over doc, sel>)` — an optional block-level `applicable` precondition
-    (event-independent).
+    (event-independent). A block has at most one, and it holds for every rule of the
+    block.
   - `splice(set)` — splice a reusable `Vector{GestureBinding}` (typically a
     [`@gesture_set`](@ref)) in at this position.
 
 Bindings shared by a whole type family go on the common abstract supertype and are
 inherited by every subtype via [`get_document_gesture_bindings`](@ref); a set shared
 by *unrelated* types (no common supertype) is a `@gesture_set` `splice`d into each.
+
+The macro builds the table once, when its module loads, so a name that a pattern or
+a `splice` reads must be defined above the block. A condition and an `rhs` run at
+each event.
 """
 macro gestures(document_type, block)
     entries = block isa Expr && block.head == :block ? block.args : [block]
     applicable, items = _parse_gesture_block(entries, _type_name(document_type);
                                              scope = __module__)
+    table = gensym(:gesture_table)
 
-    # Emit a `get_document_gesture_bindings_own(::Type{DocumentType})` method holding
-    # the reified table (built fresh per call; cached by
-    # `get_document_gesture_bindings`). A method, not a mutable registry, so the
-    # bindings survive precompilation. The function name is module-qualified so the
-    # method *extends* this module's generic regardless of how the caller imported it
-    # (a bare `function get_document_gesture_bindings_own` would be hygienically
-    # gensym'd into a fresh local function instead of extending ours).
+    # Build the table once, in a hidden constant of the calling module, as
+    # `@gesture_set` does, and emit a `get_document_gesture_bindings_own(::Type{T})`
+    # method that answers it. A method, not a mutable registry, so the bindings
+    # survive precompilation. The function name is module-qualified so the method
+    # *extends* this module's generic regardless of how the caller imported it (a bare
+    # `function get_document_gesture_bindings_own` would be hygienically gensym'd into
+    # a fresh local function instead of extending ours).
     quote
-        function $(@__MODULE__).get_document_gesture_bindings_own(::Type{$(esc(document_type))})
-            _applicable = $applicable
+        const $(esc(table)) = let _applicable = $applicable
             GestureBinding[$(items...)]
+        end
+        function $(@__MODULE__).get_document_gesture_bindings_own(
+                ::Type{$(esc(document_type))})
+            $(esc(table))
         end
     end
 end
@@ -214,5 +237,5 @@ macro gesture_set(name, block)
 end
 
 # Best-effort domain tag from the document-type expression (the bare type name).
-_type_name(document_type) = document_type isa Symbol ? string(document_type) :
-                            document_type isa Expr ? string(document_type) : "document"
+_type_name(document_type) =
+    document_type isa Union{Symbol, Expr} ? string(document_type) : "document"

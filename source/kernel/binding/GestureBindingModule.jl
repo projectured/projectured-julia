@@ -31,12 +31,12 @@ module GestureBindingModule
 using ..DocumentModule
 using ..EventModule
 using ..IntentModule
+using ..SelectionModule
 
 export GestureBinding,
        get_document_gesture_bindings, get_document_gesture_bindings_own,
        get_instance_gesture_bindings, get_applicable_gesture_bindings,
        fire_gesture_bindings, fire_named_gesture_binding,
-       collect_binding_intents,
        read_gesture, read_bound_gesture,
        var"@gestures", var"@gesture_set"
 

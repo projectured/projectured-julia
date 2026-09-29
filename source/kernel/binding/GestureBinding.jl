@@ -39,12 +39,6 @@ GestureBinding(pattern, operation; applicable = (document, selection) -> true,
 # `get_document_gesture_bindings` walks the supertype chain over those methods.
 # ─────────────────────────────────────────────────────────────────────────
 
-"""
-    get_document_gesture_bindings_own(::Type{T}) -> Vector{GestureBinding}
-
-The bindings declared *directly* on type `T` by `@gestures T …` (default empty). Use
-[`get_document_gesture_bindings`](@ref) to also collect inherited supertype bindings.
-"""
 get_document_gesture_bindings_own(::Type) = GestureBinding[]
 
 """
@@ -56,21 +50,23 @@ first, followed by each supertype's, walking up the chain. The result is the rei
 table the [`read_bound_gesture`](@ref) interpreter fires and an inspector shows —
 one source of truth.
 
-The walk is recomputed per call rather than memoised: a process-wide cache keyed by
-type is exactly the kind of module-level mutable state that ties independent
-editors together (PAR-NO-PROJECTION-GLOBALS, PAR-PER-EDITOR-STATE), and appending a
-handful of vectors costs nothing next to the event that provoked it.
+The walk runs on each call and is not memoised: a process-wide cache keyed by type
+is exactly the kind of module-level mutable state that ties independent editors
+together (PAR-NO-PROJECTION-GLOBALS, PAR-PER-EDITOR-STATE). Each table that
+`@gestures` declares is a constant, built once when its module loads, so the walk
+only appends a handful of vectors, which costs nothing next to the event that
+provoked it.
 """
 function get_document_gesture_bindings(T::Type)
     result = GestureBinding[]
     S = T
     while true
-        # Kind-parameterized document types carry their bindings on the bare stem —
-        # the UnionAll the `@gestures` method dispatches on. The supertype walk never
-        # visits that stem, so normalize each concrete level to its UnionAll base
-        # before the registry lookup.
+        append!(result, get_document_gesture_bindings_own(S))
+        # A kind-parameterized document type carries its bindings on the bare stem,
+        # the UnionAll that `@gestures` names. The supertype walk never visits that
+        # stem, so each concrete level also asks its UnionAll.
         base = S isa DataType ? S.name.wrapper : S
-        append!(result, get_document_gesture_bindings_own(base))
+        base === S || append!(result, get_document_gesture_bindings_own(base))
         S === Any && break
         S = supertype(S)
     end
@@ -79,16 +75,6 @@ end
 get_document_gesture_bindings(document::Document) =
     get_document_gesture_bindings(typeof(document))
 
-"""
-    get_instance_gesture_bindings(document) -> Vector{GestureBinding}
-
-Per-*instance* gesture bindings carried by `document` itself, checked ahead of the
-per-type table so an instance can add, override (by shadowing a same-pattern
-default), or suppress behavior. Default empty, so any object that does not opt in
-behaves as if it had none. Because the default is empty and untyped it also serves
-values that are not `Document`s — pass such a target's selection to
-[`read_bound_gesture`](@ref) explicitly.
-"""
 get_instance_gesture_bindings(document) = GestureBinding[]
 
 """
@@ -215,7 +201,7 @@ function read_bound_gesture(target, event; claimed = nothing)
     # "no bindings" would register a dependency on it for nothing.
     isempty(bindings) && return nothing
     return fire_gesture_bindings(bindings, target, event;
-                                 selection = getfield(target, :selection)[], claimed)
+                                 selection = get_selection(target), claimed)
 end
 
 # The instance's own bindings ahead of its type's, so an instance shadows a
@@ -240,6 +226,6 @@ The subset of `bindings` whose `applicable` precondition holds for `document`'s
 current selection — the ones that would fire in the state the document is in.
 """
 function get_applicable_gesture_bindings(document, bindings)
-    selection = getfield(document, :selection)[]
+    selection = get_selection(document)
     GestureBinding[b for b in bindings if b.applicable(document, selection)]
 end
