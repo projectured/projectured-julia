@@ -237,3 +237,70 @@ function format_call_sites(sites; root::AbstractString = "")
     end
     join(lines, '\n')
 end
+
+# ═══════════════════════════════════════════════════════════════════════
+# The code of a definition
+# ═══════════════════════════════════════════════════════════════════════
+
+# The first line of each `struct` and `abstract type` in the Julia files under
+# `roots`, by the name it declares. A type that a macro declares is found here,
+# because its methods point at the code the macro generates, not at the type.
+function _collect_type_declarations(roots)
+    found = Dict{String,Tuple{String,Int}}()
+    pattern = r"^\s*(?:@\w+\s+)*(?:mutable\s+)?struct\s+(\w+)|^\s*abstract\s+type\s+(\w+)"
+    for root in roots, (folder, _, files) in walkdir(root), file in files
+        endswith(file, ".jl") || continue
+        path = joinpath(folder, file)
+        for (index, line) in enumerate(eachline(path))
+            m = match(pattern, line)
+            m === nothing && continue
+            name = something(m.captures[1], m.captures[2])
+            haskey(found, name) || (found[name] = (path, index))
+        end
+    end
+    found
+end
+
+# Where `name` of `mod` is defined: the line of a method the module defines that
+# names it, or the declaration of a type, or `nothing`.
+function _find_definition_place(mod::Module, value, name::AbstractString, declarations, lines_of)
+    bare = lstrip(name, '@')
+    if value isa Function || value isa Type
+        for method in methods(value)
+            method.module === mod || continue
+            file = String(method.file)
+            isfile(file) || continue
+            text = get(get!(() -> readlines(file), lines_of, file), Int(method.line), "")
+            occursin(bare, text) && return (file, Int(method.line))
+        end
+    end
+    get(declarations, bare, nothing)
+end
+
+"""
+    collect_definition_code(entries, modules, roots; lines = 15, limit = 800)
+        -> Dict{String,String}
+
+The first `lines` lines of the definition of each function and type of `entries`,
+cut at `limit` characters, by qualified name. The code starts at the line that
+defines the name, so the docstring above it is not in it. `modules` maps the name
+of a module to the module; `roots` are the folders a type that a macro declares
+is looked for in. A name whose definition is not found has no code.
+"""
+function collect_definition_code(entries, modules, roots; lines::Int = 15, limit::Int = 800)
+    declarations = _collect_type_declarations(roots)
+    lines_of = Dict{String,Vector{String}}()
+    code = Dict{String,String}()
+    for entry in entries
+        entry.kind in ("function", "type") || continue
+        module_name, name = String.(split(entry.qualname, '.'; limit = 2))
+        mod = get(modules, module_name, nothing)
+        (mod === nothing || !isdefined(mod, Symbol(name))) && continue
+        place = _find_definition_place(mod, getfield(mod, Symbol(name)), name, declarations, lines_of)
+        place === nothing && continue
+        file, line = place
+        text = get!(() -> readlines(file), lines_of, file)
+        code[entry.qualname] = _cut_text(join(text[line:min(end, line + lines - 1)], '\n'), limit)
+    end
+    code
+end

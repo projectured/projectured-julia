@@ -36,10 +36,19 @@ function test_search_ranking()
         @test seen[end].context == ""
     end
 
-    @testset "a candidate shows its name, its documentation and its calls" begin
+    @testset "a candidate shows its name, its documentation, its code and its calls" begin
         text = make_candidate_text(entries[1]; call_sites = "- A.jl:3: `open_pane!(e, d)`")
         @test startswith(text, "name: Panes.open_pane!\nkind: function\nsignature: open_pane!()")
         @test endswith(text, "calls:\n- A.jl:3: `open_pane!(e, d)`")
+        with_code = make_candidate_text(entries[1]; code = "function open_pane!(e, d)\n    push!(e, d)")
+        @test endswith(with_code, "code:\nfunction open_pane!(e, d)\n    push!(e, d)")
+        # A choice shows the first line of the code of an entry with no first sentence.
+        bare = _make_ranking_entry("Panes.close_all!")
+        @test _make_choice_line(bare) == "Panes.close_all!"
+        @test _make_choice_line(bare, "function close_all!(editor)\n    empty!(editor)") ==
+              "Panes.close_all!: function close_all!(editor)"
+        @test _make_choice_line(entries[1], "function open_pane!(e, d)") ==
+              "Panes.open_pane!: Put a document in a new tab."
     end
 
     # A choice that likes the options whose line names what the sentence names.

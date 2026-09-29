@@ -79,5 +79,38 @@ function test_call_site()
         text = format_call_sites(ranked[1:1]; root = folder)
         @test text == "- B.jl:3 in `h()`: `f()`"
     end
+
+    @testset "the code of a definition starts at the definition, not at its docstring" begin
+        file = joinpath(folder, "Definitions.jl")
+        write(file, """
+            module CodeToy
+            \"\"\"
+                scale_all(values) -> Vector
+
+            Doubles every value.
+            \"\"\"
+            function scale_all(values)
+                [2v for v in values]
+            end
+            struct Plain
+                size::Int
+            end
+            macro declare(expression)
+                esc(expression)
+            end
+            @declare struct Declared
+                width::Int
+            end
+            end
+            """)
+        toy = Base.include(Main, file)
+        entry(kind, name) = ToolModule._ApiEntry(kind, "CodeToy." * name, "", "", "", "")
+        code = collect_definition_code([entry("function", "scale_all"), entry("type", "Plain"),
+                                        entry("type", "Declared")],
+                                       Dict("CodeToy" => toy), [folder]; lines = 2)
+        @test code["CodeToy.scale_all"] == "function scale_all(values)\n    [2v for v in values]"
+        @test code["CodeToy.Plain"] == "struct Plain\n    size::Int"
+        @test startswith(code["CodeToy.Declared"], "@declare struct Declared")
+    end
 end
 end

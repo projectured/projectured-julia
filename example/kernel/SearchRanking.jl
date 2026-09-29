@@ -38,19 +38,21 @@ make_search_question(question::ScaleQuestion) =
 const _CANDIDATE_DOCUMENTATION_LIMIT = 1500
 
 """
-    make_candidate_text(entry; call_sites = "") -> String
+    make_candidate_text(entry; call_sites = "", code = "") -> String
 
 What a classifier reads of one entry: its name, its kind, its signature, its
-documentation cut at 1,500 characters, and the `call_sites` as
-[`format_call_sites`](@ref) writes them, when there are any.
+documentation cut at 1,500 characters, the first lines of its definition as
+`code`, and the `call_sites` as [`format_call_sites`](@ref) writes them, each
+when there is one.
 """
-function make_candidate_text(entry; call_sites::AbstractString = "")
+function make_candidate_text(entry; call_sites::AbstractString = "", code::AbstractString = "")
     io = IOBuffer()
     println(io, "name: ", entry.qualname)
     println(io, "kind: ", entry.kind)
     isempty(entry.signature) || println(io, "signature: ", entry.signature)
     documentation = first(entry.full, _CANDIDATE_DOCUMENTATION_LIMIT)
     println(io, "documentation:\n", isempty(documentation) ? "(none)" : documentation)
+    isempty(code) || println(io, "code:\n", code)
     isempty(call_sites) || print(io, "calls:\n", call_sites)
     String(rstrip(String(take!(io))))
 end
@@ -61,21 +63,24 @@ end
 What a classifier reads of a part of a guide: the guide, the heading, and the
 text cut at 1,500 characters. A guide has no call sites.
 """
-make_candidate_text(unit::ToolModule._GuideSection; call_sites::AbstractString = "") =
+make_candidate_text(unit::ToolModule._GuideSection; call_sites::AbstractString = "",
+                    code::AbstractString = "") =
     "guide: " * unit.guide * (isempty(unit.heading) ? "" : "\nsection: " * unit.heading) *
     "\ntext:\n" * first(unit.body, _CANDIDATE_DOCUMENTATION_LIMIT)
 
 # The text a meaning vector reads of one entry: the text of the search, with the
 # call sites after it, cut to the length a vector reads well. A part of a guide
 # reads as the search reads its first chunk.
-_make_meaning_candidate_text(unit::ToolModule._GuideSection, call_sites::AbstractString) =
+_make_meaning_candidate_text(unit::ToolModule._GuideSection, call_sites::AbstractString,
+                             code::AbstractString = "") =
     first(ToolModule._get_meaning_texts(unit))
 
-function _make_meaning_candidate_text(entry, call_sites::AbstractString)
-    isempty(call_sites) && return ToolModule._get_meaning_text(entry)
-    calls = "\n\ncalls:\n" * call_sites
-    budget = max(0, ToolModule._MEANING_CHUNK_CHARACTERS - length(calls))
-    first(entry.qualname * "\n" * entry.full, budget) * calls
+function _make_meaning_candidate_text(entry, call_sites::AbstractString, code::AbstractString = "")
+    isempty(call_sites) && isempty(code) && return ToolModule._get_meaning_text(entry)
+    after = (isempty(code) ? "" : "\n\ncode:\n" * code) *
+            (isempty(call_sites) ? "" : "\n\ncalls:\n" * call_sites)
+    budget = max(0, ToolModule._MEANING_CHUNK_CHARACTERS - length(after))
+    first(entry.qualname * "\n" * entry.full, budget) * after
 end
 
 # The text a search reads of a question: the sentence, and the context before it
@@ -95,6 +100,9 @@ _get_unit_key(unit::ToolModule._GuideSection) =
 _get_unit_call_sites(call_sites, entry::ToolModule._ApiEntry) =
     call_sites === nothing ? "" : get(call_sites, entry.qualname, "")
 _get_unit_call_sites(call_sites, unit::ToolModule._GuideSection) = ""
+# The code of a unit as text: a map by qualified name, or nothing.
+_get_unit_code(code, entry) = code === nothing ? "" : get(code, entry.qualname, "")
+_get_unit_code(code, unit::ToolModule._GuideSection) = ""
 
 # The units by their words, as each search ranks its own: an API entry by its
 # name and its prose, a part of a guide by its heading and its body.
@@ -129,20 +137,23 @@ make_word_ranker(; context::Bool = false) =
                  end)
 
 """
-    make_meaning_ranker(model; call_sites = nothing, context = false, vectors = Dict())
-        -> SearchRanker
+    make_meaning_ranker(model; call_sites = nothing, code = nothing, context = false,
+                        vectors = Dict()) -> SearchRanker
 
 The ranking by meaning vectors of `model`, a `MeaningModel`. With `call_sites`, a
 map from the qualified name of an entry to its call sites as text, the vector of
-an entry reads them after its documentation. With `context`, the vector of the
+an entry reads them after its documentation, and with `code`, a map from the
+qualified name to the first lines of its definition, the code. With `context`, the vector of the
 question reads the context before the sentence. `vectors` keeps every vector by
 its text, so two rankers and two runs share them.
 """
-function make_meaning_ranker(model; call_sites = nothing, context::Bool = false,
+function make_meaning_ranker(model; call_sites = nothing, code = nothing, context::Bool = false,
                              vectors::Dict{String,Vector{Float32}} = Dict{String,Vector{Float32}}())
-    name = "meaning" * (call_sites === nothing ? "" : ", call sites") * (context ? ", context" : "")
+    name = "meaning" * (code === nothing ? "" : ", code") *
+           (call_sites === nothing ? "" : ", call sites") * (context ? ", context" : "")
     SearchRanker(name, (question, entries) -> begin
-        texts = String[_make_meaning_candidate_text(entry, _get_unit_call_sites(call_sites, entry))
+        texts = String[_make_meaning_candidate_text(entry, _get_unit_call_sites(call_sites, entry),
+                                                    _get_unit_code(code, entry))
                        for entry in entries]
         _compute_missing_vectors!(vectors, model, texts)
         query = only(ToolModule._normalize_meaning_columns(
@@ -166,12 +177,13 @@ end
 
 """
     make_classifier_ranker(name, score; first_stage = SearchRanker[], depth = 50,
-                           call_sites = nothing, context = true) -> SearchRanker
+                           call_sites = nothing, code = nothing, context = true) -> SearchRanker
 
 The ranking by a classifier. `score(question, texts)` answers a probability for
 each text, that the entry does what the question asks or a step of it, and the
 input tokens it read; `texts` are the entries as [`make_candidate_text`](@ref)
-writes them, with their `call_sites` when a map of them is given. The question
+writes them, with their `call_sites` and their `code` when a map of them is
+given. The question
 reaches `score` whole, and the `context` flag says whether the classifier may
 read its context.
 
@@ -181,7 +193,8 @@ not in the answer.
 """
 function make_classifier_ranker(name::AbstractString, score::Function;
                                 first_stage::Vector{SearchRanker} = SearchRanker[],
-                                depth::Int = 50, call_sites = nothing, context::Bool = true)
+                                depth::Int = 50, call_sites = nothing, code = nothing,
+                                context::Bool = true)
     SearchRanker(String(name), (question, entries) -> begin
         candidates = if isempty(first_stage)
             entries
@@ -196,7 +209,7 @@ function make_classifier_ranker(name::AbstractString, score::Function;
             end
             [pool[key] for key in order]
         end
-        _score_candidates(score, question, candidates, call_sites, context)
+        _score_candidates(score, question, candidates, call_sites, context; code = code)
     end)
 end
 
@@ -312,9 +325,11 @@ const _CHOICE_OPTION_LIMIT = 255
 
 # The short line of an entry that a choice shows: its qualified name and the
 # first sentence of its documentation.
-_make_choice_line(entry) =
-    isempty(entry.summary) ? entry.qualname : entry.qualname * ": " * first(entry.summary, 100)
-_make_choice_line(unit::ToolModule._GuideSection) =
+_make_choice_line(entry, code::AbstractString = "") =
+    !isempty(entry.summary) ? entry.qualname * ": " * first(entry.summary, 100) :
+    isempty(code) ? entry.qualname :
+    entry.qualname * ": " * first(strip(first(split(code, '\n'))), 100)
+_make_choice_line(unit::ToolModule._GuideSection, code::AbstractString = "") =
     unit.guide * (isempty(unit.heading) ? "" : " › " * unit.heading) * ": " *
     first(replace(unit.body, r"\s+" => " "), 100)
 
@@ -330,9 +345,10 @@ _order_by(entries, probabilities) =
 
 # Score `candidates` with `score`, and answer them best first, and the tokens.
 function _score_candidates(score::Function, question::SearchQuestion, candidates, call_sites,
-                           context::Bool)
+                           context::Bool; code = nothing)
     isempty(candidates) && return (candidates, 0)
-    texts = String[make_candidate_text(entry; call_sites = _get_unit_call_sites(call_sites, entry))
+    texts = String[make_candidate_text(entry; call_sites = _get_unit_call_sites(call_sites, entry),
+                                       code = _get_unit_code(code, entry))
                    for entry in candidates]
     asked = context ? question : SearchQuestion((question.sentence, "", question.expected,
                                                  question.kind, question.source))
@@ -341,7 +357,7 @@ function _score_candidates(score::Function, question::SearchQuestion, candidates
 end
 
 """
-    make_cascade_ranker(name, choose, score; keep = 3, call_sites = nothing,
+    make_cascade_ranker(name, choose, score; keep = 3, call_sites = nothing, code = nothing,
                         context = true, parallel = 1) -> SearchRanker
 
 The shape of a choice and then a score. `choose(question, options)` answers a
@@ -350,21 +366,22 @@ an identifier and a short line. The entries go to the choice in groups of 255,
 and the `keep` best of each group go to `score`, with their full text. The
 probabilities of one choice add up to one within its group, so they are not
 compared across groups: each group gives its best few. `parallel` choices are
-asked at once.
+asked at once. With `code`, an entry with no first sentence shows the first line
+of its code in the choice, and every scored entry carries its code.
 """
 function make_cascade_ranker(name::AbstractString, choose::Function, score::Function;
-                             keep::Int = 3, call_sites = nothing, context::Bool = true,
-                             parallel::Int = 1)
+                             keep::Int = 3, call_sites = nothing, code = nothing,
+                             context::Bool = true, parallel::Int = 1)
     SearchRanker(String(name), (question, entries) -> begin
         groups = [collect(group) for group in Iterators.partition(entries, _CHOICE_OPTION_LIMIT)]
         chosen = asyncmap(groups; ntasks = parallel) do group
-            options = [(_get_option_id(entry, index), _make_choice_line(entry))
+            options = [(_get_option_id(entry, index), _make_choice_line(entry, _get_unit_code(code, entry)))
                        for (index, entry) in enumerate(group)]
             probabilities, used = choose(question, options)
             (first(_order_by(group, probabilities), keep), used)
         end
         kept = reduce(vcat, [first(pair) for pair in chosen]; init = Any[])
-        ranked, used = _score_candidates(score, question, kept, call_sites, context)
+        ranked, used = _score_candidates(score, question, kept, call_sites, context; code = code)
         (ranked, sum(last, chosen; init = 0) + used)
     end)
 end
