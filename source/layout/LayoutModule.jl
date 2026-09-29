@@ -43,7 +43,7 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
        ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
-       LayoutToGraphics, GridLayoutIoMap
+       LayoutToGraphics, GridLayoutIoMap, LayoutListIoMap
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
 export descend_reference_forward, shift_child_image, clip_child_to_slot
@@ -53,6 +53,7 @@ export read_child_event, make_layout_selection_ring
 include("LayoutDocument.jl")
 include("ConstraintSolver.jl")
 include("LayoutToGraphics.jl")
+include("LayoutList.jl")
 include("CollectionToLayout.jl")
 
 end # module

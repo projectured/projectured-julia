@@ -830,6 +830,9 @@ end
 
 function print_document(p::HorizontalLayoutToGraphicsCanvas,
                           recursion, doc::HorizontalLayout, ctx)
+    # The type of `children` says which layout this is: a list draws the
+    # children a viewport shows, a vector draws them all.
+    doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :x)
     build = Cell(@computation _hl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
@@ -1048,6 +1051,9 @@ end
 
 function print_document(p::VerticalLayoutToGraphicsCanvas,
                           recursion, doc::VerticalLayout, ctx)
+    # The type of `children` says which layout this is: a list draws the
+    # children a viewport shows, a vector draws them all.
+    doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :y)
     # A single cell holding the laid-out stack, recomputed when `doc.children`
     # changes. The output canvas, its element list, and the child-routing
     # entries are all derived reactively from it, so adding/removing a child

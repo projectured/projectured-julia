@@ -152,6 +152,17 @@ function HorizontalLayout(children::Vector;
                      Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
+# A row of the children of a list, which it draws lazily: the children that a
+# viewport shows, walked from the head. See `LayoutList.jl`.
+function HorizontalLayout(children::ListNode;
+                          vertical_align::Symbol=:top,
+                          gap::Integer=0,
+                          child_width::Union{Nothing,SizePolicy}=nothing,
+                          child_height::Union{Nothing,SizePolicy}=nothing)
+    HorizontalLayout(Cell(children), Cell(vertical_align), Cell(Int(gap)),
+                     Cell(child_width), Cell(child_height), Cell(nothing))
+end
+
 # ── VerticalLayout ──────────────────────────────────────────────────────────
 
 """
@@ -185,6 +196,17 @@ function VerticalLayout(children::Vector;
                         child_height::Union{Nothing,SizePolicy}=nothing)
     VerticalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                    Cell(horizontal_align), Cell(Int(gap)),
+                   Cell(child_width), Cell(child_height), Cell(nothing))
+end
+
+# A column of the children of a list, which it draws lazily: the children that a
+# viewport shows, walked from the head. See `LayoutList.jl`.
+function VerticalLayout(children::ListNode;
+                        horizontal_align::Symbol=:left,
+                        gap::Integer=0,
+                        child_width::Union{Nothing,SizePolicy}=nothing,
+                        child_height::Union{Nothing,SizePolicy}=nothing)
+    VerticalLayout(Cell(children), Cell(horizontal_align), Cell(Int(gap)),
                    Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
