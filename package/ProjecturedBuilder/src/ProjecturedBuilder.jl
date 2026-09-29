@@ -36,6 +36,7 @@ include("../../../source/builder/Usage.jl")
 include("../../../source/builder/AppPackage.jl")
 include("../../../source/builder/Executable.jl")
 include("../../../source/builder/Distribution.jl")
+include("../../../source/builder/LicenceTexts.jl")
 include("../../../source/builder/PackageRelease.jl")
 include("../../../source/builder/ProjecturedProgram.jl")
 
@@ -48,9 +49,11 @@ export build_executable, compile_app!, resolve_app_project, build_info, get_smok
 export bundle_fonts!, bundle_assets!, print_build_report!, INCREMENTAL_MARK, PORTABLE_CPU_TARGET
 export build_distribution, get_staging_root, check_relocation, write_readme, report_distribution
 export get_hidden_directories, make_hidden_command
+export bundle_licence_texts!
 export build_package_release!, collect_outside_paths
 export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_OPTIONS, PROJECTURED_REQUIREMENTS,
-       PROJECTURED_LICENCES, PROJECTURED_SOURCE, make_projectured_usage
+       PROJECTURED_LICENCES, PROJECTURED_SOURCE, PROJECTURED_CREDITS, PROJECTURED_EXTRA_TEXTS,
+       make_projectured_usage
 export build_projectured_executable, build_projectured_distribution
 export PROJECTURED_ASSETS, check_projectured_copy
 export PROJECTURED_RELEASE_EXCLUSIONS, PROJECTURED_PACKAGE_ASSETS, PROJECTURED_JULIA_COMPAT,

@@ -217,6 +217,91 @@ function test_builder()
             @test PROJECTURED_STAND_INS == ["alsa_plugins_jll" => "5ac2f6bb-493e-5871-9171-112d4c21a6e7"]
         end
 
+        @testset "an archive carries the licence texts of what it holds" begin
+            root = mktempdir()
+            # A standard-library JLL whose artifact, for this platform, is a local
+            # tarball with one licence text.
+            artifact = joinpath(root, "artifact")
+            mkpath(joinpath(artifact, "share", "licenses", "Fake"))
+            write(joinpath(artifact, "share", "licenses", "Fake", "LICENSE"), "fake licence\n")
+            tarball = joinpath(root, "Fake.tar.gz")
+            run(`tar -czf $tarball -C $artifact share`)
+            digest = bytes2hex(open(ProjecturedBuilder.sha256, tarball))
+            stdlib = joinpath(root, "stdlib")
+            mkpath(joinpath(stdlib, "Fake_jll"))
+            write_stdlib(sha) = write(joinpath(stdlib, "Fake_jll", "StdlibArtifacts.toml"), """
+                [[Fake]]
+                arch = "$(Sys.ARCH)"
+                git-tree-sha1 = "0000000000000000000000000000000000000000"
+                libc = "glibc"
+                os = "linux"
+
+                    [[Fake.download]]
+                    sha256 = "$sha"
+                    url = "file://$tarball"
+                """)
+            write_stdlib(digest)
+            # A package from a registry, found in a depot by its slug; a standard
+            # library and a package reached by path carry no tree hash.
+            uuid = "00000000-0000-0000-0000-0000000000bb"
+            tree = "1111111111111111111111111111111111111111"
+            depot = joinpath(root, "depot")
+            package = joinpath(depot, "packages", "Foo",
+                               Base.version_slug(Base.UUID(uuid), Base.SHA1(tree)))
+            mkpath(package)
+            write(joinpath(package, "LICENSE.md"), "foo licence\n")
+            write(joinpath(package, "README.md"), "not a licence\n")
+            project = joinpath(root, "project")
+            mkpath(project)
+            write(joinpath(project, "Manifest.toml"), """
+                [[deps.Foo]]
+                git-tree-sha1 = "$tree"
+                uuid = "$uuid"
+                version = "1.2.3"
+
+                [[deps.Dates]]
+                uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+                version = "1.11.0"
+                """)
+            thirdparty = joinpath(root, "THIRDPARTY.md")
+            write(thirdparty, "third parties\n")
+            # A bundle whose one artifact carries its own texts.
+            bundle = joinpath(root, "bundle")
+            mkpath(joinpath(bundle, "share", "julia", "artifacts", "abc", "share", "licenses", "Bar"))
+            write(joinpath(bundle, "share", "julia", "artifacts", "abc", "share", "licenses", "Bar",
+                           "COPYING"), "bar\n")
+
+            readme = read(bundle_licence_texts!(bundle; project, cache = joinpath(root, "cache"),
+                                                credits = ["A credit."], julia_thirdparty = thirdparty,
+                                                extra_texts = ["Certs" => thirdparty],
+                                                stdlib, depots = [depot]), String)
+            licenses = joinpath(bundle, "share", "licenses")
+            @test isfile(joinpath(licenses, "julia", "LICENSE.md"))
+            @test read(joinpath(licenses, "julia", "THIRDPARTY.md"), String) == "third parties\n"
+            @test read(joinpath(licenses, "stdlib", "Fake", "LICENSE"), String) == "fake licence\n"
+            @test isfile(joinpath(licenses, "stdlib", "Certs", "THIRDPARTY.md"))
+            @test read(joinpath(licenses, "packages", "Foo", "LICENSE.md"), String) == "foo licence\n"
+            @test !isfile(joinpath(licenses, "packages", "Foo", "README.md"))
+            @test !isdir(joinpath(licenses, "packages", "Dates"))
+            for line in ("  Certs", "  Fake", "  Foo 1.2.3", "  Bar: share/julia/artifacts/abc/share/licenses/Bar",
+                         "  A credit.")
+                @test occursin(line, readme)
+            end
+            # An artifact whose bytes are not the ones its JLL names stops the build.
+            write_stdlib("0"^64)
+            @test_throws ErrorException bundle_licence_texts!(bundle; project,
+                cache = joinpath(root, "other-cache"), julia_thirdparty = thirdparty, stdlib,
+                depots = [depot])
+            # And the README of the archive points to the index and holds the credits.
+            text = read(write_readme(mktempdir(); name = "thing", version = "0.1.0",
+                                     requirements = String[], third_party = true,
+                                     credits = ["A credit."]), String)
+            @test occursin("share/licenses/README", text) && occursin("A credit.", text)
+            @test PROJECTURED_CREDITS[1] ==
+                  "This software is based in part on the work of the Independent JPEG Group."
+            rm(root; recursive = true)
+        end
+
         @testset "every binary ends in silence on SIGTERM" begin
             context = _test_context()
             source = _generated_source(context; name = "quiet", usage = nothing)

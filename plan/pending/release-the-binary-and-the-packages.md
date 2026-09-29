@@ -357,10 +357,27 @@ pixels, all inside the box of the one word in Liberation Serif Italic: the
 glyphs changed a little, the layout did not move. `test_sdl()` 719,
 `test_tool_views()` 19 (the inspectors draw their headings in Liberation Sans
 Bold) and `test_hover_probe()` 8 pass.
-- [ ] The archive carries the third-party texts of the results below: extend
+- [x] The archive carries the third-party texts of the results below: extend
       `PROJECTURED_LICENCES`, the `README` text and the assets in
-      `source/builder/`, with a test in `test/builder/BuilderTest.jl`. This
-      waits for R3a and R18, because both change the list.
+      `source/builder/`, with a test in `test/builder/BuilderTest.jl`. Done on
+      2026-09-30, except the source archive of R18, which is its own step.
+
+      `bundle_licence_texts!` (`source/builder/LicenceTexts.jl`) writes into
+      `share/licenses/` of the copy that is archived: Julia's `LICENSE.md` and
+      the `THIRDPARTY.md` of its tag; the texts of every standard-library JLL,
+      from the `share/licenses/` of its artifact for this platform, which it
+      downloads by the URL of `StdlibArtifacts.toml`, checks against its
+      SHA-256, and caches in `build/licence-cache`; the licence files of every
+      registered package of the manifest of the binary, from the depot; the
+      MPL-2.0 text for `cert.pem`, whose JLL names no artifact
+      (`PROJECTURED_EXTRA_TEXTS`); and a `README` that lists all of it, names the
+      texts that each artifact carries itself, and holds the two credits
+      (`PROJECTURED_CREDITS`: the IJG sentence, and the FreeType credit with
+      2026, the year of the shipped FreeType 2.14.3). `build_distribution` calls
+      it after the checks, and the README of the archive points to it. On the
+      bundle of the test build: 23.5 s, 23 library folders, 54 packages, all
+      with a licence file, 1.1 MB of texts, 187 MB of downloads in the cache.
+      `test_builder()` 196.
 
 Results of 2026-09-29. The evidence (the manifest list, the `LD_DEBUG` log of
 a start, the `ffmpeg` build flags, the font name tables and the downloaded

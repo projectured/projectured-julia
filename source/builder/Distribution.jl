@@ -11,7 +11,8 @@
 
 """
     build_distribution(context; name, bundle, requirements, expect, version,
-                         output, staging, source) -> String
+                         output, staging, source, licence_texts, project,
+                         licence_cache, credits, extra_texts) -> String
 
 Check that the bundle of the binary called `name` travels, and write it as an
 archive. Answers the path of the archive.
@@ -38,6 +39,13 @@ archive. Answers the path of the archive.
   the archive.
 - `source` — where the source code of the program is, which the README names
   with the tag of `version`; `nothing` names none.
+- `licence_texts` — whether the archive carries the licence texts of what the
+  bundle holds besides the program: [`bundle_licence_texts!`](@ref) writes them,
+  from `project`, the app package of the build, with the downloads it needs kept
+  in `licence_cache`. `credits` are sentences that a licence asks to appear in
+  the documentation; the README of the archive and the index hold them.
+  `extra_texts`, `"<name>" => "<file of context.root>"`, adds the text of a
+  library whose JLL names no artifact to take it from.
 
 The archive unpacks into `<name>-<version>/` and never into the directory it was
 unpacked in.
@@ -52,7 +60,12 @@ function build_distribution(context::BuildContext; name::AbstractString,
                               staging::Union{AbstractString,Nothing} = nothing,
                               hidden = get_hidden_directories(context),
                               check = nothing,
-                              source::Union{AbstractString,Nothing} = nothing)
+                              source::Union{AbstractString,Nothing} = nothing,
+                              licence_texts::Bool = true,
+                              project::AbstractString = joinpath(context.root, "build", "app", String(name)),
+                              licence_cache::AbstractString = joinpath(context.root, "build", "licence-cache"),
+                              credits = String[],
+                              extra_texts = Pair{String,String}[])
     bundle = abspath(bundle)
     isdir(bundle) ||
         error("build_distribution: no bundle at $bundle — build the executable first")
@@ -93,7 +106,11 @@ function build_distribution(context::BuildContext; name::AbstractString,
                   "its licence may not be distributed")
         cp(source, joinpath(staged, basename(String(licence))))
     end
-    write_readme(staged; name, version, requirements, licences, source)
+    licence_texts && bundle_licence_texts!(staged; project, cache = licence_cache, credits,
+                                           extra_texts = [name => joinpath(context.root, file)
+                                                          for (name, file) in extra_texts])
+    write_readme(staged; name, version, requirements, licences, source,
+                 third_party = licence_texts, credits)
 
     mkpath(output)
     archive = joinpath(abspath(output),
@@ -216,11 +233,14 @@ function check_relocation(executable::AbstractString, working_directory::Abstrac
 end
 
 """
-    write_readme(staged; name, version, requirements, licences, source) -> String
+    write_readme(staged; name, version, requirements, licences, source,
+                 third_party, credits) -> String
 
 What a person who unpacks the archive reads. `source`, when a caller gives it,
 says where the source code of this version is, which a licence such as MPL-2.0
-asks of a program in executable form.
+asks of a program in executable form. `third_party` says that the archive
+carries the licences of its other parts, and `credits` are sentences that a
+licence asks to appear in the documentation.
 
 The requirements are the reason a distribution is a function per binary rather
 than one call: what the target machine still needs is the one thing that differs
@@ -228,7 +248,9 @@ between them.
 """
 function write_readme(staged::AbstractString; name, version, requirements,
                         licences = String[],
-                        source::Union{AbstractString,Nothing} = nothing)
+                        source::Union{AbstractString,Nothing} = nothing,
+                        third_party::Bool = false,
+                        credits = String[])
     lines = ["$name $version",
              "",
              "Built $(Dates.format(Dates.now(), "yyyy-mm-dd")) by ProjecturedBuilder, for " *
@@ -267,6 +289,15 @@ function write_readme(staged::AbstractString; name, version, requirements,
         push!(lines, "The source code of this version: $source, tag v$version.")
         push!(lines, "")
     end
+    if third_party
+        push!(lines, "The licences of the other parts of this archive, the Julia runtime and the")
+        push!(lines, "libraries among them: share/licenses/README.")
+        push!(lines, "")
+    end
+    for credit in credits
+        push!(lines, String(credit))
+    end
+    isempty(credits) || push!(lines, "")
     push!(lines, "What went into this build:")
     push!(lines, "")
     push!(lines, "    ./bin/$name --build-info")

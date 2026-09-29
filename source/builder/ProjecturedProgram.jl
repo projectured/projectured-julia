@@ -69,6 +69,28 @@ copy of the code carries its text.
 const PROJECTURED_LICENCES = ["LICENSE"]
 
 """
+    PROJECTURED_CREDITS
+
+Sentences that the licence of a library in the binary asks to appear in its
+documentation: the IJG licence of libjpeg-turbo, and the FreeType License, with
+the year of the FreeType that the binary carries (2.14.3, copyright 1996-2026).
+"""
+const PROJECTURED_CREDITS = [
+    "This software is based in part on the work of the Independent JPEG Group.",
+    "Portions of this software are copyright © 2026 The FreeType Project " *
+        "(https://freetype.org). All rights reserved."]
+
+"""
+    PROJECTURED_EXTRA_TEXTS
+
+The licence texts that the archive takes from this repository, as
+`"<name>" => "<file>"`: the certificates of Mozilla that Julia ships in
+`share/julia/cert.pem` are under MPL-2.0, and their JLL names no artifact to take
+the text from. It is the text of `LICENSE`.
+"""
+const PROJECTURED_EXTRA_TEXTS = ["MozillaCACerts" => "LICENSE"]
+
+"""
     PROJECTURED_SOURCE
 
 Where the source code of this repository is. The README of an archive names it,
@@ -176,6 +198,7 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
     build_distribution(context; name = name, bundle = bundle,
                        requirements = PROJECTURED_REQUIREMENTS,
                        licences = PROJECTURED_LICENCES, source = PROJECTURED_SOURCE,
+                       credits = PROJECTURED_CREDITS, extra_texts = PROJECTURED_EXTRA_TEXTS,
                        expect = vcat(["share/projectured/font"], last.(PROJECTURED_ASSETS)),
                        check = check_projectured_copy)
 end
