@@ -284,8 +284,15 @@ end
 # session, with nothing else rewired. Done from `__init__` so the mutation
 # survives precompilation; defining a second method instead would be a
 # precompile-fatal overwrite.
+#
+# Only when the shim is built. Without it this package could only hand each
+# layout to the engine of `ProjecturedGraph`, and a registration then would take
+# the place of an engine that another package registered first. A shim built
+# during a session is used by `AdaptagramsLayout` at once, and by
+# `DeferredLayout` after the next start.
 
 function __init__()
+    isavailable() || return nothing
     register_layout_engine!((; orthogonal::Bool = false) ->
                                 AdaptagramsLayout(orthogonal = orthogonal))
 end

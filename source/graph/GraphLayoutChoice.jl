@@ -68,9 +68,10 @@ make_pure_julia_layout_engine(::Integer; orthogonal::Bool = false) = Fruchterman
 """
     resolve_layout_engine(engine[, vertex_count]) -> GraphLayoutEngine
 
-What a `DeferredLayout` is right now: the registered engine, or the pure-Julia
-choice for a graph of `vertex_count` vertices. Any other engine is already
-itself.
+What a `DeferredLayout` is right now: the registered engine, itself resolved
+for a graph of `vertex_count` vertices, or the pure-Julia choice. Any other
+engine is itself, unless it adds a method that decides by the size of the
+graph, so a layout records the engine that really ran.
 
 Without a count it answers the choice for an empty graph, which is what a caller
 asking "what would I get?" outside a layout means.
@@ -79,9 +80,13 @@ resolve_layout_engine(engine::GraphLayoutEngine, ::Integer = 0) = engine
 
 function resolve_layout_engine(engine::DeferredLayout, vertex_count::Integer = 0)
     factory = _PREFERRED_ENGINE[]
-    factory === nothing ?
-        make_pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal) :
-        factory(; orthogonal = engine.orthogonal)
+    factory === nothing &&
+        return make_pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal)
+    registered = factory(; orthogonal = engine.orthogonal)
+    # A factory that answers a deferred engine would answer it again forever.
+    registered isa DeferredLayout &&
+        return make_pure_julia_layout_engine(vertex_count; orthogonal = engine.orthogonal)
+    resolve_layout_engine(registered, vertex_count)
 end
 
 get_supported_constraint_kinds(engine::DeferredLayout) =

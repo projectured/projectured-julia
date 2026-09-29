@@ -13,6 +13,12 @@ function _are_boxes_disjoint(positions)
     true
 end
 
+# An engine that decides by the size of the graph, as an engine that a package
+# registers can: the grid from ten vertices up, the force-directed engine below.
+struct _SizeChoosingTestEngine <: GraphLayoutEngine end
+ProjecturedGraph.GraphModule.resolve_layout_engine(::_SizeChoosingTestEngine, vertex_count::Integer = 0) =
+    vertex_count >= 10 ? GridEmbedding() : FruchtermanReingoldLayout()
+
 _box_centre(box) = (box[1] + box[3]/2, box[2] + box[4]/2)
 _box_distance(a, b) = hypot((_box_centre(a) .- _box_centre(b))...)
 
@@ -137,6 +143,19 @@ function test_fruchterman_reingold_layout()
             @test centre[2] ≈ first_centre[2] atol = 1
         end
         @test _are_boxes_disjoint(positions)
+    end
+
+    @testset "a registered engine is resolved for the size of the graph" begin
+        register_layout_engine!((; orthogonal = false) -> _SizeChoosingTestEngine())
+        try
+            @test resolve_layout_engine(DeferredLayout(), 5) isa FruchtermanReingoldLayout
+            @test resolve_layout_engine(DeferredLayout(), 20) isa GridEmbedding
+            # A factory that answers a deferred engine does not recurse.
+            register_layout_engine!((; orthogonal = false) -> DeferredLayout())
+            @test resolve_layout_engine(DeferredLayout(), 20) isa FruchtermanReingoldLayout
+        finally
+            register_layout_engine!(nothing)
+        end
     end
 
     @testset "a fixed size wins over the measured one" begin
