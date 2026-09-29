@@ -979,24 +979,28 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.10: Tests of the document layer
 
-- [ ] **L10-15** (Medium, Tests) — after L10-1, L10-2, L10-3, L10-4, L10-5
+- [x] **L10-15** (Medium, Tests) — after L10-1, L10-2, L10-3, L10-4, L10-5
   Add one test case for each fixed finding, in the commit of its fix. Add a kernel test of SelectionDocument and unwrap_selection with a toy document, of `get_edited_field` and `replace_wrapped_document!`, and direct tests of `@forward_protocol` and `@adapt_map_protocol`.
   *Test:* test_document_contract(), test_document_macro(), test_document_walk(), test_bounded_sync().
-- [ ] **L10-26** (Low, Tests) — after L12-5
+  *Done:* lane A, ededda49a.
+- [x] **L10-26** (Low, Tests) — after L12-5
   Declare DmValueSel at the top level with the other fixtures. Move the four selection testsets into the kernel selection test file that L12-5 adds. Delete the history phrases.
   *Test:* test_document_macro() prints no world-age warning; the moved cases pass in the kernel selection test.
+  *Done:* lane A, 95f946579. The one selection testset of DocumentContractTest.jl moved as four sets; the 8 world-age warnings of the kernel log are gone.
 
 ### Step 4.11: Tests of the reference layer
 
-- [ ] **L11-19** (Medium, Tests) — after L11-1, L11-3, L11-4, L11-7
+- [x] **L11-19** (Medium, Tests) — after L11-1, L11-3, L11-4, L11-7
   Add toy-document tests to ReferenceEvalTest.jl for get_valid_reference_prefix, is_valid_reference, try_evaluate_reference, copy_reference, concat_references, extend_reference, fold_reference_types and search_references. Add the multi-byte, M-step, `nothing` and arm-word rows with their fixes. Rewrite TypeReferenceTest.jl on toy documents in the folded form in the kernel suite.
   *Test:* test_reference_evaluation(), test_reference_rules().
+  *Done:* lane A, 425985581. TypeReferenceTest.jl moved to the kernel on toy documents and runs in `test_kernel` (`test_all` never called the old one). The rows of `nothing` and the arm words wait for L11-2. plan/pending/test-suite-green.md still names the deleted file.
 
 ### Step 4.12: Tests of the selection layer
 
-- [ ] **L12-5** (Medium, Tests)
+- [x] **L12-5** (Medium, Tests)
   Add test/kernel/selection/SelectionTest.jl with test_selection() and test-local @document types: a mismatch throws SelectionMismatchException and keeps the cell; replace_selection! clears the divergent branch; a caret move writes no ancestor selection cell; a keeper marks a branch dormant and a later write makes it live; map_selection_forward carries the dormant state; @with_selection builds a typed path. Register it in KernelSuite.jl and ProjecturedKernelTest.jl.
   *Test:* test_selection().
+  *Done:* lane A, 74a207206 (`test_selection`). Nothing in it asserts what L12-1 or L12-2 question.
 
 ### Step 4.13: Tests of the operation and intent layers
 
@@ -1011,18 +1015,21 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.14: Tests of the binding layer
 
-- [ ] **L15-6** (Medium, Tests) — after L15-1, L15-8
+- [x] **L15-6** (Medium, Tests) — after L15-1, L15-8
   Add testsets: claimed with and without override; get_instance_gesture_bindings and the order instance before type; the three-argument read_bound_gesture; a [DC], an [M] and an [I] document; an operation that returns nothing so that a later rule fires.
   *Test:* test_gesture_binding().
-- [ ] **L15-14** (Low, Tests)
+  *Done:* lane A, 63d52e5e4.
+- [x] **L15-14** (Low, Tests)
   Delete the four testsets of matches_event_pattern and describe_event_pattern after a check that EventModuleTest.jl asserts the same cases; move a case that it lacks there. Delete 'old hand-written' from the header.
   *Test:* test_gesture_binding() and test_event_module().
+  *Done:* lane A, 63d52e5e4.
 
 ### Step 4.15: Tests of the iomap layer
 
-- [ ] **L16-3** (Medium, Tests)
+- [x] **L16-3** (Medium, Tests)
   Add test/kernel/iomap/IoMapReconcileTest.jl and IoMapDefaultsTest.jl (test_iomap_reconcile(), test_iomap_defaults()): a delete and a front insert make the later children again; an element that goes away leaves the cache; one object at two indexes gets two child IoMaps; a make_iomap that returns nothing; reconcile_child_iomap with the same and with a new object; the supertype and the kind argument of @iomap; the three accessors. Register both in KernelSuite.jl and ProjecturedKernelTest.jl.
   *Test:* test_iomap_reconcile() and test_iomap_defaults().
+  *Done:* lane A, 31abfb9b5. `reconcile_child_iomaps` calls `make_iomap` again at each computation for a slot whose answer was `nothing`, although its docstring says "only for a new or moved slot" (with L16-4). test_kernel 3487 pass and 2 broken; test_substrate 86866 and the 7 known failures.
 
 ### Step 4.16: Tests of the projection layer
 
