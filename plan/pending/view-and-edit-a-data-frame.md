@@ -666,11 +666,19 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     `get_frozen_elements` lets a content say what the held strip draws; the
     list table answers its header.
   - [x] **2.3 The horizontal clamp** (`1cafec743`), found in phase 1.
-  - [ ] **2.4 The scroll bar and the re-anchor.** They need the height of a
-    row in pixels, which only the table projection knows. The owner decides
-    how the view learns it.
-  - [ ] **2.5 The display.** It needs the choice of how the editor task is
-    pinned to one thread.
+  - [ ] **2.4 The scroll bar and the re-anchor.** They need the row at the
+    top of the pane. Each row is a canvas with its own height, and the pane
+    reads those heights in its walk from the head, but the view is a
+    projection above the widgets and must not read the state of another
+    projection. The owner (2026-09-29): "the graphics image of the row
+    already has a height, no?" Proposed: the pane over a list writes, as view
+    state with its offset, the index from the head of the row at the top of
+    the body band and that row's offset from the head; the view shares the
+    cell. Waits for the owner's word, because it is a new field of
+    `WidgetScrollPane`.
+  - [ ] **2.5 The display.** The editor task is pinned to one thread with the
+    internal `jl_set_task_tid`, as `Threads.@threads :static` does (the owner,
+    2026-09-29: "(a)"). A test fails when a release of Julia changes it.
 - [ ] **3. Refresh.** The three levels of §4.3. The triggers A, B with the
   busy flag, and D. C is a keyword that is off by default (D3).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
