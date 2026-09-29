@@ -144,9 +144,6 @@ end
 # entry this way (the reference grammar has no dedicated key step), so navigation
 # must follow it back. Dict keys may be stored as `String` or `Symbol`; the
 # recorded name is the `string(key)`, so try it as both. Results are cell-unwrapped.
-_has_field(document::AbstractDict, name) = haskey(document, name) || haskey(document, Symbol(name))
-_has_field(document, name) = hasproperty(document, Symbol(name))
-
 function _get_field(document::AbstractDict, name)
     haskey(document, name) && return unwrap_cell(document[name])
     unwrap_cell(document[Symbol(name)])
@@ -170,17 +167,13 @@ evaluate_reference_step(step::AFieldReferenceStep, document) =
 """
     TypeReferenceStep(type)
 
-A **non-navigating type checkpoint**: asserts that the node reached so far is a
-`type`. Evaluation does not descend — it stays on the current node and continues
-with the rest of the path. The point of the checkpoint is *validity*: when a
-stored path is replayed against a document whose structure has changed, a
-`TypeReferenceStep` whose recorded `type` no longer matches the actual node marks the
-**remaining path as invalid** (see [`evaluate_reference`](@ref),
-[`get_valid_reference_prefix`](@ref), [`annotate_reference_types`](@ref)).
-
-The match rule is `node isa type`. Checkpoints are normally created from
-`typeof(node)` by [`annotate_reference_types`](@ref), so on an unchanged document
-the assertion holds exactly; recording an abstract supertype is also tolerated.
+A **build-time token** for a node type. `@reference` writes a `::T` as this step,
+and so does the template engine, and [`fold_reference_types`](@ref) at once folds it
+into the `type` of the node that the next step stands on. A path that is stored,
+walked or matched records its types on its nodes and holds no such step. The step
+has no `get_reference_step_kind` and no `evaluate_reference_step`: `evaluate_reference`
+throws a `MethodError` at such a step, and `get_valid_reference_prefix` cuts the
+path there.
 """
 @document [C, M] struct TypeReferenceStep <: ReferenceStep
     type::Any
@@ -189,8 +182,8 @@ end
 """
     ReferenceTypeMismatchException(expected, actual)
 
-Thrown by [`evaluate_reference`](@ref) when a [`TypeReferenceStep`](@ref) checkpoint
-does not hold: the node reached is an `actual` but the checkpoint expected an
+Thrown by [`evaluate_reference`](@ref) when the type that a node of the path records
+does not hold: the node reached is an `actual` but the path expected an
 `expected`. Callers that replay possibly-stale references catch this specifically
 to distinguish a structural mismatch from a genuine bug.
 """
@@ -209,14 +202,6 @@ end
 
 Base.:(==)(a::ATypeReferenceStep, b::ATypeReferenceStep) = a.type === b.type
 Base.hash(s::ATypeReferenceStep, h::UInt) = hash(s.type, hash(:TypeReferenceStep, h))
-
-get_reference_step_kind(::ATypeReferenceStep) = :checkpoint
-
-function evaluate_reference_step(step::ATypeReferenceStep, document)
-    document isa step.type ||
-        throw(ReferenceTypeMismatchException(step.type, typeof(document)))
-    document
-end
 
 # ── Cross-type step equality ──────────────────────────────────────────────
 

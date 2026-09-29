@@ -2,7 +2,7 @@
     ReferenceModule
 
 **Paths into documents**. A reference is a linked list
-of typed steps (`RangeReferenceStep`, `FieldReferenceStep`, `TypeReferenceStep`, …),
+of typed steps (`RangeReferenceStep`, `FieldReferenceStep`, …),
 forming a `Reference` (an `EmptyReference` or a
 `ConcreteReference`) that addresses one location inside a document tree.
 Domain-specific step types live in their own layers and register their
@@ -110,11 +110,11 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        get_reference_step_kind, evaluate_reference_step,
        build_reference_step, match_reference_step, match_reference_step_value,
        get_reference_step_subpath_args,
-       ReferenceRules, ReferenceRule, ReferenceRuleAnswer, REFERENCE_RULE_MODES,
+       ReferenceRules, ReferenceRule, ReferenceRuleAnswer,
        apply_reference_rules, match_reference_pattern,
        glob_matches,
        parse_reference_pattern, @ref_str,
-       parse_reference_path, ReferenceSyntaxStep, ReferenceSyntaxField, ReferenceSyntaxIndex,
+       parse_reference_path, ReferenceSyntaxField, ReferenceSyntaxIndex,
        @reference_case, @reference_rules, @reference, @reference_step,
        # a document with the reference that reached it, and the address of one
        ReferencedDocument, get_document, get_reference, DocumentLocator, find_referenced_document,

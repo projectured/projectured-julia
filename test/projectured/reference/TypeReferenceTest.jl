@@ -1,23 +1,31 @@
 function test_type_reference()
 @testset "TypeReferenceStep checkpoints" begin
 
-# ── non-navigating evaluation ────────────────────────────────────────────
+# ── the token folds into the node it types ───────────────────────────────
 
 js  = JsonString("x")
 num = JsonNumber(1)
 
-# A bare checkpoint that holds returns the *same* node (no descent).
-hold = ConcreteReference(TypeReferenceStep(JsonString), EmptyReference())
+# A token folds into the terminal node, which then holds its type: the checkpoint
+# returns the *same* node (no descent) when it holds.
+hold = fold_reference_types(ConcreteReference(TypeReferenceStep(JsonString),
+                                               EmptyReference()))
+@test hold isa EmptyReference && hold.type === JsonString
 @test evaluate_reference(js, hold) === js
 
 # A checkpoint that fails throws ReferenceTypeMismatchException.
 @test_throws ReferenceTypeMismatchException evaluate_reference(num, hold)
 
-# A checkpoint mid-path stays on the current node, then navigation continues.
+# A token mid-path types the node of the next step, then navigation continues.
 arr = JsonArray([js, num])
-mid = ConcreteReference(TypeReferenceStep(JsonArray),
-          ConcreteReference(ElementReferenceStep(1), EmptyReference()))
+mid = fold_reference_types(ConcreteReference(TypeReferenceStep(JsonArray),
+          ConcreteReference(ElementReferenceStep(1), EmptyReference())))
+@test mid.type === JsonArray && mid.head == ElementReferenceStep(1)
 @test evaluate_reference(arr, mid) === arr[1]
+
+# A walk has no reading of a token that is left in a path.
+@test_throws MethodError evaluate_reference(js,
+    ConcreteReference(TypeReferenceStep(JsonString), EmptyReference()))
 
 # ── annotate / strip round-trip ──────────────────────────────────────────
 

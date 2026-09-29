@@ -64,8 +64,7 @@ _el(i) = ElementReferenceStep(i)
 _pos(k) = PositionReferenceStep(k)
 
 # Every path the corpus is applied to. Deliberately mixed: plain skeletons, folded node
-# types, an unfolded `TypeReferenceStep`, element/position/range steps, an extension
-# step, and both empty forms.
+# types, element/position/range steps, an extension step, and both empty forms.
 function _corpus_paths()
     Reference[
         EmptyReference(),
@@ -90,8 +89,6 @@ function _corpus_paths()
             ConcreteReference(RulesB, _fld("b"), EmptyReference(RulesC))),
         ConcreteReference(RulesOther, _fld("a"),
             ConcreteReference(RulesOther, _fld("b"), EmptyReference(RulesOther))),
-        # an unfolded checkpoint step, the transitional build-time shape
-        Reference(TypeReferenceStep(RulesA), _fld("a"), _fld("b")),
     ]
 end
 
@@ -387,7 +384,6 @@ function test_reference_rules()
         typed = ConcreteReference(RulesA, _fld("a"),
                     ConcreteReference(RulesB, _fld("b"), EmptyReference(RulesC)))
         untyped = Reference(_fld("a"), _fld("b"))
-        unfolded = Reference(TypeReferenceStep(RulesA), _fld("a"), _fld("b"))
 
         at_rules = @reference_rules begin
             ::RulesOther.a.b => :other
@@ -396,7 +392,6 @@ function test_reference_rules()
         end
         @test apply_reference_rules(at_rules, typed) === :a          # narrowed to the right arm
         @test apply_reference_rules(at_rules, untyped) === :other    # no type recorded, first arm takes it
-        @test apply_reference_rules(at_rules, unfolded) === :a       # the unfolded step narrows too
 
         # Every mode reads the type step through the same predicate. (Parenthesized
         # macro calls: the `begin … end` block form would swallow the commas.)
@@ -1079,8 +1074,8 @@ function test_reference_rules()
         @test !compiled(:(@reference_case r begin any(a, b).c => 1; __ => 2 end))
 
         # And the compiled reading answers what the interpreted one does, including for
-        # a bound gap and for a path carrying an unfolded checkpoint — the one place the
-        # two count steps differently if either gets it wrong.
+        # a bound gap — the one place the two count steps differently if either gets it
+        # wrong.
         _conforms("computed gap, bound",
             p -> (@reference_case p begin
                 __(owner).b => owner

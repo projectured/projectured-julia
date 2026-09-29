@@ -166,6 +166,15 @@ end
 @test (@reference_step xs{3}) == PositionReferenceStep(3)
 @test (@reference_step xs{1:5}) == RangeReferenceStep(1, 5)
 @test (@reference_step xs[2, 5]) == RangeReferenceStep(1, 5)
+@test (@reference_step [4]) == ElementReferenceStep(4)
+@test (@reference_step {3}) == PositionReferenceStep(3)
+let name = "value"
+    @test (@reference_step c.field(name)) == FieldReferenceStep("value")
+end
+# A type step is a build-time token that only a whole path folds, so it is no step
+# of its own.
+@test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(x::A))
+@test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(a.b.c))
 # `@reference_step c.point(2, 3)` moved to the visual test suite alongside PointReferenceStep.
 
 # ── @reference_case range pattern ───────────────────────────────────────

@@ -149,12 +149,6 @@ PatStepGap() = PatStepGap(nothing, false)
 # step. It is the counterpart of an ini file's `*` used as a whole path component, and
 # unlike a gap it needs no search, since it consumes exactly one thing — so it compiles
 # to what every other step compiles to and never reaches the interpreter.
-#
-# "Any kind" is literal: on a transitional path that still carries an unfolded
-# `TypeReferenceStep`, `_` consumes that step like any other. A gap differs here, since
-# its length arithmetic is shared with the stripped shape walk `^(p)` uses and so counts
-# navigation steps only. Neither is observable on a canonical path, where type
-# checkpoints are folded into the nodes and there are no checkpoint steps to count.
 struct PatStepAny <: PatStep end
 
 # `any(P, Q, …)` in **path** position — any one of the alternative subpaths, tried in
@@ -462,8 +456,7 @@ _value_or_alt_needs_interpreter(s::PatStepExtension) =
 # ------------------------------------------------------------
 
 # A step that consumes exactly one navigation step, whatever it is. `::T` and `::t` do
-# not (they are non-navigating, and `::T` steps over an unfolded checkpoint), nor does
-# anything of variable length.
+# not (they are non-navigating), nor does anything of variable length.
 _step_consumes_one(::PatStep) = false
 _step_consumes_one(::PatStepField) = true
 _step_consumes_one(::PatStepIndex) = true
@@ -840,26 +833,19 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # step, and where the path records a node type that type must be `<: T` or the
     # whole rule fails and the next arm gets its chance. Where the path records no
     # type it says nothing — see `_type_step_matches` for which paths those are and
-    # why they are tolerated. Matching the rest stays on the SAME path for a folded
-    # node (the type is a field) and advances past an unfolded `TypeReferenceStep`
-    # *step* if one is present.
+    # why they are tolerated. The type is a field of the node, so matching the rest
+    # stays on the SAME path.
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.get_reference_tail($sp)), steps[2:end], success, bound, terminal)
-        rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound, terminal)
+        rest, b = _gen_path_match(sp, steps[2:end], success, bound, terminal)
+        nodetype = gensym(:nodetype)
         ex = quote
-            let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.get_reference_head($sp) isa ReferenceModule.TypeReferenceStep
-                    ReferenceModule._type_step_matches(ReferenceModule.get_reference_head($sp).type, $ty) ?
-                        $rest_on_tail : _nomatch
-                else
-                    ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
-                        $rest_on_same : _nomatch
-                end
+            let $sp = $path_ex, $nodetype = ReferenceModule._type_step_node_type($sp)
+                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _nomatch
             end
         end
-        return ex, union(b1, b2)
+        return ex, b
     end
 
     # `::t` binds the matched node's folded `type` field to `t`, then continues
@@ -940,26 +926,19 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
 
     # A leading `::T` is a non-navigating **narrowing** type assertion (the same
     # `_type_step_matches` rule as in `_gen_path_match`, so the two cannot drift):
-    # a recorded node type must be `<: T`, an absent one says nothing. It advances
-    # past an unfolded `TypeReferenceStep` *step* if present, else matches on the
-    # same path.
+    # a recorded node type must be `<: T`, an absent one says nothing. It matches
+    # the rest on the same path.
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_above_match(:(ReferenceModule.get_reference_tail($sp)), steps[2:end], success, bound, include_at)
-        rest_on_same, b2 = _gen_above_match(sp, steps[2:end], success, bound, include_at)
+        rest, b = _gen_above_match(sp, steps[2:end], success, bound, include_at)
+        nodetype = gensym(:nodetype)
         ex = quote
-            let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.get_reference_head($sp) isa ReferenceModule.TypeReferenceStep
-                    ReferenceModule._type_step_matches(ReferenceModule.get_reference_head($sp).type, $ty) ?
-                        $rest_on_tail : _nomatch
-                else
-                    ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
-                        $rest_on_same : _nomatch
-                end
+            let $sp = $path_ex, $nodetype = ReferenceModule._type_step_node_type($sp)
+                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _nomatch
             end
         end
-        return ex, union(b1, b2)
+        return ex, b
     end
 
     # `::t` binds the matched node's type, then continues the above-match on the

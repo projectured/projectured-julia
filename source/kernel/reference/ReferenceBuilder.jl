@@ -103,12 +103,6 @@ _splice(p::ReferenceModule.Reference) = p
 _splice(s::ReferenceModule.ReferenceStep) =
     ReferenceModule.ConcreteReference(s, ReferenceModule.EmptyReference())
 
-# The `_concat` alias lets the generated code below emit `ReferenceModule._concat`;
-# it is the canonical, type-preserving `concat_references`, so an already-folded
-# spliced sub-path keeps its node types even when it is not the last segment
-# (e.g. `^(expr).field`).
-const _concat = ReferenceModule.concat_references
-
 # Wrap a built (possibly TypeReferenceStep-bearing) path expression in the runtime
 # fold pass only when the literal carries a `::T` type step — a plain navigation
 # skeleton needs no folding (its node types stay `nothing`, filled in later when
@@ -128,7 +122,7 @@ function _gen_build_path(steps::Vector{ReferenceSyntaxStep})
         return _maybe_fold(:(ReferenceModule.Reference($(stepexprs...))), steps)
     end
 
-    # Slice the chain at every splice and emit a `_concat` chain of literal
+    # Slice the chain at every splice and emit a `concat_references` chain of literal
     # `Reference(...)` segments interleaved with `_splice(...)` of the
     # spliced runtime values. Fold afterwards so `::T` type steps in the literal
     # segments become node types, while already-folded spliced sub-paths are kept.
@@ -142,9 +136,9 @@ function _gen_concat_chain(steps::Vector{ReferenceSyntaxStep})
     if steps[1] isa ReferenceSyntaxSplice
         head = :(ReferenceModule._splice($(_gen_build_step(steps[1]))))
         tail = _gen_concat_chain(steps[2:end])
-        # _concat needs an EmptyReference base case to short-circuit when
-        # there's nothing after the splice.
-        return :(ReferenceModule._concat($head, $tail))
+        # `concat_references` needs an EmptyReference base case to short-circuit
+        # when there's nothing after the splice.
+        return :(ReferenceModule.concat_references($head, $tail))
     end
     # Gather a run of non-splice steps into a single literal Reference.
     i = findfirst(s -> s isa ReferenceSyntaxSplice, steps)
@@ -155,7 +149,7 @@ function _gen_concat_chain(steps::Vector{ReferenceSyntaxStep})
         return prefix_expr
     end
     tail = _gen_concat_chain(steps[cutoff:end])
-    return :(ReferenceModule._concat($prefix_expr, $tail))
+    return :(ReferenceModule.concat_references($prefix_expr, $tail))
 end
 
 """

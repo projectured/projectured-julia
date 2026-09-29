@@ -323,13 +323,8 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     # node type it must be `<: T`, where it records none the step says nothing. The rule
     # is `_type_step_matches`, the same predicate `ReferenceCase.jl`'s codegen calls, so
     # the compiled and interpreted readings cannot drift. Matching continues on the SAME
-    # path for a folded node (the type is a field, consuming no step) and past an
-    # unfolded `TypeReferenceStep` *step* if one is present.
+    # path, because the type is a field of the node and consumes no step.
     if step isa PatStepType
-        if path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
-            return _type_step_matches(get_reference_head(path).type, step.typeexpr) ?
-                   _consume(get_reference_tail(path), rest, b, accept) : nothing
-        end
         return _type_step_matches(_type_step_node_type(path), step.typeexpr) ?
                _consume(path, rest, b, accept) : nothing
     end
@@ -366,9 +361,8 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
 end
 
 # Consume an interpolated path `sub` from the front of `path`, shape-only. The step walk
-# is over the stripped forms (so an unfolded checkpoint step on either side is
-# invisible), and the leftover is taken from `path` itself so folded node types survive
-# into a delegated rule set.
+# is over the stripped forms, and the leftover is taken from `path` itself so folded
+# node types survive into a delegated rule set.
 function _consume_path(path::Reference, sub)
     sub isa Reference ||
         error("^(path) in an @reference_rules pattern must interpolate a Reference, got $(typeof(sub))")
@@ -385,26 +379,21 @@ function _consume_path(path::Reference, sub)
     _drop_navigation_steps(path, consumed)
 end
 
-# Drop `n` navigation steps from the front of `path`, stepping over any unfolded
-# checkpoint step on the way (those are invisible to the shape walk above).
+# Drop `n` navigation steps from the front of `path`, or answer `nothing` when the
+# path has fewer.
 function _drop_navigation_steps(path::Reference, n::Int)
-    while n > 0
+    for _ in 1:n
         path isa ConcreteReference || return nothing
-        get_reference_head(path) isa TypeReferenceStep || (n -= 1)
-        path = get_reference_tail(path)
-    end
-    while path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
         path = get_reference_tail(path)
     end
     path
 end
 
-# How many navigation steps a path has, ignoring any unfolded checkpoint step — the
-# count a gap's arithmetic is done in.
+# How many navigation steps a path has — the count a gap's arithmetic is done in.
 function _navigation_length(path::Reference)
     n = 0
     while path isa ConcreteReference
-        get_reference_head(path) isa TypeReferenceStep || (n += 1)
+        n += 1
         path = get_reference_tail(path)
     end
     n
@@ -415,8 +404,8 @@ end
 function _take_leading_steps(path::Reference, n::Int)
     n == 0 && return EmptyReference(path.type)
     path isa ConcreteReference || return EmptyReference()
-    taken = get_reference_head(path) isa TypeReferenceStep ? n : n - 1
-    ConcreteReference(path.type, get_reference_head(path), _take_leading_steps(get_reference_tail(path), taken))
+    ConcreteReference(path.type, get_reference_head(path),
+                      _take_leading_steps(get_reference_tail(path), n - 1))
 end
 
 """
@@ -459,10 +448,6 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     end
 
     if step isa PatStepType
-        if path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
-            return _type_step_matches(get_reference_head(path).type, step.typeexpr) &&
-                   _match_above(get_reference_tail(path), rest, b)
-        end
         return _type_step_matches(_type_step_node_type(path), step.typeexpr) &&
                _match_above(path, rest, b)
     end

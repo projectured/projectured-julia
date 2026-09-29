@@ -354,50 +354,18 @@ end
 """
     parse_reference_step(ex) -> ReferenceSyntaxStep
 
-Parse a one-step expression (the `@reference_step` grammar). Unlike [`parse_reference_path`](@ref),
-a leading identifier in front of an operator (`xs[i]`, `xs{k}`, `c.name(...)`) is a
-**placeholder** and is dropped; only a bare symbol (`value`) is taken as a field name.
+Parse a one-step expression (the `@reference_step` grammar) with
+[`parse_reference_path`](@ref). A leading identifier in front of an operator
+(`xs[i]`, `xs{k}`, `c.name(...)`) is a **placeholder** and is dropped; only a bare
+symbol (`value`) is taken as a field name. A type step and a splice are not steps
+that `@reference_step` builds.
 """
 function parse_reference_step(ex)
-    if ex isa Symbol
-        return ReferenceSyntaxField(String(ex))
-    elseif ex isa Expr && ex.head == :ref
-        if length(ex.args) == 2
-            return ReferenceSyntaxIndex(ex.args[2])
-        elseif length(ex.args) == 3
-            return ReferenceSyntaxRange(ex.args[2], ex.args[3], :element)
-        else
-            error("indexing supports 1 or 2 dimensions in @reference_step: $ex")
-        end
-    elseif ex isa Expr && ex.head == :curly
-        length(ex.args) == 2 || error("only one-dimensional position is supported in @reference_step: $ex")
-        return _ref_braces_step(ex.args[2])
-    elseif ex isa Expr && ex.head == :vect
-        if length(ex.args) == 1
-            return ReferenceSyntaxIndex(ex.args[1])
-        elseif length(ex.args) == 2
-            return ReferenceSyntaxRange(ex.args[1], ex.args[2], :element)
-        else
-            error("vector syntax supports 1 or 2 elements in @reference_step: $ex")
-        end
-    elseif ex isa Expr && ex.head == :braces
-        length(ex.args) == 1 || error("braces syntax supports exactly one element in @reference_step: $ex")
-        return _ref_braces_step(ex.args[1])
-    elseif ex isa Expr && ex.head == :call
-        f = ex.args[1]
-        if f isa Expr && f.head == :. && f.args[2] isa QuoteNode
-            opname = f.args[2].value
-            if opname == :field
-                length(ex.args) == 2 || error(".field(name) expects exactly one argument in @reference_step: $ex")
-                return ReferenceSyntaxFieldExpression(ex.args[2])
-            else
-                # A `.name(...)` extension step, dispatched through the seam.
-                return _ref_extension_step(opname, ex.args[2:end])
-            end
-        else
-            error("unsupported call form in @reference_step: $ex")
-        end
-    else
+    steps = parse_reference_path(ex)
+    # The path parser reads a placeholder as a field step in front of the step.
+    length(steps) == 2 && steps[1] isa ReferenceSyntaxField && popfirst!(steps)
+    (length(steps) == 1 &&
+     !(steps[1] isa Union{ReferenceSyntaxType, ReferenceSyntaxSplice})) ||
         error("unsupported @reference_step syntax: $ex")
-    end
+    return only(steps)
 end
