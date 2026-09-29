@@ -287,6 +287,18 @@ end
     @test Cell(@computation doubled)[] === doubled
 end
 
+@testset "show" begin
+    @test repr(Cell(2)) == "Cell(value, 2)"
+    @test repr(Cell(@computation 2)) == "Cell(computation, <invalid>)"
+    # A typed cell is not a `Cell`, so it shows its type.
+    @test repr(ReactiveCell{Int}(2)) == "ReactiveCell{$(Int)}(value, 2)"
+    typed = ReactiveCell{Int}(@computation 3)
+    typed[]
+    @test repr(typed) == "ReactiveCell{$(Int)}(computation, 3)"
+    @test repr(MutableCell(1)) == "MutableCell(1)"
+    @test repr(ImmutableCell("a")) == "ImmutableCell(\"a\")"
+end
+
 @testset "a MethodError in a chain of ten computed cells" begin
     runs = Ref(0)
     top = Cell(@computation (runs[] += 1; throw(MethodError(identity, ()))))

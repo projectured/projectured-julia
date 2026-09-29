@@ -259,9 +259,9 @@ once, with backpressure.
 
 **The cell dependency graph must stay acyclic.** `_recompute!` evaluates a computation
 while its cell is on the computing stack; a cell that transitively reads
-itself recurses forever. The engine only skips a *direct* self-edge — it does
-not detect multi-cell cycles — so a computed cell must never depend on itself
-through any chain.
+itself recurses forever. The engine records no edge for a *direct* self-read,
+but that read recurses too, and the engine detects no cycle, so a computed cell
+must never read itself, directly or through any chain.
 
 ### PAR-MONOTONE-INVALIDATION
 

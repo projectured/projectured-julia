@@ -8,9 +8,9 @@
 
 A box that holds a value and records no reader, so a write invalidates nothing.
 
-Use it for state that changes often and that nothing computes from: a counter, a
-scroll offset kept for one frame, a cursor position a renderer reads once per
-draw. It costs almost nothing to read or write, and nothing recomputes because
+Use it for state that changes often and that nothing computes from: a counter,
+an offset that one pass of a loop keeps, a position that code reads once per
+pass. It costs almost nothing to read or write, and nothing recomputes because
 of it. When something must follow the value, use a reactive cell instead.
 
 # Example

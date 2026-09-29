@@ -54,9 +54,9 @@ function is_cell_up_to_date end
 
 Read a value that may be wrapped in a cell, or may be the value itself.
 
-Use it wherever a field, a slot or an argument holds either: the document
-machinery stores some fields as cells and some as plain values, and this reads
-both without asking which. The read is an ordinary one, so inside a computation
+Use it wherever a field, a slot or an argument holds either: a struct can store
+some fields as cells and some as plain values, and this reads both without
+asking which. The read is an ordinary one, so inside a computation
 it makes the computation depend on the cell.
 
 # Example
@@ -93,7 +93,7 @@ function get_cell_value_type end
 
 Make a new cell like this one, holding another value.
 
-Use it when copying a document: each field keeps the kind of cell it had, so a
+Use it to copy a struct of cells: each field keeps the kind of cell it had, so a
 reactive field stays reactive and a stored field stays stored, and the copy does
 not have to know which was which.
 
@@ -114,7 +114,7 @@ function copy_cell_as end
 Whether a cell computes its value or stores one.
 
 Use it to tell a derived value from a written one before you copy, print or
-freeze a document: the value of a computed cell is one moment of a
+freeze a struct of cells: the value of a computed cell is one moment of a
 computation, and a cell that stores that moment stops following what the
 computation reads.
 

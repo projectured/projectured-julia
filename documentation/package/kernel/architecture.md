@@ -98,17 +98,18 @@ the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentModul
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their
 method on load.
 
-**Fan-in.** Counting `import ..XxxModule` lines across the kernel's own files identifies
-the hubs. These are the modules a consolidation must keep cheap to import:
+**Fan-in.** A count of the kernel module files that name a module in a
+`using ..XxxModule` or `import ..XxxModule` line identifies the hubs. These are the
+modules a consolidation must keep cheap to import:
 
 | Hub | Layer | Imported by |
 | --- | --- | --- |
-| `CellModule` | 1 | 8 kernel files |
-| `EventModule` | 3 | 6 |
-| `DocumentModule` | 7 | 7 |
-| `ReferenceModule` | 8 | 5 |
-| `OperationModule` | 10 | 4 |
-| `ProjectionModule` | 13 | 2 |
+| `CellModule` | 3 | 9 kernel module files |
+| `EventModule` | 6 | 5 |
+| `DocumentModule` | 10 | 7 |
+| `ReferenceModule` | 11 | 6 |
+| `OperationModule` | 13 | 4 |
+| `ProjectionModule` | 17 | 2 |
 
 ## The interface files are the extension SPI
 

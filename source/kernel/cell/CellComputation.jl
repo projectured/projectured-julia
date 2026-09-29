@@ -37,12 +37,12 @@ Base.show(io::IO, marker::Computation) =
     @computation expression
 
 A `Computation` that computes `expression`: a cell evaluates it on its first
-read, and again on the first read after anything that it read has changed.
+read, and again on the first read after a cell that it read was written.
 
 Use it to state a derived value where it belongs, beside the thing that has it,
 instead of computing it again at every place that needs it. It goes wherever a
-cell takes a value: a new cell, a typed cell, a write into a cell, a field of a
-document or a `CellVector`.
+cell takes a value: a new cell, a typed cell, a write into a cell, or a field of
+a struct of cells.
 
 # Example
 
