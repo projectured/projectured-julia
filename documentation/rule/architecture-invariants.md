@@ -64,7 +64,7 @@ requirement; the rule is its own lead sentence.
 | ID | Rule |
 | --- | --- |
 | [PAR-PURE-THUNK](#par-pure-thunk) | Every reactive computation must be a pure function of the cells it reads |
-| [PAR-NO-WRITE-IN-THUNK](#par-no-write-in-thunk) | A thunk must never write another cell or mutate shared document state |
+| [PAR-NO-WRITE-IN-THUNK](#par-no-write-in-thunk) | A computation must never write another cell or mutate shared document state |
 | [PAR-ACYCLIC-CELLS](#par-acyclic-cells) | The cell dependency graph must stay acyclic |
 | [PAR-MONOTONE-INVALIDATION](#par-monotone-invalidation) | Never hand-set `valid` and never partially invalidate |
 | [PAR-WRITE-DRIVEN-PROPAGATION](#par-write-driven-propagation) | Treat propagation as write-driven, not value-driven |
@@ -248,10 +248,12 @@ barrier inside a computation — writes a plain store outside the reactive graph
 write never blocks and never touches a cell. The editor drains the store into
 the target document on its own task, once per frame, before `read!`
 (`drain_feeds!`; the fault report at the top of `run_frame!` is the same
-motion). Only the editor task writes a document a running editor shows. A
-producer that wants a frame soon calls the wake function it was given
-(`wake_editor!`, or the callback its store received at registration); it never
-reaches into the editor. The inbox (`post_operation!`) is the queue-shaped
+motion). Only the editor task writes a document a running editor shows. The
+heartbeat of a wall clock is the accepted exception: `start_wall_clock!` writes
+the time cell of its clock from a task of its own, on the thread of the task that
+reads the clock. A producer that wants a frame soon calls the wake function it was
+given (`wake_editor!`, or the callback its store received at registration); it
+never reaches into the editor. The inbox (`post_operation!`) is the queue-shaped
 case of the same rule, for a payload that is an edit: ordered, applied exactly
 once, with backpressure.
 
@@ -366,11 +368,13 @@ a field a derivation, so a bare `f` is always data.
 
 ### PAR-DOCUMENT-IDENTITY
 
-**Do not assume two documents with equal fields are `==`.** A `@document` type
-is a `mutable struct` and keeps identity `==`/`hash`; only the immutable
-`I`-prefixed snapshot compares structurally. Code needing value comparison
-(e.g. `collect_references`) compares unwrapped *leaf values*, not whole
-documents.
+**Do not assume two documents with equal fields are `==`.** The cell layout of a
+`@document` type is an immutable struct that holds one cell for each field, and
+`===` compares it cell by cell. A reactive cell and a mutable cell compare by
+identity, so two documents built apart with equal contents are not `==`. Only
+`ICFoo`, whose cells are immutable too, compares structurally. Code needing
+value comparison (e.g. a string query of `search_documents`) compares unwrapped
+*leaf values*, not whole documents.
 
 ### PAR-DOMAINS-INDEPENDENT
 
@@ -873,8 +877,10 @@ pipeline, or domains. Convert platform events to the backend-agnostic device
 vocabulary (`KeyPress`, `KeyDown`, `Mouse*`, `WindowQuit`) in the backend, so
 projection reader code never sees a raw platform event; a projection that needs
 to measure text takes an injected `measure::TextMeasure` rather than the
-backend itself. A single source of truth governs any cross-backend mapping (e.g.
-`convert_web_key_to_symbol` mirrors `sdl_keysym_to_symbol`).
+backend itself. A single source of truth governs any cross-backend mapping. For
+example, `convert_web_key_to_symbol` gives the key names of `sdl_keysym_to_symbol`,
+with one difference: the SDL backend names the backslash key `:backslash`, and the
+web backend answers `:char` for it.
 
 ### PAR-OPT-IN-DEPENDENCY
 
@@ -895,19 +901,22 @@ events.
 
 ### PAR-PROFILE-WITH-COUNTERS
 
-**Profile edits with the per-frame performance counters.** The read-eval-print
-loop resets and logs `reads / computes / invalidations / writes` each frame;
-use them to find unintentional recomputation (a single keypress causing
-thousands of `computes` means something reads more cells than necessary).
+**Profile edits with the per-frame performance counters.** Set
+`PROJECTURED_PERFORMANCE_COUNTERS=true` and recompile to compile the counters in.
+The read-eval-print loop then binds a fresh counter store for each frame, and
+`perf!` logs `reads / computes / invalidations / writes` for each frame that
+applied an operation. Use them to find unintentional recomputation (a single
+keypress causing thousands of `computes` means something reads more cells than
+necessary).
 
 ### PAR-PER-EDITOR-STATE
 
 **No process-global state in the editor or the machinery it drives; one process
 must run many editors at once.** Every piece of mutable runtime state an editor
 touches — its `document`, `selection`, `iomap`, in-flight `operation`,
-`GestureRecognizer`, animation clock, and per-frame performance counters — must
-live on the `Editor` instance (or on values reachable only from it), never in a
-module-level `const` cell, `Ref`, `Dict`, or counter. This is a correctness
+`GestureRecognizer` and animation clock — must live on the `Editor` instance (or
+on values reachable only from it), never in a module-level `const` cell, `Ref`,
+`Dict`, or counter. This is a correctness
 requirement, not a style preference: it is what lets one Julia process host
 several independent editors side by side (product requirement
 PR-MANY-EDITORS-ONE-PROCESS). Process-global holds tie the editors together and
@@ -920,12 +929,12 @@ projections and the machinery they call; this extends the same ban up to the
 editor loop, the devices, and the backends it drives — a backend or device that
 must hold per-connection state holds it on its own instance (one per editor),
 never in a global registry. State that belongs to a single *evaluation* rather
-than to an editor is instead task-local (its natural scope): the reactive
-engine's computing stack, which tracks dependencies, has been migrated from a module
-global to task-local storage, so concurrent evaluations never cross-register
-dependencies. `PerformanceModule` was likewise migrated off its
-process-global `_perf` dict onto a task-local `with_performance_counters`
-binding (each editor frame binds its own store). The animation clock is a
+than to an editor is instead task-local (its natural scope). The reactive
+engine keeps its computing stack, which tracks dependencies, in task-local
+storage, so concurrent evaluations never cross-register dependencies. The
+performance counters live in the scope of one frame of one editor:
+`run_editor!` binds a fresh counter store for each frame with
+`with_performance_counters`, a task-local binding. The animation clock is a
 per-editor `Clock` (a `@cell_struct`, not a document — `clock/ClockModule.jl`);
 `run_editor!` advances `editor.clock`, and every animated cell subscribes to the
 clock the printer context carries, so two editors in one process never
@@ -956,8 +965,6 @@ qualifies:
 A shared read of one such value does not reintroduce the cross-editor *write*
 conflict PAR-PER-EDITOR-STATE targets.
 
-## Package, layer, slice, and module structure
-
 ### PAR-REPORT-NEVER-THROWS
 
 **A fault report never throws, and a barrier never swallows a fault in
@@ -971,16 +978,17 @@ and a log target that throws does not stop the drain. Tests assert both.
 The second half is what keeps the first half honest. **A barrier that catches
 must record**, so no fault is lost, and the policy that governs the barriers
 must default to catching **nothing** wherever a test can reach it. An `Editor`
-starts with `make_strict_fault_policy()` and `run_editor!` is what turns the
-barriers on, because every test in the tree builds an `Editor` directly and none
-of them calls `run_editor!`. A barrier that is on under test turns a real bug
-into a passing run, which is the one way error tolerance can make the program
-worse than it was.
+starts with `make_strict_fault_policy()`. `make_editor` turns the barriers on,
+because it gives the editor `FaultPolicy()`, and `run_editor!` keeps the policy
+of its editor. A barrier that is on under test turns a real bug into a passing
+run, which is the one way error tolerance can make the program worse than it was.
 
 An exception that means the program is to stop or can not go on is never caught:
 `is_passthrough_exception` names them one at a time — `QuitEditorException`,
 `InterruptException`, `StackOverflowError`, `OutOfMemoryError` — and a layer that
 owns a control-flow exception adds its own method.
+
+## Package, layer, slice, and module structure
 
 ### PAR-PACKAGE-CHAIN
 

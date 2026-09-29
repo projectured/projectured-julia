@@ -328,8 +328,8 @@ tool/survey-arguments.jl`, over `source/` and `example/`. Every other row is of
 did not see `# Folded in from …`, which is a banner and not a sentence, and
 `source/` held 166 of those — so history in a comment stood at about 210 lines,
 not 51. The banners are gone, and so are the nineteen word-list
-lines that really were history. 27 still match, 26 of them legitimately. The
-size of the four largest files is the other weak point.
+lines that really were history. On 2026-09-29, 30 still match, 29 of them
+legitimately. The size of the four largest files is the other weak point.
 
 ## 7. Where this repository differs from the other two
 

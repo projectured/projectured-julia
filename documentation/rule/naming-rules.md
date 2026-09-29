@@ -382,8 +382,10 @@ Two shapes are exempt from the verb-first rule, and only these:
 - **DSL words** inside macros: `when` and `prefix` in `@reference_case`, and
   `bound`, `project`, `collection`, `tokens` and `sections` in
   `@projection_template`. Each of the five is a one-line builder for its
-  CamelCase marker type — `bound(input, T, render) = Bound(...)` — and they are
-  exported as a set. They read as the vocabulary of the template, not as calls:
+  CamelCase marker type — `bound(input, T, render) = Bound(...)`. They are not
+  exported: `@projection_template` rewrites a call of each one in its builder
+  expression into a call of the function of the projection layer. They read as
+  the vocabulary of the template, not as calls:
   `SyntaxLeaf(bound(:value, Bool, ...))` says what the leaf is bound to, and
   `make_bound` would say it worse.
 - **Declarative macros** are noun-named: `@document`, `@iomap`,
