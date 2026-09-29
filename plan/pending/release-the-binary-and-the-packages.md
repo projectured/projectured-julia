@@ -191,21 +191,13 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
 - **The generated copy and the repository can drift.** A new path that leaves a
   slice works in the checkout and fails in the copy. The generator must find
   such a path and stop (B2).
-- **`projectured/projectured` is a redirect now (R9).** The Lisp original was
+- **`projectured/projectured` must stay free (R9).** The Lisp original was
   renamed to `projectured/projectured-lisp`, which is archived, and GitHub
   sends the old name there (checked on 2026-09-29: `301` to
   `projectured-lisp`). A new repository under the old name ends the redirect.
-  Then these links reach the Julia release copy instead of the Lisp original:
-  - **Quicklisp.** `quicklisp-projects/projects/projectured/source.txt` says
-    `branched-git https://github.com/projectured/projectured.git quicklisp`.
-    The release copy has no `quicklisp` branch, so the Quicklisp build of the
-    Lisp original fails and the project can leave the Quicklisp dist.
-  - **This repository.** `CLAUDE.md` line 3 names
-    `github.com/projectured/projectured` as the original, and
-    `documentation/guide/new-domain-guide.md` uses it in three examples.
-  - **The Lisp README.** Its clone command and its wiki links use the old
-    name. The repository is archived, so a change there needs the owner to
-    unarchive it first.
+  Quicklisp builds the Lisp original through the old name
+  (`branched-git https://github.com/projectured/projectured.git quicklisp`),
+  and `CLAUDE.md` and `new-domain-guide.md` use it for the original too.
 
 ## 4. Decisions
 
@@ -235,7 +227,7 @@ The owner decided these on 2026-09-29.
 | R13 | The `[compat]` bounds? | The siblings: a caret bound from the version of the sibling in the release that changed the package (R11, rule 3). Every other package: a caret bound from its version in `environment/all/Manifest.toml`. Julia: the oldest version that passes Step B4. |
 | R14 | A `projectured` command through Pkg apps? | Later. |
 | R15 | Rename `LICENCE-PD`? | No. It stays as it is. |
-| R9 | Where does the release copy live? | In `projectured/projectured`. §3.3 says what this name costs, and Step B6 handles it. |
+| R9 | Where does the release copy live? | In `projectured/Projectured.jl`, the usual Julia name (free on 2026-09-29: `404`). Not `projectured/projectured`: that name is the redirect to the Lisp original (§3.3). |
 | R10 | The name and place of the registry? | `projectured/ProjecturedRegistry`, made with `LocalRegistry.jl`. |
 | R16 | What to do with the four packages of §2.4 that can not go in as they are? | Skip them: `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`. `ProjecturedExample` and the other example packages stay out by R12, so the registry gives no application; the binary gives it. The registry set is 65 packages. |
 
@@ -471,20 +463,8 @@ Warning: give each Julia process a memory cap of 8 GB and a timeout, and read
 The commands, to run after the owner approves. The agent states them and
 stops.
 
-Before `projectured/projectured` exists, move the links that use the old name
-(§3.3). The new repository ends the redirect, and every link that is not moved
-then reaches the release copy.
-
-- [ ] Quicklisp: a pull request to `quicklisp/quicklisp-projects` that changes
-      `projects/projectured/source.txt` to
-      `https://github.com/projectured/projectured-lisp.git`. The owner sends it,
-      or decides that the Lisp original can leave Quicklisp.
-- [ ] This repository: `CLAUDE.md` line 3 names
-      `github.com/projectured/projectured-lisp` for the original, and the three
-      examples in `new-domain-guide.md` get a URL that stays right.
-- [ ] The Lisp README: the owner decides whether to unarchive it and change
-      its links.
-- [ ] Make the two GitHub repositories of R9 and R10.
+- [ ] Make the two GitHub repositories of R9 and R10:
+      `projectured/Projectured.jl` and `projectured/ProjecturedRegistry`.
 - [ ] Generate the release copy for `v0.1.0`, commit it to the release
       repository with the tag `v0.1.0`, and push.
 - [ ] `register` the 65 packages of the registry set in `ProjecturedRegistry`, with the URL of
