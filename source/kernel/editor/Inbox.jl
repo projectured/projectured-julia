@@ -1,13 +1,13 @@
-# Fragment of `EditorModule` — the inbox: the one operation door into a running editor, and the wake that ends its wait.
+# Fragment of `EditorModule` — the inbox of operations and the wake that ends the wait.
 
 # ── The inbox ─────────────────────────────────────────────────────────
 #
 # The one door into a running editor from outside its own task. A frame reads the
 # document, evaluates against it and paints it, so anything that writes it from
-# another task races the frame — and a reactive computation cannot write at all
-# (PAR-NO-WRITE-IN-THUNK). An operation posted here is applied by the editor's own
-# task at a defined point in the frame, which is the same guarantee an operation
-# from the reader already has.
+# another task races the frame — and a reactive computation cannot write at all.
+# An operation posted here is applied by the editor's own task at a defined point
+# in the frame, which is the same guarantee an operation from the reader already
+# has.
 
 """
     post_operation!(editor, operation) -> operation

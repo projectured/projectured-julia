@@ -1,4 +1,4 @@
-# Fragment of `EditorModule` — the fault barriers of the loop: the per-stage guards, the repairs, and the frame report.
+# Fragment of `EditorModule` — the stage barriers, the repairs and the frame report.
 
 # ── The fault barriers ───────────────────────────────────────────────────────
 #

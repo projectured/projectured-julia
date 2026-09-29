@@ -1,4 +1,4 @@
-# Fragment of `EditorModule` — the feeds of the loop: the built-in inbox feed, the per-frame drain, the wait timeout and the frame measurements.
+# Fragment of `EditorModule` — the feeds: their drain, the wait timeout, the frame times.
 
 # ── The feeds ─────────────────────────────────────────────────────────
 #

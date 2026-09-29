@@ -1,11 +1,11 @@
-# Fragment of `EditorModule` — the `Editor` itself: the struct, its construction, the projection invalidation hook, and the editor as the start of a reference.
+# Fragment of `EditorModule` — the `Editor`, its constructor, and the hooks it answers.
 
 """
     Editor(backend, document, projection, devices;
            clock = Clock(), tools = ToolSet(), feeds = Feed[])
 
 Holds the state for a read-eval-print loop:
-  - `backend`    — the display/input backend (e.g. SdlBackend)
+  - `backend`    — the display/input backend
   - `document`   — the reactive document being edited
   - `projection` — the projection (or a chaining projection)
   - `devices`    — input/output devices (e.g. display, keyboard)
@@ -14,7 +14,7 @@ Holds the state for a read-eval-print loop:
                    time so subscribers reanimate, independently of any other
                    editor running in the same process.
   - `tools`      — what *this* editor exposes to an agent: the `ToolSet` an agent
-                   loop drives and an MCP server publishes. Empty by default;
+                   loop drives and an agent server publishes. Empty by default;
                    `register_default_tools!(editor.tools)` fills it with the
                    built-ins on first use. Per editor, so two editors in one
                    process neither share a tool list nor evaluate code into each

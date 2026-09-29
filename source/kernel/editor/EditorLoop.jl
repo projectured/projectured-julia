@@ -1,5 +1,4 @@
-# Fragment of `EditorModule` — the loop: the counter log, one frame,
-# `get_frame_clock_time`, the waiting main loop, and `make_editor`.
+# Fragment of `EditorModule` — the loop: `run_frame!`, `run_editor!` and `make_editor`.
 
 # ── Performance logging ───────────────────────────────────────────────
 
@@ -119,7 +118,9 @@ get_frame_clock_time(backend, wall_time) = wall_time
 # ── Main loop ──────────────────────────────────────────────────────────
 
 """
-    run_editor!(editor::Editor; mcp::Bool=false)
+    run_editor!(editor::Editor; mcp = false, mcp_instructions = nothing,
+                mcp_host = nothing, mcp_port = nothing,
+                fault_policy = editor.fault_policy)
 
 Execute the read-eval-print loop. Between frames the editor sleeps in
 `wait_for_input`, and three things end the sleep: an input event, a
@@ -277,9 +278,8 @@ which also corrects `document` to the geometry the window system granted. A
 window system may grant less than it was asked for, and it answers only once the
 window exists; a document printed before that answer is printed at a size the
 window never has, and the answer then arrives as a resize that computes the
-whole document again. `devices` defaults to the full SDL hardware set; a backend
-that drives another channel, such as the `ConsoleBackend`, passes its own set
-(e.g. `Device[Keyboard()]`).
+whole document again. `devices` defaults to a display, a keyboard and a mouse; a
+backend that drives another channel passes its own set (e.g. `Device[Keyboard()]`).
 
 `fault_policy` is the policy of a loop a person sits in front of, which survives
 a fault; the one print runs under it already. Pass `make_strict_fault_policy()`
@@ -307,13 +307,14 @@ function make_editor(backend::Backend, projection, document::Document;
 end
 
 """
-    run_editor!(backend::Backend, projection, document; mcp::Bool=false,
-                mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing)
+    run_editor!(backend::Backend, projection, document; mcp = false,
+                mcp_instructions = nothing, mcp_host = nothing, mcp_port = nothing,
+                devices, feeds, fault_policy)
 
 The one call for a caller with no work before the loop: [`make_editor`](@ref),
 then the loop above. The pipeline is expected to produce a `ScreenDocument` so
 the backend can reconcile native windows against it; pipelines whose output is
-a bare `GraphicsCanvas` go unrendered (use `write_image` for offscreen).
+a bare `GraphicsCanvas` go unrendered.
 
 Pass `mcp=true` to start an MCP server alongside the loop, and `mcp_host` and
 `mcp_port` to say where it listens. `devices`, `feeds` and `fault_policy` go to

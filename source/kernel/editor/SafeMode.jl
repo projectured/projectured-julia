@@ -1,4 +1,4 @@
-# Fragment of `EditorModule` — the safe mode: the projection swap that keeps a broken editor showing something.
+# Fragment of `EditorModule` — the safe mode, which swaps in the fault list.
 
 # ── The safe mode ────────────────────────────────────────────────────────────
 #
@@ -34,7 +34,8 @@ function enter_safe_mode!(editor::Editor)
     # The count that brought us here is spent. A fault in the safe mode itself
     # must be able to raise a fresh one.
     reset_consecutive_fault_count!(editor.faults, :print)
-    @warn "[fault] the printer failed too often in a row; showing the fault list. Press Escape to go back."
+    @warn("[fault] the printer failed too often in a row; showing the fault list. " *
+          "Press Escape to go back.")
     true
 end
 

@@ -1,4 +1,4 @@
-# Fragment of `EditorModule` — the three stages of a frame: read the input, evaluate the operation, print the document.
+# Fragment of `EditorModule` — the three stages of a frame: read, evaluate and print.
 
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 
@@ -40,15 +40,15 @@ function read!(editor::Editor)
         else
             # Seed a nothing-change carrying the gesture (the window input) and read
             # back the operation the reader pipeline produced.
-            change = read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)
+            change = read_intent(editor.projection, nothing,
+                                 Intent(window_input, nothing), editor.iomap)
             op = change isa Intent ? change.operation : change
             if op isa Operation
                 editor.operation = op
                 return true
             end
             # Editor-global readability zoom, recognised *after* the pipeline so a
-            # projection that explicitly binds these keys (e.g. clipboard add/remove
-            # on Ctrl+=/-) still wins when active.
+            # projection that explicitly binds these keys still wins when active.
             z = _zoom_operation(window_input)
             if z !== nothing
                 editor.operation = z
@@ -78,7 +78,8 @@ function read!(editor::Editor)
 end
 
 """
-    read_rooted_operation(editor, place, operation; description = "") -> Operation | Nothing
+    read_rooted_operation(editor, place, operation; description = "")
+        -> Operation | Nothing
 
 `operation`, which is relative to the document that `place` names, as an
 operation from the root of `editor`'s document. The readers of
@@ -149,10 +150,17 @@ end
 
 Apply the current operation to the document. Logs the operation, in the words
 of `describe_operation`, when it is non-nothing.
+
+When the fault policy of the editor enables the barriers, `evaluate!` makes the
+inverse of the operation first, and then runs the operation in the `:evaluate`
+barrier. When the operation throws, the barrier records the fault, and `evaluate!`
+runs three repairs: it applies the inverse where there is one, it drops the IoMap
+so that the next print starts from scratch, and it clears a selection that does
+not resolve. With the barriers off, the exception goes on to the caller.
 """
 function evaluate!(editor::Editor)
-    # Log via @info, not a raw println: the assistant runs `execute_julia_code` on
-    # a concurrent task that globally redirects `stdout`/`stderr` to a pipe (and
+    # Log via @info, not a raw println: a call of the code tool runs on a
+    # concurrent task that globally redirects `stdout`/`stderr` to a pipe (and
     # closes it), so a raw write to the live global stdout from this loop can land
     # in that closed pipe and crash. The logger writes to the stream captured at
     # startup, which the redirect leaves untouched.
@@ -165,8 +173,9 @@ end
     print!(editor::Editor)
 
 Project the editor's document through its projection pipeline. The root
-`PrinterContext` is minted with the editor's own `clock`, so animated cells
-descendants build subscribe to this editor's clock rather than a shared one.
+`PrinterContext` holds the editor's own `clock`, so an animated cell that a
+printer builds below it subscribes to the clock of this editor and not to a
+shared one.
 
 It also carries the editor's own document under `:root`. A projection deep in
 the tree cannot reach the root any other way, and one that shows something about
