@@ -80,6 +80,7 @@ function build_distribution(context::BuildContext; name::AbstractString,
                   "and $full is missing or empty")
     end
     isempty(expect) || @info "The bundle holds what the build declared" count = length(expect)
+    _check_julia_libstdcxx(bundle)
 
     directory = "$(name)-$(version)"
     root = staging === nothing ? mktempdir(get_staging_root()) : abspath(String(staging))
@@ -120,6 +121,23 @@ function build_distribution(context::BuildContext; name::AbstractString,
     report_distribution(archive)
     staging === nothing && rm(root; recursive = true, force = true)
     archive
+end
+
+# A distribution carries the libstdc++ of Julia. PackageCompiler copies the one
+# that the building Julia loaded, and Julia loads the machine's own when it is
+# newer; that one can need a newer glibc than a user's machine has, and its source
+# is not the source of Julia's. A binary still loads a newer libstdc++ of its
+# user's machine when there is one.
+function _check_julia_libstdcxx(bundle::AbstractString)
+    Sys.islinux() || return nothing
+    bundled = joinpath(bundle, "lib", "julia", "libstdc++.so.6")
+    own = joinpath(Sys.BINDIR, "..", "lib", "julia", "libstdc++.so.6")
+    (isfile(bundled) && isfile(own)) || return nothing
+    read(bundled) == read(own) ||
+        error("build_distribution: the bundle carries $(basename(realpath(bundled))) of " *
+              "this machine, not $(basename(realpath(own))) of Julia. Start the build with " *
+              "JULIA_PROBE_LIBSTDCXX=0, as bin/build_projectured does.")
+    nothing
 end
 
 """

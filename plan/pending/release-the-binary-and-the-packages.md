@@ -486,6 +486,20 @@ TMPDIR=/var/tmp/projectured-release JULIA_IMAGE_THREADS=2 JULIA_NUM_PRECOMPILE_T
       of R18 covers alsa, GMP, MPFR, the GCC runtime (`libgcc_s`, `libstdc++`,
       `libgfortran`, `libgomp`, `libatomic`, `libssp`, `libquadmath`),
       libgit2, 7-Zip and libjulia.
+
+      **The test build carried the `libstdc++` of this machine**, found while
+      the sources of R18 were checked: `libstdc++.so.6.0.35` of Ubuntu's GCC 16
+      prerelease (`libstdc++6` 16-20260322), which needs `GLIBC_2.38`, so the
+      archive would not start on Debian 12 or Ubuntu 22.04. PackageCompiler
+      copies "the libstdc++ that is actually loaded by Julia", and Julia's
+      loader loads the machine's own when it is newer. Julia's own is
+      `libstdc++.so.6.0.34` of GCC 15.2.0, needs `GLIBC_2.17`, and is byte for
+      byte the one of `CompilerSupportLibraries_jll` 1.5.5. **The fix**:
+      `bin/build_projectured` starts every build with `JULIA_PROBE_LIBSTDCXX=0`
+      (the switch of `cli/loader_lib.c`), and `build_distribution` refuses a
+      bundle whose `libstdc++` is not Julia's own. A binary still probes on its
+      user's machine and loads a newer system library when there is one.
+      `test_builder()` 199.
 - [ ] Record in this plan: the wall time, the peak memory, the bundle size, the
       archive size and the SHA-256 digest that the build prints.
 - [ ] Write the digest to `<archive>.sha256`, beside the archive.

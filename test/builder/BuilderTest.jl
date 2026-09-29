@@ -645,6 +645,39 @@ function test_builder()
             rm(empty_bundle; recursive = true, force = true)
         end
 
+        @testset "a distribution carries the libstdc++ of Julia, not of the machine" begin
+            own = joinpath(Sys.BINDIR, "..", "lib", "julia", "libstdc++.so.6")
+            if Sys.islinux() && isfile(own)
+                context = _test_context()
+                bundle = mktempdir()
+                mkpath(joinpath(bundle, "bin"))
+                write(joinpath(bundle, "bin", "thing"), "")
+                mkpath(joinpath(bundle, "lib", "julia"))
+                write(joinpath(bundle, "lib", "julia", "libstdc++.so.6"), "another library")
+                message = try
+                    build_distribution(context; name = "thing", bundle = bundle,
+                                       licences = ["NO-SUCH-LICENCE"])
+                    ""
+                catch exception
+                    sprint(showerror, exception)
+                end
+                @test occursin("JULIA_PROBE_LIBSTDCXX=0", message)
+                # Julia's own library passes, and the build stops at the next check.
+                cp(own, joinpath(bundle, "lib", "julia", "libstdc++.so.6"); force = true)
+                message = try
+                    build_distribution(context; name = "thing", bundle = bundle,
+                                       licences = ["NO-SUCH-LICENCE"])
+                    ""
+                catch exception
+                    sprint(showerror, exception)
+                end
+                @test !occursin("JULIA_PROBE_LIBSTDCXX", message)
+                rm(bundle; recursive = true, force = true)
+            end
+            @test occursin("JULIA_PROBE_LIBSTDCXX=0",
+                           read(joinpath(dirname(dirname(@__DIR__)), "bin", "build_projectured"), String))
+        end
+
         @testset "an archive carries the licence of what is in it" begin
             # A licence that asks for its text in every copy is broken by an
             # archive that leaves the file out.
