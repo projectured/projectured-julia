@@ -15,6 +15,11 @@
 #     build_projectured_distribution()                  # build/projectured-*.tar.gz
 #
 # `source/builder/build_binary.jl` gives the same builds from a shell.
+#
+# `PackageRelease.jl` writes the other form a user can install: a copy of the
+# packages in which each package folder holds everything it reads, for a
+# registry. `build_projectured_package_release!(output)` writes the one of this
+# repository.
 # ═══════════════════════════════════════════════════════════════════════════
 
 module ProjecturedBuilder
@@ -31,6 +36,7 @@ include("../../../source/builder/Usage.jl")
 include("../../../source/builder/AppPackage.jl")
 include("../../../source/builder/Executable.jl")
 include("../../../source/builder/Distribution.jl")
+include("../../../source/builder/PackageRelease.jl")
 include("../../../source/builder/ProjecturedProgram.jl")
 
 export BuildContext, get_package_directory, get_package_uuid, make_projectured_build_context
@@ -42,9 +48,12 @@ export build_executable, compile_app!, resolve_app_project, build_info, get_smok
 export bundle_fonts!, bundle_assets!, print_build_report!, INCREMENTAL_MARK, PORTABLE_CPU_TARGET
 export build_distribution, get_staging_root, check_relocation, write_readme, report_distribution
 export get_hidden_directories, make_hidden_command
+export build_package_release!, collect_outside_paths
 export PROJECTURED_BACKENDS, PROJECTURED_OPTIONS, PROJECTURED_REQUIREMENTS,
        PROJECTURED_LICENCES, make_projectured_usage
 export build_projectured_executable, build_projectured_distribution
 export PROJECTURED_ASSETS, check_projectured_copy
+export PROJECTURED_RELEASE_EXCLUSIONS, PROJECTURED_PACKAGE_ASSETS, PROJECTURED_JULIA_COMPAT,
+       collect_projectured_release_packages, build_projectured_package_release!
 
 end # module ProjecturedBuilder

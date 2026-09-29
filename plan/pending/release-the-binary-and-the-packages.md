@@ -144,9 +144,13 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
 
 ### 3.1 Both routes
 
-- **Most fonts have no licence text.** `asset/font/` holds licence text for
-  Lucide (ISC) and Noto Emoji (OFL) only. DejaVu, Liberation, Inconsolata and
-  Ubuntu have their own licences, and the OFL needs its text beside the font.
+- **Most fonts had no licence text.** `asset/font/` held licence text for
+  Lucide (ISC) and Noto Emoji (OFL) only. Step A2 found the licence of each
+  family: DejaVu 2.37 is Bitstream Vera (its text is also inside each font
+  file), Inconsolata is OFL-1.1, Ubuntu is the Ubuntu Font Licence 1.0, and
+  **Liberation 1.07.3 is GPL-2 with a font exception, not OFL** (only
+  Liberation 2.x is OFL). A GPL-2 font needs its source, or a written offer,
+  beside it (R17).
 - **`LICENCE-PD` asks for its notice in every copy.** The archive carries it.
   Pkg installs only the folder of a package, so each package folder of the
   release copy must carry it too.
@@ -205,7 +209,11 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
 
 | # | Question | Recommendation (mine, not decided) |
 | --- | --- | --- |
-None.
+| R3a | Step A2 found that the sound chain makes the archive one that nobody may give to others (Step A2 results). Which way removes it? | A stub `alsa_plugins_jll` in the generated environment of the binary: the same name and uuid, no dependencies, an empty `artifact_dir`. It removes 58 of the 99 JLLs, 462 of the 577 MB of artifacts, and every item that is a problem. It changes the builder, not the structure of the repository. SDL sound can then never work in the binary; the application uses none (`SDL_INIT_VIDEO` only). Part B is not touched. |
+| R17 | Liberation 1.07.3 is GPL-2 with a font exception. Ship its source or a written offer, or switch to Liberation 2.x (OFL-1.1, the same metrics)? | Switch to Liberation 2.x. The OFL needs only its text, in both routes. Compare a render of each family first, because the glyph shapes can differ. |
+| R18 | After the cut, the binary still holds LGPL and GPL parts: `alsa`, GMP, MPFR, libquadmath, the GCC runtime, libgit2, 7-Zip, and a part of libjulia (`dl-cache.h`). Each needs its source, or a written offer. In which form? | A source archive of those parts in the same GitHub release as the binary. That is the simplest form that puts the source "in the same place". |
+| R20 | The guides live in `ProjecturedKernel` (§2.3), so each change to a guide gives the kernel a new version, and Julia compiles every package above it again after `pkg> up`. A change to a licence text gives all 65 a new version. Accept that, or give the guides a package of their own later? | Accept it now. The kernel changes in most releases anyway, and a package of its own for the guides is a change of structure. |
+| R19 | `source/graph/cpp/` (in `ProjecturedGraph`, so in both routes) ports ten OMNeT++ files. Their headers name OpenSim Ltd. and Andras Varga and the Academic Public License; the port carries no notice, and `LICENCE-PD` names Levente Meszaros. `source/domain/Domain.jl:28-33` adapts one function of Julia's `InteractiveUtils` (MIT). | Only the owner can confirm the rights to the port, and whether it keeps the notice of the originals. The MIT function needs the MIT notice beside it, in one comment. |
 
 ### 4.2 Decided
 
@@ -215,7 +223,7 @@ The owner decided these on 2026-09-29.
 | --- | --- | --- |
 | R0 | Which route? | The binary archive first. No change to the repository structure. |
 | R1 | Is the deferral of 2026-09-20 lifted? | Yes. Part A goes to the release, Step A7 included. The owner still approves Step A7 before it runs. |
-| R3 | What to do about x264, x265 and fdk-aac? | Wait for the licence check of Step A2. Nothing is chosen until it reports. If the answer is "remove them", look for a way that changes no structure, for example a JLL preference that points `SDL2_jll` at a build without sound plugins. |
+| R3 | What to do about x264, x265 and fdk-aac? | Wait for the licence check of Step A2. Nothing is chosen until it reports. If the answer is "remove them", look for a way that changes no structure, for example a JLL preference that points `SDL2_jll` at a build without sound plugins. The check reported on 2026-09-29; R3a holds the choice. |
 | R5 | Is the repository public? | Yes: <https://github.com/projectured/projectured-julia>. A GitHub release there reaches every user. |
 | R7 | Build from the main checkout, or from a worktree? | A worktree at the release commit. Then the archive matches the tag, and no uncommitted change of another session goes in. The cost is one full compile of the cache for that worktree. |
 | R8 | How does a Julia programmer install the packages? | Through a generated release copy and a registry of our own (Part B). Not `pkg> develop`: the owner does not want it. Not a move of `source/` into the packages: that changes the structure. |
@@ -287,20 +295,66 @@ check) also decides the licence texts that Part B copies.
 
 ### Step A2: the licence check (gate)
 
-- [ ] The license-compliance-officer reads `build/app/projectured/Manifest.toml`
+- [x] The license-compliance-officer reads `build/app/projectured/Manifest.toml`
       and `asset/font/`, and lists for each item: its licence, whether the
       archive may carry it, and which text must go with it. It also says which
       texts each package folder of Part B must carry.
-- [ ] The owner decides R3 from that list.
+- [ ] The owner decides R3a, R17, R18 and R19 from that list.
 - [ ] Add the licence texts that are missing to `asset/font/`. New files only;
-      no folder moves.
-- [ ] If the archive must name more licences, extend `PROJECTURED_LICENCES` or
-      the `README` text in `source/builder/`, with a test in
-      `test/builder/BuilderTest.jl`.
+      no folder moves. Done for three on 2026-09-29: `DejaVu-Bitstream-Vera.txt`,
+      `Inconsolata-OFL.txt`, `Ubuntu-UFL.txt`. The text of Liberation waits for
+      R17.
+- [ ] The archive carries the third-party texts of the results below: extend
+      `PROJECTURED_LICENCES`, the `README` text and the assets in
+      `source/builder/`, with a test in `test/builder/BuilderTest.jl`. This
+      waits for R3a and R18, because both change the list.
+
+Results of 2026-09-29. The evidence (the manifest list, the `LD_DEBUG` log of
+a start, the `ffmpeg` build flags, the font name tables and the downloaded
+texts) is in `/var/tmp/release-plan/licence/`.
+
+- **The sound chain.** `SDL2_jll` 2.32.10 and `SimpleDirectMediaLayer` 0.5
+  both run `using alsa_plugins_jll`, and its `__init__` loads `FFMPEG_jll` and
+  `PulseAudio_jll`. FFmpeg 9.0 of the JLL is built with `--enable-gpl
+  --enable-version3 --enable-nonfree` and fdk-aac, x264 and x265, and `ffmpeg
+  -L` says: "This version of ffmpeg has nonfree parts compiled in. Therefore it
+  is not legally redistributable." The chain also loads GSL, Readline and Gdbm
+  (GPL-3), FFTW, obstack and BlueZ (GPL-2) and BerkeleyDB (AGPL-3) into the
+  process of `projectured --help`. Every version of these JLLs in General has
+  the same dependencies.
+- **A JLL preference does not remove the chain.** It changes which file a
+  library loads, but the `using` of the dependency stays, and PackageCompiler
+  bundles the artifact of every package of the manifest.
+- **What stays after a cut of `alsa_plugins_jll`** is permissive, with its text
+  in the `share/licenses/` of each artifact, except the LGPL and GPL parts of
+  R18. The archive must add: Julia's `LICENSE.md` and `THIRDPARTY.md`, the
+  texts of `lib/julia`, `libexec` and `cert.pem` (MPL-2.0), the `LICENSE`
+  files of the 25 Julia packages compiled into the image, and two credits in
+  the `README` (the IJG sentence for libjpeg-turbo, the FreeType credit).
+- **Part B needs no JLL text**, because Pkg downloads the JLLs from the Julia
+  package servers. Each package folder carries `LICENCE-PD` and
+  `LICENCE-COMMERCIAL`; `ProjecturedStyle` and `ProjecturedWeb` carry the font
+  texts with `asset/font/`. R17 and R19 apply to Part B too.
+- **`asset/web/` and `documentation/` hold no third-party content.**
 
 ### Step A3: the faults the owner wants fixed (R6)
 
-- [ ] `SIGTERM` stops the application with no backtrace.
+- [x] `SIGTERM` stops the application with no backtrace.
+
+      **The cause is the Julia runtime, not the application.** Every Julia
+      process prints the stacks of all threads on `SIGTERM`: the signal
+      listener of the runtime takes the signal with `sigwait` and treats it as
+      fatal, with no setting to change that (`src/signals-unix.c` of 1.13.0,
+      lines 1131 and 1154 to 1215). **The fix**, in the module that the builder
+      writes for every binary: `julia_main` calls `_end_on_terminate!()` right
+      after the log level. On Linux it sets `SIGTERM` to its default action and
+      unblocks it on the main thread. Linux gives a signal sent to the process
+      to the main thread first when that thread does not block it, so the
+      kernel ends the process: exit status 143, no output. `atexit` hooks do
+      not run; the application registers none. Checked on 2026-09-29: a plain
+      Julia process with 1 and with 4 threads, and a program that the builder
+      wrote with `compile = false`, all end with 143 and print nothing after
+      their last line. `test_builder()`: 170 of 170.
 - [ ] The window has a `WM_NAME` (and `_NET_WM_NAME`) of `ProjecturEd`.
 - [ ] One commit per fault, each with the narrowest test.
 
@@ -425,26 +479,106 @@ A new function in the builder, for example
 [naming-rules.md](../../documentation/rule/naming-rules.md); read it before
 the name is final. For each package of the registry set (R16), the function:
 
-- [ ] copies `Project.toml` and `src/`, and the slice of `source/` that the
+- [x] copies `Project.toml` and `src/`, and the slice of `source/` that the
       entry file includes;
-- [ ] changes the prefix `../../../source/` to `../source/` in the entry file,
+- [x] changes the prefix `../../../source/` to `../source/` in the entry file,
       and nothing else in the code;
-- [ ] copies the folders of the table in §2.3 to their places;
-- [ ] copies `LICENCE-PD`, `LICENCE-COMMERCIAL`, and the texts that Step A2
-      names, into the package folder;
-- [ ] removes `[sources]`, and sets `version` and `[compat]` by the rules of
+- [x] copies the folders of the table in §2.3 to their places;
+- [x] copies `LICENCE-PD` and `LICENCE-COMMERCIAL` into the package folder.
+      The font texts that Step A2 names go with `asset/font/`, so they need no
+      step of their own;
+- [x] removes `[sources]`, and sets `version` and `[compat]` by the rules of
       R11 and by R13;
-- [ ] keeps the last registered `Project.toml` of a package whose content did
+- [x] keeps the last registered `Project.toml` of a package whose content did
       not change, and registers no new version of it (R11, rules 1 and 2);
-- [ ] scans the copy for an `include`, an `@__DIR__` path or a `joinpath` with
+- [x] scans the copy for an `include`, an `@__DIR__` path or a `joinpath` with
       `..` that leaves the package folder, and stops with the file and the line
       when it finds one.
 
-- [ ] A test in `test/builder/BuilderTest.jl` that compiles nothing: generate
-      two small packages, check the layout, the rewritten include, the
-      `[compat]`, the licence files, and that the scan stops on a path that
-      leaves a package. Then change one of the two and generate again: only
-      that one gets a new version, and the other keeps its tree.
+- [x] A test that compiles nothing: generate two small packages, check the
+      layout, the rewritten include, the `[compat]`, the licence files, and
+      that the scan stops on a path that leaves a package. Then change one of
+      the two and generate again: only that one gets a new version, and the
+      other keeps its tree.
+
+What was built (2026-09-29):
+
+- **The code.** [PackageRelease.jl](../../source/builder/PackageRelease.jl)
+  holds the generic half: `build_package_release!(context; packages, output,
+  assets, licences, manifest, julia_compat)` and the scan
+  `collect_outside_paths(folder)`. [ProjecturedProgram.jl](../../source/builder/ProjecturedProgram.jl)
+  holds the half of this repository: `PROJECTURED_RELEASE_EXCLUSIONS`,
+  `PROJECTURED_PACKAGE_ASSETS`, `collect_projectured_release_packages(context)`
+  and `build_projectured_package_release!(output)`.
+- **The name takes `!`.** The function writes files, and the naming rules give
+  `!` to an external side effect. `build_executable` and `build_distribution`
+  beside it do not have it.
+- **The layout of the release repository**: one folder per package at the
+  root, `<Name>/`, and the licence files at the root too.
+- **Where the last released version is read.** The working tree of the release
+  repository holds it: the `Project.toml` of `<Name>/` is the last release of
+  that package. The generator reads no registry.
+- **The content that decides "changed"**: every file of the package folder, and
+  the `Project.toml` without `version`, `[compat]` and `[sources]`. The
+  generator writes the copy into a staging folder under `/var/tmp` first, and
+  it replaces the released folder only when the content differs.
+- **The bounds (R13) in practice.** A sibling: the exact version, as a caret
+  (`"0.1.0"`). A package from a registry: its full version in
+  `environment/all/Manifest.toml`, as a caret (`SimpleDirectMediaLayer =
+  "0.5.0"`). A standard library: no bound. A bound in the source `[compat]`
+  stays (`SDL2_jll = "2.32.10"`). Julia: `"1.11"` until Step B4 finds the
+  oldest version that passes.
+- **The scan reads the syntax tree** (`Meta.parseall`), not the text. So the
+  docstring that says `@__DIR__` in `TrueType.jl` and the call `include(node)`
+  in `PaneProgram.jl`, where `include` is a keyword argument, cause no false
+  report. A `@__DIR__` outside `joinpath` is reported, because the scan can not
+  follow it; none occurs in the 65 packages. A path inside the folder that
+  names nothing is reported too, which catches an asset that the release
+  forgot.
+- **Registration stays out of the builder.** `LocalRegistry.jl` registers the
+  packages in the order that the generator answers. The builder gets no new
+  dependency; the procedure is in the build guide (Step B5).
+- **The run on this repository**: 65 packages, 35 MB, all `:new` at `0.1.0`.
+  A second run with no change: all 65 `:unchanged`, and no file written.
+- **Changed after the review of 2026-09-29.** The code-reviewer found these
+  faults, and each one is fixed:
+  - `import TOML` in the test file broke `using ProjecturedTest`, which does
+    not declare TOML. The test reaches it as `ProjecturedBuilder.TOML`, as
+    `BuilderTest.jl` does.
+  - An error in the middle of a run left the copy half-written, and the next
+    run then called a package unchanged that was never registered. **Now** the
+    generator writes and scans every package in the staging folder first, and
+    `output` changes only when all passed. **And** it refuses a release
+    repository with an uncommitted change, so the last release is always what
+    the last commit holds.
+  - The copy took every file in the folder, so a coverage file (`*.cov`) or an
+    editor lock file could reach a user and change a version. **Now** it copies
+    only the files that git tracks (`git ls-files`).
+  - A JLL version carries a build suffix (`2.32.10+0`), and a `[compat]` entry
+    with it is refused by Pkg. **Now** the bound drops the suffix.
+  - The scan missed `joinpath(dirname(@__FILE__), …)`, `Base.include(module,
+    path)`, `include(mapexpr, path)`, `include(joinpath("..", …))` and
+    `Base.@__DIR__`. **Now** it follows them, and it reports a path through
+    `pkgdir` or `pathof` and a `@__FILE__` it can not follow. None of these
+    forms occurs in the 65 packages.
+  - The digest had no length before each file, so two folders could give the
+    same digest. A missing manifest gave no bounds in silence; now it stops.
+  - `PROJECTURED_JULIA_COMPAT` (`"1.11"`) is the Julia bound of this
+    repository, passed by `build_projectured_package_release!`.
+- **The rule for the registration** that follows from the refusal: after a
+  commit of the release repository, register every package whose version the
+  registry does not hold yet, in the order that the generator answers. That
+  makes a registration that was cut short safe to run again.
+- **The tests**: [PackageReleaseTest.jl](../../test/builder/PackageReleaseTest.jl),
+  `test_package_release()`, beside `test_builder()` in the umbrella suite. It
+  passes with 34 assertions on a made git repository, and 490 on this
+  repository: the release set is closed (every sibling that a released package
+  depends on is released too), and a real run over the 65 packages passes the
+  scan. `test_package_graph()` passes with 675, and the tree guard too. It
+  runs alone with
+  `julia --project=environment/build -e 'using ProjecturedBuilder, Test;
+  include("test/builder/PackageReleaseTest.jl"); test_package_release()'`.
+  `test_builder()` still passes with 167, and the naming guard passes.
 
 ### Step B3: the meaning folder of an installed package
 
@@ -470,17 +604,39 @@ the name is final. For each package of the registry set (R16), the function:
 Warning: give each Julia process a memory cap of 8 GB and a timeout, and read
 `free -g` first. The first `using` of the application compiles for minutes.
 
-- [ ] Generate the 65 packages of the registry set under `/var/tmp`, commit them to a local
+- [x] Generate the 65 packages of the registry set under `/var/tmp`, commit them to a local
       git repository, and register them in a local registry.
-- [ ] In an empty depot: add General and the local registry.
-- [ ] `add ProjecturedJson ProjecturedSdl`, then `using`, and open one window
+- [x] In an empty depot: add General and the local registry.
+- [x] `add Projectured ProjecturedSdl`, then `using`, and open one window
       with a JSON document. The fonts must come from
       `ProjecturedStyle/asset/font`.
-- [ ] In a new environment, `add Projectured ProjecturedWeb ProjecturedMcp`,
+
+      **Changed during the work: the umbrella, not `ProjecturedJson`.** A user
+      can `using` only the packages that the environment names.
+      `parse_natural_text` and `NaturalToGraphics` live in `ProjecturedNatural`,
+      and `run_window_editor` in `ProjecturedScreen`. `add ProjecturedJson
+      ProjecturedSdl` installs both, but names neither. `Projectured`
+      re-exports every public name, so the install line of Step B5 names
+      `Projectured ProjecturedSdl`, as the own-project guide does.
+- [x] In a new environment, `add Projectured ProjecturedWeb ProjecturedMcp`,
       and open a document with `run_window_editor(…; backend = WebBackend(),
       mcp = true)`. The web client must come from `ProjecturedWeb/asset/web`.
       The MCP tool `read_resource` with `resource://guides` must list the
       guides from `ProjecturedKernel/documentation`.
+Results of 2026-09-29, in an empty depot with General and a local registry of
+the 65 packages (`/var/tmp/release-plan/b4/`):
+
+- **The window.** `add Projectured ProjecturedSdl` installed 230 packages
+  (ours and those of General, the JLLs included). After the precompile,
+  `using` took 2.6 s. `_FONT_DIR` of `ProjecturedStyle` was
+  `…/packages/ProjecturedStyle/<slug>/asset/font`, with 40 files. A headless
+  print of a JSON document with `FontFileMeasure` worked, and a real window
+  drew 40 frames.
+- **The web backend and MCP.** `add Projectured ProjecturedWeb ProjecturedMcp`
+  in a new environment: the web client page, `client.js`, the font list and a
+  font file came over HTTP, and the MCP tool `read_resource` listed the guides
+  (`design/concepts`) from `…/packages/ProjecturedKernel/<slug>/documentation`.
+
 - [ ] A second release: change one file in one slice, generate again, and
       register. Only that package gets a new version. `pkg> up` in the test
       depot takes it and downloads nothing else.
@@ -494,7 +650,7 @@ Warning: give each Julia process a memory cap of 8 GB and a timeout, and read
       the install line, with General named:
 
       ```sh
-      julia -e 'using Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(url="https://github.com/projectured/ProjecturedRegistry"); Pkg.add(["ProjecturedJson", "ProjecturedSdl"])'
+      julia -e 'using Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(url="https://github.com/projectured/ProjecturedRegistry"); Pkg.add(["Projectured", "ProjecturedSdl"])'
       ```
 
 - [ ] [own-project-guide.md](../../documentation/guide/own-project-guide.md):
@@ -518,7 +674,7 @@ stops.
 - [ ] `register` the 65 packages of the registry set in `ProjecturedRegistry`, with the URL of
       the release repository, and push the registry.
 - [ ] In an empty depot, run the install line of Step B5 against GitHub, and
-      `using ProjecturedJson, ProjecturedSdl`.
+      `using Projectured, ProjecturedSdl`.
 
 ## Step C: close
 

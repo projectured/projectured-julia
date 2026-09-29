@@ -159,6 +159,72 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
                        check = check_projectured_copy)
 end
 
+"""
+    PROJECTURED_RELEASE_EXCLUSIONS
+
+The packages that stay out of the registry although they are neither an example
+package nor a test package: each one depends on a package that the registry
+does not hold, reads a folder outside its own, or compiles native code on the
+machine of the user.
+"""
+const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedBench",
+                                        "ProjecturedBuilder", "ProjecturedRepl"]
+
+"""
+    PROJECTURED_PACKAGE_ASSETS
+
+The folders of the repository that a released package reads while it runs, as
+`"<package>" => ["<folder>" => "<folder in the package>", …]`. Each one sits at
+the same place relative to the source of the package as in the repository, so
+the code that reads it needs no change.
+"""
+const PROJECTURED_PACKAGE_ASSETS = Dict(
+    "ProjecturedKernel" => ["documentation" => "documentation"],
+    "ProjecturedStyle" => ["asset/font" => "asset/font"],
+    "ProjecturedWeb" => ["asset/web" => "asset/web", "asset/font" => "asset/font"])
+
+"""
+    PROJECTURED_JULIA_COMPAT
+
+The oldest Julia that a released package of this repository names in its
+`[compat]`. The packages reach each other by `[sources]`, which Julia 1.11 is
+the first to read.
+"""
+const PROJECTURED_JULIA_COMPAT = "1.11"
+
+"""
+    collect_projectured_release_packages(context) -> Vector{String}
+
+The packages of this repository that go into the registry: every package that
+is not an example package and not a test package, without
+[`PROJECTURED_RELEASE_EXCLUSIONS`](@ref).
+"""
+function collect_projectured_release_packages(context::BuildContext)
+    names = String[]
+    for root in context.package_roots, name in readdir(root)
+        isfile(joinpath(root, name, "Project.toml")) || continue
+        (endswith(name, "Test") || endswith(name, "Example")) && continue
+        name in PROJECTURED_RELEASE_EXCLUSIONS || push!(names, name)
+    end
+    sort!(unique!(names))
+end
+
+"""
+    build_projectured_package_release!(output; context, kwargs...) -> Vector
+
+Write the release copy of the packages of this repository into `output`, the
+working tree of the release repository. The keywords go to
+[`build_package_release!`](@ref).
+"""
+function build_projectured_package_release!(output::AbstractString;
+                                              context::BuildContext = make_projectured_build_context(),
+                                              kwargs...)
+    build_package_release!(context; packages = collect_projectured_release_packages(context),
+                           output = output, assets = PROJECTURED_PACKAGE_ASSETS,
+                           licences = PROJECTURED_LICENCES,
+                           julia_compat = PROJECTURED_JULIA_COMPAT, kwargs...)
+end
+
 const _CHECK_WEB = "http://127.0.0.1:8080"
 const _CHECK_MCP = "http://127.0.0.1:9876/mcp"
 

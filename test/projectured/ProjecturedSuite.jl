@@ -146,6 +146,7 @@ include("backend/ConsoleBackendTest.jl")
 include("backend/PdfTest.jl")
 include("backend/WebTest.jl")
 include("../builder/BuilderTest.jl")
+include("../builder/PackageReleaseTest.jl")
 include("document/SelectionEnumeration.jl")
 include("editor/ConstructTest.jl")
 include("editor/ConversationPanelTest.jl")
@@ -479,6 +480,7 @@ function test_all()
     test_value_viewer()
     test_referenced_document_editor()
     test_builder()
+    test_package_release()
     test_gallery_wrappers()
     test_mouse_clicks()
     test_click_roundtrips()
@@ -545,7 +547,7 @@ export test_undo_round_trip
 export test_application, test_history_sweep, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
-       test_value_viewer, test_referenced_document_editor, test_builder,
+       test_value_viewer, test_referenced_document_editor, test_builder, test_package_release,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql
