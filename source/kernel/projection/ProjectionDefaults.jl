@@ -85,12 +85,10 @@ function map_reference_backward(projection::Projection, iomap, reference)
     # Without the input document there is no pre-image to wrap against, so the
     # reference is returned unchanged.
     iomap === nothing && return reference
-    # The projection-introduced element has no input pre-image; build the
-    # `proj`-wrapped path and annotate it against the input document (the 2-arg
-    # `@reference(doc, …)` form) so its node carries the input type (a
-    # `ProjectionReferenceStep` evaluates to its `output_path`, so the terminal records
-    # that path's own type) — keeping the strict-typing invariant.
-    @reference(iomap.input, proj(projection, ^(reference)))
+    # The projection-introduced element has no input pre-image, so the answer is the
+    # canonical caret on it: its node carries the type of the input document, and its
+    # terminal records `Position`.
+    make_introduced_reference(projection, iomap.input, reference)
 end
 
 """
