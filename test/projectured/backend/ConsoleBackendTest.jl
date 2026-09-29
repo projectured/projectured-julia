@@ -91,6 +91,9 @@ function test_console_backend()
         @test _parse(0x0d) == KeyDown(:return, ModifierKeys(); time = 0.0)
         @test _parse(0x7f) == KeyDown(:backspace, ModifierKeys(); time = 0.0)
         @test _parse(0x09) == KeyDown(:tab, ModifierKeys(); time = 0.0)
+        # A Ctrl byte that no row above reads is its letter with Ctrl: 0x1A is Ctrl+Z.
+        @test _parse(0x1a) == KeyDown(:z, ModifierKeys(ctrl=true); time = 0.0)
+        @test _parse(0x01) == KeyDown(:a, ModifierKeys(ctrl=true); time = 0.0)
         @test _parse(UInt8('a')) == KeyPress('a'; time = 0.0)
         # An incomplete CSI (just "ESC [") yields no event and is left buffered.
         @test _parse(0x1b, UInt8('[')) === nothing

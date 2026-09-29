@@ -338,6 +338,8 @@ function _next_event!(buf::Vector{UInt8}; settled::Bool = false, time::Real)
     elseif b0 == 0x0d || b0 == 0x0a; return KeyDown(:return, ModifierKeys(); time)
     elseif b0 == 0x7f || b0 == 0x08; return KeyDown(:backspace, ModifierKeys(); time)
     elseif b0 == 0x09; return KeyDown(:tab, ModifierKeys(); time)
+    elseif 0x01 <= b0 <= 0x1a                                           # Ctrl+A to Ctrl+Z
+        return KeyDown(Symbol(Char(b0 + 0x60)), ModifierKeys(ctrl = true); time)
     elseif 0x20 <= b0 < 0x7f; return KeyPress(Char(b0); time)          # printable ASCII
     elseif b0 >= 0x80                                                   # UTF-8 lead byte
         nbytes = _count_utf8_bytes(b0)

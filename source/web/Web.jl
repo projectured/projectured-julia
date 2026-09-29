@@ -86,8 +86,9 @@ end
 
 Map a browser `KeyboardEvent.key` (+ `code` for left/right modifier identity)
 to the backend-agnostic key vocabulary, mirroring `sdl_keysym_to_symbol`.
-Printable keys whose specific identity is not tracked return `:char` (the
-character itself arrives separately via a `keypress` → `KeyPress`).
+A letter key `a` to `z` or `A` to `Z` has the name of its lower-case letter,
+`:a` to `:z`. Printable keys whose specific identity is not tracked return
+`:char` (the character itself arrives separately via a `keypress` → `KeyPress`).
 """
 function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mods::ModifierKeys)::Symbol
     # Navigation
@@ -136,10 +137,7 @@ function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mo
         c == '-' && return :minus
         c == '0' && return :zero          # Ctrl+0 — reset transform/zoom
         lc = lowercase(c)
-        lc == 'c' && return :c
-        lc == 'x' && return :x
-        lc == 'v' && return :v
-        lc == 'n' && return :n
+        'a' <= lc <= 'z' && return Symbol(lc)
         return :char
     end
     return :char

@@ -49,6 +49,18 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]) === nothing
     end
 
+    @testset "a letter key has the name of its lower-case letter" begin
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"z","code":"KeyZ",
+                "mods":{"ctrl":true}}""")
+        @test read_from_devices(backend, Device[]).event.key === :z
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"Z","code":"KeyZ",
+                "mods":{"ctrl":true,"shift":true}}""")
+        @test read_from_devices(backend, Device[]).event.key === :z
+    end
+
     @testset "a motion holds every button that the mask of the browser holds" begin
         backend = WebBackend(port = 0)
         # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.

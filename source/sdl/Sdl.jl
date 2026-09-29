@@ -322,6 +322,7 @@ _current_modifiers() = sdl_modifiers(UInt16(SDL_GetModState() & 0xFFFF))
     sdl_keysym_to_symbol(keysym::Int32) -> Symbol
 
 Map an SDL keysym integer to the backend-agnostic key symbol vocabulary.
+Each letter key has the name of its lower-case letter, `:a` to `:z`.
 Returns `:char` for printable keys whose specific identity is not tracked
 (the character value arrives separately via `SDL_TEXTINPUT`).
 """
@@ -358,19 +359,12 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(27)         && return :escape
     keysym == Int32(32)         && return :space
     keysym == Int32(46)         && return :period   # '.' — used by the Ctrl+. fold chord
-    # Clipboard projection chords (ClipboardModule): the letter and
-    # punctuation keys it binds need distinct symbols rather than the `:char`
-    # fallback so `@event_case` can tell them apart under Ctrl.
-    keysym == Int32(116)        && return :t        # Ctrl+T — open a pane tab
-    keysym == Int32(119)        && return :w        # Ctrl+W — close a pane tab
+    # Letters: the keysym of a letter key is the code of its lower-case letter.
+    Int32(97) <= keysym <= Int32(122) && return Symbol(Char(keysym))
+    # Punctuation chords: the punctuation keys that a binding names need distinct
+    # symbols rather than the `:char` fallback so `@event_case` can tell them
+    # apart under Ctrl.
     keysym == Int32(92)         && return :backslash # Ctrl+\\ — split a pane group
-    keysym == Int32(99)         && return :c        # Ctrl+C — copy
-    keysym == Int32(120)        && return :x        # Ctrl+X — cut
-    keysym == Int32(118)        && return :v        # Ctrl+V — paste
-    keysym == Int32(110)        && return :n        # Ctrl+N — note
-    keysym == Int32(112)        && return :p        # Ctrl+Shift+P — the command palette
-    keysym == Int32(115)        && return :s        # Ctrl+S — save, Ctrl+Shift+S — snapshot
-    keysym == Int32(111)        && return :o        # Ctrl+O — reload from disk
     keysym == Int32(47)         && return :slash    # '/' — toggle slice display
     keysym == Int32(1073741908) && return :slash    # keypad '/'
     keysym == Int32(1073741909) && return :asterisk # keypad '*' — toggle collection display
