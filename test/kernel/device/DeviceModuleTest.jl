@@ -1,7 +1,7 @@
 """
 The device layer: the defaults and the keyword constructors of the three
-devices, the properties that a backend writes, and the ratio of device pixels to
-logical pixels of a display.
+devices, the limits of the scale and the zoom of a display, the mutability of a
+device, and the ratio of device pixels to logical pixels of a display.
 """
 
 using Test
@@ -41,7 +41,7 @@ function test_device_module()
         @test_throws ArgumentError Display(scale = NaN)
     end
 
-    @testset "a backend writes the properties in place" begin
+    @testset "each device is mutable" begin
         display = Display()
         display.scale = 2.0
         display.width = 2560
