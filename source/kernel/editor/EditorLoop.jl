@@ -145,7 +145,10 @@ clients can drive the editor; off by default. `mcp_instructions`, `mcp_host` and
 `mcp_port` go to the server, and each one that is `nothing` takes the server's
 own default.
 
-When the loop ends, it quits the backend it ran on, also when it throws.
+When the loop ends, it answers the calls that wait in the inbox, stops the server
+and quits the backend it ran on. Each of these steps runs also when the loop or a
+step before it throws. The first exception goes on to the caller: the exception of
+the loop, or else the first exception of a step.
 `fault_policy` defaults to the editor's own: an editor that [`make_editor`](@ref)
 made already prints under the policy of its loop, and an editor a test builds
 with `Editor(…)` stays strict.
@@ -156,6 +159,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_port::Union{Integer,Nothing}=nothing,
               fault_policy::FaultPolicy=editor.fault_policy)
     server = nothing
+    has_quit = false
     try
         # A barrier in the projection reads the policy from the printer context,
         # so a projection printed under another policy prints again.
@@ -228,20 +232,30 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         end
     catch e
         e isa QuitEditorException || rethrow()
+        has_quit = true
     finally
         editor.loop_task = nothing
-        # Each step runs also when a step before it throws, and the exception
-        # goes on after the last step.
+        exception = _end_editor_loop!(editor, server)
+        # An exception of the loop goes on, so the exception of a step goes on
+        # only after a quit.
+        has_quit && exception !== nothing && throw(exception)
+    end
+end
+
+# The steps at the end of the loop. Each step runs also when a step before it
+# throws, and the answer is the first exception of a step, or `nothing`.
+function _end_editor_loop!(editor::Editor, server)
+    first_exception = nothing
+    for step in (() -> _answer_waiting_calls!(editor),
+                 () -> server === nothing || stop_agent_server!(server),
+                 () -> quit_backend!(editor.backend))
         try
-            _answer_waiting_calls!(editor)
-        finally
-            try
-                server === nothing || stop_agent_server!(server)
-            finally
-                quit_backend!(editor.backend)
-            end
+            step()
+        catch exception
+            first_exception === nothing && (first_exception = exception)
         end
     end
+    first_exception
 end
 
 # The server gets the settings the caller gave, and a setting that is `nothing` is

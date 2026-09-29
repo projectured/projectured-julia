@@ -49,11 +49,17 @@ end
 evaluate_operation(::Editor, operation::YieldingInboxOperation) =
     (push!(operation.log, :applied); yield(); nothing)
 
-# A backend that counts the quits of the loop, and never waits.
+# A backend that counts the quits of the loop, and never waits. Its quit throws
+# `quit_exception` when that is not `nothing`.
 mutable struct InboxQuitBackend <: Backend
     quits::Int
+    quit_exception::Any
 end
-BackendModule.quit_backend!(backend::InboxQuitBackend) = (backend.quits += 1; nothing)
+function BackendModule.quit_backend!(backend::InboxQuitBackend)
+    backend.quits += 1
+    backend.quit_exception === nothing || throw(backend.quit_exception)
+    nothing
+end
 BackendModule.read_from_devices(::InboxQuitBackend, devices) = nothing
 BackendModule.write_to_devices(::InboxQuitBackend, devices, output) = nothing
 BackendModule.wait_for_input(::InboxQuitBackend, devices, timeout_seconds) = nothing
@@ -176,7 +182,7 @@ function test_editor_inbox()
     end
 
     @testset "the loop quits its backend when a call at its end throws an interrupt" begin
-        backend = InboxQuitBackend(0)
+        backend = InboxQuitBackend(0, nothing)
         editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
         post_operation!(editor, QuitEditorOperation())
         # A call that no task waits for, still in the inbox when the loop ends.
@@ -185,6 +191,23 @@ function test_editor_inbox()
         @test_throws InterruptException run_editor!(editor)
         @test backend.quits == 1
         @test editor.loop_task === nothing
+    end
+
+    # The first exception goes on: an exception of the loop, or else the first
+    # exception of a step at its end. Every step runs.
+    @testset "an exception of the loop goes on when the quit of the backend throws" begin
+        backend = InboxQuitBackend(0, ErrorException("the quit failed"))
+        editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
+        post_operation!(editor, RunFunctionOperation(() -> throw(InterruptException()),
+                                                     nothing))
+        @test_throws InterruptException run_editor!(editor)
+        @test backend.quits == 1
+
+        backend = InboxQuitBackend(0, ErrorException("the quit failed"))
+        editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
+        post_operation!(editor, QuitEditorOperation())
+        @test_throws "the quit failed" run_editor!(editor)
+        @test backend.quits == 1
     end
 
     @testset "a frame applies what was posted before it reads" begin
