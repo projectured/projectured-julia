@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending; the steps are written (2026-09-29), and Q6 to Q8 are open. Nothing is built. It replaces the mouse target tracker of
+> **Status:** pending; the steps are written (2026-09-29), and Q7 and Q8 are open. Nothing is built. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -214,11 +214,18 @@ One at a time, with the owner.
   whose open points are asked again first; (3) this plan; (4) steps 9d, 9e and
   9f of the plan of the pointer, and then its steps 10 to 12, planned again with
   this model.
-- **Q6. No part under the pointer.** When the pointer leaves every window, or
-  stands where no part is, no document holds a mouse target. Claude's proposal:
-  the root holds `nothing`, and `ReplaceMouseTargetOperation(nothing)` clears
-  the chain; the screen answers it for the leave of a window, after it hands
-  the leave to the old part. Open.
+- ~~**Q6. No part under the pointer.**~~ **Settled** (owner 2026-09-29): "well,
+  the screen can still hold the path, the mouse can't really leave the screen,
+  no?" The pointer never leaves the screen: over no window of the editor, the
+  screen itself is the part under it, and the screen holds the empty path. The
+  leave of a window is `ReplaceMouseTargetOperation(EmptyReference())` at the
+  screen, which the screen answers after it hands the leave to the old part, by
+  the rule that a part that answers no target is the target itself. So the
+  operation always holds a `Reference`, as `ReplaceSelectionOperation` does;
+  `nothing` is only the value of a document off the path, and of the root before
+  the first move. The backend reports only that the pointer left the windows,
+  not where it is, and the screen needs no more. (Claude's proposal of
+  `ReplaceMouseTargetOperation(nothing)` is dropped.)
 - **Q7. One operation shape for every kind of path.** Four containers put the
   prefix on a selection by hand, and two default readers map it backward by
   name. Claude's proposal: `ReplaceSelectionOperation` and
@@ -245,7 +252,7 @@ already; the sealed selection files do not change (Q4).
   gives `nothing`, and a history does not record it. Tests: the field on a
   document, the save, the copy.
 - [ ] 2. **The operation and the chain.** `ReplaceMouseTargetOperation(path)`
-  (Q6, Q7): not an edit, re-rooted as a selection is, and evaluated at the root
+  (Q7): not an edit, re-rooted as a selection is, and evaluated at the root
   of the editor. The chain write is written for a kind of path, in a new kernel
   file: it goes down while the old and the new path agree, writes a cell only
   when its value changes, and clears the old branch below the place where the
@@ -275,7 +282,8 @@ already; the sealed selection files do not change (Q4).
   answers the path of its part under the point. A part that gets a move not on
   it while its mouse target is set answers what the leave means to it: the
   button clears `pressed`. The screen hands a move in another window, and the
-  leave of a window, to the old window first (Q6). Tests: moves across the JSON
+  leave of a window, to the old window first; after the leave of a window it
+  answers the empty path, the screen itself (Q6). Tests: moves across the JSON
   document, across a composite of buttons and across two windows write the
   chains of step 2; a press held on a button and moved off clears `pressed`.
 - [ ] 6. **The light** (M9). The button, the menu item and the toolbar item
