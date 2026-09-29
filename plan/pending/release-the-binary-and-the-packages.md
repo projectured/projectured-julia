@@ -286,10 +286,10 @@ check) also decides the licence texts that Part B copies.
       include("test/builder/BuilderTest.jl"); test_builder()'`.
 - [x] `bin/build_projectured --no-compile`. It writes the package of the binary
       in about a second. Done on 2026-09-29: exit 0.
-- [ ] `bin/projectured --help`, and one start of `bin/projectured` with two
-      files. This is the program that the build compiles. Moved to Step A3:
-      it loads every package, so it compiles the whole stack for the paths of
-      the worktree, and Step A3 needs that compile for its own tests.
+- [x] `bin/projectured --help`, and one start of `bin/projectured` with two
+      files. This is the program that the build compiles. Done in Step A3 on
+      2026-09-29: `--help` prints the usage, and a start with a JSON and a
+      Markdown file opens the window.
 - [ ] The grep of §2.1 for private names in `documentation/` and `asset/web/`
       again, on the release commit. On 2026-09-29, on the branch: no hit.
 
@@ -355,8 +355,32 @@ texts) is in `/var/tmp/release-plan/licence/`.
       Julia process with 1 and with 4 threads, and a program that the builder
       wrote with `compile = false`, all end with 143 and print nothing after
       their last line. `test_builder()`: 170 of 170.
-- [ ] The window has a `WM_NAME` (and `_NET_WM_NAME`) of `ProjecturEd`.
-- [ ] One commit per fault, each with the narrowest test.
+- [x] The window has a `WM_NAME` (and `_NET_WM_NAME`) of `ProjecturEd`.
+
+      **The cause is the libX11 JLL.** Its build names a locale folder that
+      exists only on the build machine, and the JLL does not set `XLOCALEDIR`.
+      Without the locale data `XSupportsLocale` is false, and SDL 2 then sets
+      neither property (`xprop`: "not found"; `WM_CLASS` was there). With
+      `XLOCALEDIR` pointing at `share/X11/locale` of the artifact, both
+      properties were right. **The fix**: `ProjecturedSdl` names
+      `Xorg_libX11_jll`, and its `__init__` sets `XLOCALEDIR` to that folder
+      unless the user set it (commit `1cfea4acc`). The binary carries the
+      artifact whole, so the fix holds there too.
+- [x] One commit per fault, each with the narrowest test.
+
+Checked on 2026-09-29 on the real application of the worktree (`bin/projectured`,
+no `XLOCALEDIR` set):
+
+- The window of a start with two files has `WM_NAME` and `_NET_WM_NAME` =
+  "ProjecturEd".
+- `SIGTERM` prints no backtrace in either backend, and the two end differently.
+  With the web backend the process ends at once (status 15 through the
+  `systemd-run` wrapper, 143 without it). With the SDL window the application
+  quits normally, status 0: SDL puts its own `SIGTERM` handler in place when the
+  handler is the default one, and it turns the signal into a quit event. The
+  fix of `_end_on_terminate!` is what gives SDL that default.
+- `test_native_window()` passes with 7, with a new assertion that `XLOCALEDIR`
+  holds `locale.dir`, and `test_sdl_layering()` passes.
 
 ### Step A4: the distribution build
 
@@ -637,14 +661,36 @@ the 65 packages (`/var/tmp/release-plan/b4/`):
   font file came over HTTP, and the MCP tool `read_resource` listed the guides
   (`design/concepts`) from `…/packages/ProjecturedKernel/<slug>/documentation`.
 
-- [ ] A second release: change one file in one slice, generate again, and
+- [x] A second release: change one file in one slice, generate again, and
       register. Only that package gets a new version. `pkg> up` in the test
       depot takes it and downloads nothing else.
-- [ ] Repeat the `add` and the `using` of `ProjecturedJson` on Julia 1.11 and
+- [x] Repeat the `add` and the `using` of `ProjecturedJson` on Julia 1.11 and
       1.12 through `juliaup`. The oldest version that passes sets the Julia
       bound of R13.
 
+Results of the later releases and of the Julia versions (2026-09-29). The
+script is `/var/tmp/release-plan/b4/next-release.sh`; each release came from a
+clone of the branch.
+
+- **Release 2, the branch as committed.** Three packages had changed since the
+  first copy: `ProjecturedKernel` (its guides and the meaning folder),
+  `ProjecturedStyle` and `ProjecturedWeb` (the font texts). Each became
+  `0.1.1`, and the other 62 kept `0.1.0`. `pkg> up` in the window environment
+  downloaded `ProjecturedKernel` and `ProjecturedStyle` only; that environment
+  does not hold `ProjecturedWeb`.
+- **Release 3, one comment added to `source/json/JsonModule.jl`.** Only
+  `ProjecturedJson` became `0.1.1`, and `pkg> up` downloaded only it.
+- **Julia 1.11.9 and 1.12.7** (`juliaup add 1.11`, `juliaup add 1.12`; the
+  default stays 1.13): in an empty depot with the local registry, `add
+  ProjecturedJson` resolved and `using` loaded it on both. So the bound of R13
+  stays `julia = "1.11"`. The umbrella and the backends were checked on 1.13
+  only.
+
 ### Step B5: the guides name the registry
+
+The install lines of the guides wait for Step B6: before it, they would name
+a registry that does not exist. They land with the release, as the guides of
+Step A6 do.
 
 - [ ] `README.md` and [setup-guide.md](../../documentation/guide/setup-guide.md):
       the install line, with General named:
@@ -659,8 +705,10 @@ the 65 packages (`/var/tmp/release-plan/b4/`):
       `ProjecturedExample` or `run_value_viewer`, because the registry does
       not hold them (R16). For the application, it names the binary.
 - [ ] The guides say: update all Projectured packages together (R11).
-- [ ] [build-guide.md](../../documentation/guide/build-guide.md): a section on
-      how to make a package release: generate, commit, register, push.
+- [x] [build-guide.md](../../documentation/guide/build-guide.md): a section on
+      how to make a package release: generate, commit, register, push. Done on
+      2026-09-29 (commit `2310c84b0`), with the release copy in
+      [builder.md](../../documentation/package/builder/builder.md).
 
 ### Step B6: publish the packages (the owner only)
 
