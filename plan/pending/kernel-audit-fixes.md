@@ -229,9 +229,10 @@ Each fix gets the regression test of its "Checked by the lead" run.
 
 Use the run of the report as the regression test: `x = 1:2:5`, then `step = nothing`, on the same output.
 
-- [ ] **L17-1** (High, Correctness)
+- [x] **L17-1** (High, Correctness)
   In _find_conditional, take a field whose cell is_computed_cell and holds a marker vector, and drop the test for a bare Function. In _conditional_print, read that cell inside the state computation, and give the output node a new children cell in the _with_selection rebuild, because a write into the computed cell deletes its computation.
   *Test:* New test_projection_template_conditional_children() in ProjectionTemplateTest.jl: a probe builder writes SyntaxConcatenation(() -> ...) over an optional field; write nothing, then a value, through the same IoMap; assert that the output children follow each write and that nothing throws. Also the case x = 1:2:5 with r.step = nothing in test_julia_to_syntax().
+  *Done:* lane B, fa1c8c02. `_find_conditional` reads the children cell with `peek`, so that the computation that prints the parent does not depend on the child list; the state cell holds the tracked read. Both regression tests fail on the old code. Suites: test_julia 410 (+3), test_substrate 86839 (+9), the others at their baseline. A remaining risk, for L17-15: the walk in the state cell strips the `bound` markers of the vector that it reads, so a second run on the same cached vector would make a bound leaf an introduced slot. No rule of today reruns it. The macros guide does not describe the thunk child list (for L17-23).
 
 ### Step 1.5: The pipes of the code tool
 
