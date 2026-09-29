@@ -1357,8 +1357,10 @@ end
 # mapper answers the rest of the reference; and the steps from the container's
 # canvas to the child's canvas are found by identity too (`find_node_reference`),
 # because a container puts parts of its own before its children, such as the
-# parts of its box, whose number varies. The empty reference is the container's
-# own canvas. A part of the
+# parts of its box, whose number varies. The search goes six nodes deep: the
+# page of a tabbed pane in a window is there, under the canvas that sizes the
+# pane, its own canvas, the canvas of the page, the viewport of the page and the
+# canvas in it. The empty reference is the container's own canvas. A part of the
 # container that is no child, and a child that the container does not show, have
 # no image.
 function _map_child_forward(iomap, reference)
@@ -1382,7 +1384,7 @@ function _map_child_forward(iomap, reference)
             inner = map_reference_forward(get_iomap_projection(child), child, rest)
             inner === nothing && return nothing
             outer = find_node_reference(get_iomap_output(iomap), unwrap_cell(get_iomap_output(child));
-                                        depth = 5)
+                                        depth = 6)
             outer === nothing && return nothing
             return concat_references(outer, inner)
         end
