@@ -94,3 +94,68 @@ function test_projection_template_fixed_children()
         @test render_with(P.PairToKwNode()) == "hello-world"  # CellVector, with a separator
     end
 end
+
+# A child list that depends on an optional field. The builder writes it as a thunk,
+# so the node has a slot for the note only while the note is there.
+module _ConditionalChildrenProbe
+    import ProjecturedKernel.DocumentModule: Document, var"@document"
+    import ProjecturedKernel.CellModule: Cell, Computation
+    import ProjecturedKernel.ReferenceModule: Reference
+    import ProjecturedKernel.ProjectionModule: Projection, print_document
+    import ProjecturedKernel.ProjectionModule: var"@projection"
+    import ProjecturedKernel.ProjectionModule: var"@projection_template"
+    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxConcatenation
+    import ProjecturedText.TextModule: TextString
+    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedStyle.StyleModule: color_default
+
+    @document struct Word <: Document
+        text::String
+    end
+    Word(text::AbstractString) = Word(Cell(String(text)), Cell(nothing))
+
+    @document struct Labelled <: Document
+        name::String
+        note::Union{Word,Nothing}
+    end
+
+    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+
+    @projection struct WordToLeaf <: Projection end
+    @projection_template WordToLeaf Word (p, doc) ->
+        SyntaxLeaf(bound(:text, String, _text(() -> doc.text)))
+
+    @projection struct LabelledToConcat <: Projection end
+    @projection_template LabelledToConcat Labelled (p, doc) ->
+        SyntaxConcatenation(() -> doc.note === nothing ?
+            Any[ SyntaxLeaf(bound(:name, String, _text(() -> doc.name))) ] :
+            Any[ SyntaxLeaf(bound(:name, String, _text(() -> doc.name))),
+                 SyntaxLeaf(_text(": ")), project(:note) ])
+end
+
+function test_projection_template_conditional_children()
+    @testset "ProjectionTemplate child list that a thunk computes" begin
+        P = _ConditionalChildrenProbe
+        projection = RecursiveProjection(TypeDispatchingProjection(
+            P.Labelled => P.LabelledToConcat(), P.Word => P.WordToLeaf()))
+        doc = P.Labelled("x", P.Word("y"))
+        iomap = print_document(projection, doc)
+        @test render(iomap.output) == "x: y"
+        @test length(get_syntax_children(iomap.output)) == 3
+        # Each write reaches the output of the same IoMap, with no new print.
+        doc.note = nothing
+        @test render(iomap.output) == "x"
+        @test length(get_syntax_children(iomap.output)) == 1
+        doc.note = P.Word("z")
+        @test render(iomap.output) == "x: z"
+        @test length(get_syntax_children(iomap.output)) == 3
+        doc.note.text = "zz"
+        @test render(iomap.output) == "x: zz"
+        # A slot that the first print did not have appears with its value.
+        bare = P.Labelled("v", nothing)
+        bare_iomap = print_document(projection, bare)
+        @test render(bare_iomap.output) == "v"
+        bare.note = P.Word("w")
+        @test render(bare_iomap.output) == "v: w"
+    end
+end

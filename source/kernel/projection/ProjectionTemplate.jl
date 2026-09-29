@@ -130,8 +130,8 @@ struct FixedNodeWiring
     slots::Vector{Any}                   # KeySlot|ProjectSlot|IntroSlot|SubNodeSlot per child index
 end
 
-# A fixed-shaped node whose child *slot list* is reactive (F2): the children are a
-# thunk returning a marker vector, recomputed on each structural change (an optional
+# A fixed-shaped node whose child *slot list* is reactive (F2): the children cell
+# computes a marker vector, again on each structural change (an optional
 # field toggling appears/disappears a slot). Like `FixedNodeWiring` but the slots +
 # project store live in a Cell (`child_iomaps`), read fresh by the mappers.
 struct ConditionalNodeWiring
@@ -296,14 +296,16 @@ end
 
 _has_fixed_children(out) = any(fname -> _is_fixed_children(getfield(out, fname)[]), fieldnames(typeof(out)))
 
-# Locate a reactive children *thunk* (F2): a field holding a bare `Function`. Only
-# a positional node constructor with a trailing thunk argument stores it unevaluated
-# (the keyword `children=` ctor wraps a Function as an output element collection), so a
-# `Function` here unambiguously marks a conditional-children node.
+# Locate a reactive child list (F2): a field whose cell computes a blueprint child
+# list. A builder writes it as a thunk, `SyntaxConcatenation(() -> [...])`, and the
+# node constructor makes the thunk the computation of the children cell. A cell that
+# holds a value, or that computes anything other than a child list, is not one. The
+# read is untracked: the state cell of `_conditional_print` depends on the child
+# list, and the computation that prints this node does not.
 function _find_conditional(out)
     for fname in fieldnames(typeof(out))
-        val = getfield(out, fname)[]
-        val isa Function && return (fname, val)
+        cell = getfield(out, fname)
+        is_computed_cell(cell) && _is_fixed_children(peek(cell)) && return (fname, cell)
     end
     (nothing, nothing)
 end
@@ -377,10 +379,13 @@ end
 # object — child/shared cells keep their identity, and prior value writes through
 # those cells are preserved. The auto-wrapping inner ctor passes Cells through
 # unchanged. Every call site rebuilds the node *before* anything else references it, so
-# document nodes are never retargeted after construction.
-_with_selection(node, sel::Cell) =
+# document nodes are never retargeted after construction. A `field => value`
+# replacement puts `value` in place of the cell of `field`, and the constructor wraps
+# it in a new cell: a write into the old cell deletes its computation, if it has one.
+_with_selection(node, sel::Cell, replacement::Pair{Symbol} = :selection => sel) =
     Base.typename(typeof(node)).wrapper(   # the UnionAll: its ctor accepts cells
-        (f === :selection ? sel : getfield(node, f) for f in fieldnames(typeof(node)))...)
+        (f === :selection ? sel : f === first(replacement) ? last(replacement) :
+         getfield(node, f) for f in fieldnames(typeof(node)))...)
 
 # Kind-agnostic type name for a document node: the UnionAll wrapper of a
 # kind-parameterized `@document` type, the type itself otherwise. Wirings record
@@ -493,7 +498,7 @@ end
 # classified: `project(:f)` → ProjectSlot (reconciling iomap in the store); a nested
 # marker-bearing node → SubNodeSlot (F1); a `bound` leaf → KeySlot; anything else →
 # IntroSlot. Shared by `_fixed_print` (static vector) and `_conditional_print`
-# (reactive thunk, F2).
+# (computed child list, F2).
 function _walk_markers(p, recursion, doc, ctx, markers)
     slots = Any[]; store = Dict{Symbol,Any}(); output_cells = Cell[]
     for child in markers
@@ -553,20 +558,21 @@ function _fixed_print(p, recursion, doc, ctx, out)
     return im
 end
 
-# F2: a node whose children are a *reactive thunk* returning a marker vector (an
+# F2: a node whose children cell `markers` computes a marker vector (an
 # optional-field toggle appears/disappears a `project`/leaf slot). The state cell
-# re-walks the markers on each structural change; the mappers read the current
-# (slots, store) from it, and the output children double-track the state cell
-# (structure) and each output cell (child content / type-swap).
-function _conditional_print(p, recursion, doc, ctx, out, children_field, thunk)
-    state = Cell(@computation _walk_markers(p, recursion, doc, ctx, thunk()))
-    setproperty!(out, children_field, make_children_container(() -> [c[] for c in state[][3]]))
+# reads `markers` and re-walks the markers on each structural change; the mappers
+# read the current (slots, store) from it, and the output children double-track the
+# state cell (structure) and each output cell (child content / type-swap). The
+# output node gets its children in a new cell, so `markers` keeps its computation.
+function _conditional_print(p, recursion, doc, ctx, out, children_field, markers)
+    state = Cell(@computation _walk_markers(p, recursion, doc, ctx, markers[]))
+    children = make_children_container(() -> [c[] for c in state[][3]])
     iomap_cell = Cell(nothing)
     out = _with_selection(out, Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_selection_forward(doc, path -> map_reference_forward(p, im, path))
-    end))
+    end), children_field => children)
     im = RuleIoMap(p, doc, out, ConditionalNodeWiring(_dtype(doc), _dtype(out), children_field), state)
     iomap_cell[] = im
     return im
