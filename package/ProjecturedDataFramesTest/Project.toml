@@ -1,0 +1,22 @@
+name = "ProjecturedDataFramesTest"
+uuid = "b1aceadc-a635-48bd-837b-c4a6ec3ad7cd"
+version = "0.1.0"
+authors = []
+
+# The DataFrames tier of the test-package DAG: the layering guard, and the one
+# check that the example factory's shape holds.
+
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
+ProjecturedDataFramesExample = "61ad9eff-ea91-43c8-867c-8ad08b1239de"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedDataFrames = {path = "../ProjecturedDataFrames"}
+ProjecturedDataFramesExample = {path = "../ProjecturedDataFramesExample"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+
+[compat]
+DataFrames = "1"

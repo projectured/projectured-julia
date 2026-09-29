@@ -55,7 +55,7 @@ says why. `test_package_graph()` asserts it, along with two more:
 domain packages, none of which has a third-party dependency. It deliberately does not
 aggregate `ProjecturedSdl`, `ProjecturedOdbc`, `ProjecturedTulip`,
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMcp`,
-`ProjecturedWeb` or
+`ProjecturedWeb`, `ProjecturedDataFrames` or
 `ProjecturedAdaptagrams`, each of which owns one.
 
 The rule: a sub-stem is a layer and carries no third-party dependency of its
@@ -217,6 +217,7 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 | `ProjecturedSdl` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
 | `ProjecturedWeb` | Collection, Graphics, Kernel, Screen, Style | Base64, HTTP, JSON3 |
 | `ProjecturedOdbc` | Collection, Database, DbCatalog, Kernel, Projection, Sql, Syntax, Text | DBInterface, ODBC, Tables |
+| `ProjecturedDataFrames` | Collection, Kernel, Natural, Primitive, Style, Widget | DataFrames |
 
 ### The aggregate and the leaves
 
@@ -241,6 +242,8 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 - **FFMPEG** — encodes a recording.
 - **HTTP**, **JSON3**, **ModelContextProtocol** — wire protocols this project
   does not define.
+- **DataFrames** — the native tables that `ProjecturedDataFrames` views and
+  edits.
 - **PackageCompiler**, **FixedPointNumbers** — building the binary. A leaf;
   nothing depends on it.
 - **PrecompileTools**, **Preferences** — the workload mechanism itself.

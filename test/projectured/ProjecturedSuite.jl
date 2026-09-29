@@ -112,6 +112,8 @@ using ProjecturedOdbcTest
 # one live test skips itself when none answers.
 using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
+# The suite of the data frame view. It prints its views without a window.
+using ProjecturedDataFramesTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
                    ConcreteReference, EmptyReference, Reference,
@@ -414,6 +416,7 @@ function test_all()
     test_help()
     test_anthropic()
     test_ollama()
+    test_dataframes()
     # Every concrete-domain example through the printer.
     test_domain_examples()
     # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
