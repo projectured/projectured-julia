@@ -17,8 +17,7 @@ again until it stops asking. Returns the stop reason of the final round
 A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` gives `:error`,
 and the loop runs none of its tool calls.
 
-- `target`   — what the tools act on, passed through to each handler untouched (an
-               `Editor`, in practice).
+- `target`   — what the tools act on, passed through to each handler untouched.
 - `messages` — `() -> Vector{LlmMessage}`, called at the **start of every round**.
                A callback, not a list, on purpose: the caller already has the
                conversation, and each round's prompt is simply that conversation as
@@ -33,12 +32,14 @@ fault goes into the fault store of `target`. An exception that
 [`is_passthrough_exception`](@ref) names goes through: `run_turn!` throws it and
 sends no result.
 
+Throws what `stream_turn`, `messages` and `on_event` throw.
+
 Each tool call runs through [`run_on_editor_task!`](@ref) with `target`: on the
 task of the editor's loop when one runs on another task, and at once otherwise.
 
-The loop is where a turn's *control flow* lives, and only that. It builds no
-messages and renders no answer; it streams, dispatches, and decides whether to go
-around again.
+The loop holds the *control flow* of a turn, and only that. It builds no messages
+and renders no answer: the loop streams, runs the tools, and stops when the model
+asks for no tool.
 """
 function run_turn!(agent::Agent, target; messages, on_event)
     register_default_tools!(agent.tools)
@@ -49,7 +50,8 @@ function run_turn!(agent::Agent, target; messages, on_event)
     while true
         round += 1
         if round > agent.max_rounds
-            @warn "[agent] hit the round cap; ending the turn" agent.max_rounds rounds = round - 1
+            rounds = round - 1
+            @warn "[agent] hit the round cap; ending the turn" agent.max_rounds rounds
             break
         end
 
@@ -81,22 +83,20 @@ function run_turn!(agent::Agent, target; messages, on_event)
         for call in pending
             @info "[agent] tool call" call.name
             # The loop runs on a task of its own, and a tool may write what the
-            # editor shows, so the call runs on the editor's task, as the call of
-            # an MCP client does.
+            # editor shows, so the call runs on the editor's task.
             output, is_error = run_on_editor_task!(target) do
                 try
                     text = call_tool(agent.tools, call.name; args = call.input, target)
                     (text, _is_error_output(text))
                 catch e
                     is_passthrough_exception(e) && rethrow()
-                    # A tool that throws is not a broken turn: the model is told
-                    # what went wrong and can try something else, which is the
-                    # whole point of giving it tools it can misuse. The fault is
+                    # A tool that throws is not a broken turn: the model gets the
+                    # text of the error and can try something else. The fault is
                     # recorded as well, so a person reading the editor's log sees
                     # what the model ran into.
                     traceback = catch_backtrace()
-                    record_fault!(get_fault_store(target), :tool; origin = Symbol(call.name),
-                                  exception = e, traceback)
+                    record_fault!(get_fault_store(target), :tool;
+                                  origin = Symbol(call.name), exception = e, traceback)
                     # A `showerror` method that throws gives the type name.
                     text = try
                         sprint(showerror, e, traceback)
