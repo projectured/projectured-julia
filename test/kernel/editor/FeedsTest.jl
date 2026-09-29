@@ -1,4 +1,5 @@
-# The feed seam — the registered inflows of a running editor.
+# The feeds of the editor, `editor/Feeds.jl` — the registered inflows of a
+# running editor.
 #
 # A feed moves what producers stored into a target document, once per frame,
 # on the editor task. The inbox is the built-in first feed; every other feed
