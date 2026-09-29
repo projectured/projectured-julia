@@ -1,8 +1,8 @@
 # View and edit a data frame
 
-> **Kind:** plan · **Status:** pending, 2026-09-29. Every decision of §5 is
-> made, except group and pivot, which wait for a design of their own (D8).
-> Nothing is implemented. ·
+> **Kind:** plan · **Status:** pending, 2026-09-29. Phase 0 is done (§6.1).
+> D11 and D12 are open, and group and pivot wait for a design of their own
+> (D8). Every other decision of §5 is made. ·
 > **Stands on:** [concepts.md](../../documentation/design/concepts.md),
 > [domain-anatomy.md](../../documentation/design/domain-anatomy.md),
 > [package-rules.md](../../documentation/rule/package-rules.md),
@@ -547,6 +547,31 @@ Proposal: the view keeps the row of the selection at its place on the screen.
   new position of the row, and the rows around it change.
 - If the filter now hides the edited row, Tab acts as Enter.
 
+**D11. The thread of the editor.** Open. Phase 0 measured both (§6.1).
+- (a) On the thread of the REPL, with `@async`. No race is possible, and no
+  busy flag is needed. The REPL takes about 10 ms for each character that it
+  reads, and the window stops during a long input.
+- (b) On the default pool, with the loop and the start of SDL on that thread.
+  The REPL keeps its speed, and the window stays live during an input. The
+  busy flag of §4.3 is necessary. The task must be pinned when the default
+  pool has more than one thread, and plain `julia -t N,0` needs a thread that
+  is not the one of the REPL.
+
+Recommendation: (b). A REPL that takes 10 ms for each character is too slow
+for daily work.
+
+**D12. The test environment.** Open. Phase 0 counted 999 invalidated method
+instances when DataFrames loads after the editor stack (§6.1).
+- (a) As the other packages with a third-party dependency:
+  `ProjecturedDataFrames`, its example package and its test package go into
+  `environment/all`, and the umbrella suite loads them. Every `test_all` then
+  loads DataFrames at its start.
+- (b) An environment of its own. `test_data_frames()` runs alone, and
+  `test_all` does not load DataFrames.
+
+Recommendation: (a), because it is the rule that the other packages follow.
+A test run that is slower after the change goes back to D12.
+
 **D8. Group and pivot. Deferred, see §5.1.** One query model and two layouts: a grouped table with
 header rows (§4.6), and a cross table (§4.7). Or the grouped table as a pivot
 with no column dimension and a sub-table in each cell. Recommendation: one
@@ -558,13 +583,13 @@ sub-table in a cell does not.
 Each phase ends with its own tests and a commit. The work is done in a
 worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 
-- [ ] **0. Facts.** Find out: can an SDL editor window run in a background
+- [x] **0. Facts.** Find out: can an SDL editor window run in a background
   task beside the normal Julia REPL, on the same thread and on another thread
   (D4)? If it can not, stop and ask the owner, because D4 depends on it. What
   does `hash` cost for a column of ten million `Int` and ten million `String`
   values (§4.3, level 3)? What does `using DataFrames` cost in load time and
   invalidation, and must the test environment keep it out of
-  `environment/all`?
+  `environment/all`? **Done 2026-09-29; §6.1 has the answers.**
 - [ ] **1. The ends of a finite list.** The clamp of D2 in the widget
   substrate. The test uses a list of ten million rows that ends at both sides,
   with no DataFrames.
@@ -580,7 +605,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
   form. If phase 0 puts the editor on another thread, the busy flag of §4.3
-  comes with this phase, because an edit writes the frame.
+  comes with this phase, because an edit writes the frame. If D11 is (b), the
+  busy flag and the REPL hook that sets it come with this phase.
 - [ ] **5. Sort and filter.** The query document, the header gestures, the
   quick filters, the expression filter, column hide and move. The sort and
   the filter again on a commit (D6), and the selection after it (D10). Column
@@ -592,6 +618,79 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   in the widget substrate. Deferred with phase 7 (D8).
 - [ ] **9. Charts in cells and the quick chart.**
 - [ ] **10. The proposed features** that the owner keeps from §4.8.
+
+### 6.1 The answers of phase 0
+
+Measured on 2026-09-29 with Julia 1.13 and plain `julia`, which starts with
+one default thread and one interactive thread. The scripts and logs are in
+`/var/tmp/projectured-data-frame-phase0/`. A driver typed into a real REPL
+through a pseudo-terminal (`pexpect`). Other sessions ran on the machine, and
+the load was between 1.4 and 5. The timing runs used the cores 28, 30 and 31.
+
+**An editor beside the REPL.** The REPL runs on thread 1, in the interactive
+pool. The hook `Base.active_repl_backend.ast_transforms` works: it ran once
+for each input.
+
+| | Editor on the thread of the REPL (`@async`) | Editor on the default pool (`Threads.@spawn :default`) |
+| --- | --- | --- |
+| The loop runs on | thread 1, interactive | thread 2, default; SDL starts there too |
+| A short input, without the editor → with it | 1.3 → 244 ms | 1.5 → 1.4–1.7 ms |
+| An input with 60 more characters, with the editor | 866 ms | 3.8 ms |
+| A probe posted 1 s into a computation of 3 s that does not yield | ran at 3.0 s | ran at 1.0 s |
+| Frames and faults | not counted | 9 frames, 0 faults |
+
+- On the thread of the REPL, the REPL reads each character in a turn of its
+  own, and each turn waits for one SDL wait slice of 10 ms
+  ([Sdl.jl:3466](../../source/sdl/Sdl.jl#L3466)): about 10 ms for each
+  character. The window also stops during a long input. D11 asks where the
+  editor runs.
+- On the default pool, the window stays live during an input. So the view can
+  read the frame while the REPL writes it, and the busy flag of §4.3 is
+  necessary there.
+- **World age.** The loop task keeps the world of its start. A function that
+  the REPL defines after that throws `MethodError` ("method too new to be
+  called from this world context") when the loop calls it. The same function
+  works through a closure that is defined before the loop starts and calls
+  `Base.invokelatest`. So the package posts each call through such a closure.
+  For the same reason, a cell value whose type comes from a package that is
+  loaded after the window opens must be printed through `invokelatest`.
+- A computation without a GC safepoint did not stop the editor in this run. A
+  collection that the editor starts waits for every thread to reach a
+  safepoint, so the risk stays (§8).
+- Not checked: the REPL of VS Code; `julia -t N` with `N` of 2 or more, where
+  a task of the default pool can move between threads while SDL needs one
+  thread; `julia -t N,0`, where the REPL itself is on the default pool; the
+  pixels of the window.
+
+**A hash of a column.** `hash(::AbstractArray)` hashes every element only
+below 32768 elements. From there, `_hash_fib` hashes about `log(n)` elements,
+walking back from the end (`base/multidimensional.jl`, lines 2074, 2105 and
+1985). A change of the middle element or the first element of ten million did
+not change the hash, and a change of the last element did. So level 3 of §4.3
+needs a full hash of its own. For ten million values, as the median of five
+runs:
+
+| Check | Time | Finds a change in the middle |
+| --- | --- | --- |
+| `hash(v)`, `Int` / `String` | 0.7 / 1.9 ms | no |
+| A full hash, `h = hash(x, h)` for each element: `Int`, `Float64`, `String` | 18.7, 19.0, 50.1 ms | yes |
+| `crc32c(reinterpret(UInt8, v))`, `Int` | 18.8 ms | yes |
+| The structure fingerprint of 20 columns (level 1) | 2 µs | no, as expected |
+
+**The cost of `using DataFrames`.** 0.27 s after precompilation, the median of
+three fresh processes. It invalidates 487 method instances when it loads
+alone, and 999 when it loads after `ProjecturedKernel`, `ProjecturedWidget`
+and `ProjecturedSdl`. The ten largest trees are in the dependencies of
+DataFrames: SentinelArrays, PooledArrays, InlineStrings, FixedPointNumbers
+and LaTeXStrings. No tree in the top ten names a method of this repository.
+
+**The test environment.** `environment/all` has no DataFrames today, not even
+as an indirect dependency. `test_all` runs every suite in one process
+([ProjecturedSuite.jl:382](../../test/projectured/ProjecturedSuite.jl#L382)).
+The other packages with a third-party dependency, such as `ProjecturedOdbc`,
+`ProjecturedTulip`, `ProjecturedVideo` and `ProjecturedAnthropic`, are in
+`environment/all`, and the umbrella suite loads them. D12 asks where
+`ProjecturedDataFrames` goes.
 
 ## 7. Targets
 
@@ -612,15 +711,27 @@ columns. A measurement needs an idle machine and the approval of the owner.
 - **Two tasks, one frame.** The REPL can change a frame while the editor reads
   it. On one thread the two tasks switch only where a task yields. With more
   threads, a read can see a `push!` that is half done. A sync that throws
-  tries again on the next frame, as `ReflectionFeed` does.
-- **Load time.** DataFrames invalidates much compiled code. The stem must stay
-  out of the umbrella and out of every default session.
+  tries again on the next frame, as `ReflectionFeed` does. If the editor runs
+  on another thread (D11), the busy flag of §4.3 is necessary.
+- **A computation without a safepoint.** A collection waits for every thread
+  to reach a safepoint. A loop of the user that has none can stop the editor
+  until it ends. Phase 0 did not see it, but it did not rule it out.
+- **The thread of the editor.** SDL needs one thread. With `julia -t N` and `N`
+  of 2 or more, a task of the default pool can move between threads, so the
+  editor task must be pinned. With `julia -t N,0`, the REPL is itself on the
+  default pool. If D11 is (b), phase 2 handles both.
+- **Load time.** DataFrames invalidates 999 method instances when it loads
+  after the editor stack (§6.1). The stem must stay out of the `Projectured`
+  package and out of every default session. D12 decides whether the test
+  environment loads it.
 - **Row identity.** An insert or a delete from the REPL moves the rows under
   the selection.
 - **The re-anchor.** A new head must keep the top row at the same place on the
   screen, and it must keep the selection. If it does not, a long scroll jumps
   each time the view re-anchors.
 - **World age.** An expression filter is compiled at run time, so its call
-  needs `invokelatest`.
+  needs `invokelatest`. The loop task keeps the world of its start, so every
+  function that the REPL posts goes through a closure that calls
+  `invokelatest` (§6.1).
 - **Parse of a value.** A decimal comma, a date format and a categorical level
   that does not exist need clear errors.
