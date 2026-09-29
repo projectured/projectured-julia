@@ -16,6 +16,8 @@ import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations
                                        RunFunctionOperation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEditorOperation
 import ProjecturedKernel.AgentModule: run_on_editor_task!
+import ProjecturedKernel.BackendModule
+import ProjecturedKernel.BackendModule: Backend
 using ProjecturedKernelExample
 
 @document struct InboxProbe
@@ -38,6 +40,24 @@ end
 evaluate_operation(::Editor, op::ProbeInboxOperation) =
     (push!(op.log, (op.tag, current_task())); nothing)
 
+# An operation whose evaluation gives the other tasks their turn, so a producer
+# posts while the drain runs.
+struct YieldingInboxOperation <: Operation
+    log::Vector{Any}
+end
+
+evaluate_operation(::Editor, operation::YieldingInboxOperation) =
+    (push!(operation.log, :applied); yield(); nothing)
+
+# A backend that counts the quits of the loop, and never waits.
+mutable struct InboxQuitBackend <: Backend
+    quits::Int
+end
+BackendModule.quit_backend!(backend::InboxQuitBackend) = (backend.quits += 1; nothing)
+BackendModule.read_from_devices(::InboxQuitBackend, devices) = nothing
+BackendModule.write_to_devices(::InboxQuitBackend, devices, output) = nothing
+BackendModule.wait_for_input(::InboxQuitBackend, devices, timeout_seconds) = nothing
+
 _inbox_editor() = Editor(HeadlessBackend(), InboxProbe(), InboxProbeProjection(), Device[])
 
 function test_editor_inbox()
@@ -56,6 +76,26 @@ function test_editor_inbox()
         @test drain_operations!(editor) == 2
         @test [tag for (tag, _) in log] == [:first, :second]
         @test drain_operations!(editor) == 0     # and the inbox is empty again
+    end
+
+    @testset "a drain takes what was ready when it started, and wakes for the rest" begin
+        editor = _inbox_editor()
+        log = Any[]
+        for _ in 1:3
+            post_operation!(editor, YieldingInboxOperation(log))
+        end
+        Threads.atomic_xchg!(editor.wake_pending, false)
+        # The producer puts with no wake, so the flag after the drain is the
+        # drain's own.
+        producer = @async for _ in 1:20
+            put!(editor.inbox, YieldingInboxOperation(log))
+            yield()
+        end
+        @test drain_operations!(editor) == 3
+        @test length(log) == 3
+        @test isready(editor.inbox)
+        @test editor.wake_pending[]
+        wait(producer)
     end
 
     @testset "an operation posted from another task runs on the drainer's" begin
@@ -132,6 +172,18 @@ function test_editor_inbox()
         run_editor!(editor)
         @test timedwait(() -> answer[] !== nothing, 5.0) === :ok
         @test answer[] === current_task()
+        @test editor.loop_task === nothing
+    end
+
+    @testset "the loop quits its backend when a call at its end throws an interrupt" begin
+        backend = InboxQuitBackend(0)
+        editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
+        post_operation!(editor, QuitEditorOperation())
+        # A call that no task waits for, still in the inbox when the loop ends.
+        post_operation!(editor, RunFunctionOperation(() -> throw(InterruptException()),
+                                                     nothing))
+        @test_throws InterruptException run_editor!(editor)
+        @test backend.quits == 1
         @test editor.loop_task === nothing
     end
 

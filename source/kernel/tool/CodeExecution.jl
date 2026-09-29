@@ -1,41 +1,68 @@
 # Fragment of `ToolModule` — the `execute_julia_code` tool and the persistent
 # namespace it evaluates into.
 
-# The umbrella `Projectured` package (loaded, but not a dependency of the kernel —
-# that would be circular) re-exports every submodule of every package below it,
-# so it alone is enough. In a per-package test environment the umbrella is
-# absent, so fall back to every loaded Projectured package and flat-re-export
-# each of their submodules — the same names then resolve. The set is read at
-# run time rather than written down, because the packages below the umbrella
-# are many and each test environment loads a different subset.
+# The packages of the whole surface. The umbrella `Projectured` package (loaded,
+# but not a dependency of the kernel — that would be circular) re-exports every
+# submodule of every package below it, so it alone is enough. In a per-package
+# test environment the umbrella is absent, and the surface holds every loaded
+# Projectured package. The set is read at run time rather than written down,
+# because the packages below the umbrella are many and each test environment
+# loads a different subset.
+function _collect_surface_packages()
+    loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
+    haskey(loaded, "Projectured") && return Module[loaded["Projectured"]]
+    packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
+    isempty(packages) && return Module[parentmodule(@__MODULE__)]
+    Module[loaded[n] for n in packages]
+end
+
+# The submodules of `package` on the whole surface, each under the name that the
+# package binds it by: a submodule the package defines, or a submodule of a
+# package it reaches but `packages` does not name. The second case is a concrete
+# domain in its own package: the umbrella binds it, so it arrives through that
+# binding. A submodule whose parent IS in `packages` is skipped, so a kernel
+# module that three packages alias is there once. A package module itself
+# (parent `Main`) is not a submodule.
+function _collect_package_submodules(package::Module, packages)
+    found = Pair{Symbol,Module}[]
+    for name in sort!(names(package; all = true))
+        isdefined(package, name) || continue
+        sub = getfield(package, name)
+        (sub isa Module && sub !== package) || continue
+        parent = parentmodule(sub)
+        (parent === package || (parent !== Main && !(parent in packages))) || continue
+        push!(found, name => sub)
+    end
+    found
+end
+
+# The modules of the whole surface, each under the name its package binds it by.
+# An empty declaration is the whole surface: the scratch module binds the names
+# of these modules, and the documentation tools read these modules, so what a
+# model finds and what it can write do not differ.
+function _collect_surface_modules()
+    packages = _collect_surface_packages()
+    Pair{Symbol,Module}[pair for package in packages
+                        for pair in _collect_package_submodules(package, packages)]
+end
+
+# The whole surface as a declaration: each of its modules with every name that
+# it exports, which are the names the scratch module binds.
+_collect_surface_api() =
+    ApiEntry[ApiEntry(mod, nothing) for (_, mod) in _collect_surface_modules()]
+
 function _scratch_sources(set::ToolSet)
     # A declared API is the whole of it. The names a `ToolSet` declares are the
     # names a model may write, and nothing else arrives — not the umbrella, and
     # not a package that happens to be loaded.
     isempty(set.api) || return copy(set.api)
-    whole(mods) = ApiEntry[ApiEntry(mod, nothing) for mod in mods]
-    loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
-    haskey(loaded, "Projectured") && return whole([loaded["Projectured"]])
-    packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
-    isempty(packages) && return whole([parentmodule(@__MODULE__)])
-    whole([loaded[n] for n in packages])
+    ApiEntry[ApiEntry(mod, nothing) for mod in _collect_surface_packages()]
 end
 
 function _flat_reexport!(m::Module, source::Module, sources)
     srcname = nameof(source)
-    for n in names(source; all = true)
-        isdefined(source, n) || continue
-        sub = getfield(source, n)
-        sub isa Module && sub !== source || continue
-        # A submodule this source defines, or a submodule of a package the source
-        # reaches but `sources` does not name. The second case is a concrete
-        # domain in its own package: the umbrella binds it, so it arrives here
-        # through that binding. A submodule whose parent IS in `sources` is
-        # skipped, so a kernel module aliased by three sources is not bound three
-        # times. A package module itself (parent `Main`) is not a submodule.
-        parent = parentmodule(sub)
-        (parent === source || (parent !== Main && !(parent in sources))) || continue
-        syms = [s for s in names(sub) if s !== nameof(sub) && isdefined(sub, s)]
+    for (n, sub) in _collect_package_submodules(source, sources)
+        syms = get_api_entry_names(ApiEntry(sub, nothing))
         isempty(syms) && continue
         # A *relative* path (`using .Source.Module: …`) resolves `Source` in the
         # scratch module, where the caller bound it. An absolute path would ask
@@ -90,34 +117,38 @@ function _scratch_module(set::ToolSet)
             Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(entry.module_)),
                                            clauses...)))
         end
-        # **How to look is always in scope.** The declaration says what a model may
-        # DO; finding out what that is, is not one of the things it does. Without
-        # these the locator `search_api` prints for every function — a
-        # `read_function_documentation(…)` call — names something the model cannot
-        # reach, and a model that lists a module it was told about learns only that
-        # the name is not defined. Each such answer costs it a round.
-        #
-        # They arrive with the declaration already applied, so what they answer and
-        # what the code can call are the same set, and a model cannot widen its own
-        # view by passing a different one. The declaration is written after the
-        # splat, because of two equal keywords the later one wins. The meaning
-        # model is read from the set when the search runs, so a model bound after
-        # this module was built still ranks it.
-        declared = copy(srcs)
-        Core.eval(m, :(const read_function_documentation =
-            (mod, name, type_name = nothing) ->
-                $(read_function_documentation)(mod, name, type_name; api = $declared)))
-        Core.eval(m, :(const search_api =
-            (query; kwargs...) -> $(search_api)(query; meaning_model = $(set).meaning_model,
-                                                kwargs..., api = $declared)))
-        Core.eval(m, :(const list_modules = () -> $(list_modules)(; api = $declared)))
-        Core.eval(m, :(const list_types =
-            module_name -> $(list_types)(module_name; api = $declared)))
-        Core.eval(m, :(const list_functions =
-            (module_name, type_name = nothing) ->
-                $(list_functions)(module_name, type_name; api = $declared)))
+        _bind_lookup_functions!(m, set, copy(srcs))
     end
     set.scratch = m
+end
+
+# **How to look is always in scope.** The declaration says what a model may DO;
+# finding out what that is, is not one of the things it does. Without these the
+# locator `search_api` prints for every function — a
+# `read_function_documentation(…)` call — names something the model cannot reach,
+# and a model that lists a module it was told about learns only that the name is
+# not defined. Each such answer costs it a round.
+#
+# They arrive with the declaration already applied, so what they answer and what
+# the code can call are the same set, and a model cannot widen its own view by
+# passing a different one. The declaration is written after the splat, because of
+# two equal keywords the later one wins. The meaning model is read from the set
+# when the search runs, so a model bound after this module was built still ranks
+# it.
+function _bind_lookup_functions!(m::Module, set::ToolSet, declared::Vector{ApiEntry})
+    Core.eval(m, :(const read_function_documentation =
+        (mod, name, type_name = nothing) ->
+            $(read_function_documentation)(mod, name, type_name; api = $declared)))
+    Core.eval(m, :(const search_api =
+        (query; kwargs...) -> $(search_api)(query; meaning_model = $(set).meaning_model,
+                                            kwargs..., api = $declared)))
+    Core.eval(m, :(const list_modules = () -> $(list_modules)(; api = $declared)))
+    Core.eval(m, :(const list_types =
+        module_name -> $(list_types)(module_name; api = $declared)))
+    Core.eval(m, :(const list_functions =
+        (module_name, type_name = nothing) ->
+            $(list_functions)(module_name, type_name; api = $declared)))
+    m
 end
 
 """
@@ -158,8 +189,9 @@ because an empty answer reads as a broken tool.
 guesses `plot_results`, and the error names `make_result_plot`: the search that
 starts from a guess, done where the guess fails, so it costs no round.
 
-Never throws: an error comes back as its formatted message, because the caller is
-usually an agent that must be able to read the failure and try again.
+Never throws: an error comes back as its formatted message, after what the code
+printed before it, because the caller is usually an agent that must be able to
+read the failure and try again.
 
 **A call with no code answers that, rather than answering nothing.** Empty source
 evaluates to nothing and prints nothing, and a model reads an empty answer as a
@@ -219,21 +251,25 @@ end
 # Everything an evaluation does after the parse. `make_expression` runs inside
 # the guard, so a failure to make the expression is answered like any other.
 # `describe_value` renders the last value once the capture is closed, so its
-# text never lands inside the same pipe as the code's own `println`s.
+# text never lands inside the same pipe as the code's own `println`s. What the
+# code printed comes first in the answer, also before an error.
 function _run_expression(set::ToolSet, target, make_expression::Function;
                           describe_value::Function = _describe_value_for_model)
-    output = try
+    pipes = (Pipe(), Pipe())
+    readers = Task[]
+    printed = ""
+    described = try
         m = _scratch_module(set)
         # (Re)bind `editor` each call, so user code can reference it and so it
         # always tracks the current target.
         Core.eval(m, :(editor = $(QuoteNode(target))))
         expr = make_expression()
 
-        stdout_pipe = Pipe()
-        stderr_pipe = Pipe()
-
         result = nothing
-        redirect_stdio(stdout = stdout_pipe, stderr = stderr_pipe) do
+        redirect_stdio(stdout = pipes[1], stderr = pipes[2]) do
+            # A write into a full pipe waits for a reader, so one task reads each
+            # pipe while the code runs. `redirect_stdio` opens the pipes.
+            append!(readers, [@async(read(pipe.out, String)) for pipe in pipes])
             # Evaluate each top-level statement in order and keep the last value
             # (REPL semantics); top-level assignments persist as module globals.
             if expr isa Expr && expr.head == :toplevel
@@ -246,19 +282,17 @@ function _run_expression(set::ToolSet, target, make_expression::Function;
             end
         end
         set.last_value = result
-
-        close(stdout_pipe.in)
-        close(stderr_pipe.in)
-        stdout_output = String(read(stdout_pipe.out))
-        stderr_output = String(read(stderr_pipe.out))
-        close(stdout_pipe.out)
-        close(stderr_pipe.out)
-
-        answer = stdout_output * stderr_output * describe_value(result)
-        isempty(strip(answer)) ? "Done." : answer
+        describe_value(result)
     catch e
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
+    finally
+        # A reader reads to the end of its pipe, which comes when its write end closes.
+        foreach(pipe -> close(pipe.in), pipes)
+        printed = join(fetch(reader) for reader in readers)
+        foreach(pipe -> close(pipe.out), pipes)
     end
+    answer = printed * described
+    output = isempty(strip(answer)) ? "Done." : answer
     _notify_evaluation(set)
     output
 end
@@ -294,13 +328,14 @@ end
 # as it is, and a long `String` without its quotes. A verb that answers
 # `show_layout`'s layout or a search's hits answers it to be read. A function is
 # shown as the Julia REPL shows it, by its name and its number of methods; its
-# plain `repr` in the scratch module is the name of its type. The code just made
-# the function in a newer world, so the display runs in the newest one.
+# plain `repr` in the scratch module is the name of its type. The code can make a
+# function, a type or a `show` method in a newer world than this one, so each
+# display runs in the newest world.
 function _describe_value_for_model(value)
     value === nothing && return ""
     value isa Base.Text && return string(value) * "\n"
     value isa Function && return Base.invokelatest(sprint, show, MIME"text/plain"(), value) * "\n"
-    text = repr(value; context = :limit => true)
+    text = Base.invokelatest(repr, value; context = :limit => true)
     (length(text) <= _SHOWN_VALUE_CHARACTERS && !occursin('\n', text)) && return text * "\n"
     value isa AbstractString && return String(value) * "\n"
     limited = Base.invokelatest(sprint, show, MIME"text/plain"(), value;
@@ -317,7 +352,7 @@ end
 
 function _summarize_value(value)
     text = try
-        summary(value)
+        Base.invokelatest(summary, value)
     catch
         string(typeof(value))
     end
@@ -326,8 +361,8 @@ end
 
 # The names the code may write: the declared ones, or every name of the surface.
 _get_writable_names(set::ToolSet) =
-    isempty(set.api) ? String[String(last(split(entry.qualname, '.'))) for entry in _api_index()] :
-                       String[String(name) for entry in set.api for name in get_api_entry_names(entry)]
+    String[String(name) for entry in (isempty(set.api) ? _collect_surface_api() : set.api)
+           for name in get_api_entry_names(entry)]
 
 _suggest_nearest_names(error, set::ToolSet) = ""
 

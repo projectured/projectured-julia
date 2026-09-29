@@ -112,8 +112,9 @@ end
 
 Every `resource://guide/<name>` that names no guide. The name of a guide comes
 from its path, as `_all_guides()` in `source/kernel/tool/Documentation.jl`
-derives it: `documentation/guide/x.md` is `guide/x`, and
-`documentation/package/<slice>/x.md` is `<slice>/x`.
+derives it: `documentation/guide/x.md` is `guide/x`,
+`documentation/package/<slice>/x.md` is `<slice>/x`, and
+`documentation/package/x.md` is `package/x`.
 
 **A guide name is part of the interface of the assistant.** A model asks for a
 guide by that name, and a name that resolves to nothing costs it a turn.
@@ -125,7 +126,7 @@ function guide_name_violations(root::AbstractString)
         path = relpath(joinpath(here, file), joinpath(root, "documentation"))
         parts = splitpath(path)
         name = splitext(path)[1]
-        if length(parts) > 1 && parts[1] == "package"
+        if length(parts) > 2 && parts[1] == "package"
             name = join(vcat(parts[2:end-1], splitext(parts[end])[1]), "/")
         elseif length(parts) > 1
             name = join(vcat(parts[1:end-1], splitext(parts[end])[1]), "/")

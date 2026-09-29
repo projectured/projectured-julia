@@ -1307,7 +1307,7 @@ function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::Abstract
     container = _get_container_reference(paths[1])
     index = paths[1][end] - 1
     write = if isempty(replacement)
-        delete_elements(container, index, length(paths))
+        delete_elements(container, index; count = length(paths))
     else
         run = _make_styled_run(replacement, _find_style_span(text, paths[1]))
         ReplaceReferencedValueOperation(nothing,

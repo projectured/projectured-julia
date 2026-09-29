@@ -1,7 +1,9 @@
 """
-What `execute_julia_code` answers: what the code printed, the value of the last
-expression shown or described, "Done." for nothing, and the nearest declared
-names for a name nobody defined.
+What `execute_julia_code` answers: what the code printed, whole and also before
+an error, the value of the last expression shown or described, "Done." for
+nothing, and the nearest declared names for a name nobody defined. It also
+verifies that each observer hears the value of each evaluation, and that an
+observer that throws stops neither the others nor the answer.
 """
 
 using Test
@@ -87,8 +89,41 @@ function test_code_execution()
         @test run("println(\"hi\"); nothing") == "hi\n"
     end
 
+    @testset "a print larger than a pipe answers whole" begin
+        # A pipe holds 64 KiB. The call runs on its own task with a bounded wait,
+        # so a print that waits for a reader fails here and the suite goes on.
+        console_stdout = stdout
+        console_stderr = stderr
+        call = @async run("print(repeat('x', 200_000))")
+        finished = timedwait(() -> istaskdone(call), 60) === :ok
+        if !finished
+            # The blocked call holds the process streams, and a failed test prints.
+            redirect_stdout(console_stdout)
+            redirect_stderr(console_stderr)
+        end
+        @test finished
+        if finished
+            answer = fetch(call)
+            @test length(answer) == 200_000
+            @test count(==('x'), answer) == 200_000
+        end
+    end
+
+    @testset "what the code printed comes before the error" begin
+        @test startswith(run("println(1)\nerror(\"stop here\")"), "1\nstop here")
+        # The statements before a syntax error run, and what they print shows.
+        @test startswith(run("println(1)\ny = ("), "1\nParseError")
+    end
+
     @testset "a function is shown as the REPL shows it" begin
         @test run("phase_q() = 1") == "phase_q (generic function with 1 method)\n"
+    end
+
+    @testset "a value shows with the show method that the same call defined" begin
+        code = "struct ShownBoxQ end\n" *
+               "Base.show(io::IO, ::ShownBoxQ) = print(io, \"a shown box\")\n" *
+               "ShownBoxQ()"
+        @test run(code) == "a shown box\n"
     end
 
     @testset "a name nobody defined is answered with the nearest declared names" begin
@@ -104,6 +139,31 @@ function test_code_execution()
             "draw_arrows", ["draw_arrow", "count_rows", "make_result_plot", "draw_arrowz"])
         @test near == ["draw_arrow", "draw_arrowz"]
         @test ProjecturedKernel.ToolModule._find_nearest_names("zzz", ["count_rows"]) == String[]
+    end
+
+    @testset "each observer hears the value of each evaluation, in order" begin
+        watched = ToolSet()
+        seen = Any[]
+        observe_evaluations!(value -> push!(seen, (:first, value)), watched)
+        observe_evaluations!(value -> push!(seen, (:second, value)), watched)
+        execute_julia_code(watched, nothing, "1 + 1")
+        execute_julia_expression(watched, nothing, :(3 * 3))
+        # An evaluation that throws has no value.
+        execute_julia_code(watched, nothing, "error(\"no value\")")
+        @test seen == [(:first, 2), (:second, 2), (:first, 9), (:second, 9),
+                       (:first, nothing), (:second, nothing)]
+    end
+
+    @testset "an observer that throws stops neither the others nor the answer" begin
+        watched = ToolSet()
+        seen = Any[]
+        observe_evaluations!(value -> error("the observer fails"), watched)
+        observe_evaluations!(value -> push!(seen, value), watched)
+        answer = @test_logs (:warn, r"observer failed") match_mode = :any begin
+            execute_julia_code(watched, nothing, "40 + 2")
+        end
+        @test answer == "42\n"
+        @test seen == [42]
     end
 end
 end # test_code_execution

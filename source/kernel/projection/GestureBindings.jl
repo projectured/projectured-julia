@@ -1,17 +1,10 @@
-# Fragment of `ProjectionModule` — the open generics for the gesture-binding
-# tables of a projection. The concrete generic and higher-order projections
+# Fragment of `ProjectionModule` — the default of `get_projection_gesture_bindings`,
+# which `ProjectionInterface.jl` declares, and `read_projection_gesture`, which
+# fires the rows of that table. The concrete generic and higher-order projections
 # that consume `read_projection_gesture` are domain-independent framework that
 # sinks to a higher package; the kernel keeps only the binding machinery.
 
-"""
-    get_projection_gesture_bindings(projection, iomap) -> Vector{GestureBinding}
-
-Gestures owned by a *projection* rather than a document (focus, collapse
-glyph, clipboard, …). Default empty; a projection overrides this to
-contribute its own rows to a listing. `read_projection_gesture` fires them and
-answers a `CollectIntents` payload with all of them, so the reader gathers them
-across the chain with no second traversal.
-"""
+# A projection with no table of its own owns no gesture.
 get_projection_gesture_bindings(::Projection, iomap) = GestureBinding[]
 
 """

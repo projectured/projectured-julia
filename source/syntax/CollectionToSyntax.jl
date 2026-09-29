@@ -22,7 +22,7 @@ function map_reference_forward(p::CollectionCellVectorToSyntax, iomap::ChildrenI
         # proj(p, {flat}) by the reader.  Keep it wrapped so that
         # SyntaxCompoundToText._syntax_to_flat can extract the flat position via its
         # `h isa ProjectionReferenceStep` branch — same pattern as JsonToSyntax's
-        # `_node_forward` which also returns the wrapped reference unchanged.
+        # template node mapper, which also returns the wrapped reference unchanged.
         if is_introduced_reference(core, p)
             return reference
         end

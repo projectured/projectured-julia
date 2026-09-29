@@ -1,5 +1,6 @@
 """
-`AgentModule` — the inbound agent-server seam.
+`AgentModule` — the fallbacks of the inbound agent-server seam: the error for a
+kind that no package answers, and a factory that a `Val` method registers.
 """
 
 using Test
@@ -12,11 +13,19 @@ using ProjecturedKernel.AgentModule
 struct ToyServer end
 AgentModule.make_agent_server(::Val{:toy}, editor; kwargs...) = ToyServer()
 
-function test_agent_seam()
-@testset "Agent seam" begin
+function test_agent_defaults()
+@testset "Agent defaults" begin
 
     @testset "unregistered kind raises a helpful error" begin
         @test_throws ErrorException make_agent_server(:definitely_not_registered, nothing)
+        # The error lists the kinds whose servers are loaded.
+        message = try
+            make_agent_server(:definitely_not_registered, nothing)
+            ""
+        catch exception
+            sprint(showerror, exception)
+        end
+        @test occursin(":toy", message)
     end
 
     @testset "a test-local Val method registers a factory" begin
@@ -25,4 +34,4 @@ function test_agent_seam()
     end
 
 end
-end # test_agent_seam
+end # test_agent_defaults

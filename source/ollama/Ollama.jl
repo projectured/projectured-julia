@@ -336,7 +336,8 @@ end
 
 POST a streaming chat request and translate the newline-delimited stream into
 `LlmEvent`s. An HTTP failure throws; an error reported *inside* the stream arrives
-as an `LlmFailure`.
+as an `LlmFailure`. A stream that ends before its `done` line throws, as a dead
+socket does.
 
 Ollama sends no block framing at all — no start, no stop, only message deltas — so
 this function opens and closes the blocks itself, from what each line carries.
@@ -358,7 +359,12 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
     isempty(request.tools) || (body["tools"] = render_tool_schema(llm, request.tools))
     request.thinking && _supports_thinking(llm) && (body["think"] = true)
 
-    handle_line = _line_handler(on_event)
+    # Whether the stream sent its terminal event, a turn end or a failure.
+    ended = Ref(false)
+    handle_line = _line_handler(function (ev)
+        (ev isa LlmTurnEnd || ev isa LlmFailure) && (ended[] = true)
+        on_event(ev)
+    end)
 
     HTTP.open("POST", llm.base_url * "/api/chat",
               ["content-type" => "application/json",
@@ -383,8 +389,8 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
             chunk = try
                 readavailable(io)
             catch e
-                # The stream can close abruptly after the last line; treat EOF as a
-                # clean end, the final `done` line having been seen.
+                # An EOF ends the read. The check after the read throws when the
+                # stream sent no terminal event.
                 e isa EOFError ? UInt8[] : rethrow()
             end
             isempty(chunk) && continue
@@ -394,6 +400,7 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
         _drain_lines!(buf, handle_line; final = true)
         HTTP.closeread(io)
     end
+    ended[] || error("The Ollama stream of $(llm.model) ended before its `done` line.")
     nothing
 end
 

@@ -11,12 +11,12 @@ operation, and because the binding layer above has to build one.
 """
 module IntentModule
 
-using ..ReferenceModule
 using ..OperationModule
-import ..OperationModule: reroot_operation
+using ..ReferenceModule
+import ..OperationModule: make_inverse_operation, reroot_operation
 
 export Intent, ClaimedGesture, CollectIntents, CollectedIntentsOperation,
-       with_intent_labels, merge_collected_intents, follow_intent_route
+       merge_collected_intents, follow_intent_route
 
 include("Intent.jl")
 

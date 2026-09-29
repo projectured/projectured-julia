@@ -1,4 +1,5 @@
-# Fragment of `EditorModule` — the loop itself: the per-frame counters log, one frame, and the waiting main loop.
+# Fragment of `EditorModule` — the loop: the counter log, one frame,
+# `get_frame_clock_time`, the waiting main loop, and `make_editor`.
 
 # ── Performance logging ───────────────────────────────────────────────
 
@@ -53,6 +54,11 @@ An operation that dropped the cached projection (a whole-root swap calls
 and *discards* an input it has none for, so input behind such a swap has to wait
 for the repaint that rebuilds the projection, or it would be thrown away.
 
+A frame whose reads end before the input runs out, at the bound, at a read that
+threw or at a dropped IoMap, sets `editor.wake_pending`. `run_editor!` then runs
+the next frame without a wait, so the input that is left does not wait for new
+input.
+
 The loop leaves the last applied operation in `editor.operation`. `read!` clears
 that field when the input runs out, and `perf!` reads it to tell a frame that did
 something from an idle one.
@@ -67,19 +73,29 @@ function run_frame!(editor::Editor)
         report_frame_faults!(editor)
     end
     applied = nothing
+    # True until a read finds no input: the reads can also end at the bound, at a
+    # read that threw, or at a dropped IoMap.
+    is_input_left = true
     for _ in 1:MAX_OPERATIONS_PER_FRAME
         # A reader that throws is a reader that declined: the gesture is lost,
         # the frame goes on, and the fault says which reader lost it.
         has_input = @measure_performance_time :read_time begin
-            _run_barrier(editor, :read; fallback = false) do
+            _run_barrier(editor, :read; fallback = _BARRIER_FAILED) do
                 read!(editor)
             end
         end
-        has_input || break
+        has_input === _BARRIER_FAILED && break
+        if !has_input
+            is_input_left = false
+            break
+        end
         @measure_performance_time :evaluate_time evaluate!(editor)
         applied = editor.operation
         editor.iomap === nothing && break     # repaint before reading anything else
     end
+    # Input can wait in the backend, or a gesture in the recognizer, so the next
+    # turn of the loop runs a frame without a wait.
+    is_input_left && (editor.wake_pending[] = true)
     editor.operation = applied
     @measure_performance_time :print_time begin
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do
@@ -114,11 +130,14 @@ has subscribers, the nearest feed deadline, else never. Each frame:
 inbox first, then every registered feed — then `run_frame!` applies every
 operation the backend has waiting and repaints once. `read!` internally
 swallows envelopes that don't translate to an operation, so no outer drain
-is needed.
+is needed. An editor with no IoMap, as `Editor(…)` makes it, prints once before
+its first frame, so the first frame reads its input against an IoMap.
 
 A backend without a real wait sleeps one 10 ms poll slice per call (the
 `BackendDefaults` fallback), which also gives cooperative `@async` tasks
-(e.g. the MCP server, a simulation driver) their turn on this thread.
+(e.g. the MCP server, a simulation driver) their turn on this thread. A frame
+that does not wait, because a wake is pending or a deadline is due, yields once
+for the same reason.
 
 When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default. `mcp_instructions`, `mcp_host` and
@@ -150,39 +169,59 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) :
                        nothing
         server === nothing || start_agent_server!(server)
+        # An editor that has no IoMap prints once before its first frame, because
+        # `read!` drops an input that no IoMap can read.
+        if editor.iomap === nothing
+            _run_barrier(editor, :print; origin = typeof(editor.projection)) do
+                print!(editor)
+            end
+        end
         # Advance this editor's private animation clock once per frame;
         # subscribers via `get_reactive_clock_time(editor.clock)` re-evaluate
         # on the next pull. Logical time is the time of the frame that
         # `get_frame_clock_time` answers: wall-clock seconds since the loop
-        # started, unless the backend keeps a time of its own.
-        t_start = Base.time()
+        # started, unless the backend keeps a time of its own. The times come
+        # from the monotonic clock, so a step of the system clock moves no
+        # animation and no frame time.
+        t_start = time_ns()
         while true
             # A wake posted since the last frame took ownership skips the
             # wait: the flag is the truth, whatever became of the backend
             # kick. The wait itself ends on input, on a kick, or at the
             # timeout — and a backend with no wait of its own polls in 10 ms
-            # slices here, exactly as this loop did when it slept.
-            if !editor.wake_pending[]
-                timeout = compute_wait_timeout(editor)
-                timeout > 0 && wait_for_input(editor.backend, editor.devices, timeout)
+            # slices here, exactly as this loop did when it slept. A frame
+            # that does not wait yields once, because the wait is where the
+            # cooperative tasks of this thread get their turn.
+            timeout = editor.wake_pending[] ? 0.0 : compute_wait_timeout(editor)
+            if timeout > 0
+                wait_for_input(editor.backend, editor.devices, timeout)
+            else
+                yield()
             end
             # The frame takes ownership of every wake posted before it;
             # a wake that arrives from here on belongs to the next frame.
             Threads.atomic_xchg!(editor.wake_pending, false)
             # A fresh per-frame counter store, bound for this frame's dynamic
             # extent; the cell operations below count into it and `perf!` reads it.
-            frame_started = Base.time()
+            frame_started = time_ns()
             with_performance_counters() do
-                set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, frame_started - t_start))
-                # What was posted or stored from outside this task, applied
-                # here so the frame paints what its feeds just wrote.
-                _run_barrier(editor, :evaluate) do
-                    drain_feeds!(editor)
+                wall_time = (frame_started - t_start) / 1e9
+                # A backend whose time throws is recorded, and the frame shows
+                # the wall time.
+                clock_time = _run_barrier(editor, :device;
+                                          origin = typeof(editor.backend),
+                                          fallback = wall_time) do
+                    get_frame_clock_time(editor.backend, wall_time)
                 end
+                set_clock_time!(editor.clock, clock_time)
+                # What was posted or stored from outside this task, applied
+                # here so the frame paints what its feeds just wrote. Each feed
+                # drains in a barrier of its own.
+                drain_feeds!(editor)
                 run_frame!(editor)
                 _run_barrier(editor, :report) do
                     perf!(editor)
-                    record_frame_performance!(editor, Base.time() - frame_started)
+                    record_frame_performance!(editor, (time_ns() - frame_started) / 1e9)
                 end
             end
         end
@@ -190,9 +229,17 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         e isa QuitEditorException || rethrow()
     finally
         editor.loop_task = nothing
-        _answer_waiting_calls!(editor)
-        server === nothing || stop_agent_server!(server)
-        quit_backend!(editor.backend)
+        # Each step runs also when a step before it throws, and the exception
+        # goes on after the last step.
+        try
+            _answer_waiting_calls!(editor)
+        finally
+            try
+                server === nothing || stop_agent_server!(server)
+            finally
+                quit_backend!(editor.backend)
+            end
+        end
     end
 end
 

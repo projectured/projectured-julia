@@ -15,11 +15,15 @@ abstract type Feed end
 """
     drain_changes!(feed, editor) -> Int
 
-Move everything new from the feed's store into its target document, and
-answer how many items moved. The editor calls it once per frame, on its own
-task, before `read!`. A feed must write only what is new: an empty store
-writes no cell, so an idle feed repaints nothing. A feed must not block —
-a producer waits for the editor through its store, never the other way.
+Move what the feed's store held when the drain started into its target
+document, and answer how many items moved. What a producer stores during the
+drain waits for the next drain, so a drain ends. The editor calls it once per
+frame, on its own task, before `read!`. A feed must write only what is new: an
+empty store writes no cell, so an idle feed repaints nothing. A feed must not
+block — a producer waits for the editor through its store, never the other way.
+
+A drain that throws is recorded as a fault of its feed, and the next feed still
+drains.
 
 There is deliberately no default method: a feed that cannot drain is a bug,
 not a no-op, so an unimplemented feed raises a `MethodError`.

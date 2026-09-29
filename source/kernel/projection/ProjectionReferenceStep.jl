@@ -95,6 +95,7 @@ ReferenceModule.evaluate_reference_step(step::ProjectionReferenceStep, document)
 
 Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
     a.projection === b.projection && a.output_path == b.output_path
+# It mixes exactly what `==` reads, so two equal steps key one entry of a table.
 Base.hash(s::ProjectionReferenceStep, h::UInt) =
     hash(s.output_path, hash(objectid(s.projection), hash(:ProjectionReferenceStep, h)))
 

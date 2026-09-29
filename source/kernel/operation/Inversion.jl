@@ -1,22 +1,14 @@
-# Fragment of `OperationModule` — the way back. `make_inverse_operation` answers
-# the operation that undoes another one, `evaluate_invertible_operation!` applies
-# an operation and answers its inverse, and `get_slot_at` is the one seam the two
-# need from the container packages above.
-#
-# An inverse needs the state the change starts from, so it is taken BEFORE the
-# change is applied. That is also why a container operation is not inverted in one
-# piece: the inverse of the second member of a `CompoundOperation` depends on what
-# the first member did. `evaluate_invertible_operation!` interleaves the two, and
-# is open so a container type of a higher package adds its own method.
-#
-# The operations of a higher package declare their own inverses beside their own
-# declarations, exactly as they declare `reroot_operation` there. The methods here
-# cover the operations this layer owns.
+# Fragment of `OperationModule` — the way back: the inverses and the slot seam.
 
 # The default: an operation nobody taught to invert has no way back. A caller
 # that records a history marks the point and refuses to undo past it.
 make_inverse_operation(document, operation) = nothing
 
+# An inverse needs the state the change starts from, so it is taken BEFORE the
+# change is applied. That is also why a container operation is not inverted in one
+# piece: the inverse of the second member of a `CompoundOperation` depends on what
+# the first member did. `evaluate_invertible_operation!` interleaves the two, and
+# is open so a container type of a higher package adds its own method.
 function evaluate_invertible_operation!(editor, operation)
     inverse = make_inverse_operation(editor.document, operation)
     evaluate_operation(editor, operation)
@@ -40,6 +32,10 @@ end
 get_slot_at(container, index::Integer) = container[index]
 
 # ── The inverses of this layer's operations ─────────────────────────────────
+#
+# The operations of a higher package declare their own inverses beside their own
+# declarations, exactly as they declare `reroot_operation` there. The methods here
+# cover the operations this layer owns.
 
 make_inverse_operation(document, operation::DoNothingOperation) = operation
 
@@ -102,18 +98,21 @@ end
 # very objects this one names.
 
 # A field write: put back what the field holds now.
-_make_slot_inverse(op::ReplaceReferencedValueOperation, parent, step::FieldReferenceStep, value) =
+_make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
+                   step::FieldReferenceStep, value) =
     hasproperty(parent, Symbol(step.name)) ?
         ReplaceReferencedValueOperation(parent, Reference(step),
                                         getproperty(parent, Symbol(step.name))) :
         nothing
 
-# An element overwrite: put back the slot that is there now.
+# An element overwrite: put back the value that is there now, not the slot. A
+# collection can write one value into the slot that is there, and then a kept
+# slot holds the new value when the way back runs.
 function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
                             step::RangeReferenceStep, value)
     index = step.start + 1
     (index < 1 || index > length(parent)) && return nothing
-    ReplaceReferencedValueOperation(parent, Reference(step), get_slot_at(parent, index))
+    ReplaceReferencedValueOperation(parent, Reference(step), parent[index])
 end
 
 # A splice: the write replaces `[start, stop)` with `n` items, so the way back
@@ -122,7 +121,8 @@ end
 # vector is a delete, and its inverse is an insert. One rule covers all three.
 function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
                             step::RangeReferenceStep, value::AbstractVector)
-    (step.start < 0 || step.stop > length(parent) || step.stop < step.start) && return nothing
+    (step.start < 0 || step.stop > length(parent) || step.stop < step.start) &&
+        return nothing
     old = Any[get_slot_at(parent, index) for index in (step.start + 1):step.stop]
     ReplaceReferencedValueOperation(parent,
         Reference(RangeReferenceStep(step.start, step.start + length(value))), old)

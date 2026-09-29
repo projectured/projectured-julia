@@ -426,6 +426,11 @@ transcript, free to drift from the real one.
 each tool that runs. The assistant turns those into live conversation
 parts; something else might simply print them.
 
+A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` ends the turn
+with `:error`, and its tool calls do not run. A tool that throws gives an
+`AgentToolResult` with `is_error = true`. An exception that
+`is_passthrough_exception` names goes through the loop, and `run_turn!` throws it.
+
 ### Both directions call from another task
 
 An MCP server calls a tool on the task of the server, and a turn runs on a task

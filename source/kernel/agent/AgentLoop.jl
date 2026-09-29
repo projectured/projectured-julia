@@ -14,6 +14,8 @@ _is_error_output(output::AbstractString) =
 Run one turn: stream a round from the model, run any tools it asked for, and go
 again until it stops asking. Returns the stop reason of the final round
 (`:end_turn`, `:tool_use` if the round cap cut it short, `:max_tokens`, `:error`).
+A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` gives `:error`,
+and the loop runs none of its tool calls.
 
 - `target`   — what the tools act on, passed through to each handler untouched (an
                `Editor`, in practice).
@@ -26,6 +28,11 @@ again until it stops asking. Returns the stop reason of the final round
 - `on_event` — called with every `LlmEvent` as it streams, and with an
                `AgentToolResult` for each tool that runs.
 
+A tool that throws gives an `AgentToolResult` with `is_error = true`, and the
+fault goes into the fault store of `target`. An exception that
+[`is_passthrough_exception`](@ref) names goes through: `run_turn!` throws it and
+sends no result.
+
 Each tool call runs through [`run_on_editor_task!`](@ref) with `target`: on the
 task of the editor's loop when one runs on another task, and at once otherwise.
 
@@ -33,7 +40,7 @@ The loop is where a turn's *control flow* lives, and only that. It builds no
 messages and renders no answer; it streams, dispatches, and decides whether to go
 around again.
 """
-function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
+function run_turn!(agent::Agent, target; messages, on_event)
     register_default_tools!(agent.tools)
     tools = list_tools(agent.tools)
 
@@ -46,10 +53,10 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
             break
         end
 
-        # Live state for this round. `stop` resets: a round that ended in `:tool_use`
-        # must not be mistaken for the next one's outcome.
+        # Live state for this round. `stop` starts empty, and only a terminal
+        # event of this round sets it.
         pending = LlmToolUse[]
-        stop    = :end_turn
+        stop    = nothing
 
         @info "[agent] round $round: streaming"
         stream_turn(agent.llm,
@@ -64,6 +71,8 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
                         on_event(ev)
                         nothing
                     end)
+        # A stream that ends with no terminal event did not finish its round.
+        stop === nothing && (stop = :error)
         @info "[agent] round $round: done" stop tool_calls = length(pending)
 
         # The model is finished unless it is waiting on tools it asked for.
@@ -74,10 +83,12 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
             # The loop runs on a task of its own, and a tool may write what the
             # editor shows, so the call runs on the editor's task, as the call of
             # an MCP client does.
-            output = run_on_editor_task!(target) do
+            output, is_error = run_on_editor_task!(target) do
                 try
-                    call_tool(agent.tools, call.name; args = call.input, target)
+                    text = call_tool(agent.tools, call.name; args = call.input, target)
+                    (text, _is_error_output(text))
                 catch e
+                    is_passthrough_exception(e) && rethrow()
                     # A tool that throws is not a broken turn: the model is told
                     # what went wrong and can try something else, which is the
                     # whole point of giving it tools it can misuse. The fault is
@@ -86,10 +97,16 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
                     traceback = catch_backtrace()
                     record_fault!(get_fault_store(target), :tool; origin = Symbol(call.name),
                                   exception = e, traceback)
-                    sprint(showerror, e, traceback)
+                    # A `showerror` method that throws gives the type name.
+                    text = try
+                        sprint(showerror, e, traceback)
+                    catch
+                        string(nameof(typeof(e)))
+                    end
+                    (text, true)
                 end
             end
-            on_event(AgentToolResult(call, output, _is_error_output(output)))
+            on_event(AgentToolResult(call, output, is_error))
         end
     end
     stop

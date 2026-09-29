@@ -49,22 +49,31 @@ end
 """
     drain_operations!(editor) -> Int
 
-Apply every operation waiting in the inbox and answer how many there were.
-Called once per frame by `run_editor!`, before `read!`, so the frame paints what
-it just applied.
+Apply the operations that wait in the inbox when the drain starts, at most
+`INBOX_CAPACITY`, and answer how many there were. Called once per frame by
+`run_editor!`, before `read!`, so the frame paints what it just applied.
 
-Applied through `evaluate_operation` rather than [`evaluate!`](@ref): posted
-operations do not become `editor.operation`, because that field means "what the
-reader made of this frame's input" and is what `perf!` uses to tell a frame in
-which the user did something from an idle one. It also keeps a sync arriving ten
-times a second out of the operation log.
+An operation posted during the drain waits for the next drain, so a producer
+that posts as fast as the editor applies can not hold off the paint. When
+operations are left, the drain sets `editor.wake_pending`, and the next frame
+runs without a wait.
+
+Each operation applies in the operation barrier of [`evaluate!`](@ref), with the
+same repairs: an operation that fails half way is taken back where it has a way
+back, the fault is recorded, and the next operation still applies. It is not
+`evaluate!` itself: posted operations do not become `editor.operation`, because
+that field means "what the reader made of this frame's input" and is what
+`perf!` uses to tell a frame in which the user did something from an idle one.
+It also keeps a sync arriving ten times a second out of the operation log.
 """
 function drain_operations!(editor::Editor)
-    count = 0
-    while isready(editor.inbox)
-        evaluate_operation(editor, take!(editor.inbox))
-        count += 1
+    # `Base.n_avail` also counts the producers that wait for room. The bound
+    # keeps each `take!` to an operation that the inbox holds already.
+    count = min(Base.n_avail(editor.inbox), INBOX_CAPACITY)
+    for _ in 1:count
+        _evaluate_operation_guarded!(editor, take!(editor.inbox))
     end
+    isready(editor.inbox) && (editor.wake_pending[] = true)
     count
 end
 

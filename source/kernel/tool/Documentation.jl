@@ -31,10 +31,15 @@ read only the first has been handed a library about the wrong subject.
 """
 function register_guide_root!(directory::AbstractString; prefix::AbstractString = "")
     entry = (String(directory), String(prefix))
-    entry in _EXTRA_GUIDE_ROOTS && return nothing
-    push!(_EXTRA_GUIDE_ROOTS, entry)
-    # The index is built once and cached; a root added after that must be seen.
-    _GUIDE_INDEX[] = nothing
+    # The meaning vectors build the guide index on a task of their own, under this
+    # lock. A root added during that build waits for its end, so the reset below
+    # comes after the build and the next read sees the new root.
+    lock(_INDEX_LOCK) do
+        entry in _EXTRA_GUIDE_ROOTS && return
+        push!(_EXTRA_GUIDE_ROOTS, entry)
+        # The index is built once and cached; a root added after that must be seen.
+        _GUIDE_INDEX[] = nothing
+    end
     nothing
 end
 
@@ -67,8 +72,10 @@ keeps bare names (`concepts`, `getting-started`, …); each slice's folder under
 `documentation/package/` is namespaced by slice (`kernel/reference`,
 `widget/widget`, …) so two slices may both have a guide of one name.
 
-The bare walk skips `documentation/package/`, which its own roots cover. Without
-that, every slice guide would be listed twice under two names.
+The bare walk skips the folders under `documentation/package/`, which their own
+roots cover. Without that, every slice guide would be listed twice under two
+names. A file that sits directly in `documentation/package/` is in no slice, so
+the bare walk names it `package/<name>`.
 """
 function _guide_roots()
     documentation = _get_documentation_directory()
@@ -91,13 +98,15 @@ Every guide as `(guide_name, filepath)`, across every root in `_guide_roots()`.
 """
 function _all_guides()
     guides = Tuple{String,String}[]
+    slices = joinpath("documentation", "package", "")
     for (root, prefix) in _guide_roots()
         isdir(root) || continue
         for (dir, _, files) in walkdir(root)
-            # The per-slice roots below cover documentation/package/, and they
-            # give a guide the namespaced name every citation uses. Walking it
-            # here as well would list each of those guides twice.
-            (prefix == "" && occursin(joinpath("documentation", "package"), dir)) && continue
+            # The per-slice roots below cover the folders of documentation/package/,
+            # and they give a guide the namespaced name every citation uses. Walking
+            # them here as well would list each of those guides twice. The files
+            # directly in documentation/package/ are walked here, as package/<name>.
+            (prefix == "" && occursin(slices, dir)) && continue
             for file in sort(files)
                 endswith(file, ".md") || continue
                 filepath = joinpath(dir, file)
@@ -175,6 +184,19 @@ end
 
 _projectured() = parentmodule(@__MODULE__)
 
+# The names of `mod` that a declaration gives, or `nothing` when no declaration
+# narrows the module: an empty API is the whole surface. A module that two
+# entries name gives the names of both.
+function _find_declared_names(mod::Module, api)
+    isempty(api) && return nothing
+    given = Set{Symbol}()
+    for entry in api
+        entry.module_ === mod || continue
+        union!(given, get_api_entry_names(entry))
+    end
+    given
+end
+
 # Is this name one the declaration gives? An empty declaration is the whole
 # surface, where every name of a reachable module is.
 #
@@ -182,9 +204,8 @@ _projectured() = parentmodule(@__MODULE__)
 # learning that it cannot, which is the same waste `_index_declared` avoids by
 # indexing only what is declared.
 function _is_declared(api, mod::Module, name::Symbol)
-    isempty(api) && return true
-    # A module two entries name gives the names of both.
-    any(entry -> entry.module_ === mod && name in get_api_entry_names(entry), api)
+    declared = _find_declared_names(mod, api)
+    declared === nothing || name in declared
 end
 
 # The module the declaration gives `name` in, or `nothing`.
@@ -215,12 +236,13 @@ function _find_module(name::String, api = ApiEntry[])
         String(nameof(entry.module_)) == name && return entry.module_
     end
     isempty(api) || return nothing
-    proj = _projectured()
-    name == string(nameof(proj)) && return proj
-    sym = Symbol(name)
-    isdefined(proj, sym) || return nothing
-    obj = getfield(proj, sym)
-    obj isa Module ? obj : nothing
+    for package in _collect_surface_packages()
+        name == String(nameof(package)) && return package
+    end
+    for (sym, mod) in _collect_surface_modules()
+        name == String(sym) && return mod
+    end
+    nothing
 end
 
 # Render a doc object (as returned by `Base.Docs._doc`) to plain markdown source.
@@ -403,18 +425,6 @@ function _get_catalogue_summary(doc::AbstractString, name::AbstractString)
     isempty(summary) ? "No description." : summary
 end
 
-function _submodules(proj::Module)
-    mods = Pair{Symbol,Module}[]
-    for name in sort!(collect(names(proj; all = true)))
-        isdefined(proj, name) || continue
-        obj = getfield(proj, name)
-        obj isa Module || continue
-        (obj === proj || obj === Base || obj === Core) && continue
-        push!(mods, name => obj)
-    end
-    mods
-end
-
 # True for compiler-generated names that should never surface to a human/AI:
 # gensym'd closure and method types (`#print_document##0#…`, `##BookBook#1`,
 # `#10#11`). They flood the listings with hundreds of meaningless entries.
@@ -462,40 +472,45 @@ function _module_functions(mod::Module)
     fns
 end
 
+# The modules of a declaration, each once and under its own name, or every module
+# of the whole surface when the declaration is empty.
+function _api_modules(api)
+    isempty(api) && return _collect_surface_modules()
+    modules = unique(entry.module_ for entry in api)
+    Pair{Symbol,Module}[nameof(mod) => mod for mod in modules]
+end
+
+# The types of one module a model may name: the ones the declaration gives, or
+# every type of the module when the declaration is empty. A generated schema
+# variant is no resource and no catalogue entry of its own, as it is no hit.
+function _api_types(api, mod::Module)
+    declared = _find_declared_names(mod, api)
+    [pair for pair in _struct_types(mod)
+     if !_is_schema_variant(mod, first(pair), last(pair)) &&
+        (declared === nothing || first(pair) in declared)]
+end
+
 # ═══════════════════════════════════════════════════════════════════════
 # Documentation readers
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    list_modules() -> String
+    list_modules(; api = ApiEntry[]) -> String
 
-List all modules with one-paragraph documentation for each and a list of its
-top-level types.
+List the modules of `api`, each once, with its one-paragraph documentation and
+the types of it that a model may name: the ones the declaration gives, and no
+generated schema variant. An empty `api` lists the modules of the whole surface.
 """
 function list_modules(; api = ApiEntry[])
     modules_info = String[]
-    for (name, mod) in (isempty(api) ? _submodules(_projectured()) :
-                        [(nameof(e.module_), e.module_) for e in api])
+    for (name, mod) in _api_modules(api)
         summary = _get_catalogue_summary(_doc_string(mod), String(name))
-        structs = [String(n) for (n, _) in _struct_types(mod)]
+        structs = [String(n) for (n, _) in _api_types(api, mod)]
         struct_list = isempty(structs) ? "" : "\n\nTypes: $(join(structs, ", "))"
         push!(modules_info, "**$name**: $summary$struct_list")
     end
     isempty(modules_info) && return "No modules found."
     "Available Modules\n\n" * join(modules_info, "\n\n---\n\n")
-end
-
-# The names of `mod` that a declaration gives, or `nothing` when no declaration
-# narrows the module: an empty API is the whole surface. A module that two
-# entries name gives the names of both.
-function _find_declared_names(mod::Module, api)
-    isempty(api) && return nothing
-    given = Set{Symbol}()
-    for entry in api
-        entry.module_ === mod || continue
-        union!(given, get_api_entry_names(entry))
-    end
-    given
 end
 
 """
@@ -671,8 +686,12 @@ function _index_guide_sections()
         content = read(filepath, String)
         heading = ""
         buf = String[]
+        # A line that starts with `#` inside a code fence is a line of the code,
+        # and no heading.
+        fenced = false
         for line in split(content, '\n')
-            if startswith(strip(line), "#")
+            startswith(strip(line), "```") && (fenced = !fenced)
+            if !fenced && startswith(strip(line), "#")
                 body = strip(join(buf, "\n"))
                 (isempty(body) && isempty(heading)) ||
                     push!(sections, _GuideSection(guide_name, heading, body))
@@ -848,31 +867,14 @@ function _index_declared(api)
     entries
 end
 
-function _index_api()
-    proj = _projectured()
-    entries = _ApiEntry[]
-    for (mod_sym, mod) in _submodules(proj)
-        mn = String(mod_sym)
-        push!(entries, _make_api_entry("module", mn, _binding_doc(proj, mod_sym)))
-        for (type_sym, type_value) in _struct_types(mod)
-            (_is_private_name(type_sym) || _is_schema_variant(mod, type_sym, type_value)) &&
-                continue
-            push!(entries, _make_api_entry("type", "$mn.$type_sym", _binding_doc(mod, type_sym)))
-        end
-        # A function has no resource of its own: a resource per function fans out
-        # to hundreds, so a hit is read with `read_function_documentation`.
-        for (function_sym, _) in _module_functions(mod)
-            _is_private_name(function_sym) && continue
-            push!(entries, _make_api_entry("function", "$mn.$function_sym",
-                                           _binding_doc(mod, function_sym)))
-        end
-    end
-    entries
-end
+# The index of the whole surface: each of its modules, and the names it exports.
+# The scratch module binds only the exported names, so the index holds no others.
+_index_api() = _index_declared(_collect_surface_api())
 
 # Process-global, deliberately: lazily-built read-only indexes of the project's own
-# guides and API, identical for every editor and derived from sources that do not
-# change at runtime. This is the "state identical for every editor" carve-out
+# guides and API, identical for every editor. The guides do not change at run time,
+# and the API index holds the whole surface of the packages that are loaded when it
+# is first built. This is the "state identical for every editor" carve-out
 # PAR-PER-EDITOR-STATE grants (alongside the wall clock).
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
@@ -938,6 +940,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
+    hit_count = _get_hit_count(level, limit)
+    hit_count >= 1 || return _say_limit_below_one(limit)
     sections = _guide_index()
     ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
     note = nothing
@@ -953,7 +957,7 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     io = IOBuffer()
     note === nothing || println(io, note, "\n")
     println(io, "# Documentation matches for $(repr(query))\n")
-    shown = first(ranked, min(_get_hit_count(level, limit), length(ranked)))
+    shown = first(ranked, min(hit_count, length(ranked)))
     for section in shown
         head = isempty(section.heading) ? "" : " — $(section.heading)"
         if level == "names"
@@ -968,6 +972,7 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
         end
     end
     body = String(take!(io))
+    isempty(shown) && return body
     body * _make_footer(_get_section_uri(first(shown)), length(body); what = "a section")
 end
 
@@ -1113,7 +1118,16 @@ function _read_search_detail(detail)
     "Unknown search detail " * repr(name) * ". The details are \"names\", \"summary\" and \"full\"."
 end
 
-_get_hit_count(detail::String, limit) = limit === nothing ? _DETAIL_LIMITS[detail] : Int(limit)
+# The number of hits a search shows: the count of the detail level, or the limit
+# a caller gave, rounded to a whole number.
+_get_hit_count(detail::String, limit) =
+    limit === nothing ? _DETAIL_LIMITS[detail] : round(Int, limit)
+
+# What a search answers for a limit that rounds to less than one hit. A search
+# answers text and never throws, so a model reads this and corrects its call.
+_say_limit_below_one(limit) =
+    "A limit of " * repr(limit) * " shows no hit. " *
+    "Give a limit of 1 or more, or leave it out."
 
 # ── What to do next ─────────────────────────────────────────────────────────
 #
@@ -1268,37 +1282,20 @@ default, a pattern with `"regex"` or a `Regex`, and a sentence with
 `"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
 for a written word only: a pattern ranks by where it matches.
 """
-function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detail = "summary",
-                    kind = nothing, limit = nothing, api = ApiEntry[], meaning_model = nothing)
+function search_api(query::Union{AbstractString,Regex}; mode = "keywords",
+                    detail = "summary", kind = nothing, limit = nothing, api = ApiEntry[],
+                    meaning_model = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
     haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
-    limit = _get_hit_count(level, limit)
+    hit_count = _get_hit_count(level, limit)
+    hit_count >= 1 || return _say_limit_below_one(limit)
     entries = _ApiEntry[entry for entry in _api_index(api)
                         if kind === nothing || entry.kind == kind]
-    scored = _rank_api_entries(read, entries)
-    ranked = _ApiEntry[entry for (_, entry) in scored]
-    note = nothing
-    if read isa _DescriptionQuery
-        # **The meaning decides, and the words only stand in for it.** Merged,
-        # the two ranks were worse than the meaning alone: a sentence's words
-        # are "value", "runs" and "time", and they match a name that means
-        # something else. Measured on the 88 verbs of a downstream IDE, 2026-09-16: of
-        # the five weightings of a rank fusion that were tried, none put a verb
-        # above where the meaning alone put it, and each put three or four of
-        # eight test sentences' verbs below it.
-        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
-        by_meaning === nothing || (ranked = by_meaning)
-        # A sentence names no verb, so only a single hit is a clear answer.
-        alone = length(ranked) == 1
-    else
-        # One hit, or one whose NAME is exactly what was asked while no other's is.
-        alone = length(scored) == 1 ||
-                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
-    end
+    ranked, alone, note = _rank_api_hits(read, entries, meaning_model)
     # **A miss answers what there IS.** A search that says only "no match" costs a
     # round and teaches nothing, and the round after it is a guess. The names of
     # the declaration are short, and they are the answer to "then what may I
@@ -1308,8 +1305,8 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         suffix = kind === nothing ? "" : " (kind=$kind)"
         names = isempty(api) ? "" : describe_api(api; signatures = false)
         return _prefix_note(note, "No API matches $(repr(query))$suffix. " *
-                                  "A guide may say it: `search_guides` with the same words." *
-                                  (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
+            "A guide may say it: `search_guides` with the same words." *
+            (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
     end
 
     # **One clear answer is answered in full.** A hit shows its signature and a
@@ -1325,19 +1322,46 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         println(io, "# `", last(split(best.qualname, '.')),
                     "` — the one API match for ", repr(query), "\n")
         println(io, best.full)
-        rest = [entry.qualname for entry in ranked[2:min(limit, length(ranked))]]
+        rest = [entry.qualname for entry in ranked[2:min(hit_count, length(ranked))]]
         isempty(rest) ||
             println(io, "\nAlso matched, by name: " * join(rest, ", ") * ".")
         return String(take!(io))
     end
 
     println(io, "# API matches for $(repr(query))\n")
-    shown = first(ranked, min(limit, length(ranked)))
+    shown = first(ranked, min(hit_count, length(ranked)))
     for entry in shown
         println(io, _format_api_hit(entry, level))
     end
     body = String(take!(io))
+    isempty(shown) && return body
     body * _make_footer(_get_entry_uri(first(shown)), length(body); what = "one")
+end
+
+# The entries a query finds, best first; whether the first is the one clear
+# answer; and the note of a description that no meaning model ranked.
+function _rank_api_hits(read, entries::Vector{_ApiEntry}, meaning_model)
+    scored = _rank_api_entries(read, entries)
+    ranked = _ApiEntry[entry for (_, entry) in scored]
+    note = nothing
+    if read isa _DescriptionQuery
+        # **The meaning decides, and the words only stand in for it.** Merged,
+        # the two ranks were worse than the meaning alone: a sentence's words
+        # are "value", "runs" and "time", and they match a name that means
+        # something else. Measured on the 88 verbs of a downstream IDE, 2026-09-16:
+        # of the five weightings of a rank fusion that were tried, none put a verb
+        # above where the meaning alone put it, and each put three or four of
+        # eight test sentences' verbs below it.
+        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
+        by_meaning === nothing || (ranked = by_meaning)
+        # A sentence names no verb, so only a single hit is a clear answer.
+        alone = length(ranked) == 1
+    else
+        # One hit, or one whose NAME is exactly what was asked while no other's is.
+        alone = length(scored) == 1 ||
+                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
+    end
+    (ranked, alone, note)
 end
 
 # A hit is two lines: what a caller writes, and what it does.

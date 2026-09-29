@@ -1,7 +1,4 @@
-# Fragment of `OperationModule` — the built-in operations, the `splice_*` text
-# helpers, and the `child_reference_steps` traversal seam. The `Operation`
-# supertype and the `evaluate_operation` / `invalidate_projection!` generics come
-# from `Interface.jl`, already in scope.
+# Fragment of `OperationModule` — the operations, the splice helpers, the traversal seam.
 
 """
     DoNothingOperation()
@@ -17,14 +14,10 @@ struct DoNothingOperation <: Operation end
 
 evaluate_operation(editor, ::DoNothingOperation) = nothing
 
-# Catch-all: an object that caches no projection has nothing to drop; one that
-# does overrides this to clear its cache. Lets an operation ask without naming a
-# concrete editor type.
-invalidate_projection!(editor) = nothing
-
 # ── Text-splice helpers ─────────────────────────────────────────────────────
 
-# @positional: a range of a text, in the order a range is written: the text, the start, the stop, the replacement.
+# @positional: a range of a text, in the order a range is written: the text, the
+# start, the stop, the replacement.
 """
     splice_string(old, s, e, replacement) -> String
 
@@ -34,14 +27,16 @@ Boundaries are clamped: `s <= 0` keeps nothing on the left, `e >= length(old)`
 keeps nothing on the right. This is the one canonical text splice — every
 text-replace edit in every domain routes through it.
 """
-function splice_string(old::AbstractString, s::Int, e::Int, replacement::AbstractString)
+function splice_string(old::AbstractString, s::Int, e::Int,
+                       replacement::AbstractString)
     n = length(old)
     left  = s <= 0 ? "" : first(old, s)
     right = e >= n ? "" : last(old, n - e)
     String(left) * replacement * String(right)
 end
 
-# @positional: a range of a text, in the order a range is written: the text, the start, the stop, the replacement.
+# @positional: a range of a text, in the order a range is written: the text, the
+# start, the stop, the replacement.
 """
     splice_number(old_str, s, e, replacement) -> Union{Int, Float64, Nothing}
 
@@ -52,19 +47,23 @@ stays the integer `42` rather than drifting to `42.0`. Returns `nothing` for an
 empty result or unparseable input (the value cell tolerates `nothing` as the empty
 sentinel).
 """
-function splice_number(old_str::AbstractString, s::Int, e::Int, replacement::AbstractString)
+function splice_number(old_str::AbstractString, s::Int, e::Int,
+                       replacement::AbstractString)
     new_str = splice_string(old_str, s, e, replacement)
     isempty(new_str) && return nothing
     something(tryparse(Int, new_str), tryparse(Float64, new_str), Some(nothing))
 end
 
-splice_value!(owner, field::Symbol, value::AbstractString, s::Int, e::Int, replacement::AbstractString) =
+splice_value!(owner, field::Symbol, value::AbstractString, s::Int, e::Int,
+              replacement::AbstractString) =
     setproperty!(owner, field, splice_string(value, s, e, replacement))
 
-splice_value!(owner, field::Symbol, ::Nothing, s::Int, e::Int, replacement::AbstractString) =
+splice_value!(owner, field::Symbol, ::Nothing, s::Int, e::Int,
+              replacement::AbstractString) =
     setproperty!(owner, field, splice_string("", s, e, replacement))
 
-splice_value!(owner, field::Symbol, value::Number, s::Int, e::Int, replacement::AbstractString) =
+splice_value!(owner, field::Symbol, value::Number, s::Int, e::Int,
+              replacement::AbstractString) =
     setproperty!(owner, field, splice_number(string(value), s, e, replacement))
 
 struct QuitEditorException <: Exception end
@@ -87,6 +86,9 @@ struct CompoundOperation <: Operation
 end
 
 CompoundOperation(operations...) = CompoundOperation(Vector{Any}(collect(operations)))
+# One member: without this method the call reaches the field constructor, which
+# converts the operation to a vector and fails.
+CompoundOperation(operation::Operation) = CompoundOperation(Any[operation])
 
 function evaluate_operation(editor, op::CompoundOperation)
     for member in op.operations
@@ -160,25 +162,39 @@ end
 # `ReplaceReferencedValueOperation` write either a document or a scalar through one path.
 function _write_slot!(parent, step::FieldReferenceStep, value)
     f = getfield(parent, Symbol(step.name))
-    f isa AbstractCell || error("ReplaceReferencedValueOperation: field $(step.name) of $(typeof(parent)) is not a Cell")
+    f isa AbstractCell ||
+        error("ReplaceReferencedValueOperation: field $(step.name) of " *
+              "$(typeof(parent)) is not a Cell")
     f[] = value
 end
 
+# A field step on a dictionary names a key, and the operation writes no key.
+_write_slot!(parent::AbstractDict, step::FieldReferenceStep, value) =
+    error("ReplaceReferencedValueOperation: $(step.name) is a key of a " *
+          "$(typeof(parent)), and the operation writes no key")
+
+# One value overwrites one element. A range of more than one element takes a
+# vector of items, which is a splice.
 function _write_slot!(parent, step::RangeReferenceStep, value)
+    step.stop - step.start > 1 &&
+        error("ReplaceReferencedValueOperation: the range " *
+              "[$(step.start), $(step.stop)) holds more than one element; " *
+              "give a vector of items to replace it")
     parent[step.start + 1] = value
 end
 
 # A terminal `RangeReferenceStep` whose value is a *vector* of items is a SPLICE:
 # replace the half-open element range `[start, stop)` of the sequence container
-# with `items` (each wrapped in a `Cell`). Zero-width range ⇒ pure insert; empty
-# items ⇒ pure delete; both ⇒ element replacement. A single (non-vector) value
-# instead hits the element-overwrite method above.
+# with `items`. Each item goes in as it is, and the container keeps it in the form
+# that it stores, in a cell of its own or as the value. Zero-width range ⇒ pure
+# insert; empty items ⇒ pure delete; both ⇒ element replacement. A single
+# (non-vector) value instead hits the element-overwrite method above.
 function _write_slot!(parent, step::RangeReferenceStep, items::AbstractVector)
     for _ in 1:(step.stop - step.start)
         deleteat!(parent, step.start + 1)
     end
     for (k, item) in enumerate(items)
-        insert!(parent, step.start + k, item isa AbstractCell ? item : Cell(item))
+        insert!(parent, step.start + k, item)
     end
 end
 
@@ -228,8 +244,7 @@ evaluate_operation(editor, operation::ReplaceViewStateOperation) =
 # the second argument's type (`AbstractString` vs `Reference`), so it never
 # collides with the field-by-field constructor above.
 ReplaceReferencedValueOperation(document, field::AbstractString, value) =
-    ReplaceReferencedValueOperation(document,
-        ConcreteReference(FieldReferenceStep(field), EmptyReference()), value)
+    ReplaceReferencedValueOperation(document, Reference(FieldReferenceStep(field)), value)
 
 function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     reference = strip_reference_types(op.reference)
@@ -245,7 +260,8 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
         # write into Cells). `invalidate_projection!` is the editor's own concern
         # (default no-op); this module does not know how the projection is cached.
         op.document === nothing ||
-            error("ReplaceReferencedValueOperation: empty reference on a carried root has no slot to write")
+            error("ReplaceReferencedValueOperation: empty reference on a carried " *
+                  "root has no slot to write")
         editor.document = op.value
         invalidate_projection!(editor)
         return
@@ -278,7 +294,8 @@ function replace_document(path::Reference, document)
     inner_sel === nothing && (inner_sel = EmptyReference())
     CompoundOperation(Any[
         ReplaceReferencedValueOperation(nothing, path, document),
-        ReplaceSelectionOperation(concat_references(strip_reference_types(path), inner_sel)),
+        ReplaceSelectionOperation(
+            concat_references(strip_reference_types(path), inner_sel)),
     ])
 end
 
@@ -295,23 +312,25 @@ into the new element (re-rooting prepends the same steps to both members).
 `root` defaults to `nothing` (rooted at `editor.document`); pass a carried object
 for an identity-rooted splice against a document that is not in the tree.
 """
-function insert_elements(path::Reference, index::Integer, items; selection=nothing, root=nothing)
-    write = ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index)),
-                                   Vector{Any}(items))
+function insert_elements(path::Reference, index::Integer, items;
+                         selection=nothing, root=nothing)
+    write = ReplaceReferencedValueOperation(root,
+        extend_reference(path, RangeReferenceStep(index, index)), Vector{Any}(items))
     selection === nothing ? write :
         CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
 end
 
 """
-    delete_elements(path, index[, count]; root=nothing) -> operation
+    delete_elements(path, index; count=1, root=nothing) -> operation
 
-Remove `count` (default 1) elements from the sequence container at `path`, starting
-at the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation` whose
-terminal step is `RangeReferenceStep(index, index+count)` and whose value is the empty
-vector (replace the range with nothing). The inverse of `insert_elements`.
+Remove `count` elements from the sequence container at `path`, starting at the
+0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation` whose
+terminal step is `RangeReferenceStep(index, index+count)` and whose value is the
+empty vector (replace the range with nothing). The inverse of `insert_elements`.
 """
-delete_elements(path::Reference, index::Integer, count::Integer=1; root=nothing) =
-    ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index + count)), Any[])
+delete_elements(path::Reference, index::Integer; count::Integer=1, root=nothing) =
+    ReplaceReferencedValueOperation(root,
+        extend_reference(path, RangeReferenceStep(index, index + count)), Any[])
 
 """
     SelectNextInsertionOperation(predicate[, cursor])

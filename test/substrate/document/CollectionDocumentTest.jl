@@ -404,5 +404,20 @@ end # @testset "ReactiveCollection"
         @test collect(inner) == [1, 2, 3]
     end
 
+    # A write of one element goes into the slot cell that is there, so the way
+    # back of the write holds the old value and not that cell.
+    @testset "the way back of an element overwrite puts back the old value" begin
+        operation_module = ProjecturedKernel.OperationModule
+        v = CellVector(["a", "b"])
+        slot = get_cell_at(v, 2)
+        editor = (document = nothing,)
+        write = ReplaceReferencedValueOperation(v, Reference(RangeReferenceStep(1, 2)), "z")
+        inverse = operation_module.evaluate_invertible_operation!(editor, write)
+        @test collect(v) == ["a", "z"]
+        operation_module.evaluate_operation(editor, inverse)
+        @test collect(v) == ["a", "b"]
+        @test get_cell_at(v, 2) === slot
+    end
+
 end # @testset "CellVector protocol"
 end # test_collection
