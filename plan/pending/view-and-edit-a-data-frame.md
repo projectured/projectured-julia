@@ -80,6 +80,10 @@ These facts were read from the tree on 2026-09-29.
   into a running editor. The docstring names a timer and a file watcher as
   producers ([Inbox.jl](../../source/kernel/editor/Inbox.jl)).
 - No refresh command, key or poll exists in `source/`.
+- `run_example` runs `run_editor!` in the foreground, so it blocks the REPL.
+  One test runs the loop in a task, `@async run_editor!(editor)`
+  ([WaitTest.jl:130](../../test/kernel/editor/WaitTest.jl#L130)). No code runs
+  an SDL editor beside the REPL yet.
 - Undo stores the inverse of each operation. `make_inverse_operation` is
   declared by the package of the operation
   ([undo.md](../../documentation/package/undo/undo.md)). So an edit of a
@@ -210,7 +214,13 @@ Enter, Tab or a move out of the cell parses the text into the element type of
 the column and writes the value. If the parse fails, the text stays, the cell
 shows an error mark, and the reason is in its tooltip. Escape drops the
 pending text. So "12." and "-" are states that the view can hold, which
-PR-INTERMEDIATE-STATES asks for. Decision D5 asks for this model.
+PR-INTERMEDIATE-STATES asks for. D5 chose this model.
+
+A `PrimitiveNumber` today is written and parsed again after each key.
+`splice_number` gives `nothing` for a text that does not parse, such as `-` or
+`1e` ([PrimitiveDocument.jl:184](../../source/primitive/PrimitiveDocument.jl#L184)).
+So a write on each key can not hold such a text, and a column of a data frame
+also has a fixed element type.
 
 The operations, each with its inverse for undo:
 
@@ -392,15 +402,36 @@ Decision D3 asks which triggers to build.
 - **Frozen columns and row headers on a list are part of the plan** (the
   owner, 2026-09-29). They are a change of the widget substrate, in phase 5
   and phase 8.
+- **The users work in the normal Julia REPL** (the owner, 2026-09-29): "I
+  expect the user's to use the data frame display from normal julia repl, not
+  the projectured repl." So the evaluator of the editor is not the place where
+  a data frame is shown or changed.
+- **D1 is (b)** (the owner, 2026-09-29). The first delivery is phases 0, 1, 2
+  and 4: the facts, the ends of a finite list, the read-only view, and edit.
+  Refresh, sort and filter, and find come next.
+- **D4 is (b)** (the owner, 2026-09-29). A data frame reaches the screen by
+  `display(df)` through a `ProjecturedDisplay`, into an editor that runs in a
+  background task beside the REPL. The other two options are not built.
+- **D5 is (a)** (the owner, 2026-09-29). The text of a cell is pending until
+  Enter, Tab or a move out of the cell. Then the view parses it and writes the
+  value, as one undo step.
+- **D6 is (a), with an automatic refresh** (the owner, 2026-09-29): "(a), the
+  refresh is automatic". The row stays where it is after an edit. When the
+  view sorts again is open (§5.2).
+- **D7 is (a)** (the owner, 2026-09-29). The package is
+  `ProjecturedDataFrames`, and the types take the prefix `DataFrame`.
+- **D8 is deferred** (the owner, 2026-09-29): "(a) but let's defer this for a
+  better design". The direction is one query model with two layouts. Group and
+  pivot (§4.6, §4.7, phases 7 and 8) wait for a design of their own.
 
 ### 5.2 Open
 
-None of the decisions below is made, except D2. Each recommendation is the
-view of the writer of this draft.
+D3 and the time of the refresh in D6 are open. The other decisions below keep
+their options for the record. Each recommendation is the view of the writer
+of this draft.
 
-**D1. The first delivery.** Recommendation: phases 1 to 6 (the ends of a
-finite list, the read-only view, refresh, edit, sort and filter, find) are the
-first delivery. Group, pivot and the proposed features come second.
+**D1. The first delivery. Made: (b), see §5.1.** The recommendation was phases
+1 to 6.
 
 **D2. The ends of a finite list. Made: (b), see §5.1.** The pane scrolls past
 the first and the last row now (§2).
@@ -419,7 +450,7 @@ hook in the Julia REPL (`Base.active_repl_backend.ast_transforms`). C uses the
 inbox, which already names a timer as a producer. Recommendation: A, B and D
 first, and C as a keyword that is off by default.
 
-**D4. How a data frame reaches the screen.**
+**D4. How a data frame reaches the screen. Made: (b), see §5.1.**
 - `run_data_frame_viewer(df)`, like `run_value_viewer`. No kernel change.
 - `display(df)` through a `ProjecturedDisplay <: AbstractDisplay` and
   `pushdisplay`. It opens a tab in a running editor, or updates the tab of the
@@ -433,21 +464,23 @@ first, and C as a keyword that is off by default.
 Recommendation: the first two, and `DataFrameView(df)` by hand in the
 evaluator until the evaluator change is decided on its own.
 
-**D5. The edit model.** Pending text with a commit on Enter, Tab or a move out
+**D5. The edit model. Made: (a), see §5.1.** Pending text with a commit on
+Enter, Tab or a move out
 (§3.6), or a write on each key. Recommendation: pending text. A write on each
 key can not hold "12." in a `Float64` column.
 
-**D6. A sorted view after an edit.** The row stays and the order shows as out
-of date, or the view sorts again at once and the row moves away from the
-caret. Recommendation: the row stays.
+**D6. A sorted view after an edit. Made: (a), with an automatic refresh; the
+time of the refresh is open.** The row stays and the order shows as out of
+date, or the view sorts again at once and the row moves away from the caret.
+Recommendation: the row stays.
 
-**D7. The names.** The package is `ProjecturedDataFrames`, named for its
+**D7. The names. Made: (a), see §5.1.** The package is `ProjecturedDataFrames`, named for its
 third-party package as `ProjecturedOdbc` and `ProjecturedTulip` are. The slice
 is `dataframes`. The types take the prefix `DataFrame` (`DataFrameView`,
 `DataFrameQuery`, `DataFramePivot`), because `Frame` names a render frame here.
 None of these names is exported by DataFrames.
 
-**D8. Group and pivot.** One query model and two layouts: a grouped table with
+**D8. Group and pivot. Deferred, see §5.1.** One query model and two layouts: a grouped table with
 header rows (§4.6), and a cross table (§4.7). Or the grouped table as a pivot
 with no column dimension and a sub-table in each cell. Recommendation: one
 model, two layouts. A group row aligns with the columns of its members, and a
@@ -456,12 +489,14 @@ sub-table in a cell does not.
 ## 6. Phases
 
 Each phase ends with its own tests and a commit. The work is done in a
-worktree.
+worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 
-- [ ] **0. Facts.** Find out: can an editor window run beside the Julia REPL
-  (D4)? What does `hash` cost for a column of ten million `Int` and ten
-  million `String` values (§4.3, level 3)? What does `using DataFrames` cost
-  in load time and invalidation, and must the test environment keep it out of
+- [ ] **0. Facts.** Find out: can an SDL editor window run in a background
+  task beside the normal Julia REPL, on the same thread and on another thread
+  (D4)? If it can not, stop and ask the owner, because D4 depends on it. What
+  does `hash` cost for a column of ten million `Int` and ten million `String`
+  values (§4.3, level 3)? What does `using DataFrames` cost in load time and
+  invalidation, and must the test environment keep it out of
   `environment/all`?
 - [ ] **1. The ends of a finite list.** The clamp of D2 in the widget
   substrate. The test uses a list of ten million rows that ends at both sides,
@@ -469,9 +504,9 @@ worktree.
 - [ ] **2. The package and a read-only view.** The stem with its example and
   test packages, `DataFrameView`, the anchored row list with its jumps, its
   re-anchor and its scroll bar (§3.5), the visible shadow,
-  `DataFrameViewToWidget`, cells by element type, the natural row,
-  `run_data_frame_viewer`, and a row in the third-party table of
-  package-rules.md.
+  `DataFrameViewToWidget`, cells by element type, the natural row, the
+  `ProjecturedDisplay` with the editor in a background task (D4), and a row in
+  the third-party table of package-rules.md.
 - [ ] **3. Refresh.** The three levels of §4.3 and the triggers of D3.
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
@@ -480,9 +515,10 @@ worktree.
   quick filters, the expression filter, column hide and move. Column freeze
   needs frozen columns on a list in the widget substrate (§3.5).
 - [ ] **6. Find.** §4.5, without replace.
-- [ ] **7. Group.** §4.6.
+- [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
+  their own (D8).
 - [ ] **8. Pivot.** §4.7, with row headers on a list and the spanning header
-  in the widget substrate.
+  in the widget substrate. Deferred with phase 7 (D8).
 - [ ] **9. Charts in cells and the quick chart.**
 - [ ] **10. The proposed features** that the owner keeps from §4.8.
 
