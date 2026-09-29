@@ -558,12 +558,14 @@ The forward map of a container that addresses its children by an indexed field,
 `field[i]` followed by a reference into the child (`children` for a layout): the
 child's own mapper answers the rest of the reference, and
 [`make_slot_reference`](@ref) puts the node of the child's slot in front of it.
-A child that is not drawn has no image.
+A child that is not drawn has no image. The empty reference is the container
+itself, whose image is its own canvas.
 """
 function descend_reference_forward(canvas, entries::Vector, field::String, reference;
                                    drawn = output -> output isa GraphicsDocument)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
+    reference isa EmptyReference && return EmptyReference()
     reference isa ConcreteReference || return nothing
     head = reference.head
     (head isa FieldReferenceStep && head.name == field) || return nothing
