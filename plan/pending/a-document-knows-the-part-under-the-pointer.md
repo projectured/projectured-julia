@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending; the steps are written (2026-09-29), and Q8 is open. Nothing is built. It replaces the mouse target tracker of
+> **Status:** pending; the steps are written and every open point is settled (2026-09-29). Nothing is built. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -237,10 +237,18 @@ One at a time, with the owner.
   asks of the wiring. Each kind keeps its own evaluation: the selection
   `replace_selection!`, the mouse target its chain write. The names follow the
   naming rules when the step is built.
-- **Q8. The brackets of a JSON array.** The first example of section 1. Claude's
-  proposal: a step of this plan draws the delimiters of a syntax node lit while
-  the mouse target of the node is set, to show that a behaviour comes from
-  composition. Open.
+- ~~**Q8. The brackets of a JSON array.**~~ **Settled** (owner 2026-09-29: "yes,
+  you can build it, the light goes back from the innermost level several
+  levels, the color fading from the light color into the default gray color of
+  the delimiter"). The first example of section 1, as step 9. Each syntax node
+  finds its level from its own mouse target: the number of compound nodes that
+  the path passes below it. The innermost node, at level 0, draws its delimiters
+  in the light colour; a node further out mixes the light colour with the gray
+  of the delimiter, and it is gray after the last level. The number of levels
+  and the light colour are style parameters of the syntax projection; the number
+  is 4 (Claude's choice, for the owner to change). In `[1, [2, 3]]` with the
+  pointer on the `2`, the inner array holds `.elements[1]` and is at level 0,
+  and the outer array holds `.elements[2].elements[1]` and is at level 1.
 
 ## 7. Steps
 
@@ -307,7 +315,11 @@ already; the sealed selection files do not change (Q4).
   `make_tracking_screen` keeps the gesture tracker. The hosts follow: the
   gallery, the application, the shell tests, and the omnet IDE and campaign
   tests.
-- [ ] 9. **The brackets** (Q8), if the owner wants them here.
+- [ ] 9. **The brackets** (Q8). A syntax node draws its delimiters in the light
+  colour at level 0 and fades them to the gray of the delimiter over the
+  levels further out. Tests: in `[1, [2, [3]]]`, a move onto `3` lights the
+  innermost brackets fully and the two outer pairs less and less; a move off
+  the document leaves every delimiter gray.
 - [ ] 10. **The documents.** `package/kernel/mouse-target.md` and
   `guide/pointer-guide.md`, as step 11 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
