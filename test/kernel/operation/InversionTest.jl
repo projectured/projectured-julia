@@ -7,7 +7,9 @@ apply the inverse, and the document is what it was.
 A **test-local** operation with no method proves the default is `nothing`, and a
 test-local wrapper proves a wrapper's way back is the way back of what it holds.
 The lists are a test-local collection that keeps each element in a cell of its
-own, so a splice must give each item as it is and let the collection wrap it.
+own, so a splice must give each item as it is and let the collection wrap it. A
+second test-local collection writes a value into the slot cell that is there, so
+the way back of an overwrite must hold the old value and not the slot.
 """
 
 using Test
@@ -43,6 +45,20 @@ Base.insert!(list::InvCells, index::Integer, value) =
 Base.deleteat!(list::InvCells, index) = (deleteat!(list.cells, index); list)
 ProjecturedKernel.DocumentModule.is_element_collection(::InvCells) = true
 ProjecturedKernel.OperationModule.get_slot_at(list::InvCells, index::Integer) =
+    list.cells[index]
+
+# A test-local collection that writes a value into the slot cell that is there,
+# and replaces the slot only for a cell, as the reactive `CellVector` does.
+struct InvSlots
+    cells::Vector{Any}
+end
+Base.length(list::InvSlots) = length(list.cells)
+Base.getindex(list::InvSlots, index::Integer) = list.cells[index][]
+Base.setindex!(list::InvSlots, value, index::Integer) =
+    (list.cells[index][] = value; value)
+Base.setindex!(list::InvSlots, cell::AbstractCell, index::Integer) =
+    (list.cells[index] = cell; cell)
+ProjecturedKernel.OperationModule.get_slot_at(list::InvSlots, index::Integer) =
     list.cells[index]
 
 @document struct InvList
@@ -112,7 +128,7 @@ function test_inversion()
         @test leaf.value == "a"
     end
 
-    @testset "an element overwrite puts back the slot that was there" begin
+    @testset "an element overwrite puts back the value that was there" begin
         list = _inv_list("a", "b")
         editor = _InvEditor(list)
         reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 2))
@@ -121,6 +137,23 @@ function test_inversion()
         @test _values(list) == ["a", "z"]
         evaluate_operation(editor, inverse)
         @test _values(list) == ["a", "b"]
+    end
+
+    # A reactive collection writes one value into the slot cell that is there, as
+    # the reactive `CellVector` does. The way back must hold the old value, because
+    # the slot cell holds the new value once the write runs.
+    @testset "an overwrite in place is undone by the old value" begin
+        slots = InvSlots(Any[MutableCell{Any}("a"), MutableCell{Any}("b")])
+        editor = _InvEditor(nothing)
+        slot = slots.cells[2]
+        reference = Reference(RangeReferenceStep(1, 2))
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(slots, reference, "z"))
+        @test [slots[1], slots[2]] == ["a", "z"]
+        @test inverse.value == "b"
+        evaluate_operation(editor, inverse)
+        @test [slots[1], slots[2]] == ["a", "b"]
+        @test slots.cells[2] === slot
     end
 
     # One rule covers insert, delete and replace, because all three are a splice
