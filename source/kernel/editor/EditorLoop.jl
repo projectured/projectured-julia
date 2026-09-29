@@ -298,7 +298,7 @@ backend that drives another channel passes its own set (e.g. `Device[Keyboard()]
 `fault_policy` is the policy of a loop a person sits in front of, which survives
 a fault; the one print runs under it already. Pass `make_strict_fault_policy()`
 to stop at the first fault. When the build or the print fails, the backend is
-quit before the error goes on.
+quit and the error goes on to the caller, also when the quit throws.
 """
 function make_editor(backend::Backend, projection, document::Document;
                      devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
@@ -315,7 +315,11 @@ function make_editor(backend::Backend, projection, document::Document;
         end
         return editor
     catch
-        quit_backend!(backend)
+        # The error of the build goes on, so an exception of the quit is dropped.
+        try
+            quit_backend!(backend)
+        catch
+        end
         rethrow()
     end
 end

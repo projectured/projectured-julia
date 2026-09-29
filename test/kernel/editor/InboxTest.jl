@@ -13,7 +13,7 @@ using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 import ProjecturedKernel.EditorModule
 import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!, run_editor!,
-                                       RunFunctionOperation
+                                       make_editor, RunFunctionOperation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEditorOperation
 import ProjecturedKernel.AgentModule: run_on_editor_task!
 import ProjecturedKernel.BackendModule
@@ -49,11 +49,18 @@ end
 evaluate_operation(::Editor, operation::YieldingInboxOperation) =
     (push!(operation.log, :applied); yield(); nothing)
 
-# A backend that counts the quits of the loop, and never waits. Its quit throws
-# `quit_exception` when that is not `nothing`.
+# A backend that counts its quits, and never waits. The open of its windows
+# throws `open_exception` and its quit throws `quit_exception`, each when it is
+# not `nothing`.
 mutable struct InboxQuitBackend <: Backend
     quits::Int
+    open_exception::Any
     quit_exception::Any
+end
+BackendModule.initialize_backend!(::InboxQuitBackend) = nothing
+function BackendModule.open_native_windows!(backend::InboxQuitBackend, document)
+    backend.open_exception === nothing || throw(backend.open_exception)
+    nothing
 end
 function BackendModule.quit_backend!(backend::InboxQuitBackend)
     backend.quits += 1
@@ -182,7 +189,7 @@ function test_editor_inbox()
     end
 
     @testset "the loop quits its backend when a call at its end throws an interrupt" begin
-        backend = InboxQuitBackend(0, nothing)
+        backend = InboxQuitBackend(0, nothing, nothing)
         editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
         post_operation!(editor, QuitEditorOperation())
         # A call that no task waits for, still in the inbox when the loop ends.
@@ -196,17 +203,25 @@ function test_editor_inbox()
     # The first exception goes on: an exception of the loop, or else the first
     # exception of a step at its end. Every step runs.
     @testset "an exception of the loop goes on when the quit of the backend throws" begin
-        backend = InboxQuitBackend(0, ErrorException("the quit failed"))
+        backend = InboxQuitBackend(0, nothing, ErrorException("the quit failed"))
         editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
         post_operation!(editor, RunFunctionOperation(() -> throw(InterruptException()),
                                                      nothing))
         @test_throws InterruptException run_editor!(editor)
         @test backend.quits == 1
 
-        backend = InboxQuitBackend(0, ErrorException("the quit failed"))
+        backend = InboxQuitBackend(0, nothing, ErrorException("the quit failed"))
         editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
         post_operation!(editor, QuitEditorOperation())
         @test_throws "the quit failed" run_editor!(editor)
+        @test backend.quits == 1
+    end
+
+    @testset "an error of the build goes on when the quit of the backend throws" begin
+        backend = InboxQuitBackend(0, ErrorException("the windows did not open"),
+                                   ErrorException("the quit failed"))
+        @test_throws "the windows did not open" make_editor(
+            backend, InboxProbeProjection(), InboxProbe(); devices = Device[])
         @test backend.quits == 1
     end
 
