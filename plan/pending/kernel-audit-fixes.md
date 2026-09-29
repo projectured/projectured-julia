@@ -601,41 +601,51 @@ Each step changes sealed files. **Before each step, ask the owner for permission
 
 Sealed files: `FaultBarrier.jl`, `FaultCascade.jl`, `FaultInterface.jl`, `FaultModule.jl`, `FaultRecord.jl`, `FaultStore.jl`.
 
-- [ ] **L01-1** (part) (High, Correctness) — 🔒 `FaultStore.jl`
+- [x] **L01-1** (part) (High, Correctness) — 🔒 `FaultStore.jl`
   Reject `capacity < 1` in the constructor of `FaultStore` with an `ArgumentError`, as `FrameMeasurementStore` does. The report of the dropped faults waits for its decision.
   *Test:* `test_fault_store()`: `FaultStore(capacity = 0)` throws.
-- [ ] **L01-3** (Medium, Correctness) — 🔒 `FaultStore.jl`
+  *Done:* lane A, f0ba5e65.
+- [x] **L01-3** (Medium, Correctness) — 🔒 `FaultStore.jl`
   In `record_fault!`, push the key onto `undrained` only when `undrained` does not hold it; the record already has the latest count. Chosen over `unique!` in the drain: the same result, and `undrained` stays small. Change the test to expect one hand-over.
   *Test:* test_fault_store: 3000 faults of one key before one drain give one record with count 3000, and the target gets it one time.
-- [ ] **L01-7** (Low, Correctness) — 🔒 `FaultCascade.jl`
+  *Done:* lane A, f0ba5e65. A probe on the old code handed one record over 4 times.
+- [x] **L01-7** (Low, Correctness) — 🔒 `FaultCascade.jl`
   Call `_enter_fault_report!` and `_leave_fault_report!` each in its own `try`; when one fails, use depth 1 and go on to the console tier. Change the test to expect `:console` for `AngryStore()` with `FaultPolicy()`.
   *Test:* test_fault_report: report_fault!(AngryStore(), record; policy = FaultPolicy(), backend = AngryBackend()) answers :console, and store.depth stays 0.
-- [ ] **L01-9** (Low, Correctness) — 🔒 `FaultRecord.jl`
+  *Done:* lane A, f0ba5e65. A store that fails to enter gives depth 1, and the leave is then skipped; the leave has its own try.
+- [x] **L01-9** (Low, Correctness) — 🔒 `FaultRecord.jl`
   Give a `Type` that is not a `DataType` or a `UnionAll` a name from `string`: `_get_fault_origin_name(origin::Type) = origin isa DataType || origin isa UnionAll ? nameof(origin) : Symbol(string(origin))`.
   *Test:* test_fault_record: make_fault_record with origin = Union{Int, String} and with origin = Union{} gives a record and does not throw.
-- [ ] **L01-10** (Low, Correctness) — 🔒 `FaultStore.jl`
+  *Done:* lane A, f0ba5e65.
+- [x] **L01-10** (Low, Correctness) — 🔒 `FaultStore.jl`
   Give `drain_faults!` a keyword `policy = FaultPolicy()`, skip the refusal line when `policy.is_console_enabled` is false, and pass `editor.fault_policy` from `report_frame_faults!`. Chosen over an answer that carries the failures: smaller, and the same result.
   *Test:* test_fault_store: a target that throws, drained with the quiet policy, writes no log line (@test_logs); with FaultPolicy() it writes one.
-- [ ] **L01-13** (Low, Shape) — 🔒 `FaultCascade.jl`; after L01-6
+  *Done:* lane A, f0ba5e65. `drain_faults!(store; policy = FaultPolicy())`; FaultBarriers.jl passes `editor.fault_policy`.
+- [x] **L01-13** (Low, Shape) — 🔒 `FaultCascade.jl`; after L01-6
   Remove `report_fault!(store, ::Nothing; …)` and its test line: it has no caller outside that test in the three repositories. Keep the depth, because the docstring of `report_fault!` promises it, and let the nested-call set of L01-6 cover it.
   *Test:* test_fault_report passes without the nothing line; the nested-call set of L01-6 reaches the depth > 1 arm.
-- [ ] **L01-15** (Low, Documentation) — 🔒 `FaultStore.jl`, `FaultInterface.jl`
+  *Done:* lane A, f0ba5e65, after L01-6.
+- [x] **L01-15** (Low, Documentation) — 🔒 `FaultStore.jl`, `FaultInterface.jl`
   Replace 'thunk' with 'computation' in the docstrings and comments of the fault layer and of the editor files, and in the index row of PAR-NO-WRITE-IN-THUNK. Keep the rule IDs.
   *Test:* A grep for 'thunk' in source/kernel/fault and source/kernel/editor finds only rule IDs; test_documentation().
-- [ ] **L01-16** (Low, Documentation) — 🔒 `FaultStore.jl`, `FaultBarrier.jl`, `FaultCascade.jl`, `FaultModule.jl`
+  *Done:* lane A, f0ba5e65, except one line: FaultBarriers.jl:176, inside `print!`, still says "thunk", because lane B moves `print!` out of that file (L22-25). **Change it after the merge.** The index row of PAR-NO-WRITE-IN-THUNK is in Phase 6.
+- [x] **L01-16** (Low, Documentation) — 🔒 `FaultStore.jl`, `FaultBarrier.jl`, `FaultCascade.jl`, `FaultModule.jl`
   State each contract for any caller (for example 'Call it once per frame, outside every computation'), remove the text about callers in higher layers, and remove the seven include comments of FaultModule.jl.
   *Test:* test_documentation().
+  *Done:* lane A, f0ba5e65. test_kernel 2470, test_fault 73.
 
 ### Step 3.2: The performance layer
 
 Sealed files: `FrameMeasurement.jl`, `PerformanceCounter.jl`.
 
-- [ ] **L02-2** (Medium, Correctness) — 🔒 `FrameMeasurement.jl`
+- [x] **L02-2** (Medium, Correctness) — 🔒 `FrameMeasurement.jl`
   In `record_frame_measurements!`, throw the 'in both groups' error before any change of the store when a name of `times` is also a name of `counts`.
   *Test:* test_frame_measurements: a call with :x in both groups throws ArgumentError, and frame_count, end_times and the columns stay as before.
-- [ ] **L02-7** (Low, Documentation) — 🔒 `PerformanceCounter.jl`, `FrameMeasurement.jl`
+  *Done:* lane A, f00f3135. The old "in both groups" throw in `_record_frame_values!` went too, because no call reaches it.
+- [x] **L02-7** (Low, Documentation) — 🔒 `PerformanceCounter.jl`, `FrameMeasurement.jl`
   Add a 'Use it to' paragraph and an example to the names that a person or a model calls to profile, and cut the header of PerformanceCounter.jl to one line and the switch.
   *Test:* test_documentation().
+  *Done:* lane A, f00f3135, for the seven names that a person calls to profile; `record_frame_measurements!` and `FrameMeasurementSummary` are not called to profile.
 
 ### Step 3.3: The cell layer
 
@@ -823,21 +833,25 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.1: Tests of the fault layer
 
-- [ ] **L01-6** (Medium, Tests) — after L01-18
+- [x] **L01-6** (Medium, Tests) — after L01-18
   Add one test set for each tier in the new `FaultCascadeTest.jl`: `:console` with the console on (a `Test.TestLogger` gets one error), `:sound` with the console off (a backend that counts its sounds), the extra sound for a `:device` record, and a nested call (`depth > 1`).
   *Test:* test_fault_cascade: each tier gives its symbol, and the counts of the test logger and of the sound backend match.
-- [ ] **L01-18** (Low, Tests)
+  *Done:* lane A, 3c7a0aed. One set for each tier: console, sound, the extra sound of a device fault, and a nested report.
+- [x] **L01-18** (Low, Tests)
   Move `test_fault_report` to the new `FaultCascadeTest.jl` (its function becomes `test_fault_cascade`), wrap the lines over 90 characters, and send the console tier to a `Test.TestLogger`.
   *Test:* test_fault_cascade passes, and the log of the kernel suite holds no '[fault] device in AngryBackend' block.
+  *Done:* lane A, 3c7a0aed. The new test function is `test_fault_cascade`.
 
 ### Step 4.2: Tests of the performance layer
 
-- [ ] **L02-3** (Medium, Tests)
+- [x] **L02-3** (Medium, Tests)
   Test the store with no switch: bind `PerformanceModule._counters` to `_make_performance_counter_store()` with `Base.ScopedValues.with`, call `_bump_count!` and `_bump_time!`, and read `get_performance_counters()`. Chosen over a child process: smaller and faster.
   *Test:* test_performance_counter: inside the scope the counts and the times hold the added values; outside the scope they are empty.
-- [ ] **L02-8** (Low, Tests)
+  *Done:* lane A, aae653e7.
+- [x] **L02-8** (Low, Tests)
   Move the two editor test sets to a new test file of editor/Feeds.jl under test/kernel/editor/, and call `EditorModule.record_frame_performance!` by its qualified name, as FrameStatisticsFeedTest.jl does. No new export.
   *Test:* test_frame_measurements passes and loads only PerformanceModule; the moved sets pass in their new file.
+  *Done:* lane A, aae653e7. The new file is test/kernel/editor/FeedsTest.jl with `test_editor_frame_performance`, because `test_editor_feeds` exists. test_kernel 2481, test_substrate 86852 and the 7 known failures.
 
 ### Step 4.3: Tests of the cell layer
 
