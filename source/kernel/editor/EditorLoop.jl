@@ -218,9 +218,17 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         e isa QuitEditorException || rethrow()
     finally
         editor.loop_task = nothing
-        _answer_waiting_calls!(editor)
-        server === nothing || stop_agent_server!(server)
-        quit_backend!(editor.backend)
+        # Each step runs also when a step before it throws, and the exception
+        # goes on after the last step.
+        try
+            _answer_waiting_calls!(editor)
+        finally
+            try
+                server === nothing || stop_agent_server!(server)
+            finally
+                quit_backend!(editor.backend)
+            end
+        end
     end
 end
 
