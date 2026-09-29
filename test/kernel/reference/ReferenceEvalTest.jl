@@ -1,7 +1,8 @@
 """
-`ReferenceModule` — the `@reference` builder and `evaluate_reference` walked
-over a test-local `ToyNode` tree. Kernel tests use ONLY toy documents so the
-reference interface stands on its own without any concrete engine document.
+`ReferenceModule` — the `@reference` builder, `evaluate_reference` and the path
+algebra, walked over a test-local tree of `EvaluationBranch`, `EvaluationLeaf` and
+`EvaluationList`. Kernel tests use ONLY toy documents so the reference interface
+stands on its own without any concrete engine document.
 """
 
 using Test
@@ -19,6 +20,10 @@ end
 @document struct EvaluationBranch
     left::EvaluationLeaf
     right::EvaluationLeaf
+end
+
+@document struct EvaluationList
+    items::Vector{Any} = Any[]
 end
 
 struct EA end
@@ -283,6 +288,108 @@ function test_reference_evaluation()
         @test copied isa RangeReferenceStep
         @test copied == reactive
         @test copied !== reactive
+    end
+
+    @testset "get_valid_reference_prefix keeps the part of a path that resolves" begin
+        typed = annotate_reference_types(root, Reference(FieldReferenceStep("left"),
+                                                         FieldReferenceStep("value")))
+        @test get_valid_reference_prefix(root, typed) == typed
+        @test is_valid_reference(root, typed)
+
+        missing_field = Reference(FieldReferenceStep("left"), FieldReferenceStep("none"))
+        @test get_valid_reference_prefix(root, missing_field) ==
+              Reference(FieldReferenceStep("left"))
+        @test !is_valid_reference(root, missing_field)
+
+        list = EvaluationList(items = Any[EvaluationLeaf(1, nothing)])
+        past_end = Reference(FieldReferenceStep("items"), ElementReferenceStep(3))
+        @test get_valid_reference_prefix(list, past_end) ==
+              Reference(FieldReferenceStep("items"))
+        @test !is_valid_reference(list, past_end)
+        first_value = Reference(FieldReferenceStep("items"), ElementReferenceStep(1),
+                                FieldReferenceStep("value"))
+        @test is_valid_reference(list, first_value)
+    end
+
+    @testset "try_evaluate_reference answers a default where a path can not resolve" begin
+        @test try_evaluate_reference(root, Reference(FieldReferenceStep("left"))) ===
+              root.left
+        gone = Reference(FieldReferenceStep("none"))
+        @test try_evaluate_reference(root, gone) === nothing
+        @test try_evaluate_reference(root, gone, :none) === :none
+        # No selection resolves to no node.
+        @test try_evaluate_reference(root, nothing) === nothing
+        @test try_evaluate_reference(root, nothing, :none) === :none
+    end
+
+    @testset "a copy keeps the numbers of a range step that is written later" begin
+        path = Reference(FieldReferenceStep("items"), PositionReferenceStep(1))
+        copied = copy_reference(path)
+        range = get_reference_head(get_reference_tail(path))
+        range.start = 3
+        range.stop = 3
+        @test get_reference_head(get_reference_tail(copied)) == PositionReferenceStep(1)
+        @test get_reference_head(copied) == FieldReferenceStep("items")
+        # Anything that is not a path answers itself.
+        @test copy_reference(nothing) === nothing
+        @test copy_reference(EmptyReference(EA)) == EmptyReference(EA)
+    end
+
+    @testset "extend_reference appends steps and keeps the node types" begin
+        @test extend_reference(EmptyReference(), FieldReferenceStep("left"),
+                               FieldReferenceStep("value")) ==
+              Reference(FieldReferenceStep("left"), FieldReferenceStep("value"))
+        base = annotate_reference_types(root, Reference(FieldReferenceStep("left")))
+        @test extend_reference(base) == base
+        extended = extend_reference(base, FieldReferenceStep("value"))
+        @test extended.type === EvaluationBranch
+        # The first new node stands on the node where `base` ends.
+        @test get_reference_tail(extended).type === EvaluationLeaf
+        @test get_reference_tail(get_reference_tail(extended)).type === nothing
+        @test evaluate_reference(root, extended) == 10
+    end
+
+    @testset "concat_references joins two paths and keeps the types of both" begin
+        @test concat_references(Reference(FieldReferenceStep("left")),
+                                Reference(FieldReferenceStep("value"))) ==
+              Reference(FieldReferenceStep("left"), FieldReferenceStep("value"))
+        # At the junction the node takes the type of the second path, or else the
+        # terminal type of the first.
+        typed_prefix = annotate_reference_types(root,
+                                                Reference(FieldReferenceStep("left")))
+        joined = concat_references(typed_prefix, Reference(FieldReferenceStep("value")))
+        @test get_reference_tail(joined).type === EvaluationLeaf
+        typed_suffix = annotate_reference_types(root.left,
+                                                Reference(FieldReferenceStep("value")))
+        joined = concat_references(Reference(FieldReferenceStep("left")), typed_suffix)
+        @test joined.type === nothing
+        @test get_reference_tail(joined).type === EvaluationLeaf
+        @test evaluate_reference(root, joined) == 10
+        @test concat_references(EmptyReference(EA), EmptyReference()) ==
+              EmptyReference(EA)
+        @test concat_references(EmptyReference(EA), EmptyReference(EB)) ==
+              EmptyReference(EB)
+    end
+
+    @testset "search_references answers a typed path to each place of a match" begin
+        found = search_references(root, x -> x isa EvaluationLeaf && x.value == 20)
+        @test length(found) == 1
+        @test found[1].type === EvaluationBranch
+        @test strip_reference_types(found[1]) == Reference(FieldReferenceStep("right"))
+        @test evaluate_reference(root, found[1]) === root.right
+        # A match on a value folds to the document that holds it, unless `raw`.
+        @test strip_reference_types.(search_references(root, x -> x == 20)) ==
+              [Reference(FieldReferenceStep("right"))]
+        @test strip_reference_types.(search_references(root, x -> x == 20; raw = true)) ==
+              [Reference(FieldReferenceStep("right"), FieldReferenceStep("value"))]
+        @test strip_reference_types.(search_references(root, "20")) ==
+              [Reference(FieldReferenceStep("right"))]
+        # One document in two places is two places.
+        shared = EvaluationLeaf(5, nothing)
+        pair = EvaluationBranch(shared, shared, nothing)
+        @test Set(strip_reference_types.(search_references(pair, x -> x === shared))) ==
+              Set([Reference(FieldReferenceStep("left")),
+                   Reference(FieldReferenceStep("right"))])
     end
 
     @testset "a step type with no == of its own equals itself" begin
