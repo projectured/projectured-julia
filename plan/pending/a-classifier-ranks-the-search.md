@@ -532,7 +532,7 @@ Each step says what stops the stage.
   **Stop** if no classifier shape with the call sites and the context beats
   the best control at the full scale on the report half. Then the result is the
   text or nothing.
-- [ ] **Step 4b. The untuned answers** (the owner, 2026-09-29: "Did we measure
+- [x] **Step 4b. The untuned answers** (the owner, 2026-09-29: "Did we measure
   search API tool calls for many different questions with a large set of
   possible answer functions where the documentation is not specifically tuned
   as in the mm1k study?"). The 60 answers of the scale questions have a median
@@ -1191,3 +1191,59 @@ turns passed, a surer turn 5, fewer guessed names. The gain is modest at ten
 seeds, and the wall of the study is composition, which the guide sections
 answer and a search does not. Where the knowledge is already in the system
 text, the search is not used and changes nothing.
+
+### Step 4b, the answers nobody documented for a model, 2026-09-29
+
+60 answers drawn at random (seed 20260929) from the 4,905 functions and types of
+the full corpus, 20 per stratum, at most 3 per package: from 13, 11 and 15
+packages. A Sonnet subagent wrote one request per answer from code alone and
+never from a docstring; 14 excerpts first pointed at the constructor code that
+`@projection` and `@document` generate, not at the type, and were cut again from
+the declaration. The questions are `UNTUNED_SEARCH_QUESTIONS` in
+`example/ide/SearchUntunedCorpus.jl` of omnet-julia; the stage `untuned` of the
+run script ranks them. It cost $0.81; the ledger holds $5.19.
+
+| answers | ranker | first / 5 / 8 / 10 |
+| --- | --- | --- |
+| no docstring, 20 | words, meaning, meaning with call sites | 0 / 0 / 0 / 0 |
+| | Jev, two stages, with or without call sites | 0 / 0 / 0 / 0 |
+| | Jev, cascade | 1 / 1 / 5 / 6 |
+| | Jev, cascade, call sites | 2 / 4 / 6 / 6 |
+| short docstring, 20 | meaning | 3 / 6 / 8 / 9 |
+| | meaning, call sites | 3 / 6 / 9 / 10 |
+| | Jev, two stages | 11 / 16 / 16 / 16 |
+| | Jev, two stages, call sites | 12 / 16 / 17 / 17 |
+| | Jev, cascade | 12 / 14 / 16 / 18 |
+| | Jev, cascade, call sites | 11 / 16 / 18 / 18 |
+| longer docstring, 20 | meaning | 6 / 9 / 10 / 11 |
+| | meaning, call sites | 4 / 8 / 9 / 11 |
+| | Jev, two stages | 9 / 14 / 15 / 15 |
+| | Jev, two stages, call sites | 10 / 14 / 15 / 15 |
+| | Jev, cascade | 12 / 15 / 15 / 15 |
+| | Jev, cascade, call sites | 11 / 15 / 16 / 16 |
+
+Words rank almost nothing here, by construction: no question holds a word of
+four or more letters of its answer.
+
+- **Where there is a docstring, even a short one, the classifier's gain holds
+  and grows.** With a docstring of up to 300 characters, Jev puts 11 or 12 of
+  20 first and 16 to 18 in ten, where the meaning vectors put 3 and 9. With a
+  longer one, 9 to 12 first against 6. So the result of Step 4 was not an effect
+  of the tuned documentation.
+- **Where there is no docstring, nothing works well.** No ranker but the cascade
+  put one name of 20 in the first ten; the cascade put 6, and 2 first with the
+  call sites. The pool of two stages, made by words and vectors, never held
+  them. A third of the corpus has no docstring.
+- **The call sites help a little, and most where there is no docstring**: one
+  more first and three more in five for the cascade there; one or two in eight
+  elsewhere. Not the large gain the owner expected, and still not a gain for
+  the vectors.
+- **A limit of this test**: 17 of the 20 questions of names with no docstring
+  were written from the code of the definition, which no ranker reads; a ranker
+  sees only the name, the signature and the call sites of such a name. A
+  follow-up is to give the classifier the first lines of the definition of a
+  name with no docstring, measured with questions written from call sites only,
+  so the question and the text it is ranked on do not share their source.
+- **Some questions are more exact than a person would be** ("offset from the
+  client count by two"), because the writer saw only code. That helps a reader
+  of the documentation, so it can favour Jev.
