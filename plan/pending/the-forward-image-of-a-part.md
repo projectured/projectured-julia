@@ -239,8 +239,37 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   meets forward answers for the two lazy examples); the palette error of step 5
   is gone; the naming guard passes, the documentation check has the notes of
   step 5, and the omnet tests have their results.
-- [ ] 5c. **A label fits its content by default** (owner 2026-09-29). Open
-  question Q9 below.
+- [ ] 5c. **A child of a composite fits its content by default** (Q9, way (a)
+  with (ii) and the constraint). The work:
+  - `WidgetComposite` gets `child_width` and `child_height`, the default policy
+    of its children, `Content` when none is given, as a layout has them.
+  - The composite gives each child the range that `_cross_context` of the layout
+    package gives a child on the cross axis of a stack, on both axes: a weight
+    (`Fill`, `Relative`) takes the edge exactly, a preferred size takes that
+    size exactly, and every other child takes the edge as a bounded range. The
+    edge is the maximum of the composite's range less its insets, and a child
+    that fills takes it less its own position. A `LayoutConstraint` child is
+    read through, for the one child that differs from the default.
+  - The root of the pane tree (`PaneToWidget.jl`) sets both defaults to `Fill`.
+    The drop indicator keeps its own size, because it authors its width and
+    height.
+  - Check the file chooser: its two children stand at the same place; a
+    `VerticalLayout` with the tree at `height = Fill` and the field at `Content`
+    places them. No dispatch table, example or test uses
+    `FileSystemChooserToWidget` now, so first find whether the file dialog draws
+    with it.
+  - Tests: a label in a composite at the root of a window has the size of its
+    text; a split pane in the root of the pane tree divides the whole window; a
+    child with `LayoutConstraint(…; width = Fill)` in a composite with no default
+    fills the width. The test of the tooltip below a button can then use a
+    label.
+  The six widgets that give their one child their whole range
+  (`WidgetDialog` to its content and to each button, `WidgetTitlePane`,
+  `WidgetTooltip`, `WidgetContextMenu`, and the document content of
+  `WidgetText` and `WidgetTextarea`) are a different fault of §3 of
+  layout-rules.md and get a step of their own later: a widget with parts around
+  its content gives the content its size less those parts, and an overlay gives
+  a bounded range.
 - [ ] 6. **A round trip test over the widget gallery.** For each part of each
   example: the forward reference reaches a printed node, and a point inside its box
   maps backward to the part or to a part inside it. This ties the two maps
@@ -285,7 +314,19 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   and the file chooser in a dialog, whose scroll pane takes the extent that it
   gets. Six other widgets give a child their own range too: the document
   content of `WidgetText` and `WidgetTextarea`, `WidgetTooltip`,
-  `WidgetContextMenu`, `WidgetTitlePane` and `WidgetDialog`. Open.
+  `WidgetContextMenu`, `WidgetTitlePane` and `WidgetDialog`. **Settled**
+  (owner 2026-09-29): "I tend to agree with you and choose (a) with (ii) plus
+  the constraint." Way (a) is what layout-rules.md already asks: §3 gives no
+  slot where a container's extent comes from its children, as a composite's
+  does, and §2 keeps the policy in the container. A pane fills only an exact
+  range (`get_exact_width`), so the fill is said in the container, in one of the
+  two words of §2: (ii) a default for all children, `child_width` and
+  `child_height` on the composite, as a layout has them, and a
+  `LayoutConstraint` for one child that differs (Claude's recommendation). Way
+  (i), the wrapper alone, would add a `child` step to the references of the
+  pane layer. The form is that of Flutter's `Stack` (loose by default,
+  `StackFit.expand` for all, `Positioned.fill` for one) and Compose's `Box`; a
+  child of an absolute layout fits its content in CSS, WPF and GTK too.
 - ~~**Q6. What the forward map answers.**~~ **Settled.** The forward map takes an
   input reference and returns an output reference (owner 2026-09-29: "The
   mapper functions work with references, that's the correct terminology"). It
