@@ -297,7 +297,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   sweep over the examples, which checks each output node) and 3 in the shell
   suite; the naming guard passes, the documentation check has the notes of
   step 5, and the omnet tests have their results.
-- [ ] 6. **A round trip test over the widget gallery.** For each part of each
+- [x] 6. **A round trip test over the widget gallery.** For each part of each
   example: the forward reference reaches a printed node, and a point inside its box
   maps backward to the part or to a part inside it. This ties the two maps
   together, so a later change that breaks one of them fails it.
@@ -336,6 +336,65 @@ Facts from a search on 2026-09-28, with the two central ones read again:
     (`WidgetStyle`), and a label with no text (a box of no size).
   - A leaf answers `nothing` for a point on itself, and a container reads that
     as the child itself; at the root, the test reads it the same way.
+  Built, one commit per fault:
+  - (1) **The frame of a point (Q10).** `_outside_widget` and
+    `_is_point_on_canvas` check 0 to the width and 0 to the height. The
+    accordion, the radio group, the slider, the toggle group and the reader of
+    the text widgets took their own place off; they do not now. The context
+    menu took off only its content offset; it takes off the place of its child
+    too, in its reader and in a backward map of its own, which before wrapped a
+    bare point in `child`. The window of the screen takes the place of the root
+    canvas of its content off an event and off a point, and puts it back on a
+    position in the answer. `shift_event_position` of the graphics package moves
+    a pointer event or gesture, the mirror of `shift_operation_position`; the
+    shell's private mover of three event types goes. Two tests pressed a root
+    widget at a place of its own in the frame of its parent; they are the
+    window, so they take the place off.
+  - (2) **The open tab of the gallery** was page 1, not 6: its content lies six
+    nodes under the pane in a window, and `_map_child_forward` searched five.
+    Page 6 looked open because of a fault of (7).
+  - (3) `find_reference_box` gives a canvas with no size of its own on an axis
+    the bounds of what it draws there (`get_canvas_content_bounds`), except over
+    a lazy list, and takes `visible = true`: each viewport on the way cuts the
+    box, and a box that none shows is `nothing`.
+  - (4) The transform pane shares the forward map of the scroll pane
+    (`_map_viewport_content_forward`). Found in the work: **a frozen table** is
+    drawn in four regions over the same elements, and the forward map took the
+    body, where the frozen headers are scrolled away. A part maps into the
+    region that shows it (`_find_frozen_region`): held on an axis when all of
+    it lies in the frozen prefix there. The point of a press or of the backward
+    map on a held axis is not moved by the scroll either
+    (`_find_scroll_pane_local_point`), so a press on a frozen header reaches the
+    header when the table is scrolled.
+  - (5) `descend_reference_forward` maps the empty reference to the layout's
+    own canvas. (6) The screen and its window answer `nothing` for a bare point.
+  - (7) Each tab is a canvas of its own in the strip; `selector_element_pairs[i]`
+    maps as Q11 says, and a point on a header maps back to its `selector`. The
+    backward map of the pane read the contents of all pages, which are printed
+    at the same place, so a point reached a page that is not open (page 6 of
+    the gallery); it reads the open page only.
+  - **The test**, `test_widget_round_trip()`, walks every `WidgetDocument` and
+    `LayoutDocument` of the 45 widget examples in a window of 1200 by 800. A
+    part with no image must be one that the widgets do not display; a part with
+    an image out of view, or one that draws nothing, is passed; every other part
+    must map back from the center of its visible box or from the center of a
+    drawn element under its image. 224 parts make the round trip, 133 are not
+    displayed, 44 are out of view and 2 draw nothing. The row headers of the
+    frozen table map back to their rows (Q12), marked `@test_broken`.
+  - Found by the test in the whole suite, where the SDL package is loaded and
+    decodes the images of the examples: **an image was never hit.**
+    `_hit_test_element` had no case for `GraphicsImage`, so a press on a label
+    that shows an image did not reach the label; an image claims its box now.
+    And **the child drawn first won a hit**: `_map_point_to_child` and the
+    composite's `_route_composite_event` tried the children from the first, so
+    a point on a button over a large image mapped to the image. Both try the
+    topmost child first, the one drawn last, as `StackLayout` does; the reader
+    still goes on to the next child when one answers nothing.
+  Checks: the wide sweep has the counts of step 5c in every suite, with more
+  passes in the substrate suite (the new test, and 143 in the sweep over the
+  examples, which meets a canvas per tab header) and one more broken marker
+  (Q12); the omnet tests have their results; the naming guard passes and the
+  documentation check has its notes.
 - [ ] 7. **The documents:** the widget, layout, screen and text documents say
   which projections map forward, and how a caller finds the place of a part.
   The feature "the place of a part" gets its design and user interface
@@ -345,6 +404,12 @@ Facts from a search on 2026-09-28, with the two central ones read again:
 
 ## 5. Open questions
 
+- **Q12. What a point on a row header of a table maps back to.** The table's
+  backward map answers `rows[k]`, the whole row, for a point on a row header,
+  because an Alt+press there selects the row; for a point on a column header it
+  answers `column_headers[k]`, the header. The round trip wants the part that is
+  drawn there, `row_headers[k]`, which would make an Alt+press on a row header
+  select the header label and not the row. Open.
 - ~~**Q1. A part that is scrolled out of view.**~~ **Settled with Q6.** It has a
   forward reference, as every part has.
 - ~~**Q2. A part on a hidden tab, in a closed card, or under a closed tree
