@@ -19,6 +19,7 @@ mutable struct Display <: Device
     height::Int
     scale::Float64
     zoom::Float64
+    # @positional: the fields of a display, in the order of the struct.
     function Display(width, height, scale, zoom)
         scale > 0 ||
             throw(ArgumentError("the scale of a display must be above 0, got $scale"))

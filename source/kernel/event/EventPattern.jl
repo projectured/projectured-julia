@@ -59,6 +59,7 @@ struct EventPattern{E<:Event}
     modifiers::Union{Vector{Symbol},Nothing}
     guard::Union{Function,Nothing}
     label::Union{String,Nothing}
+    # @positional: the fields of a pattern, in the order of the struct.
     function EventPattern{E}(fields, modifiers, guard, label) where {E<:Event}
         for flag in (modifiers === nothing ? () : modifiers)
             flag in _MODIFIER_FLAGS || throw(ArgumentError(
