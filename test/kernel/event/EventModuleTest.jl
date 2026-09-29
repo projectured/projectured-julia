@@ -118,6 +118,9 @@ function test_event_module()
         @test describe_event_pattern(KeyPressPattern('a')) == "a"
         @test describe_event_pattern(KeyPressPattern('a'; modifiers = [:ctrl])) == "Ctrl+a"
         @test describe_event_pattern(KeyPressPattern(nothing)) == "character"
+        @test describe_event_pattern(KeyDownPattern(:tab)) == "Tab"
+        @test describe_event_pattern(KeyDownPattern(:home; modifiers = [:ctrl, :alt])) ==
+              "Ctrl+Alt+Home"
         @test describe_event_pattern(MousePressPattern(:left)) == "Left click"
         # A button that goes down or up is no click.
         @test describe_event_pattern(MouseDownPattern(:left)) == "Left button down"
@@ -137,6 +140,27 @@ function test_event_module()
                                                                    nothing)) ==
               "em test rest event"
         @test describe_event_pattern(KeyPressPattern(nothing; label = "0-9")) == "0-9"
+    end
+
+    @testset "a pattern checks the event, the key, the button and the modifiers" begin
+        # A pattern that names no modifiers takes any; one that names them takes
+        # exactly those.
+        press = KeyPressPattern('n')
+        @test matches_event_pattern(press, KeyPress('n', ModifierKeys(shift = true);
+                                                    time = 0.0))
+        @test !matches_event_pattern(press, KeyPress('x'; time = 0.0))
+        @test !matches_event_pattern(press, KeyDown(:n, ModifierKeys(); time = 0.0))
+        down = KeyDownPattern(:period; modifiers = [:ctrl])
+        @test !matches_event_pattern(down, KeyDown(:period,
+                                                   ModifierKeys(ctrl = true, alt = true);
+                                                   time = 0.0))
+        @test !matches_event_pattern(down, KeyDown(:home, ModifierKeys(ctrl = true);
+                                                   time = 0.0))
+        # A click pattern reads the button and not the position.
+        click = MousePressPattern(:left)
+        @test matches_event_pattern(click, MousePress(:left, 10, 20; time = 0.0))
+        @test matches_event_pattern(click, MousePress(:left, 99, 5; time = 0.0))
+        @test !matches_event_pattern(click, MousePress(:right, 10, 20; time = 0.0))
     end
 
     @testset "the pattern constructors take their options as keywords" begin
