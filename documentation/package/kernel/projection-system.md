@@ -567,6 +567,8 @@ recursively-projected input children. The extra requirements are:
    (see [§ Recursion across projections](#recursion-across-projections)).
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
    separate cells — see [§8 of the selection deep dive](selection.md)).
+   `reconcile_child_iomaps` makes that cell, and it keeps the IoMap of each
+   child that stays, as PAR-STABLE-IOMAP-IDENTITY asks.
 3. **Project the selection reactively.** Canonically this is
    `Cell(@computation map_reference_forward(p, iomap, node.selection))` with the
    deferred-iomap trick for the not-yet-built `iomap`. The inline form shown
@@ -580,18 +582,19 @@ recursively-projected input children. The extra requirements are:
 struct MyNodeProjection <: Projection end
 
 function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
-    # Step 1+2: project children, store IO maps in a shared cell.
-    # `print_child` re-enters the whole pipeline for each child;
-    # `make_child_context` extends the reference path to child i.
-    child_iomaps = Cell(@computation([
-        print_child(recursion,
-                                   getfield(node, :children)[][i][],
-                                   make_child_context(ctx, ElementReferenceStep(i)))
-        for i in 1:length(node.children)
-    ]))
+    # Step 1+2: project the children, and keep their IO maps in one cell.
+    # `reconcile_child_iomaps` reuses the IoMap of each child that stays, so an
+    # edit prints again only a child that is new or moved. `print_child`
+    # re-enters the whole pipeline for each child, and `make_child_context`
+    # extends the reference path to child i, typed against `node`.
+    child_iomaps = reconcile_child_iomaps(
+        () -> node.children,
+        (i, child) -> print_child(recursion, child,
+            make_child_context(ctx, node, FieldReferenceStep("children"),
+                               ElementReferenceStep(i))))
 
     # Build the output children from the IO maps
-    out_children = Cell(@computation CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
+    out_children = CellVector(@computation [m.output for m in child_iomaps[]])
 
     # Step 3: project the selection reactively
     sel = Cell(@computation(begin
@@ -602,7 +605,7 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
                 i > length(iomaps) && return nothing
                 child_sel = iomaps[i].output.selection
                 child_sel === nothing && return nothing
-                ConcreteReference(ElementReferenceStep(Cell(i)), child_sel)
+                @reference ::SyntaxNode.children::CellVector[i].^(child_sel)
             end
             __ => nothing
         end
@@ -614,29 +617,31 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
         child_iomaps)
 end
 
+# A property read of an IoMap unwraps its cell, so `iomap.child_iomaps` is the
+# vector of the child IO maps. A `@reference` literal types each node it
+# builds, and the spliced tail carries the types of the child.
 function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         children[i].rest... => begin
-            iomaps = iomap.child_iomaps[]
+            iomaps = iomap.child_iomaps
             i > length(iomaps) && return nothing
             child_iomap = iomaps[i]
             child_ref = map_reference_forward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReference(ElementReferenceStep(Cell(i)), child_ref)
+            @reference ::SyntaxNode.children::CellVector[i].^(child_ref)
         end
     end
 end
 
 function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        [i].rest... => begin
-            iomaps = iomap.child_iomaps[]
+        children[i].rest... => begin
+            iomaps = iomap.child_iomaps
             i > length(iomaps) && return nothing
             child_iomap = iomaps[i]
             child_ref = map_reference_backward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReference(FieldReferenceStep(Cell("children")),
-                ConcreteReference(ElementReferenceStep(i), child_ref))
+            @reference ::MyNode.children::CellVector[i].^(child_ref)
         end
     end
 end
