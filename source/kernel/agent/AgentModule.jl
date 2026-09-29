@@ -33,8 +33,8 @@ A concrete server (e.g. `:mcp`) lives in its own optional package and answers
 module AgentModule
 
 using ..FaultModule
-using ..ToolModule
 using ..LlmModule
+using ..ToolModule
 
 export Agent, run_turn!, AgentEvent, AgentToolResult
 export make_agent_server, start_agent_server!, stop_agent_server!, run_on_editor_task!

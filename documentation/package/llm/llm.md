@@ -23,7 +23,7 @@ The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.
 
 ### ProjecturedAnthropic
 
-`AnthropicLlm` holds `api_key`, `model`, `base_url` and `max_tokens`. An empty `model` calls `get_newest_anthropic_model(api_key)`. It reads `/v1/models` once in a process and keeps the first model, newest first, whose capabilities say that it takes adaptive thinking. With no key, or when the request fails, the answer is `"claude-opus-5"`. That name is an alias, not a dated identifier, so it names a model that exists after a new one comes out.
+`AnthropicLlm` holds `api_key`, `model`, `base_url` and `max_tokens`. An empty `model` calls `get_newest_anthropic_model(api_key)`. It reads `/v1/models` once in a process for each key and models URL, and keeps the first model, newest first, whose capabilities say that it takes adaptive thinking. With no key, or when the request fails, the answer is `"claude-opus-5"`. That name is an alias, not a dated identifier, so it names a model that exists after a new one comes out.
 
 `stream_turn` posts a request with `stream = true` and reads the server-sent events in chunks with `readavailable`. A buffer holds an incomplete event until the next chunk. `_translate_sse!` turns each named event into an `LlmEvent`:
 
@@ -61,7 +61,7 @@ Each package depends on the kernel, `HTTP` and `JSON3`. The third-party dependen
 - **A backend takes the three keywords and uses the ones that apply to it.** A caller can then build a backend with no provider in mind. Each adapter says in its docstring which keyword it ignores.
 - **The Ollama adapter reads the capabilities of the model, and the Anthropic adapter uses the model name.** Ollama answers HTTP 400 to the whole request when a model that can not reason gets a request to reason. So a guess from the name could stop the turn. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
 - **The meaning model is a keyword of `OllamaLlm`, and not a fourth keyword of the seam.** It belongs to one provider. See [plan/done/three-kinds-of-search.md](../../../plan/done/three-kinds-of-search.md).
-- **The Anthropic default model is read once in a process.** The list changes when Anthropic releases a model, not during a session, so a request for each turn gives nothing.
+- **The Anthropic default model is read once in a process for each key and models URL.** The list changes when Anthropic releases a model, not during a session, so a request for each turn gives nothing.
 
 ## Usage
 

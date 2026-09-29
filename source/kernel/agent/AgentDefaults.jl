@@ -6,11 +6,32 @@
 make_agent_server(kind::Symbol, editor; kwargs...) =
     make_agent_server(Val(kind), editor; kwargs...)
 
-# A kind nothing answered: say which package is missing rather than raise a
+# A kind nothing answered: say which servers are loaded rather than raise a
 # bare `MethodError`.
-make_agent_server(::Val{K}, editor; kwargs...) where {K} = error(
-    "No agent server registered for :$(K). Is the package/extension that " *
-    "provides it loaded?")
+function make_agent_server(::Val{K}, editor; kwargs...) where {K}
+    names = _get_agent_server_names()
+    loaded = isempty(names) ? "none" : join(map(name -> ":" * String(name), names), ", ")
+    error("No agent server registered for :$(K). Loaded servers: $(loaded). " *
+          "Load the opt-in package that provides :$(K).")
+end
+
+# The kinds of the loaded servers, in alphabetical order, read from the method
+# table of `make_agent_server` as `get_llm_backend_names` reads the backends.
+function _get_agent_server_names()
+    names = Symbol[]
+    for method in methods(make_agent_server)
+        # A server method takes `Val{:kind}` first. The two methods above take a
+        # `Symbol` and `Val{K} where K`, and neither is a server.
+        signature = method.sig
+        signature isa UnionAll && continue
+        length(signature.parameters) >= 2 || continue
+        kind = signature.parameters[2]
+        kind isa DataType && kind <: Val || continue
+        name = kind.parameters[1]
+        name isa Symbol && push!(names, name)
+    end
+    sort!(unique!(names))
+end
 
 # A target that nothing runs a loop for has no other task to wait for.
 run_on_editor_task!(function_, target; wait::Bool = true) =

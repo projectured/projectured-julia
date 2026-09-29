@@ -17,6 +17,14 @@ function test_agent_seam()
 
     @testset "unregistered kind raises a helpful error" begin
         @test_throws ErrorException make_agent_server(:definitely_not_registered, nothing)
+        # The error lists the kinds whose servers are loaded.
+        message = try
+            make_agent_server(:definitely_not_registered, nothing)
+            ""
+        catch exception
+            sprint(showerror, exception)
+        end
+        @test occursin(":toy", message)
     end
 
     @testset "a test-local Val method registers a factory" begin

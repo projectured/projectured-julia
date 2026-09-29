@@ -162,10 +162,16 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                     try
                         tool.handler(editor, args)
                     catch exception
+                        is_passthrough_exception(exception) && rethrow()
                         traceback = catch_backtrace()
                         record_fault!(editor.faults, :tool; origin = Symbol(tool.name),
                                       exception, traceback)
-                        sprint(showerror, exception, traceback)
+                        # A `showerror` method that throws gives the type name.
+                        try
+                            sprint(showerror, exception, traceback)
+                        catch
+                            string(nameof(typeof(exception)))
+                        end
                     end
                 end
                 TextContent(text = text)

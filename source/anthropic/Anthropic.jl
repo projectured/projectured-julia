@@ -6,17 +6,21 @@ const _MODELS_URL        = "https://api.anthropic.com/v1/models"
 # The alias the backend falls back to. An alias, and not a dated id: it keeps
 # naming a model that exists after a new one comes out.
 const _DEFAULT_MODEL     = "claude-opus-5"
-# The newest model this process found, asked once. Empty before the first ask.
-const _NEWEST_MODEL      = Ref{String}("")
+# The newest model that this process found for each Models API address and key,
+# asked once for each pair. The lock guards the dictionary, because a backend can
+# be made on any task.
+const _NEWEST_MODELS      = Dict{Tuple{String,String},String}()
+const _NEWEST_MODELS_LOCK = ReentrantLock()
 
 """
     get_newest_anthropic_model(api_key; models_url) -> String
 
 The newest Claude model that this assistant can use, from the Models API.
 
-**Asked once in a process**, and kept, because a list request per turn is a
-request that buys nothing: the list changes when Anthropic releases a model, not
-while a person types.
+**Asked once in a process for each `models_url` and key**, and kept, because a
+list request per turn is a request that buys nothing: the list changes when
+Anthropic releases a model, not while a person types. Another key can see
+other models, so each pair keeps its own answer.
 
 The list arrives newest first, so the first model that takes **adaptive
 thinking** is the newest one this backend can drive: `_thinking_param` sends
@@ -29,18 +33,21 @@ first turn.
 """
 function get_newest_anthropic_model(api_key::AbstractString;
                                     models_url::AbstractString = _MODELS_URL)
-    isempty(_NEWEST_MODEL[]) || return _NEWEST_MODEL[]
     isempty(api_key) && return _DEFAULT_MODEL
-    found = try
-        response = HTTP.get(models_url,
-                            ["x-api-key" => String(api_key),
-                             "anthropic-version" => _ANTHROPIC_VERSION];
-                            status_exception = false, readtimeout = 10)
-        response.status == 200 ? find_adaptive_model(response.body) : ""
-    catch
-        ""
+    lock(_NEWEST_MODELS_LOCK) do
+        get!(_NEWEST_MODELS, (String(models_url), String(api_key))) do
+            found = try
+                response = HTTP.get(models_url,
+                                    ["x-api-key" => String(api_key),
+                                     "anthropic-version" => _ANTHROPIC_VERSION];
+                                    status_exception = false, readtimeout = 10)
+                response.status == 200 ? find_adaptive_model(response.body) : ""
+            catch
+                ""
+            end
+            isempty(found) ? _DEFAULT_MODEL : found
+        end
     end
-    _NEWEST_MODEL[] = isempty(found) ? _DEFAULT_MODEL : found
 end
 
 """
@@ -93,7 +100,8 @@ AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
                max_tokens::Integer = 4096) =
     AnthropicLlm(String(api_key),
                  # An empty `model` asks the Models API for the newest one, once
-                 # in this process. A name that a caller wrote wins over it.
+                 # in this process for each key. A name that a caller wrote wins
+                 # over it.
                  String(isempty(model) ? get_newest_anthropic_model(api_key) : model),
                  String(base_url), Int(max_tokens))
 

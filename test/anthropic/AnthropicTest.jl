@@ -54,6 +54,31 @@ function test_anthropic_model()
                   "claude-sonnet-5"
         end
 
+        @testset "each Models API address and key has its own answer" begin
+            # The stand-in lists a newest adaptive model that is not the alias.
+            # No server listens at the other address, so its answer is the alias.
+            answer = """
+            {"data": [{"id": "claude-sonnet-5",
+                       "capabilities": {"thinking": {"types": {"adaptive":
+                                                               {"supported": true}}}}}],
+             "has_more": false}
+            """
+            unreachable = "http://127.0.0.1:1/v1/models"
+            server = _serve_anthropic_answer(answer)
+            listed = _get_local_url(server, "/v1/models")
+            try
+                @test get_newest_anthropic_model("key"; models_url = unreachable) ==
+                      "claude-opus-5"
+                @test get_newest_anthropic_model("key"; models_url = listed) ==
+                      "claude-sonnet-5"
+            finally
+                close(server)
+            end
+            # The answer of each pair is kept, so a second ask sends no request.
+            @test get_newest_anthropic_model("key"; models_url = listed) ==
+                  "claude-sonnet-5"
+        end
+
         @testset "the backend registers itself on the seam" begin
             @test :anthropic in get_llm_backend_names()
             @test make_llm(Val(:anthropic); api_key = "", model = "m") isa AnthropicLlm

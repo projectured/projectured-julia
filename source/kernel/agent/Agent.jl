@@ -13,13 +13,13 @@ A language model, the tools it may call, and how a turn with it is run.
                  tools can never run away. Eight is what a turn that searches,
                  reads a hit in full and then writes needs, with a wrong guess
                  and a read after it to spare. Hitting it ends the turn with a
-                 warning.
+                 warning. A cap below 1 throws an `ArgumentError`.
 - `thinking`   — ask for extended reasoning where the backend has it.
 
 An `Agent` holds no transcript. What was said is the caller's — it already has a
 conversation, and a second copy inside the agent could only drift from it.
 """
-mutable struct Agent
+struct Agent
     llm::Llm
     tools::ToolSet
     system::String
@@ -27,9 +27,12 @@ mutable struct Agent
     thinking::Bool
 end
 
-Agent(llm::Llm, tools::ToolSet; system::AbstractString = "",
-      max_rounds::Integer = 8, thinking::Bool = true) =
+function Agent(llm::Llm, tools::ToolSet; system::AbstractString = "",
+               max_rounds::Integer = 8, thinking::Bool = true)
+    max_rounds >= 1 ||
+        throw(ArgumentError("max_rounds must be at least 1, not $(max_rounds)"))
     Agent(llm, tools, String(system), Int(max_rounds), thinking)
+end
 
 """
     AgentEvent
