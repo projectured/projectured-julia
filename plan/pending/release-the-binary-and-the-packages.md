@@ -332,6 +332,21 @@ check) also decides the licence texts that Part B copies.
       no folder moves. Done for three on 2026-09-29: `DejaVu-Bitstream-Vera.txt`,
       `Inconsolata-OFL.txt`, `Ubuntu-UFL.txt`. Liberation after R17, below.
 
+**R3a, done on 2026-09-29.** `write_app_package` and `build_executable` take
+`stand_ins`, `"<name>" => "<uuid>"` of JLLs that a binary must not carry. The
+builder writes a package of the same name and uuid under `stand_in/` of the app
+package, with no dependency and with the three bindings that a user of a JLL
+reads (`artifact_dir`, `PATH_list`, `LIBPATH_list`, all empty), and lists it in
+`[deps]` and `[sources]`. The build record names each one. `JLLWrappers`
+reads `PATH_list` and `LIBPATH_list` of a dependency only when they exist, and
+SimpleDirectMediaLayer reads `artifact_dir`; nothing else is read.
+`PROJECTURED_STAND_INS` names `alsa_plugins_jll`. The resolved environment of
+the binary then holds 42 JLLs instead of 99 (41 and the stand-in, as the
+licence check predicted): no FFmpeg, x264, x265, fdk-aac, PulseAudio, GSL or
+BerkeleyDB; SDL2 and alsa stay. With the stand-in, `bin/projectured --help`
+works, the web backend ends on `SIGTERM` with no backtrace, and a window with two
+files opens with its title and quits on `SIGTERM`. `test_builder()` 181.
+
 **R17, done on 2026-09-29.** Liberation Sans, Serif and Mono are version 2.1.5
 from the release of their authors (`liberation-fonts-ttf-2.1.5.tar.gz`, SHA-256
 `7191c669…25d0`), each file "Licensed under the SIL Open Font License, Version

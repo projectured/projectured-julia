@@ -17,6 +17,18 @@ const PROJECTURED_BACKENDS = (sdl = ("ProjecturedSdl", :SdlBackend),
                               web = ("ProjecturedWeb", :WebBackend))
 
 """
+    PROJECTURED_STAND_INS
+
+The JLL packages that a `projectured` binary does not carry, as
+`"<name>" => "<uuid>"`: [`write_app_package`](@ref) puts an empty stand-in in
+their place. `SDL2_jll` and SimpleDirectMediaLayer load `alsa_plugins_jll`,
+and it brings FFmpeg, which is built with `--enable-nonfree` and so may not be
+given to anyone, and PulseAudio with GPL-3 and AGPL-3 libraries. The application
+plays no sound: it starts SDL for video only.
+"""
+const PROJECTURED_STAND_INS = ["alsa_plugins_jll" => "5ac2f6bb-493e-5871-9171-112d4c21a6e7"]
+
+"""
     PROJECTURED_OPTIONS
 
 The options of the `projectured` command that every build takes, as
@@ -137,6 +149,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
                      assets = PROJECTURED_ASSETS,
+                     stand_ins = PROJECTURED_STAND_INS,
                      kwargs...)
 end
 

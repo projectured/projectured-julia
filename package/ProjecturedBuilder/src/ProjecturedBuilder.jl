@@ -49,7 +49,7 @@ export bundle_fonts!, bundle_assets!, print_build_report!, INCREMENTAL_MARK, POR
 export build_distribution, get_staging_root, check_relocation, write_readme, report_distribution
 export get_hidden_directories, make_hidden_command
 export build_package_release!, collect_outside_paths
-export PROJECTURED_BACKENDS, PROJECTURED_OPTIONS, PROJECTURED_REQUIREMENTS,
+export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_OPTIONS, PROJECTURED_REQUIREMENTS,
        PROJECTURED_LICENCES, PROJECTURED_SOURCE, make_projectured_usage
 export build_projectured_executable, build_projectured_distribution
 export PROJECTURED_ASSETS, check_projectured_copy

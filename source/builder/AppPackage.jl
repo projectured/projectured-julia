@@ -38,7 +38,7 @@ const LOG_LEVEL_NAMES = ("debug", "info", "warn", "error", "none")
 
 """
     write_app_package(context; name, packages, imports, init, main, workload,
-                       info, usage, log_level) -> String
+                       info, usage, log_level, stand_ins) -> String
 
 Write the package this build compiles, and answer its directory.
 
@@ -63,6 +63,12 @@ Write the package this build compiles, and answer its directory.
 - `log_level` — the level the binary logs from when nobody says another. It is
   interpolated into the module rather than written as a preference, because the
   module that reads it is the module this writes.
+- `stand_ins` — `"<name>" => "<uuid>"` of JLL packages that the binary must not
+  carry. Each one is replaced by a package of the same name and uuid, written
+  under `stand_in/`, with no dependency and no library: its `artifact_dir` is
+  empty, and so are its `PATH_list` and `LIBPATH_list`. A package that loads it
+  reads empty paths, and the chain of JLLs behind the real one leaves the
+  manifest, and so the bundle.
 """
 function write_app_package(context::BuildContext; name::AbstractString, packages,
                             imports = String[],
@@ -71,7 +77,8 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
                             workload::Union{Expr,Nothing} = nothing,
                             info::AbstractString = "",
                             usage::Union{Usage,Nothing} = nothing,
-                            log_level::Symbol = :warn)
+                            log_level::Symbol = :warn,
+                            stand_ins = Pair{String,String}[])
     String(log_level) in LOG_LEVEL_NAMES ||
         error("write_app_package: `log_level` is one of " *
               join(LOG_LEVEL_NAMES, ", ") * ", not :$log_level")
@@ -92,6 +99,11 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         package_dir = get_package_directory(context, package)
         deps[String(package)] = get_package_uuid(package_dir)
         sources[String(package)] = Dict("path" => relpath(package_dir, directory))
+    end
+    for (stand_in, uuid) in stand_ins
+        _write_stand_in_package(joinpath(directory, "stand_in", stand_in), stand_in, uuid)
+        deps[String(stand_in)] = String(uuid)
+        sources[String(stand_in)] = Dict("path" => joinpath("stand_in", stand_in))
     end
     # Sorted, so that two builds of the same binary write the same bytes. A
     # `Dict` iterates in whatever order it likes, and an environment that changes
@@ -222,6 +234,26 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
     write_if_changed(joinpath(directory, "src", module_name * ".jl"), source;
                      ignoring = _BUILD_TIMESTAMP)
     directory
+end
+
+# A package in place of the JLL called `name`: the same name and uuid, and the
+# three bindings that a user of a JLL reads, all empty.
+function _write_stand_in_package(directory, name, uuid)
+    mkpath(joinpath(directory, "src"))
+    write_if_changed(joinpath(directory, "Project.toml"),
+                     sprint(io -> TOML.print(io, Dict("name" => String(name), "uuid" => String(uuid),
+                                                      "version" => "0.0.1"); sorted = true)))
+    write_if_changed(joinpath(directory, "src", "$name.jl"), """
+        # Written by `ProjecturedBuilder.write_app_package`: a stand-in for the JLL
+        # package `$name`, which this binary does not carry. It has the same name and
+        # uuid, no dependency and no library.
+        module $name
+        const artifact_dir = ""
+        const PATH_list = String[]
+        const LIBPATH_list = String[]
+        is_available() = false
+        end
+        """)
 end
 
 # The one line of the module that differs between two builds of the same thing.

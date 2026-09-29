@@ -161,7 +161,7 @@ end
 
 """
     build_executable(context; name, packages, main, workload, preferences,
-                       fonts, assets, usage, log_level, imports, init,
+                       fonts, assets, usage, log_level, imports, init, stand_ins,
                        incremental, filter_stdlibs, optimization, debug_info,
                        strip_metadata, cpu_target, output, compile, resolve,
                        precompile, force, logfile, extra_info, after_write,
@@ -186,7 +186,8 @@ output directory.
 - `log_level` — the level the binary logs from when nobody says another:
   `:debug`, `:info`, `:warn`, `:error` or `:none`. Every binary answers
   `--log-level=<level>` over it, so this is the default and not the answer.
-- `imports` and `init` — passed on to [`write_app_package`](@ref) unchanged.
+- `imports`, `init` and `stand_ins` — passed on to [`write_app_package`](@ref)
+  unchanged; the build record names each stand-in.
 - `after_write` — a function called with the directory of the written package,
   after the package and its preferences are there and before it is resolved.
   A caller that must put another file into the package, or read what the last
@@ -234,6 +235,7 @@ function build_executable(context::BuildContext; name::AbstractString,
                             log_level::Symbol = :warn,
                             imports = String[],
                             init::Union{Nothing,Expr,AbstractString} = nothing,
+                            stand_ins = Pair{String,String}[],
                             after_write = nothing,
                             incremental::Bool = true,
                             filter_stdlibs::Bool = false,
@@ -267,9 +269,9 @@ function build_executable(context::BuildContext; name::AbstractString,
 
     info = build_info(; name, packages, main, workload, preferences,
                         optimization, debug_info, cpu_target, assets, incremental,
-                        log_level, extra_info)
+                        log_level, extra_info, stand_ins)
     project = write_app_package(context; name, packages, imports, init, main, workload,
-                                 info, usage, log_level)
+                                 info, usage, log_level, stand_ins)
     write_preferences(preferences, project)
     after_write === nothing || after_write(project)
     @info "build_executable: wrote $project\n" * info
@@ -353,7 +355,7 @@ get_smoke_flag() = "--build-info"
 """
     build_info(; name, packages, main, workload, preferences, optimization,
                  debug_info, cpu_target, assets, incremental, log_level,
-                 extra_info) -> String
+                 extra_info, stand_ins) -> String
 
 What went into a binary, as text. It becomes a constant read at module scope, so
 it is compiled into the image and `--build-info` prints it. Written from the same
@@ -365,7 +367,7 @@ a caller whose build does something this core does not know about.
 function build_info(; name, packages, main, workload, preferences,
                       optimization, debug_info, cpu_target, assets = Pair{String,String}[],
                       incremental::Bool = false, log_level::Symbol = :warn,
-                      extra_info::AbstractString = "")
+                      extra_info::AbstractString = "", stand_ins = Pair{String,String}[])
     lines = ["$name, built $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM")) by ProjecturedBuilder",
              "packages: " * join(packages, ", "),
              "main: " * string(Base.remove_linenums!(copy(main))),
@@ -376,6 +378,9 @@ function build_info(; name, packages, main, workload, preferences,
              "logs from $log_level and up, unless --log-level says another"]
     for (source, target) in assets
         push!(lines, "asset: $source -> $target")
+    end
+    for (stand_in, _) in stand_ins
+        push!(lines, "stand-in: $stand_in, which this binary does not carry")
     end
     # Named in the record, and named so that a person reading it knows what they
     # have. `check_relocation` reads this same line back out of the built binary

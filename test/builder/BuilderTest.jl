@@ -191,6 +191,32 @@ function test_builder()
                            "    _apply_log_level!() == 0 || return 1\n", source)
         end
 
+        @testset "a stand-in takes the place of a JLL that a binary must not carry" begin
+            context = _test_context()
+            uuid = "00000000-0000-0000-0000-0000000000aa"
+            directory = write_app_package(context; name = "quiet", packages = [A_PACKAGE],
+                                          main = :(begin 0 end), stand_ins = ["some_jll" => uuid])
+            project = ProjecturedBuilder.TOML.parsefile(joinpath(directory, "Project.toml"))
+            @test project["deps"]["some_jll"] == uuid
+            @test project["sources"]["some_jll"]["path"] == joinpath("stand_in", "some_jll")
+            stand_in = joinpath(directory, "stand_in", "some_jll")
+            @test ProjecturedBuilder.TOML.parsefile(joinpath(stand_in, "Project.toml"))["uuid"] == uuid
+            # What a user of a JLL reads: an artifact folder and two lists of paths,
+            # all empty. Evaluated in a module of its own, so nothing here is changed.
+            sandbox = Module(:StandInSandbox)
+            Base.include_string(sandbox, read(joinpath(stand_in, "src", "some_jll.jl"), String))
+            jll = getfield(sandbox, :some_jll)
+            @test jll.artifact_dir == ""
+            @test isempty(jll.PATH_list) && isempty(jll.LIBPATH_list)
+            @test !Base.invokelatest(jll.is_available)
+            # The build record says what the binary does not carry.
+            info = build_info(; name = "quiet", packages = [A_PACKAGE], main = :(begin 0 end),
+                                workload = nothing, preferences = [], optimization = 3,
+                                debug_info = 1, cpu_target = "", stand_ins = ["some_jll" => uuid])
+            @test occursin("stand-in: some_jll, which this binary does not carry", info)
+            @test PROJECTURED_STAND_INS == ["alsa_plugins_jll" => "5ac2f6bb-493e-5871-9171-112d4c21a6e7"]
+        end
+
         @testset "every binary ends in silence on SIGTERM" begin
             context = _test_context()
             source = _generated_source(context; name = "quiet", usage = nothing)
@@ -630,8 +656,11 @@ function test_builder()
             project = build_projectured_executable(; context = context, compile = false)
             @test project == joinpath(context.root, "build", "app", "projectured")
             deps = ProjecturedBuilder.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
+            # The packages of the binary, and the stand-in that keeps the sound
+            # libraries out of it.
             @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedExample",
-                                          "ProjecturedMcp", "ProjecturedSdl", "ProjecturedWeb"])
+                                          "ProjecturedMcp", "ProjecturedSdl", "ProjecturedWeb",
+                                          "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
             @test occursin("ProjecturedExample.run_application_command(ARGS; backends = " *
                            "(sdl = ProjecturedSdl.SdlBackend, web = ProjecturedWeb.WebBackend))",
