@@ -72,6 +72,7 @@ The packages below every domain. [package-rules.md](../rule/package-rules.md) ha
 | `ProjecturedWeb` | [web.md](web/web.md) | the browser backend |
 | `ProjecturedVideo` | [video.md](video/video.md) | the recording of a video |
 | `ProjecturedAnthropic`, `ProjecturedOllama` | [llm.md](llm/llm.md) | the two language model backends |
+| `ProjecturedOpenRouter` | [openrouter.md](openrouter/openrouter.md) | the relevance model on the Decisions API of OpenRouter |
 | `ProjecturedMcp` | [mcp.md](mcp/mcp.md) | the MCP server |
 | `ProjecturedTulip` | [tulip.md](tulip/tulip.md) | the constraint solver of the layout |
 | `ProjecturedAdaptagrams` | [adaptagrams.md](adaptagrams/adaptagrams.md) | the native graph layout engine |
