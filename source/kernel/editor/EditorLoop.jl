@@ -180,8 +180,10 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         # subscribers via `get_reactive_clock_time(editor.clock)` re-evaluate
         # on the next pull. Logical time is the time of the frame that
         # `get_frame_clock_time` answers: wall-clock seconds since the loop
-        # started, unless the backend keeps a time of its own.
-        t_start = Base.time()
+        # started, unless the backend keeps a time of its own. The times come
+        # from the monotonic clock, so a step of the system clock moves no
+        # animation and no frame time.
+        t_start = time_ns()
         while true
             # A wake posted since the last frame took ownership skips the
             # wait: the flag is the truth, whatever became of the backend
@@ -201,12 +203,13 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             Threads.atomic_xchg!(editor.wake_pending, false)
             # A fresh per-frame counter store, bound for this frame's dynamic
             # extent; the cell operations below count into it and `perf!` reads it.
-            frame_started = Base.time()
+            frame_started = time_ns()
             with_performance_counters() do
-                wall_time = frame_started - t_start
+                wall_time = (frame_started - t_start) / 1e9
                 # A backend whose time throws is recorded, and the frame shows
                 # the wall time.
-                clock_time = _run_barrier(editor, :device; origin = typeof(editor.backend),
+                clock_time = _run_barrier(editor, :device;
+                                          origin = typeof(editor.backend),
                                           fallback = wall_time) do
                     get_frame_clock_time(editor.backend, wall_time)
                 end
@@ -218,7 +221,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
                 run_frame!(editor)
                 _run_barrier(editor, :report) do
                     perf!(editor)
-                    record_frame_performance!(editor, Base.time() - frame_started)
+                    record_frame_performance!(editor, (time_ns() - frame_started) / 1e9)
                 end
             end
         end
