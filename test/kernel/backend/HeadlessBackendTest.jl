@@ -44,7 +44,6 @@ function test_headless_backend()
     @testset "get_display_size falls back to the display-free default" begin
         b = HeadlessBackend()
         @test get_display_size(b) == (1280, 800)
-        @test get_display_size(b; display=2) == (1280, 800)
     end
 
     @testset "configure_devices! is a no-op for a backend that discovers nothing" begin

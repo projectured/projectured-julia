@@ -214,7 +214,7 @@ quit_backend!(backend::VideoBackend) = (_close_offscreen_renderer(backend.off); 
 
 get_pointer_position(backend::VideoBackend) = (backend.pointer_x, backend.pointer_y)
 
-get_display_size(backend::VideoBackend; display::Integer = 0) = (backend.width, backend.height)
+get_display_size(backend::VideoBackend) = (backend.width, backend.height)
 
 # In video time the loop makes the next frame at once; it only lets other tasks
 # run.

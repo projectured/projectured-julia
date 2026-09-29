@@ -1,20 +1,25 @@
 # Fragment of `BackendModule` — the backend **contract**: the abstract `Backend`
 # type every backend subtypes, and the open generics a backend package answers
 # with a method for its own concrete type. Nothing here carries a body — the
-# concrete backends live in opt-in packages, and the fallback behaviours for the
-# capabilities a backend may decline sit in `BackendDefaults.jl`.
+# concrete backends live in packages above the kernel, and the fallback behaviours
+# for the capabilities a backend can lack sit in `BackendDefaults.jl`.
 
 """
     Backend
 
 Abstract supertype for all display/input backends.
+
+A backend starts with three calls, in this order, before the first print:
+`initialize_backend!`, then `configure_devices!` with the devices of the editor,
+then `open_native_windows!` with the first document. `quit_backend!` ends it.
 """
 abstract type Backend end
 
 """
     initialize_backend!(backend)
 
-Initialise the backend (create windows, load libraries, …).
+Initialize the backend: load its libraries and make the state that the other
+generics use. It opens no window; `open_native_windows!` opens the windows.
 """
 function initialize_backend! end
 
@@ -39,15 +44,15 @@ function write_to_devices end
     open_native_windows!(backend, document)
 
 Open the native window of every window `document` names, then correct `document`
-to the geometry the window system granted.
+to the size that the window system gives the window.
 
-Called once, before the first projection. A window system is free to refuse the
-size it is asked for — a manager that keeps a window inside the work area grants
-less height than a decorated window asks for — and it answers only after the
-window exists. A document laid out before that answer is laid out at a size the
-window never has, so the answer arrives as a resize and the whole document
-computes a second time. Opening the windows first turns that second layout into
-none.
+The backend opens the windows once, before the first print. The window system can
+give a window another size than the size in the document: a window manager that
+keeps a window inside the work area gives a decorated window less height. The
+size is known only after the window exists. A document laid out before that has
+a size that the window never has, so the size arrives as a resize and the whole
+document computes a second time. When the windows open first, the second layout
+does not happen.
 
 A backend with no windows of its own leaves this at the no-op default.
 """
@@ -69,10 +74,10 @@ function read_from_devices end
     wait_for_input(backend, devices, timeout_seconds) -> Nothing
 
 Block until an input event arrives, [`wake_backend!`](@ref) is called, or
-`timeout_seconds` passes — whichever comes first. The editor loop calls it
-between frames, and the timeout it passes is the nearest deadline it knows
-(an animation tick, a feed's flush). `Inf` is legal, and a backend may slice
-a long wait internally to keep cooperative tasks on its thread scheduled.
+`timeout_seconds` passes — whichever comes first. `timeout_seconds` must be
+above 0, and `Inf` is legal. The timeout is the time to the next deadline, such
+as the next tick of an animation. A backend can divide a long wait into slices,
+so that the other tasks on its thread run.
 """
 function wait_for_input end
 
@@ -89,18 +94,16 @@ function wake_backend! end
     get_pointer_position(::Backend) -> (x, y)
 
 The current global mouse pointer position in screen pixels, or `(-1, -1)` when
-the backend cannot report it — a legal answer, and the one a backend that adds
-no method of its own gives. A caller that needs the position — e.g. to place a
-follower window near the cursor — closes over this behind a `pointer` callback
-so it stays free of any concrete backend dependency.
+the backend cannot find it. `(-1, -1)` is a legal answer, and the default gives
+it for a backend that adds no method of its own.
 """
 function get_pointer_position end
 
 """
-    get_display_size(backend; display=0) -> (width, height)
+    get_display_size(backend) -> (width, height)
 
-The pixel size of display `display` as reported by `backend`, or the
-display-free default `(1280, 800)` for a backend that cannot query a display.
+The usable size of the display in logical pixels, as `backend` finds it, or the
+default `(1280, 800)` for a backend that cannot find the size of a display.
 """
 function get_display_size end
 
@@ -108,8 +111,10 @@ function get_display_size end
     configure_devices!(backend, devices)
 
 Fill in the physical properties of each device in `devices` from what `backend`
-can discover about the real hardware — e.g. a `Display`'s resolution and HiDPI
-scale. A backend that discovers nothing leaves the devices at their defaults.
+finds about the real hardware, such as the size and the scale of a `Display`.
+The call changes the devices in place. A backend that draws with a device keeps
+that device, so a later change of the device changes what the backend draws. A
+backend that finds nothing leaves the devices at their defaults.
 """
 function configure_devices! end
 

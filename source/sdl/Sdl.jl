@@ -4187,8 +4187,7 @@ end
 BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename)
 
 # Display size via the generic seam (delegates to the SDL-specific query).
-BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
-    get_sdl_display_size(; display=display)
+BackendModule.get_display_size(::SdlBackend) = get_sdl_display_size()
 
 # Fill the first `Display` in `devices` with the usable size and the scale of the
 # real display, and draw with it from now on: its `zoom` then steps with

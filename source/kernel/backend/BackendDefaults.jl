@@ -14,7 +14,7 @@
 # a sliced sleep notices pending work on its next slice at the latest, which
 # is the cadence the editor loop has without a real wait.
 get_pointer_position(::Backend) = (-1, -1)
-get_display_size(::Backend; display::Integer=0) = (1280, 800)
+get_display_size(::Backend) = (1280, 800)
 configure_devices!(::Backend, devices) = nothing
 open_native_windows!(::Backend, document) = nothing
 wait_for_input(::Backend, devices, timeout_seconds) = sleep(min(timeout_seconds, 0.01))

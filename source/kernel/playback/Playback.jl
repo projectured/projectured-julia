@@ -104,7 +104,8 @@ end
     play_live!(backend::Backend, timeline; projection, document, window_id,
                initial_hold=0.5)
 
-Bootstrap overload: initialise the backend, wire up an `Editor`, and run the
+Bootstrap overload: start the backend as `make_editor` does (`initialize_backend!`,
+`configure_devices!`, `open_native_windows!`), wire up an `Editor`, and run the
 scripted live loop above. Like [`run_editor!`](@ref), the pipeline is expected to
 produce a `ScreenDocument` so the backend opens a real window; `window_id` is the
 `WindowDocument.id` scripted events are routed to. The windows open before the
@@ -117,6 +118,7 @@ function play_live!(backend::Backend, timeline; projection, document,
     initialize_backend!(backend)
     try
         devices = Device[Display(), Keyboard(), Mouse()]
+        configure_devices!(backend, devices)
         open_native_windows!(backend, document)
         editor = Editor(backend, document, projection, devices)
         play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold,
