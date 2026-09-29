@@ -524,6 +524,23 @@ TMPDIR=/var/tmp/projectured-release JULIA_IMAGE_THREADS=2 JULIA_NUM_PRECOMPILE_T
 
 ### Step A5: test the archive as a user gets it
 
+**What the first container run found (2026-09-30).** The release candidate did
+not start on Debian 12, Ubuntu 22.04 or Fedora 41: `libSDL2.so` needs
+`libiconv.so.2` and `libsamplerate.so.0`, and `SDL2_jll` names neither JLL. The
+tree of `alsa_plugins_jll` brought both, and the stand-in of R3a removed it. The
+test of a copy on this machine passed, because this machine has
+`/usr/local/lib/libiconv.so.2` and a system `libsamplerate.so.0`. Two changes:
+
+- `StandIn(name, uuid; keeps)`: a stand-in keeps dependencies of the real one
+  that the binary still needs, and loads them, so they load before `libSDL2`
+  whatever the order of the packages. `alsa_plugins_jll` keeps
+  `libsamplerate_jll` and `Libiconv_jll`.
+- `collect_missing_libraries(bundle)`: every library that a file of the bundle
+  needs (`readelf -d`, `NEEDED`) must be in the bundle or be one of
+  `GLIBC_LIBRARIES`; `build_distribution` stops otherwise. On the failing
+  bundle it names exactly the two libraries, in 0.3 s, so this class of fault
+  shows at build time now. `test_builder()` 225.
+
 - [ ] Unpack the archive under `/var/tmp`, far from the checkout. Start it with
       a window on this machine (`DISPLAY=:0`), and open a JSON, a Markdown and a
       Julia file. The owner looks at the window before Step A7.

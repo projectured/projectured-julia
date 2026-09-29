@@ -235,7 +235,7 @@ function build_executable(context::BuildContext; name::AbstractString,
                             log_level::Symbol = :warn,
                             imports = String[],
                             init::Union{Nothing,Expr,AbstractString} = nothing,
-                            stand_ins = Pair{String,String}[],
+                            stand_ins = StandIn[],
                             after_write = nothing,
                             incremental::Bool = true,
                             filter_stdlibs::Bool = false,
@@ -367,7 +367,7 @@ a caller whose build does something this core does not know about.
 function build_info(; name, packages, main, workload, preferences,
                       optimization, debug_info, cpu_target, assets = Pair{String,String}[],
                       incremental::Bool = false, log_level::Symbol = :warn,
-                      extra_info::AbstractString = "", stand_ins = Pair{String,String}[])
+                      extra_info::AbstractString = "", stand_ins = StandIn[])
     lines = ["$name, built $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM")) by ProjecturedBuilder",
              "packages: " * join(packages, ", "),
              "main: " * string(Base.remove_linenums!(copy(main))),
@@ -379,8 +379,10 @@ function build_info(; name, packages, main, workload, preferences,
     for (source, target) in assets
         push!(lines, "asset: $source -> $target")
     end
-    for (stand_in, _) in stand_ins
-        push!(lines, "stand-in: $stand_in, which this binary does not carry")
+    for stand_in in stand_ins
+        push!(lines, "stand-in: $(stand_in.name), which this binary does not carry" *
+                     (isempty(stand_in.keeps) ? "" :
+                      "; it keeps " * join(first.(stand_in.keeps), ", ")))
     end
     # Named in the record, and named so that a person reading it knows what they
     # have. `check_relocation` reads this same line back out of the built binary

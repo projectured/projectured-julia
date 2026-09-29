@@ -194,17 +194,25 @@ function test_builder()
         @testset "a stand-in takes the place of a JLL that a binary must not carry" begin
             context = _test_context()
             uuid = "00000000-0000-0000-0000-0000000000aa"
+            keep = "00000000-0000-0000-0000-0000000000ab"
+            stand_ins = [StandIn("some_jll", uuid; keeps = ["Kept_jll" => keep])]
             directory = write_app_package(context; name = "quiet", packages = [A_PACKAGE],
-                                          main = :(begin 0 end), stand_ins = ["some_jll" => uuid])
+                                          main = :(begin 0 end), stand_ins)
             project = ProjecturedBuilder.TOML.parsefile(joinpath(directory, "Project.toml"))
             @test project["deps"]["some_jll"] == uuid
             @test project["sources"]["some_jll"]["path"] == joinpath("stand_in", "some_jll")
             stand_in = joinpath(directory, "stand_in", "some_jll")
-            @test ProjecturedBuilder.TOML.parsefile(joinpath(stand_in, "Project.toml"))["uuid"] == uuid
+            stand_in_project = ProjecturedBuilder.TOML.parsefile(joinpath(stand_in, "Project.toml"))
+            @test stand_in_project["uuid"] == uuid
+            # It keeps a dependency of the real one, and loads it.
+            @test stand_in_project["deps"] == Dict("Kept_jll" => keep)
+            source = read(joinpath(stand_in, "src", "some_jll.jl"), String)
+            @test occursin("import Kept_jll", source)
             # What a user of a JLL reads: an artifact folder and two lists of paths,
-            # all empty. Evaluated in a module of its own, so nothing here is changed.
+            # all empty. Evaluated in a module of its own, without the import, so
+            # nothing here is changed.
             sandbox = Module(:StandInSandbox)
-            Base.include_string(sandbox, read(joinpath(stand_in, "src", "some_jll.jl"), String))
+            Base.include_string(sandbox, replace(source, "import Kept_jll" => ""))
             jll = getfield(sandbox, :some_jll)
             @test jll.artifact_dir == ""
             @test isempty(jll.PATH_list) && isempty(jll.LIBPATH_list)
@@ -212,9 +220,11 @@ function test_builder()
             # The build record says what the binary does not carry.
             info = build_info(; name = "quiet", packages = [A_PACKAGE], main = :(begin 0 end),
                                 workload = nothing, preferences = [], optimization = 3,
-                                debug_info = 1, cpu_target = "", stand_ins = ["some_jll" => uuid])
-            @test occursin("stand-in: some_jll, which this binary does not carry", info)
-            @test PROJECTURED_STAND_INS == ["alsa_plugins_jll" => "5ac2f6bb-493e-5871-9171-112d4c21a6e7"]
+                                debug_info = 1, cpu_target = "", stand_ins)
+            @test occursin("stand-in: some_jll, which this binary does not carry; it keeps Kept_jll", info)
+            @test only(PROJECTURED_STAND_INS).name == "alsa_plugins_jll"
+            @test only(PROJECTURED_STAND_INS).uuid == "5ac2f6bb-493e-5871-9171-112d4c21a6e7"
+            @test Set(first.(only(PROJECTURED_STAND_INS).keeps)) == Set(["libsamplerate_jll", "Libiconv_jll"])
         end
 
         @testset "an archive carries the licence texts of what it holds" begin
@@ -704,6 +714,32 @@ function test_builder()
                   Set(["alsa_jll", "GMP_jll", "MPFR_jll", "CompilerSupportLibraries_jll",
                        "LibGit2_jll", "p7zip_jll", "julia"])
             rm(root; recursive = true)
+        end
+
+        @testset "a distribution carries every library it needs beyond glibc" begin
+            julia_lib = joinpath(Sys.BINDIR, "..", "lib", "julia")
+            if Sys.islinux() && Sys.which("readelf") !== nothing && isfile(joinpath(julia_lib, "libmpfr.so.6"))
+                bundle = mktempdir()
+                mkpath(joinpath(bundle, "lib"))
+                cp(joinpath(julia_lib, "libmpfr.so.6"), joinpath(bundle, "lib", "libmpfr.so.6"); follow_symlinks = true)
+                # MPFR needs GMP, and a machine that builds can have it where the test
+                # of a copy does not look.
+                @test ("libgmp.so.10" => joinpath("lib", "libmpfr.so.6")) in collect_missing_libraries(bundle)
+                cp(joinpath(julia_lib, "libgmp.so.10"), joinpath(bundle, "lib", "libgmp.so.10"); follow_symlinks = true)
+                @test isempty(collect_missing_libraries(bundle))
+                # A bundle that lacks a library stops the distribution.
+                rm(joinpath(bundle, "lib", "libgmp.so.10"))
+                mkpath(joinpath(bundle, "bin")); write(joinpath(bundle, "bin", "thing"), "")
+                message = try
+                    build_distribution(_test_context(); name = "thing", bundle = bundle)
+                    ""
+                catch exception
+                    sprint(showerror, exception)
+                end
+                @test occursin("libgmp.so.10, which lib/libmpfr.so.6 needs", message)
+                rm(bundle; recursive = true)
+            end
+            @test "libc.so.6" in GLIBC_LIBRARIES
         end
 
         @testset "a distribution carries the libstdc++ of Julia, not of the machine" begin

@@ -85,6 +85,13 @@ function build_distribution(context::BuildContext; name::AbstractString,
     end
     isempty(expect) || @info "The bundle holds what the build declared" count = length(expect)
     _check_julia_libstdcxx(bundle)
+    if Sys.islinux()
+        missing_libraries = collect_missing_libraries(bundle)
+        isempty(missing_libraries) ||
+            error("build_distribution: the bundle needs libraries that it does not carry, and " *
+                  "that a machine other than this one may not have:\n" *
+                  join(["  $library, which $file needs" for (library, file) in missing_libraries], "\n"))
+    end
 
     directory = "$(name)-$(version)"
     root = staging === nothing ? mktempdir(get_staging_root()) : abspath(String(staging))
@@ -126,6 +133,49 @@ function build_distribution(context::BuildContext; name::AbstractString,
     staging === nothing && rm(root; recursive = true, force = true)
     archive
 end
+
+"""
+    GLIBC_LIBRARIES
+
+The shared libraries that every Linux machine with glibc has: a bundle may need
+them and not carry them.
+"""
+const GLIBC_LIBRARIES = ["ld-linux-x86-64.so.2", "libc.so.6", "libdl.so.2", "libm.so.6",
+                         "libpthread.so.0", "librt.so.1", "libutil.so.1", "libresolv.so.2",
+                         "libanl.so.1", "libmvec.so.1", "libnsl.so.1"]
+
+"""
+    collect_missing_libraries(bundle; system = GLIBC_LIBRARIES) -> Vector{Pair{String,String}}
+
+Every shared library that a file of `bundle` needs, by the `NEEDED` entries that
+`readelf -d` shows, and that neither the bundle nor `system` provides, as
+`"<library>" => "<file that needs it>"`. The test of a copy can not see such a
+library when the machine that builds has it, for example in `/usr/local/lib`.
+"""
+function collect_missing_libraries(bundle::AbstractString; system = GLIBC_LIBRARIES)
+    Sys.which("readelf") === nothing &&
+        error("collect_missing_libraries: install binutils; the check reads each library with readelf")
+    provided = Set{String}(system)
+    files = String[]
+    for (directory, _, names) in walkdir(bundle), name in names
+        occursin(r"\.so(\.|$)", name) && push!(provided, name)
+        path = joinpath(directory, name)
+        (isfile(path) && !islink(path)) && push!(files, path)
+    end
+    missing_libraries = Pair{String,String}[]
+    for path in files
+        _is_elf_file(path) || continue
+        for line in eachline(ignorestatus(`readelf -d $path`))
+            needed = match(r"\(NEEDED\)\s+Shared library: \[([^\]]+)\]", line)
+            needed === nothing && continue
+            needed.captures[1] in provided ||
+                push!(missing_libraries, needed.captures[1] => relpath(path, bundle))
+        end
+    end
+    sort!(unique!(missing_libraries))
+end
+
+_is_elf_file(path) = open(io -> read(io, 4), path) == UInt8[0x7f, 0x45, 0x4c, 0x46]
 
 # A distribution carries the libstdc++ of Julia. PackageCompiler copies the one
 # that the building Julia loaded, and Julia loads the machine's own when it is

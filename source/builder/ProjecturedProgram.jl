@@ -25,8 +25,15 @@ their place. `SDL2_jll` and SimpleDirectMediaLayer load `alsa_plugins_jll`,
 and it brings FFmpeg, which is built with `--enable-nonfree` and so may not be
 given to anyone, and PulseAudio with GPL-3 and AGPL-3 libraries. The application
 plays no sound: it starts SDL for video only.
+
+It keeps two of the dependencies of the real one: the libraries of `SDL2_jll`
+link `libsamplerate.so.0` and `libiconv.so.2`, and `SDL2_jll` names neither JLL.
+A container of Debian 12 found them missing on 2026-09-30.
 """
-const PROJECTURED_STAND_INS = ["alsa_plugins_jll" => "5ac2f6bb-493e-5871-9171-112d4c21a6e7"]
+const PROJECTURED_STAND_INS = [
+    StandIn("alsa_plugins_jll", "5ac2f6bb-493e-5871-9171-112d4c21a6e7";
+            keeps = ["libsamplerate_jll" => "9427e74d-4e05-59c1-8ff3-7d74b6e52ac8",
+                     "Libiconv_jll" => "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"])]
 
 """
     PROJECTURED_SOURCE_OFFERS

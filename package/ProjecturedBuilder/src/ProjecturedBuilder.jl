@@ -45,10 +45,10 @@ export BuildContext, get_package_directory, get_package_uuid, make_projectured_b
 export has_package_directory, collect_missing_sources
 export Preference, make_baked_preference, make_exposed_preferences, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
-export write_app_package, write_if_changed, get_app_module_name, LOG_LEVEL_NAMES
+export write_app_package, write_if_changed, StandIn, get_app_module_name, LOG_LEVEL_NAMES
 export build_executable, compile_app!, resolve_app_project, build_info, get_smoke_flag
 export bundle_fonts!, bundle_assets!, print_build_report!, INCREMENTAL_MARK, PORTABLE_CPU_TARGET
-export build_distribution, get_staging_root, check_relocation, write_readme, report_distribution
+export build_distribution, collect_missing_libraries, GLIBC_LIBRARIES, get_staging_root, check_relocation, write_readme, report_distribution
 export get_hidden_directories, make_hidden_command
 export bundle_licence_texts!, SourceOffer, build_source_archive
 export build_package_release!, collect_outside_paths

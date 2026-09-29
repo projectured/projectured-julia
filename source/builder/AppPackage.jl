@@ -63,12 +63,12 @@ Write the package this build compiles, and answer its directory.
 - `log_level` — the level the binary logs from when nobody says another. It is
   interpolated into the module rather than written as a preference, because the
   module that reads it is the module this writes.
-- `stand_ins` — `"<name>" => "<uuid>"` of JLL packages that the binary must not
+- `stand_ins` — [`StandIn`](@ref)s of JLL packages that the binary must not
   carry. Each one is replaced by a package of the same name and uuid, written
-  under `stand_in/`, with no dependency and no library: its `artifact_dir` is
-  empty, and so are its `PATH_list` and `LIBPATH_list`. A package that loads it
-  reads empty paths, and the chain of JLLs behind the real one leaves the
-  manifest, and so the bundle.
+  under `stand_in/`, with no library: its `artifact_dir` is empty, and so are its
+  `PATH_list` and `LIBPATH_list`. A package that loads it reads empty paths, and
+  the chain of JLLs behind the real one leaves the manifest, and so the bundle,
+  except the dependencies that the stand-in keeps.
 """
 function write_app_package(context::BuildContext; name::AbstractString, packages,
                             imports = String[],
@@ -78,7 +78,7 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
                             info::AbstractString = "",
                             usage::Union{Usage,Nothing} = nothing,
                             log_level::Symbol = :warn,
-                            stand_ins = Pair{String,String}[])
+                            stand_ins = StandIn[])
     String(log_level) in LOG_LEVEL_NAMES ||
         error("write_app_package: `log_level` is one of " *
               join(LOG_LEVEL_NAMES, ", ") * ", not :$log_level")
@@ -100,10 +100,10 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         deps[String(package)] = get_package_uuid(package_dir)
         sources[String(package)] = Dict("path" => relpath(package_dir, directory))
     end
-    for (stand_in, uuid) in stand_ins
-        _write_stand_in_package(joinpath(directory, "stand_in", stand_in), stand_in, uuid)
-        deps[String(stand_in)] = String(uuid)
-        sources[String(stand_in)] = Dict("path" => joinpath("stand_in", stand_in))
+    for stand_in in stand_ins
+        _write_stand_in_package(joinpath(directory, "stand_in", stand_in.name), stand_in)
+        deps[stand_in.name] = stand_in.uuid
+        sources[stand_in.name] = Dict("path" => joinpath("stand_in", stand_in.name))
     end
     # Sorted, so that two builds of the same binary write the same bytes. A
     # `Dict` iterates in whatever order it likes, and an environment that changes
@@ -236,19 +236,41 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
     directory
 end
 
-# A package in place of the JLL called `name`: the same name and uuid, and the
-# three bindings that a user of a JLL reads, all empty.
-function _write_stand_in_package(directory, name, uuid)
+"""
+    StandIn(name, uuid; keeps = Pair{String,String}[])
+
+A JLL package that a binary must not carry: [`write_app_package`](@ref) writes a
+package of the same `name` and `uuid` in its place. `keeps` are
+`"<name>" => "<uuid>"` of the dependencies of the real one that the binary still
+needs: a library that another JLL links and does not name. The stand-in loads
+them, so a package that loads the stand-in loads them first.
+"""
+struct StandIn
+    name::String
+    uuid::String
+    keeps::Vector{Pair{String,String}}
+end
+
+StandIn(name::AbstractString, uuid::AbstractString; keeps = Pair{String,String}[]) =
+    StandIn(String(name), String(uuid), Pair{String,String}[String(k) => String(v) for (k, v) in keeps])
+
+# A package in place of a JLL: the same name and uuid, the dependencies it keeps,
+# and the three bindings that a user of a JLL reads, all empty.
+function _write_stand_in_package(directory, stand_in::StandIn)
     mkpath(joinpath(directory, "src"))
+    project = Dict{String,Any}("name" => stand_in.name, "uuid" => stand_in.uuid, "version" => "0.0.1")
+    isempty(stand_in.keeps) || (project["deps"] = Dict{String,Any}(stand_in.keeps))
     write_if_changed(joinpath(directory, "Project.toml"),
-                     sprint(io -> TOML.print(io, Dict("name" => String(name), "uuid" => String(uuid),
-                                                      "version" => "0.0.1"); sorted = true)))
-    write_if_changed(joinpath(directory, "src", "$name.jl"), """
+                     sprint(io -> TOML.print(io, project; sorted = true)))
+    kept = isempty(stand_in.keeps) ? "" :
+        "# The libraries that the binary still needs from the real one.\n" *
+        join(("import " * name for (name, _) in stand_in.keeps), "\n") * "\n"
+    write_if_changed(joinpath(directory, "src", "$(stand_in.name).jl"), """
         # Written by `ProjecturedBuilder.write_app_package`: a stand-in for the JLL
-        # package `$name`, which this binary does not carry. It has the same name and
-        # uuid, no dependency and no library.
-        module $name
-        const artifact_dir = ""
+        # package `$(stand_in.name)`, which this binary does not carry. It has the
+        # same name and uuid, and no library of its own.
+        module $(stand_in.name)
+        $(kept)const artifact_dir = ""
         const PATH_list = String[]
         const LIBPATH_list = String[]
         is_available() = false
