@@ -506,8 +506,8 @@ Enter, Tab or a move out
 (§3.6), or a write on each key. Recommendation: pending text. A write on each
 key can not hold "12." in a `Float64` column.
 
-**D6. A sorted view after an edit. Made: (a), with an automatic refresh; the
-time of the refresh is open.** The row stays and the order shows as out of
+**D6. A sorted view after an edit. Made: the row stays while the text is
+pending, and the commit sorts again, see §5.1.** The row stays and the order shows as out of
 date, or the view sorts again at once and the row moves away from the caret.
 Recommendation: the row stays.
 
