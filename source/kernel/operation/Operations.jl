@@ -87,6 +87,9 @@ struct CompoundOperation <: Operation
 end
 
 CompoundOperation(operations...) = CompoundOperation(Vector{Any}(collect(operations)))
+# One member: without this method the call reaches the field constructor, which
+# converts the operation to a vector and fails.
+CompoundOperation(operation::Operation) = CompoundOperation(Any[operation])
 
 function evaluate_operation(editor, op::CompoundOperation)
     for member in op.operations
@@ -164,21 +167,33 @@ function _write_slot!(parent, step::FieldReferenceStep, value)
     f[] = value
 end
 
+# A field step on a dictionary names a key, and the operation writes no key.
+_write_slot!(parent::AbstractDict, step::FieldReferenceStep, value) =
+    error("ReplaceReferencedValueOperation: $(step.name) is a key of a " *
+          "$(typeof(parent)), and the operation writes no key")
+
+# One value overwrites one element. A range of more than one element takes a
+# vector of items, which is a splice.
 function _write_slot!(parent, step::RangeReferenceStep, value)
+    step.stop - step.start > 1 &&
+        error("ReplaceReferencedValueOperation: the range " *
+              "[$(step.start), $(step.stop)) holds more than one element; " *
+              "give a vector of items to replace it")
     parent[step.start + 1] = value
 end
 
 # A terminal `RangeReferenceStep` whose value is a *vector* of items is a SPLICE:
 # replace the half-open element range `[start, stop)` of the sequence container
-# with `items` (each wrapped in a `Cell`). Zero-width range ⇒ pure insert; empty
-# items ⇒ pure delete; both ⇒ element replacement. A single (non-vector) value
-# instead hits the element-overwrite method above.
+# with `items`. Each item goes in as it is, and the container keeps it in the form
+# that it stores, in a cell of its own or as the value. Zero-width range ⇒ pure
+# insert; empty items ⇒ pure delete; both ⇒ element replacement. A single
+# (non-vector) value instead hits the element-overwrite method above.
 function _write_slot!(parent, step::RangeReferenceStep, items::AbstractVector)
     for _ in 1:(step.stop - step.start)
         deleteat!(parent, step.start + 1)
     end
     for (k, item) in enumerate(items)
-        insert!(parent, step.start + k, item isa AbstractCell ? item : Cell(item))
+        insert!(parent, step.start + k, item)
     end
 end
 

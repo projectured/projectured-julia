@@ -6,11 +6,13 @@ apply the inverse, and the document is what it was.
 
 A **test-local** operation with no method proves the default is `nothing`, and a
 test-local wrapper proves a wrapper's way back is the way back of what it holds.
+The lists are a test-local collection that keeps each element in a cell of its
+own, so a splice must give each item as it is and let the collection wrap it.
 """
 
 using Test
 using ProjecturedKernel
-using ProjecturedKernel.CellModule: unwrap_cell
+using ProjecturedKernel.CellModule: AbstractCell, MutableCell, unwrap_cell
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.DocumentModule: @document, Document
 using ProjecturedKernel.ReferenceModule
@@ -25,8 +27,26 @@ end
     right::InvLeaf
 end
 
+# A test-local collection of documents: it keeps each element in a `MutableCell`
+# of its own. It wraps a value that it gets, and it keeps a cell that it gets, so
+# an element that a way back puts back is the cell that was taken out.
+struct InvCells
+    cells::Vector{Any}
+end
+_wrap_inv_cell(value) = value isa AbstractCell ? value : MutableCell{Any}(value)
+Base.length(list::InvCells) = length(list.cells)
+Base.getindex(list::InvCells, index::Integer) = list.cells[index][]
+Base.setindex!(list::InvCells, value, index::Integer) =
+    (list.cells[index] = _wrap_inv_cell(value); value)
+Base.insert!(list::InvCells, index::Integer, value) =
+    (insert!(list.cells, index, _wrap_inv_cell(value)); list)
+Base.deleteat!(list::InvCells, index) = (deleteat!(list.cells, index); list)
+ProjecturedKernel.DocumentModule.is_element_collection(::InvCells) = true
+ProjecturedKernel.OperationModule.get_slot_at(list::InvCells, index::Integer) =
+    list.cells[index]
+
 @document struct InvList
-    items::Vector{Any}
+    items::InvCells
 end
 
 @document struct InvBox
@@ -51,7 +71,9 @@ ProjecturedKernel.OperationModule.rewrap_operation(::InvWrapperOperation, inner)
     InvWrapperOperation(inner)
 
 _leaf(text) = InvLeaf(text, nothing)
-_values(list) = [unwrap_cell(item).value for item in list.items]
+_inv_list(texts...) = InvList(InvCells(Any[MutableCell{Any}(_leaf(t)) for t in texts]),
+                              nothing)
+_values(list) = [unwrap_cell(cell).value for cell in list.items.cells]
 
 function test_inversion()
 @testset "Inversion" begin
@@ -91,7 +113,7 @@ function test_inversion()
     end
 
     @testset "an element overwrite puts back the slot that was there" begin
-        list = InvList(Any[_leaf("a"), _leaf("b")], nothing)
+        list = _inv_list("a", "b")
         editor = _InvEditor(list)
         reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 2))
         inverse = evaluate_invertible_operation!(editor,
@@ -109,7 +131,7 @@ function test_inversion()
                  (1, 2, Any[],                          ["a", "c"]),            # delete
                  (0, 2, Any[_leaf("x")],                ["x", "c"]),            # replace
                  (0, 3, Any[_leaf("x"), _leaf("y")],    ["x", "y"]))            # replace many
-            list = InvList(Any[_leaf("a"), _leaf("b"), _leaf("c")], nothing)
+            list = _inv_list("a", "b", "c")
             editor = _InvEditor(list)
             reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(start, stop))
             inverse = evaluate_invertible_operation!(editor,
@@ -118,6 +140,36 @@ function test_inversion()
             evaluate_operation(editor, inverse)
             @test _values(list) == ["a", "b", "c"]
         end
+    end
+
+    # The collection, not the splice, decides the form in which an element is
+    # stored: here a `MutableCell` of its own around the value.
+    @testset "a splice gives each item to the collection as it is" begin
+        list = _inv_list("a")
+        reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 1))
+        evaluate_operation(_InvEditor(list),
+            ReplaceReferencedValueOperation(nothing, reference, Any[_leaf("b")]))
+        @test _values(list) == ["a", "b"]
+        @test all(cell -> cell isa MutableCell, list.items.cells)
+        @test !any(cell -> unwrap_cell(cell) isa AbstractCell, list.items.cells)
+    end
+
+    @testset "a write refuses a key of a dictionary and a range of many elements" begin
+        table = Dict{String, Any}("a" => 1)
+        @test_throws "writes no key" evaluate_operation(_InvEditor(nothing),
+            ReplaceReferencedValueOperation(table, "a", 2))
+        @test table["a"] == 1
+
+        list = _inv_list("a", "b", "c")
+        reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(0, 2))
+        @test_throws "more than one element" evaluate_operation(_InvEditor(list),
+            ReplaceReferencedValueOperation(nothing, reference, _leaf("z")))
+        @test _values(list) == ["a", "b", "c"]
+    end
+
+    @testset "a compound of one operation holds that operation" begin
+        compound = CompoundOperation(DoNothingOperation())
+        @test compound.operations == Any[DoNothingOperation()]
     end
 
     # An entry outlives the moment it was made, and the document may move in the
@@ -133,7 +185,7 @@ function test_inversion()
         evaluate_operation(_InvEditor(InvBranch(_leaf("p"), _leaf("q"), nothing)), inverse)
         @test root.left.value == "a"
 
-        list = InvList(Any[_leaf("a"), _leaf("b")], nothing)
+        list = _inv_list("a", "b")
         splice = make_inverse_operation(list,
             ReplaceReferencedValueOperation(nothing,
                 Reference(FieldReferenceStep("items"), RangeReferenceStep(0, 1)), Any[]))
@@ -212,7 +264,7 @@ function test_inversion()
     # index are the smallest case that shows it — inverting both up front would
     # put the first element back twice.
     @testset "a compound is inverted while it is applied" begin
-        list = InvList(Any[_leaf("a"), _leaf("b"), _leaf("c")], nothing)
+        list = _inv_list("a", "b", "c")
         editor = _InvEditor(list)
         delete_second() = ReplaceReferencedValueOperation(nothing,
             Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 2)), Any[])
