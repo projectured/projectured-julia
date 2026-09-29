@@ -78,14 +78,16 @@ function get_web_asset_directory(name::AbstractString, bindir::AbstractString = 
 end
 
 # ════════════════════════════════════════════════════════════════════════
-# Key mapping (server-side; mirrors sdl_keysym_to_symbol)
+# Key mapping (server-side; the key names of sdl_keysym_to_symbol)
 # ════════════════════════════════════════════════════════════════════════
 
 """
     convert_web_key_to_symbol(key, code, mods) -> Symbol
 
 Map a browser `KeyboardEvent.key` (+ `code` for left/right modifier identity)
-to the backend-agnostic key vocabulary, mirroring `sdl_keysym_to_symbol`.
+to the backend-agnostic key vocabulary, with the names that `sdl_keysym_to_symbol`
+gives. The browser reports the character that a key types, so a character that
+SDL names only on the keypad, such as `*`, has its name here on every key.
 A letter key `a` to `z` or `A` to `Z` has the name of its lower-case letter,
 `:a` to `:z`. Printable keys whose specific identity is not tracked return
 `:char` (the character itself arrives separately via a `keypress` → `KeyPress`).
@@ -132,6 +134,7 @@ function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mo
         c == ' ' && return :space
         c == '.' && return :period
         c == '/' && return :slash
+        c == '\\' && return :backslash
         c == '*' && return :asterisk
         (c == '=' || c == '+') && return :equals
         c == '-' && return :minus

@@ -879,9 +879,7 @@ vocabulary (`KeyPress`, `KeyDown`, `Mouse*`, `WindowQuit`) in the backend, so
 projection reader code never sees a raw platform event; a projection that needs
 to measure text takes an injected `measure::TextMeasure` rather than the
 backend itself. A single source of truth governs any cross-backend mapping. For
-example, `convert_web_key_to_symbol` gives the key names of `sdl_keysym_to_symbol`,
-with one difference: the SDL backend names the backslash key `:backslash`, and the
-web backend answers `:char` for it.
+example, `convert_web_key_to_symbol` gives the key names of `sdl_keysym_to_symbol`.
 
 ### PAR-OPT-IN-DEPENDENCY
 

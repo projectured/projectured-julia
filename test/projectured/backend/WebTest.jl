@@ -61,6 +61,17 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]).event.key === :z
     end
 
+    @testset "the backslash key has the name that the SDL backend gives it" begin
+        # The JSON of the page holds the key `\` as "\\".
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"\\\\","code":"Backslash",
+                "mods":{"ctrl":true}}""")
+        down = read_from_devices(backend, Device[]).event
+        @test down.key === :backslash
+        @test down.modifiers.ctrl
+    end
+
     @testset "a button with no name in the event layer makes no event" begin
         backend = WebBackend(port = 0)
         _WEB._decode_and_enqueue!(backend,
