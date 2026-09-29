@@ -571,48 +571,62 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.10: The feed and editor layers
 
-- [ ] **L21-2** (Medium, Correctness) — same fault as L22-6
+- [x] **L21-2** (Medium, Correctness) — same fault as L22-6
   In `drain_feeds!`, run each `drain_changes!` in its own `_run_barrier(editor, :evaluate; origin = typeof(feed), fallback = 0)`, in place of the one barrier at EditorLoop.jl:179-181. Write in the `drain_changes!` docstring that a drain that throws is recorded and the next feed still drains.
   *Test:* test_editor_feeds(): two feeds under `FaultPolicy()`, and the first throws in `drain_changes!`; assert that the second drains in the same frame and that one fault record has the type of the first as its origin.
-- [ ] **L21-3** (Medium, Correctness) — same fault as L22-7
+  *Done:* lane B, f708fa106, with L22-6.
+- [x] **L21-3** (Medium, Correctness) — same fault as L22-7
   In `compute_wait_timeout`, compute each `compute_wake_deadline` inside `_run_barrier(editor, :evaluate; origin = typeof(feed), fallback = nothing)`, so a feed that throws counts as no deadline, and say so in the docstring. Of the two ways of the report, only the barrier keeps the editor alive, as plan/done/the-editor-survives-a-fault.md requires ('must not stop the editor'); a sentence in the contract alone does not.
   *Test:* test_editor_wait(): a feed whose deadline throws, under `FaultPolicy()`; assert that `compute_wait_timeout` answers the other bounds and that a fault record exists.
-- [ ] **L21-4** (Medium, Correctness) — same fault as L22-5
+  *Done:* lane B, 5a6a9fe4a, with the part of L22-7. The deadline case is in `test_editor_wait`.
+- [x] **L21-4** (Medium, Correctness) — same fault as L22-5
   As L22-5: `drain_operations!` takes at most the operations that were ready when the drain started (at most `INBOX_CAPACITY`) and sets `editor.wake_pending` when some remain. Write in the `drain_changes!` docstring that a drain moves what the store held when the drain started.
   *Test:* test_editor_inbox(): a task posts in a loop while the editor drains; assert that one drain answers at most the count that was ready, and that `wake_pending[]` is true after it.
-- [ ] **L22-2** (Medium, Correctness)
+  *Done:* lane B, eb193821c, with L22-5.
+- [x] **L22-2** (Medium, Correctness)
   In `run_frame!`, when the read loop ends at the cap, at a read that threw (give the read barrier the fallback `_BARRIER_FAILED` to tell it from no input), or at a dropped IoMap, set `editor.wake_pending[] = true`, so the next turn of `run_editor!` skips the wait. EditorLoop.jl:34 already says 'whatever is left waits for the next frame'.
   *Test:* test_editor_frame_drain(): a reader that throws on a `MouseUp` under `FaultPolicy()`; after `run_frame!`, assert `editor.wake_pending[]`. The same after a frame that reaches `MAX_OPERATIONS_PER_FRAME`.
-- [ ] **L22-5** (Medium, Correctness) — same fault as L21-4
+  *Done:* lane B, 041289a87.
+- [x] **L22-5** (Medium, Correctness) — same fault as L21-4
   In `drain_operations!`, take at most the operations that were ready when the drain started, and set `editor.wake_pending` when some remain. In `run_editor!`, call `yield()` once in a frame whose wait was skipped: the `run_editor!` docstring (EditorLoop.jl:119-121) says that the wait is where cooperative tasks get their turn.
   *Test:* test_editor_inbox(): a task that posts in a loop does not hold one drain for ever; after the drain, `wake_pending[]` is true.
-- [ ] **L22-6** (Medium, Correctness) — same fault as L21-2
+  *Done:* lane B, eb193821c. The drain takes `min(Base.n_avail(inbox), INBOX_CAPACITY)`; `yield()` runs whenever the timeout is 0 or less. An operation posted during a drain waits for the next frame, which runs at once.
+- [x] **L22-6** (Medium, Correctness) — same fault as L21-2
   Move the barrier and the repairs of `evaluate!` into one private function that applies one operation, with no log line and no write of `editor.operation`. Call it from `evaluate!` and for each posted operation in `drain_operations!`. Put one barrier around each `drain_changes!` (L21-2).
   *Test:* test_editor_frame_drain(): under `FaultPolicy()`, a posted operation that fails half way is taken back by its inverse, and the next posted operation applies in the same drain; a feed that throws does not stop the next feed.
-- [ ] **L22-7** (part) (Medium, Correctness)
+  *Done:* lane B, f708fa106. A private `_evaluate_operation_guarded!` applies one operation; each feed drain runs in its own barrier. **Changes what a caller sees:** a posted operation takes an inverse first and gets the repairs, and its fault record names its type.
+- [x] **L22-7** (part) (Medium, Correctness)
   Wrap `get_frame_clock_time` in `_run_barrier(editor, :device; ...)` with the wall time as the fallback. The deadline part is L21-3; the wait and its counter wait for their decision.
   *Test:* `test_editor_fault_barriers()` (L22-17): a clock that throws gives the wall time.
-- [ ] **L22-10** (Medium, Correctness)
+  *Done:* lane B, 5a6a9fe4a. The clock barrier uses the default `:device` counter; no new counter, no time limit.
+- [x] **L22-10** (Medium, Correctness)
   In the `finally` of `run_editor!`, nest the three steps in `try ... finally` so that each runs when an earlier one throws, and let the first exception go on. The docstring says that the loop quits its backend 'also when it throws'.
   *Test:* test_editor_inbox(): a call posted with `wait = false` that throws `InterruptException` is still in the inbox when the loop ends; assert that `run_editor!` throws it and that a backend stub saw `quit_backend!`.
-- [ ] **L22-11** (Medium, Architecture)
+  *Done:* lane B, 5a03af00e. When two steps throw, Julia raises the later one and keeps the first in `current_exceptions()`.
+- [x] **L22-11** (Medium, Architecture)
   In `_make_operation_inverse`, the inverse block of `_repair_after_operation_fault!` and `_repair_selection!`: `catch exception`, then `is_passthrough_exception(exception) && rethrow()`, then `record_fault!(editor.faults, :evaluate; origin = <the operation type or the repair>, exception, traceback = catch_backtrace())`.
   *Test:* FaultBarriersTest.jl (L22-17): under `FaultPolicy()`, an operation whose `make_inverse_operation` throws leaves one fault record; an `InterruptException` from the inverse goes through the repair.
-- [ ] **L22-16** (Medium, Types/performance)
+  *Done:* lane B, feb0b3c57. The selection repair records the origin `:_repair_selection!`. An inverse that throws now leaves a record, so the console shows it.
+- [x] **L22-16** (Medium, Types/performance)
   Log `describe_operation(operation)` in place of the interpolated operation, still at `@info`, so the `evaluate!` docstring ('Logs the operation') stays true. The report's `@debug` or switch changes what the message log shows, so it is left out.
   *Test:* test_escape_quit() or a new testset: `@test_logs` sees an info line with the `describe_operation` text of a `ReplaceSelectionOperation` that `evaluate!` applies.
-- [ ] **L22-18** (Low, Correctness)
+  *Done:* lane B, 6342ba2ee. The line reads, for example, `[operation] select .value`.
+- [x] **L22-18** (Low, Correctness)
   In `read!`, when `leave_safe_mode!(editor)` answers true, clear `editor.operation`, set `editor.wake_pending`, and return `false`, so that `run_frame!` paints before it reads on. In `run_editor!(editor)`, print once in the `:print` barrier before the first frame when `editor.iomap === nothing`.
   *Test:* test_fault_safe_mode(): in the safe mode, Escape and a key in one read; assert that the key applies on the next frame. test_editor_wait(): an `Editor(...)` with a queued key applies it in its first frame.
-- [ ] **L22-20** (Low, Correctness)
+  *Done:* lane B, 3258bf26a.
+- [x] **L22-20** (Low, Correctness)
   Read `time_ns()` for `t_start` and `frame_started`, and convert the differences to seconds.
   *Test:* test_editor_wait() as a regression run; no test can step the system clock.
-- [ ] **L22-25** (Low, Shape)
+  *Done:* lane B, 82d56f21e.
+- [x] **L22-25** (Low, Shape)
   Move `evaluate!` and `print!` into ReadEvaluatePrint.jl and keep the barrier helpers in FaultBarriers.jl; move `get_fault_store(editor)` into Editor.jl; correct the header of EditorLoop.jl to name `get_frame_clock_time` and `make_editor`. The other way, headers that list what each file holds now, makes the headers longer than the budget of L22-30.
   *Test:* test_kernel() as a regression run; the fragments share one namespace, so no caller changes.
-- [ ] **L22-26** (part) (Low, Shape)
+  *Done:* lane B, 5e0941da9, with the last "thunk" of L01-15 in `print!`.
+- [x] **L22-26** (part) (Low, Shape)
   Sort the 18 `using` lines of EditorModule.jl by module name, put a comment above `import ..FeedModule: drain_changes!` that says the module extends it, and list the fragments in the module docstring. The server options wait for their decision; the export block is in export-block-rule.md.
   *Test:* The layering guard passes.
+  *Done:* lane B, 99209b910.
 
 ## Phase 3 — The fixes in sealed files
 
@@ -1020,15 +1034,18 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.19: Tests of the feed and editor layers
 
-- [ ] **L21-7** (Low, Tests) — after L21-2, L21-3
+- [x] **L21-7** (Low, Tests) — after L21-2, L21-3
   Move test/kernel/feed/FeedTest.jl to test/kernel/editor/FeedsTest.jl (it tests editor/Feeds.jl). Add a drain that throws (L21-2) and a deadline that throws (L21-3).
   *Test:* test_editor_feeds() from its new file, with the two new cases.
-- [ ] **L22-17** (Medium, Tests) — after L22-6, L22-11
+  *Done:* lane B, 7a9421d5c. **At the merge:** lane A made test/kernel/editor/FeedsTest.jl too (`test_editor_frame_performance`); join both bodies in one file, keep one include in ProjecturedKernelTest.jl, and join the export line of KernelSuite.jl.
+- [x] **L22-17** (Medium, Tests) — after L22-6, L22-11
   Add test/kernel/editor/FaultBarriersTest.jl with a backend that throws on demand in `read_from_devices` and `write_to_devices` (in the test file or ProjecturedKernelExample) and an operation that fails half way. Cover repairs 0 to 2, the two breakers at their limits, a reader that throws in `run_frame!`, a feed that throws in the drain, a queued call that throws in `_answer_waiting_calls!`, and the zoom keys.
   *Test:* test_editor_fault_barriers() in ProjecturedKernelTest.
-- [ ] **L22-31** (part) (Low, Tests)
+  *Done:* lane B, 6a4d272b5. FaultBarriersTest.jl has 39 checks, with the tests of L22-7 and L22-11.
+- [x] **L22-31** (part) (Low, Tests)
   Add a kernel test of `find_rooted_operation` with a stand-in projection that follows a route, and drive `walk_repl_loop` through a real `Editor` and `run_frame!`. The private names that the tests use wait for their decision.
   *Test:* The two new test sets pass.
+  *Done:* lane B, 53696f49d: the test of `find_rooted_operation` (DocumentEditsTest.jl). **Moved to the decisions:** `walk_repl_loop` through a real `Editor` and `run_frame!`. It drives the REPL sweep of every example; through `read!`, an Escape that no reader takes becomes a quit, and the zoom keys and the click pairing change what each example reports. test_kernel 2582 in lane B; test_fault 78; test_substrate 86852 and the 7 known failures; test_sdl 774; test_web_backend 38; test_mcp_tools 158.
 
 ## Phase 5 — The renames
 
@@ -1358,6 +1375,7 @@ findings is already an item above, marked "(part)".
 | L22-24 | Low | Which of the ten names stay exported? |
 | L22-27 | Low | Which names replace `perf!` and `_zoom_operation` (decide with L02-5, the other name of the counters)? |
 | L22-31 | Low | Do the four private names that the tests use become public, or do the tests stop naming them? |
+| L22-31 (part 2) | Low | May `walk_repl_loop` drive each example through a real `Editor` and `run_frame!`, where an Escape that no reader takes quits and the zoom keys and the click pairing change what each example reports? |
 | L23-1 | High | Does `play_live!` drain the feeds, which reverses the recorded design that a scripted timeline must not apply foreign posts, or does L23-5 replace the loop? |
 | L23-4 | Medium | Which package declares the timeline entry kinds, and what does `await` mean: a predicate of the editor, or of the document? |
 | L23-5 | Medium | Does playback stay in the kernel with its own loop, or become a source of input around `run_editor!`, as `VideoBackend` does, and in which package? |
