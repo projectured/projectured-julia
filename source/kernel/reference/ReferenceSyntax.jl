@@ -357,15 +357,19 @@ end
 Parse a one-step expression (the `@reference_step` grammar) with
 [`parse_reference_path`](@ref). A leading identifier in front of an operator
 (`xs[i]`, `xs{k}`, `c.name(...)`) is a **placeholder** and is dropped; only a bare
-symbol (`value`) is taken as a field name. A type step and a splice are not steps
-that `@reference_step` builds.
+symbol (`value`) is taken as a field name. A type step, a splice and a tail bind
+(`x...`) are not steps that `@reference_step` builds, and a path of two field steps
+(`a.b`) is not one step.
 """
 function parse_reference_step(ex)
     steps = parse_reference_path(ex)
-    # The path parser reads a placeholder as a field step in front of the step.
-    length(steps) == 2 && steps[1] isa ReferenceSyntaxField && popfirst!(steps)
+    # The path parser reads a placeholder as a field step in front of the step. Two
+    # field steps (`a.b`) are a path of two steps, not a placeholder and a step.
+    length(steps) == 2 && steps[1] isa ReferenceSyntaxField &&
+        !(steps[2] isa ReferenceSyntaxField) && popfirst!(steps)
     (length(steps) == 1 &&
-     !(steps[1] isa Union{ReferenceSyntaxType, ReferenceSyntaxSplice})) ||
+     !(steps[1] isa Union{ReferenceSyntaxType, ReferenceSyntaxSplice,
+                          ReferenceSyntaxTailBind})) ||
         error("unsupported @reference_step syntax: $ex")
     return only(steps)
 end

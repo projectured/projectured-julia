@@ -175,6 +175,10 @@ end
 # of its own.
 @test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(x::A))
 @test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(a.b.c))
+# Two field steps are a path, not a placeholder and a step; a tail bind is a pattern word.
+@test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(a.b))
+@test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(x...))
+@test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(a.x...))
 # `test_point_reference` tests `@reference_step c.point(2, 3)`.
 
 # ── @reference_case range pattern ───────────────────────────────────────
