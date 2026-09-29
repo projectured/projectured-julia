@@ -8,6 +8,10 @@ keeps the interface sufficient.
 Covers:
 - `@document` field auto-wrapping in Cells,
 - `getproperty` unwraps stored Cells,
+- `SelectionDocument` and `unwrap_selection`: the live or dormant selection,
+- the seams of a wrapper: `get_wrapped_document`, `get_edited_field` and
+  `replace_wrapped_document!`,
+- `@forward_protocol` and `@adapt_map_protocol`,
 - `copy_document` round-trips a document tree (same kind and kind-converting).
 """
 
@@ -105,6 +109,26 @@ end
 end
 @adapt_map_protocol on ContractMap to entries with ContractEntry(key, value)
 
+# A wrapper that forwards three functions to its field, and no other.
+@document struct ContractStack
+    items::Vector{Any} = Any[]
+end
+@forward_protocol [Base.length, Base.getindex, Base.push!] on ContractStack to items
+
+# A layer that holds the document a person edits in its field `content`, and
+# stays in place when that document is replaced.
+@document struct ContractHolder
+    content::Any = nothing
+end
+ProjecturedKernel.DocumentModule.get_wrapped_document(holder::ContractHolder) =
+    holder.content
+ProjecturedKernel.DocumentModule.get_edited_field(::ContractHolder) = :content
+function ProjecturedKernel.DocumentModule.replace_wrapped_document!(
+        holder::ContractHolder, document)
+    holder.content = document
+    holder
+end
+
 function test_document_contract()
 @testset "DocumentContract" begin
 
@@ -118,6 +142,79 @@ function test_document_contract()
         # Every document carries a selection field per the contract.
         @test hasfield(typeof(n), :selection)
         @test get_selection(n) === nothing
+    end
+
+    @testset "a selection document holds the path and whether it is live" begin
+        path = extend_reference(EmptyReference(), FieldReferenceStep("label"))
+        live = SelectionDocument(; primary = path)
+        dormant = SelectionDocument(; primary = path, live = false)
+        @test live.live
+        @test unwrap_selection(live) === path
+        @test unwrap_selection(dormant) === nothing
+        @test unwrap_selection(path) === path
+        @test unwrap_selection(nothing) === nothing
+
+        # The property read unwraps what the selection cell holds; the cell keeps it.
+        node = ToyNode("root", nothing, nothing)
+        getfield(node, :selection)[] = live
+        @test node.selection === path
+        getfield(node, :selection)[] = dormant
+        @test node.selection === nothing
+        @test getfield(node, :selection)[] === dormant
+
+        # A copy keeps the dormant state, in a selection document of its own.
+        copied = getfield(copy_document(node), :selection)[]
+        @test copied isa SelectionDocument
+        @test !copied.live
+        @test strip_reference_types(copied.primary) == path
+        @test copied !== dormant
+    end
+
+    @testset "a wrapper adds a method to each seam, a document keeps the default" begin
+        node = ToyNode("inner", nothing, nothing)
+        other = ToyNode("other", nothing, nothing)
+        @test get_wrapped_document(node) === node
+        @test get_edited_field(node) === nothing
+        @test replace_wrapped_document!(node, other) === other
+
+        holder = ContractHolder(content = node)
+        @test get_wrapped_document(holder) === node
+        @test get_edited_field(holder) === :content
+        @test replace_wrapped_document!(holder, other) === holder
+        @test holder.content === other
+    end
+
+    @testset "@forward_protocol forwards the listed functions to the field" begin
+        stack = ContractStack(items = Any[1])
+        @test push!(stack, 2) === stack
+        @test length(stack) == 2
+        @test stack[2] == 2
+        @test stack.items == [1, 2]
+        @test !hasmethod(pop!, Tuple{ContractStack})
+        wrong_keyword = :(@forward_protocol [Base.length] at ContractStack to items)
+        @test_throws "expected `on`" macroexpand(@__MODULE__, wrong_keyword)
+        no_vector = :(@forward_protocol Base.length on ContractStack to items)
+        @test_throws "vector literal" macroexpand(@__MODULE__, no_vector)
+    end
+
+    @testset "@adapt_map_protocol reads and writes the entries by key" begin
+        table = ContractMap(entries = Any[])
+        table["a"] = 1
+        table["b"] = 2
+        table["a"] = 3
+        @test keys(table) == ["a", "b"]
+        @test values(table) == [3, 2]
+        @test table["a"] == 3
+        @test haskey(table, "b")
+        @test !haskey(table, "c")
+        @test get(table, "c", 0) == 0
+        @test_throws KeyError table["c"]
+        # A second entry with the same key goes with the first.
+        push!(table.entries, ContractEntry("a", 4))
+        @test delete!(table, "a") === table
+        @test collect(table) == [("b", 2)]
+        no_constructor = :(@adapt_map_protocol on ContractMap to entries with key)
+        @test_throws "constructor call" macroexpand(@__MODULE__, no_constructor)
     end
 
     @testset "copy_document round-trips a document tree" begin
