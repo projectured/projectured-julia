@@ -60,7 +60,7 @@ KeyDown(:return, ModifierKeys(ctrl=true); time = t) # Ctrl-Enter
 MousePress(:left, 132, 47; time = t)              # left button at pixel (132, 47)
 MouseMove(120, 90; time = t)                      # cursor moved to (120, 90)
 MouseScroll(0, 1, 200, 300; time = t)             # wheel scrolled (dx, dy) at (200, 300)
-WindowQuit(; time = t)                            # the window was closed
+WindowQuit(; time = t)                            # the user asked to quit the application
 ```
 
 Every event holds `time`, the time of the input in seconds on the clock of
@@ -425,53 +425,62 @@ that produced it, nor to the document it will end up changing.
 The layer lives in [source/kernel/event/](../../../source/kernel/event/):
 
 ```
-EventModule.jl   (EventModule)        — the input event vocabulary, seven fragments:
-        ├─ EventInterface.jl  — the Event/DeviceEvent/SyntheticEvent types and
-        │                       the get_modifier_keys generic every event answers
-        ├─ ModifierKeys.jl       — the Ctrl/Shift/Alt/Meta struct
-        ├─ KeyboardEvent.jl   — KeyDown, KeyUp, KeyPress, KeyChord
-        ├─ MouseEvent.jl      — MouseDown, MouseUp, MousePress, MouseMove,
-        │                       MouseEnter, MouseLeave, MouseScroll
-        ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus
-        ├─ WindowInput.jl   — an event plus the id of the window it came from
-        └─ EventDefaults.jl   — the get_modifier_keys fallback and the four
-                                has_*_modifier_key predicates derived over it
-EventModule.jl  (EventModule) — the event pattern language: the reified
-                                        EventPattern, matches/describe, the
-                                        @event_case macro, and the parser API
-                                        @gestures is built on
+EventModule.jl (EventModule) — the module: its docstring, exports, and eight fragments
+        ├─ EventInterface.jl — Event, DeviceEvent and SyntheticEvent, and
+        │                      get_modifier_keys and get_event_time, the
+        │                      generics that every event answers
+        ├─ ModifierKeys.jl   — the Ctrl, Shift, Alt and Meta keys that an event holds
+        ├─ KeyboardEvent.jl  — KeyDown, KeyUp, KeyPress, KeyChord
+        ├─ MouseEvent.jl     — MouseButtons, and MouseDown, MouseUp, MousePress,
+        │                      MouseMove, MouseEnter, MouseLeave, MouseScroll
+        ├─ WindowEvent.jl    — WindowQuit, WindowClose, WindowResize, WindowDefocus
+        ├─ WindowInput.jl    — an event and the id of the window it came from
+        ├─ EventDefaults.jl  — the fallbacks of get_modifier_keys and
+        │                      get_event_time, and the four has_*_modifier_key
+        │                      predicates over get_modifier_keys
+        └─ EventPattern.jl   — the pattern language: EventPattern, its parser,
+                               and @event_case, whose docstring documents the syntax
 ```
 
-### EventModule
+### The events
 
 Every concrete event subtypes either `DeviceEvent` (what a device reports —
 `KeyDown`, `MouseDown`, `WindowClose`, …) or `SyntheticEvent` (derived from
 several device events by whoever holds the state spanning them — `MousePress`
 from a down/up pair, `KeyChord` from a key sequence, `MouseEnter`/`MouseLeave`
-from motion crossing a boundary); both are `Event`s. `get_modifier_keys` (and
-`has_ctrl_modifier_key`/`has_shift_modifier_key`/`has_alt_modifier_key`/`has_meta_modifier_key` on top of it) is defined once over
-`Event`, so it works for mouse events as well as keyboard ones.
-`WindowClose`, `WindowResize`, and `WindowDefocus` live here, not with the
-concrete `ScreenDocument` in `visual` — a window event is report-only input
-vocabulary, not a document type; the window *document* and its operations
-(`OpenWindowOperation`, `CloseWindowOperation`, …) stay in `source/screen/`.
+from motion crossing a boundary); both are `Event`s. Every event answers two
+generics. `get_event_time` returns the time of the input. `get_modifier_keys`
+returns the modifier keys, and `has_ctrl_modifier_key`, `has_shift_modifier_key`,
+`has_alt_modifier_key` and `has_meta_modifier_key` read it. These functions are
+defined once over `Event`, so they work for mouse events as well as keyboard ones.
 
-### EventModule
+`WindowQuit` is a request to quit the whole application. `WindowClose` is a
+request to close one window. `WindowClose`, `WindowResize`, and `WindowDefocus`
+live here, not with the concrete `ScreenDocument` of the screen package: a window
+event is report-only input vocabulary, not a document type. The window
+*document* and its operations (`OpenWindowOperation`, `CloseWindowOperation`, …)
+stay in `source/screen/`.
 
-One surface syntax for saying "this kind of event, with these field values
-and these modifiers held", ridden by two consumers: an
-[`EventPattern`](../../../source/kernel/event/EventModule.jl) is
-*data* answering `matches(pattern, event)` and `describe(pattern)` — the
-per-event constructors (`KeyDownPattern`, `MousePressPattern`, …) name the
-type and its most-constrained field, all producing the one generic
-`EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventModule.jl)
-compiles a table of `pattern => result` rules straight to `isa`/field tests,
-first match wins. Both ride on one parser — exported as a macro-authoring API
-(`parse_event_rule`, `event_pattern_expr`, `event_field_bindings`) — so the
-`@gestures` DSL in the binding layer reuses the surface syntax instead of
-reimplementing it. The field table each pattern may bind is *derived* from
-`EventModule`'s own exports, so a new event type is matchable the moment it
-is exported, with no entry to add here.
+### The event patterns
+
+One surface syntax says "this kind of event, with these field values and these
+modifiers held". It has two forms. An
+[`EventPattern`](../../../source/kernel/event/EventPattern.jl) is *data*:
+`matches_event_pattern(pattern, event)` tests an event, and
+`describe_event_pattern(pattern)` writes the input for a person. The per-event
+constructors (`KeyDownPattern`, `MousePressPattern`, …) name the type and its
+most-constrained field, and all of them make the one generic
+`EventPattern{E<:Event}` struct.
+[`@event_case`](../../../source/kernel/event/EventPattern.jl) compiles a table of
+`pattern => result` rules straight to `isa`/field tests, and the first match wins.
+
+Both forms use one parser. The module exports it as an API for a macro writer:
+`parse_event_pattern_rule`, `build_event_pattern_expr` and
+`build_event_field_bindings`. So the `@gestures` DSL in the binding layer uses the
+same syntax and does not implement it again. The name of an event type in a
+pattern resolves in the module where the pattern is written, and then in
+`EventModule`. So an event type of another package is matchable in that package,
+with no entry to add here.
 
 ### WindowInput
 

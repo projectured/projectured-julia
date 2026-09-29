@@ -109,7 +109,12 @@ The two extra arguments are essential:
 
 A two-argument convenience overload `print_document(p, input)` is defined in
 [projection/ProjectionDefaults.jl](../../../source/kernel/projection/ProjectionDefaults.jl) and supplies
-`nothing` and a fresh `PrinterContext()`. The editor uses this.
+`nothing` and a fresh `PrinterContext()`. It serves a leaf projection, or a
+pipeline that a `RecursiveProjection` wraps. A node projection called through it
+has no `recursion` to print its children with. The editor calls the four-argument
+form: its `recursion` is `nothing`, and its context carries the clock of the
+editor, the document of the editor under `:root`, and the fault store and the
+fault policy.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
 parameter; it is computed reactively. The canonical form maps the input
@@ -145,8 +150,9 @@ print_document_pure(projection, recursion, input, ctx) → output
 print_child_pure(recursion, input, ctx) → output
 ```
 
-A pipeline uses this pair for batch or export work — writing an image, a PDF, or
-a text serialization — where nothing is edited and no selection maps back.
+The pair is for batch or export work, such as an image, a PDF or a text
+serialization, where nothing is edited and no selection maps back. No pipeline of
+the repository calls it: the export functions print with `print_document`.
 Every projection gets this automatically: the default falls back to a snapshot of the
 reactive output, so a projection author writes `print_document_pure` only to
 skip that snapshot on a path a profile shows is slow. `ChainingProjection`,
@@ -157,13 +163,16 @@ in
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([intent/IntentModule.jl](../../../source/kernel/intent/IntentModule.jl)) —
+The reader's payload is a **`Intent`** ([intent/Intent.jl](../../../source/kernel/intent/Intent.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
 struct Intent
-    gesture    # the originating device event (MousePress/KeyDown), threaded UNCHANGED
-    operation  # the change in the current projection's input domain; starts nothing
+    gesture::Any        # the originating device event (MousePress/KeyDown), threaded UNCHANGED
+    operation::Any      # the change in the current projection's input domain; starts nothing
+    description::String # what the change does, in words; empty when the reader says nothing
+    domain::String      # the heading that groups the change in a list of what is available
+    route::Union{Nothing,Reference}  # the path to the place of an operation that code made
 end
 ```
 
@@ -179,7 +188,7 @@ A reader returns a `Intent`: either it keeps `operation === nothing`, meaning it
 found no operation to return, or it returns a fresh `Intent` with the gesture
 preserved and a real operation swapped in.
 
-A fifth field, `route`, carries a path when the change comes from code that
+The fifth field, `route`, carries a path when the change comes from code that
 already has the place its operation belongs to, rather than from a gesture;
 a reader follows it down to that place and lifts the answer back up exactly as
 it lifts the answer to a gesture — see

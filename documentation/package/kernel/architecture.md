@@ -161,11 +161,12 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 
 | Folder | Holds |
 | --- | --- |
-| `performance/` | `PerformanceModule` — the per-frame performance counters (see [cell.md](cell.md)) |
+| `fault/` | `FaultModule` — the fault record, the store, the policy, the barrier and the report (see [fault.md](../fault/fault.md)) |
+| `performance/` | `PerformanceModule` — the per-frame performance counters and the frame measurement store of an editor, `FrameMeasurementStore` (see [cell.md](cell.md)) |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
 | `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, and `start_wall_clock!`/`stop_wall_clock!`, the heartbeat that writes real time into a clock |
-| `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`EventPattern`, `@event_case`) |
+| `event/` | `EventModule` — the input event vocabulary (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and the event pattern language (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
@@ -191,6 +192,6 @@ ProjecturedKernel.XxxModule` aliases, so its files can use relative `..XxxModule
 imports. The `Projectured` umbrella mechanically re-exports every public name of
 every kernel (and domain) submodule into one flat namespace. Consequently, **module
 names are de-facto public API**: renaming one ripples into the domain alias block
-and the umbrella. A new sub-module added within a layer (as `PerformanceModule`
-and `IntentModule` are) is picked up by the umbrella automatically and
-needs only an added domain alias if a domain file imports from it directly.
+and the umbrella. The module of a new layer, such as `PerformanceModule` or
+`IntentModule`, is picked up by the umbrella automatically and needs only an
+added domain alias if a domain file imports from it directly.

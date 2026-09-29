@@ -369,7 +369,8 @@ includes them in:
                get_clock_time / set_clock_time!, start_wall_clock! / stop_wall_clock!
  6 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
-               language (EventPattern, matches, describe, @event_case)
+               language (EventPattern, matches_event_pattern, describe_event_pattern,
+               @event_case)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
  8 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
  9 backend     the Backend seam (lifecycle, device I/O, the wait and the wake, display

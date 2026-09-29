@@ -29,12 +29,13 @@ Holds the state for a read-eval-print loop:
                    frame drains once. Per editor, so two editors in one process
                    never read each other's faults.
   - `fault_policy` — what this editor does with a fault. **It starts strict: a
-                   barrier catches nothing.** A programmatic editor — every one
-                   a test builds — therefore behaves exactly as it does without
+                   barrier catches nothing.** An editor that a test builds with
+                   `Editor(…)` therefore behaves exactly as it does without
                    this feature, and a broken projection fails its test rather
-                   than passing quietly. [`run_editor!`](@ref) is what turns the
+                   than passing quietly. [`make_editor`](@ref) turns the
                    barriers on, because a loop a person is sitting in front of
-                   is the thing that must survive.
+                   is the thing that must survive. [`run_editor!`](@ref) keeps
+                   the policy of its editor.
   - `replaced_projection` — the projection the safe mode put aside, or
                    `nothing` when the editor is not in the safe mode.
   - `feeds`      — the registered inflows, drained once per frame by

@@ -4,8 +4,9 @@
 #
 # One barrier per stage of the frame. Each one answers its fallback rather than
 # the exception, so a stage that fails costs that stage and not the editor.
-# `editor.fault_policy` decides whether any of them catches at all; a programmatic
-# editor starts strict, and `run_editor!` is what turns them on.
+# `editor.fault_policy` decides whether any of them catches at all. An editor that
+# `Editor(…)` builds starts strict, `make_editor` turns the barriers on, and
+# `run_editor!` keeps the policy of its editor.
 
 # What a barrier answers when it caught. A sentinel rather than `nothing`,
 # because `nothing` is a value a stage may answer for itself.
