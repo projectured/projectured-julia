@@ -4663,6 +4663,20 @@ spreadsheet and a log with a fixed first line all want one.
 """
 get_frozen_extent(::Any) = nothing
 
+"""
+    get_frozen_elements(iomap) -> `(held, travelling)`, or `nothing`
+
+The elements of a printed content that an enclosing `WidgetScrollPane` draws in
+the strip that it holds still, and the elements that it draws in its body. A
+content that answers `nothing` has every element drawn in every region, clipped
+to the region, and that is every content but a table whose rows are a list.
+
+A list has rows before its head, at a negative offset. Drawn in every region,
+those rows show through the header strip when the pane scrolls above the head,
+and the header shows in the body. So such a table keeps its header apart.
+"""
+get_frozen_elements(::Any) = nothing
+
 # One region of a pane that holds a prefix of its content still.
 #
 # Four of them tile the viewport: the corner holds both axes, the two strips hold
@@ -4878,10 +4892,14 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                                           Cell(nothing)))
         else
             # The body first and the corner last, so a rounded edge never leaves
-            # the body drawn over a strip.
+            # the body drawn over a strip. A content that keeps its frozen
+            # elements apart has them drawn where the vertical axis is held, and
+            # the rest where it travels.
+            parts = get_frozen_elements(content_iomap)
             for (hold_x, hold_y) in ((false, false), (false, true), (true, false), (true, true))
+                region_elements = parts === nothing ? held : (hold_y ? parts[1] : parts[2])
                 push!(elems, _pane_frozen_region(cox, coy, vw_cell, vh_cell, frozen,
-                                                 inner_x, inner_y, held, hold_x, hold_y))
+                                                 inner_x, inner_y, region_elements, hold_x, hold_y))
             end
         end
     end

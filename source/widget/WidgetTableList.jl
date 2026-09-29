@@ -369,6 +369,14 @@ end
 get_frozen_extent(iomap::WidgetTableListIoMap) =
     Cell(@computation (0, Int(iomap.state.header_height[])))
 
+# The header strip holds still and the body travels. The rows before the head
+# have a negative offset, so the header and the rows must not share a region.
+function get_frozen_elements(iomap::WidgetTableListIoMap)
+    elements = iomap.output.elements
+    length(elements) == 2 || return nothing        # no header: nothing is held
+    (CellVector(Cell[Cell(elements[1])]), CellVector(Cell[Cell(elements[2])]))
+end
+
 # ── References ───────────────────────────────────────────────────────────────
 
 _wtl_cell_reference(k::Int, c::Int, tail) =

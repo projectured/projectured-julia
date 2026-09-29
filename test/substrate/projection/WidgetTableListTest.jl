@@ -343,6 +343,21 @@ end
     @test first_row - after_one == after_one - after_two
 end
 
+@testset "rows before the head draw in the body, and the header only in its strip" begin
+    # The head is the last row, so the pane shows the rows before it, at a
+    # negative offset, and its offset is negative too.
+    printed = print_pane(make_indexed_list(40, texts_of; at = 40))
+    regions = [e for e in printed.io.output.elements if e isa GraphicsViewport]
+    strip = regions[2]                      # the vertical axis held
+    in_body = Set(t[3] for t in texts(printed.body))
+    in_strip = Set(t[3] for t in texts(strip))
+    @test "row 40" in in_body
+    @test "row 39" in in_body
+    @test "name" ∉ in_body
+    @test "value" ∉ in_body
+    @test in_strip == Set(["name", "value"])
+end
+
 @testset "a list shorter than the pane starts at its top" begin
     printed = print_pane(make_indexed_list(3, texts_of); scroll_y = 400)
     @test label_y(printed, "row 1") == body_top(printed) + text_inset(printed)
