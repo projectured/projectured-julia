@@ -307,7 +307,7 @@ Use the run of the report as the regression test: `x = 1:2:5`, then `step = noth
 - [x] **L17-1** (High, Correctness)
   In _find_conditional, take a field whose cell is_computed_cell and holds a marker vector, and drop the test for a bare Function. In _conditional_print, read that cell inside the state computation, and give the output node a new children cell in the _with_selection rebuild, because a write into the computed cell deletes its computation.
   *Test:* New test_projection_template_conditional_children() in ProjectionTemplateTest.jl: a probe builder writes SyntaxConcatenation(() -> ...) over an optional field; write nothing, then a value, through the same IoMap; assert that the output children follow each write and that nothing throws. Also the case x = 1:2:5 with r.step = nothing in test_julia_to_syntax().
-  *Done:* lane B, fa1c8c02. `_find_conditional` reads the children cell with `peek`, so that the computation that prints the parent does not depend on the child list; the state cell holds the tracked read. Both regression tests fail on the old code. Suites: test_julia 410 (+3), test_substrate 86839 (+9), the others at their baseline. A remaining risk, for L17-15: the walk in the state cell strips the `bound` markers of the vector that it reads, so a second run on the same cached vector would make a bound leaf an introduced slot. No rule of today reruns it. The macros guide does not describe the thunk child list (for L17-23).
+  *Done:* lane B, fa1c8c02. `_find_conditional` reads the children cell with `peek`, so that the computation that prints the parent does not depend on the child list; the state cell holds the tracked read. Both regression tests fail on the old code. Suites: test_julia 410 (+3), test_substrate 86839 (+9), the others at their baseline. A remaining risk, for L17-15: the walk in the state cell strips the `bound` markers of the vector that it reads, so a second run on the same cached vector would make a bound leaf an introduced slot. It runs again when a thunk child list is nested in another one: the outer walk reads the inner markers cell with a tracked read, so an edit of the inner list runs the outer walk again over its stripped vector. No template of today nests two thunk lists (found by the review). The macros guide does not describe the thunk child list (for L17-23).
 
 ### Step 1.5: The pipes of the code tool
 
@@ -720,7 +720,7 @@ Sealed files: `FaultBarrier.jl`, `FaultCascade.jl`, `FaultInterface.jl`, `FaultM
 - [x] **L01-10** (Low, Correctness) — 🔒 `FaultStore.jl`
   Give `drain_faults!` a keyword `policy = FaultPolicy()`, skip the refusal line when `policy.is_console_enabled` is false, and pass `editor.fault_policy` from `report_frame_faults!`. Chosen over an answer that carries the failures: smaller, and the same result.
   *Test:* test_fault_store: a target that throws, drained with the quiet policy, writes no log line (@test_logs); with FaultPolicy() it writes one.
-  *Done:* lane A, f0ba5e65. `drain_faults!(store; policy = FaultPolicy())`; FaultBarriers.jl passes `editor.fault_policy`.
+  *Done:* lane A, f0ba5e65. `drain_faults!(store; policy = FaultPolicy())`; FaultBarriers.jl passes `editor.fault_policy`. It also changes `_log_fault_report_failure` in the sealed FaultCascade.jl.
 - [x] **L01-13** (Low, Shape) — 🔒 `FaultCascade.jl`; after L01-6
   Remove `report_fault!(store, ::Nothing; …)` and its test line: it has no caller outside that test in the three repositories. Keep the depth, because the docstring of `report_fault!` promises it, and let the nested-call set of L01-6 cover it.
   *Test:* test_fault_report passes without the nothing line; the nested-call set of L01-6 reaches the depth > 1 arm.
@@ -1384,6 +1384,12 @@ The classifiers and the implementers found faults that the audit does not hold:
   correct the comment and the docstring of Web.jl that say the two tables mirror each other.
   *Test:* `test_web_backend()`: the key `\` gives `:backslash`.
   *Done:* 4fae78eab, with PAR-BACKEND-SEAM, which named the difference. test_web_backend 101; test_kernel 3901 and 2 broken; test_mcp_tools 158; test_search_scale 45; the guards find nothing. Also corrected: fault.md, architecture-rules.md, the index row of PAR-STORE-THEN-DRAIN (0ee7362a0) and a history comment of WidgetToGraphics.jl (fd12c4dc0). **Still stale, outside the items:** division-terminology.md:78 names "base/visual" packages; architecture-rules.md:110-120 gives old paths and "twenty-eight" (package-rules.md says 29); CodeExecution.jl:102 names `PaneSplit`; the `@document_preset` docstring holds a history paragraph.
+- [ ] **N-9** (Medium, Correctness) — found by the review
+  L11-3 made the matchers, the copy, the fold and the selection walk take either step layout, but
+  `_write_slot!` (Operations.jl) and `_make_slot_inverse` (Inversion.jl) take only the C layout,
+  so `ReplaceReferencedValueOperation(leaf, Reference(MFieldReferenceStep("value")), 2)` throws
+  `MethodError`. Dispatch on the layout family, as L11-3 does.
+  *Test:* `test_inversion()`: a write and its inverse through an `M…` step.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
