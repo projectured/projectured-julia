@@ -15,6 +15,29 @@ ProjectionModule.print_document(::AlwaysFailingProjection, recursion, input, ctx
     error("this printer never works")
 ProjectionModule.read_intent(::AlwaysFailingProjection, recursion, change::Intent, iomap) = change
 
+# Fails to print while `is_broken[]` holds, and turns the key `a` into an
+# operation that records it.
+struct RecoveringProjection <: Projection
+    is_broken::Base.RefValue{Bool}
+    log::Vector{Any}
+end
+ProjectionModule.print_document(p::RecoveringProjection, recursion, input, ctx) =
+    p.is_broken[] ? error("this printer does not work yet") :
+                    SimpleIoMap(nothing, input, input)
+function ProjectionModule.read_intent(p::RecoveringProjection, recursion, change::Intent,
+                                      iomap)
+    gesture = change.gesture
+    event = gesture isa WindowInput ? gesture.event : gesture
+    (event isa KeyDown && event.key === :a) || return change
+    Intent(gesture, RecordKeyOperation(p.log))
+end
+
+struct RecordKeyOperation <: Operation
+    log::Vector{Any}
+end
+OperationModule.evaluate_operation(::Editor, operation::RecordKeyOperation) =
+    (push!(operation.log, :a); nothing)
+
 _tolerant_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 function _failing_editor()
@@ -77,6 +100,30 @@ function test_fault_safe_mode()
         @test editor.projection isa AlwaysFailingProjection
         # Escape did not become a quit while it was doing that.
         @test editor.operation === nothing
+    end
+
+    @testset "the input behind the Escape out of the safe mode waits for a paint" begin
+        is_broken = Ref(true)
+        log = Any[]
+        editor = Editor(HeadlessBackend(), SafeModeProbe(),
+                        RecoveringProjection(is_broken, log), Device[])
+        editor.fault_policy = _tolerant_policy()
+        for _ in 1:get_consecutive_fault_limit(:print)
+            run_frame!(editor)
+        end
+        @test is_editor_in_safe_mode(editor)
+        run_frame!(editor)                   # one frame to paint the safe mode
+        is_broken[] = false
+        push_event!(editor.backend, _escape())
+        push_event!(editor.backend,
+                    WindowInput(:main, KeyDown(:a, ModifierKeys(); time = 0.0)))
+        Threads.atomic_xchg!(editor.wake_pending, false)
+        run_frame!(editor)
+        @test !is_editor_in_safe_mode(editor)
+        @test isempty(log)                   # the key waits for the paint
+        @test editor.wake_pending[]          # which the next frame makes at once
+        run_frame!(editor)
+        @test log == [:a]
     end
 
     @testset "a strict editor never enters the safe mode" begin

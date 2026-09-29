@@ -130,7 +130,8 @@ has subscribers, the nearest feed deadline, else never. Each frame:
 inbox first, then every registered feed — then `run_frame!` applies every
 operation the backend has waiting and repaints once. `read!` internally
 swallows envelopes that don't translate to an operation, so no outer drain
-is needed.
+is needed. An editor with no IoMap, as `Editor(…)` makes it, prints once before
+its first frame, so the first frame reads its input against an IoMap.
 
 A backend without a real wait sleeps one 10 ms poll slice per call (the
 `BackendDefaults` fallback), which also gives cooperative `@async` tasks
@@ -168,6 +169,13 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) :
                        nothing
         server === nothing || start_agent_server!(server)
+        # An editor that has no IoMap prints once before its first frame, because
+        # `read!` drops an input that no IoMap can read.
+        if editor.iomap === nothing
+            _run_barrier(editor, :print; origin = typeof(editor.projection)) do
+                print!(editor)
+            end
+        end
         # Advance this editor's private animation clock once per frame;
         # subscribers via `get_reactive_clock_time(editor.clock)` re-evaluate
         # on the next pull. Logical time is the time of the frame that

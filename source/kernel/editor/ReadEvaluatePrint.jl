@@ -9,6 +9,8 @@ Drain input window inputs via the backend until one translates into an
 operation. Returns `true` when an operation was produced (stored in
 `editor.operation`), `false` once the backend has nothing left to
 deliver — used by `run_editor!` to decide when to stop draining and repaint.
+An Escape that leaves the safe mode also answers `false`, so the projection that
+is back paints before the input behind the Escape is read.
 
 Window inputs that don't yield an operation (no iomap yet, or a projection
 reader that passed the event through unchanged) are silently consumed;
@@ -60,8 +62,14 @@ function read!(editor::Editor)
             if _is_quit_gesture(window_input)
                 # In the safe mode, Escape means "out of this", not "out of the
                 # editor". The quit gesture goes back to its usual meaning as
-                # soon as the projection is back.
-                leave_safe_mode!(editor) && continue
+                # soon as the projection is back. The projection that is back has
+                # no IoMap, so the frame paints before it reads the input behind
+                # this Escape, and the next frame runs without a wait.
+                if leave_safe_mode!(editor)
+                    editor.operation = nothing
+                    editor.wake_pending[] = true
+                    return false
+                end
                 editor.operation = QuitEditorOperation()
                 return true
             end

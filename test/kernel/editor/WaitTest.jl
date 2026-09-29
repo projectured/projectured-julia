@@ -99,6 +99,34 @@ function FeedModule.drain_changes!(feed::AlwaysWakingFeed, editor::Editor)
     0
 end
 
+# Counts the frames of the loop and posts a quit in the third, so a loop that
+# never applies its key still ends.
+mutable struct FrameCountFeed <: Feed
+    frames::Int
+end
+function FeedModule.drain_changes!(feed::FrameCountFeed, editor::Editor)
+    feed.frames += 1
+    feed.frames == 3 && post_operation!(editor, QuitEditorOperation())
+    0
+end
+
+# Turns every gesture into an operation that records the frame it applies in.
+struct WaitKeyProjection <: Projection
+    log::Vector{Int}
+    feed::FrameCountFeed
+end
+ProjectionModule.print_document(::WaitKeyProjection, recursion, input, ctx) =
+    SimpleIoMap(nothing, input, input)
+ProjectionModule.read_intent(p::WaitKeyProjection, recursion, change::Intent, iomap) =
+    Intent(change.gesture, WaitKeyOperation(p.log, p.feed))
+
+struct WaitKeyOperation <: Operation
+    log::Vector{Int}
+    feed::FrameCountFeed
+end
+evaluate_operation(::Editor, operation::WaitKeyOperation) =
+    (push!(operation.log, operation.feed.frames); nothing)
+
 _quiet_wait_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 struct ProbeWaitOperation <: Operation
@@ -182,6 +210,17 @@ function test_editor_wait()
         @async (feed.is_done = true)
         run_editor!(editor)
         @test feed.frames < 100
+    end
+
+    @testset "an editor with no print applies a queued key in its first frame" begin
+        feed = FrameCountFeed(0)
+        log = Int[]
+        backend = HeadlessBackend()
+        editor = Editor(backend, WaitProbe(), WaitKeyProjection(log, feed), Device[];
+                        feeds = Feed[feed])
+        push_event!(backend, :key)
+        run_editor!(editor)
+        @test log == [1]
     end
 
     @testset "make_editor prints once and reads nothing, and the loop quits the backend" begin
