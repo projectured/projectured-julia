@@ -1384,12 +1384,21 @@ The classifiers and the implementers found faults that the audit does not hold:
   correct the comment and the docstring of Web.jl that say the two tables mirror each other.
   *Test:* `test_web_backend()`: the key `\` gives `:backslash`.
   *Done:* 4fae78eab, with PAR-BACKEND-SEAM, which named the difference. test_web_backend 101; test_kernel 3901 and 2 broken; test_mcp_tools 158; test_search_scale 45; the guards find nothing. Also corrected: fault.md, architecture-rules.md, the index row of PAR-STORE-THEN-DRAIN (0ee7362a0) and a history comment of WidgetToGraphics.jl (fd12c4dc0). **Still stale, outside the items:** division-terminology.md:78 names "base/visual" packages; architecture-rules.md:110-120 gives old paths and "twenty-eight" (package-rules.md says 29); CodeExecution.jl:102 names `PaneSplit`; the `@document_preset` docstring holds a history paragraph.
-- [ ] **N-9** (Medium, Correctness) — found by the review
+- [x] **N-9** (Medium, Correctness) — found by the review
   L11-3 made the matchers, the copy, the fold and the selection walk take either step layout, but
   `_write_slot!` (Operations.jl) and `_make_slot_inverse` (Inversion.jl) take only the C layout,
   so `ReplaceReferencedValueOperation(leaf, Reference(MFieldReferenceStep("value")), 2)` throws
   `MethodError`. Dispatch on the layout family, as L11-3 does.
   *Test:* `test_inversion()`: a write and its inverse through an `M…` step.
+  *Done:* 957396802. The review found it. Also from the review (ed76c017d to 7e5b277d4): `@reference_step a.b` and `x...` raise again, as before L11-21 (a regression of L11-21); the way back of an overwrite with a cell puts the old slot back (N-5); the first exception of the loop or of its end goes on to the caller (L22-10); the test of a failing feed ends when the feed barrier regresses (L21-2); `drain_faults!` refuses a policy that is not a `FaultPolicy` (L01-10); the sentinel is `_NO_MATCH` (L11-23); and text and line fixes. test_kernel 3920 and 2 broken; the other suites at their counts.
+- [ ] **N-10** (Low, Correctness) — found by the fix of L22-10
+  The `catch` of `make_editor` calls `quit_backend!`, which can hide the error of the build, as
+  the end of `run_editor!` did before L22-10. Let the first exception go on, as L22-10 does.
+  The fix of L22-10 has two costs: when the loop has thrown, an exception of a cleanup step is
+  dropped and not recorded; after a normal quit, the exception of a step is thrown again from
+  the `finally`, so its stack trace starts there.
+  *Test:* `test_editor_inbox()`: a build that throws, and a `quit_backend!` that throws; the
+  caller sees the build error.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
