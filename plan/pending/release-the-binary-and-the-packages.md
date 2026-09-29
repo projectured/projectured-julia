@@ -849,6 +849,32 @@ Facts of G1 and G2 (2026-09-29):
 - [ ] G4. The move, downstream, in a worktree of that repository: the files,
       the choosing engine, the registration and the tests. It lands before G3,
       because it works with both the old and the new `ProjecturedGraph`.
+      Committed on 2026-09-29 by the lead of that repository, on its own
+      branch; the check against `release-plan` with the two fixes below is
+      still running.
+
+Facts of G4 (2026-09-29):
+
+- **Where the port went**: a slice of the package downstream that draws the
+  topology, not a package of its own; the rules there ask for a package only for
+  a new third-party dependency. The ten files are the same code; only their
+  first line and three comments changed (checked here with `diff` against
+  `071225f08`). An engine there chooses between the two by the vertex count, as
+  the rule of 20 did, and its `__init__` registers it.
+- **Same pictures**: the three topologies there (57, 7 and 3 vertices) drew
+  byte for byte as before. The moved tests pass (109), and the C++ reference
+  programs, built again, print the numbers that the tests assert.
+- **Two faults on this side, found there and fixed here** (commit `222b30517`):
+  - `ProjecturedAdaptagrams` registered from its `__init__` even without its
+    shim, and so took the place of the engine registered before it and handed
+    every layout to `FruchtermanReingoldLayout`. It registers now only when the
+    shim is built. A shim built during a session is then used by
+    `DeferredLayout` only after the next start.
+  - `resolve_layout_engine(::DeferredLayout, n)` gave a registered engine no
+    vertex count, so a layout recorded the name of the choice for 0 vertices.
+    It now resolves the registered engine again with `n`, and it stops a
+    factory that answers a `DeferredLayout`, which would loop.
+  - `test_graph()` 371 with the three new assertions.
 
 ## Part L: the licence (R21)
 
