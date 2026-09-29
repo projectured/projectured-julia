@@ -110,9 +110,10 @@ end
 _wval(v) = Int(v isa Cell ? v[] : v)
 
 # Screen level: peel `windows` + `[i]`, delegate the tail to window `i`'s iomap,
-# and re-root what it answers at `windows[i]`.
+# and re-root what it answers at `windows[i]`. A point with no window names no
+# part: a screen point reaches a window only through the id of its window.
 function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
-    reference isa ConcreteReference || return reference
+    reference isa ConcreteReference || return (reference isa Reference ? reference : nothing)
     h = get_reference_head(reference)
     (h isa FieldReferenceStep && h.name == "windows") || return reference
     rest1 = get_reference_tail(reference)
@@ -131,7 +132,7 @@ end
 # Window level: peel `content`, delegate the tail to the content iomap, and re-root
 # what it answers at `content`.
 function _map_window(fn, iomap::ScreenWindowIoMap, reference)
-    reference isa ConcreteReference || return reference
+    reference isa ConcreteReference || return (reference isa Reference ? reference : nothing)
     h = get_reference_head(reference)
     (h isa FieldReferenceStep && h.name == "content") || return reference  # metadata: identity
     cim = iomap.content_iomap
