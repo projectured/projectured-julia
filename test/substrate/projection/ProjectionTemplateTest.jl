@@ -350,3 +350,149 @@ function test_projection_template_value_field()
               Reference(FieldReferenceStep("label"), PositionReferenceStep(1))
     end
 end
+
+# A node of each wiring kind that makes its children as the input changes: a
+# token list that a thunk computes, a mixed node, a node of sections and a child
+# list that a thunk computes.
+module _TemplateWiringsProbe
+    import ProjecturedKernel.DocumentModule: Document, var"@document"
+    import ProjecturedKernel.CellModule: Cell, Computation
+    import ProjecturedKernel.ReferenceModule: Reference
+    import ProjecturedKernel.ProjectionModule: Projection, print_document
+    import ProjecturedKernel.ProjectionModule: var"@projection"
+    import ProjecturedKernel.ProjectionModule: var"@projection_template"
+    import ProjecturedCollection.CollectionModule: CellVector
+    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+    import ProjecturedText.TextModule: TextString
+    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedStyle.StyleModule: color_default
+
+    @document struct Word <: Document
+        text::String
+    end
+    Word(text::AbstractString) = Word(Cell(String(text)), Cell(nothing))
+
+    @document struct Group <: Document
+        name::String
+        items::CellVector
+    end
+
+    @document struct Sheet <: Document
+        rows::CellVector
+        notes::CellVector
+    end
+
+    @document struct Labelled <: Document
+        name::String
+        note::Union{Word,Nothing}
+    end
+
+    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+
+    @projection struct WordToLeaf <: Projection end
+    @projection_template WordToLeaf Word (p, doc) ->
+        SyntaxLeaf(bound(:text, String, _text(() -> doc.text)))
+
+    # One bound token between two brackets.
+    @projection struct WordToTokens <: Projection end
+    @projection_template WordToTokens Word (p, doc) ->
+        SyntaxNode(tokens(() -> Any[
+            SyntaxLeaf(_text("<")),
+            SyntaxLeaf(bound(:text, String, _text(() -> doc.text))),
+            SyntaxLeaf(_text(">"))]))
+
+    @projection struct GroupToNode <: Projection end
+    @projection_template GroupToNode Group (p, doc) ->
+        SyntaxNode(nothing, nothing, nothing,
+                   Any[ SyntaxLeaf(bound(:name, String, _text(() -> doc.name))),
+                        collection(:items) ],
+                   0, false, nothing)
+
+    @projection struct SheetToNode <: Projection end
+    @projection_template SheetToNode Sheet (p, doc) ->
+        SyntaxNode(sections([(:rows, outs -> SyntaxNode(outs)),
+                             (:notes, outs -> SyntaxNode(outs))]))
+
+    @projection struct LabelledToConcat <: Projection end
+    @projection_template LabelledToConcat Labelled (p, doc) ->
+        SyntaxConcatenation(() -> doc.note === nothing ?
+            Any[ SyntaxLeaf(bound(:name, String, _text(() -> doc.name))) ] :
+            Any[ SyntaxLeaf(bound(:name, String, _text(() -> doc.name))),
+                 SyntaxLeaf(_text(": ")), project(:note) ])
+end
+
+# A caret mapped into the output of `iomap` and back, with no type checkpoints,
+# or `nothing` where a map has no image.
+function _map_template_caret_round_trip(iomap, caret)
+    shown = map_reference_forward(iomap.projection, iomap, caret)
+    shown === nothing && return nothing
+    back = map_reference_backward(iomap.projection, iomap, shown)
+    back === nothing ? nothing : strip_reference_types(back)
+end
+
+function test_projection_template_wirings()
+    @testset "ProjectionTemplate wirings follow an edit through the same IoMap" begin
+        P = _TemplateWiringsProbe
+        projection = RecursiveProjection(TypeDispatchingProjection(
+            P.Group => P.GroupToNode(), P.Sheet => P.SheetToNode(),
+            P.Labelled => P.LabelledToConcat(), P.Word => P.WordToLeaf()))
+        make_words(texts) = CellVector([P.Word(text) for text in texts])
+
+        @testset "a token list" begin
+            bracketed = RecursiveProjection(
+                TypeDispatchingProjection(P.Word => P.WordToTokens()))
+            word = P.Word("a")
+            iomap = print_document(bracketed, word)
+            @test render(iomap.output) == "<a>"
+            word.text = "bc"
+            @test render(iomap.output) == "<bc>"
+            caret = @reference(word, text{1})
+            @test _map_template_caret_round_trip(iomap, caret) ==
+                  strip_reference_types(caret)
+        end
+
+        @testset "a mixed node" begin
+            group = P.Group("g", make_words(["a", "b"]), nothing)
+            iomap = print_document(projection, group)
+            @test render(iomap.output) == "gab"
+            group.name = "h"
+            group.items[2].text = "z"
+            deleteat!(group.items, 1)
+            @test render(iomap.output) == "hz"
+            push!(group.items, P.Word("c"))
+            @test render(iomap.output) == "hzc"
+            caret = @reference(group, items[2].text{0})
+            @test _map_template_caret_round_trip(iomap, caret) ==
+                  strip_reference_types(caret)
+        end
+
+        @testset "a node of sections" begin
+            sheet = P.Sheet(make_words(["r"]), make_words(["n"]), nothing)
+            iomap = print_document(projection, sheet)
+            @test render(iomap.output) == "rn"
+            # A section with no entries has no wrapper.
+            deleteat!(sheet.notes, 1)
+            @test length(get_syntax_children(iomap.output)) == 1
+            sheet.rows[1].text = "x"
+            @test render(iomap.output) == "x"
+            push!(sheet.notes, P.Word("m"))
+            @test length(get_syntax_children(iomap.output)) == 2
+            @test render(iomap.output) == "xm"
+            caret = @reference(sheet, notes[1].text{1})
+            @test _map_template_caret_round_trip(iomap, caret) ==
+                  strip_reference_types(caret)
+        end
+
+        @testset "a child list that a thunk computes" begin
+            labelled = P.Labelled("x", nothing)
+            iomap = print_document(projection, labelled)
+            @test render(iomap.output) == "x"
+            labelled.note = P.Word("y")
+            labelled.name = "w"
+            @test render(iomap.output) == "w: y"
+            caret = @reference(labelled, note.text{1})
+            @test _map_template_caret_round_trip(iomap, caret) ==
+                  strip_reference_types(caret)
+        end
+    end
+end

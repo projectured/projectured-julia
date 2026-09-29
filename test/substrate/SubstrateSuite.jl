@@ -64,6 +64,7 @@ function test_substrate()
         test_projection_template_gesture_descent()
         test_projection_template_reconciled_children()
         test_projection_template_value_field()
+        test_projection_template_wirings()
         test_plot_geometry()
         test_syntax_to_text()
         test_primitive_to_text()
@@ -178,7 +179,8 @@ export test_syntax, test_text, test_graphics, test_affine_transform, test_font_m
 export test_projection_template_hygiene, test_projection_template_fixed_children
 export test_projection_template_conditional_children,
        test_projection_template_gesture_descent,
-       test_projection_template_reconciled_children, test_projection_template_value_field
+       test_projection_template_reconciled_children, test_projection_template_value_field,
+       test_projection_template_wirings
 export test_plot_geometry,
        test_syntax_to_text, test_primitive_to_text, test_text_to_graphics, test_text_line_model, test_inline_image_caret,
        test_word_wrapping, test_text_filtering, test_text_first_line, test_text_line_numbering,
