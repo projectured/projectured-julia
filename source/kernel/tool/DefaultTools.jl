@@ -83,7 +83,7 @@ function _declared_sentence(set::ToolSet)
     chosen = sum(length(e.names) for e in set.api if e.names !== nothing; init = 0)
     isempty(whole) && return "The " * string(chosen) * " names this editor declares are "
     "The functions of " * join(whole, ", ") *
-        (chosen == 0 ? "" : ", and " * string(chosen) * " more names, are ")
+        (chosen == 0 ? " are " : ", and " * string(chosen) * " more names, are ")
 end
 
 function _execute_julia_code_description(set::ToolSet)
@@ -132,21 +132,11 @@ const _LIMIT_PARAMETER = (name = "limit", type = "number",
 # Markdown, and a list of hits is written as Markdown around them.
 const _DOCUMENTATION_MIME_TYPE = "text/markdown"
 
-"""
-    register_default_tools!(set) -> set
+# ── The tools ───────────────────────────────────────────────────────────────
 
-Populate `set` with the editor's built-in tools — code execution, documentation
-and API search, and the two that expose the resource list itself — plus the
-read-only documentation resources (the guides, and each module/type's docs).
-
-Idempotent: registering again replaces entries rather than duplicating them.
-
-Every handler **closes over `set`**, which is how the code-execution tool reaches
-its own scratch namespace and last value without a registry global
-(PAR-PER-EDITOR-STATE) and without threading a context argument through the
-`(target, args)` handler signature every other tool is happy with.
-"""
-function register_default_tools!(set::ToolSet)
+# The tool that runs Julia code in the scratch module of `set`. A call with no
+# `code` argument gets the answer of `execute_julia_code` for no code.
+function _register_code_tool!(set::ToolSet)
     register_tool!(set, Tool(
         "execute_julia_code",
         _execute_julia_code_description(set),
@@ -154,9 +144,12 @@ function register_default_tools!(set::ToolSet)
             (name = "code", type = "string",
              description = "Julia source code to evaluate", required = true),
         ],
-        (target, args) -> execute_julia_code(set, target, args["code"]),
+        (target, args) -> execute_julia_code(set, target, get(args, "code", nothing)),
     ))
+end
 
+# The two searches: the sections of the guides, and the names a model may write.
+function _register_search_tools!(set::ToolSet)
     register_tool!(set, Tool(
         "search_guides",
         "Learn how the parts fit together: search the guides, prose with worked " *
@@ -186,7 +179,8 @@ function register_default_tools!(set::ToolSet)
             _MODE_PARAMETER,
             _DETAIL_PARAMETER,
             (name = "kind", type = "string",
-             description = "Optional filter: \"module\", \"type\", or \"function\"", required = false),
+             description = "Optional filter: \"module\", \"type\", or \"function\"",
+             required = false),
             _LIMIT_PARAMETER,
         ],
         (target, args) -> search_api(set, _get_query_argument(args);
@@ -196,7 +190,10 @@ function register_default_tools!(set::ToolSet)
                                      limit  = _arg_limit(get(args, "limit", nothing)));
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
+end
 
+# The tool that reads the whole docstring of one function.
+function _register_function_documentation_tool!(set::ToolSet)
     # A function's docstring is reachable *as a tool*, and it is the one piece of
     # documentation no other tool reaches. A module or a type has a resource:// URI,
     # so `read_resource` reads it; a function has none, and `search_api` answers a
@@ -216,7 +213,8 @@ function register_default_tools!(set::ToolSet)
              description = "Module holding the function, as `search_api` printed it",
              required = true),
             (name = "function_name", type = "string",
-             description = "Function to read, without its argument list", required = true),
+             description = "Function to read, without its argument list",
+             required = true),
             (name = "type_name", type = "string",
              description = "Optional type, when the function is documented per type",
              required = false),
@@ -228,7 +226,10 @@ function register_default_tools!(set::ToolSet)
             api = set.api);
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
+end
 
+# The two tools of the resources: the kinds of resource, and one resource by its URI.
+function _register_resource_tools!(set::ToolSet)
     # The resource list is reachable *as a tool*, not only as a protocol concept:
     # an agent driving a ToolSet directly has no other way to see it, and MCP's own
     # resource list is just this rendered onto the wire.
@@ -254,7 +255,12 @@ function register_default_tools!(set::ToolSet)
         (target, args) -> read_resource(set, String(get(args, "uri", "")));
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
+end
 
+# ── The resources ───────────────────────────────────────────────────────────
+
+# The catalogue of the guides, and each guide.
+function _register_guide_resources!(set::ToolSet)
     # **The guides are offered whatever the declaration says.** A declaration
     # narrows the NAMES a model may write, and a guide is prose about how to use
     # them — an application registers its own with `register_guide_root!`, and
@@ -265,35 +271,42 @@ function register_default_tools!(set::ToolSet)
     # and `read_resource` could not resolve one, so a model told to read a guide
     # spent a round on "Resource not found". Measured 2026-09-13.
     register_resource!(set, Resource("resource://guides", "Documentation Guides";
-                                     description = "List all available documentation with a one-paragraph description for each guide. " *
-                                                   "Documentation files are markdown files containing tips and tricks.",
-                                     provider = list_guides))
+        description = "List all available documentation with a one-paragraph " *
+                      "description for each guide. Documentation files are markdown " *
+                      "files containing tips and tricks.",
+        provider = list_guides))
     for (guide_name, _) in _all_guides()
         let gd_name = guide_name
-            register_resource!(set, Resource("resource://guide/$gd_name", "Guide: $gd_name";
-                                             description = "Full content of the $gd_name documentation guide.",
-                                             provider = () -> _add_guide_footer(gd_name, read_guide(gd_name))))
+            uri = "resource://guide/$gd_name"
+            register_resource!(set, Resource(uri, "Guide: $gd_name";
+                description = "Full content of the $gd_name documentation guide.",
+                provider = () -> _add_guide_footer(gd_name, read_guide(gd_name))))
         end
     end
+end
 
+# The catalogue of the modules a model may call, and each of those modules with
+# its types.
+function _register_module_resources!(set::ToolSet)
     let declared = set.api
         register_resource!(set, Resource("resource://modules", "Modules";
-                                         description = "List the modules you may call, with one-paragraph documentation for each " *
-                                                       "and a list of its types.",
-                                         provider = () -> list_modules(; api = declared)))
+            description = "List the modules you may call, with one-paragraph " *
+                          "documentation for each and a list of its types.",
+            provider = () -> list_modules(; api = declared)))
     end
 
     for (mod_sym, mod) in _api_modules(set.api)
         let mn = String(mod_sym)
             register_resource!(set, Resource("resource://module/$mn", "Module: $mn";
-                                             description = "Full documentation for the $mn module.",
-                                             provider = () -> read_module_documentation(mn; api = set.api)))
+                description = "Full documentation for the $mn module.",
+                provider = () -> read_module_documentation(mn; api = set.api)))
         end
         for (cls_sym, _) in _api_types(set.api, mod)
             let mn = String(mod_sym), cn = String(cls_sym)
-                register_resource!(set, Resource("resource://type/$mn/$cn", "Type: $mn.$cn";
-                                                 description = "Full documentation for the $cn type in module $mn.",
-                                                 provider = () -> read_type_documentation(mn, cn; api = set.api)))
+                uri = "resource://type/$mn/$cn"
+                register_resource!(set, Resource(uri, "Type: $mn.$cn";
+                    description = "Full documentation for the $cn type in module $mn.",
+                    provider = () -> read_type_documentation(mn, cn; api = set.api)))
             end
         end
         # Per-function resources are intentionally NOT registered: that fans out to
@@ -301,5 +314,28 @@ function register_default_tools!(set::ToolSet)
         # via the `search_api` tool and read on demand with
         # `read_function_documentation(module, name)`.
     end
+end
+
+"""
+    register_default_tools!(set) -> set
+
+Populate `set` with the editor's built-in tools — code execution, documentation
+and API search, and the two that expose the resource list itself — plus the
+read-only documentation resources (the guides, and each module/type's docs).
+
+Idempotent: registering again replaces entries rather than duplicating them.
+
+Every handler **closes over `set`**, which is how the code-execution tool reaches
+its own scratch namespace and last value without a registry global
+(PAR-PER-EDITOR-STATE) and without threading a context argument through the
+`(target, args)` handler signature every other tool is happy with.
+"""
+function register_default_tools!(set::ToolSet)
+    _register_code_tool!(set)
+    _register_search_tools!(set)
+    _register_function_documentation_tool!(set)
+    _register_resource_tools!(set)
+    _register_guide_resources!(set)
+    _register_module_resources!(set)
     set
 end

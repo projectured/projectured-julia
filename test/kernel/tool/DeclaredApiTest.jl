@@ -118,6 +118,11 @@ function test_declared_api()
         end
         # And a real call still runs.
         @test strip(execute_julia_code(set, nothing, "1 + 1")) == "2"
+        # A tool call that leaves out the argument gets the same answer.
+        register_default_tools!(set)
+        answer = call_tool(set, "execute_julia_code"; args = Dict{String,Any}(),
+                           target = nothing)
+        @test occursin("No code was given", answer)
     end
 
     @testset "a function's documentation is reachable as a tool" begin
@@ -405,7 +410,7 @@ function test_declared_api()
     @testset "the description does not claim a whole module it did not take" begin
         whole = ToolSet(; api = Module[ToyApi])
         register_default_tools!(whole)
-        @test occursin("The functions of ToyApi",
+        @test occursin("The functions of ToyApi are in scope",
                        only([t for t in whole.tools if t.name == "execute_julia_code"]).description)
 
         narrow = ToolSet(; api = [ToyApi => (:toy_verb,)])
