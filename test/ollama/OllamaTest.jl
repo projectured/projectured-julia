@@ -69,7 +69,7 @@ wire = ProjecturedOllama._wire_messages(request)
 @test occursin("18 degrees", wire[1]["content"])
 
 # ── the token budget is an option, and an empty model is the default ──
-@test OllamaLlm(; model = "").model == default_llm_model(:ollama)
+@test OllamaLlm(; model = "").model == get_default_llm_model(:ollama)
 @test OllamaLlm(; base_url = "http://host:1/").base_url == "http://host:1"
 
 # ── the context window is sent only when a caller asked for a size ──
@@ -198,7 +198,7 @@ function test_ollama_backend()
 
 # The package registers itself, so the kernel's factory answers for it.
 @test :ollama in get_llm_backend_names()
-@test default_llm_model(:ollama) == "qwen3.8:27b"
+@test get_default_llm_model(:ollama) == "qwen3.8:27b"
 llm = make_llm(:ollama; model = "mistral:latest", api_key = "ignored")
 @test llm isa OllamaLlm
 @test llm.model == "mistral:latest"

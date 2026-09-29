@@ -21,7 +21,7 @@ using JSON3
 
 import ProjecturedKernel.ToolModule: Tool
 import ProjecturedKernel.LlmModule:
-    Llm, stream_turn, render_tool_schema, make_llm, default_llm_model,
+    Llm, stream_turn, render_tool_schema, make_llm, get_default_llm_model,
     LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
     LlmMessage, LlmRequest,
     LlmTextStart, LlmTextDelta, LlmTextStop,

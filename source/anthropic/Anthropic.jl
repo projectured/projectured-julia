@@ -113,7 +113,7 @@ AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
 # model and is not a parameter of a request, so there is nothing here to set.
 make_llm(::Val{:anthropic}; context::Integer = 0, kwargs...) = AnthropicLlm(; kwargs...)
 
-default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
+get_default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
 
 # ═══════════════════════════════════════════════════════════════════════
 # Request → Anthropic JSON

@@ -6,7 +6,7 @@
 
 ## How it works
 
-The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.md](../kernel/agent.md) describes it: `stream_turn(llm, request; on_event)`, `render_tool_schema(llm, tools)`, `make_llm(kind; api_key, model, context)`, `default_llm_model(kind)`, and the three optional functions of a meaning model. An adapter translates its own protocol into the `LlmMessage` and `LlmEvent` types of the kernel, so no caller reads a wire format. The table in [agent.md](../kernel/agent.md#what-each-adapter-must-answer-for-itself) compares what each adapter does below the seam.
+The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.md](../kernel/agent.md) describes it: `stream_turn(llm, request; on_event)`, `render_tool_schema(llm, tools)`, `make_llm(kind; api_key, model, context)`, `get_default_llm_model(kind)`, and the three optional functions of a meaning model. An adapter translates its own protocol into the `LlmMessage` and `LlmEvent` types of the kernel, so no caller reads a wire format. The table in [agent.md](../kernel/agent.md#what-each-adapter-must-answer-for-itself) compares what each adapter does below the seam.
 
 | | `ProjecturedAnthropic` | `ProjecturedOllama` |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.
 | Keyword it ignores | `context` | `api_key` |
 | Meaning vectors | none | `/api/embed`, with `"nomic-embed-text"` by default |
 
-**The registration is a method.** Each package adds `make_llm(::Val{:anthropic}; …)` or `make_llm(::Val{:ollama}; …)`, and `default_llm_model` for the same key. Neither package has an `__init__`. `get_llm_backend_names()` reads the loaded backends from the method table of `make_llm`, so a backend exists exactly while its package is loaded.
+**The registration is a method.** Each package adds `make_llm(::Val{:anthropic}; …)` or `make_llm(::Val{:ollama}; …)`, and `get_default_llm_model` for the same key. Neither package has an `__init__`. `get_llm_backend_names()` reads the loaded backends from the method table of `make_llm`, so a backend exists exactly while its package is loaded.
 
 ### ProjecturedAnthropic
 

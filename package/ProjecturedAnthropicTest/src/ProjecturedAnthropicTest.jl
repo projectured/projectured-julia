@@ -22,7 +22,8 @@ using ProjecturedAnthropic
 
 import ProjecturedKernel.ToolModule: Tool
 import ProjecturedKernel.LlmModule:
-    make_llm, default_llm_model, get_llm_backend_names, stream_turn, render_tool_schema,
+    make_llm, get_default_llm_model, get_llm_backend_names,
+    stream_turn, render_tool_schema,
     LlmText, LlmMessage, LlmRequest,
     LlmTextStart, LlmTextDelta, LlmTextStop, LlmTurnEnd
 

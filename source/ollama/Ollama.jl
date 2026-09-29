@@ -81,7 +81,7 @@ OllamaLlm(; model::AbstractString = _DEFAULT_MODEL,
 # this machine asks for none.
 make_llm(::Val{:ollama}; api_key::AbstractString = "", kwargs...) = OllamaLlm(; kwargs...)
 
-default_llm_model(::Val{:ollama}) = _DEFAULT_MODEL
+get_default_llm_model(::Val{:ollama}) = _DEFAULT_MODEL
 
 # ═══════════════════════════════════════════════════════════════════════
 # Request → Ollama JSON

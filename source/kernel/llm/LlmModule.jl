@@ -36,7 +36,7 @@ using ..ToolModule
 export Llm, stream_turn, render_tool_schema,
        has_meaning_model, get_meaning_model_name, compute_meaning_vectors,
        bind_meaning_model!,
-       make_llm, default_llm_model, get_llm_backend_names,
+       make_llm, get_default_llm_model, get_llm_backend_names,
        LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
        LlmMessage, LlmRequest,
        LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,

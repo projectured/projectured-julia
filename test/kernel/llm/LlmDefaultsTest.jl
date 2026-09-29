@@ -1,6 +1,6 @@
 """
 `LlmModule` — the fallbacks of the provider contract, and what the layer does
-itself. Verifies the error of `make_llm` and of `default_llm_model` for a kind
+itself. Verifies the error of `make_llm` and of `get_default_llm_model` for a kind
 that no package answers, the registry that `get_llm_backend_names` reads from
 the method table, the opacity of a backend to the document walk, and the
 conversions of the `LlmMessage` and `LlmRequest` constructors.
@@ -16,7 +16,8 @@ using ProjecturedKernelExample: FakeLlm
 # the same way an opt-in provider package registers its kind.
 ProjecturedKernel.LlmModule.make_llm(::Val{:llm_defaults_probe}; kwargs...) =
     FakeLlm("probe")
-ProjecturedKernel.LlmModule.default_llm_model(::Val{:llm_defaults_probe}) = "probe-model"
+ProjecturedKernel.LlmModule.get_default_llm_model(::Val{:llm_defaults_probe}) =
+    "probe-model"
 
 # The text of the exception that `f` throws, or "" when it throws none.
 function _get_llm_error_text(f)
@@ -38,14 +39,14 @@ function test_llm_defaults()
         @test occursin(":llm_defaults_probe", text)
         @test occursin("Load the opt-in package that provides :llm_defaults_missing",
                        text)
-        @test_throws ErrorException default_llm_model(missing_kind)
+        @test_throws ErrorException get_default_llm_model(missing_kind)
         @test occursin("it has no default model",
-                       _get_llm_error_text(() -> default_llm_model(missing_kind)))
+                       _get_llm_error_text(() -> get_default_llm_model(missing_kind)))
     end
 
     @testset "a kind reaches the method of its package through the symbol" begin
         @test make_llm(:llm_defaults_probe) isa FakeLlm
-        @test default_llm_model(:llm_defaults_probe) == "probe-model"
+        @test get_default_llm_model(:llm_defaults_probe) == "probe-model"
     end
 
     # The two generic methods of the defaults take a `Symbol` and `Val{K} where K`,

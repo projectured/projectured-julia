@@ -106,7 +106,7 @@ raises an error that lists the backends that are (`LlmDefaults.jl`).
 function make_llm end
 
 """
-    default_llm_model(kind::Symbol) -> String
+    get_default_llm_model(kind::Symbol) -> String
 
 The model that the backend registered under `kind` falls back to. It belongs to the
 backend, not to a caller: a Claude model id means nothing to a local server, so a
@@ -117,4 +117,4 @@ A backend can choose another model when `make_llm` gets an empty `model`. The
 Anthropic adapter first asks the Models API for the newest model, and it uses this
 model only when it has no key or when that request fails.
 """
-function default_llm_model end
+function get_default_llm_model end

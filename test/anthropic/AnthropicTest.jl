@@ -48,7 +48,7 @@ function test_anthropic_model()
             # new model comes out.
             llm = AnthropicLlm(; api_key = "")
             @test llm.model == "claude-opus-5"
-            @test default_llm_model(Val(:anthropic)) == "claude-opus-5"
+            @test get_default_llm_model(Val(:anthropic)) == "claude-opus-5"
             # A name a caller wrote wins over the choice.
             @test AnthropicLlm(; api_key = "", model = "claude-sonnet-5").model ==
                   "claude-sonnet-5"
