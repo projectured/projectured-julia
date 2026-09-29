@@ -19,6 +19,18 @@ fields and the defaults. Every builder of the struct layer reads it.
 - `declared_field_count` and `programmer_default_count` count the fields and the
   defaults of the source. A field that `add_cell_struct_field!` adds does not
   change them.
+
+Use it to read the fields of the definition that your macro gets, and to give
+them to the builders of the struct layer. `make_cell_struct_plan` makes one.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; y::Int = 0; end))
+    plan.field_names                                # [:x, :y]
+    plan.defaults                                   # Dict(:y => 0)
+
+See also `build_cell_struct_exprs`, which makes the whole struct of cells from a
+definition.
 """
 struct CellStructPlan
     definition               :: Expr
@@ -44,6 +56,17 @@ An inner constructor in the body is an error, because the builders generate the
 only inner constructor. Define the constructor outside the struct. Any other
 expression that is not a field, a line number or a docstring is an error too,
 such as `const f::T` or `@atomic f::T`.
+
+Use it to start a macro that makes a struct of cells: parse the definition that
+the macro gets, then ask the plan for the kinds and the value types of its fields.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; y::Int = 0; end))
+    plan.name                                       # :Point
+    get_cell_struct_required_count(plan)            # 1
+
+See also `parse_cell_struct_macro_arguments`, which reads a kind before `struct`.
 """
 function make_cell_struct_plan(definition)
     definition isa Expr && definition.head === :struct ||
@@ -112,6 +135,15 @@ _reject_body_expression(name, expression) = throw(ArgumentError(
 Add a field after the last field, in the plan and in the body of the definition.
 The field has the declared type `type` and the default `default`. Its slot holds
 `name::Any` until `retype_cell_struct_fields!` writes it.
+
+Use it to give each struct of your macro a field that the programmer does not
+write, such as a label or a link to a parent.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; end))
+    add_cell_struct_field!(plan, :label; type = :String, default = "")
+    plan.field_names                                # [:x, :label]
 """
 function add_cell_struct_field!(plan::CellStructPlan, name::Symbol; type, default)
     body = plan.definition.args[3]
@@ -130,6 +162,16 @@ Write `name::types[i]` into the slot of each field, which also removes the defau
 of the field from the body. The function writes the slots in place, so each
 `LineNumberNode` of the body stays, and an error or a docstring still gives the
 source line of a field.
+
+Use it to write the field types that your macro chose, such as a cell of the
+value type, into the definition before the macro returns it.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; y::Int = 0; end))
+    types = [build_cell_struct_field_type(ImmutableCell, value_type)
+             for value_type in get_cell_struct_value_types(plan)]
+    retype_cell_struct_fields!(plan, types)         # x::ImmutableCell{Int}, and y
 """
 function retype_cell_struct_fields!(plan::CellStructPlan, types)
     body = plan.definition.args[3]
@@ -168,6 +210,16 @@ end
 
 The value type of each field, as an expression. A field `f::T` gives `T`, a field
 `f::ImmutableCell{T}` gives `T`, and a field without a type gives `Any`.
+
+Use it to know the type of the value that each field holds, also for a field that
+names a kind, for example to type the arguments of a constructor.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct P; a::Int; b::ImmutableCell{String}; c; end))
+    get_cell_struct_value_types(plan)               # [:Int, :String, :Any]
+
+See also `get_cell_struct_field_kinds`, which gives the kind of each field.
 """
 get_cell_struct_value_types(plan::CellStructPlan) =
     Any[last(_parse_field_type(type)) for type in plan.field_types]
@@ -178,6 +230,17 @@ get_cell_struct_value_types(plan::CellStructPlan) =
 The kind of each field: `ReactiveCell`, `ImmutableCell` or `MutableCell`. A field
 whose type names a kind, such as `f::ImmutableCell{T}`, has that kind. Every other
 field has the kind `default`.
+
+Use it to choose the cell of each field in your macro: the kind that the field
+names, or the kind that the macro gets for the others.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct P; a::Int; b::ImmutableCell{String}; end))
+    get_cell_struct_field_kinds(plan; default = MutableCell)
+    # [MutableCell, ImmutableCell]
+
+See also `get_cell_struct_value_types`, which gives the type of each value.
 """
 get_cell_struct_field_kinds(plan::CellStructPlan; default = ReactiveCell) =
     Any[something(first(_parse_field_type(type)), default) for type in plan.field_types]
@@ -188,6 +251,15 @@ get_cell_struct_field_kinds(plan::CellStructPlan; default = ReactiveCell) =
 The name of each type parameter: `A` for `A`, `A<:Real`, `A>:Int` and
 `Int<:A<:Real`. A type application such as `T{A}` takes the names, and a `where`
 clause or the head of a struct takes `plan.parameters`.
+
+Use it to write the type application of a struct with type parameters, such as
+`T{A}` in the head of a constructor of your macro.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Box{T<:Real}; value::T; end))
+    get_cell_struct_parameter_names(plan)           # [:T]
+    plan.parameters                                 # [:(T <: Real)]
 """
 get_cell_struct_parameter_names(plan::CellStructPlan) =
     Symbol[_get_parameter_name(parameter) for parameter in plan.parameters]
@@ -207,6 +279,19 @@ parameter. A constructor that names no parameter, `T(values…)`, binds each
 parameter from the argument at that index. The function returns `nothing` when a
 parameter is the value type of no field, such as `A` in `f::Vector{A}`. A caller
 then writes `T{A}(values…)`.
+
+Use it to write a constructor that binds each type parameter from its argument,
+so that a caller writes `Box(1)` and not `Box{Int}(1)`.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Box{T}; value::T; end))
+    find_cell_struct_parameter_slots(plan)          # [1]
+    plan = make_cell_struct_plan(:(struct Bag{T}; items::Vector{T}; end))
+    find_cell_struct_parameter_slots(plan)          # nothing
+
+See also `get_cell_struct_argument_type`, which gives the type that an argument
+binds.
 """
 function find_cell_struct_parameter_slots(plan::CellStructPlan)
     value_types = get_cell_struct_value_types(plan)
@@ -236,6 +321,17 @@ end
 
 The number of fields that a positional constructor must get: every field before
 the run of fields with a default at the end of the declaration.
+
+Use it to know the smallest arity of a positional constructor of your struct. An
+arity of zero has the signature of the keyword constructor.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; y::Int = 0; end))
+    get_cell_struct_required_count(plan)            # 1
+
+See also `build_cell_struct_positional_constructors`, which builds a constructor
+for each arity from this count to one less than the number of fields.
 """
 get_cell_struct_required_count(plan::CellStructPlan) =
     length(plan.field_names) - _get_cell_struct_trailing_default_count(plan)
