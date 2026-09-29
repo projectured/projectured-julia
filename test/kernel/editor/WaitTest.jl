@@ -83,6 +83,22 @@ struct DeadlineFailingFeed <: Feed end
 FeedModule.drain_changes!(::DeadlineFailingFeed, editor::Editor) = 0
 FeedModule.compute_wake_deadline(::DeadlineFailingFeed, editor) = error("the deadline failed")
 
+# Wakes the editor in every frame, so the loop never waits. It posts a quit once
+# another task set `is_done`, or after 100 frames.
+mutable struct AlwaysWakingFeed <: Feed
+    is_done::Bool
+    frames::Int
+end
+function FeedModule.drain_changes!(feed::AlwaysWakingFeed, editor::Editor)
+    feed.frames += 1
+    if feed.is_done || feed.frames >= 100
+        post_operation!(editor, QuitEditorOperation())
+    else
+        wake_editor!(editor)
+    end
+    0
+end
+
 _quiet_wait_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 struct ProbeWaitOperation <: Operation
@@ -157,6 +173,15 @@ function test_editor_wait()
         # Every wait this loop entered was unbounded: no feed asked for a
         # deadline and nothing subscribed to the clock.
         @test all(timeout -> timeout == Inf, backend.waits)
+    end
+
+    @testset "a loop that never waits still gives the other tasks their turn" begin
+        # The wait of this backend returns at once and yields to no task.
+        feed = AlwaysWakingFeed(false, 0)
+        editor = _wait_editor(ProbeLifeBackend(); feeds = Feed[feed])
+        @async (feed.is_done = true)
+        run_editor!(editor)
+        @test feed.frames < 100
     end
 
     @testset "make_editor prints once and reads nothing, and the loop quits the backend" begin

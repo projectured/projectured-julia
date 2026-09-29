@@ -119,7 +119,9 @@ is needed.
 
 A backend without a real wait sleeps one 10 ms poll slice per call (the
 `BackendDefaults` fallback), which also gives cooperative `@async` tasks
-(e.g. the MCP server, a simulation driver) their turn on this thread.
+(e.g. the MCP server, a simulation driver) their turn on this thread. A frame
+that does not wait, because a wake is pending or a deadline is due, yields once
+for the same reason.
 
 When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default. `mcp_instructions`, `mcp_host` and
@@ -162,10 +164,14 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # wait: the flag is the truth, whatever became of the backend
             # kick. The wait itself ends on input, on a kick, or at the
             # timeout — and a backend with no wait of its own polls in 10 ms
-            # slices here, exactly as this loop did when it slept.
-            if !editor.wake_pending[]
-                timeout = compute_wait_timeout(editor)
-                timeout > 0 && wait_for_input(editor.backend, editor.devices, timeout)
+            # slices here, exactly as this loop did when it slept. A frame
+            # that does not wait yields once, because the wait is where the
+            # cooperative tasks of this thread get their turn.
+            timeout = editor.wake_pending[] ? 0.0 : compute_wait_timeout(editor)
+            if timeout > 0
+                wait_for_input(editor.backend, editor.devices, timeout)
+            else
+                yield()
             end
             # The frame takes ownership of every wake posted before it;
             # a wake that arrives from here on belongs to the next frame.

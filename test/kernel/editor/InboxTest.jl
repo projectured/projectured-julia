@@ -38,6 +38,15 @@ end
 evaluate_operation(::Editor, op::ProbeInboxOperation) =
     (push!(op.log, (op.tag, current_task())); nothing)
 
+# An operation whose evaluation gives the other tasks their turn, so a producer
+# posts while the drain runs.
+struct YieldingInboxOperation <: Operation
+    log::Vector{Any}
+end
+
+evaluate_operation(::Editor, operation::YieldingInboxOperation) =
+    (push!(operation.log, :applied); yield(); nothing)
+
 _inbox_editor() = Editor(HeadlessBackend(), InboxProbe(), InboxProbeProjection(), Device[])
 
 function test_editor_inbox()
@@ -56,6 +65,26 @@ function test_editor_inbox()
         @test drain_operations!(editor) == 2
         @test [tag for (tag, _) in log] == [:first, :second]
         @test drain_operations!(editor) == 0     # and the inbox is empty again
+    end
+
+    @testset "a drain takes what was ready when it started, and wakes for the rest" begin
+        editor = _inbox_editor()
+        log = Any[]
+        for _ in 1:3
+            post_operation!(editor, YieldingInboxOperation(log))
+        end
+        Threads.atomic_xchg!(editor.wake_pending, false)
+        # The producer puts with no wake, so the flag after the drain is the
+        # drain's own.
+        producer = @async for _ in 1:20
+            put!(editor.inbox, YieldingInboxOperation(log))
+            yield()
+        end
+        @test drain_operations!(editor) == 3
+        @test length(log) == 3
+        @test isready(editor.inbox)
+        @test editor.wake_pending[]
+        wait(producer)
     end
 
     @testset "an operation posted from another task runs on the drainer's" begin
