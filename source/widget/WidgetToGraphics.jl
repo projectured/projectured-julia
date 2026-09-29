@@ -1350,6 +1350,50 @@ function _map_child_point(iomap, reference)
     _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
 end
 
+# ── Forward: a part of a container, as the node that draws it ─────────────
+#
+# The mirror of `_map_point_to_child`. The reference reaches a child, found by
+# identity as the input of one of the container's child IoMaps; the child's own
+# mapper answers the rest of the reference; and the steps from the container's
+# canvas to the child's canvas are found by identity too (`find_node_reference`),
+# because a container puts parts of its own before its children, such as the
+# parts of its box, whose number varies. The empty reference is the container's
+# own canvas. A part of the
+# container that is no child, and a child that the container does not show, have
+# no image.
+function _map_child_forward(iomap, reference)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa ConcreteReference || return _map_self_forward(reference)
+    children = something(get_child_iomaps(iomap), Any[])
+    isempty(children) && return nothing
+    node = unwrap_cell(get_iomap_input(iomap))
+    rest = reference
+    while rest isa ConcreteReference
+        node = try
+            unwrap_cell(evaluate_reference_step(get_reference_head(rest), node))
+        catch
+            return nothing
+        end
+        rest = get_reference_tail(rest)
+        for child in children
+            child === nothing && continue
+            unwrap_cell(get_iomap_input(child)) === node || continue
+            inner = map_reference_forward(get_iomap_projection(child), child, rest)
+            inner === nothing && return nothing
+            outer = find_node_reference(get_iomap_output(iomap), unwrap_cell(get_iomap_output(child));
+                                        depth = 5)
+            outer === nothing && return nothing
+            return concat_references(outer, inner)
+        end
+    end
+    nothing
+end
+
+# The image of a widget itself: its own canvas, the empty reference. A widget with
+# no parts that a reference names maps nothing else.
+_map_self_forward(reference) = reference isa EmptyReference ? EmptyReference() : nothing
+
 _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
@@ -1480,9 +1524,7 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
     end))
 end
 
-function map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetLabelToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 function map_reference_backward(::WidgetLabelToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1577,7 +1619,7 @@ function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::Widget
     SimpleIoMap(p, w, _make_canvas(0, 0, content_width + inset_width, content_height + inset_height, elements))
 end
 
-map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
 read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
@@ -1705,9 +1747,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
 end
 
-function map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1827,9 +1867,7 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
     end))
 end
 
-function map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 function map_reference_backward(::WidgetCheckboxToGraphicsCanvas, iomap, reference)
     return nothing
@@ -1951,16 +1989,7 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
     end))
 end
 
-# Forward image of a positioned widget: the empty reference (the widget itself)
-# maps to its top-left in its own output canvas frame — `PointReferenceStep(0, 0)`.
-# Parent containers add their placement on the way up. A non-empty reference has
-# no image (the leaf has no addressable interior here). See `map_reference_forward`.
-_self_point(reference) =
-    (reference === nothing || reference isa EmptyReference) ?
-        PointReferenceStep(0, 0) : nothing
-
-map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) =
-    _self_point(reference)
+map_reference_forward(::WidgetButtonToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference)
     return nothing
@@ -2063,9 +2092,7 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
     ChildrenIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), Cell(@computation build[].child_iomaps))
 end
 
-function map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_backward(::WidgetTooltipToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
@@ -2134,11 +2161,8 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
     WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap)
 end
 
-# Forward image: the wrapper is a positioned leaf — the empty reference maps to
-# its own top-left. (A `.child` descent is not needed here and stays unmapped.)
-map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) =
-    _self_point(reference)
-map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # Child ops re-root by prepending `.child`.
 map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) =
@@ -2321,8 +2345,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
                                       content_entry, Cell(button_entries))
 end
 
-# A dialog is centered, not anchored, so it is never a popup anchor source.
-map_reference_forward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetDialogToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 # Content ops (e.g. an editable WidgetText field) re-root by prepending `.content`.
 function map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, reference)
     reference === nothing && return nothing
@@ -2463,12 +2486,8 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
                                         Cell(@computation build[].width), Cell(@computation build[].height))
 end
 
-# Forward image (Step 2.0 leaf): the empty reference maps to the item's own
-# top-left; parent containers shift it on the way up. Invisible item / non-empty
-# ref: no image.
-map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, reference) =
-    _self_point(reference)
-map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::SimpleIoMap, reference) = nothing
+map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::SimpleIoMap, reference) = _map_child_forward(iomap, reference)
 function map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
     (point === nothing || !(iomap isa WidgetMenuItemToGraphicsCanvasIoMap)) && return nothing
@@ -2574,8 +2593,7 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
     end))
 end
 
-map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) =
-    _self_point(reference)
+map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = nothing
 
 # A left press on an enabled item invokes its action; a crossing sets `hovered`,
@@ -2718,11 +2736,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
                   Cell(@computation build[].child_iomaps))
 end
 
-# `elements[i]/…` routes to the i-th item's forward image, shifted by where this
-# menu placed it (paths pass through). Orientation-agnostic: the per-item offset is
-# stored on the entry regardless of layout direction.
-map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
-    descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
+map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
@@ -2792,11 +2806,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
                   Cell(@computation build[].child_iomaps))
 end
 
-# A composite addresses children by `elements[i]`, each wrapped at the content
-# offset; forward-mapping shifts a coordinate image by that placement (paths pass
-# through). Same hop as a layout, just a different field name.
-map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
-    descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
+map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
@@ -3083,23 +3093,9 @@ _shell_field(w, name) =
     name == "content"  ? w.content  :
     name == "overlay"  ? w.overlay  : nothing
 
-function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
-    reference isa ConcreteReference || return nothing
-    head = reference.head
-    head isa FieldReferenceStep || return nothing
-    target = _shell_field(iomap.input, head.name)
-    target === nothing && return nothing
-    for entry in getfield(iomap, :child_iomaps)[]::Vector
-        entry === nothing && continue
-        (ox, oy, cim) = entry
-        cim.input === target || continue
-        child = map_reference_forward(cim.projection, cim, reference.tail)
-        return shift_child_image(child, cim; off_x = ox, off_y = oy)
-    end
-    nothing
-end
+map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
 
-map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # An operation with a route goes to the part of the shell its route names, found
 # as the forward mapper finds it; every other change is read as any projection
@@ -3395,9 +3391,7 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
                   Cell(@computation build[].child_iomaps))
 end
 
-function map_reference_forward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_backward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
@@ -3722,9 +3716,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     (canvas = outer_canvas, child_iomaps = child_iomaps)
 end
 
-function map_reference_forward(::WidgetSplitPaneToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetSplitPaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # The split's input has `.elements[i]` (a CellVector). When the i-th slot
 # wraps the child in a LayoutConstraint, the projector recurses into
@@ -4332,9 +4324,7 @@ function _compute_page_extent(cim, avail_w_inner, avail_h_inner)
      avail_h_inner === nothing ? Int(reach()[2]) : max(0, Int(avail_h_inner[])))
 end
 
-function map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # A tabbed pane's input has `.selector_element_pairs[i]` (a Pair whose
 # second member is the i-th tab's content widget). The reader prepends
@@ -4823,8 +4813,34 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
 end
 
+# The viewport shows the content in a canvas of the pane's own, moved by the
+# scroll, that holds the elements of the content's canvas (or the content's canvas
+# itself, when its elements are no vector). So `content` is the content of the
+# pane's viewport, the first viewport among the pane's elements, and the content's
+# own answer goes on from there.
 function map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference)
-    return nothing
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa ConcreteReference || return _map_self_forward(reference)
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == "content") || return nothing
+    children = something(get_child_iomaps(iomap), Any[])
+    isempty(children) && return nothing
+    child = first(children)
+    inner = map_reference_forward(get_iomap_projection(child), child, reference.tail)
+    inner === nothing && return nothing
+    elements = unwrap_cell(getfield(unwrap_cell(get_iomap_output(iomap)), :elements))
+    for k in 1:length(elements)
+        viewport = unwrap_cell(elements[k])
+        viewport isa GraphicsViewport || continue
+        held = find_node_reference(getfield(viewport, :content), unwrap_cell(get_iomap_output(child));
+                                   depth = 1)
+        inner = held === nothing ? inner : concat_references(held, inner)
+        return ConcreteReference(FieldReferenceStep("elements"),
+                   ConcreteReference(RangeReferenceStep(k - 1, k),
+                       ConcreteReference(FieldReferenceStep("content"), inner)))
+    end
+    nothing
 end
 
 # The scroll pane wraps a single content document as its `.content` field.
@@ -5089,9 +5105,7 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     WidgetTransformPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
 end
 
-function map_reference_forward(::WidgetTransformPaneToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetTransformPaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # Like the scroll pane: prepend `.content` to re-root a bubbled path in the
 # transform pane's own input domain.
@@ -5251,9 +5265,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
                   Cell(@computation build[].child_iomaps))
 end
 
-function map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
@@ -5346,7 +5358,7 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
                                      layout_none, true, Cell(nothing)))
 end
 
-map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
 read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
@@ -5384,9 +5396,7 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     SimpleIoMap(p, w, _make_canvas(px, py, elems))
 end
 
-function map_reference_forward(::WidgetScrollBarToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_forward(::WidgetScrollBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 function map_reference_backward(::WidgetScrollBarToGraphicsCanvas, iomap, reference)
     return nothing
@@ -5990,26 +6000,8 @@ function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     nothing
 end
 
-# `content.<rest>` / `title.<rest>` → the slot's own image, shifted by where the
-# card placed it. A structural path passes through unshifted; only a coordinate
-# accumulates. The build cell already records the placement, so the offset is in
-# hand.
-function map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, reference)
-    reference isa ConcreteReference || return nothing
-    head = reference.head
-    head isa FieldReferenceStep || return nothing
-    target = _card_slot_value(iomap.input, head.name)
-    target === nothing && return nothing
-    for entry in getfield(iomap, :child_iomaps)[]::Vector
-        entry === nothing && continue
-        (ox, oy, cim) = entry
-        cim.input === target || continue
-        child = map_reference_forward(cim.projection, cim, reference.tail)
-        return shift_child_image(child, cim; off_x = ox, off_y = oy)
-    end
-    nothing
-end
-map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # The body slot, for a caller that re-roots a path out of the card without having
 # routed the event itself. The reader does not come through here: it knows which
@@ -6110,7 +6102,7 @@ function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _switch_toggle(w)
 end
 
-map_reference_forward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothing
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
@@ -6257,7 +6249,7 @@ end
     track_width::Any
 end
 
-map_reference_forward(::WidgetSliderToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetSliderToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSliderToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible slider (the printer returned a bare empty canvas): inert.
@@ -6441,7 +6433,7 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
                                           Cell(@computation build[].row_bounds))
 end
 
-map_reference_forward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible group (the printer returned a bare empty canvas): inert.
@@ -6904,7 +6896,7 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
     end))
 end
 
-map_reference_forward(::WidgetToggleToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetToggleToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetToggleToGraphicsCanvas, iomap, reference) = nothing
 
 # A left press flips `pressed`, and so do Return and Space while the toggle has
@@ -7044,7 +7036,7 @@ end
 
 # A segmented control is a positioned leaf that nothing points into: it has one
 # value, and that value is a field rather than a place in a document.
-map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible group (the printer returned a bare empty canvas): inert.
@@ -7185,12 +7177,8 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
                                       Cell(@computation build[].width), Cell(@computation build[].height))
 end
 
-# Forward image (Step 2.0): the select is a positioned leaf, so the empty
-# reference maps to its top-left in its own frame; parent containers shift it on
-# the way up.
-map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, reference) =
-    _self_point(reference)
-map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, reference) = nothing
+map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSelectToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible select (printer returned a bare empty canvas): inert.
@@ -7272,7 +7260,7 @@ function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOpt
     end))
 end
 
-map_reference_forward(::WidgetOptionToGraphicsCanvas, iomap, reference) = _self_point(reference)
+map_reference_forward(::WidgetOptionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetOptionToGraphicsCanvas, iomap, reference) = nothing
 
 # Pick: write `value` onto the target select (identity-rooted, so it round-trips
@@ -7391,8 +7379,8 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         Cell(@computation build[].width), Cell(@computation build[].height), Cell(@computation build[].stepper_w))
 end
 
-map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _self_point(reference)
-map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
 
 read_intent(::WidgetSpinBoxToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
@@ -7507,8 +7495,8 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         Cell(@computation build[].row_height), Cell(@computation build[].width))
 end
 
-map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference) = _self_point(reference)
-map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 # A point on a row maps to that item, the reference that a click there selects.
 function map_reference_backward(p::WidgetListToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
@@ -7655,7 +7643,7 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
                                         content_iomap)
 end
 
-map_reference_forward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = nothing
 
 # Re-root a reference of the Text domain under `.content`, as `WidgetText` does.
@@ -7849,7 +7837,7 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
                                          Cell(@computation build[].body_entry))
 end
 
-map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 # A point on a header maps to its item, and a point on the open body on into the
 # body, `items[i].body`, with the point in the body's frame.
 function map_reference_backward(::WidgetAccordionToGraphicsCanvas, iomap, reference)
@@ -8417,25 +8405,31 @@ _wt_geometry_empty(pad_x::Int, pad_y::Int, bw::Int) =
                pad_x, pad_y, bw + pad_x, bw + pad_y)
 
 # ── Reference mapping ────────────────────────────────────────────────────────
-# Forward: a table-domain selection pointing into a cell's content
-# (`rows[r][c].…` / `column_headers[c].…` / `row_headers[r].…`) is delegated to
-# the corresponding GridLayout child so the in-cell cursor is forward-projected.
-# Whole-element handles (`rows[r]∅`, `∅`, …) have no image on the canvas — the
-# band is drawn in place during print — so they map to nothing.
+# Forward: a cell, a column header or a row header (`rows[r][c].…`,
+# `column_headers[c].…`, `row_headers[r].…`) is a child of the grid that the
+# table lays its cells out with, and the grid maps it; the steps from the table's
+# canvas to the grid's canvas are found by identity, after the parts of the box.
+# The table itself is its own canvas. A whole row has no node of its own, because
+# its band is drawn in place, so it has no image.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa EmptyReference && return EmptyReference()
     geom = iomap.geometry
     gim = iomap.grid_iomap
     gim isa GridLayoutIoMap || return nothing
     target = _wt_ref_to_grid_index(reference, geom)
     target === nothing && return nothing
     gidx, tail = target
-    # Delegate the tail through the grid's forward map, addressed as children[gidx].
     grid_ref = ConcreteReference(FieldReferenceStep("children"),
                 ConcreteReference(RangeReferenceStep(gidx - 1, gidx), tail))
-    map_reference_forward(gim.projection, gim, grid_ref)
+    inner = map_reference_forward(gim.projection, gim, grid_ref)
+    inner === nothing && return nothing
+    outer = find_node_reference(iomap.output, unwrap_cell(gim.output))
+    outer === nothing ? nothing : concat_references(outer, inner)
 end
 
-map_reference_forward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetTableToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # Backward: a grid-domain reference (`children[gidx].…`) maps back to the table
 # domain (`rows[r][c].…` etc.).
@@ -9106,10 +9100,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width)
 end
 
-# Whole-node handles have no in-canvas cursor image (the band is drawn in place at
-# print time), and nothing flows back from below the graphics layer — so both
-# reference mappers are the empty map, exactly as the table's whole-element case.
-map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
+map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 # A point on a row maps to its node, the reference that a click there selects.
 function map_reference_backward(p::WidgetTreeToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)

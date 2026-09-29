@@ -1,21 +1,19 @@
 # The position of a widget through `map_reference_forward`: a document reference
-# resolves to the widget's absolute graphics position. The forward image of a
-# positioned widget is a `PointReferenceStep`; each container shifts only a
-# coordinate result by where it placed the child (paths stay paths). Self-contained
-# per projection, so widgets nest in any container and vice versa. Ground truth is
-# walked directly from the output canvas tree.
+# maps to the output reference of the node that draws the widget, and the box of
+# that node (`find_reference_box`) is the widget's absolute graphics position.
+# Each container maps only its own step, so widgets nest in any container and
+# vice versa. Ground truth is walked directly from the output canvas tree.
 function test_anchor_point()
 @testset "the forward map resolves a widget to its graphics position" begin
 
-# The point the forward map gives for `reference`, in the frame of the root
-# output canvas, or `nothing` when the image is not a point.
+# The top left of the node that the forward map gives for `reference`, in the
+# frame that the place of the root output canvas is given in, or `nothing` when
+# the reference has no image.
 function get_anchor_point(iomap, reference)
     image = map_reference_forward(iomap.projection, iomap, reference)
-    image isa PointReferenceStep || return nothing
-    out = iomap.output
-    bx = out isa GraphicsCanvas ? Int(out.x[]) : 0
-    by = out isa GraphicsCanvas ? Int(out.y[]) : 0
-    (bx + Int(image.x[]), by + Int(image.y[]))
+    image === nothing && return nothing
+    box = find_reference_box(iomap.output, image)
+    box === nothing ? nothing : (box.x, box.y)
 end
 
 # Symbols resolve from the enclosing `ProjecturedTest` module's `using Projectured`
@@ -27,9 +25,10 @@ mkbtn(w, h, label) = WidgetButton(label;
 _gv(c, s) = (v = getfield(c, s); Int(v isa CellModule.Cell ? v[] : v))
 
 # Absolute top-left of the canvas reached by descending `elements[idx]` for each
-# index in `path` (1-based), summing every canvas origin along the way.
+# index in `path` (1-based), summing every canvas origin along the way, the root's
+# own origin first.
 function abs_top_left(root::GraphicsCanvas, path)
-    x = 0; y = 0; c = root
+    x = _gv(root, :x); y = _gv(root, :y); c = root
     for idx in path
         c = c.elements[idx]
         c isa Cell && (c = c[])

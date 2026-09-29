@@ -109,10 +109,8 @@ end
 
 _wval(v) = Int(v isa Cell ? v[] : v)
 
-# Screen level: peel `windows` + `[i]`, delegate the tail to window `i`'s iomap.
-# A coordinate image (`PointReferenceStep`) from the window — already in screen space
-# (the window shifted it by its origin) — passes straight up; a structural path is
-# re-rooted at `windows[i]` (coordinates accumulate, paths stay paths).
+# Screen level: peel `windows` + `[i]`, delegate the tail to window `i`'s iomap,
+# and re-root what it answers at `windows[i]`.
 function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
     reference isa ConcreteReference || return reference
     h = get_reference_head(reference)
@@ -127,14 +125,11 @@ function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
     wim = ims[i]
     mapped = fn(wim.projection, wim, get_reference_tail(rest1))
     mapped === nothing && return nothing
-    mapped isa PointReferenceStep && return mapped
     ConcreteReference(FieldReferenceStep("windows"), ConcreteReference(elem, mapped))
 end
 
-# Window level: peel `content`, delegate the tail to the content iomap. A
-# coordinate image (`PointReferenceStep`, the forward image of a positioned widget in
-# the content's frame) is shifted by this window's screen origin, so it lands in
-# screen space; a structural path is re-rooted at `content`.
+# Window level: peel `content`, delegate the tail to the content iomap, and re-root
+# what it answers at `content`.
 function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReference || return reference
     h = get_reference_head(reference)
@@ -142,10 +137,6 @@ function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     cim = iomap.content_iomap
     mapped = fn(cim.projection, cim, get_reference_tail(reference))
     mapped === nothing && return nothing
-    if mapped isa PointReferenceStep
-        return PointReferenceStep(_wval(getfield(iomap.input, :x)) + Int(mapped.x[]),
-                              _wval(getfield(iomap.input, :y)) + Int(mapped.y[]))
-    end
     ConcreteReference(FieldReferenceStep("content"), mapped)
 end
 

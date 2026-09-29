@@ -383,43 +383,86 @@ _wtl_column_reference(c::Int) =
     ConcreteReference(FieldReferenceStep("column_headers"),
         ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
 
-# Forward: `rows[k][c].…` is answered by the cell's own iomap, once row `k` is
-# built, and a point it answers is moved by the row's place and the header's.
-# `column_headers[c].…` is the header cell's own answer, at the top. Both are
-# in body-local coordinates, so the table's own content offset (the box) is
-# added; `st.header_height` already carries it on the y axis.
+# Forward, by index: the canvas of the table holds the header canvas, when there
+# is one, and the body; the elements of the body are the list of row canvases,
+# node for node with the rows, so row `k` counts from the head there too. A row
+# canvas holds three parts of its own (a rect, the hover band and the selection
+# band) and then a viewport for each drawn cell; the header canvas holds one
+# rect and then a viewport for each drawn header cell. A row that the walk did
+# not build yet has its cells in every slot. Only a reference into a cell needs
+# the cell's own mapper, and so a built row.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, reference)
-    st = iomap.state
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa EmptyReference && return EmptyReference()
     reference isa ConcreteReference || return nothing
+    st = iomap.state
     head = reference.head
     head isa FieldReferenceStep || return nothing
-    content_x, _ = _content_offset(p, iomap.input)
+    has_header = length(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))) == 2
     if head.name == "column_headers"
-        image = descend_reference_forward(st.header_entries, "column_headers", reference)
-        image isa PointReferenceStep || return image
-        return PointReferenceStep(Int(image.x[]) + content_x, Int(image.y[]))
+        has_header || return nothing
+        rest = reference.tail
+        (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
+        c = rest.head.start + 1
+        (1 <= c <= length(st.header_entries)) || return nothing
+        cell = st.header_entries[c][3]
+        cell === nothing && return nothing
+        inner = map_reference_forward(cell.projection, cell, rest.tail)
+        inner === nothing && return nothing
+        return _wtl_output_reference(1, 1 + _wtl_drawn_slot(st.header_entries, c), inner)
     elseif head.name == "rows"
+        body = has_header ? 2 : 1
+        rest = reference.tail
+        (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
+        k = rest.head.start + 1
+        rest.tail isa EmptyReference && return _wtl_output_path(body, k)
         split = _wt_cell_split(reference)
         split === nothing && return nothing
-        k, c, tail = split
-        _wtl_row_node(st, k) === nothing && return nothing
-        canvas, entries = st.built[k]
-        (1 <= c <= length(entries)) || return nothing
-        # The whole cell is where the cell begins; anything inside it is the
-        # cell's own answer, moved by the row's place and the header's.
-        if tail isa EmptyReference
-            (x_cell, y_cell, _) = entries[c]
-            return PointReferenceStep(Int(x_cell[]) + content_x,
-                                      Int(y_cell[]) + Int(st.header_height[]) + Int(canvas.y))
+        _, c, tail = split
+        (1 <= c <= st.ncols) || return nothing
+        built = get(st.built, k, nothing)
+        if built === nothing
+            tail isa EmptyReference || return nothing
+            return _wtl_output_path(body, k, 3 + c, EmptyReference())
         end
-        image = descend_reference_forward(entries, "children",
-            ConcreteReference(FieldReferenceStep("children"),
-                ConcreteReference(RangeReferenceStep(c - 1, c), tail)))
-        image isa PointReferenceStep || return image
-        return PointReferenceStep(Int(image.x[]) + content_x,
-                                  Int(image.y[]) + Int(st.header_height[]) + Int(canvas.y))
+        _, entries = built
+        cell = entries[c][3]
+        cell === nothing && return nothing
+        inner = map_reference_forward(cell.projection, cell, tail)
+        inner === nothing && return nothing
+        return _wtl_output_path(body, k, 3 + _wtl_drawn_slot(entries, c), inner)
     end
     nothing
+end
+
+# The slot of cell `c` among the drawn cells of `entries`.
+_wtl_drawn_slot(entries, c::Int) =
+    count(i -> entries[i][3] !== nothing && entries[i][3].output isa GraphicsDocument, 1:c)
+
+_wtl_step(field::String) = FieldReferenceStep(field)
+_wtl_index(i::Int) = RangeReferenceStep(i - 1, i)
+
+# `elements[part].elements[slot].content.elements[1]` and `inner` below it: a
+# header cell in its clipping viewport.
+_wtl_output_reference(part::Int, slot::Int, inner::Reference) =
+    _wtl_prepend(inner, _wtl_step("elements"), _wtl_index(part), _wtl_step("elements"),
+                 _wtl_index(slot), _wtl_step("content"), _wtl_step("elements"), _wtl_index(1))
+
+# The row `k` of the body, and a cell of it when `slot` is given.
+_wtl_output_path(body::Int, k::Int) =
+    _wtl_prepend(EmptyReference(), _wtl_step("elements"), _wtl_index(body),
+                 _wtl_step("elements"), _wtl_index(k))
+_wtl_output_path(body::Int, k::Int, slot::Int, inner::Reference) =
+    _wtl_prepend(inner, _wtl_step("elements"), _wtl_index(body), _wtl_step("elements"),
+                 _wtl_index(k), _wtl_step("elements"), _wtl_index(slot),
+                 _wtl_step("content"), _wtl_step("elements"), _wtl_index(1))
+
+function _wtl_prepend(inner::Reference, steps...)
+    for step in Base.reverse(steps)
+        inner = ConcreteReference(step, inner)
+    end
+    inner
 end
 
 # Backward: a point maps to the column header or the cell at it, the reference

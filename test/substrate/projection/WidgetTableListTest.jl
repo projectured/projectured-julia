@@ -210,9 +210,9 @@ end
                     ConcreteReference(FieldReferenceStep("rows"),
                         ConcreteReference(RangeReferenceStep(0, 1),
                             ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))))
-    @test image isa PointReferenceStep
-    @test at_head isa PointReferenceStep
-    @test Int(image.y[]) < Int(at_head.y[])
+    @test image !== nothing && at_head !== nothing
+    output = io.output isa Cell ? io.output[] : io.output
+    @test find_reference_box(output, image).y < find_reference_box(output, at_head).y
 end
 
 @testset "an empty vector in the rows cell is the empty list" begin

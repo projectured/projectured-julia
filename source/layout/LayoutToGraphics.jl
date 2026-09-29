@@ -489,8 +489,13 @@ function print_document(p::LayoutConstraintToGraphicsCanvas,
     ContentIoMap(p, doc, output, inner)
 end
 
+# The wrapper forwards the child's canvas as its own output, so the wrapper itself
+# is that canvas, and `child` followed by a reference into the child is what the
+# child's mapper answers.
 function map_reference_forward(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, reference)
-    reference = reference
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa EmptyReference && return EmptyReference()
     reference isa ConcreteReference || return nothing
     h = reference.head
     h isa FieldReferenceStep && h.name == "child" || return nothing
@@ -513,46 +518,75 @@ function read_intent(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, ev
     read_intent(inner.projection, inner, evt)
 end
 
-_off(v) = Int(v isa Cell ? v[] : v)
+"""
+    make_slot_reference(canvas, entries, index, inner; drawn) -> Reference | Nothing
 
-# Shift a child's forwarded image by where THIS container placed the child —
-# but only when the image is a coordinate (`PointReferenceStep`). A structural path
-# image passes through unchanged. (coordinates accumulate, paths stay paths — see
-# `map_reference_forward`'s docstring.) The child canvas sits at the entry offset
-# `(off_x, off_y)` the container wrapped it at PLUS the child canvas's own origin.
-function shift_child_image(child, cim; off_x, off_y)
-    child isa PointReferenceStep || return child
-    out = cim.output
-    out isa GraphicsCanvas || return child
-    PointReferenceStep(_off(off_x) + Int(out.x[]) + Int(child.x[]),
-                   _off(off_y) + Int(out.y[]) + Int(child.y[]))
+The output reference of the node that draws the child at `index` of `entries`,
+the `(x, y, child_iomap)` triples of a container, followed by `inner`, the
+reference that the child's own mapper answered. A child takes a slot among the
+drawn children of `canvas`, the container's own canvas, and the slot holds a
+wrapper: a canvas that places the child (`_wrap_child`), or a viewport that clips
+it (`clip_child_to_slot`), one `content` step deeper. The node of the slot says
+which, so this reads that one node of the output. `drawn` is the test that the
+container's own build used. The mirror of `_backward_descend`.
+"""
+function make_slot_reference(canvas, entries::Vector, index::Int, inner::Reference;
+                             drawn = output -> output isa GraphicsDocument)
+    slot = 0
+    for i in 1:index
+        child = entries[i][3]
+        if child === nothing || !drawn(child.output)
+            i == index && return nothing
+            continue
+        end
+        slot += 1
+    end
+    wrapper = nothing
+    elements = unwrap_cell(getfield(unwrap_cell(canvas), :elements))
+    1 <= slot <= length(elements) && (wrapper = unwrap_cell(elements[slot]))
+    below = ConcreteReference(FieldReferenceStep("elements"),
+                              ConcreteReference(RangeReferenceStep(0, 1), inner))
+    wrapper isa GraphicsViewport && (below = ConcreteReference(FieldReferenceStep("content"), below))
+    ConcreteReference(FieldReferenceStep("elements"),
+                      ConcreteReference(RangeReferenceStep(slot - 1, slot), below))
 end
 
-# Peel a `field[i]/rest` reference into the i-th child entry `(off_x, off_y, cim)`,
-# forward-map the tail through the child's own mapper, and shift a coordinate
-# result by this container's placement. Shared by every container that addresses
-# children by an indexed field (`children` for layouts, `elements` for composite).
-function descend_reference_forward(entries::Vector, field::String, reference)
+"""
+    descend_reference_forward(canvas, entries, field, reference; drawn) -> Reference | Nothing
+
+The forward map of a container that addresses its children by an indexed field,
+`field[i]` followed by a reference into the child (`children` for a layout): the
+child's own mapper answers the rest of the reference, and
+[`make_slot_reference`](@ref) puts the node of the child's slot in front of it.
+A child that is not drawn has no image.
+"""
+function descend_reference_forward(canvas, entries::Vector, field::String, reference;
+                                   drawn = output -> output isa GraphicsDocument)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
     reference isa ConcreteReference || return nothing
-    h = reference.head
-    (h isa FieldReferenceStep && h.name == field) || return nothing
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == field) || return nothing
     rest = reference.tail
     rest isa ConcreteReference || return nothing
-    h2 = rest.head
-    h2 isa RangeReferenceStep || return nothing
-    idx = h2.start + 1
-    1 <= idx <= length(entries) || return nothing
-    (off_x, off_y, cim) = entries[idx]
-    child = map_reference_forward(cim.projection, cim, rest.tail)
-    shift_child_image(child, cim; off_x, off_y)
+    rest.head isa RangeReferenceStep || return nothing
+    index = rest.head.start + 1
+    1 <= index <= length(entries) || return nothing
+    child = entries[index][3]
+    (child === nothing || !drawn(child.output)) && return nothing
+    inner = map_reference_forward(child.projection, child, rest.tail)
+    inner === nothing && return nothing
+    make_slot_reference(canvas, entries, index, inner; drawn)
 end
 
 """
-A reference of the form `children[i]/...` routes to the i-th child iomap's
-forward mapping, shifting a coordinate image by the child's laid-out offset.
+A reference of the form `children[i]/...`, as the output reference of the node
+that draws the child, followed by what the child's own mapper answers.
 """
-_children_forward(iomap::_LayoutChildrenIoMap, reference) =
-    descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "children", reference)
+_children_forward(iomap::_LayoutChildrenIoMap, reference,
+                  drawn = output -> output isa GraphicsDocument) =
+    descend_reference_forward(iomap.output, getfield(iomap, :child_iomaps)[]::Vector,
+                              "children", reference; drawn)
 
 # Which child drew the `slot`-th element of the container's own canvas.
 #
@@ -1804,11 +1838,10 @@ function print_document(p::StackLayoutToGraphicsCanvas,
     ChildrenIoMap(p, doc, outer, entries_cell)
 end
 
-function map_reference_forward(::StackLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
-end
-
 # A stack keeps only canvases, which is the test its own build used.
+map_reference_forward(::StackLayoutToGraphicsCanvas, iomap, reference) =
+    _children_forward(iomap, reference, output -> output isa GraphicsCanvas)
+
 map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference) =
     _children_backward(iomap, reference, output -> output isa GraphicsCanvas;
                        topmost_first = true)

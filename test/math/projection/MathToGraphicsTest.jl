@@ -199,17 +199,19 @@ end
     @test _press(1, Int(rule.y[])).path isa EmptyReference
 end
 
-@testset "a selection maps out to a point and back" begin
+@testset "a selection maps out to its node and back" begin
     fraction = MathFraction(PrimitiveNumber(1), MathVariable("x"))
     iomap = _print(fraction)
-    # Select the denominator: the forward map answers where it was drawn.
+    # Select the denominator: the forward map answers the node that draws it,
+    # and the box of that node is where it was drawn.
     path = ConcreteReference(FieldReferenceStep("denominator"), EmptyReference())
-    point = map_reference_forward(iomap.projection, iomap, path)
-    @test point isa PointReferenceStep
-    @test (point.x, point.y) == _at(iomap.output, 2)
-    # And the point maps back to the same reference.
+    image = map_reference_forward(iomap.projection, iomap, path)
+    @test image !== nothing
+    box = ProjecturedGraphics.GraphicsModule.find_reference_box(iomap.output, image)
+    @test (box.x, box.y) == _at(iomap.output, 2)
+    # And a point inside the box maps back to the same reference.
     back = map_reference_backward(iomap.projection, iomap,
-                                  PointReferenceStep(point.x + 1, point.y + 1))
+                                  PointReferenceStep(box.x + 1, box.y + 1))
     @test back.head.name == "denominator"
 end
 

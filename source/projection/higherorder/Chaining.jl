@@ -271,10 +271,9 @@ _collected(::Any) = nothing
 # Compose forward-mapping through the chain: thread the reference through each
 # stage's own `map_reference_forward`, input domain → … → output domain. Stages
 # wire their own `output.selection`, so this is unused for cursor wiring; it
-# exists so a reference (including a graphics-domain `PointReferenceStep` produced by
-# the final stage) resolves end-to-end through a Sequential — e.g. anchoring a
-# popup to a widget. A stage that drops the reference returns `nothing`, which
-# short-circuits.
+# exists so a reference resolves end-to-end through the chain, as the reference
+# of the node that the last stage draws a part with. A stage that drops the
+# reference returns `nothing`, which short-circuits.
 function map_reference_forward(::ChainingProjection, iomap, reference)
     ref = reference
     for cell in iomap.step_iomaps

@@ -1727,20 +1727,21 @@ function _peel(child::MathChild, reference)
 end
 
 """
-A reference into a child maps to the point that child maps it to, moved by
-where this box placed the child. A reference to the box itself is its own
-origin — which is where a whole-element selection sits.
+A reference to the box itself is its own canvas. A reference into a child is the
+node of the child's canvas in this box's canvas, found by identity
+(`find_node_reference`), followed by what the child maps the rest to.
 """
 function map_reference_forward(p::MathProjection, iomap::MathIoMap, reference)
     reference = _bare(reference)
     reference === nothing && return nothing
-    reference isa EmptyReference && return PointReferenceStep(0, 0)
+    reference isa EmptyReference && return EmptyReference()
     for child in _math_children(iomap)
         rest = _peel(child, reference)
         rest === nothing && continue
         inner = map_reference_forward(child.iomap.projection, child.iomap, rest)
-        inner isa PointReferenceStep || continue
-        return PointReferenceStep(Int(child.x[]) + inner.x, Int(child.y[]) + inner.y)
+        inner === nothing && return nothing
+        outer = find_node_reference(iomap.output, unwrap_cell(child.iomap.output))
+        return outer === nothing ? nothing : concat_references(outer, inner)
     end
     nothing
 end

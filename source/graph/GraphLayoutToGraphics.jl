@@ -246,7 +246,10 @@ function map_reference_forward(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayou
             entry = entries[i]
             (entry === nothing || entry[3] === nothing) && return nothing
             cim = entry[3]
-            map_reference_forward(cim.projection, cim, rest)
+            inner = map_reference_forward(cim.projection, cim, rest)
+            inner === nothing && return nothing
+            outer = find_node_reference(iomap.output, unwrap_cell(cim.output); depth = 4)
+            outer === nothing ? nothing : concat_references(outer, inner)
         end
         __ => nothing
     end

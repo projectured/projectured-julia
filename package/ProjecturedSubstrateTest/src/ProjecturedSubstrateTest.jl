@@ -252,6 +252,7 @@ include("../../../test/substrate/projection/SplitPaneDragTest.jl")
 include("../../../test/substrate/projection/RoutedGestureTest.jl")
 include("../../../test/substrate/projection/LayoutPointTest.jl")
 include("../../../test/substrate/projection/WidgetPointTest.jl")
+include("../../../test/substrate/projection/WidgetForwardTest.jl")
 include("../../../test/substrate/projection/ScrollPaneHoverTest.jl")
 include("../../../test/substrate/projection/WidgetPopupExampleTest.jl")
 # ── visual-level generic drivers ─────────────────────────────────────────────

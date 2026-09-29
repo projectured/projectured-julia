@@ -81,16 +81,57 @@ Facts from a search on 2026-09-28, with the two central ones read again:
 - [x] 1. **The contract.** The docstring of `map_reference_forward` and
   [reference.md](../../documentation/package/kernel/reference.md) say the model
   of section 2.
-- [ ] 2. **The three wrappers map forward through their child**, as they map
+- [x] 2. **The three wrappers map forward through their child**, as they map
   backward. Test first what this changes: the tests that print and read, and
   the selection wiring, because a map that answered nothing now answers.
+  Done: `RecursiveProjection`, `PredicateDispatchingProjection` and
+  `SwitchingProjection` delegate forward as they delegate backward. The wide
+  sweep has the counts of the sweep of 9b/9c in every suite.
 - [ ] 3. **The widgets, the layouts and the screen map by index.** A container
   maps its own step to the step of its child's node in its output, and a leaf
   answers the empty reference for itself. The helpers that add points
   (`shift_child_image`, `_self_point`, the point in `_map_window`) change to
-  references. A part that is not printed still has its output reference (Q2). A closed tab needs
-  a decision in this step: its content has no node of its own in the output,
-  because the tabbed pane shows only the open tab in one slot.
+  references. A part that a lazy printer did not compute yet still has its
+  output reference; a part that the projection does not display, such as the
+  content of a tab that is not open, maps to `nothing` (Q2). Found in the work:
+  - **The layouts map by index.** `make_slot_reference` gives a drawn child its
+    slot, `elements[slot].elements[1]`, one `content` step deeper when a viewport
+    clips it, which the node of the slot shows; it is the mirror of
+    `_backward_descend`.
+  - **The widget containers find a child by identity**, as their backward maps
+    do (`_map_point_to_child`): a widget puts parts of its own before its
+    children, such as the parts of its box, whose number varies. The child is
+    the one whose input the reference reaches, and its canvas is found in the
+    container's canvas by `find_node_reference` of the graphics package, which
+    searches level by level through canvases and viewports and never into a
+    linked list. Every widget forward method calls `_map_child_forward`; with no
+    child IO maps it answers the empty reference for the widget itself.
+  - **Some containers re-host their child's elements**, so the child's canvas is
+    not in the output: the scroll pane shows the elements of its content in a
+    canvas of its own, moved by the scroll, and maps `content` to the content of
+    its viewport. The table list mirrors its rows, node for node, in a list of
+    row canvases, and maps a row and a cell by index, also a row that the walk
+    did not build yet. The eager table delegates to its grid layout and adds the
+    steps to the grid's canvas. The math boxes and the graph layout add the
+    steps to their children's canvases too.
+  - **The forward helpers strip the node types first**, because a selection is
+    a typed reference, whose type steps are no steps of the mapping.
+  - **The rows of a list, a tree and an accordion have no node of their own.**
+    The list draws the texts and the panels of its rows straight into its
+    canvas, the tree draws a row when the renderer reaches it, and the accordion
+    draws its titles and chevrons into its canvas. A row needs a canvas of its
+    own to have an image. This is open: it changes what the three printers
+    output. The round trip test marks these cases `@test_broken`.
+  - **Tests of the point model change to the reference model.** The anchor test
+    (`test_anchor_point`), a case of the table list and the round trip case of
+    math asserted that a forward map answers a `PointReferenceStep`; they read
+    the box of the forward reference now, with the same claims.
+  - Checks: the wide sweep has the counts of step 2, except the substrate
+    (86217 passed: +15 of the round trip test, −1 of the table list case; the 3
+    failures and 4 errors of the baseline; 7 broken: +6 row cases) and math (173,
+    as before) after the tests of the point model changed; the naming guard and
+    the documentation check pass; the omnet tests of step 8 pass (186 in 8).
+  Committed without the rows, which wait for the owner.
 - [ ] 4. **The place of a part.** A function reads the box of the printed node
   at a forward reference, with the origin of the window, and `find_part_point`
   becomes the place below that box (Q3). The tooltip window and the context
@@ -115,8 +156,14 @@ Facts from a search on 2026-09-28, with the two central ones read again:
 - ~~**Q1. A part that is scrolled out of view.**~~ **Settled with Q6.** It has a
   forward reference, as every part has.
 - ~~**Q2. A part on a hidden tab, in a closed card, or under a closed tree
-  node.**~~ **Settled with Q6.** It has a forward reference too, although the printer
-  did not print it.
+  node.**~~ **Settled.** A tab that is not displayed has no output image, so it
+  maps forward to `nothing`: "For the tabbed pane question, when mapping forward
+  a tab which is not displayed. That legitimately does not have an output image
+  independently of laziness, so it maps forward to nothing." (Owner
+  2026-09-29.) The difference is between a part that the projection does not
+  display, which has no image, and a part that a lazy printer did not compute
+  yet, which has its output reference. Claude reads a closed card and a closed
+  tree node as the first kind, as a closed tab is, for the owner to correct.
 - ~~**Q6. What the forward map answers.**~~ **Settled.** The forward map takes an
   input reference and returns an output reference (owner 2026-09-29: "The
   mapper functions work with references, that's the correct terminology"). It
