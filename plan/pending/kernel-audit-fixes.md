@@ -116,6 +116,36 @@ before you approve the plan.
   names in Phase 5, among them `run_fault_barrier!`, `execute_julia_code!` and
   `get_default_llm_model`. The MCP tool keeps its wire name `execute_julia_code`.
 
+The work found more changes of this kind:
+
+- **Playback (N-6):** `play_live!` works again. It threw `UndefVarError` for `read!` on every
+  call on Julia 1.13, so every live example of playback failed.
+- **Undo (N-5):** the way back of an element overwrite in a reactive `CellVector` puts back the
+  old value. Before, it put back the new one.
+- **Keys (N-8):** Ctrl+\ can fire in the browser.
+- **The editor loop (L21-2, L21-3, L22-6, L22-7, L22-11):** a feed, a deadline or a frame clock
+  that throws no longer ends the loop. A posted operation takes an inverse first and gets the
+  repairs, and its fault record names its type. An operation posted during a drain waits for the
+  next frame, which runs at once. An inverse that throws leaves a fault record, so the console
+  shows it.
+- **Faults (L01-3, L01-10):** one drain hands a record over once, so a fault that counts 3000
+  gives one console block, not four. A target that refuses a record logs only when the policy
+  has the console on.
+- **The agent (L20-3, L20-5):** a tool that throws gives a result with `is_error = true`, and a
+  stream cut before its end ends the turn with `:error`.
+- **References (L11-3, L11-20):** a step of the `M…` layout matches a pattern and descends in
+  `set_selection!`, as a step of the `C…` layout does; omnet-julia builds such references. A
+  referenced value gets a path only when the path evaluates back to the value.
+- **Gesture tables (L15-3):** `@gestures` builds its table once, at load time, so a name that a
+  pattern or a `splice` reads must be defined above the block.
+- **Copies (L10-4, L10-5):** a copy keeps the type parameters of a schema and the element type
+  of a vector. A plain copy with a policy of a vector that has no `similar` gives `Vector{Any}`.
+- **Display (L03-12):** a typed cell shows as `ReactiveCell{Int64}(…)`; `Cell(…)` stays for
+  `ReactiveCell{Any}`.
+- **Clocks (L05-2, L22-20):** the heartbeat and the frame clock measure with the monotonic clock.
+- **SDL input (L09-9):** the held buttons and the modifiers of an event are those of the queue at
+  that event, not those at the poll.
+
 ## How to work
 
 1. **Worktree.** Do the work in `/home/projectured/workspace/projectured-julia-kernel-fixes` on
