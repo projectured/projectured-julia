@@ -1,8 +1,8 @@
 # View and edit a data frame
 
 > **Kind:** plan · **Status:** pending, 2026-09-29. Phase 0 is done (§6.1).
-> D11 and D12 are open, and group and pivot wait for a design of their own
-> (D8). Every other decision of §5 is made. ·
+> Every decision of §5 is made, except group and pivot, which wait for a
+> design of their own (D8). ·
 > **Stands on:** [concepts.md](../../documentation/design/concepts.md),
 > [domain-anatomy.md](../../documentation/design/domain-anatomy.md),
 > [package-rules.md](../../documentation/rule/package-rules.md),
@@ -458,6 +458,12 @@ is safe only when nothing writes the frame at the same time.
   is. D10 says where the selection and the view go after the commit.
 - **D7 is (a)** (the owner, 2026-09-29). The package is
   `ProjecturedDataFrames`, and the types take the prefix `DataFrame`.
+- **D11 is (b)** (the owner, 2026-09-29). The editor runs on the default pool,
+  and SDL starts on that thread. The busy flag of §4.3 is necessary, and the
+  editor task is pinned to one thread.
+- **D12 is (a)** (the owner, 2026-09-29). `ProjecturedDataFrames`, its example
+  package and its test package go into `environment/all`, and the umbrella
+  suite loads them, as for the other packages with a third-party dependency.
 - **D8 is deferred** (the owner, 2026-09-29): "(a) but let's defer this for a
   better design". The direction is one query model with two layouts. Group and
   pivot (§4.6, §4.7, phases 7 and 8) wait for a design of their own.
@@ -547,7 +553,8 @@ Proposal: the view keeps the row of the selection at its place on the screen.
   new position of the row, and the rows around it change.
 - If the filter now hides the edited row, Tab acts as Enter.
 
-**D11. The thread of the editor.** Open. Phase 0 measured both (§6.1).
+**D11. The thread of the editor. Made: (b), see §5.1.** Phase 0 measured both
+(§6.1).
 - (a) On the thread of the REPL, with `@async`. No race is possible, and no
   busy flag is needed. The REPL takes about 10 ms for each character that it
   reads, and the window stops during a long input.
@@ -560,7 +567,7 @@ Proposal: the view keeps the row of the selection at its place on the screen.
 Recommendation: (b). A REPL that takes 10 ms for each character is too slow
 for daily work.
 
-**D12. The test environment.** Open. Phase 0 counted 999 invalidated method
+**D12. The test environment. Made: (a), see §5.1.** Phase 0 counted 999 invalidated method
 instances when DataFrames loads after the editor stack (§6.1).
 - (a) As the other packages with a third-party dependency:
   `ProjecturedDataFrames`, its example package and its test package go into
@@ -599,13 +606,17 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   `DataFrameViewToWidget`, cells by element type, the natural row, the
   `ProjecturedDisplay` and its short function (D9) with the editor in a
   background task (D4), and a row in the third-party table of
-  package-rules.md.
+  package-rules.md. The editor task runs on the default pool, pinned to one
+  thread, and it handles `julia -t N` and `julia -t N,0` (D11). Every call
+  that the REPL posts goes through a closure that calls `invokelatest`
+  (§6.1). The three packages go into `environment/all`, and the umbrella suite
+  loads them (D12).
 - [ ] **3. Refresh.** The three levels of §4.3. The triggers A, B with the
   busy flag, and D. C is a keyword that is off by default (D3).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
   form. If phase 0 puts the editor on another thread, the busy flag of §4.3
-  comes with this phase, because an edit writes the frame. If D11 is (b), the
+  comes with this phase, because an edit writes the frame. D11 is (b), so the
   busy flag and the REPL hook that sets it come with this phase.
 - [ ] **5. Sort and filter.** The query document, the header gestures, the
   quick filters, the expression filter, column hide and move. The sort and
@@ -642,8 +653,8 @@ for each input.
 - On the thread of the REPL, the REPL reads each character in a turn of its
   own, and each turn waits for one SDL wait slice of 10 ms
   ([Sdl.jl:3466](../../source/sdl/Sdl.jl#L3466)): about 10 ms for each
-  character. The window also stops during a long input. D11 asks where the
-  editor runs.
+  character. The window also stops during a long input. So the editor runs on
+  the default pool (D11).
 - On the default pool, the window stays live during an input. So the view can
   read the frame while the REPL writes it, and the busy flag of §4.3 is
   necessary there.
@@ -689,8 +700,8 @@ as an indirect dependency. `test_all` runs every suite in one process
 ([ProjecturedSuite.jl:382](../../test/projectured/ProjecturedSuite.jl#L382)).
 The other packages with a third-party dependency, such as `ProjecturedOdbc`,
 `ProjecturedTulip`, `ProjecturedVideo` and `ProjecturedAnthropic`, are in
-`environment/all`, and the umbrella suite loads them. D12 asks where
-`ProjecturedDataFrames` goes.
+`environment/all`, and the umbrella suite loads them. `ProjecturedDataFrames`
+goes there too (D12).
 
 ## 7. Targets
 
@@ -711,15 +722,15 @@ columns. A measurement needs an idle machine and the approval of the owner.
 - **Two tasks, one frame.** The REPL can change a frame while the editor reads
   it. On one thread the two tasks switch only where a task yields. With more
   threads, a read can see a `push!` that is half done. A sync that throws
-  tries again on the next frame, as `ReflectionFeed` does. If the editor runs
-  on another thread (D11), the busy flag of §4.3 is necessary.
+  tries again on the next frame, as `ReflectionFeed` does. The editor runs on
+  another thread (D11), so the busy flag of §4.3 is necessary.
 - **A computation without a safepoint.** A collection waits for every thread
   to reach a safepoint. A loop of the user that has none can stop the editor
   until it ends. Phase 0 did not see it, but it did not rule it out.
 - **The thread of the editor.** SDL needs one thread. With `julia -t N` and `N`
   of 2 or more, a task of the default pool can move between threads, so the
   editor task must be pinned. With `julia -t N,0`, the REPL is itself on the
-  default pool. If D11 is (b), phase 2 handles both.
+  default pool. Phase 2 handles both.
 - **Load time.** DataFrames invalidates 999 method instances when it loads
   after the editor stack (§6.1). The stem must stay out of the `Projectured`
   package and out of every default session. D12 decides whether the test
