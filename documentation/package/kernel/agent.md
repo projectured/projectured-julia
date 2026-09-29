@@ -221,9 +221,12 @@ nomic-embed-text`.
 ## `llm/`: how the editor talks to a model
 
 ```
-Llm.jl         the Llm supertype; the stream_turn and render_tool_schema seams; the meaning model
-LlmMessage.jl  LlmText / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
-LlmEvent.jl    LlmTextDelta, LlmToolUseStart, LlmTurnEnd, … — what streams back
+LlmInterface.jl  the Llm supertype; the stream_turn and render_tool_schema seams; the
+                 meaning-model seams; the make_llm and get_default_llm_model factories
+LlmDefaults.jl   the fallbacks: no meaning model; the factories that take a symbol
+Llm.jl           a backend is opaque to the walk; bind_meaning_model!; get_llm_backend_names
+LlmMessage.jl    LlmText / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
+LlmEvent.jl      LlmTextDelta, LlmToolUseStart, LlmTurnEnd, … — what streams back
 ```
 
 **None of this is any provider's wire format.** The messages and events are the
@@ -289,7 +292,8 @@ model are the backend's own configuration, so a cached backend would freeze
 whichever model was selected first and editing `assistant.model` would stop taking
 effect.
 
-Three functions carry the whole selection, and all three live in `llm/LlmInterface.jl`:
+Three functions carry the whole selection. `llm/LlmInterface.jl` declares `make_llm`
+and `get_default_llm_model`, and `get_llm_backend_names` is in `llm/Llm.jl`:
 
 | function | what it answers |
 | --- | --- |
@@ -405,9 +409,11 @@ of names that mean nothing to its task.
 ## `agent/`: the two directions
 
 ```
-AgentModule.jl  (AgentModule)  inbound  — make/start/stop_agent_server!, run_on_editor_task!
-Agent.jl        (AgentModule)        outbound — the Agent, and AgentToolResult
-AgentLoop.jl    (AgentModule)        outbound — run_turn!
+AgentModule.jl     (AgentModule)  the module: both halves share its namespace
+AgentInterface.jl  inbound  — make/start/stop_agent_server!, run_on_editor_task!, declared
+AgentDefaults.jl   inbound  — the fallbacks, when no server package is loaded
+Agent.jl           outbound — the Agent, and AgentToolResult
+AgentLoop.jl       outbound — run_turn!
 ```
 
 **Inbound** is something outside the process driving *this* editor. The editor loop
@@ -470,7 +476,7 @@ layer answers it for an `Editor` whose loop runs on another task;
 
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
-| `make_agent_server(:mcp, …)` | `agent/AgentModule.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
+| `make_agent_server(:mcp, …)` | `agent/AgentInterface.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
 | `run_on_editor_task!` | `agent/AgentInterface.jl` | the editor layer (`editor/Inbox.jl`) for an `Editor`; the default in `agent/AgentDefaults.jl` runs every other target at once |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/LlmInterface.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

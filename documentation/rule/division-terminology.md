@@ -13,9 +13,9 @@ and no synonyms.
   consists of packages: the `ProjecturedKernel` engine, the twenty-eight
   packages of the substrate, the twenty domain packages, the `Projectured`
   umbrella, their sibling test and example packages, and the opt-in packages
-  (`sdl`, `web`, `odbc`, `video`, `tulip`, `llm`, `mcp`, …). A package is one
-  concept and a boundary of dependencies and consumers. The packages form an
-  acyclic graph, not a chain.
+  (`sdl`, `web`, `odbc`, `video`, `tulip`, `anthropic`, `ollama`, `mcp`, …). A
+  package is one concept and a boundary of dependencies and consumers. The
+  packages form an acyclic graph, not a chain.
 
 - **Layer** — a horizontal stratum inside a package, and it holds exactly one
   module. Layers are **ordered**: a layer may depend only on **lower** layers,

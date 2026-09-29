@@ -52,7 +52,7 @@ Layer 16 — iomap/       the IoMap contract (IoMap + accessors) + the concrete 
 Layer 17 — projection/  ProjectionInterface/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
 Layer 18 — tool/        the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code!, doc/API search, register_default_tools! (side-stack)
 Layer 19 — llm/         the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
-Layer 20 — agent/       the AI control surface — AgentModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 20 — agent/       the AI control surface — AgentModule, with the inbound MCP seam and the outbound Agent and run_turn! loop (side-stack)
 Layer 21 — feed/        the feed contract — a registered inflow that the editor moves into a target document once per frame
 Layer 22 — editor/      the run_editor! loop — read!, evaluate!, print! and the frame
 Layer 23 — playback/    scripted live playback — a timeline that fires in the editor loop on a wall-clock schedule
@@ -93,10 +93,10 @@ text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`Text
 their navigation through `evaluate_reference_step`, with no edit to layer 11.
 
 **The agent stack is a side-stack.** The editor (layer 22) reaches it only through
-the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentModule.jl`
-(`AgentModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
-transports are the opt-in `package/mcp/` and `package/llm/`, which register their
-method on load.
+the factory seam `make_agent_server(:mcp, editor)` declared in
+`agent/AgentInterface.jl` (`AgentModule`), so the editor does **not** depend on
+`ProjecturedMcp`, `ProjecturedAnthropic` or `ProjecturedOllama`. These opt-in
+packages hold the real transports, and they register their methods on load.
 
 **Fan-in.** A count of the kernel module files that name a module in a
 `using ..XxxModule` or `import ..XxxModule` line identifies the hubs. These are the
@@ -180,7 +180,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `PrinterContext`, `ChildrenContainer`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code!`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |
-| `agent/` | `AgentModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |
+| `agent/` | `AgentModule` — the inbound contract (`make/start/stop_agent_server!`, `run_on_editor_task!`) and the outbound Agent and `run_turn!` |
 | `feed/` | `FeedModule` — the feed contract: a registered inflow that the editor moves into a target document once per frame |
 | `editor/` | Editor (the `run_editor!` loop) |
 | `playback/` | `PlaybackModule` — scripted live playback of a timeline in the editor loop |

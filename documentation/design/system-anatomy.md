@@ -175,7 +175,8 @@ type-name reflection where it isn't. So the SQL and DbCatalog *documents and pro
 **live ODBC querying** lives in `Odbc`. Likewise each editor's *tool surface* is
 kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
 kernel-resident too (the `llm` and `agent` layers); only the MCP transport and
-the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
+the HTTP clients of the model providers are in the opt-in `ProjecturedMcp`,
+`ProjecturedAnthropic` and `ProjecturedOllama`.
 
 > The inventory below cites a file by name. Every one of them lives in
 > `source/<slice>/`, one folder per slice, and the package that includes it is
@@ -325,7 +326,7 @@ composes with any higher-order projection.
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
 | `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
-| `agent/AgentModule.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
+| `agent/AgentInterface.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `ProjecturedMcp` |
 
 ---
 
@@ -342,7 +343,8 @@ enforces.
 ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains ◄── Projectured
        ▲                          ▲                        ▲            (umbrella)
        │                          │                        │
-   Mcp, Llm             Sdl, Web, Video, Tulip      Odbc, Adaptagrams
+   Mcp, Anthropic,      Sdl, Web, Video, Tulip      Odbc, Adaptagrams
+   Ollama
    (opt-in)                    (opt-in)                 (opt-in)
 ```
 
@@ -395,8 +397,8 @@ includes them in:
                execute_julia_code!, doc/API search, register_default_tools!
 19 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-20 agent       the AI control surface: AgentModule (inbound, the MCP
-               seam) and AgentModule (outbound, the Agent and run_turn! loop)
+20 agent       the AI control surface: AgentModule, with the inbound MCP seam
+               and the outbound Agent and run_turn! loop
 21 feed        the feed contract: a registered inflow that the editor moves into a
                target document once per frame
 22 editor      run_editor!, the read-eval-print loop

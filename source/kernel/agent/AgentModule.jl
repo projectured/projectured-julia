@@ -1,9 +1,10 @@
 """
     AgentModule
 
-The **outbound** half of the agent layer, and the only thing in the kernel that is
-actually an *agent*: the glue between a language model, a set of tools, and
-something to act on.
+The agent layer, in both of its halves. The **outbound** half is the only thing in
+the kernel that is actually an *agent*: the glue between a language model, a set of
+tools, and something to act on. The **inbound** half is the contract through which
+an agent outside the process drives this editor.
 
 Four fragments share this namespace:
 

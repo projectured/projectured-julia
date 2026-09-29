@@ -54,7 +54,7 @@ give each its own.
 ## The package chain and what belongs to each
 
 ```
-kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web odbc video tulip llm mcp
+kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web odbc video tulip anthropic ollama mcp
 ```
 
 - **kernel** — machinery and interfaces only: cells, the document/reference/operation
@@ -79,7 +79,8 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   layer above. No shared layers between them: anything two slices need is a
   framework and belongs in base (or visual, if it renders).
 - **opt-in packages** — exactly one per external dependency or transport (sdl=SDL2,
-  web=HTTP, odbc=ODBC, tulip=linear-programming solver, llm/mcp=protocol clients). They implement
+  web=HTTP, odbc=ODBC, tulip=linear-programming solver, anthropic/ollama=HTTP clients
+  of a model provider, mcp=the MCP server). They implement
   seams owned below (the render/image/record backend generics, database adapters)
   and bind to the narrowest package that has what they render (sdl/web → visual,
   odbc → domain's sql surface).
@@ -102,7 +103,7 @@ The three kinds form **parallel DAGs with identical shape** (the module names ke
 the `-Test` / `-Example` suffixes even though the directories share one folder):
 
 ```
-main:      kernel ← the 28 substrate packages ← the 20 domains ← Projectured (umbrella) ← {sdl, odbc, tulip, video, llm, mcp, web}
+main:      kernel ← the 28 substrate packages ← the 20 domains ← Projectured (umbrella) ← {sdl, odbc, tulip, video, anthropic, ollama, mcp, web}
 tests:     kernel/test ← substrate/test ← <domain>/test ← projectured/test
 examples:  kernel/example ← substrate/example ← <domain>/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
 ```
