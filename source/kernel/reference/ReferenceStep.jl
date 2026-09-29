@@ -120,6 +120,14 @@ function evaluate_reference_step(step::ARangeReferenceStep, document)
     unwrap_cell(document[step.start + 1])
 end
 
+# A string counts characters, not bytes: `[i]` is the i-th character, as every
+# text offset of a reference counts. `nextind(document, 0, i)` is the byte index
+# of that character, and an index past the last character does not resolve.
+function evaluate_reference_step(step::ARangeReferenceStep, document::AbstractString)
+    is_position_reference_step(step) && return Position(step.start)
+    document[nextind(document, 0, step.start + 1)]
+end
+
 # ── FieldReferenceStep ────────────────────────────────────────────────────────
 
 """

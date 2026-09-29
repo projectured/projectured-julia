@@ -206,6 +206,19 @@ function test_reference_evaluation()
         @test !is_reference_prefix(deep, base)
     end
 
+    @testset "an element step on a String counts characters" begin
+        text = "héllo"                  # 'é' takes two bytes
+        third = Reference(ElementReferenceStep(3))
+        sixth = Reference(ElementReferenceStep(6))
+        middle = Reference(RangeReferenceStep(2, 4))
+        @test evaluate_reference(text, third) == 'l'
+        @test try_evaluate_reference(text, sixth) === nothing
+        @test !is_valid_reference(text, sixth)
+        @test get_valid_reference_prefix(text, middle) == middle
+        # A caret between characters still answers its position.
+        @test evaluate_reference(text, Reference(PositionReferenceStep(2))) == Position(2)
+    end
+
     @testset "a reference names a schema, not the layout it was built on" begin
         # The simulator mutates the native tree while the editor navigates the cell
         # shadow. A path built on one has to be the path built on the other, or a
