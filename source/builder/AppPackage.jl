@@ -151,6 +151,22 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
             Base.CoreLogging.global_logger(Base.CoreLogging.ConsoleLogger(stderr, level))
             Cint(0)
         end
+
+        # `SIGTERM` ends the program at once and in silence, as it ends most
+        # programs. The signal listener of the Julia runtime takes `SIGTERM` as a
+        # fatal signal and prints the stack of every thread. Linux gives a signal
+        # sent to the process to its main thread first when that thread does not
+        # block it, and the default action of `SIGTERM` then ends the process with
+        # exit status 143. `atexit` hooks do not run.
+        function _end_on_terminate!()::Nothing
+            Sys.islinux() || return nothing
+            signals = zeros(UInt8, 128)             # a `sigset_t`
+            ccall(:sigemptyset, Cint, (Ptr{UInt8},), signals)
+            ccall(:sigaddset, Cint, (Ptr{UInt8}, Cint), signals, 15)                   # SIGTERM
+            ccall(:signal, Ptr{Cvoid}, (Cint, Ptr{Cvoid}), 15, C_NULL)                 # SIG_DFL
+            ccall(:pthread_sigmask, Cint, (Cint, Ptr{UInt8}, Ptr{Cvoid}), 1, signals, C_NULL)  # SIG_UNBLOCK
+            nothing
+        end
         """)
         if init !== nothing
             println(io)
@@ -178,6 +194,7 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         # FIRST, so that the flag is gone before anything else reads `ARGS` and
         # so that every line a binary writes is written at the level asked for.
         println(io, "    _apply_log_level!() == 0 || return 1")
+        println(io, "    _end_on_terminate!()")
         println(io, "    (\"--build-info\" in ARGS) && (print(BUILD_INFO); return 0)")
         if usage !== nothing
             println(io, "    (\"-h\" in ARGS || \"--help\" in ARGS) && (print(USAGE); return 0)")

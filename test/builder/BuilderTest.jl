@@ -191,6 +191,20 @@ function test_builder()
                            "    _apply_log_level!() == 0 || return 1\n", source)
         end
 
+        @testset "every binary ends in silence on SIGTERM" begin
+            context = _test_context()
+            source = _generated_source(context; name = "quiet", usage = nothing)
+            # Second, right after the log level, before the program starts any
+            # work that a signal could interrupt.
+            @test occursin("    _apply_log_level!() == 0 || return 1\n" *
+                           "    _end_on_terminate!()\n", source)
+            # Not called here: it would change how this test process takes the
+            # signal. What it does is checked on a real process in Step A3 of the
+            # release plan.
+            @test occursin("function _end_on_terminate!()::Nothing", source)
+            @test occursin("ccall(:pthread_sigmask", source)
+        end
+
         @testset "the build bakes the default and the flag says another" begin
             context = _test_context()
             # A build for developing ships at info; a distribution ships quiet.
