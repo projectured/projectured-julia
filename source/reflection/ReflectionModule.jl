@@ -38,9 +38,10 @@ been grown yet.
 # Where the walk lives
 
 Not here. `sync_document!` and `copy_document` take a policy and consult
-`is_descendable_for_sync` / `sync_element_limit` / `make_unsynced_placeholder` at every
-child; this module answers those three and supplies the marker. There is one
-traversal of each kind, in the kernel, and bounding is a parameter of it.
+`is_descendable_for_sync` / `compute_sync_element_limit` /
+`make_unsynced_placeholder` at every child; this module answers those three and
+supplies the marker. There is one traversal of each kind, in the kernel, and
+bounding is a parameter of it.
 
 An earlier version put a second, bounded walk here beside the sealed one. It
 worked, but it mirrored `_sync_fields!` / `_sync_elements!` / `copy_document`
@@ -62,7 +63,7 @@ using ..ReferenceModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: sync_document!, copy_document, is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder
+import ..DocumentModule: sync_document!, copy_document, is_descendable_for_sync, compute_sync_element_limit, make_unsynced_placeholder
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent

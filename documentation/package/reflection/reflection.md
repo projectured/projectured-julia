@@ -8,7 +8,7 @@
 
 ### The bounded sync
 
-The kernel has one walk for `sync_document!` and `copy_document`, and a policy is a parameter of it. At each child, the walk calls three open functions: `is_descendable_for_sync`, `sync_element_limit` and `make_unsynced_placeholder`. This package answers them. `DepthPolicy(depth, elements)` grows an empty slot only within `depth`, keeps a slot that already holds a document, and descends into a marker only when it is `requested`. Past `elements` items of a collection, one tail marker holds the count of the rest. `UNBOUNDED_SYNC` walks everything.
+The kernel has one walk for `sync_document!` and `copy_document`, and a policy is a parameter of it. At each child, the walk calls three open functions: `is_descendable_for_sync`, `compute_sync_element_limit` and `make_unsynced_placeholder`. This package answers them. `DepthPolicy(depth, elements)` grows an empty slot only within `depth`, keeps a slot that already holds a document, and descends into a marker only when it is `requested`. Past `elements` items of a collection, one tail marker holds the count of the rest. `UNBOUNDED_SYNC` walks everything.
 
 `UnsyncedDocument` is the marker: a `kind` for the label, a `size` when the count is cheap to know, and `requested`. `make_unsynced_marker(document)` collapses a subtree at once. `request_sync!(marker)` only flags the marker, and the next sync fills that node one level deeper. So a collapse costs nothing, and an expand costs nothing until something syncs. A shadow must start bounded, with `copy_document(kind, document, policy)`, because a bound can only withhold what has not grown yet.
 

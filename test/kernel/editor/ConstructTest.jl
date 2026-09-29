@@ -24,7 +24,7 @@
 # where their *content* diverges, tagged with the path to the divergence. It
 # mirrors `DocumentModule.walk_document`'s descent exactly — the four shapes
 # (`is_element_collection` / dict / array / struct-by-`fieldnames`), the cell
-# unwrap, the `:selection` skip, and the `is_walk_leaf` stop — so it
+# unwrap, the `:selection` skip, and the `_is_walk_leaf` stop — so it
 # agrees with the canonical notion of what a document's content *is*. Cell
 # identity, selection, and reactive wrappers are deliberately invisible to it.
 #
@@ -33,7 +33,7 @@
 # ───────────────────────────────────────────────────────────────────────────
 
 # A content leaf — nothing to descend into. Same set as `walk_document`'s
-# internal `is_walk_leaf` (which is not exported): a scalar Julia value or an
+# internal `_is_walk_leaf` (which is not exported): a scalar Julia value or an
 # opaque document.
 _content_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
                    x isa Symbol || x isa Char || is_walk_opaque(x)

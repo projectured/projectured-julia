@@ -342,7 +342,7 @@ function sync_document! end
 
 """
     is_descendable_for_sync(policy, depth, slot) -> Bool
-    sync_element_limit(policy, source, shadow) -> Int
+    compute_sync_element_limit(policy, source, shadow) -> Int
     make_unsynced_placeholder(policy, source, current) -> value
 
 The **bound** on a sync or a copy. `sync_document!`/`copy_document` consult these
@@ -361,7 +361,7 @@ deeper reaches the walk. `make_unsynced_placeholder` likewise receives `current`
 policy can hand back the placeholder already standing there rather than a fresh
 one, leaving the shadow's identity alone.
 
-`sync_element_limit` is given the whole source and shadow rather than counts,
+`compute_sync_element_limit` is given the whole source and shadow rather than counts,
 because how many elements to keep depends on what the shadow already holds —
 including whether its trailing placeholder was flagged — and that is the
 policy's own bookkeeping, not this layer's.
@@ -369,7 +369,7 @@ policy's own bookkeeping, not this layer's.
 Unbounded defaults in `DocumentDefaults.jl`.
 """
 function is_descendable_for_sync end
-function sync_element_limit end
+function compute_sync_element_limit end
 function make_unsynced_placeholder end
 
 """

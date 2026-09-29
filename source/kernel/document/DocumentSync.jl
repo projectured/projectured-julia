@@ -10,7 +10,7 @@
 # One `sync_document!` handles both shapes: a **record** (children are named
 # fields) syncs field-by-field, and a **positional collection**
 # (`is_element_collection`) syncs its elements by index through the vector
-# protocol. `is_same_document_type` / `copy_shadow_element` are private helpers of
+# protocol. `_is_same_document_type` / `_copy_shadow_element` are private helpers of
 # that walk.
 #
 # The walk is optionally **bounded**: `policy` is consulted at every child, and
@@ -27,7 +27,7 @@
 # everywhere except that it now also unifies the two struct layouts). The shape
 # test the sync makes before recursing into a slot: same document ⇒ sync in place,
 # different ⇒ rebuild it.
-is_same_document_type(a, b) = get_document_family(a) === get_document_family(b)
+_is_same_document_type(a, b) = get_document_family(a) === get_document_family(b)
 
 # A source element rebuilt for a shadow of cell kind `K`: a document is copied in
 # that kind, a plain value passes through. Written into a shadow slot whose source
@@ -38,7 +38,7 @@ is_same_document_type(a, b) = get_document_family(a) === get_document_family(b)
 # hand-written one whose field is raw. Nothing in such a tree can invalidate
 # a reader, so it is not a shadow. Say that here; the walk would otherwise fail
 # several frames down as a `copy_document` method that does not exist.
-function copy_shadow_element(K, x, policy = nothing, depth::Int = 0)
+function _copy_shadow_element(K, x, policy = nothing, depth::Int = 0)
     x isa Document || return x
     K === nothing && error("sync_document!: a shadow holds cells and this one does not, " *
                            "so a child cannot be rebuilt in it. Build the shadow with " *
@@ -48,7 +48,7 @@ end
 
 # Contract documented at the `sync_document!` declaration in `DocumentInterface.jl`.
 function sync_document!(shadow::Document, source::Document, policy = nothing, depth::Int = 0)
-    is_same_document_type(shadow, source) ||
+    _is_same_document_type(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
     # An element is rebuilt in the kind of the cells of the collection, and a field
     # child in the kind of the cell of its own slot (`_sync_fields!`).
@@ -66,9 +66,9 @@ function _synced_child(cur, sv, K, policy, depth)
         new = make_unsynced_placeholder(policy, sv, cur)
         return new === cur ? nothing : new          # already stopped here: leave it be
     end
-    cur isa Document && is_same_document_type(cur, sv) &&
+    cur isa Document && _is_same_document_type(cur, sv) &&
         (sync_document!(cur, sv, policy, depth); return nothing)      # recurse in place
-    copy_shadow_element(K, sv, policy, depth)                         # rebuild in shadow's kind
+    _copy_shadow_element(K, sv, policy, depth)                         # rebuild in shadow's kind
 end
 
 # Record sync: match children by field name. A child document is synced in place
@@ -112,20 +112,20 @@ _get_slot_kind(slot) =
 # refinement if a front-heavy queue ever demands it.
 function _sync_elements!(shadow, source, K, policy, depth)
     ns, nc = length(source), length(shadow)
-    limit = min(sync_element_limit(policy, source, shadow), ns)
+    limit = min(compute_sync_element_limit(policy, source, shadow), ns)
     for i in 1:min(limit, nc)
         s, c = source[i], shadow[i]
         if s isa Document
             # A slot already holding the very same object needs no work — the
             # original short-circuit, kept: only a slot that is a *different*
             # object, or a same-type one to recurse into, reaches the walk.
-            same = c isa Document && is_same_document_type(c, s)
+            same = c isa Document && _is_same_document_type(c, s)
             if same || !isequal(c, s)
                 new = _synced_child(c, s, K, policy, depth + 1)
                 new === nothing || (shadow[i] = new)
             end
         else
-            isequal(c, s) || (shadow[i] = copy_shadow_element(K, s))
+            isequal(c, s) || (shadow[i] = _copy_shadow_element(K, s))
         end
     end
     # A new element document faces the bound as a slot that holds nothing, so a

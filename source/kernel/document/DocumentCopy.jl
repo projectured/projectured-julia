@@ -197,12 +197,12 @@ copy_document(K::Type{<:AbstractCell}, v::AbstractVector, policy = nothing, dept
     _copy_elements(K, v, policy, depth)
 
 # The elements of `v`, which stand at `depth`, each copied as kind `K`. The copy
-# stops after `sync_element_limit`, with one placeholder that stands for the tail,
+# stops after `compute_sync_element_limit`, with one placeholder that stands for the tail,
 # and it keeps the element type of `v` as `_make_vector_copy` says.
 function _copy_elements(K, v::AbstractVector, policy, depth)
     n = length(v)
     copies = Any[]
-    limit = min(sync_element_limit(policy, v, copies), n)
+    limit = min(compute_sync_element_limit(policy, v, copies), n)
     for i in 1:limit
         push!(copies, _copy_element(K, v[i], policy, depth))
     end

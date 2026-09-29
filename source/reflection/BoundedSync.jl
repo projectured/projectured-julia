@@ -94,7 +94,7 @@ is_descendable_for_sync(p::DepthPolicy, depth::Int, slot) =
                                         depth <= p.depth
 
 """
-    sync_element_limit(policy, total; shown, requested) -> Int
+    compute_sync_element_limit(policy, total; shown, requested) -> Int
 
 How many of a collection's `total` elements to materialise, given how many are
 `shown` there now and whether the tail marker has been `requested`. Returning
@@ -104,9 +104,10 @@ Same shape as [`is_descendable_for_sync`](@ref) and for the same reason: what is
 already shown stays shown, and a request buys one more page rather than the whole
 tail.
 """
-sync_element_limit(::SyncPolicy, total::Int; shown::Int, requested::Bool) = total
+compute_sync_element_limit(::SyncPolicy, total::Int; shown::Int, requested::Bool) = total
 
-function sync_element_limit(p::DepthPolicy, total::Int; shown::Int, requested::Bool)
+function compute_sync_element_limit(p::DepthPolicy, total::Int; shown::Int,
+                                    requested::Bool)
     limit = max(p.elements, shown)
     requested && (limit += p.elements)
     min(limit, total)
@@ -172,7 +173,7 @@ _unwrap(x) = x isa AbstractCell ? x[] : x
 # because the answer depends on what the shadow already holds — including whether
 # its trailing marker was flagged — which is this module's bookkeeping, not the
 # kernel's.
-function sync_element_limit(p::DepthPolicy, source, shadow)
+function compute_sync_element_limit(p::DepthPolicy, source, shadow)
     total = length(source)
     nc = length(shadow)
     tail = nc > 0 && shadow[nc] isa AUnsyncedDocument ? shadow[nc] : nothing
@@ -182,4 +183,4 @@ function sync_element_limit(p::DepthPolicy, source, shadow)
     min(limit, total)
 end
 
-sync_element_limit(::SyncPolicy, source, shadow) = length(source)
+compute_sync_element_limit(::SyncPolicy, source, shadow) = length(source)

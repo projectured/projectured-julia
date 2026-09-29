@@ -57,8 +57,8 @@ DocumentWalk(; locate_field = (location, name, child) -> child,
 
 # A node is a walk leaf — nothing to descend into — when it is a scalar Julia
 # value or an opaque document (see `is_walk_opaque`).
-is_walk_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
-                  x isa Symbol || x isa Char || is_walk_opaque(x)
+_is_walk_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
+                   x isa Symbol || x isa Char || is_walk_opaque(x)
 
 # The string form of a leaf, for a String/Regex query. Struct and collection
 # nodes have none, so they never match one.
@@ -170,7 +170,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     # the closure form compiled 16 instances, the closure with `here::Any` 14, and
     # this form 9.
     @nospecialize enclosing
-    leaf = is_walk_leaf(obj)
+    leaf = _is_walk_leaf(obj)
     if !leaf
         seen = _enter_node(walk, obj, seen)
         seen === nothing && return

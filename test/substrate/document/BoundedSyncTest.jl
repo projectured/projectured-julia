@@ -33,7 +33,7 @@ sync_chain(n::Int) = n == 0 ? SyncNode("leaf", nothing) : SyncNode("n$n", sync_c
 
 # A policy whose element limit is more than the source holds.
 struct OverLimitSyncPolicy <: SyncPolicy end
-ProjecturedKernel.DocumentModule.sync_element_limit(::OverLimitSyncPolicy, source,
+ProjecturedKernel.DocumentModule.compute_sync_element_limit(::OverLimitSyncPolicy, source,
                                                     shadow) = length(source) + 5
 
 # The way a consumer gets a shadow: bounded from the start. A shadow built by the
