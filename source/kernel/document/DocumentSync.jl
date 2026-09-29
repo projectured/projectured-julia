@@ -34,8 +34,8 @@ is_same_document_type(a, b) = get_document_family(a) === get_document_family(b)
 # element changed type and so cannot be synced in place. The one place a child is
 # built, so both walks below rebuild by the same rule.
 #
-# `K === nothing` says the shadow tree holds no cells — a native document, or a
-# hand-written one whose first field is raw. Nothing in such a tree can invalidate
+# `K === nothing` says the slot holds no cell — a native document, or a
+# hand-written one whose field is raw. Nothing in such a tree can invalidate
 # a reader, so it is not a shadow. Say that here; the walk would otherwise fail
 # several frames down as a `copy_document` method that does not exist.
 function copy_shadow_element(K, x, policy = nothing, depth::Int = 0)
@@ -50,9 +50,11 @@ end
 function sync_document!(shadow::Document, source::Document, policy = nothing, depth::Int = 0)
     is_same_document_type(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
-    K = get_cell_struct_kind(shadow)
-    is_element_collection(source) ? _sync_elements!(shadow, source, K, policy, depth) :
-                                    _sync_fields!(shadow, source, K, policy, depth)
+    # An element is rebuilt in the kind of the cells of the collection, and a field
+    # child in the kind of the cell of its own slot (`_sync_fields!`).
+    is_element_collection(source) ?
+        _sync_elements!(shadow, source, get_cell_struct_kind(shadow), policy, depth) :
+        _sync_fields!(shadow, source, policy, depth)
     shadow
 end
 
@@ -70,13 +72,15 @@ function _synced_child(cur, sv, K, policy, depth)
 end
 
 # Record sync: match children by field name. A child document is synced in place
-# when it is the same type, else replaced by a fresh copy in the shadow's kind; a
-# leaf field is written only on `!isequal`, so the graph sees a minimal set.
-function _sync_fields!(shadow, source, K, policy, depth)
+# when it is the same type, else replaced by a fresh copy in the kind of the cell
+# of its slot; a leaf field is written only on `!isequal`, so the graph sees a
+# minimal set.
+function _sync_fields!(shadow, source, policy, depth)
     for nm in fieldnames(typeof(source))
-        sv  = getproperty(source, nm)
-        cur = getproperty(shadow, nm)
+        sv  = _get_synced_field(source, nm)
+        cur = _get_synced_field(shadow, nm)
         if sv isa Document
+            K = _get_slot_kind(getfield(shadow, nm))
             new = _synced_child(cur, sv, K, policy, depth + 1)
             new === nothing || setproperty!(shadow, nm, new)
         else
@@ -84,6 +88,19 @@ function _sync_fields!(shadow, source, K, policy, depth)
         end
     end
 end
+
+# A field as the sync compares it. The `selection` field is read from its cell,
+# because `getproperty` answers a bare reference for a live `SelectionDocument` and
+# `nothing` for a dormant one; so the sync syncs the selection document itself.
+# `unwrap_cell` also reads a native source, whose field holds the value. The write
+# of `setproperty!` goes into the cell of the field.
+_get_synced_field(document, name::Symbol) =
+    name === :selection ? unwrap_cell(getfield(document, name)) :
+                          getproperty(document, name)
+
+# The kind of the cell in a slot, or `nothing` when the slot holds no cell.
+_get_slot_kind(slot) =
+    slot isa AbstractCell ? Base.typename(typeof(slot)).wrapper : nothing
 
 # Positional sync: match a positional collection's slots by index through the
 # vector protocol (`length`/`getindex`/`setindex!`/`push!`/`pop!`). A same-type

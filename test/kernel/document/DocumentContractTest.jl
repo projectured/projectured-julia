@@ -78,6 +78,12 @@ struct ContractShoutPolicy <: CopyPolicy end
 ProjecturedKernel.DocumentModule.copy_document(p::ContractShoutPolicy, document::ToyNode) =
     copy_document_fields(p, document; label = uppercase(document.label))
 
+# A first field of the immutable kind, beside a child in a reactive cell.
+@document struct ContractMixedKinds
+    tag::ImmutableCell{String} = ""
+    child::Any = nothing
+end
+
 # A kind with a kinded copy of its own, in the four-argument form that a kind adds.
 @document struct ContractOwnCopy
     label::String = ""
@@ -216,6 +222,45 @@ function test_document_contract()
         source.content.label = "second"
         sync_document!(shadow, source)
         @test seen[] == "second"
+    end
+
+    @testset "a sync rebuilds a child in the kind of the cell of its slot" begin
+        source = ContractMixedKinds("tag", nothing, nothing)
+        shadow = ContractMixedKinds("tag", nothing, nothing)
+        @test getfield(shadow, :tag) isa ImmutableCell
+        source.child = ToyNode("first", nothing, nothing)
+        sync_document!(shadow, source)
+        # The kind of the first field made the child immutable, and the next sync
+        # into it threw a `MethodError`.
+        @test getfield(shadow.child, :label) isa ReactiveCell
+        source.child.label = "second"
+        sync_document!(shadow, source)
+        @test shadow.child.label == "second"
+    end
+
+    @testset "a sync keeps a dormant selection, and writes an unchanged one no more" begin
+        path = extend_reference(EmptyReference(), FieldReferenceStep("label"))
+        source = ToyNode("root", nothing, nothing)
+        getfield(source, :selection)[] = SelectionDocument(; primary = path, live = false)
+        shadow = ToyNode("root", nothing, nothing)
+        sync_document!(shadow, source)
+        kept = getfield(shadow, :selection)[]
+        @test kept isa SelectionDocument && !kept.live && kept.primary == path
+        @test shadow.selection === nothing
+        reader = Cell(@computation getfield(shadow, :selection)[])
+        reader[]
+        sync_document!(shadow, source)
+        @test getfield(shadow, :selection)[] === kept
+        @test is_cell_up_to_date(reader)
+
+        # A native source holds a live selection document as the value of its field.
+        native = MToyNode("root", nothing, SelectionDocument(; primary = path))
+        live = ToyNode("root", nothing, nothing)
+        sync_document!(live, native)
+        held = getfield(live, :selection)[]
+        sync_document!(live, native)
+        @test getfield(live, :selection)[] === held
+        @test live.selection == path
     end
 
     @testset "a tree that holds no cells is not a shadow" begin
