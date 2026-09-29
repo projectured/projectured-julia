@@ -42,11 +42,9 @@ function test_playback()
 
     @testset "play_live! starts the backend in the order of make_editor" begin
         backend = PbRecordingBackend(Symbol[])
-        # @broken: EditorModule and Base both export `read!`, so the loop of
-        # `play_live!` finds no `read!` and throws an UndefVarError (L22-13).
-        @test_broken (play_live!(backend, NamedTuple[]; projection = PbUnusedProjection(),
-                                 document = PbProbe(), window_id = :probe,
-                                 initial_hold = 0.0); true)
+        @test (play_live!(backend, NamedTuple[]; projection = PbUnusedProjection(),
+                          document = PbProbe(), window_id = :probe,
+                          initial_hold = 0.0); true)
         # The backend starts before the loop and quits after it, also when the
         # loop throws.
         @test backend.calls == [:initialize_backend!, :configure_devices!,

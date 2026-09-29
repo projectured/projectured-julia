@@ -83,7 +83,7 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
     next = 1
     try
         while true
-            read!(editor)
+            EditorModule.read!(editor)
             # When no real-input operation is pending and the next scheduled entry
             # is due, inject it. Real input wins the frame; the scheduled entry
             # retries on the following frame.
