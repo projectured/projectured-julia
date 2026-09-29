@@ -15,7 +15,7 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 | `source/kernel/fault/FaultRecord.jl` | `FaultRecord`, `make_fault_record` |
 | `source/kernel/fault/FaultStore.jl` | `FaultStore`, `record_fault!`, `drain_faults!`, `attach_fault_target!` |
 | `source/kernel/fault/FaultPolicy.jl` | `FaultPolicy`, `make_strict_fault_policy` |
-| `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier`, the catch of the editor loop |
+| `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier!`, the catch of the editor loop |
 | `source/kernel/fault/FaultCascade.jl` | `report_fault!` and its tiers |
 | `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `make_safe_mode_projection`, `is_passthrough_exception` |
 | `source/fault/FaultDocument.jl` | `FaultReport`, `FaultLog`, `FaultLogEntry` |
@@ -65,7 +65,7 @@ The editor reports a fault at the first tier that works. A tier that fails falls
 | 4 | a sound | `report_fault!` calls `play_fault_sound!` |
 | 5 | nothing | `report_fault!` returns |
 
-`report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier` and `FaultCatchingProjection` let `InterruptException`, `StackOverflowError`, `OutOfMemoryError` and the request to quit through, by `is_passthrough_exception`.
+`report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier!` and `FaultCatchingProjection` let `InterruptException`, `StackOverflowError`, `OutOfMemoryError` and the request to quit through, by `is_passthrough_exception`.
 
 ### Why a printer needs two catches
 

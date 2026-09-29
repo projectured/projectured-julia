@@ -42,7 +42,7 @@ are the ones that name the cause, so the store keeps those.
     drain_faults!(store)
 
 See also [`record_fault!`](@ref), [`drain_faults!`](@ref) and
-[`run_fault_barrier`](@ref).
+[`run_fault_barrier!`](@ref).
 """
 mutable struct FaultStore
     records::Dict{UInt64, FaultRecord}

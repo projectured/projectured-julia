@@ -14,9 +14,9 @@ const _BARRIER_FAILED = _BarrierFailed()
 
 _run_barrier(body, editor::Editor, site::Symbol; counter::Symbol = site,
              origin = :editor, reference = nothing, fallback = nothing) =
-    run_fault_barrier(body, editor.faults; policy = editor.fault_policy,
-                      backend = editor.backend, site = site, counter = counter,
-                      origin = origin, reference = reference, fallback = fallback)
+    run_fault_barrier!(body, editor.faults; policy = editor.fault_policy,
+                       backend = editor.backend, site = site, counter = counter,
+                       origin = origin, reference = reference, fallback = fallback)
 
 """
     report_frame_faults!(editor) -> Int

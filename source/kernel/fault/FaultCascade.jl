@@ -37,7 +37,7 @@ where a person has nothing else to notice.
     report_fault!(editor.faults, record; policy = editor.fault_policy,
                   backend = editor.backend)
 
-See also [`run_fault_barrier`](@ref), which is what calls it.
+See also [`run_fault_barrier!`](@ref), which is what calls it.
 """
 function report_fault!(store, record; policy::FaultPolicy, backend)
     try

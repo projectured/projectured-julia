@@ -2,8 +2,8 @@
 # fault, records it and answers a fallback.
 
 """
-    run_fault_barrier(body, store; policy, backend, site, counter, origin, reference,
-                      fallback)
+    run_fault_barrier!(body, store; policy, backend, site, counter, origin, reference,
+                       fallback)
 
 Run `body`, and answer `fallback` rather than the exception when it throws.
 
@@ -36,17 +36,17 @@ passing quietly.
 
 # Example
 
-    run_fault_barrier(editor.faults; policy = editor.fault_policy,
-                      backend = editor.backend, site = :print) do
+    run_fault_barrier!(editor.faults; policy = editor.fault_policy,
+                       backend = editor.backend, site = :print) do
         print!(editor)
     end
 
 See also [`FaultPolicy`](@ref), [`record_fault!`](@ref) and
 [`report_fault!`](@ref).
 """
-function run_fault_barrier(body, store; policy::FaultPolicy, backend, site::Symbol,
-                           counter::Symbol = site, origin = :editor, reference = nothing,
-                           fallback = nothing)
+function run_fault_barrier!(body, store; policy::FaultPolicy, backend, site::Symbol,
+                            counter::Symbol = site, origin = :editor, reference = nothing,
+                            fallback = nothing)
     policy.is_barrier_enabled || return body()
     try
         value = body()

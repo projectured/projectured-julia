@@ -101,6 +101,6 @@ method for it.
 
     is_passthrough_exception(exception) && rethrow()
 
-See also [`run_fault_barrier`](@ref), which is what asks.
+See also [`run_fault_barrier!`](@ref), which is what asks.
 """
 function is_passthrough_exception end

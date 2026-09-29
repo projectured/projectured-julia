@@ -358,7 +358,7 @@ includes them in:
 
 ```
  1 fault       the FaultRecord, the FaultStore a computation may write, the FaultPolicy,
-               run_fault_barrier and the report_fault! cascade. It imports nothing,
+               run_fault_barrier! and the report_fault! cascade. It imports nothing,
                which is why it comes first: every layer above can report.
  2 performance the per-frame performance counters and the FrameMeasurementStore of
                an editor
