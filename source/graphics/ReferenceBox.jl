@@ -17,30 +17,60 @@ A forward map answers the reference of the node that draws a part
 that has a place moves the frame of its children by that place, and a viewport
 moves its content by its `transform` as well, its translation and its scale. The
 node at the end gives its size; a node with no size, such as a text, has a box of
-no width and no height at its place. It reads the printed output, so a node that
-a lazy printer did not print has no box.
+no width and no height at its place, and a canvas with no size of its own on an
+axis has the bounds of what it draws there. It reads the printed output, so a
+node that a lazy printer did not print has no box.
+
+With `visible = true` the box is the part of it that the viewports on the way
+show: each viewport cuts it to its own box, and a box that they do not show at
+all is `nothing`, as for a part scrolled out of view.
 
 Use it to put a window at a part that a command names, such as a tooltip that
 opens with no pointer.
 """
-function find_reference_box(document, reference::Reference; measure::TextMeasure = FontFileMeasure())
+function find_reference_box(document, reference::Reference; measure::TextMeasure = FontFileMeasure(),
+                            visible::Bool = false)
+    box, clip = _find_box_and_clip(document, reference, measure)
+    (box === nothing || !visible || clip === nothing) && return box
+    _cut_box(box, clip)
+end
+
+# The box of the node that `reference` reaches, and the box that the viewports on
+# the way leave visible, or `nothing` when no viewport is on the way.
+function _find_box_and_clip(document, reference::Reference, measure::TextMeasure)
     node = _box_value(document)
     frame = (0.0, 0.0, 1.0, 1.0)       # origin x, origin y, scale x, scale y
+    clip = nothing
     while reference isa ConcreteReference
-        node isa GraphicsText && return _make_text_box(frame, node, reference, measure)
+        node isa GraphicsText && return (_make_text_box(frame, node, reference, measure), clip)
         step = get_reference_head(reference)
-        step isa RegionReferenceStep && return _make_region_box(frame, node, step)
+        step isa RegionReferenceStep && return (_make_region_box(frame, node, step), clip)
         child = try
             _box_value(evaluate_reference_step(step, node))
         catch
-            return nothing
+            return (nothing, clip)
+        end
+        if node isa GraphicsViewport && step isa FieldReferenceStep && step.name == "content"
+            view = _make_node_box(frame, node, measure)
+            clip = clip === nothing ? view : _cut_box(view, clip)
+            clip === nothing && return (nothing, nothing)
         end
         frame = _enter_box_frame(frame, node, step)
         node = child
         reference = get_reference_tail(reference)
     end
-    node isa GraphicsText && return _make_text_box(frame, node, EmptyReference(), measure)
-    _make_node_box(frame, node)
+    node isa GraphicsText && return (_make_text_box(frame, node, EmptyReference(), measure), clip)
+    (_make_node_box(frame, node, measure), clip)
+end
+
+# The part of `box` inside `clip`, or `nothing` when it lies outside; a box of no
+# width or no height, such as a caret, is kept when it lies inside.
+function _cut_box(box, clip)
+    left, top = max(box.x, clip.x), max(box.y, clip.y)
+    right = min(box.x + box.width, clip.x + clip.width)
+    bottom = min(box.y + box.height, clip.y + clip.height)
+    (right < left || bottom < top) && return nothing
+    (x = left, y = top, width = right - left, height = bottom - top)
 end
 
 # The box of `region` in the frame of the children of `node`.
@@ -96,13 +126,33 @@ function _enter_box_frame(frame, node, step)
     (ox, oy, sx, sy)
 end
 
-function _make_node_box(frame, node)
+function _make_node_box(frame, node, measure::TextMeasure)
+    _is_self_sized_canvas(node) && return _make_content_box(frame, node, measure)
     ox, oy, sx, sy = frame
     x = round(Int, ox + sx * _box_number(node, :x))
     y = round(Int, oy + sy * _box_number(node, :y))
     (x = x, y = y,
      width = round(Int, sx * _box_number(node, :w)),
      height = round(Int, sy * _box_number(node, :h)))
+end
+
+# A canvas with no size of its own on an axis, whose elements are a vector: the
+# renderer draws what its elements reach there. A canvas over a lazy list keeps
+# the size it declares, because such a list can have no end.
+_is_self_sized_canvas(node) =
+    node isa GraphicsCanvas && (_box_number(node, :w) <= 0 || _box_number(node, :h) <= 0) &&
+    _box_value(getfield(node, :elements)) isa Union{AbstractVector, CellVector}
+
+# The box of a canvas that sizes itself from its elements: on an axis where it has
+# no size of its own, the bounds of what it draws, in the frame of its children.
+function _make_content_box(frame, node::GraphicsCanvas, measure::TextMeasure)
+    ox, oy, sx, sy = _enter_box_frame(frame, node, nothing)
+    min_x, min_y, max_x, max_y = get_canvas_content_bounds(node, measure)
+    width, height = _box_number(node, :w), _box_number(node, :h)
+    left, right = width > 0 ? (0.0, width) : (Float64(min_x), Float64(max_x))
+    top, bottom = height > 0 ? (0.0, height) : (Float64(min_y), Float64(max_y))
+    (x = round(Int, ox + sx * left), y = round(Int, oy + sy * top),
+     width = round(Int, sx * (right - left)), height = round(Int, sy * (bottom - top)))
 end
 
 """
