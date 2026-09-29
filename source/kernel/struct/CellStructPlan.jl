@@ -219,14 +219,10 @@ function find_cell_struct_parameter_slots(plan::CellStructPlan)
     slots
 end
 
-"""
-    get_cell_struct_trailing_default_count(plan) -> Int
-
-The number of fields at the end of the declaration that have a default, counted
-back from the last field to the first field without one. A positional constructor
-can leave out these fields.
-"""
-function get_cell_struct_trailing_default_count(plan::CellStructPlan)
+# The number of fields at the end of the declaration that have a default, counted
+# back from the last field to the first field without one. A positional constructor
+# can leave out these fields.
+function _get_cell_struct_trailing_default_count(plan::CellStructPlan)
     trailing = 0
     for field_name in Iterators.reverse(plan.field_names)
         haskey(plan.defaults, field_name) || break
@@ -239,7 +235,7 @@ end
     get_cell_struct_required_count(plan) -> Int
 
 The number of fields that a positional constructor must get: every field before
-the fields that `get_cell_struct_trailing_default_count` counts.
+the run of fields with a default at the end of the declaration.
 """
 get_cell_struct_required_count(plan::CellStructPlan) =
-    length(plan.field_names) - get_cell_struct_trailing_default_count(plan)
+    length(plan.field_names) - _get_cell_struct_trailing_default_count(plan)

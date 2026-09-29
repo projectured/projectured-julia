@@ -154,17 +154,15 @@ end
           Int[]
 end
 
-@testset "required / trailing-default split" begin
-    split(ex) = (p = make_cell_struct_plan(ex);
-                 (get_cell_struct_required_count(p),
-                  get_cell_struct_trailing_default_count(p)))
+@testset "the required count leaves out the run of defaults at the end" begin
+    required(ex) = get_cell_struct_required_count(make_cell_struct_plan(ex))
 
-    @test split(:(struct A1; a; b; end))               == (2, 0)   # none default
-    @test split(:(struct A2; a; b = 1; end))           == (1, 1)   # trailing run of 1
-    @test split(:(struct A3; a = 1; b = 2; end))       == (0, 2)   # all default
+    @test required(:(struct A1; a; b; end))               == 2   # no default
+    @test required(:(struct A2; a; b = 1; end))           == 1   # one default at the end
+    @test required(:(struct A3; a = 1; b = 2; end))       == 0   # all default
     # `c` is required, so the run of defaults at the end is empty.
-    @test split(:(struct A4; a; b = 1; c; end))        == (3, 0)
-    @test split(:(struct A5; a; b; c = 1; d = 2; end)) == (2, 2)
+    @test required(:(struct A4; a; b = 1; c; end))        == 3
+    @test required(:(struct A5; a; b; c = 1; d = 2; end)) == 2
 end
 
 @testset "positional constructors that leave out a trailing run of defaults" begin

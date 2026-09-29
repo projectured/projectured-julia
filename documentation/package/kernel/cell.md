@@ -268,12 +268,11 @@ value type of a cell, or the type of any other value.
 Public surface: `CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_field!`,
 `retype_cell_struct_fields!`, `get_cell_struct_value_types`,
 `get_cell_struct_field_kinds`, `get_cell_struct_parameter_names`,
-`find_cell_struct_parameter_slots`, `get_cell_struct_trailing_default_count`,
-`get_cell_struct_required_count`, `build_cell_struct_field_type`,
-`build_cell_struct_keyword_parameters`, `build_cell_struct_keyword_constructor`,
-`build_cell_struct_positional_ctors`, `build_cell_struct_exprs`,
-`parse_cell_struct_macro_arguments`, `@cell_struct`, `get_cell_struct_argument_type` and
-`get_cell_struct_kind`.
+`find_cell_struct_parameter_slots`, `get_cell_struct_required_count`,
+`build_cell_struct_field_type`, `build_cell_struct_keyword_parameters`,
+`build_cell_struct_keyword_constructor`, `build_cell_struct_positional_ctors`,
+`build_cell_struct_exprs`, `parse_cell_struct_macro_arguments`, `@cell_struct`,
+`get_cell_struct_argument_type` and `get_cell_struct_kind`.
 
 ## PerformanceModule: the counters
 
