@@ -162,6 +162,28 @@ When all items are done, move this plan to `plan/done/`.
   - Lane B: `projectured-julia-kernel-fixes-b`, branch `kernel-audit-fixes-b`. Layers 13, 14 and
     17 to 23: steps 1.4, 1.5, 1.6, 1.8, 2.4, 2.7 to 2.10, and the tests of these layers.
   - Lane B merges into lane A before Phase 5. Phases 5 and 6 run on the merged branch.
+  - **Merged** on 2026-09-29 as `bf4492721`. The conflicts were four test lists; both lanes had
+    added the same `Base.hash` of `ProjectionReferenceStep`, and the merge keeps one. The suites on
+    the merge, against the baseline:
+
+    | Suite | Baseline | Merged |
+    | --- | --- | --- |
+    | `test_kernel()` | 2412 pass, 3 fail, 3 error | 3901 pass, 2 broken |
+    | `test_substrate()` | 86830 and 8 known | 86907 and the same 8 known |
+    | `test_sdl()` | 774 | 840 |
+    | `test_web_backend()` | 38 | 99 |
+    | `test_console_backend()` | 84 | 133 |
+    | `test_video()` | 41 | 41 |
+    | `test_mcp_tools()` | 152 | 158 |
+    | `test_fault()` | 73 | 78 |
+    | `test_julia()` | 407 | 410 |
+    | `test_math()`, `test_fsm()`, `test_process()`, `test_formula()` | 173, 154, 304, 116 | the same |
+    | `test_json()`, `test_xml()`, `test_undo()`, `test_type_reference()` | not run | 194, 73, 110, 44 |
+    | `test_assistant_mvp()` | not run | 127 pass, the 4 known failures |
+    | `test_conversation()` | not run | 166 pass, the 1 known failure |
+    | `test_arguments()`, `test_exports()` | 6 and 3 failures | the same |
+
+    The two broken tests of the kernel are L03-1 and L03-2, which wait for decisions.
 - [x] Run the baseline of "How to work", item 2, and write the counts here.
   On `a1e0b8a5`, in the worktree of lane A, each suite in its own process (2026-09-29):
 
