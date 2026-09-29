@@ -327,7 +327,8 @@ check) also decides the licence texts that Part B copies.
       and `asset/font/`, and lists for each item: its licence, whether the
       archive may carry it, and which text must go with it. It also says which
       texts each package folder of Part B must carry.
-- [ ] The owner decides R3a, R17, R18 and R19 from that list.
+- [x] The owner decides R3a, R17, R18 and R19 from that list. Decided on
+      2026-09-29; the answers are in the table of decisions.
 - [x] Add the licence texts that are missing to `asset/font/`. New files only;
       no folder moves. Done for three on 2026-09-29: `DejaVu-Bitstream-Vera.txt`,
       `Inconsolata-OFL.txt`, `Ubuntu-UFL.txt`. Liberation after R17, below.
@@ -1017,10 +1018,11 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 
 ### Step L1: what must be settled first
 
-- [ ] R19: the port in `source/graph/cpp/` leaves this repository (Part G), and
+- [x] R19: the port in `source/graph/cpp/` leaves this repository (Part G), and
       the MIT function in `source/domain/Domain.jl` gets its notice. The notice
       is done (commit `fa12685a9`): the MIT text of Julia, beside the two
-      functions that come from `InteractiveUtils.subtypes`.
+      functions that come from `InteractiveUtils.subtypes`. The move is G3
+      (`047bfa23f`), which lands only in the order of Part G.
 - [x] R24: the two other authors agree to MPL-2.0 for their commits (the owner,
       2026-09-29).
 
