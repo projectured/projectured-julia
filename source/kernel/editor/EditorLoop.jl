@@ -54,6 +54,11 @@ An operation that dropped the cached projection (a whole-root swap calls
 and *discards* an input it has none for, so input behind such a swap has to wait
 for the repaint that rebuilds the projection, or it would be thrown away.
 
+A frame whose reads end before the input runs out, at the bound, at a read that
+threw or at a dropped IoMap, sets `editor.wake_pending`. `run_editor!` then runs
+the next frame without a wait, so the input that is left does not wait for new
+input.
+
 The loop leaves the last applied operation in `editor.operation`. `read!` clears
 that field when the input runs out, and `perf!` reads it to tell a frame that did
 something from an idle one.
@@ -68,19 +73,29 @@ function run_frame!(editor::Editor)
         report_frame_faults!(editor)
     end
     applied = nothing
+    # True until a read finds no input: the reads can also end at the bound, at a
+    # read that threw, or at a dropped IoMap.
+    is_input_left = true
     for _ in 1:MAX_OPERATIONS_PER_FRAME
         # A reader that throws is a reader that declined: the gesture is lost,
         # the frame goes on, and the fault says which reader lost it.
         has_input = @measure_performance_time :read_time begin
-            _run_barrier(editor, :read; fallback = false) do
+            _run_barrier(editor, :read; fallback = _BARRIER_FAILED) do
                 read!(editor)
             end
         end
-        has_input || break
+        has_input === _BARRIER_FAILED && break
+        if !has_input
+            is_input_left = false
+            break
+        end
         @measure_performance_time :evaluate_time evaluate!(editor)
         applied = editor.operation
         editor.iomap === nothing && break     # repaint before reading anything else
     end
+    # Input can wait in the backend, or a gesture in the recognizer, so the next
+    # turn of the loop runs a frame without a wait.
+    is_input_left && (editor.wake_pending[] = true)
     editor.operation = applied
     @measure_performance_time :print_time begin
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do

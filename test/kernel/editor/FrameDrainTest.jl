@@ -61,16 +61,20 @@ evaluate_operation(editor::Editor, operation::RestoreFrameValueOperation) =
 _quiet_frame_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 # Turns each scripted window input into one operation, so a queue of N events is
-# a queue of N operations.
+# a queue of N operations. It throws on a `MouseUp`, as a broken reader does.
 struct FrameDrainProjection <: Projection
     log::Vector{Any}
 end
 ProjectionModule.print_document(::FrameDrainProjection, recursion, input, ctx) =
     SimpleIoMap(nothing, input, input)
-ProjectionModule.read_intent(p::FrameDrainProjection, recursion, change::Intent, iomap) =
-    Intent(change.gesture,
-           change.gesture === :swap ? DrainFrameSwapOperation(p.log) :
-                                      DrainFrameOperation(p.log, change.gesture))
+function ProjectionModule.read_intent(p::FrameDrainProjection, recursion, change::Intent,
+                                      iomap)
+    gesture = change.gesture
+    gesture isa WindowInput && gesture.event isa MouseUp && error("the reader failed")
+    Intent(gesture,
+           gesture === :swap ? DrainFrameSwapOperation(p.log) :
+                               DrainFrameOperation(p.log, gesture))
+end
 
 function _frame_editor(log)
     backend = HeadlessBackend()
@@ -125,8 +129,10 @@ function test_editor_frame_drain()
         push_event!(backend, :before)
         push_event!(backend, :swap)
         push_event!(backend, :after)
+        Threads.atomic_xchg!(editor.wake_pending, false)
         EditorModule.run_frame!(editor)
         @test log == [:before, :swap]        # `:after` is not consumed by this frame
+        @test editor.wake_pending[]          # and the next frame runs at once
         EditorModule.run_frame!(editor)
         @test log == [:before, :swap, :after]
     end
@@ -137,10 +143,40 @@ function test_editor_frame_drain()
         for i in 1:(MAX_OPERATIONS_PER_FRAME + 5)
             push_event!(backend, i)
         end
+        Threads.atomic_xchg!(editor.wake_pending, false)
         EditorModule.run_frame!(editor)
         @test length(log) == MAX_OPERATIONS_PER_FRAME
+        @test editor.wake_pending[]                      # the next frame runs at once
         EditorModule.run_frame!(editor)                  # the rest, on the next frame
         @test length(log) == MAX_OPERATIONS_PER_FRAME + 5
+    end
+
+    @testset "a reader that throws ends the reads, and the next frame runs at once" begin
+        # The recognizer answers the `MouseUp` and keeps its `MousePress` for the
+        # next read. The reader throws on the `MouseUp`, so the click waits in the
+        # recognizer, where the wait of the loop does not look.
+        log = Any[]
+        editor, backend = _frame_editor(log)
+        editor.fault_policy = _quiet_frame_policy()
+        push_event!(backend, WindowInput(:probe, MouseDown(:left, 5, 5; time = 0.0)))
+        push_event!(backend, WindowInput(:probe, MouseUp(:left, 5, 5; time = 0.1)))
+        Threads.atomic_xchg!(editor.wake_pending, false)
+        EditorModule.run_frame!(editor)
+        @test length(log) == 1 && log[1].event isa MouseDown
+        @test editor.wake_pending[]
+        @test only(get_fault_records(editor.faults)).site === :read
+        EditorModule.run_frame!(editor)
+        @test length(log) == 2 && log[2].event isa MousePress
+    end
+
+    @testset "a frame that reads all the input leaves the wake alone" begin
+        log = Any[]
+        editor, backend = _frame_editor(log)
+        push_event!(backend, :only)
+        Threads.atomic_xchg!(editor.wake_pending, false)
+        EditorModule.run_frame!(editor)
+        @test log == [:only]
+        @test !editor.wake_pending[]
     end
 
     @testset "a posted operation that fails is taken back, and the next one applies" begin
