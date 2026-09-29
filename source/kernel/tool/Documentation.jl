@@ -882,8 +882,8 @@ _index_api() = _index_declared(_collect_surface_api())
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 # One index per declared list, keyed by the list. Two editors that declare two
-# different lists need two indexes and neither may see the other's
-# (PAR-PER-EDITOR-STATE); the key is what keeps them apart while the carve-out
+# different lists need two indexes and neither may see the other's; the key is
+# what keeps them apart while the carve-out
 # above still holds — every entry is read-only and identical for every editor that
 # declares that list.
 const _DECLARED_INDEX = Dict{Vector{ApiEntry},Vector{_ApiEntry}}()
@@ -1050,15 +1050,16 @@ const _LENGTH_WEIGHT = 0.75
 # the person wrote it, and against the prose in any of its forms. The two halves
 # want opposite things: recall in the prose, where an extra hit is cheap, and
 # precision in the name, where it is not. Measured the same day: with a stem
-# allowed in a name, "stop runs" answered `run_simulations_in_conversation` before
-# `stop_simulations`, because `run` is inside almost every verb of that module.
+# allowed in a name, "stop runs" ranked a verb of a downstream program that starts
+# runs above the verb that stops them, because `run` is inside almost every verb
+# of that module.
 #
 # Every text is folded already.
 #
-# **A tie goes to the shorter name.** `run_simulations` and
-# `run_simulations_in_conversation` both hold every word of "run simulation", and
-# the first is what the words say; the second says them and more. Length is the
-# whole of that difference, so it is the tie-break.
+# **A tie goes to the shorter name.** `draw_plot` and `draw_plot_in_window` both
+# hold every word of "draw plot", and the first is what the words say; the second
+# says them and more. Length is the whole of that difference, so it is the
+# tie-break.
 function _rank_api_entries(query, entries::Vector{_ApiEntry})
     terms = _get_scored_terms(query)
     fold = _get_query_fold(query)
@@ -1374,9 +1375,8 @@ end
 #
 # **The signature first, and the name is in it.** A declared name arrives
 # unqualified, and a hit that led with `Module.name` invited a caller to copy
-# that shape: measured 2026-09-13, a model read
-# `CampaignVerbsModule.select_simulations!`, wrote
-# `PaneProgramModule.select_simulations!`, and lost the turn to an
+# that shape: measured 2026-09-13, a model read a qualified name of a downstream
+# program, wrote the name with another module, and lost the turn to an
 # `UndefVarError`. The module follows the kind, as context.
 function _format_api_hit(entry::_ApiEntry, level::String = "summary")
     parts = split(entry.qualname, '.')

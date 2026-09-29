@@ -197,11 +197,8 @@ function _register_function_documentation_tool!(set::ToolSet)
     # A function's docstring is reachable *as a tool*, and it is the one piece of
     # documentation no other tool reaches. A module or a type has a resource:// URI,
     # so `read_resource` reads it; a function has none, and `search_api` answers a
-    # `read_function_documentation(…)` call instead. That call is Julia, and a model
-    # sent to it looked for a tool of that name, found none, and called
-    # `execute_julia_code` with an empty body — then read the blank answer as a
-    # broken tool and stopped writing code at all. Named here, the asymmetry is
-    # gone: every hit `search_api` returns is one tool call away from its full text.
+    # `read_function_documentation(…)` call instead. The tool has that name, so every
+    # hit `search_api` returns is one tool call away from its full text.
     register_tool!(set, Tool(
         "read_function_documentation",
         "Read the full documentation of a function. `search_api` names the module " *
@@ -264,12 +261,8 @@ function _register_guide_resources!(set::ToolSet)
     # **The guides are offered whatever the declaration says.** A declaration
     # narrows the NAMES a model may write, and a guide is prose about how to use
     # them — an application registers its own with `register_guide_root!`, and
-    # that is the documentation a declared surface most wants.
-    #
-    # It was once the other way: guides only when nothing was declared. But
-    # `search_guides` went on printing `resource://guide/…` for every hit,
-    # and `read_resource` could not resolve one, so a model told to read a guide
-    # spent a round on "Resource not found". Measured 2026-09-13.
+    # that is the documentation a declared surface most wants. `search_guides`
+    # prints `resource://guide/…` for every hit, so each of those must resolve.
     register_resource!(set, Resource("resource://guides", "Documentation Guides";
         description = "List all available documentation with a one-paragraph " *
                       "description for each guide. The guides are the markdown " *
@@ -326,9 +319,8 @@ read-only documentation resources (the guides, and each module/type's docs).
 Idempotent: registering again replaces entries rather than duplicating them.
 
 Every handler **closes over `set`**, which is how the code-execution tool reaches
-its own scratch namespace and last value without a registry global
-(PAR-PER-EDITOR-STATE) and without threading a context argument through the
-`(target, args)` handler signature every other tool is happy with.
+its own scratch namespace and last value without a registry global and without a
+context argument in the `(target, args)` handler signature that every tool has.
 """
 function register_default_tools!(set::ToolSet)
     _register_code_tool!(set)

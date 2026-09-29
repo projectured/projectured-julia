@@ -154,7 +154,7 @@ function test_search_query()
         @test occursin("resource://guide/", guides)
     end
 
-    @testset "the tools take a mode, and no longer a regex flag" begin
+    @testset "the tools take a mode and no regex flag" begin
         set = register_default_tools!(ToolSet(; api = Module[SearchToy]))
         for name in ("search_api", "search_guides")
             tool = only(t for t in list_tools(set) if t.name == name)

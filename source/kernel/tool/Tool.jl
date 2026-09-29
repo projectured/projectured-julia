@@ -57,17 +57,15 @@ module in a declaration means.
 
 **A name here is not an export.** A module goes on exporting exactly what it
 owns; this says which of those names *this* model is given, and a name listed
-here arrives in the model's namespace unqualified. That is what lets a
-declaration hand out `PaneSplit` without any module re-exporting a name it does
-not own.
+here arrives in the model's namespace unqualified. So a declaration can give a
+name that no other module re-exports.
 
-**A name can be given another name.** An entry of `:describe => :summarize_frame`
-gives `DataFrames.describe` to the model as `summarize_frame`. Two packages own
-the same common word often enough that the surface would otherwise have to drop
-one of them: `describe` is `DataFrames`' per-column statistics *and* the one
-sentence a pane says about what it holds. A rename is a declaration, not a
-wrapper — `using M: describe as summarize_frame` is what the scratch module
-writes — so the owning module is untouched and there is one function, not two.
+**A name can be given another name.** An entry of `:describe => :describe_table`
+gives the `describe` of its module to the model as `describe_table`. Two packages
+own the same common word often enough that the surface would otherwise have to
+drop one of them. A rename is a declaration, not a wrapper —
+`using M: describe as describe_table` is what the scratch module writes — so the
+owning module is untouched and there is one function, not two.
 """
 struct ApiEntry
     module_::Module
@@ -220,10 +218,9 @@ ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing
 Be told what each `execute_julia_code!` call produced. `f(value)` is called with
 the value the code evaluated to — `nothing` when it errored or answered nothing.
 
-A host registers one when a value MEANS something to it beyond being a result.
-The simulator's editor uses it to give a simulation a reader made in a cell the
-watch that keeps its picture still: the value is a live thing, and only the host
-knows what living costs.
+A host registers one when a value MEANS something to it beyond being a result,
+such as a value that goes on running and that the host must watch. The tool set
+gives each value to every observer and does nothing else with it.
 
 Every registration is called, in order, and a failure in one is reported and
 does not stop the others or the evaluation. An observer is a side effect on a

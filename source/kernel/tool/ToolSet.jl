@@ -12,8 +12,8 @@ An entry of `declaration` is a **module**, which gives every name it exports, or
 a **`module => names` pair**, which gives those names and no others:
 
 ```julia
-declare_api!(set, [AgentModule,
-                   PaneModule => (:PaneSplit, :PaneGroup, :PaneTab),
+declare_api!(set, [DocumentModule,
+                   ToolModule => (:list_tools, :find_tool),
                    ReferenceModule => (Symbol("@reference"),)])
 ```
 

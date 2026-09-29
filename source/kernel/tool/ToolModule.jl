@@ -22,11 +22,11 @@ be asked to read. Seven fragments share this namespace:
 - [`DefaultTools.jl`](DefaultTools.jl) — `register_default_tools!`, which puts the
   above into a `ToolSet`.
 
-A tool surface is **not** an AI concept. It is what an editor exposes; who calls
-it is someone else's question. Callers reach the same `ToolSet` from several
-directions, and none of them knows about the others: an in-process agent loop
-drives it on behalf of a model, an out-of-process protocol server exposes it to
-the outside, and a human calls the same functions from the REPL.
+A tool surface is **not** an AI concept. It is what an editor exposes, and it
+holds no reference to a caller. Callers reach the same `ToolSet` from several
+directions, and no caller depends on another: an in-process agent loop calls it
+for a model, an out-of-process protocol server gives it to a client, and a person
+calls the same functions from the REPL.
 
 **One `ToolSet` per editor**. The tool list, the resource list, the declared API,
 the code-execution scratch namespace, and its last result all live on the `ToolSet`

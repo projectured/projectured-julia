@@ -112,9 +112,9 @@ function test_declared_api()
     end
 
     @testset "a call with no code answers that, rather than answering nothing" begin
-        # Empty source evaluates to nothing and prints nothing, so the tool used to
-        # answer an empty string — which a model reads as a broken tool rather than
-        # as its own mistake, and then it stops writing code at all.
+        # Empty source evaluates to nothing and prints nothing. A model reads an
+        # empty answer as a broken tool rather than as its own mistake, so the
+        # tool says that no code was given.
         set = ToolSet()
         for blank in ("", "\n", "   \n  ")
             answer = execute_julia_code!(set, nothing, blank)
@@ -165,9 +165,8 @@ function test_declared_api()
                        search.handler(nothing, Dict("query" => "toy_arrange")))
     end
 
-    # Half of a turn was a lookup pair: a search for the name, then a read for
-    # its documentation. These three cut the pair to one call, and they cut the
-    # round a miss used to cost.
+    # A lookup is a search for the name and a read of its documentation. A search
+    # with one clear hit answers both in one call.
     @testset "a search answers in one round what took two" begin
         set = ToolSet(; api = Module[ToyShaped])
         register_default_tools!(set)
@@ -179,7 +178,7 @@ function test_declared_api()
         answer = ask("toy_arrange")
         @test occursin("the one API match", answer)
         @test occursin("toy_arrange(window) -> String", answer)
-        # A sentence that lives below the signature, which the old answer cut.
+        # A sentence that stands below the signature is in the answer.
         @test occursin("person", answer)
         # And it does not ask for another round.
         @test !occursin("Read one in full", answer)
@@ -531,15 +530,11 @@ function test_declared_api()
 
     # The resources a declared set publishes are its own modules AND the guides.
     #
-    # The guides were once withheld from a declared set, on the reasoning that
-    # they describe the whole editor and would send a model to read about a
-    # surface it cannot reach. That was wrong in one way and then wrong in
-    # another. `search_guides` went on printing `resource://guide/…` for
-    # every hit it found, and `read_resource` could not resolve one, so a model
-    # told to read a guide spent a round on "Resource not found" — measured
-    # 2026-09-13. And an application registers guides of its own with
-    # `register_guide_root!`: prose about the window a declared surface belongs
-    # to, which is the documentation such a surface most wants.
+    # `search_guides` prints `resource://guide/…` for every hit it finds, so
+    # `read_resource` must resolve each one for a declared set too. And an
+    # application registers guides of its own with `register_guide_root!`: prose
+    # about the window a declared surface belongs to, which is the documentation
+    # such a surface most wants.
     #
     # A declaration narrows the NAMES a model may write. It is not a reason to
     # withhold the prose about how to write them.
