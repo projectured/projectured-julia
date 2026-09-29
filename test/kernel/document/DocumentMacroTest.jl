@@ -130,6 +130,12 @@ end
     box::Tuple{A}
 end
 
+# A schema that declares its own `selection` field, as the last field.
+@document ImmutableCell struct DmValueSel
+    x::Float64
+    selection::ImmutableCell{Nothing}
+end
+
 # A value whose `unwrap_selection` counts the calls that reach it.
 struct DmUnwrapProbe end
 const dm_unwrap_calls = Ref(0)
@@ -183,8 +189,8 @@ end
     # Passing a real collection to a sole-collection document does NOT pass it
     # through: a DmCollection is a `Document`, not an `AbstractVector`, so the call
     # lands on Rule C's variadic `T(items::Document...)` and becomes a one-element
-    # collection *containing* it. Surprising, and long-standing — pinned here so a
-    # future change to Rule C's tail cannot alter it silently.
+    # collection *containing* it. This test pins it, so that a change of the tail
+    # of Rule C can not alter it silently.
     @test DmSoleVector(DmCollection([1, 2])).items == DmCollection([DmCollection([1, 2])])
     # To wrap an existing collection, name the selection too and take the inner ctor.
     @test DmSoleVector(DmCollection([1, 2]), nothing).items == DmCollection([1, 2])
@@ -258,8 +264,8 @@ end
 end
 
 @testset "a copy keeps the parameters of a schema" begin
-    # A cell of `Any` binds a parameter as `Any`, so a copy through the bare name
-    # gave `DmParametric{Any}`, and a bounded parameter refused `Any`.
+    # A cell of `Any` binds a parameter as `Any`, so the copy takes the parameters
+    # from the type of the source, not from the values of its cells.
     @test copy_document(DmParametric(3)) isa DmParametric{Int}
     @test copy_document(ReactiveCell, DmParametric(3)) isa DmParametric{Int}
     @test copy_document(ReactiveCell, DmBounded(2.0)) isa DmBounded{Float64}
@@ -398,12 +404,8 @@ end
 @testset "an explicit `selection` field overrides the injected default" begin
     # A value-document types its selection `Nothing` (non-selectable) instead of the
     # injected `Reference`, so the bare ctor builds an isbits form.
-    @eval @document ImmutableCell struct DmValueSel
-        x::Float64
-        selection::ImmutableCell{Nothing}
-    end
-    @test @eval(getfield(DmValueSel(1.0), :selection)) isa ImmutableCell{Nothing}
-    @test @eval(isbitstype(typeof(DmValueSel(1.0))))
+    @test getfield(DmValueSel(1.0), :selection) isa ImmutableCell{Nothing}
+    @test isbitstype(typeof(DmValueSel(1.0)))
     # An explicit `selection` field must be declared last.
     @test_throws LoadError @eval @document struct DmMisplacedSel
         selection::ImmutableCell{Nothing}

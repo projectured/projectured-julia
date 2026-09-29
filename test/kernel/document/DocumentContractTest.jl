@@ -8,7 +8,6 @@ keeps the interface sufficient.
 Covers:
 - `@document` field auto-wrapping in Cells,
 - `getproperty` unwraps stored Cells,
-- selection contract: get/clear/set/with produce and propagate paths,
 - `copy_document` round-trips a document tree (same kind and kind-converting).
 """
 
@@ -19,8 +18,7 @@ using ProjecturedKernel.CellModule: Cell, Computation, @computation, ImmutableCe
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
-using ProjecturedKernel.ReferenceModule: EmptyReference, Reference,
-                                         FieldReferenceStep, MFieldReferenceStep,
+using ProjecturedKernel.ReferenceModule: EmptyReference, FieldReferenceStep,
                                          extend_reference, strip_reference_types
 
 @document struct ToyNode
@@ -122,37 +120,6 @@ function test_document_contract()
         @test get_selection(n) === nothing
     end
 
-    @testset "selection contract: with_selection sets, clear_selection! clears" begin
-        n = ToyNode("root", ToyNode("child", nothing, nothing), nothing)
-        # A path selecting the label field.
-        path = extend_reference(EmptyReference(), FieldReferenceStep("label"))
-        n2 = with_selection(n, path)
-        @test n2 === n                                              # returns the document
-        # Selection round-trips ignoring the reference-type annotation that
-        # `set_selection!` adds — that's how every domain compares selections.
-        @test strip_reference_types(get_selection(n)) == path
-
-        clear_selection!(n)
-        @test get_selection(n) === nothing
-        # Deep clear: a child's selection is also cleared. Set a compound path,
-        # then clear the root; the leaf's selection cell should read `nothing`.
-        deep = extend_reference(
-            extend_reference(EmptyReference(), FieldReferenceStep("child")),
-            FieldReferenceStep("label"))
-        set_selection!(n, deep)
-        @test strip_reference_types(get_selection(n)) == deep
-        clear_selection!(n)
-        @test get_selection(n) === nothing
-        @test get_selection(n.child) === nothing
-        # A path of the plain `M` steps descends the same way.
-        plain = Reference(MFieldReferenceStep("child"), MFieldReferenceStep("label"))
-        set_selection!(n, plain)
-        @test strip_reference_types(get_selection(n.child)) ==
-              Reference(FieldReferenceStep("label"))
-        clear_selection!(n)
-        @test get_selection(n.child) === nothing
-    end
-
     @testset "copy_document round-trips a document tree" begin
         leaf = ToyNode("leaf", nothing, nothing)
         root = ToyNode("root", leaf, nothing)
@@ -170,8 +137,8 @@ function test_document_contract()
     end
 
     @testset "copy_document preserves a function-valued field" begin
-        # Copying re-boxes each field through its cell's constructor, which used to turn
-        # a callback into a thunk — so a copied document called its own callbacks on read.
+        # A copy re-boxes each field through the constructor of its cell. A function
+        # in a field is a value, and the copy keeps it a value that no read calls.
         callback() = "called"
         node = ToyNode(callback, nothing, nothing)
         @test copy_document(node).label === callback
@@ -179,8 +146,8 @@ function test_document_contract()
     end
 
     @testset "the copy of a vector keeps its element type" begin
-        # A comprehension takes its element type from the values it makes, so a
-        # vector of `Document` that held one kind came back as a vector of that kind.
+        # A vector of `Document` that holds one kind stays a vector of `Document`,
+        # although a comprehension takes its element type from the values it makes.
         items = Document[ToyNode("one", nothing, nothing)]
         for copied in (copy_document(items), copy_document(ReactiveCell, items),
                        copy_document(ContractPair(items, nothing, nothing)).first)
@@ -229,9 +196,8 @@ function test_document_contract()
 
     @testset "a kinded copy targets the cell layout, a plain copy keeps the layout" begin
         native = MToyNode("root", nothing, nothing)
-        # A kind is a property of a cell, so a kinded copy of a native source has to
-        # convert. Copying the source's own layout is what let a native node into a
-        # cell shadow, where nothing could ever invalidate it.
+        # A kind is a property of a cell, so a kinded copy of a native source converts
+        # it to the cell layout. A native node in a cell shadow invalidates no reader.
         reactive = copy_document(ReactiveCell, native)
         @test reactive isa ToyNode
         @test getfield(reactive, :label) isa ReactiveCell
@@ -267,8 +233,8 @@ function test_document_contract()
         @test getfield(shadow, :tag) isa ImmutableCell
         source.child = ToyNode("first", nothing, nothing)
         sync_document!(shadow, source)
-        # The kind of the first field made the child immutable, and the next sync
-        # into it threw a `MethodError`.
+        # The child takes the kind of its own slot, not the immutable kind of the
+        # first field, so the next sync writes into it.
         @test getfield(shadow.child, :label) isa ReactiveCell
         source.child.label = "second"
         sync_document!(shadow, source)
@@ -304,7 +270,7 @@ function test_document_contract()
         source = MToyBox(nothing, nothing)
         source.content = MToyNode("first", nothing, nothing)
         # Nothing in a native tree can invalidate a reader, so it cannot serve as a
-        # shadow. The walk used to fail as a copy_document method that does not exist.
+        # shadow.
         @test_throws ErrorException sync_document!(MToyBox(nothing, nothing), source)
         # A cell shadow of the same schema takes the very same source.
         @test sync_document!(ToyBox(nothing, nothing), source).content isa ToyNode

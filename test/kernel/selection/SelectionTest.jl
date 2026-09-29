@@ -2,6 +2,8 @@
 `SelectionModule` — the writers of the selection, over test-local documents.
 
 Covers:
+- `with_selection`, `set_selection!` and `clear_selection!` write and clear the
+  path in each document along it,
 - a path that does not match throws `SelectionMismatchException` and writes no cell,
 - `replace_selection!` clears the branch that the new path leaves,
 - a caret move in one leaf writes no `selection` cell of an ancestor,
@@ -15,7 +17,8 @@ using Test
 using ProjecturedKernel.CellModule: Cell, @computation, is_cell_up_to_date
 using ProjecturedKernel.DocumentModule: @document, SelectionDocument
 using ProjecturedKernel.ReferenceModule: Reference, EmptyReference, FieldReferenceStep,
-                                         ElementReferenceStep, PositionReferenceStep,
+                                         MFieldReferenceStep, ElementReferenceStep,
+                                         PositionReferenceStep,
                                          strip_reference_types, is_fully_typed_reference
 using ProjecturedKernel.SelectionModule
 
@@ -41,6 +44,42 @@ SelectionModule.has_dormant_selection(::SelectionKeeper) = true
 
 function test_selection()
 @testset "Selection" begin
+
+    @testset "with_selection selects a path and answers the document" begin
+        leaf = SelectionLeaf(text = "a")
+        path = Reference(FieldReferenceStep("text"))
+        @test with_selection(leaf, path) === leaf
+        # The writer adds the node types to the path, so the test compares the
+        # path without them.
+        @test strip_reference_types(get_selection(leaf)) == path
+    end
+
+    @testset "clear_selection! clears the selection of a document" begin
+        leaf = with_selection(SelectionLeaf(text = "a"),
+                              Reference(FieldReferenceStep("text")))
+        clear_selection!(leaf)
+        @test get_selection(leaf) === nothing
+    end
+
+    @testset "clear_selection! clears each document on the path that it holds" begin
+        root = SelectionPair(left = SelectionLeaf(text = "a"))
+        deep = Reference(FieldReferenceStep("left"), FieldReferenceStep("text"))
+        set_selection!(root, deep)
+        @test strip_reference_types(get_selection(root)) == deep
+        clear_selection!(root)
+        @test get_selection(root) === nothing
+        @test get_selection(root.left) === nothing
+    end
+
+    @testset "a path of M steps descends as a path of C steps" begin
+        root = SelectionPair(left = SelectionLeaf(text = "a"))
+        set_selection!(root, Reference(MFieldReferenceStep("left"),
+                                       MFieldReferenceStep("text")))
+        @test strip_reference_types(get_selection(root.left)) ==
+              Reference(FieldReferenceStep("text"))
+        clear_selection!(root)
+        @test get_selection(root.left) === nothing
+    end
 
     @testset "a path that does not match throws and writes no cell" begin
         root = SelectionPair(left = SelectionLeaf(text = "a"),

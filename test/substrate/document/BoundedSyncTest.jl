@@ -5,9 +5,10 @@ the first place.
 
 Four properties carry this suite, and they are what the mechanism is worth:
 
-- **An unbounded policy is the old behaviour, not an imitation of it.** The
-  bounded walk mirrors the sealed one's structure, so the only thing keeping the
-  two in step is a test that syncs the same source both ways and compares.
+- **An unbounded policy gives the result of the unbounded sync, not an imitation
+  of it.** The bounded walk mirrors the structure of the unbounded one, so the only
+  thing that keeps the two in step is a test that syncs the same source both ways
+  and compares.
 - **Ancestors keep their identity across a bounded sync.** That is what lets
   expansion state live in the shadow instead of a side table — a widget holding a
   node must still be holding it after the next sync.
