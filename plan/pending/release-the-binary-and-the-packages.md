@@ -846,12 +846,25 @@ Facts of G1 and G2 (2026-09-29):
       G4**, or the downstream repository loses its layouts until G4 lands. The
       generated `asset/precompile/PrecompileStatements.jl` still names the two
       types; it skips an entry that no longer resolves.
-- [ ] G4. The move, downstream, in a worktree of that repository: the files,
-      the choosing engine, the registration and the tests. It lands before G3,
-      because it works with both the old and the new `ProjecturedGraph`.
-      Committed on 2026-09-29 by the lead of that repository, on its own
-      branch; the check against `release-plan` with the two fixes below is
-      still running.
+- [x] G4. The move, downstream, in a worktree of that repository: the files,
+      the choosing engine, the registration and the tests. Done on 2026-09-29
+      by the lead of that repository, in two commits on its own branch (not
+      merged, not pushed).
+
+      **The landing order**: the first commit downstream (the move) works with
+      both the old and the new `ProjecturedGraph`, so it lands first. Then
+      `222b30517` of this repository and the second commit downstream (its test
+      asserts the resolution by size), together. G3 (`047bfa23f`) lands with
+      them or after them, never before the move downstream.
+
+      Checked against `release-plan` at `222b30517`: the moved tests pass (111)
+      with only the drawing package loaded, after `import ProjecturedAdaptagrams`
+      with no shim (103 of 109 before the fix), and with the example package
+      loaded; `resolve_layout_engine(DeferredLayout(), n)` gives the
+      force-directed engine at 5 and 19 vertices and the spring embedder at 20
+      and 25, and a layout records that name. Against the old `main` the second
+      commit downstream fails 5 of 111, which is why it waits for `222b30517`.
+      Not run: the whole presentation suite downstream.
 
 Facts of G4 (2026-09-29):
 
