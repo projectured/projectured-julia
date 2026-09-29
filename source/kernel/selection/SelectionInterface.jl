@@ -1,7 +1,4 @@
-# Fragment of `SelectionModule` — the selection **interface**: the open generics
-# that read, clear, set, and replace a document's current selection. A document
-# with unconventional selection storage overrides these; the default
-# implementations (and the private path-walking helpers) live in `SelectionDefaults.jl`.
+# Fragment of `SelectionModule` — nine generics; `SelectionDefaults.jl` holds the bodies.
 
 """
     get_selection(document) -> reference or nothing
@@ -33,8 +30,8 @@ function get_selection end
 Take the cursor out of a document.
 
 Use it before showing a document that nobody is editing, or to drop a selection
-that an edit made meaningless. It clears the whole document, not only its root,
-so no nested part keeps a stale place.
+that an edit made meaningless. It clears the selection along the path that
+`document` holds, so no part on that path keeps a stale place.
 
 # Example
 
@@ -43,9 +40,9 @@ so no nested part keeps a stale place.
 
 See also `set_selection!` and `get_selection`.
 
-Recursively clears the selection from `document` and all its children. Sets the
-document's `selection` field to `nothing` and traverses the reference path to
-clear selections from nested structures.
+Sets the `selection` field of `document` to `nothing` and follows the path that
+it held, to clear the selection of each document on that path. A selection on
+another branch stays, for example a dormant one.
 """
 function clear_selection! end
 
@@ -54,17 +51,16 @@ function clear_selection! end
 
 Put the cursor at a place in a document.
 
-Use it to move the caret after an edit, to select what a search found, or to
-build a document that opens with something already selected. The path is made
-canonical against the document first, so a path written by hand reaches the
-same place as one the editor built.
+Use it to build a document that nothing holds yet, so that it opens with
+something already selected. The path is made canonical against the document
+first, so a path written by hand reaches the same place as one the editor built.
 
 # Example
 
     set_selection!(document, @reference(document, rows[2].name))
 
-See also `get_selection`, `clear_selection!`, and `with_selection`, which does
-this while building.
+See also `get_selection`, `clear_selection!`, `with_selection`, which does
+this while building, and `replace_selection!`, which moves the cursor.
 
 Recursively sets the selection on `document` and its children to `path`.
 
@@ -105,17 +101,29 @@ function with_selection end
 Change `document`'s current selection to `path`, replacing whatever was selected
 before; pass `nothing` to clear it.
 
+Use it to move the caret after an edit, or to select what a search found. Call
+it on the root document, the one that holds the whole tree, so that the old
+place leaves no second cursor behind.
+
+# Example
+
+    replace_selection!(root, @reference(root, rows[2].name))
+
+See also `set_selection!`, which selects in a document that nothing holds yet,
+and `get_selection`.
+
 Like [`set_selection!`](@ref), `path` is **canonicalized** against `document`
 first (stripped to its navigation skeleton, then re-annotated) and required to
-**match** — a non-matching path throws [`SelectionMismatchException`](@ref) before any
-cell is written, so a failed apply never changes the selection. On a match,
-instead of clearing and rebuilding every selection cell on the path, the new path
-is written into the
-**shared selection chain in place**: only the cells whose content actually
-changed are touched, and any old branch that diverges from the new path is
-cleared. A caret move within one leaf mutates just that step's start/stop cells,
-leaving every routing ancestor's `selection` cell untouched — so partial
-rendering repaints only the caret.
+**match** — a non-matching path throws [`SelectionMismatchException`](@ref)
+before any cell is written, so a failed apply never changes the selection. On a
+match, instead of clearing and rebuilding every selection cell on the path, the
+new path is written into the **shared selection chain in place**: only the cells
+whose content actually changed are touched, and any old branch that diverges
+from the new path is cleared. A caret move within one leaf writes the
+`selection` cell of the leaf once and writes no `selection` cell of an ancestor,
+so partial rendering repaints only the caret. The start and stop cells of a
+range step are written in place only where the path of the leaf starts with
+that range step.
 """
 function replace_selection! end
 
@@ -127,18 +135,16 @@ having it cleared.
 
 `false` for every document by default, so nothing changes for a document that
 does not ask. A document answers `true` when its children are alternatives and it
-has to remember which one it was showing — a tab group is the case this exists
-for: the tab it shows is the tab its own selection names, so clearing that
-selection makes it forget.
+has to remember which one it was showing: the alternative that it shows is the
+one that its own selection names, so clearing that selection makes it forget.
 
 What a keeper keeps is **dormant**: still stored, still drawable, never acted on.
 See [`SelectionDocument`](@ref).
 
 The question is asked at a divergence, starting at the divergence node itself and
 walking down the branch that is being abandoned. The first `true` keeps the whole
-branch below the divergence. The node itself is included because the two trees
-that need this put the keeper on opposite sides: a pane group sits below the
-divergence, while a tabbed pane **is** the divergence.
+branch below the divergence. The node itself is included because a keeper can
+sit below the divergence or **be** the divergence.
 """
 function has_dormant_selection end
 
@@ -152,8 +158,9 @@ reads as `nothing` — the default that keeps every reader written against a bar
 reference correct. A reader that has to see a dormant path asks for it here, and
 says so by asking.
 
-A tab group is the case this exists for: the tab it shows is the tab its own
-selection names, and it must still show that tab while the focus is elsewhere.
+A document that shows one of several alternatives is the case this exists for:
+it shows the alternative that its own selection names, and it must still show it
+while the focus is elsewhere.
 """
 function get_stored_selection end
 

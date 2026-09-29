@@ -163,11 +163,10 @@ at the top of `JsonParser.jl`, named the file it already was, and used none of
 the banned words. There were 166 of them, and they are gone: each now opens with
 the module that owns the fragment.
 
-The other four forms need a reader, not a grep. 27 lines still match, and 26 of
-them are legitimate: in `# Used to size an output to the content`, `used to`
-means *is used to*, and `# a rect whose row no longer exists` describes a run,
-not a refactor. The twenty-seventh is in a sealed file,
-`kernel/selection/SelectionDefaults.jl:76`, and waits for permission.
+The other four forms need a reader, not a grep. Most lines that still match are
+legitimate: in `# Used to size an output to the content`, `used to` means *is
+used to*, and `# a rect whose row no longer exists` describes a run, not a
+refactor.
 
 A check, not a verdict:
 
