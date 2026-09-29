@@ -23,7 +23,7 @@ injected `:Projection` resolves in the caller's scope (the result is `esc`'d)
 — same mechanic as `@iomap`/`IoMap`.
 
 A projection's parameter cells are what make its `print_document` reactive: an
-operation writes a parameter cell (e.g. `FocusingProjection`'s `part`), and the
+operation writes a parameter cell (such as the part of a document to show), and the
 computed cells the returned IoMap wired from it re-derive — the change propagating
 through that same IoMap without a re-print. Wire the IoMap's `output` and child
 IoMaps as computed cells reading the parameters/input; a plain struct is fine only

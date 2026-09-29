@@ -1,18 +1,17 @@
 # Fragment of `ProjectionModule` — `@projection_template` and the
-# builder-and-walk engine behind it. Every structural projection is written
-# with it rather than as a hand-written printer and reader pair.
+# builder-and-walk engine behind it. Many structural projections are written
+# with it; some keep a hand-written printer and reader pair.
 #
 # It names no concrete children-container type: `make_children_container` builds
 # the container and `get_children_container_type` returns the concrete type for
 # a `TypeReferenceStep` marker, and a higher package registers both. That is the
 # pressure that keeps the engine kernel-pure.
 #
-# Two seams stay open for a higher package. The `RuleIoMap` readers keyed on the
-# transparent recursive wrapper, and the one text-range-replace retype method,
-# live there beside the reader defaults: that wrapper projection and that
-# operation type are defined there, and the kernel can name neither. The higher
-# package imports `RuleIoMap` and `AtomicWiring` from here to keep the same
-# dispatch.
+# Two seams stay open for a higher package: the readers of a `RuleIoMap` under a
+# transparent recursive wrapper, and the retype of a text-range replace. The
+# kernel names neither that wrapper nor that operation, so the package that
+# defines them adds these methods, and they dispatch on `RuleIoMap` and
+# `AtomicWiring`.
 
 
 # ── The marker words of a template body ─────────────────────────────────────
@@ -141,7 +140,7 @@ struct FixedNodeWiring
     slots::Vector{Any}
 end
 
-# A fixed-shaped node whose child *slot list* is reactive (F2): the children cell
+# A fixed-shaped node whose child *slot list* is reactive: the children cell
 # computes a marker vector, again on each structural change (an optional
 # field toggling appears/disappears a slot). Like `FixedNodeWiring` but the slots +
 # project store live in a Cell (`child_iomaps`), read fresh by the mappers.
@@ -195,7 +194,7 @@ end
     input::ImmutableCell{Any}
     output::ImmutableCell{Any}
     wiring::ImmutableCell{Any}
-    child_iomaps::Any                    # Cell or nothing (nodes; WIP)
+    child_iomaps::Any                    # Cell or nothing
 end
 
 # ── Path helpers (build the exact shapes @reference/@reference_case produce) ───
@@ -239,15 +238,15 @@ strip the markers (replacing each with its real value *through* the field's Cell
 and return a `RuleIoMap`. The selection cell is wired at construction time: each
 node is rebuilt once via `_with_selection` with its final selection cell in
 place, reusing every other field's Cell object. No node is retargeted after
-anything else references it (prerequisite for the immutable kind-parameterized
-stem — plan/pending/cell-kind-documents.md, Phase 0).
+anything else references it, because the kind-parameterized stem of a document
+is immutable.
 """
 print_template_rule(p, recursion, doc, ctx, builder) =
     _dispatch_print(p, doc, builder(p, doc); recursion, context = ctx)
 
 # Dispatch an *already-built* output on its shape. A function of its own, so a
 # nested marker-bearing sub-node (a `SubNodeSlot`) is walked by the same rules with
-# the parent doc/ctx (F1), not just the top-level builder output.
+# the parent doc/ctx, not just the top-level builder output.
 function _dispatch_print(p, doc, out; recursion, context)
     cond_field, cond = _find_conditional(out)
     cond !== nothing && return _conditional_print(p, doc, out; recursion, context,
@@ -282,17 +281,13 @@ end
 # node needs: the reference machinery navigates `.children[i]` through its element
 # cells.
 #
-# Both are the same blueprint, and the engine has to walk either. Recognising only the
-# raw `Vector` is why a fixed-children template node had to be spelled in the long
-# positional form: written with a node constructor over a raw child vector, its
-# children were invisible here, the node fell through to `_atomic_print`, and the
-# `bound`/`project` markers reached the printer unresolved — where it reads `.content`
-# off a `Bound` and dies.
+# Both are the same blueprint, and the engine walks either. A fixed-children node
+# that this test misses falls through to `_atomic_print`, and its `bound`/`project`
+# markers reach the printer unresolved.
 #
-# A raw `Vector` counts unconditionally. An element collection counts
-# only when it actually CARRIES a marker: a marker-free one is an ordinary output subtree
-# and must keep going to `_atomic_print`. So the rule is strictly additive — it cannot
-# change what any existing template does.
+# A raw `Vector` counts unconditionally. An element collection counts only when it
+# CARRIES a marker: a marker-free one is an ordinary output subtree and goes to
+# `_atomic_print`.
 #
 # `is_element_collection` is the document-layer trait a positional collection opts
 # into. The kernel cannot name the concrete element-collection type, so it asks the
@@ -319,7 +314,7 @@ end
 _has_fixed_children(out) =
     any(fname -> _is_fixed_children(getfield(out, fname)[]), fieldnames(typeof(out)))
 
-# Locate a reactive child list (F2): a field whose cell computes a blueprint child
+# Locate a reactive child list: a field whose cell computes a blueprint child
 # list. A builder writes it as a thunk, `SyntaxConcatenation(() -> [...])`, and the
 # node constructor makes the thunk the computation of the children cell. A cell that
 # holds a value, or that computes anything other than a child list, is not one. The
@@ -333,7 +328,7 @@ function _find_conditional(out)
     (nothing, nothing)
 end
 
-# ── Nested-marker detection (F1) ─────────────────────────────────────────────
+# ── Nested-marker detection ──────────────────────────────────────────────────
 # A child in a fixed-children vector is a `SubNodeSlot` iff it is itself an output
 # *node* (has a children vector or a Collection/Tokens/Sections marker field) that
 # *contains markers*. A bound/opaque leaf (marker in its `value`, no children field)
@@ -528,9 +523,9 @@ end
 # element builder, e.g. the entry selection and key→value remap) are left intact.
 # Walk a marker vector into (slots, project-store, output cells). Each child is
 # classified: `project(:f)` → ProjectSlot (reconciling iomap in the store); a nested
-# marker-bearing node → SubNodeSlot (F1); a `bound` leaf → KeySlot; anything else →
-# IntroSlot. Shared by `_fixed_print` (static vector) and `_conditional_print`
-# (computed child list, F2).
+# marker-bearing node → SubNodeSlot (a nested sub-node); a `bound` leaf → KeySlot;
+# anything else → IntroSlot. Shared by `_fixed_print` (static vector) and
+# `_conditional_print` (a reactive child list).
 function _walk_markers(p, doc, markers; recursion, context)
     slots = Any[]; store = Dict{Symbol,Any}(); output_cells = Cell[]
     for child in markers
@@ -548,7 +543,7 @@ function _walk_markers(p, doc, markers; recursion, context)
             error("ProjectionTemplate: nested collection inside a fixed-children node " *
                   "is not supported")
         elseif _is_marker_bearing_subnode(child)
-            # F1: a nested marker-bearing node (a header/bracket grouping). Walk it
+            # A nested marker-bearing sub-node (a header/bracket grouping). Walk it
             # recursively with the *parent* doc/ctx — its `project`/`collection`
             # children key off parent input fields — and embed the nested iomap.
             sub = _dispatch_print(p, doc, child; recursion, context)
@@ -594,12 +589,13 @@ function _fixed_print(p, doc, out; recursion, context)
     return im
 end
 
-# F2: a node whose children cell `markers` computes a marker vector (an
-# optional-field toggle appears/disappears a `project`/leaf slot). The state cell
-# reads `markers` and re-walks the markers on each structural change; the mappers
-# read the current (slots, store) from it, and the output children double-track the
-# state cell (structure) and each output cell (child content / type-swap). The
-# output node gets its children in a new cell, so `markers` keeps its computation.
+# A reactive child list: a node whose children cell `markers` computes a marker
+# vector (an optional-field toggle appears/disappears a `project`/leaf slot). The
+# state cell reads `markers` and re-walks the markers on each structural change; the
+# mappers read the current (slots, store) from it, and the output children
+# double-track the state cell (structure) and each output cell (child content /
+# type-swap). The output node gets its children in a new cell, so `markers` keeps
+# its computation.
 function _conditional_print(p, doc, out; recursion, context, children_field, markers)
     state = Cell(@computation _walk_markers(p, doc, markers[]; recursion, context))
     children = make_children_container(() -> [c[] for c in state[][3]])
@@ -988,9 +984,8 @@ function _slots_backward(slots, reference; project_child, children_field, intype
                 # root and stalling tree navigation. Represent it as an opaque
                 # structural position — a ProjectionReferenceStep into this node's
                 # output — so it round-trips distinctly (forward via
-                # `is_introduced_reference`; the render stage renders it
-                # transparently). A *deeper* selection delegates: its `leaf_path` may
-                # resolve to a real child.
+                # `is_introduced_reference`). A *deeper* selection delegates: its
+                # `leaf_path` may resolve to a real child.
                 leaf_path isa EmptyReference &&
                     return make_introduced_reference(slot.iomap.projection, intype,
                                                      reference)
@@ -1249,10 +1244,11 @@ end
 
 # ── Recursive gesture reader (delegate to the selected child, lift the op) ──────
 #
-# A raw authoring gesture (a `KeyPress`/`KeyDown` the upstream Text/Syntax layers
-# declined) is delegated to the projection of the **selected child** element, and
-# the child's operation is lifted back into this node's input domain by prepending
-# the input step that leads to that child (`entries[i].value`, `elements[i]`, …).
+# A raw authoring gesture (a `KeyPress`/`KeyDown` for which the stages nearer the
+# output made no operation) is delegated to the projection of the **selected child**
+# element, and the child's operation is lifted back into this node's input domain by
+# prepending the input step that leads to that child (`entries[i].value`,
+# `elements[i]`, …).
 # A node handles the gesture itself — via its document's `@gestures`
 # (`read_gesture`) — only when the child declines: innermost-first, with bubbling
 # to the nearest enclosing structural node. This is the reader-side mirror of the
@@ -1410,10 +1406,10 @@ function _read_template_gesture(iomap::RuleIoMap, evt; recursion)
     return read_gesture(input, evt)
 end
 
-# A gesture an output layer already turned into an operation. Only `override` bindings
-# fire (`fire_gesture_bindings` skips the rest once `claimed !== nothing`), so this is
-# inert for every ordinary gesture and the caller goes on to translate the claimed
-# operation.
+# A gesture that a stage nearer the output already turned into an operation. Only
+# `override` bindings fire (`fire_gesture_bindings` skips the rest once
+# `claimed !== nothing`), so this is inert for every ordinary gesture and the caller
+# goes on to translate the claimed operation.
 #
 # The descent is a private walk over `RuleIoMap` children rather than the `read_intent`
 # recursion the unclaimed path uses, for two reasons. A hand-written reader takes an
@@ -1447,13 +1443,13 @@ end
 """
     read_template_intent(p, recursion, change::Intent, iomap) -> Intent
 
-The 4-arg reader [`@projection_template`](@ref) emits for each template projection. It
-offers this node's input domain the gesture *before* translating an operation the output
-layers already produced for it — the seam an `override` binding fires through — and
-otherwise behaves like the generic bridge in `ProjectionModule`. A key goes to the
-reader of the focused child with `recursion`. The answer keeps the description and
-the domain of `change`. This reader follows no route, so a change whose route names
-a place below the input answers no operation.
+The 4-arg reader [`@projection_template`](@ref) emits for each template projection.
+It offers this node's input domain the gesture *before* translating an operation
+that the stages nearer the output already produced for it — the seam an `override`
+binding fires through — and otherwise behaves like the generic bridge in
+`ProjectionModule`. A key goes to the reader of the focused child with `recursion`.
+The answer keeps the description and the domain of `change`. This reader follows no
+route, so a change whose route names a place below the input answers no operation.
 
 Keyed on the concrete projection type rather than on `RuleIoMap`: the transparent
 recursive and type-dispatching wrappers hand a leaf its own iomap
@@ -1473,14 +1469,6 @@ function read_template_intent(p, recursion, change::Intent, iomap)
                 read_intent(p, iomap, change.gesture)
     return Intent(change.gesture, operation, change.description, change.domain)
 end
-
-# The `KeyPress`/`KeyDown` and `ReplaceSelectionOperation` disambiguations for
-# the transparent recursive wrapper over `RuleIoMap` — together with the
-# value-edit retype method for text-range replaces — all live in a higher
-# package beside the reader defaults. That wrapper projection and that operation
-# type are defined there, neither of which the kernel can name; the higher
-# package imports `RuleIoMap` + `AtomicWiring` from this module to preserve the
-# same dispatch behaviour.
 
 # Whole-element selection: map back, else (node) the position is a structural
 # introduced one with no input pre-image ⇒ wrap into this projection's own step

@@ -35,8 +35,8 @@ _pure_snapshot(x) = x isa Document ? copy_document(ImmutableCell, x) : x
 # Total fallback for any projection without a specialized pure interpreter: run
 # the reactive printer once and snapshot its output. Slower than a real pure
 # interpreter (it builds the reactive machinery first), but it makes the pure
-# pipeline total from day one — a ChainingProjection can mix template stages (fast,
-# pure) with hand-written stages (this fallback) transparently.
+# pipeline total — a chain can mix stages that have a pure interpreter with stages
+# that use this fallback.
 print_document_pure(p::Projection, recursion, input, ctx) =
     _pure_snapshot(unwrap_cell(print_document(p, recursion, input, ctx).output))
 
@@ -219,6 +219,18 @@ what [`follow_intent_route`](@ref) gave for that child. When no route remains,
 the child's input is the place of the operation: the child is not read, and the
 answer is the operation that `change` carries, with no route. Otherwise the
 child reads `change` with `read_intent`.
+
+Use it to pass an operation with a route to one child from a 4-arg reader: it
+reads the child, or it answers the operation when the child is its place.
+
+# Example
+
+    routed = follow_intent_route(change, FieldReferenceStep("content"))
+    routed === nothing && return Intent(change.gesture, nothing)
+    answer = read_routed_intent(child.projection, recursion, routed, child)
+
+See also `follow_intent_route`, which gives the route that remains for the child,
+and `read_intent`, which it calls.
 """
 function read_routed_intent(projection, recursion, change::Intent, iomap)
     change.route isa EmptyReference || return read_intent(projection, recursion, change, iomap)

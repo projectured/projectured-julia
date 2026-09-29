@@ -60,14 +60,14 @@ selection mechanism.
 
 | Fragment | Contract |
 |---|---|
-| [`ChildrenContainer.jl`](ChildrenContainer.jl) | the open generics for the children container a template rule holds |
+| [`ChildrenContainer.jl`](ChildrenContainer.jl) | no code: `ProjectionInterface.jl` declares the children-container seam, and a higher package adds its methods |
 | [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree |
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
 | [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics and the open seams |
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
 | [`ProjectionMacro.jl`](ProjectionMacro.jl) | `@projection` — the projection codegen |
 | [`GestureBindings.jl`](GestureBindings.jl) | the default gesture table of a projection, and `read_projection_gesture` |
-| [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine every structural projection is written with |
+| [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine that many structural projections are written with |
 """
 module ProjectionModule
 
