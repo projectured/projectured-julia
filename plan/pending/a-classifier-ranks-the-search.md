@@ -549,6 +549,20 @@ Each step says what stops the stage.
   4. The rankers of Stage 1 on the full corpus: words, meaning, meaning with
      call sites, and Jev in two stages and as a cascade, with and without the
      call sites. About $1.
+- [ ] **Step 4c. The code of the definition** (the owner, 2026-09-29: "We can
+  assume that some documentation needs to be written for each function. But in
+  general the usage examples will probably not be there and certainly not tuned
+  for the task. Do the follow up"). The rankers also read the first lines of the
+  definition of each name:
+  1. 60 new answers, 20 per stratum, each with at least 4 call sites, none of
+     them an answer of Step 4b.
+  2. Each question written from a call site beyond the three the rankers show,
+     never from the definition, so the question and the code a ranker reads do
+     not share their source.
+  3. The variants: meaning with the code in its vector; Jev in two stages over a
+     pool that holds the meaning with the code; Jev as a cascade whose
+     candidates carry the code, and whose short line of a name with no
+     docstring is the first line of its code.
 - [x] **Step 5. The guide ranks.** The same for `search_guides`, at the three
   sizes of §5a. Done 2026-09-28 (§10), with words, meaning, and Jev in two
   stages and as a cascade; the tree and the local classifier were not run on
