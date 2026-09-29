@@ -18,12 +18,11 @@ the sibling [selection guide](selection.md).
 
 References are **layer 11 of the kernel** — paths into documents. The layer lives
 in [source/kernel/reference/](../../../source/kernel/reference/), inside one aggregator module
-(`ReferenceModule`) split across eleven fragments that share its namespace:
+(`ReferenceModule`) split across twelve fragments that share its namespace:
 
 ```
 ReferenceModule.jl       (ReferenceModule)             — the aggregator
-        │ imports Cell (from CellModule), @cell_struct (from CellStructModule),
-        │ and Document (from DocumentModule, for the reflection-walker traits) and exports every
+        │ uses CellModule, CellStructModule and DocumentModule, and exports every
         │ public name below
         ├─ ReferenceInterface.jl — the contract: the ReferenceStep and
         │                        Reference abstract types, the Reference
@@ -45,10 +44,10 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        (annotate_reference_types, …)
         ├─ ReferenceSearch.jl  — the path-producing reflection search
         │                        (search_references)
-        ├─ ReferenceSyntax.jl  — the surface grammar EVERY DSL accepts, parsed
-        │                        once into one step AST (ReferenceSyntaxStep). The three
-        │                        fragments below are lowerings of that AST,
-        │                        not parsers of their own
+        ├─ ReferenceSyntax.jl  — the Julia surface grammar of the DSLs, parsed
+        │                        once into one step AST (ReferenceSyntaxStep).
+        │                        @reference, @reference_case and @reference_rules
+        │                        lower that AST
         ├─ ReferenceGlob.jl    — the glob language (*, ?, {a-e}, {38..47}) over
         │                        one name; independent of `Reference` itself
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
@@ -59,13 +58,20 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        interpreter over the same pattern AST
         ├─ ReferencePatternString.jl — the string spelling of a pattern: ref"…" and
         │                        parse_reference_pattern, for a rule set read from
-        │                        a configuration file at run time
-        └─ ReferenceBuilder.jl — the @reference / @reference_step construction DSL
-                                 (compact surface syntax for building paths)
+        │                        a configuration file at run time. It has its own
+        │                        parser, with 0-based indices and ** for a run of
+        │                        steps, and it gives the same pattern data
+        ├─ ReferenceBuilder.jl — the @reference / @reference_step construction DSL
+        │                        (compact surface syntax for building paths)
+        └─ ReferencedDocument.jl — ReferencedDocument, a document with the reference
+                                 that reached it; DocumentLocator, get_parent and
+                                 get_edited_document
 ```
 
-The DSLs read the **same path grammar** — `a.b`, `xs[i]`, `xs{k}`, `x::T`,
-`.name(...)`, `^(e)` — so it is parsed in one place. Each DSL then *lowers* the
+The DSLs read the **same Julia path grammar** — `a.b`, `xs[i]`, `xs{k}`, `x::T`,
+`.name(...)`, `^(e)` — so it is parsed in one place. The string spelling `ref"…"`
+is the one other parser: it reads a configuration key and gives the same pattern
+data. Each DSL then *lowers* the
 resulting AST: the builder to constructor calls, the matcher to match branches, and
 `@reference_rules` to pattern *data* it interprets. Seven forms deliberately mean
 different things on the building and matching sides, and the lowering is where that
@@ -89,26 +95,28 @@ declares are named in the struct field annotations below it
 (`head::ReferenceStep`, `tail::Reference`), and those are evaluated at
 definition time, so the contract must be loaded before the types that satisfy it.
 
-The eleven fragments are only ever imported together, so they share one
+The twelve fragments are imported together, so they share one
 `ReferenceModule` namespace instead of being separate modules — splitting them
-would just multiply import headers. They still live in separate files for
+would multiply import headers. They still live in separate files for
 readability, but as **fragments** (0-module files sharing the aggregator's
 namespace), not separate modules.
 
 ### Downward edges
 
-- `..CellModule: Cell, AbstractCell` and `..CellStructModule: @cell_struct` — the
-  reactive box the mutable step fields live in, and the macro that builds each step/path
-  struct with its cells. Steps and paths are not addressable content —
-  nothing navigates into one, selects inside one, or projects one — so they
-  carry no `selection` field and need none of `@document`'s document codegen;
-  `@cell_struct` gives them the transparent-`Cell` fields alone.
-- `..DocumentModule: Document, is_element_collection, is_walk_opaque` — only for
-  the reflection-walker traits, not for `@document`.
+- `..CellModule` — the reactive `Cell` that the fields of a path and of a C step
+  live in, and `unwrap_cell`, which makes a cell transparent to a step.
+- `..CellStructModule` — `@cell_struct`, which builds `EmptyReference` and
+  `ConcreteReference` with their cells.
+- `..DocumentModule` — `@document [C, M]`, which builds each kernel step as a
+  layout family: the bare name is the C layout, whose fields are cells, and the
+  `M…` name is the plain layout. The layer also calls `walk_document` for
+  `search_references`, `get_document_cell_type` for the type that a path records,
+  `get_edited_field` for `get_edited_document`, and `is_element_collection`. It
+  imports `search_documents` and `get_wrapped_document` to extend them for a
+  `ReferencedDocument`.
 
-That is the whole import surface of the layer. No projection, no operation, no
-device. This is what keeps the reference layer below the selection and operation
-layers.
+The layer imports no projection, no operation and no device. This is what keeps
+the reference layer below the selection and operation layers.
 
 ## Reference steps
 
@@ -193,9 +201,9 @@ document — splices whatever a content projection returns into an `@reference` 
 
 ## Reference paths and their structs
 
-A `Reference` chains steps. It is an **immutable linked list**, so
-extending or sharing a path costs no copying — a new prefix reuses the existing
-tail:
+A `Reference` chains steps as a **linked list**. A new node in front reuses the
+existing tail, so `ConcreteReference(step, tail)` costs one node. `extend_reference`
+appends at the far end, so it builds a new node for each node of the base:
 
 ```julia
 abstract type Reference end
@@ -263,20 +271,17 @@ than knowing its path up front, use `search_references` / `search_documents` —
 the [finding-and-selecting guide](finding-and-selecting.md). Do not hand-walk
 the document tree to locate a node.
 
-`is_valid_reference` checks that an object is a valid reference step or path:
+`is_valid_reference(document, path)` checks a path against a document: it is
+`true` when every step of `path` resolves in `document` and every node type that
+the path records holds there. There is no one-argument form.
 
 ```julia
-is_valid_reference(PositionReferenceStep(5))    # true
-is_valid_reference(FieldReferenceStep("name"))  # true
-is_valid_reference("not a reference")       # false
-is_valid_reference(EmptyReference())    # true
+path = @reference(document, entries[1].value)
+is_valid_reference(document, path)    # true while the first entry has a value
 ```
 
-For a `ConcreteReference` it recursively validates that the head cell holds
-a valid `ReferenceStep` and the tail cell a valid `Reference`, ensuring the
-whole chain is well-formed. This one-argument form is a purely *structural*
-check. The two-argument, document-aware method is described under
-[Type checkpoints](#type-checkpoints-and-replay-validity).
+[Type checkpoints](#type-checkpoints-and-replay-validity) describes the node types
+that it checks.
 
 ## Type checkpoints and replay validity
 
@@ -311,8 +316,9 @@ roles — so a k-step path has k+1 typed nodes (every boundary plus the terminal
 Checkpoints are created programmatically, not by hand:
 
 - `annotate_reference_types(document, path)` returns `path` with each node's
-  `type` field filled in against `document` (a `{k}` cursor lands on no child,
-  so the terminal after it stays untyped).
+  `type` field filled in against `document`: the cell layout of the node that it
+  stands on (`get_reference_node_type`). A `{k}` cursor lands on no child, so the
+  terminal after it records `Position`.
 - `strip_reference_types(path)` blanks the node types again, recovering the
   plain navigation skeleton. The two are inverses on an unchanged document.
 - `fold_reference_types(path)` converts a path that still carries transitional
@@ -333,11 +339,10 @@ non-navigating — it consumes no step — and it determines the arm:
   match proceeds.
 
 So `queue::PacketQueue.capacity` refers to the capacity of every `PacketQueue`,
-not to every capacity at a queue-shaped place, and a selector no longer has to
-fall back on the lower-case binder plus a guard (`when(queue::t, t <: PacketQueue)`)
-to say the same thing three times. It also restores the tripwire the folded model
-lost: before the type was folded into node fields, a leading `TypeReferenceStep`
-made a cross-domain path fail to match structurally.
+not to every capacity at a queue-shaped place, and a selector does not need the
+lower-case binder plus a guard (`when(queue::t, t <: PacketQueue)`) to say the
+same thing. A path of another domain records other node types, so it does not
+match.
 
 The silent case is not a loophole, it is what keeps the rule usable:
 
@@ -568,12 +573,19 @@ end
 ```
 
 Pattern syntax:
-- `_` — wildcard, matches anything
+- `_` — in path position, exactly one step of any kind; in a value position, any
+  value
+- `__` — any run of steps, possibly none. `__ʔ` takes the shortest run, and
+  `__(name)` binds the run that it took
+- `any(P, Q, …)` — in path position, one of the subpaths; in a value position,
+  one of the values
 - `∅` — the **empty path** (`EmptyReference`), i.e. a *whole-element*
   selection
 - `i` — binder, captures the value
 - `"name"` or `0` — literal, matches a specific value
 - `i::Int` — typed binder, captures with a type check
+- `lo..hi` — a number from `lo` to `hi`, both included
+- `glob"host*"` — a name that the glob matches (see `glob_matches`)
 - `path...` — matches prefix and binds the remaining tail
 - `{s:e}` — range pattern, matches any `RangeReferenceStep` and binds its two
   boundaries (positions are `RangeReferenceStep(k, k)`, so `{s:e}` will also
@@ -581,6 +593,9 @@ Pattern syntax:
   interesting)
 - `[i, j]` — the same match, binding the items instead: `i` is the 1-based first
   item and `j` the 1-based last
+- `ref"**.host[*].queue"` — a whole pattern in the string spelling of a
+  configuration key, which `parse_reference_pattern` reads: `**` is `__`, `*` is
+  `_`, and an index counts from 0
 
 The `when(pattern, cond)` helper adds a guard.
 
@@ -603,9 +618,8 @@ vocabulary, two DSLs:
 (see `ReferenceDispatchingProjection`); `within(…)` answers the other direction:
 whether this pattern names a leading segment of the input.
 
-> There is no `prefix(…)`. It named `above(…)` while reading as though it meant
-> `within(…)`, which is exactly the confusion the five words exist to remove.
-> Writing it is an error that says which one to pick.
+> There is no `prefix(…)` arm. The word can be read as `above(…)` or as
+> `within(…)`, so writing it is an error that says which one to pick.
 
 `@reference_case` is commonly used
 in projection readers to translate output-domain references back to input-domain
@@ -872,10 +886,13 @@ documents this at the type declaration.
 
 ## Testing
 
-`test/kernel/reference/` holds `ReferenceBuilderTest.jl` (the `@reference` /
-`@reference_step` / `@reference_case` DSLs, against `ProjecturedKernel.ReferenceModule`
-directly — no umbrella needed) and `ReferenceEvalTest.jl`, which walks `evaluate_reference`
-over a test-local `@document struct EvaluationBranch`. No concrete engine document is imported;
+`test/kernel/reference/` holds four files. `ReferenceBuilderTest.jl` covers the
+`@reference` / `@reference_step` / `@reference_case` DSLs, against
+`ProjecturedKernel.ReferenceModule` directly — no umbrella needed.
+`ReferenceEvalTest.jl` walks `evaluate_reference` over a test-local
+`@document struct EvaluationBranch`. `ReferenceRulesTest.jl` covers
+`@reference_rules`, and `ReferencedDocumentTest.jl` covers `ReferencedDocument` and
+`DocumentLocator` over a test-local tree. No concrete engine document is imported;
 the reference DSLs stand on their own.
 
 `ReferenceRulesTest.jl` is mostly one **conformance corpus**: every construct of the

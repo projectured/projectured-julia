@@ -62,8 +62,6 @@ _valpath(k::Int) = ConcreteReference(FieldReferenceStep("value"),
 
 # Read the cursor offset out of a content's selection, defaulting to end-of-value.
 function _cursor(c)
-    # Selections are canonical at rest: skip the TypeReferenceStep checkpoints before
-    # reading the `value[range]` cursor structure.
     sel = getfield(c, :selection)[]
     if sel isa ConcreteReference && sel.head isa FieldReferenceStep && sel.head.name == "value"
         t = sel.tail

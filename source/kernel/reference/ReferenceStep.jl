@@ -10,16 +10,6 @@
 # are declared in `ReferenceInterface.jl`; the paths these steps are threaded onto live in
 # `ReferencePath.jl`.
 
-# ── Cell-transparent navigation ───────────────────────────────────────────
-
-# Cells are transparent to reference navigation: a step that lands on a cell
-# descends into its value, via `unwrap_cell`. Element and range access must do
-# this too, not just field access — otherwise a step into a plain `Vector{Cell}`
-# would stop on the raw cell and the rest of the path — recorded against the
-# *unwrapped* value — would fail to resolve (and `annotate_reference_types` would
-# stop adding type checkpoints there). `CellVector` already unwraps on
-# `getindex`, so this is a no-op for it.
-
 # ── RangeReferenceStep ────────────────────────────────────────────────────────
 
 """
@@ -38,15 +28,8 @@ valid boundaries are 0 to n.
     stop::Int
 end
 
-# `[C, M]`, bare name = the C (reactive) layout: a step IS mutated in the UI —
-# an index shifts and the change propagates — so every existing constructor
-# call keeps building the reactive step, unchanged. The M layout is the plain
-# VALUE the simulator's run path constructs (designators, sites, hashing,
-# matching); it never propagates because the run path never mutates a step.
-# Every method below dispatches on the `A…` stem, so the two layouts share
-# `show`/`==`/`hash`/the seam methods, and a C step equals an M step that
-# holds the same numbers. Same for `FieldReferenceStep` and
-# `TypeReferenceStep` below.
+# Every method below dispatches on the `A…` stem, so the C and the M layout of
+# each step type share them (see the docstring of `ReferenceModule`).
 
 # ── Convenience step constructors ───────────────────────────────────────
 
@@ -114,7 +97,10 @@ Base.hash(s::ARangeReferenceStep, h::UInt) =
 get_reference_step_kind(::ARangeReferenceStep) = :structural
 
 # A zero-width cursor evaluates to a `Position` (a caret between elements); a
-# single element / range descends into the item at start+1 (cell-transparent).
+# single element / range descends into the item at start+1. Cells are
+# transparent to a step: a step that lands on a cell descends into its value,
+# because the rest of the path is recorded against the value. A `Vector{Cell}`
+# answers a cell from `getindex`, so the element step unwraps it too.
 function evaluate_reference_step(step::ARangeReferenceStep, document)
     is_position_reference_step(step) && return Position(step.start)
     unwrap_cell(document[step.start + 1])
@@ -212,13 +198,9 @@ Base.:(==)(a::ReferenceStep, b::ReferenceStep) = a === b
 
 # ── Hashing ───────────────────────────────────────────────────────────────
 #
-# **A step compares by value, so it hashes by value.** The C layout is
-# mutable, and a mutable struct hashes by identity unless it says otherwise —
-# which would make two equal steps land in different buckets and lose every
-# lookup of a rebuilt reference. Each `hash` above therefore sits beside the
-# `==` it must agree with, and each mixes in its own type name, because two
-# steps of different kinds are never equal whatever they hold.
-#
-# The `type` field a step may carry is NOT part of either: it is not part of
-# `==` here and so it is not part of `hash`. `is_reference_equal` is the strict
-# comparison that does read it, and it is a different question.
+# **A step compares by value, so it hashes by value.** The C layout holds its
+# values in cells, and the default hash follows the identity of the cells, which
+# would make two equal steps land in different buckets and lose every lookup of
+# a rebuilt reference. Each `hash` above therefore sits beside the `==` it must
+# agree with, and each mixes in its own type name, because two steps of
+# different kinds are never equal whatever they hold.

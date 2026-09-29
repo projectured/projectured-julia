@@ -118,8 +118,7 @@ function _emit_step_short!(spans::Vector{TextDocument}, p::ReferenceToText, step
     push!(spans, _tok(string(step), p.font, color_solarized_red))
 end
 
-# Emit the folded `::Type` checkpoint a node carries (the type the step descends
-# from), the same shape the old interleaved `TypeReferenceStep` step rendered.
+# Emit the folded `::Type` that a node carries (the type the step descends from).
 function _emit_type_short!(spans::Vector{TextDocument}, p::ReferenceToText, T)
     push!(spans, _tok("::", p.font, color_solarized_gray))
     push!(spans, _tok(_short_type(T), p.font, color_solarized_orange))
@@ -266,11 +265,11 @@ end
 # projection's output at nested levels — for nested levels we pass
 # `nothing` since the projection's output is not addressable here, which
 # yields "?" tails inside nested projection paths).
-# `TypeReferenceStep` checkpoints are not lines: each one supplies the parent type
-# of the navigation step that follows it (a canonical reference carries one
-# before every step). When no checkpoint precedes a step, the parent type falls
-# back to `evaluate_reference(document, prefix)`, so plain (un-annotated) refs
-# still read correctly. `prefix` is the path up to but not including the step.
+# A `TypeReferenceStep` is not a line: it supplies the parent type of the
+# navigation step that follows it. A canonical reference holds no such step, since
+# its types sit on its nodes. When no type step precedes a step, the parent type
+# falls back to `evaluate_reference(document, prefix)`, so every path reads
+# correctly. `prefix` is the path up to but not including the step.
 function _walk_long!(lines::Vector{Vector{TextDocument}},
                      p::ReferenceToHumanReadableText,
                      path::ConcreteReference,

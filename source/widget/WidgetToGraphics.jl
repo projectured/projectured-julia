@@ -8120,8 +8120,6 @@ end
 # ── Selection-shape recognition ───────────────────────────────────────────────
 # `.<field>[index]∅` → (field_name, 1-based index), else nothing.
 function _wt_field_element_terminal(sel)
-    # Selections are canonical (carry TypeReferenceStep checkpoints); skip them
-    # before each structural step so the shape match is modulo checkpoints.
     sel = sel
     sel isa ConcreteReference || return nothing
     h = sel.head

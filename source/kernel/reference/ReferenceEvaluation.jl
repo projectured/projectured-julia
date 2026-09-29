@@ -144,8 +144,9 @@ get_reference_node_type(document) = get_document_cell_type(document)
     annotate_reference_types(document, path::Reference) -> Reference
 
 Return `path` with each node's `type` field **filled in** against `document`: a
-`ConcreteReference` records `typeof(node)` of the document it stands on, and
-the terminal `EmptyReference` records the type of the node the path lands on.
+`ConcreteReference` records [`get_reference_node_type`](@ref) of the document it
+stands on, the cell layout of its schema, and the terminal `EmptyReference`
+records it for the node the path lands on.
 This is the *folded* canonical form — the type lives on each node, not as a
 separate interleaved `TypeReferenceStep` step. The result can be persisted and later
 re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
@@ -153,7 +154,7 @@ re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
 [`strip_reference_types`](@ref).
 
 A zero-width position (`{k}`) is a cursor *between* items — it lands on no child
-node, so the terminal after it keeps `type === nothing`.
+node. It evaluates to a `Position`, so the terminal after it records `Position`.
 """
 function annotate_reference_types(document, ::EmptyReference)
     # Whole-element / terminal node: record the type of the node it lands on.

@@ -120,8 +120,6 @@ read_intent(p::ProjectionConfiguringProjection,
 # reference rooted at our output split pane, returning the remainder (rooted at
 # the control bar) or `nothing` when the reference is not in the control slot.
 function _strip_control_slot(ref)
-    # Skip canonical TypeReferenceStep checkpoints at each level before reading the
-    # `elements[1]` control-slot structure.
     ref = ref
     ref isa ConcreteReference || return nothing
     (ref.head isa FieldReferenceStep && ref.head.name == "elements") || return nothing

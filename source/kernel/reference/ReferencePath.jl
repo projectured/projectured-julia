@@ -10,16 +10,16 @@
 # `ReferenceEvaluation.jl`; the steps threaded onto these nodes live in
 # `ReferenceStep.jl`.
 
-# ── Reference (immutable linked list) ────────────────────────────────
+# ── Reference (linked list) ──────────────────────────────────────────
 
 """
     EmptyReference([type])
 
 The empty reference path — a path that terminates *at* a node. `type` records the
 Julia type of the node the path lands on (the **terminal** node's type); it is
-`nothing` for a plain/unknown path or for a cursor terminal (a `{k}` position
-between items lands on no child node). A whole-element (`∅`) selection of a typed
-node carries that node's type here.
+`nothing` for a plain or unknown path. A path that ends in a `{k}` cursor records
+`Position`, the value that the cursor evaluates to. A whole-element (`∅`) selection
+of a typed node carries that node's type here.
 
 The type is a field of the terminal node, not a separate trailing
 `TypeReferenceStep` checkpoint step.
@@ -179,7 +179,7 @@ Folded node types are preserved: every node of `base` keeps its recorded `type`,
 and `base`'s terminal type — the type of the node the first appended step descends
 *from* — is carried onto that first new node. Later appended nodes are untyped
 (`nothing`), since the types they would stand on are not yet known. For an untyped
-`base` this is a plain skeleton, exactly as before.
+`base` the result is a plain skeleton.
 """
 function extend_reference(base::EmptyReference, steps...)
     isempty(steps) && return base
@@ -218,8 +218,8 @@ Unroll `path` into its ordered vector of navigation steps (heads), dropping the
 terminal type/`EmptyReference`. The inverse is `Reference(steps...)`, which
 rebuilds a plain (untyped) skeleton — so this pair is the shared "path ↔ steps
 vector" conversion used by callers that need to inspect or rewrite a path's tail
-(e.g. splitting off the terminal step). Type checkpoints are read as steps; strip
-first (`strip_reference_types`) when a pure navigation skeleton is wanted.
+(e.g. splitting off the terminal step). The node types of `path` are not steps, so
+the vector does not hold them.
 """
 function get_reference_steps(path::Reference)
     steps = ReferenceStep[]

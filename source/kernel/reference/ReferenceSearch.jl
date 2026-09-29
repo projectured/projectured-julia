@@ -50,11 +50,11 @@ selectable node. Pass `raw=true` to get the path to the **exact matched node**
 instead (scalar leaves included) — the path-valued counterpart to
 `search_documents(...; raw=true)`.
 
-The returned paths are **canonical at rest**: each navigation step is preceded by
-a `TypeReferenceStep(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref)),
-so results are self-describing and carry replay-validation checkpoints.
-`evaluate_reference` honours the checkpoints; pass a result through
-`strip_reference_types` first if a consumer needs the plain navigation-only path.
+The returned paths are **canonical at rest**: each node records the type of the
+document node that it stands on (via [`annotate_reference_types`](@ref)), so results
+are self-describing and can be checked again after an edit. `evaluate_reference`
+checks those types; pass a result through `strip_reference_types` first if a
+consumer needs the plain navigation-only path.
 
 ```julia
 for ref in search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))

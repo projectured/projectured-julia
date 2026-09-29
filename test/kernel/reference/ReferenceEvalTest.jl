@@ -147,7 +147,7 @@ function test_reference_evaluation()
         @test above_two_arms(short) === :right_arm
     end
 
-    @testset "a re-rooted path keeps matching — the June 2026 regression" begin
+    @testset "a re-rooted path keeps matching" begin
         # `reroot_reference` prepends nodes with the two-arg `ConcreteReference`,
         # which records no type. Narrowing must stay silent on those, or every
         # container that routes a gesture into a child breaks.

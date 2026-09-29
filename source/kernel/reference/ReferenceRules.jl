@@ -421,11 +421,6 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     step = steps[1]
     rest = steps[2:end]
 
-    # Reaching a gap settles it. A gap is unbounded, so whatever is left of the input can
-    # be absorbed by it and the pattern still has a member that continues past — which is
-    # exactly "the input is a proper prefix of some member". Nothing after the gap needs
-    # examining, and a bound gap has nothing well-defined to bind here, since the run it
-    # would name is the part of a member the input never reached.
     if step isa PatStepAlt
         for alternative in step.alternatives
             attempt = copy(b)
@@ -438,6 +433,10 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
         return false
     end
 
+    # Reaching a gap settles it. A gap is unbounded, so whatever is left of the input can
+    # be absorbed by it and the pattern still has a member that continues past — which is
+    # exactly "the input is a proper prefix of some member". Nothing after the gap needs
+    # examining.
     if step isa PatStepGap
         # A named gap binds what it covered — which here is whatever is left of the
         # input, since that is the part of the member the input reached before running
@@ -795,8 +794,8 @@ _quote_pat_value(pat::PatValueBind) = :($PatValueBind($(QuoteNode(pat.name))))
 _quote_pat_value(pat::PatValueTypedBind) =
     :($PatValueTypedBind($(QuoteNode(pat.name)), $(esc(pat.ty))))
 _quote_pat_value(pat::PatValueLiteral) = :($PatValueLiteral($(QuoteNode(pat.value))))
-# Both bounds are evaluated at the construction site, like every other interpolation.
 _quote_pat_value(pat::PatValueGlob) = :($PatValueGlob($(pat.pattern)))
+# Both bounds are evaluated at the construction site, like every other interpolation.
 _quote_pat_value(pat::PatValueRange) = :($PatValueRange($(esc(pat.lo)), $(esc(pat.hi))))
 _quote_pat_value(pat::PatValueAny) =
     :($PatValueAny($PatValue[$(map(_quote_pat_value, pat.alternatives)...)]))
@@ -859,9 +858,9 @@ function _parse_rules_arm(ex)
         lhs = lhs.args[2]
     end
 
-    # A bare `_` arm is the retired catch-all, so it raises rather than quietly
-    # becoming "any one-step path". Only the un-worded arm is guarded: `at(_)` says
-    # one step deliberately, and is how the new meaning is written meanwhile.
+    # A bare `_` arm raises: a reader takes it for a catch-all, and `_` matches
+    # exactly one step. Only the un-worded arm is guarded: `at(_)` says one step
+    # deliberately.
     lhs === :_ && error(REFERENCE_RETIRED_CATCH_ALL)
 
     mode = :at

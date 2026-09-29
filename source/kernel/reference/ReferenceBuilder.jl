@@ -156,8 +156,7 @@ end
     @reference(path)
     @reference(document, path)
 
-Build a `Reference` from the construction DSL. `@reference(path)` parses a
-rootless chain of steps, left = outermost:
+Build a `Reference` from the construction DSL.
 
 Use it to name a place in the window — a tab, what a pane holds, a split, the
 root — for `get_referenced_value`, `replace_referenced_value!` and
@@ -171,7 +170,7 @@ starts after it.
     plot = get_referenced_value(editor, @reference(editor.document,
         windows[1].content.content.content.content.root.elements[2].tabs[1].content))
 
-See also `show_layout`, `get_referenced_value`, `replace_referenced_value!`.
+`@reference(path)` parses a rootless chain of steps, left = outermost:
 
 - `a.b`               — `FieldReferenceStep` steps (`.a` then `.b`)
 - `xs[i]`             — 1-based `ElementReferenceStep` (a single-element range)
@@ -196,6 +195,8 @@ live document has at each node — no inline `::T` needed, and the types are
 correct by construction rather than by hand. Use this whenever the document is
 in scope. See `@reference_case` for the matching counterpart, which reads the
 same grammar.
+
+See also `show_layout`, `get_referenced_value`, `replace_referenced_value!`.
 """
 macro reference()
     return _gen_build_path(ReferenceSyntaxStep[])

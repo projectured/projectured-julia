@@ -130,7 +130,6 @@ read_intent(p::TooltipDecoratorProjection, iomap::TooltipDecoratorIoMap, payload
 
 function map_reference_forward(::TooltipDecoratorProjection, iomap::TooltipDecoratorIoMap, reference)
     # Strip a leading FieldReferenceStep("child") if present, then delegate.
-    # Skip canonical TypeReferenceStep checkpoints before reading the `child` step.
     reference = reference
     if reference isa ConcreteReference
         h = get_reference_head(reference)

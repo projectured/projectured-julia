@@ -339,8 +339,9 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   must start with a verb — a "mutating getter" like consuming a queue is a
   `pop_`/`take_`, not a noun.
 - **A qualifier that narrows the *result* is a suffix**:
-  `get_document_gesture_bindings_own`, `is_reference_equal_ignoring_types`,
-  `is_prefix_of_ignoring_types`.
+  `get_document_gesture_bindings_own` answers only the bindings that a type
+  declares itself, and `get_document_gesture_bindings` also collects the
+  bindings of its supertypes.
 - **A qualifier that names the *subject* keeps subject-first order**, because
   it reads as English: `get_base_plane_length`, not `get_length_base_plane`;
   `get_command_palette_settled_selection`, not

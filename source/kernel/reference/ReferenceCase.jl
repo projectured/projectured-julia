@@ -67,10 +67,6 @@ end
 # `lo..hi` — a number within an inclusive range, the reading an ini file's `{38..47}`
 # has. Both bounds are evaluated at the construction site, so a stored pattern holds
 # values rather than expressions (as `^(…)` and `::T` do).
-#
-# The syntax already parsed: a value slot keeps its Julia expression raw, so `xs[0..3]`
-# reached the matcher as an interpolation and was compared against an `Int`, which never
-# matched. This gives the slot its meaning rather than adding syntax.
 struct PatValueRange <: PatValue
     lo
     hi
@@ -272,16 +268,16 @@ _pat_type_step(x) = _is_type_bind_symbol(x) ? PatStepTypeBind(x) : PatStepType(x
 _case_subpath(ex) =
     ex isa Symbol ? PatStep[PatStepWholePathBind(ex)] : _to_pat_steps(parse_reference_path(ex))
 
-# `_` and `__` reach the shared grammar as ordinary field names — the parser names no
-# pattern concept, and needs to name none for either. The *matching* reading of those
-# names is a step wildcard and a gap, which is why the surface syntax needed nothing
-# added to it. They mirror an ini file's `*` and `**`, and unlike those they are legal
-# Julia identifiers in path position.
-# The migration guard's message, shared so the two DSLs cannot word it differently.
+# The message of a bare `_` arm, shared so the two DSLs cannot word it differently.
 const REFERENCE_RETIRED_CATCH_ALL =
     "`_` is no longer the catch-all arm — write `__` for \"any path\". `_` now matches " *
     "exactly one step, so `a._.b` is a path of three; write `at(_)` for a one-step arm."
 
+# `_` and `__` reach the shared grammar as ordinary field names — the parser names no
+# pattern concept, and needs to name none for either. The *matching* reading of those
+# names is a step wildcard and a gap, so the surface syntax needs nothing more. They
+# mirror an ini file's `*` and `**`, and unlike those they are legal Julia identifiers
+# in path position.
 const REFERENCE_STEP_NAME = "_"
 const REFERENCE_GAP_NAME = "__"
 
@@ -499,13 +495,9 @@ end
 # Rule parsing
 # ------------------------------------------------------------
 
-# The pattern side of one arm, minus any `when(…)`: answers `(mode, patsteps)`.
-# A bare pattern is `at(…)`; the five arm words say where the input sits relative
-# to it.
-# Arm words this DSL does not accept, and what to write instead. They raise where written
-# rather than being quietly accepted, so a block written against the old vocabulary is a
-# message and not a mystery. `prefix` is here too: it named `above` while reading as
-# though it meant `within`, which is why it went.
+# Arm words this DSL does not accept, and what to write instead. They raise where
+# written, so a block that uses one gets a message that names the word to write.
+# `_parse_arm_pattern` gives `prefix` a message of its own.
 const REFERENCE_RETIRED_ARMS = Dict(
     :at_or_below => "within",
     :at_or_above => "toward")
@@ -514,10 +506,13 @@ _retired_arm_message(name::Symbol) =
     "`$(name)(path)` is no longer an arm word — write `$(REFERENCE_RETIRED_ARMS[name])(path)`; " *
     "an arm word spells one relation, not a disjunction of two"
 
+# The pattern side of one arm, minus any `when(…)`: answers `(mode, patsteps)`.
+# A bare pattern is `at(…)`; the five arm words say where the input sits relative
+# to it.
 function _parse_arm_pattern(lhs)
     if lhs isa Expr && lhs.head == :call && lhs.args[1] === :prefix
-        # `prefix(P)` named `above(P)` while reading as though it meant
-        # `within(P)`; the word is gone rather than left to mislead.
+        # `prefix(P)` can be read as `above(P)` or as `within(P)`, so it raises
+        # and names both words.
         error("`prefix(path)` is no longer an @reference_case arm — write `above(path)` " *
               "for \"the input runs out inside path\", or `within(path)` for " *
               "\"the input is path or deeper\"")
@@ -1091,11 +1086,18 @@ use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, a leading/su
 
 - Bare symbols in *path* position are literal field names; bare symbols in *value*
   position (inside `[]`, `field(...)`, …) **bind** the matched value.
-- `_` is a wildcard; `name::T` binds `name` only if the value `isa T`; `^(expr)`
-  interpolates a value to compare against.
+- In path position, `_` matches exactly one step of any kind, `__` any run of
+  steps (possibly none), `__ʔ` the shortest such run, and `__(name)` binds the
+  run that it took. `any(P, Q, …)` matches one of the subpaths.
+- In value position, `_` matches any value; `name::T` binds `name` only if the
+  value `isa T`; `lo..hi` matches a number from `lo` to `hi`, both included;
+  `glob"…"` matches a name that the glob matches; `any(a, b, …)` matches one of
+  the values; `^(expr)` interpolates a value to compare against.
 - `when(pattern, cond)` matches `pattern` then requires the guard `cond` (which may
   read the pattern's bindings); `name...` binds the entire remaining tail; `∅`
   matches the empty (whole-element) path.
+- An arm written `ref"…"` gives its pattern in the string spelling of a
+  configuration key (see `parse_reference_pattern`).
 
 Each arm says where the **input** sits relative to its pattern `P` — the same five
 words `@reference_rules` uses:
@@ -1108,7 +1110,7 @@ words `@reference_rules` uses:
 | `above(P)` | the input is strictly shallower — it runs out *inside* `P` |
 | `toward(P)` | `P` or shallower |
 
-There is no `prefix(…)`: it named `above(…)` while reading as though it meant
+There is no `prefix(…)` arm: the word can be read as `above(…)` or as
 `within(…)`, so writing it is an error that says which one to pick.
 
 A `::T` checkpoint **narrows** the match: where the path records a node type,

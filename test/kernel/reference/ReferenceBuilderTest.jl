@@ -175,7 +175,7 @@ end
 # of its own.
 @test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(x::A))
 @test_throws "unsupported @reference_step" ReferenceModule.parse_reference_step(:(a.b.c))
-# `@reference_step c.point(2, 3)` moved to the visual test suite alongside PointReferenceStep.
+# `test_point_reference` tests `@reference_step c.point(2, 3)`.
 
 # ── @reference_case range pattern ───────────────────────────────────────
 

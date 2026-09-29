@@ -191,8 +191,8 @@ function _child_iomap(iomap::CopyingIoMap, h)
 end
 
 function _map_ref(fn, iomap::CopyingIoMap, reference)
-    # Skip canonical TypeReferenceStep checkpoints before dispatching on the head's
-    # navigation step (index vs. field); the child mapper re-canonicalizes.
+    # The head is a navigation step, an index or a field; the child mapper types
+    # the path again.
     reference isa ConcreteReference || return reference
     h = get_reference_head(reference)
     child_im = _child_iomap(iomap, h)
