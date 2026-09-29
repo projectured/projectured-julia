@@ -416,7 +416,13 @@ finding out what that is, is not one of the things it does. So `search_api` and
 the declaration already applied — which is what makes the locator `search_api`
 prints for every function, a `read_function_documentation(…)` call, name something
 the model can actually reach. It cannot widen its own view by passing a different
-list.
+list. `list_modules`, `list_types` and `list_functions` are bound the same way.
+
+These five names always belong to the namespace. A declared module that exports
+one of these functions, as the tool module does, gives nothing more: the name
+arrives as the helper, with the declaration applied. A declaration that gives
+another value under one of the names is refused, because the model would write
+the word and reach the helper; the value can come under another name.
 
 The tool description follows the declaration too. With a list it names the modules
 and says that anything else is an `UndefVarError`; with none it keeps the wider

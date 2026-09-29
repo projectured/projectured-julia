@@ -46,6 +46,12 @@ function _flat_reexport!(m::Module, source::Module, sources)
     end
 end
 
+# The names a model looks the API up with. A scratch module built from a
+# declaration defines each of them itself, with the declaration applied, so a
+# declared module that exports one of these functions does not bind it again.
+const _SCRATCH_HELPER_NAMES = (:read_function_documentation, :search_api, :list_modules,
+                               :list_types, :list_functions)
+
 # The scratch module for one `ToolSet`, built on first use. Each top-level
 # statement of an `execute_julia_code` call is evaluated here, so an assignment
 # (`paths = …`) becomes a module global that survives into the next call — an
@@ -78,8 +84,13 @@ function _scratch_module(set::ToolSet)
         # names of the submodules it reaches. A module that means to offer more
         # exports more — which is what makes the list a decision a person writes
         # down, rather than a consequence of what it happens to import.
+        #
+        # A helper name is left to the helpers below. The refusal makes sure that
+        # a declared helper name is that very function, so nothing is lost.
+        _refuse_helper_names(srcs)
         for entry in srcs
-            bindings = api_entry_bindings(entry)
+            bindings = [binding for binding in api_entry_bindings(entry)
+                        if !(last(binding) in _SCRATCH_HELPER_NAMES)]
             isempty(bindings) && continue
             # `using M: name` for a plain one, `using M: name as alias` for a
             # renamed one — which is `Expr(:as, Expr(:., name), alias)`, the same
