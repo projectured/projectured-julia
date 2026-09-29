@@ -139,8 +139,8 @@ end
 """
     evaluate!(editor::Editor)
 
-Apply the current operation to the document. Logs the operation when it is
-non-nothing.
+Apply the current operation to the document. Logs the operation, in the words
+of `describe_operation`, when it is non-nothing.
 """
 function evaluate!(editor::Editor)
     # Log via @info, not a raw println: the assistant runs `execute_julia_code` on
@@ -148,7 +148,8 @@ function evaluate!(editor::Editor)
     # closes it), so a raw write to the live global stdout from this loop can land
     # in that closed pipe and crash. The logger writes to the stream captured at
     # startup, which the redirect leaves untouched.
-    editor.operation !== nothing && @info "[operation] $(editor.operation)"
+    editor.operation !== nothing &&
+        @info "[operation] $(describe_operation(editor.operation))"
     _evaluate_operation_guarded!(editor, editor.operation)
 end
 

@@ -89,6 +89,15 @@ function test_escape_quit()
         @test !EditorModule.read!(editor)
         @test editor.operation === nothing
     end
+
+    @testset "evaluate! logs the operation in the words of describe_operation" begin
+        editor = _escape_editor(EscapeDecliningProjection())
+        path = annotate_reference_types(editor.document,
+                                        Reference(FieldReferenceStep("value")))
+        editor.operation = ReplaceSelectionOperation(path)
+        line = "[operation] " * describe_operation(editor.operation)
+        @test_logs (:info, line) EditorModule.evaluate!(editor)
+    end
 end
 end
 
