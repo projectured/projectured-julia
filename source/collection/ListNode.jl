@@ -198,6 +198,25 @@ function Base.getindex(head::ListNode, i::Integer)
     end
 end
 
+"""
+    find_list_node(head::ListNode, index::Integer) -> ListNode | Nothing
+
+The node at `index` counted from `head`, as `getindex` counts: 1 is `head`, 2
+the node after it, 0 the node before it. `nothing` when the chain ends first.
+
+Use it to reach the node of an element that a reference names by its index: it
+reads the links on the way, so a lazy chain builds the nodes up to that one.
+"""
+function find_list_node(head::ListNode, index::Integer)
+    node = head
+    link = index >= 1 ? :next : :prev
+    for _ in 1:abs(index - 1)
+        node = getproperty(node, link)
+        node === nothing && return nothing
+    end
+    node
+end
+
 # Append a new node at the end of the right (next) tail.
 function Base.push!(head::ListNode, value)
     node = ListNode(value)

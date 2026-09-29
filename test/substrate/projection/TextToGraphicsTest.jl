@@ -525,4 +525,80 @@ end # @testset "TextToGraphics empty line"
     @test box.height == 2 * line.height
 end
 
+# A text whose spans are a lazy list maps a span to the text node that draws it in
+# the list of paragraph canvases. Spans and paragraphs count from their heads.
+@testset "TextToGraphics maps a span of a lazy list to the text that draws it" begin
+    measure = FixedMeasure(10, 18, 6, 0)
+    projection = TextToGraphics(measure = measure)
+    font = font_ubuntu_monospace_regular_20
+    head = ListNode(TextString("one", font, color_black))
+    push!(head, TextString("two", font, color_black))
+    push!(head, TextNewline(font = font))
+    push!(head, TextString("three", font, color_black))
+    pushfirst!(head, TextNewline(font = font))
+    pushfirst!(head, TextString("zero", font, color_black))
+    text_block = TextBlock()
+    text_block.elements = head
+    iomap = print_document(projection, IdentityProjection(), text_block, PrinterContext())
+    spans(start, stop, rest = EmptyReference()) =
+        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(start, stop), rest))
+    image(reference) = map_reference_forward(projection, iomap, reference)
+    box_of(reference) = find_reference_box(iomap.output, image(reference); measure = measure)
+    # `two` is the second text of the head paragraph.
+    two = box_of(spans(1, 2))
+    @test (two.x, two.y, two.width) == (30, 0, 30)
+    # `three` is the first text of the paragraph after it, one line lower.
+    three = box_of(spans(3, 4))
+    @test (three.x, three.width) == (0, 50)
+    @test three.y == two.height
+    # The characters `hr` of `three`.
+    characters = box_of(spans(3, 4, ConcreteReference(FieldReferenceStep("content"),
+                                                      ConcreteReference(RangeReferenceStep(1, 3), EmptyReference()))))
+    @test (characters.x, characters.y, characters.width) == (10, three.y, 20)
+    # `zero`, before the newline before the head, is one line above the head.
+    zero = box_of(spans(-2, -1))
+    @test (zero.x, zero.y, zero.width) == (0, -two.height, 40)
+    # A newline draws no text.
+    @test image(spans(2, 3)) === nothing
+    # `one two` is a region of the head paragraph.
+    both = image(spans(0, 2))
+    @test last(collect(get_reference_steps(both))) isa RegionReferenceStep
+    box = find_reference_box(iomap.output, both; measure = measure)
+    @test (box.x, box.y, box.width, box.height) == (0, 0, 60, two.height)
+    # From `two` to `three` is a region of the canvas of the text, two lines high.
+    across = box_of(spans(1, 4))
+    @test (across.x, across.y, across.width, across.height) == (0, 0, 60, 2 * two.height)
+end
+
+# A part of a lazy list of numbers maps forward through the whole chain, to the
+# text that draws it, also a part that the printer did not reach yet and a part
+# before the head.
+@testset "a part of a lazy list maps forward to the text that draws it" begin
+    measure = FixedMeasure(10, 18, 6, 0)
+    element(k, rest = EmptyReference()) = ConcreteReference(ElementReferenceStep(k), rest)
+    function box_of(document, projection, reference)
+        iomap = print_document(projection, document)
+        image = map_reference_forward(projection, iomap, annotate_reference_types(document, reference))
+        image === nothing && return nothing
+        find_reference_box(unwrap_cell(get_iomap_output(iomap)), image; measure = measure)
+    end
+    primes = make_lazy_document_example()
+    projection = make_lazy_projection_example(measure = measure)
+    first = box_of(primes, projection, element(1))
+    @test (first.x, first.y, first.width) == (0, 0, 10)
+    # The 40th prime, 173, is three characters wide, 39 lines below the first.
+    fortieth = box_of(primes, projection, element(40))
+    @test (fortieth.y, fortieth.width) == (39 * first.height, 30)
+    # The caret after the first digit of the fifth prime, 11.
+    caret = box_of(primes, projection,
+                   element(5, ConcreteReference(FieldReferenceStep("value"),
+                                                ConcreteReference(PositionReferenceStep(1), EmptyReference()))))
+    @test (caret.x, caret.y, caret.width) == (10, 4 * first.height, 0)
+    # Before the head: element 0 is -2 and element -2 is -5.
+    both_ways = make_lazy_bidirectional_document_example()
+    projection = make_lazy_bidirectional_projection_example(measure = measure)
+    @test box_of(both_ways, projection, element(0)).y == -first.height
+    @test box_of(both_ways, projection, element(-2)).y == -3 * first.height
+end
+
 end # test_text_to_graphics

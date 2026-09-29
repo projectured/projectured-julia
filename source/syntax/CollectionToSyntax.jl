@@ -108,12 +108,45 @@ end
 
 struct CollectionListNodeToSyntax <: Projection end
 
-function map_reference_forward(::CollectionListNodeToSyntax, iomap, reference)
-    return nothing
+# The IO map of a lazy list: the IO map of each element that the printer printed,
+# by the index of the element from the head, as `getindex` of a `ListNode` counts
+# (1 is the head, 0 the element before it).
+@iomap struct CollectionListNodeToSyntaxIoMap
+    projection::Any
+    input::ListNode
+    output::ListNode
+    element_iomaps::Dict{Int, Any}
+end
+
+# A part of element `k` maps to element `k` of the output list, which is the image
+# of the element, followed by the forward map of the element. The index counts
+# from the head in both lists, so an element that the printer did not reach yet
+# maps too: the output list is read up to it, which prints it.
+function map_reference_forward(::CollectionListNodeToSyntax, iomap::CollectionListNodeToSyntaxIoMap, reference)
+    reference isa EmptyReference && return EmptyReference()
+    reference isa ConcreteReference || return nothing
+    step = get_reference_head(reference)
+    (step isa ARangeReferenceStep && is_element_reference_step(step)) || return nothing
+    index = step.start + 1
+    element = ElementReferenceStep(index)
+    rest = get_reference_tail(reference)
+    rest isa EmptyReference && return ConcreteReference(element, EmptyReference())
+    child = _find_element_iomap(iomap, index)
+    child === nothing && return nothing
+    inner = map_reference_forward(child.projection, child, rest)
+    inner === nothing ? nothing : ConcreteReference(element, inner)
 end
 
 function map_reference_backward(::CollectionListNodeToSyntax, iomap, reference)
     return nothing
+end
+
+# The IO map of element `index`, or `nothing` when the list has no such element.
+function _find_element_iomap(iomap::CollectionListNodeToSyntaxIoMap, index::Int)
+    element_iomaps = iomap.element_iomaps
+    haskey(element_iomaps, index) && return element_iomaps[index]
+    find_list_node(iomap.output, index) === nothing && return nothing
+    get(element_iomaps, index, nothing)
 end
 
 """
@@ -123,20 +156,22 @@ Maps each element in the `ListNode` through `recursion` lazily.
 The output is a `ListNode(projected)` preserving the lazy structure.
 """
 function print_document(p::CollectionListNodeToSyntax, recursion, ln::ListNode, ctx)
-    out_head = _map_listnode(recursion, ln, ctx, 1)
-    SimpleIoMap(p, ln, out_head)
+    element_iomaps = Dict{Int, Any}()
+    out_head = _map_listnode(recursion, ln, ctx, 1, element_iomaps)
+    CollectionListNodeToSyntaxIoMap(p, ln, out_head, element_iomaps)
 end
 
-function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
+function _map_listnode(recursion, input_node::ListNode, ctx, index::Int, element_iomaps::Dict{Int, Any})
     child_ctx = make_child_context(ctx, ElementReferenceStep(index))
     child_iomap = print_child(recursion, input_node.value, child_ctx)
+    element_iomaps[index] = child_iomap
     out_node = ListNode(child_iomap.output)
 
     # Lazy next
     set_cell_computation!(getfield(out_node, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
-        next_out = _map_listnode(recursion, input_next, ctx, index + 1)
+        next_out = _map_listnode(recursion, input_next, ctx, index + 1, element_iomaps)
         set_cell_value!(getfield(next_out, :prev), out_node)
         next_out
     end)
@@ -145,7 +180,7 @@ function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
     set_cell_computation!(getfield(out_node, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
-        prev_out = _map_listnode(recursion, input_prev, ctx, index - 1)
+        prev_out = _map_listnode(recursion, input_prev, ctx, index - 1, element_iomaps)
         set_cell_value!(getfield(prev_out, :next), out_node)
         prev_out
     end)

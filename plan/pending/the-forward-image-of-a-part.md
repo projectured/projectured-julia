@@ -158,7 +158,8 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   a label in a composite has a canvas as large as the window (400 by 300 in the
   test) while the composite reports 62 by 63; a window below such a label
   stands at the bottom of the window. That is how the composite sizes its
-  children, not a fault of the forward map, and it is not changed here.
+  children, not a fault of the forward map. **Settled** (owner 2026-09-29):
+  "Label size: should fit the content by default." Step 5c changes it.
 - [x] 5. **Text** (Q4). `TextToGraphics` maps a text reference as specifically as
   possible. Decided with the owner (2026-09-29):
   - **Q7. A text part is the segment that draws it** (way (a)), "but even more
@@ -193,6 +194,53 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   `RangeReferenceStep`, not a type. It now compares the step with
   `ElementReferenceStep(1)`. The sweep matches the step 4 sweep, and the omnet
   tests match their baseline.
+- [x] 5b. **A lazy list maps forward** (owner 2026-09-29): "ListNode can also be
+  forward mapped, I don't know the particular example, but there's no reason
+  not to, especially if the output is also lazy list, the indices count from
+  the head." `[k]` of a `ListNode` is `RangeReferenceStep(k - 1, k)`, and
+  `getindex` reads it from the head: 1 is the head, 0 the node before it. Today
+  all three stages of a lazy list answer `nothing` in both directions, so a
+  part of the lazy primes example (`lazy_example`) has no image. The forward
+  maps of the three stages:
+  - `CollectionListNodeToSyntax`: `[k].rest` maps to `[k]` of the output list
+    followed by the forward map of the child of `k`. The IO map keeps the child
+    IO maps by index, as the printer builds them.
+  - `SyntaxListToText`: `[k]` maps to the spans of element `k` in the output
+    list of spans, `elements{i-1:j}`, counted from the head of that list; a
+    reference inside the element maps through the child's forward map, moved by
+    the index of the element's first span.
+  - `TextToGraphics`, list path: a span `elements[i]`, or characters of it
+    (`elements[i].content{a:b}`), map to the text node of that span in its
+    paragraph canvas, followed by `text{a:b}`. A range of spans maps to the
+    paragraph canvas, or to the list canvas when it crosses paragraphs,
+    followed by the region of its pieces. A paragraph counts from the head
+    paragraph, the one that holds the head span.
+  The backward maps of the three stages stay as they are.
+  Built: `find_list_node(head, index)` of the collection package reaches the
+  node of an index, as `getindex` counts, and reads the links on the way, so a
+  lazy chain builds the nodes up to it. `CollectionListNodeToSyntaxIoMap` keeps
+  the IO map of each printed element by its index; an element that the printer
+  did not reach yet is printed by reading the output list up to it.
+  `SyntaxListToTextIoMap` keeps, per input node, the first output span, the
+  number of spans, the spans and the IO map of the element; the index of the
+  first span is found by reading the output list from its head to that node. A
+  flat caret or range of the element's text maps to the characters of one span
+  when one span holds it, and else to the spans. The text printer finds the
+  paragraph of a span by the newlines between the head and the span: a newline
+  ends a paragraph, the head paragraph starts at the head, and the paragraph
+  before it ends at the span before the head, as `_build_paragraph_node` and
+  `_build_paragraph_node_prev` build them. The text node is found by its number
+  among the texts of the paragraph canvas, because a fill comes before the text
+  of a span that has one. Tests: the list path alone (9) and the chain of
+  `lazy_example` and `lazy_bidirectional_example` (5), where element 40 of the
+  primes reaches its line 39 lines down, and element -2 three lines up.
+  Checks: the wide sweep has the counts of step 5, with 18 more passes in the
+  substrate suite (the 14 new ones, and 4 in the sweep over the examples, which
+  meets forward answers for the two lazy examples); the palette error of step 5
+  is gone; the naming guard passes, the documentation check has the notes of
+  step 5, and the omnet tests have their results.
+- [ ] 5c. **A label fits its content by default** (owner 2026-09-29). Open
+  question Q9 below.
 - [ ] 6. **A round trip test over the widget gallery.** For each part of each
   example: the forward reference reaches a printed node, and a point inside its box
   maps backward to the part or to a part inside it. This ties the two maps
@@ -215,8 +263,29 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   independently of laziness, so it maps forward to nothing." (Owner
   2026-09-29.) The difference is between a part that the projection does not
   display, which has no image, and a part that a lazy printer did not compute
-  yet, which has its output reference. Claude reads a closed card and a closed
-  tree node as the first kind, as a closed tab is, for the owner to correct.
+  yet, which has its output reference. A closed card and a closed tree node are
+  the first kind, as a closed tab is (Claude's reading; owner 2026-09-29:
+  "closed parts: yes"). The name `RegionReferenceStep` is confirmed too
+  ("RegionReferenceStep is fine").
+- **Q9. How a label fits its content.** Owner 2026-09-29: "Label size: should
+  fit the content by default." Today a widget with no size of its own takes the
+  minimum of the range that its parent gives, and a `WidgetComposite` gives each
+  child its own range, which at the root of a window is exact: the size of the
+  window. Two ways: (a) the composite gives each child a bounded range, because
+  it puts each child at the child's own position and has no slot to stretch a
+  child into; every child with no size of its own then fits its content, also
+  a button, and a child that must fill the window, such as a split pane, must
+  get the fill from somewhere else. (b) The label alone takes the size of its
+  content and ignores the minimum of the range, as an overlay does; a label in
+  a grid cell of `Fill` then draws its box at the size of its text, not of the
+  cell. A search of the 52 composites of the repository (none in omnet-julia)
+  found two that need the stretch of (a) today: the root of the pane tree
+  (`PaneToWidget.jl`), whose comment says that the composite "hands each child
+  the extent it was given itself, so the panes still divide the whole window",
+  and the file chooser in a dialog, whose scroll pane takes the extent that it
+  gets. Six other widgets give a child their own range too: the document
+  content of `WidgetText` and `WidgetTextarea`, `WidgetTooltip`,
+  `WidgetContextMenu`, `WidgetTitlePane` and `WidgetDialog`. Open.
 - ~~**Q6. What the forward map answers.**~~ **Settled.** The forward map takes an
   input reference and returns an output reference (owner 2026-09-29: "The
   mapper functions work with references, that's the correct terminology"). It

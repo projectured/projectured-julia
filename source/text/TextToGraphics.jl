@@ -89,6 +89,7 @@ function map_reference_forward(p::TextToGraphics, iomap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
+    iomap.input.elements isa ListNode && return _map_list_text_forward(p, iomap, reference)
     range = _find_text_forward_range(iomap.input, reference)
     range === nothing && return nothing
     start, stop, space = range
@@ -1059,6 +1060,145 @@ function _make_persistent_rect(layout, pl0)
 end
 
 # ── ListNode path: lazy paragraph-level mapping ──────────────────────
+
+# A part of a text whose spans are a lazy list maps into the list of paragraph
+# canvases. Both count from their heads: the head paragraph holds the head span.
+# A span, or characters of it (`elements[i].content{a:b}`), maps to the text node
+# of the span, followed by the characters (`text{a:b}`). Spans of one paragraph
+# map to its canvas followed by the region of their texts, and spans of more
+# paragraphs to the canvas of the text followed by the region of their texts. A
+# span that draws no text, such as a newline, adds nothing to a range.
+function _map_list_text_forward(p::TextToGraphics, iomap::TextToGraphicsIoMap, reference)
+    reference isa ConcreteReference || return nothing
+    field = get_reference_head(reference)
+    (field isa FieldReferenceStep && field.name == "elements") || return nothing
+    range = get_reference_tail(reference)
+    range isa ConcreteReference || return nothing
+    step = get_reference_head(range)
+    (step isa ARangeReferenceStep && step.start < step.stop) || return nothing
+    rest = get_reference_tail(range)
+    head = iomap.input.elements::ListNode
+    places = Any[]
+    for index in (step.start + 1):step.stop
+        place = _find_list_span_place(head, index)
+        place === nothing || push!(places, place)
+    end
+    isempty(places) && return nothing
+    first, last = places[1], places[end]
+    rest isa EmptyReference || step.stop == step.start + 1 || return nothing
+    paragraphs = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
+    if first == last
+        element = _find_paragraph_text_index(paragraphs, first.paragraph, first.piece)
+        element === nothing && return nothing
+        node = ConcreteReference(FieldReferenceStep("elements"),
+                   ConcreteReference(ElementReferenceStep(first.paragraph),
+                       ConcreteReference(FieldReferenceStep("elements"),
+                           ConcreteReference(ElementReferenceStep(element), EmptyReference()))))
+        rest isa EmptyReference && return node
+        return _map_list_span_characters(node, rest)
+    end
+    box = _compute_list_text_box(p, paragraphs, first, last)
+    box === nothing && return nothing
+    region = ConcreteReference(RegionReferenceStep(box...), EmptyReference())
+    first.paragraph == last.paragraph || return region
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(ElementReferenceStep(first.paragraph), region))
+end
+
+# `content{a:b}` of a span maps to `text{a:b}` of its text node, which draws the
+# whole content of the span.
+function _map_list_span_characters(node, rest)
+    field = get_reference_head(rest)
+    (field isa FieldReferenceStep && field.name == "content") || return nothing
+    range = get_reference_tail(rest)
+    range isa ConcreteReference && get_reference_tail(range) isa EmptyReference || return nothing
+    step = get_reference_head(range)
+    step isa ARangeReferenceStep || return nothing
+    concat_references(node, ConcreteReference(FieldReferenceStep("text"),
+                                ConcreteReference(RangeReferenceStep(step.start, step.stop), EmptyReference())))
+end
+
+# The place of span `index` of a lazy list of spans, counted from `head`:
+# `(paragraph, piece)`, the index of its paragraph from the head paragraph and its
+# index among the spans of that paragraph that draw a text. `nothing` for a span
+# that draws no text, such as a newline, and for an index past the list. A
+# paragraph ends at a newline; the head paragraph starts at the head, and the
+# paragraph before it ends at the span before the head.
+function _find_list_span_place(head::ListNode, index::Int)
+    node = find_list_node(head, index)
+    (node === nothing || !_is_drawn_list_span(node.value)) && return nothing
+    if index >= 1
+        paragraph, piece, current = 1, 0, head
+        while true
+            span = current.value
+            if span isa TextNewline
+                paragraph, piece = paragraph + 1, 0
+            elseif _is_drawn_list_span(span)
+                piece += 1
+            end
+            current === node && return (paragraph = paragraph, piece = piece)
+            current = current.next
+        end
+    end
+    paragraph, current = 0, head.prev
+    while current !== node
+        current.value isa TextNewline && current !== head.prev && (paragraph -= 1)
+        current = current.prev
+    end
+    piece, current = 1, node.prev
+    while current !== nothing && !(current.value isa TextNewline)
+        _is_drawn_list_span(current.value) && (piece += 1)
+        current = current.prev
+    end
+    (paragraph = paragraph, piece = piece)
+end
+
+# Whether a span of a lazy list draws a text, as `_compute_paragraph_line` lays
+# them out.
+_is_drawn_list_span(span) = span isa TextString && !isempty(span.content::AbstractString)
+
+# The index in the canvas of paragraph `paragraph` of its text number `piece`: a
+# fill comes before the text of a span that has one.
+function _find_paragraph_text_index(paragraphs, paragraph::Int, piece::Int)
+    node = find_list_node(paragraphs, paragraph)
+    node === nothing && return nothing
+    elements = unwrap_cell(getfield(unwrap_cell(node.value), :elements))
+    count = 0
+    for k in 1:length(elements)
+        unwrap_cell(elements[k]) isa GraphicsText || continue
+        count += 1
+        count == piece && return k
+    end
+    nothing
+end
+
+# The box of the texts from the place `first` to the place `last`, as
+# `(x, y, width, height)`: in the frame of their paragraph when one paragraph holds
+# them, else in the frame of the canvas of the text.
+function _compute_list_text_box(p::TextToGraphics, paragraphs, first, last)
+    left, top, right, bottom = typemax(Int), typemax(Int), typemin(Int), typemin(Int)
+    for paragraph in first.paragraph:last.paragraph
+        node = find_list_node(paragraphs, paragraph)
+        node === nothing && return nothing
+        canvas = unwrap_cell(node.value)
+        offset = first.paragraph == last.paragraph ? 0 : Int(unwrap_cell(getfield(canvas, :y)))
+        elements = unwrap_cell(getfield(canvas, :elements))
+        piece = 0
+        for k in 1:length(elements)
+            text = unwrap_cell(elements[k])
+            text isa GraphicsText || continue
+            piece += 1
+            paragraph == first.paragraph && piece < first.piece && continue
+            paragraph == last.paragraph && piece > last.piece && break
+            content = String(unwrap_cell(getfield(text, :text)))
+            width, ascent, descent = compute_text_extent(p.measure, content, unwrap_cell(getfield(text, :font)))
+            x, y = Int(unwrap_cell(getfield(text, :x))), Int(unwrap_cell(getfield(text, :y))) + offset
+            left, top = min(left, x), min(top, y)
+            right, bottom = max(right, x + round(Int, width)), max(bottom, y + round(Int, ascent + descent))
+        end
+    end
+    left > right && return nothing
+    (left, top, right - left, bottom - top)
+end
 
 """
     _print_listnode(p, styled, ctx)

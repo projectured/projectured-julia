@@ -1030,8 +1030,85 @@ end
 
 struct SyntaxListToText <: Projection end
 
-function map_reference_forward(::SyntaxListToText, iomap, reference)
-    return nothing
+# The IO map of a lazy list of syntax: for each input node that the printer
+# printed, the entry of its spans, `(first, count, spans, iomap)`: the first node
+# of its spans in the output list, their number, the spans, and the IO map of the
+# element.
+@iomap struct SyntaxListToTextIoMap
+    projection::Any
+    input::ListNode
+    output::TextBlock
+    element_spans::IdDict{ListNode, Any}
+end
+
+# Element `k` of the input list maps to its spans in the output list,
+# `elements{i-1:j}`. A span counts from the head of the output list, as an
+# element counts from the head of the input list, and the head span is the first
+# span of the head element. A part inside the element maps through the forward
+# map of the element, moved to the first span of the element.
+function map_reference_forward(::SyntaxListToText, iomap::SyntaxListToTextIoMap, reference)
+    reference isa EmptyReference && return EmptyReference()
+    reference isa ConcreteReference || return nothing
+    step = get_reference_head(reference)
+    (step isa ARangeReferenceStep && is_element_reference_step(step)) || return nothing
+    place = _find_element_spans(iomap, step.start + 1)
+    place === nothing && return nothing
+    first, entry = place
+    rest = get_reference_tail(reference)
+    inner = rest isa EmptyReference ? EmptyReference() :
+            map_reference_forward(entry.iomap.projection, entry.iomap, rest)
+    inner === nothing ? nothing : _move_span_reference(inner, first, entry)
+end
+
+# The index of the first span of element `index` in the output list, and the entry
+# of its spans; `nothing` when the input list has no such element. The output list
+# is read from its head towards the element, which prints the elements on the way.
+function _find_element_spans(iomap::SyntaxListToTextIoMap, index::Int)
+    input_node = find_list_node(iomap.input, index)
+    input_node === nothing && return nothing
+    link, direction = index >= 1 ? (:next, 1) : (:prev, -1)
+    node, position = iomap.output.elements, 1
+    while node !== nothing
+        entry = get(iomap.element_spans, input_node, nothing)
+        entry !== nothing && entry.first === node && return (position, entry)
+        node = getproperty(node, link)
+        position += direction
+    end
+    nothing
+end
+
+# A reference into the text of one element, moved into the output list, whose
+# span `first` is the first span of the element. The whole text is all spans of
+# the element; a caret or characters inside one span are those characters of it;
+# a range across spans is those spans.
+function _move_span_reference(inner, first::Int, entry)
+    spans_of(start, stop, rest = EmptyReference()) =
+        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(start, stop), rest))
+    inner isa EmptyReference && return spans_of(first - 1, first - 1 + entry.count)
+    inner isa ConcreteReference || return nothing
+    head = get_reference_head(inner)
+    if head isa TextRangeReferenceStep && get_reference_tail(inner) isa EmptyReference
+        start, stop = head.start, head.stop
+        place = _flat_to_span_char(entry.spans, start)
+        place === nothing && return nothing
+        span, char = place
+        if char + stop - start <= _span_len(entry.spans[span])
+            return spans_of(first - 2 + span, first - 1 + span,
+                ConcreteReference(FieldReferenceStep("content"),
+                    ConcreteReference(RangeReferenceStep(char, char + stop - start), EmptyReference())))
+        end
+        last = _flat_to_span_char(entry.spans, stop - 1)
+        last === nothing && return nothing
+        return spans_of(first - 2 + span, first - 1 + last[1])
+    end
+    if head isa FieldReferenceStep && head.name == "elements"
+        range = get_reference_tail(inner)
+        range isa ConcreteReference || return nothing
+        step = get_reference_head(range)
+        step isa ARangeReferenceStep || return nothing
+        return spans_of(first - 1 + step.start, first - 1 + step.stop, get_reference_tail(range))
+    end
+    nothing
 end
 
 function map_reference_backward(::SyntaxListToText, iomap, reference)
@@ -1047,17 +1124,17 @@ renders exactly as it would standalone — with its own newlines/indentation),
 and its output spans are spliced in, `TextNewline`-separated.
 """
 function print_document(p::SyntaxListToText, recursion, ln::ListNode, ctx)
-    cache = IdDict{ListNode, ListNode}()
+    cache = IdDict{ListNode, Any}()
     out_head = _syntax_list_to_text_node(ln, recursion, ctx, cache)
-    SimpleIoMap(p, ln, TextBlock(out_head, Cell(nothing)))
+    SyntaxListToTextIoMap(p, ln, TextBlock(out_head, Cell(nothing)), cache)
 end
 
-# `cache` maps each input ListNode to the first output node of its rendered
-# span chain.  This makes the projection idempotent under repeated traversal:
-# walking next then prev returns to the same object instead of materialising
-# a fresh prev-chain on every call.
+# `cache` maps each input ListNode to the entry of its spans, whose `first` is the
+# first output node of its rendered span chain. This makes the projection
+# idempotent under repeated traversal: walking next then prev returns to the same
+# object instead of materialising a fresh prev-chain on every call.
 function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::IdDict)
-    haskey(cache, input_node) && return cache[input_node]
+    haskey(cache, input_node) && return cache[input_node].first
 
     # Delegate this element one level down; its output spans (a leaf's
     # open/value/close, or a whole node's multi-line rendering) are spliced in.
@@ -1065,7 +1142,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::
     spans = collect(child_iomap.output.elements)
 
     first_out = ListNode(spans[1])
-    cache[input_node] = first_out
+    cache[input_node] = (first = first_out, count = length(spans), spans = spans, iomap = child_iomap)
 
     cur_out = first_out
     for i in 2:length(spans)
