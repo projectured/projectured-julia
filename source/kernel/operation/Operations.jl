@@ -159,13 +159,34 @@ Click-versus-keyboard disambiguation does **not** ride on this operation: a
 reader that wants different behaviour on click keys it off the originating
 gesture, not off a flag added here.
 """
-struct ReplaceSelectionOperation <: Operation
+struct ReplaceSelectionOperation <: ReplacePathOperation
     path::Reference
 end
 
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
     replace_selection!(editor.document, op.path)
 end
+
+get_operation_path(operation::ReplacePathOperation) = operation.path
+make_path_operation(::ReplaceSelectionOperation, path::Reference) = ReplaceSelectionOperation(path)
+
+"""
+    ReplaceMouseTargetOperation(path)
+
+Operation that replaces the part under the pointer with `path`: the document at
+the root holds `path`, and each document on it holds its own tail
+([`replace_mouse_target!`](@ref)). A move of the pointer answers it as a press
+answers `ReplaceSelectionOperation`. It is view state, so a history does not
+record it.
+"""
+struct ReplaceMouseTargetOperation <: ReplacePathOperation
+    path::Reference
+end
+
+make_path_operation(::ReplaceMouseTargetOperation, path::Reference) = ReplaceMouseTargetOperation(path)
+
+evaluate_operation(editor, op::ReplaceMouseTargetOperation) =
+    replace_mouse_target!(editor.document, op.path)
 
 # Split a non-empty path into (everything-but-last-step, last-step). The prefix is
 # rebuilt as a plain skeleton (callers pass an already type-stripped path).

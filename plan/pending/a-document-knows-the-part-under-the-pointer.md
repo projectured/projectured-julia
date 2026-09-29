@@ -316,7 +316,7 @@ already; the sealed selection files do not change (Q4).
   suite, with more passes in the kernel (the new checks) and the substrate (one
   cell for each output document, and the new test); the omnet tests have their
   results; the naming guard passes and the documentation check has its notes.
-- [ ] 2. **The operation and the chain.** `ReplaceMouseTargetOperation(path)`
+- [x] 2. **The operation and the chain.** `ReplaceMouseTargetOperation(path)`
   (Q7): not an edit, re-rooted as a selection is, and evaluated at the root
   of the editor. The chain write is written for a kind of path, in a new kernel
   file: it goes down while the old and the new path agree, writes a cell only
@@ -325,6 +325,26 @@ already; the sealed selection files do not change (Q4).
   holds `.elements[2].elements[1]`, the inner `.elements[1]`, the number the
   empty path, a document off the path `nothing`, and a move inside the same part
   writes no cell.
+  Built: `ReplacePathOperation` of the operation contract is the supertype of
+  `ReplaceSelectionOperation` and `ReplaceMouseTargetOperation`;
+  `get_operation_path` reads the path and `make_path_operation` makes the same
+  kind with another path. `reroot_operation` has one method for the supertype,
+  and the undo filter drops the supertype, so a later kind needs no code there.
+  The chain write is `replace_path_chain!(document, field, path)` in
+  `operation/PathChain.jl`, and `replace_mouse_target!` calls it with
+  `:mouse_target`. It keeps the path without its types, writes a cell only when
+  the value changes, finds the child of the first step of the old and of the new
+  path, clears the old child's chain when the two differ, and goes on into the
+  new child with the tail. A step that reaches no document stops the chain, so
+  a path to a part that is gone is kept at the root and goes no deeper. The
+  inverse of the operation is `DoNothingOperation`: taking an edit back does not
+  move the pointer. Tests: `test_mouse_target_chain()` (the chain on
+  `[1, [2, 3]]`, no write for the same path, the clear of the old branch, the
+  types, a path to a part that is gone, the operation at the root, re-rooting,
+  the inverse, the description) and a check in `test_undo_buffer()`. Checks:
+  the wide sweep has the counts of step 1 in every suite, with 29 passes more in
+  the substrate (the new test); the omnet tests pass; the naming guard passes
+  and the documentation check has no note on the changed files.
 - [ ] 3. **The backward map of the operation.** The default reader of a
   projection and the reader of a rule projection map it backward as they map a
   selection, and the four containers that put a prefix on by hand handle it

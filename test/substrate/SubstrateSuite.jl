@@ -26,6 +26,7 @@ function test_substrate()
         test_substrate_examples()
         test_collection()
         test_mouse_target_field()
+        test_mouse_target_chain()
         test_document_walk()
         test_bounded_sync()
         test_document_reflection()
@@ -168,7 +169,7 @@ end
 export test_substrate, test_substrate_layering, test_substrate_examples
 export test_bounded_sync, test_document_reflection
 export test_identity
-export test_collection, test_mouse_target_field, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
+export test_collection, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping
 export test_versioning_to_any
 export test_text_file, test_marker_language

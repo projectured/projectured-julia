@@ -147,8 +147,8 @@ end
 Whether this operation belongs in a history: the filter a buffer uses when
 nobody names another one.
 
-It drops the operations that change nothing, the selection moves, the folds, the
-writes of view state and the timers. A caret move follows almost every key and almost every
+It drops the operations that change nothing, the selection moves, the moves of
+the part under the pointer, the folds, the writes of view state and the timers. A caret move follows almost every key and almost every
 click, and a history full of caret moves is one a person can not use. A hover or
 a held button is marked as view state by the reader that writes it, and is no
 edit at all. A `ToggleCollapseOperation` is the flip of a fold that a reader made
@@ -161,10 +161,11 @@ caret moves as well.
 is_undo_step(gesture, operation) = !(operation === nothing || _is_no_edit(operation))
 
 # An operation that edits no document: one that does nothing, a move of the
-# selection, a fold, a write of view state, a timer, and a compound of nothing
-# else. A compound that holds one real write is an edit.
+# selection or of the part under the pointer, a fold, a write of view state, a
+# timer, and a compound of nothing else. A compound that holds one real write is
+# an edit.
 _is_no_edit(operation) =
-    operation isa Union{DoNothingOperation, ReplaceSelectionOperation,
+    operation isa Union{DoNothingOperation, ReplacePathOperation,
                         SelectNextInsertionOperation, ToggleCollapseOperation,
                         ReplaceViewStateOperation, SetTimerOperation} ||
     (operation isa CompoundOperation && !isempty(operation.operations) &&

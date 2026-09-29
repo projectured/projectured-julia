@@ -88,6 +88,9 @@ using ProjecturedVersioning.VersioningModule: VersioningToAnyProjection
 using ProjecturedDomain.DomainModule: DocumentNothing
 using ProjecturedKernel.IntentModule: Intent
 using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation
+using ProjecturedKernel.OperationModule: ReplaceMouseTargetOperation, ReplacePathOperation,
+    get_operation_path, replace_mouse_target!, reroot_operation, describe_operation,
+    make_inverse_operation, DoNothingOperation, evaluate_operation
 using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
 using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
 

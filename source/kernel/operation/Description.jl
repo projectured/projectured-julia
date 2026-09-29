@@ -25,6 +25,7 @@ describe_operation(operation::SetTimerOperation) = "set the timer " * string(ope
 describe_operation(::SelectNextInsertionOperation) = "select next insertion"
 describe_operation(::ToggleCollapseOperation) = "toggle collapse"
 describe_operation(operation::ReplaceSelectionOperation) = "select " * _short_reference(operation.path)
+describe_operation(operation::ReplaceMouseTargetOperation) = "point at " * _short_reference(operation.path)
 describe_operation(operation::AdjustZoomOperation) = "zoom " * _delta(operation.delta)
 describe_operation(operation::AdjustFontZoomOperation) = "font zoom " * _delta(operation.delta)
 

@@ -36,8 +36,8 @@ end
 
 reroot_operation(::Nothing, steps::Tuple) = nothing
 reroot_operation(op, steps::Tuple) = op          # catch-all: unchanged
-reroot_operation(op::ReplaceSelectionOperation, steps::Tuple) =
-    ReplaceSelectionOperation(reroot_reference(op.path, steps))
+reroot_operation(op::ReplacePathOperation, steps::Tuple) =
+    make_path_operation(op, reroot_reference(get_operation_path(op), steps))
 function reroot_operation(op::ReplaceReferencedValueOperation, steps::Tuple)
     # Self-contained (carries its own root): pass through. Document-rooted
     # (`document === nothing`): reroot the reference.

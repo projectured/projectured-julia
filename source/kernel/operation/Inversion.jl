@@ -66,6 +66,10 @@ make_inverse_operation(document, ::Union{ReplaceSelectionOperation,
                                          SelectNextInsertionOperation}) =
     _make_selection_inverse(document)
 
+# The pointer is where the person put it, and taking an edit back does not move
+# it, so the way back from a move of the mouse target is to do nothing.
+make_inverse_operation(document, ::ReplaceMouseTargetOperation) = DoNothingOperation()
+
 # The selection chain is live, so the path is copied rather than held: see
 # `copy_reference`.
 function _make_selection_inverse(document)

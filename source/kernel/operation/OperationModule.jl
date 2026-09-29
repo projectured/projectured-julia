@@ -13,7 +13,7 @@ per-path-bearing-operation reference seams `reroot_operation`,
 selection-changing operations drive the selection primitives in the layer below,
 which is why the module sits above references and the selection contract.
 
-The module lives in five fragments that share this namespace:
+The module lives in six fragments that share this namespace:
 
 - [`Interface.jl`](Interface.jl) — the contract: the `Operation` supertype, the
   `WrappingOperation` supertype with its `get_wrapped_operation` /
@@ -21,6 +21,9 @@ The module lives in five fragments that share this namespace:
   `invalidate_projection!` generics.
 - [`Operations.jl`](Operations.jl) — the concrete operations, the `splice_*`
   text-edit helpers, and the `child_reference_steps` traversal seam.
+- [`PathChain.jl`](PathChain.jl) — `replace_path_chain!`, which writes a kind of
+  path other than the selection into each document on it, and
+  `replace_mouse_target!`.
 - [`Rerooting.jl`](Rerooting.jl) — the reference-rewrite seams
   (`reroot_operation`, `operation_reference`, `retarget_operation`) and
   `reroot_reference`.
@@ -45,7 +48,9 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        is_collecting_operation, join_collected_operations,
        evaluate_operation, invalidate_projection!,
        # from Operations.jl
-       DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation,
+       ReplacePathOperation, get_operation_path, make_path_operation,
+       DoNothingOperation, ReplaceSelectionOperation, ReplaceMouseTargetOperation,
+       QuitEditorOperation,
        SetTimerOperation,
        QuitEditorException, ToggleCollapseOperation,
        ReplaceReferencedValueOperation, ReplaceViewStateOperation,
@@ -54,6 +59,8 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        AdjustZoomOperation, AdjustFontZoomOperation,
        splice_string, splice_number, splice_value!,
        child_reference_steps,
+       # from PathChain.jl
+       replace_path_chain!, replace_mouse_target!,
        # from Rerooting.jl
        reroot_reference, reroot_operation, operation_reference, retarget_operation,
        operation_travels_unchanged,
@@ -65,6 +72,7 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
 include("OperationInterface.jl")   # the operation contract (declaration-only)
 include("OperationDefaults.jl")    # the fallback behaviours the contract supplies itself
 include("Operations.jl")  # concrete ops, splice helpers, traversal seam
+include("PathChain.jl")   # the chain of a kind of path other than the selection
 include("Rerooting.jl")   # reference-rewrite seams + reroot_reference
 include("Inversion.jl")  # the way back: inverses + the slot seam
 include("Description.jl") # one line about an operation, for a human

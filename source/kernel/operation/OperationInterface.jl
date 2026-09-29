@@ -72,6 +72,33 @@ See also `WrappingOperation` and `reroot_operation`.
 function rewrap_operation end
 
 """
+    ReplacePathOperation
+
+An operation that replaces a kind of path of the documents on it: the selection
+(`ReplaceSelectionOperation`) or the part under the pointer
+(`ReplaceMouseTargetOperation`). `get_operation_path` reads its path, and
+`make_path_operation` makes the same kind of operation with another path, so a
+container that puts its own steps before the answer of a child, and a projection
+that maps the answer backward, handle every kind in one method, and a later kind
+needs no code there. Each kind evaluates in its own way.
+"""
+abstract type ReplacePathOperation <: Operation end
+
+"""
+    get_operation_path(operation::ReplacePathOperation) -> Reference
+
+The path that `operation` writes.
+"""
+function get_operation_path end
+
+"""
+    make_path_operation(operation::ReplacePathOperation, path) -> ReplacePathOperation
+
+An operation of the same kind as `operation` that writes `path`.
+"""
+function make_path_operation end
+
+"""
     is_collecting_operation(operation) -> Bool
 
 Whether `operation` collects: whether the parts around the part that gave it

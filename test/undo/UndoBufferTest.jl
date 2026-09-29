@@ -58,6 +58,8 @@ function test_undo_buffer()
         @test !is_undo_step(nothing, nothing)
         @test !is_undo_step(nothing, DoNothingOperation())
         @test !is_undo_step(nothing, ReplaceSelectionOperation(EmptyReference()))
+        # A move of the pointer onto another part is view state.
+        @test !is_undo_step(nothing, ReplaceMouseTargetOperation(EmptyReference()))
         @test is_undo_step(nothing, _write_first("x"))
         # A hover, a held button, a drag in flight: view state, and no edit.
         @test !is_undo_step(nothing, ReplaceViewStateOperation(_write_first("x")))
