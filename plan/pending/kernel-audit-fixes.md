@@ -198,32 +198,42 @@ These steps change no sealed file. Do them first: they end the failures on main 
 
 The kernel suite then has no Fail and no Error.
 
-- [ ] **L10-14** (Medium, Tests)
+- [x] **L10-14** (Medium, Tests)
   Repair the test, do not mark it broken. Register the stand-in with `DocumentModule.is_collection_field_type(::Val{name}) = true` before the first `@document` that uses it, and correct the file docstring. Rename the stand-in (for example `DmCollection`), so that the registration is not a second definition of the method that ProjecturedCollection makes for `Val{:CellVector}`.
   *Test:* test_document_macro() in `julia --project=package/ProjecturedKernelTest`: the Rule C testsets pass, with 0 Fail and 0 Error.
-- [ ] **L11-18** (Medium, Tests)
+  *Done:* lane A, 56e7fb13. The stand-in is `DmCollection`, registered before the first `@document`. test_kernel: 2422 pass, 0 fail, 0 error.
+- [x] **L11-18** (Medium, Tests)
   Repair the test, do not mark it broken: write `MEvaluationBranch` at line 216 and in the comment at line 214.
   *Test:* test_reference_evaluation(): the testset 'a reference names a schema, not the layout it was built on' runs, with 0 Error.
+  *Done:* lane A, 56e7fb13.
 
 ### Step 1.2: The walk and the sync of the document layer
 
 Each fix gets the regression test of its "Checked by the lead" run.
 
-- [ ] **L10-1** (High, Correctness)
+- [x] **L10-1** (High, Correctness)
   In `_walk_document!`, for a walk leaf run the predicate and the `reported` check and return, with no `_enter_node`, so a leaf never goes into `seen`. Keep the order for other nodes, so a path that loops is not reported. Correct the comment at lines 125-131.
   *Test:* test_document_walk(): search_documents on a CellVector of two PrimitiveNumber(7) answers both documents, also for a String query.
-- [ ] **L10-2** (High, Correctness)
+  *Done:* lane A, 71eade34. A walk leaf does not enter the visited set. `raw = true` still answers one location for equal values, because a raw location is the value itself and the walk reports each location once, as its contract says. A scalar that is not a walk leaf (an Enum, an isbits struct, a tuple) is still collapsed by `:once_per_object`.
+- [x] **L10-2** (High, Correctness)
   Under `:once_per_path`, record every node that is not a walk leaf in `seen`, not only a mutable one. Change the test at DocumentWalkTest.jl:72 so that it asserts a count that does not grow with `maxdepth`. Correct the comment at lines 128-131.
   *Test:* test_document_walk(): search_references on a three-node doubly linked ListNode list gives the same count at maxdepth 16 and 64.
+  *Done:* lane A, 71eade34. The new test uses maxdepth 12, 16 and 24, because the old code hangs at 64. test_substrate: 86839 pass and the 7 known failures; test_mcp_tools: 152.
 - [ ] **L10-3** (High, Correctness)
   When a leaf value is a mutable container (`AbstractArray`, `AbstractDict`, `AbstractSet`), write a copy of it into the shadow at line 83 and at line 111. The shadow then owns its value, and the next `isequal` compares by value.
   *Test:* test_document_contract(): push! into a Vector field of the source between two syncs; the second sync writes the shadow cell, and a reader of that cell computes again.
+  *Moved to the decisions:* the copy breaks a real sync. A vector with unassigned slots makes the next
+  `isequal` throw `UndefRefError`, and omnet-julia syncs `ParallelEngine.green_buf`, a
+  `Vector{ParallelEvent}(undef, 1_000_000)`, in each slice of the dashboard, so each sync would
+  also copy and compare a million slots. A vector of mutable elements that hold locks can not take
+  `deepcopy`. The patch of the copy waits in `/var/tmp/kernel-fixes/a/L10-3-sync-copy.patch`.
 
 ### Step 1.3: The element step on a String
 
-- [ ] **L11-1** (High, Correctness)
+- [x] **L11-1** (High, Correctness)
   Add `evaluate_reference_step(step::ARangeReferenceStep, document::AbstractString)` that keeps the Position answer for a caret and reads the character at `nextind(document, 0, step.start + 1)`. Julia has no `nthind`, which the report names.
   *Test:* test_reference_evaluation(): on "héllo", `[3]` answers 'l', `[6]` does not resolve, and get_valid_reference_prefix keeps `{2:4}`.
+  *Done:* lane A, 33e49e44. test_kernel: 2427 pass.
 
 ### Step 1.4: The thunk child list of the template engine
 
@@ -1126,6 +1136,7 @@ findings is already an item above, marked "(part)".
 | L09-11 | Low | Does the devices argument of the three per-frame generics stay, now that configure_devices! gives the Display to SDL and no backend reads the argument? |
 | L09-12 | Low | Does the kernel give one answer for an output of the wrong type, one window id for an input with no window, and one helper for the gated wait? |
 | L09-15 | Low | Do the four backend generics with an external effect take a !, and which name does read_from_devices take? |
+| L10-3 | High | How does the sync treat a mutable container in a leaf: copy it (a cost for a large buffer, and a throw for unassigned slots), copy it only for some types, or keep the reference and invalidate by another signal? |
 | L10-6 | Medium | Does a field declared `Vector{T}` become a `CellVector` in every constructor and copy of the cell layout, as commit 3bdf2eb2 and the docstring say, or does the substitution go? |
 | L10-7 | Medium | What must a plain copy, a kind copy and a sync do at a back-link: throw a DocumentCopyException, or share or skip the node? |
 | L10-8 | Medium | Do the kind copy and `sync_document!` take `policy` and `depth` as keywords, or keep two optional positional arguments with a marker? |
