@@ -198,8 +198,12 @@ then re-wrap the result as a `Intent` with the gesture, the description and the
 domain preserved. Compound
 projections that must thread the change to their children override this with a
 4-arg method of their own.
+
+The 3-arg reader follows no route, so a change whose route names a place below
+the input answers no operation.
 """
 function read_intent(p::Projection, recursion, change::Intent, iomap)
+    change.route isa ConcreteReference && return Intent(change.gesture, nothing)
     payload = change.operation === nothing ? change.gesture : change.operation
     op = read_intent(p, iomap, payload)
     return Intent(change.gesture, op, change.description, change.domain)

@@ -1303,7 +1303,12 @@ end
 # selected child's projection (lifting its operation back into this node's input
 # domain), and only when the child declines fall back to this node's own reified
 # gestures.
-function read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown})
+read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
+    _read_template_gesture(iomap, evt; recursion = nothing)
+
+# The child reads the gesture with its own 4-argument reader, and with the
+# `recursion` that printed it.
+function _read_template_gesture(iomap::RuleIoMap, evt; recursion)
     input = iomap.input
     input isa Document || return nothing
     sel = getfield(input, :selection)[]
@@ -1311,7 +1316,7 @@ function read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDo
         fc = _focused_child(iomap.wiring, iomap, sel)
         if fc !== nothing
             child, steps = fc
-            child_op = read_intent(child.projection, child, evt)
+            child_op = read_intent(child.projection, recursion, Intent(evt), child).operation
             child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
@@ -1360,7 +1365,10 @@ end
 The 4-arg reader [`@projection_template`](@ref) emits for each template projection. It
 offers this node's input domain the gesture *before* translating an operation the output
 layers already produced for it — the seam an `override` binding fires through — and
-otherwise behaves exactly like the generic bridge in `ProjectionModule`.
+otherwise behaves like the generic bridge in `ProjectionModule`. A key goes to the
+reader of the focused child with `recursion`. The answer keeps the description and
+the domain of `change`. This reader follows no route, so a change whose route names
+a place below the input answers no operation.
 
 Keyed on the concrete projection type rather than on `RuleIoMap`: the transparent
 recursive and type-dispatching wrappers hand a leaf its own iomap
@@ -1368,13 +1376,17 @@ and already carry 4-arg methods of their own, so a method keyed on the iomap wou
 ambiguous with every one of them.
 """
 function read_template_intent(p, recursion, change::Intent, iomap)
-    if iomap isa RuleIoMap && change.operation !== nothing &&
-       change.gesture isa Union{KeyPress, KeyDown}
+    change.route isa ConcreteReference && return Intent(change.gesture, nothing)
+    is_key = iomap isa RuleIoMap && change.gesture isa Union{KeyPress, KeyDown}
+    if is_key && change.operation !== nothing
         override = read_intent(p, iomap, ClaimedGesture(change.gesture, change.operation))
-        override === nothing || return Intent(change.gesture, override)
+        override === nothing ||
+            return Intent(change.gesture, override, change.description, change.domain)
     end
-    payload = change.operation === nothing ? change.gesture : change.operation
-    return Intent(change.gesture, read_intent(p, iomap, payload))
+    operation = change.operation !== nothing ? read_intent(p, iomap, change.operation) :
+                is_key ? _read_template_gesture(iomap, change.gesture; recursion) :
+                read_intent(p, iomap, change.gesture)
+    return Intent(change.gesture, operation, change.description, change.domain)
 end
 
 # The `KeyPress`/`KeyDown` and `ReplaceSelectionOperation` disambiguations for

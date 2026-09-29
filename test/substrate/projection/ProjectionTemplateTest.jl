@@ -159,3 +159,60 @@ function test_projection_template_conditional_children()
         @test render(bare_iomap.output) == "v: w"
     end
 end
+
+# A template node whose child projection has the 4-argument reader and no other. A
+# key at the child reaches that reader, with the `recursion` that printed the child.
+module _GestureDescentProbe
+    import ProjecturedKernel.DocumentModule: Document, var"@document"
+    import ProjecturedKernel.CellModule: Cell, Computation
+    import ProjecturedKernel.ReferenceModule: Reference, EmptyReference
+    import ProjecturedKernel.IntentModule: Intent
+    import ProjecturedKernel.IoMapModule: SimpleIoMap
+    import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
+    import ProjecturedKernel.ProjectionModule: Projection, print_document, read_intent
+    import ProjecturedKernel.ProjectionModule: var"@projection"
+    import ProjecturedKernel.ProjectionModule: var"@projection_template"
+    import ProjecturedCollection.CollectionModule: CellVector
+    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode
+    import ProjecturedText.TextModule: TextString
+
+    @document struct Item <: Document
+        text::String
+    end
+    Item(text::AbstractString) = Item(Cell(String(text)), Cell(nothing))
+
+    @document struct Shelf <: Document
+        items::CellVector
+    end
+
+    # The recursion that the last read of an item received.
+    const RECEIVED_RECURSION = Ref{Any}(nothing)
+
+    @projection struct ItemToLeaf <: Projection end
+    print_document(p::ItemToLeaf, recursion, item::Item, ctx) =
+        SimpleIoMap(p, item, SyntaxLeaf(TextString(item.text)))
+    function read_intent(::ItemToLeaf, recursion, change::Intent, iomap)
+        RECEIVED_RECURSION[] = recursion
+        Intent(change.gesture, ReplaceSelectionOperation(EmptyReference()))
+    end
+
+    @projection struct ShelfToNode <: Projection end
+    @projection_template ShelfToNode Shelf (p, doc) -> SyntaxNode(collection(:items))
+end
+
+function test_projection_template_gesture_descent()
+    @testset "ProjectionTemplate reads a key at a child with its 4-argument reader" begin
+        P = _GestureDescentProbe
+        projection = RecursiveProjection(TypeDispatchingProjection(
+            P.Shelf => P.ShelfToNode(), P.Item => P.ItemToLeaf()))
+        shelf = P.Shelf(CellVector([P.Item("a"), P.Item("b")]), nothing)
+        iomap = print_document(projection, shelf)
+        set_selection!(shelf, @reference(shelf, items[2]))
+        key = KeyDown(:x, ModifierKeys(); time = 0.0)
+        answer = read_intent(projection, nothing, Intent(key), iomap)
+        @test answer.operation isa ReplaceSelectionOperation
+        @test strip_reference_types(answer.operation.path) ==
+              Reference(FieldReferenceStep("items"), ElementReferenceStep(2))
+        @test P.RECEIVED_RECURSION[] === projection
+    end
+end
