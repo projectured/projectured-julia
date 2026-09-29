@@ -71,6 +71,7 @@ The router roots the operation of a child under `children[i]` and adds the type 
 
 ## Design decisions
 
+- **A layout positions and draws nothing.** A layout places its children and reports where it placed them; it has no color, no line and no background. The appearance of a widget has many styles and states, and a layout that drew some of it would take that complexity in. A container that needs graphics around its children, such as a table with its rules and bands, draws them itself, relative to the places that the layout reports: the edges of the columns and rows of a grid, or the list of rows that a lazy grid placed.
 - **The cells are the layout cache.** A layout adds no cache of its own on top of the reactive engine. See [plan/done/layout-documents.md](../../../plan/done/layout-documents.md).
 - **The container sets the size of a child.** A `SizePolicy` states a relation between a container and a child, so it is on the layout. See [plan/done/widget-layout.md](../../../plan/done/widget-layout.md) and [layout-rules.md](../../rule/layout-rules.md).
 - **A container that bounds a child clips it.** On the axis of the offer the slot clips the child; on the other axis the child sets the size. `clip_child_to_slot` holds the rule. See [plan/done/widget-sizing-rules.md](../../../plan/done/widget-sizing-rules.md).

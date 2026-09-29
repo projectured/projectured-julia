@@ -141,10 +141,25 @@ The offset of each pane comes from the one offset of the table: the cells at
 does not move. Each pane scrolls as a pane does today, with the wheel step, the
 clamp at the extent of an eager part, and `_clamp_to_list_ends` for a lazy one.
 
-**The rules and the bands.** The table draws the rules, the header bands, the
-hover band and the selection band as it does today, from the geometry of the
-layouts: the edges of each column and each row. It shifts them by its own
-offset and clips them to the box of each pane, so they move with their part.
+**The rules and the bands.** A layout positions and draws nothing. The owner
+(2026-09-30): "A layout is a layout, so it's only about positioning, not about
+appearance. This should be documented for the layout domain. The appearance of
+a widget is complicated in style and we don't want to push that to the
+layout. Can we put graphics around the layout relative to cells positioned by
+the grid?" So the table draws the rules, the header bands, the hover band and
+the selection band as graphics placed relative to the cells that the grid
+positioned:
+
+- For an eager grid, as today: over the edges of the columns and rows that the
+  grid's IO map gives as cells.
+- For a lazy grid: a graphics list that mirrors the list of rows that the grid
+  placed. Each node reads the position and the height of its row, and the
+  edges of the columns, and draws that row's rules and bands. The renderer
+  walks it as it walks the rows, so only visible rows get graphics.
+
+The graphics and the grid share one pane: its content is a `StackLayout` of
+them, which positions its layers and draws nothing. The grid's IO map gives its
+row list and its column edges for this.
 
 ### 3.3 Lazy layouts, in both directions
 
