@@ -346,18 +346,22 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.3: The reference layer
 
-- [ ] **L11-4** (Medium, Correctness)
+- [x] **L11-4** (Medium, Correctness)
   Bind the escaped input once in an outer `let` with a gensym, and let each arm read that name.
   *Test:* test_reference_evaluation(): an input expression with a counter runs once for a `@reference_case` with five arms.
-- [ ] **L11-20** (part) (Low, Correctness)
+  *Done:* lane A, ad840308. The input goes into one outer `let`; hygiene gives its name a gensym.
+- [x] **L11-20** (part) (Low, Correctness)
   Pass `raw = true` in `_find_referenced_value`, and reject `::Mod.T` in `_ref_type_and_fields!` with a message that names it. Parts 3 and 4 wait for their decision.
   *Test:* `test_reference_evaluation()`: `::Mod.T` throws with the message.
-- [ ] **L11-21** (Low, Shape)
+  *Done:* lane A, ad840308. `raw = true` alone gave a Dict with Int keys the reference `::Dict.1`, which does not evaluate; one more line keeps a path only when it evaluates back to the value, as the docstring promises ("no reference is better than a wrong one"). A capital letter after the type name marks a qualified type.
+- [x] **L11-21** (Low, Shape)
   Remove the tolerance branches for a checkpoint step and the unfolded corpus row, and keep `TypeReferenceStep` as the build-time token that `fold_reference_types` folds. Remove `_has_field`, `_node_type` and `_concat`. Drop the exports `REFERENCE_RULE_MODES` and `ReferenceSyntaxStep`. Let `parse_reference_step` call the path parser.
   *Test:* test_reference_evaluation(), test_reference_builder(), test_reference_rules() pass with the unfolded row removed; test_exports().
-- [ ] **L11-23** (Low, Types/performance)
+  *Done:* lane A, 9d13e933. No stored path in the three repositories holds an unfolded type step. The step-drop of `strip_reference_types` went too, because it is the same tolerance. 32 checks of the kernel suite went with the corpus row. No caller of `get_reference_step_kind` is left, but the sealed ReferenceInterface.jl still declares it (for a later decision). reference.md:318-322 and :371 describe the removed steps (Phase 6).
+- [x] **L11-23** (Low, Types/performance)
   Use a module-level sentinel constant in place of `_nomatch`. Build the pattern of an interpreted arm once at expansion. Add a memo to `_glob_match`. In `_find_referenced_value`, pass `raw = true` and drop the second annotation.
   *Test:* test_reference_rules() and test_referenced_document() unchanged; a glob with many `*` on a long name returns fast; an allocation count of one `@reference_case` call drops.
+  *Done:* lane A, ad840308. Only a pattern that reads nothing at the call site is built once at expansion. A glob with 10 `*` on 36 characters took 5.8 s and takes 60 µs.
 
 ### Step 2.4: The operation and intent layers
 
@@ -408,33 +412,41 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.5: The binding layer
 
-- [ ] **L15-1** (Medium, Correctness)
+- [x] **L15-1** (Medium, Correctness)
   In get_document_gesture_bindings ask for S first, then for S.name.wrapper when the two differ. This keeps the promise of @gestures, a table for any document type; the other option (an error in @gestures) breaks that promise.
   *Test:* test_gesture_binding(): a test-local [DC] document with @gestures on its bare name fires its key.
-- [ ] **L15-2** (Medium, Architecture) — same fault as L17-10
+  *Done:* lane A, 358e1e7f.
+- [x] **L15-2** (Medium, Architecture) — same fault as L17-10
   Declare function get_document_gesture_bindings_own end and function get_instance_gesture_bindings end, with their docstrings, in GestureBindingInterface.jl. Keep the two default methods in GestureBinding.jl.
   *Test:* test_kernel_layering() (the interface guard) and test_gesture_binding().
-- [ ] **L15-3** (Medium, Types/performance)
+  *Done:* lane A, 358e1e7f.
+- [x] **L15-3** (Medium, Types/performance)
   Let @gestures build its table once in a hidden const at the call site, as @gesture_set does, and let the emitted method return it. Bind the pattern expression once, not twice. Delete the false comment at Gestures.jl:181-182 and correct the docstring of get_document_gesture_bindings: the walk stays uncached, and each table is a constant.
   *Test:* test_gesture_binding(): two calls of get_document_gesture_bindings_own(T) answer the same vector, and the suite passes.
-- [ ] **L15-7** (Low, Correctness)
+  *Done:* lane A, 358e1e7f. **Changes what a caller sees:** `@gestures` builds its table at load time, so a name that a pattern or a `splice` reads must be defined above the block. No call site in the three repositories breaks, and the docstring says it.
+- [x] **L15-7** (Low, Correctness)
   Raise an error in _parse_gesture_block on a second bare when(expr) in one block. This keeps the documented 'optional, block-level' precondition; the other option (only as the first entry) adds a limit that no text states.
   *Test:* test_gesture_binding(): macroexpand of a block with two when(expr) throws.
-- [ ] **L15-8** (Low, Correctness)
+  *Done:* lane A, 358e1e7f.
+- [x] **L15-8** (Low, Correctness)
   Add using ..SelectionModule to GestureBindingModule.jl, and read the selection with get_selection(target) at GestureBinding.jl:218 and :243. Keep the explicit selection argument for a target that is not a document. Do the same in projection/GestureBindings.jl and drop its hasproperty and hasfield guards.
   *Test:* test_gesture_binding(): an [M] document with a table fires its key.
-- [ ] **L15-9** (part) (Low, Shape)
+  *Done:* lane A, 358e1e7f. In projection/GestureBindings.jl only the selection read changed.
+- [x] **L15-9** (part) (Low, Shape)
   Stop the export of `collect_binding_intents`, which has no caller outside its file. The three names that only tests use wait for their decision.
   *Test:* `test_gesture_binding()` passes.
-- [ ] **L15-11** (Low, Shape)
+  *Done:* lane A, 358e1e7f.
+- [x] **L15-11** (Low, Shape)
   Move the parse of one rule out of _parse_gesture_block (87 lines, budget 60) into a helper. Fold the two equal branches of _type_name into one test.
   *Test:* test_gesture_binding().
+  *Done:* lane A, 358e1e7f. test_kernel 2449, test_substrate 86852 and the 7 known failures, test_julia 407, test_json 194, test_undo 110.
 
 ### Step 2.6: The iomap layer
 
-- [ ] **L16-7** (Low, Types/performance)
+- [x] **L16-7** (Low, Types/performance)
   Write inner_iomap::Any and keep its meaning in the docstring. In reconcile_child_iomaps fill a new Dict in the loop and let it replace the old one (hold it in a Ref, so the closure boxes no reassigned local); drop the Set and the copy of the keys.
   *Test:* test_iomap_reconcile() (L16-3) and test_copying_projection().
+  *Done:* lane A, 24b8185a. Its test is L16-3 (Phase 4).
 
 ### Step 2.7: The projection layer
 
