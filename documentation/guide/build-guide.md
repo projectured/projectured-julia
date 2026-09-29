@@ -143,11 +143,10 @@ target machine still needs.
 
 ## Release the packages
 
-The packages reach a Julia programmer through a registry of our own,
-`projectured/ProjecturedRegistry`, which serves a release copy in
-`projectured/Projectured.jl`. In the copy each package folder holds everything
-it reads, because Pkg installs only the folder of a package.
-[builder.md](../package/builder/builder.md) says how the copy is made.
+The packages reach a Julia programmer through the General registry, which
+serves a release copy in `projectured/Projectured.jl`. In the copy each package
+folder holds everything it reads, because Pkg installs only the folder of a
+package. [builder.md](../package/builder/builder.md) says how the copy is made.
 
 **Warning: do not rewrite the history of the release repository.** The
 registry names each version by the git tree of its folder, and Pkg must find
@@ -162,24 +161,26 @@ that tree in the repository for as long as the version exists.
    results = build_projectured_package_release!("../Projectured.jl")
    ```
 
-   A package whose content did not change keeps its folder and its version. A
-   changed package gets the next patch version. `results` lists each package
-   with its status and its version, dependencies first.
-3. Commit the release repository, and tag the commit.
-4. Register, with `LocalRegistry.jl` in an environment of its own: each package
-   of `results`, in that order, whose version the registry does not hold yet.
-   That rule makes a registration that was cut short safe to run again.
+   The build stops when a version of the last release is not in General yet:
+   General refuses a version that skips the one before it. A package whose
+   content did not change keeps its folder and its version. A changed package
+   gets the next patch version. `results` lists each package with its status
+   and its version, dependencies first.
+3. Commit the release repository, tag the commit, and push it.
+4. Register each package of `results` that is new or changed, in that order,
+   with a comment on the release commit:
 
-   ```julia
-   using LocalRegistry
-   register("../Projectured.jl/ProjecturedKernel";
-            registry = "../ProjecturedRegistry",
-            repo = "https://github.com/projectured/Projectured.jl", push = false)
+   ```
+   @JuliaRegistrator register subdir=ProjecturedKernel
    ```
 
-5. Push the release repository first, and the registry after it: a registry
-   that names a tree the repository does not hold yet breaks every install.
+   A package goes into General only after the packages it depends on, because
+   General installs each new version to test it. A new version of a package
+   that General already holds merges after 15 minutes. The first version of a
+   new package waits 3 days, and, except for `Projectured`, needs a maintainer,
+   because its repository is not called `<Name>.jl`.
 
+## Add a binary
 ## Add a binary
 
 A binary is a function. `source/builder/ProjecturedProgram.jl` holds the ones of

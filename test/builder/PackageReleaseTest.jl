@@ -64,6 +64,30 @@ function _make_release_repository()
     root
 end
 
+# A registry folder that holds `versions`, `"<name>" => ["<version>", …]`, of the
+# two packages of the made repository, in the layout that Pkg reads.
+function _write_release_fixture_registry(folder, versions)
+    uuids = Dict("FakeBase" => "00000000-0000-0000-0000-00000000000b",
+                 "FakeTop" => "00000000-0000-0000-0000-00000000000c")
+    packages = Dict{String,Any}()
+    for (name, released) in versions
+        packages[uuids[name]] = Dict("name" => name, "path" => "F/$name")
+        mkpath(joinpath(folder, "F", name))
+        open(io -> ProjecturedBuilder.TOML.print(io, Dict("name" => name, "uuid" => uuids[name],
+                                                          "repo" => "file:///release")),
+             joinpath(folder, "F", name, "Package.toml"), "w")
+        open(io -> ProjecturedBuilder.TOML.print(io, Dict(version => Dict("git-tree-sha1" => "0"^40)
+                                                          for version in released)),
+             joinpath(folder, "F", name, "Versions.toml"), "w")
+    end
+    open(io -> ProjecturedBuilder.TOML.print(io, Dict("name" => "FakeRegistry",
+                                                      "uuid" => "00000000-0000-0000-0000-0000000000ff",
+                                                      "repo" => "file:///registry",
+                                                      "packages" => packages)),
+         joinpath(folder, "Registry.toml"), "w")
+    folder
+end
+
 # Every file of a folder with its bytes, so that two states of a folder compare
 # whole.
 _read_release_folder(folder) =
@@ -203,6 +227,29 @@ function test_package_release()
             write(joinpath(committed, "FakeTop", "src", "FakeTop.jl"), "module FakeTop end\n")
             @test occursin("changes that are not committed",
                            _read_release_error(() -> release(; into = committed)))
+        end
+
+        @testset "a release stops while the last one is not registered" begin
+            # The copy of the first release holds FakeBase and FakeTop at 0.1.0.
+            first_release = joinpath(mktempdir(), "Release.jl")
+            release(; into = first_release)
+            again(registry) = build_package_release!(context; packages = ["FakeTop", "FakeBase"],
+                output = first_release, assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
+                licences = ["LICENCE-PD"], manifest, registry)
+            partial = _write_release_fixture_registry(mktempdir(), ["FakeBase" => ["0.1.0"]])
+            message = _read_release_error(() -> again(partial))
+            @test occursin("Register them first", message)
+            @test occursin("FakeTop 0.1.0", message) && !occursin("FakeBase 0.1.0", message)
+            complete = _write_release_fixture_registry(mktempdir(),
+                ["FakeBase" => ["0.1.0"], "FakeTop" => ["0.1.0"]])
+            @test all(result -> result.status === :unchanged, again(complete))
+            @test occursin("no registry called",
+                           _read_release_error(() -> again("NoSuchRegistry")))
+            # A first release needs no registry at all.
+            @test length(build_package_release!(context; packages = ["FakeTop", "FakeBase"],
+                output = joinpath(mktempdir(), "Release.jl"),
+                assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
+                licences = ["LICENCE-PD"], manifest, registry = "NoSuchRegistry")) == 2
         end
 
         @testset "a release that leaves out a dependency, a licence or the manifest, stops" begin

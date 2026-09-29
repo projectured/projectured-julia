@@ -15,7 +15,7 @@
 
 """
     build_package_release!(context; packages, output, assets, licences,
-                           manifest, julia_compat) -> Vector
+                           manifest, julia_compat, registry) -> Vector
 
 Write the release copy of `packages` into `output`, one folder per package, and
 answer one `(name, status, version)` for each package, dependencies first. That
@@ -36,6 +36,12 @@ is the order in which a registry must take them. `status` is `:new`,
 - `manifest` — the manifest whose versions give the `[compat]` bounds of the
   packages from other registries.
 - `julia_compat` — the `[compat]` bound of Julia, for a package that names none.
+- `registry` — `nothing`, or the registry that serves the release: the name of
+  a registry that Pkg reaches, such as `"General"`, or the folder of one. Every
+  version of the last release must be in it, or the build stops. A registry
+  refuses a version that skips the one before it, so a release that was
+  committed and never registered would block every later version of its
+  packages.
 
 The copy takes the files that git tracks in `context.root`, so a file that git
 ignores, such as a coverage file, never reaches a user.
@@ -59,7 +65,8 @@ function build_package_release!(context::BuildContext; packages,
                                   licences = String[],
                                   manifest::AbstractString = joinpath(context.root, "environment",
                                                                       "all", "Manifest.toml"),
-                                  julia_compat::AbstractString = "1.11")
+                                  julia_compat::AbstractString = "1.11",
+                                  registry::Union{AbstractString,Nothing} = nothing)
     names = String[String(name) for name in packages]
     projects = Dict(name => TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))
                     for name in names)
@@ -75,6 +82,7 @@ function build_package_release!(context::BuildContext; packages,
     output = abspath(String(output))
     mkpath(output)
     _check_release_is_committed(output)
+    registry === nothing || _check_release_is_registered(output, names, registry)
     order = _compute_dependency_order(projects)
     staging = mktempdir(get_staging_root())
     results = NamedTuple{(:name, :status, :version),Tuple{String,Symbol,VersionNumber}}[]
@@ -239,6 +247,43 @@ function _check_release_is_committed(output)
         error("build_package_release!: $output has changes that are not committed. Commit " *
               "them, and register the versions they hold, before the next release:\n" * changes)
     nothing
+end
+
+# Every package that the last release holds has its version in `registry`.
+function _check_release_is_registered(output, names, registry::AbstractString)
+    released = filter(name -> isfile(joinpath(output, name, "Project.toml")), names)
+    isempty(released) && return nothing
+    instance = _find_registry(registry)
+    missing_versions = String[]
+    for name in released
+        project = TOML.parsefile(joinpath(output, name, "Project.toml"))
+        entry = get(instance.pkgs, Base.UUID(project["uuid"]), nothing)
+        version = VersionNumber(project["version"])
+        (entry !== nothing && version in _collect_registered_versions(instance, entry)) ||
+            push!(missing_versions, "$name $version")
+    end
+    isempty(missing_versions) ||
+        error("build_package_release!: the last release holds versions that $registry does " *
+              "not, and the next version of each would skip one. Register them first:\n  " *
+              join(missing_versions, "\n  "))
+    nothing
+end
+
+# A registry by the name under which Pkg reaches it, or by its folder.
+function _find_registry(registry::AbstractString)
+    isdir(registry) && return Pkg.Registry.RegistryInstance(registry)
+    for instance in Pkg.Registry.reachable_registries()
+        instance.name == registry && return instance
+    end
+    error("build_package_release!: Pkg reaches no registry called $registry, and no folder " *
+          "has that path")
+end
+
+# `Pkg.Registry.registry_info` takes the registry too from Julia 1.13 on.
+function _collect_registered_versions(instance, entry)
+    info = applicable(Pkg.Registry.registry_info, instance, entry) ?
+        Pkg.Registry.registry_info(instance, entry) : Pkg.Registry.registry_info(entry)
+    collect(keys(info.version_info))
 end
 
 _get_sibling_names(project, projects) =

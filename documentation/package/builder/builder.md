@@ -60,7 +60,7 @@ Pkg installs only the folder of a package, and a package of this repository incl
 4. Each package gets its version. A package whose content did not change keeps its released folder byte for byte, so its tree and its version stay. A changed package gets the next patch version and caret `[compat]` bounds on its siblings from their versions in this release; a package of another registry gets a caret bound from `environment/all/Manifest.toml`.
 5. Only when every package passed does it replace the changed folders in `output`, the working tree of the release repository.
 
-The last release is what the last commit of `output` holds: an uncommitted change stops the build. The registration is a separate step with `LocalRegistry.jl`, in the order that the build answers; [build-guide.md](../../guide/build-guide.md) holds it.
+The last release is what the last commit of `output` holds: an uncommitted change stops the build. With `registry`, every version of the last release must be in that registry too, because a registry refuses a version that skips one; `build_projectured_package_release!` checks General. The registration is a separate step, in the order that the build answers; [build-guide.md](../../guide/build-guide.md) holds it.
 
 ## How it fits
 

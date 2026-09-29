@@ -213,16 +213,18 @@ end
     build_projectured_package_release!(output; context, kwargs...) -> Vector
 
 Write the release copy of the packages of this repository into `output`, the
-working tree of the release repository. The keywords go to
-[`build_package_release!`](@ref).
+working tree of the release repository. The packages are served by `registry`,
+the General registry, and every version of the last release must be in it. The
+other keywords go to [`build_package_release!`](@ref).
 """
 function build_projectured_package_release!(output::AbstractString;
                                               context::BuildContext = make_projectured_build_context(),
+                                              registry::Union{AbstractString,Nothing} = "General",
                                               kwargs...)
     build_package_release!(context; packages = collect_projectured_release_packages(context),
                            output = output, assets = PROJECTURED_PACKAGE_ASSETS,
                            licences = PROJECTURED_LICENCES,
-                           julia_compat = PROJECTURED_JULIA_COMPAT, kwargs...)
+                           julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry, kwargs...)
 end
 
 const _CHECK_WEB = "http://127.0.0.1:8080"
