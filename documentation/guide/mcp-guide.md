@@ -47,7 +47,7 @@ The tools are the tool set of the kernel, so a client and the assistant in the w
 
 | Tool | What it does |
 | --- | --- |
-| `search_api` | finds a module, a type or a function of the loaded packages, by name, by pattern or by description |
+| `search_api` | finds a module, a type or a function by name, by pattern or by description: in the API that the tool set declares, or in every loaded `Projectured` package when it declares none. The application declares its API. |
 | `read_function_documentation` | reads the documentation of one name |
 | `search_guides` | searches the guides of this repository |
 | `list_resources`, `read_resource` | lists and reads the resources below |

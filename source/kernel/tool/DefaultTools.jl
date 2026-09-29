@@ -272,8 +272,8 @@ function _register_guide_resources!(set::ToolSet)
     # spent a round on "Resource not found". Measured 2026-09-13.
     register_resource!(set, Resource("resource://guides", "Documentation Guides";
         description = "List all available documentation with a one-paragraph " *
-                      "description for each guide. Documentation files are markdown " *
-                      "files containing tips and tricks.",
+                      "description for each guide. The guides are the markdown " *
+                      "files of the documentation.",
         provider = list_guides))
     for (guide_name, _) in _all_guides()
         let gd_name = guide_name

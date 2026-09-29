@@ -122,7 +122,8 @@ end
     list_guides() -> String
 
 List all available documentation with a one-paragraph description for each guide.
-Guides are markdown files containing tips and tricks for using ProjecturEd.
+Guides are the markdown files of the documentation: how to use ProjecturEd, and how
+it works.
 """
 function list_guides()
     guides = _all_guides()
@@ -430,10 +431,11 @@ end
 # `#10#11`). They flood the listings with hundreds of meaningless entries.
 _is_gensym_name(sname::AbstractString) = occursin('#', sname)
 
-# True for the `ICFoo` interface type `@document` generates next to each document
-# type `Foo` — internal plumbing the caller should not see. Only treats a name as
-# an interface when the sibling `Foo` actually exists in the module, so legitimate
-# I-prefixed names (`Inset`, …) are kept.
+# True for `IFoo`, the immutable native layout that `@document` can generate next
+# to a document type `Foo`: the prefix `I` means immutable. It is internal plumbing
+# the caller should not see. Only treats a name as such when the sibling `Foo`
+# actually exists in the module, so legitimate I-prefixed names (`Inset`, …) are
+# kept.
 function _is_interface_name(sname::AbstractString, present::Set{Symbol})
     length(sname) > 1 && sname[1] == 'I' && isuppercase(sname[2]) &&
         Symbol(sname[2:end]) in present
@@ -561,7 +563,7 @@ function list_functions(module_name, type_name = nothing; api = ApiEntry[])
 end
 
 """
-    read_module_documentation(module_name) -> String
+    read_module_documentation(module_name; api = ApiEntry[]) -> String
 
 Read the full documentation for a module.
 """
@@ -574,7 +576,7 @@ function read_module_documentation(module_name; api = ApiEntry[])
 end
 
 """
-    read_type_documentation(module_name, type_name) -> String
+    read_type_documentation(module_name, type_name; api = ApiEntry[]) -> String
 
 Read the full documentation for a type within a module. A type with no docstring
 falls back to a listing of its fields, which is more use than nothing.
@@ -599,7 +601,8 @@ function read_type_documentation(module_name, type_name; api = ApiEntry[])
 end
 
 """
-    read_function_documentation(module_name, function_signature, type_name = nothing) -> String
+    read_function_documentation(module_name, function_signature, type_name = nothing;
+                                api = ApiEntry[]) -> String
 
 Read the full documentation for a function within a module.
 """
@@ -740,9 +743,6 @@ function _rename_signature_paragraph(doc::AbstractString, source::AbstractString
     join(vcat([join(renamed, '\n')], [join(lines, '\n') for lines in paragraphs[2:end]]), "\n\n")
 end
 
-# The index of a declared API: each named module, and the names it exports. It
-# mirrors what the scratch module holds, name for name, because a model that finds
-# a function it cannot call wastes a round and learns to distrust the answer.
 """
     describe_api(api; signatures = true) -> String
 
@@ -793,6 +793,10 @@ function describe_api(api; signatures::Bool = true)
     isempty(lines) ? "" : join(lines, "\n")
 end
 
+# A name that opens with an underscore is the module's own business, whatever it
+# exports. A caller does not write one, so a search does not answer one.
+_is_private_name(name::Symbol) = startswith(String(name), "_")
+
 # The names `@document` writes beside a schema: one per storage kind, `ACFoo`,
 # `RCFoo`, `ICFoo`, `MCFoo`, `DCFoo` and `AFoo`, and the struct of the native
 # layout, `MFoo` or `IFoo`. The macro exports them all, so a declaration of a
@@ -811,10 +815,6 @@ const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A", "M", "I")
 # did not change where the golden names ranked, because a name with no words of
 # its own answers no query; what they cost is the work and what a listing of
 # names shows.
-# A name that opens with an underscore is the module's own business, whatever it
-# exports. A caller does not write one, so a search does not answer one.
-_is_private_name(name::Symbol) = startswith(String(name), "_")
-
 function _is_schema_variant(mod::Module, name::Symbol, value)
     value isa Type || return false
     written = String(name)
@@ -827,6 +827,9 @@ function _is_schema_variant(mod::Module, name::Symbol, value)
     false
 end
 
+# The index of a declared API: each named module, and the names it exports. It
+# mirrors what the scratch module holds, name for name, because a model that finds
+# a function it cannot call wastes a round and learns to distrust the answer.
 function _index_declared(api)
     entries = _ApiEntry[]
     indexed = Set{Module}()
@@ -875,7 +878,7 @@ _index_api() = _index_declared(_collect_surface_api())
 # guides and API, identical for every editor. The guides do not change at run time,
 # and the API index holds the whole surface of the packages that are loaded when it
 # is first built. This is the "state identical for every editor" carve-out
-# PAR-PER-EDITOR-STATE grants (alongside the wall clock).
+# PAR-PER-EDITOR-STATE grants.
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 # One index per declared list, keyed by the list. Two editors that declare two
@@ -999,24 +1002,6 @@ function _rank_guide_sections(query, sections::Vector{_GuideSection})
     sort!(scored; by = x -> (-x[1][1], -x[1][2]))
 end
 
-# Rank: exact name match > name substring > qualified-name substring; doc hits add
-# a little. The exact-name tier only applies to string keywords; a Regex still
-# scores via its name / qualified-name / doc matches.
-# **A hit is ranked on two numbers, not one.** The name score decides first and
-# the prose score only separates entries the name could not. One number let each
-# spoil the other: with them added, a long docstring outranked the verb the person
-# named, and with the prose capped to stop that, a query matching no name at all
-# collapsed into ties that the tie-break then settled by length — "scalars delay
-# table" answered `DataFrames.nrow`. Both were measured, on 2026-09-13.
-#
-# **A stem may not earn a name match.** A term scores against the NAME exactly as
-# the person wrote it, and against the prose in any of its forms. The two halves
-# want opposite things: recall in the prose, where an extra hit is cheap, and
-# precision in the name, where it is not. Measured the same day: with a stem
-# allowed in a name, "stop runs" answered `run_simulations_in_conversation` before
-# `stop_simulations`, because `run` is inside almost every verb of that module.
-#
-# Every text is folded already.
 # The words of an identifier: `open_pane!` is "open" and "pane", `WidgetCard` is
 # "widget" and "card", and `HTTPServer` is "http" and "server".
 function _split_identifier_words(name::AbstractString)
@@ -1036,12 +1021,6 @@ _compute_name_score(written, name::AbstractString, words::Vector{String},
     occursin(written, name) ? 20 :
     occursin(written, qualified) ? 10 : 0
 
-# The entries a query finds, best first, each with its two scores.
-#
-# **A tie goes to the shorter name.** `run_simulations` and
-# `run_simulations_in_conversation` both hold every word of "run simulation", and
-# the first is what the words say; the second says them and more. Length is the
-# whole of that difference, so it is the tie-break.
 # What a word is worth in the prose, by the rule search engines call BM25: a word
 # that few entries hold is worth more than one that most of them hold, a second
 # occurrence in one entry is worth less than the first, and a long text earns no
@@ -1054,6 +1033,32 @@ _compute_name_score(written, name::AbstractString, words::Vector{String},
 const _WORD_SATURATION = 1.2
 const _LENGTH_WEIGHT = 0.75
 
+# The entries a query finds, best first, each with its two scores.
+#
+# Rank: exact name match > name substring > qualified-name substring; doc hits add
+# a little. The exact-name tier only applies to string keywords; a Regex still
+# scores via its name / qualified-name / doc matches.
+#
+# **A hit is ranked on two numbers, not one.** The name score decides first and
+# the prose score only separates entries the name could not. One number let each
+# spoil the other: with them added, a long docstring outranked the verb the person
+# named, and with the prose capped to stop that, a query matching no name at all
+# collapsed into ties that the tie-break then settled by length — "scalars delay
+# table" answered `DataFrames.nrow`. Both were measured, on 2026-09-13.
+#
+# **A stem may not earn a name match.** A term scores against the NAME exactly as
+# the person wrote it, and against the prose in any of its forms. The two halves
+# want opposite things: recall in the prose, where an extra hit is cheap, and
+# precision in the name, where it is not. Measured the same day: with a stem
+# allowed in a name, "stop runs" answered `run_simulations_in_conversation` before
+# `stop_simulations`, because `run` is inside almost every verb of that module.
+#
+# Every text is folded already.
+#
+# **A tie goes to the shorter name.** `run_simulations` and
+# `run_simulations_in_conversation` both hold every word of "run simulation", and
+# the first is what the words say; the second says them and more. Length is the
+# whole of that difference, so it is the tie-break.
 function _rank_api_entries(query, entries::Vector{_ApiEntry})
     terms = _get_scored_terms(query)
     fold = _get_query_fold(query)
@@ -1275,7 +1280,8 @@ long ends with what to do next. Pass `kind` (`"module"`, `"type"`, or
 
 `api` is the declared API of a `ToolSet`. Named, the search sees those modules
 and nothing else — the same names the code the model writes can resolve. Empty, it
-sees the whole project.
+sees the whole surface: every `Projectured` package that was loaded when the
+process built its index, on first use.
 
 `mode` reads the query exactly as in [`search_guides`](@ref): keywords by
 default, a pattern with `"regex"` or a `Regex`, and a sentence with

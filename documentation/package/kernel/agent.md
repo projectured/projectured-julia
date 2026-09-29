@@ -27,7 +27,8 @@ on both.
 ## `tool/`: what the editor can be asked to do
 
 ```
-Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
+Tool.jl           Tool (an action), Resource (a read-only datum), ApiEntry, MeaningModel,
+                  ToolSet, observe_evaluations!
 ToolSet.jl        register / list / find / call — all on a ToolSet
 CodeExecution.jl  execute_julia_code! and execute_julia_expression!, and their persistent scratch namespace
 SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
@@ -51,16 +52,25 @@ answer as a Markdown document, and the MCP server sends the text as it is,
 because an MCP text content has no media type.
 
 **One `ToolSet` per editor** ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
-`Editor` owns one. Nothing here is process-global: not the tool list, not the
-resource list, not the scratch module `execute_julia_code!` evaluates into, not its
-last result. Two editors in one process therefore cannot see each other's tools or
+`Editor` owns one. The tool list, the resource list, the declared API, the scratch
+module `execute_julia_code!` evaluates into, and its last result live on the
+`ToolSet`. Two editors in one process therefore cannot see each other's tools or
 evaluate code into each other's namespace.
 
-*The one carve-out*, stated where it lives: the guide and API indexes, and the
-stores of meaning vectors, are process-global lazily-built caches. They are
-derived from source files that do not change while the process runs, and from
-the model a store is named for, so they are identical for every editor. That is
-the exception that PAR-PER-EDITOR-STATE grants.
+A few values of the layer are process-global, each for a reason:
+
+- The guide index, the API index and the index of each declared API are caches
+  that the process builds on first use. They come from text and code that do not
+  change while the process runs, so they are identical for every editor. That is
+  the exception that PAR-PER-EDITOR-STATE grants.
+- The stores of meaning vectors, one for each model, are the same kind: a vector
+  comes from a text and from the model that its store is named for.
+- The extra guide roots are what an application adds with `register_guide_root!`
+  when it loads, for every window that it opens.
+- The folder of the vector files and the time that a search waits for a build are
+  settings that a test changes.
+- A call of the code tool redirects the `stdout` and the `stderr` of the process
+  while the code runs, so that the answer holds what the code printed.
 
 ### Three kinds of query
 
@@ -360,7 +370,9 @@ function it cannot call wastes a round and learns to distrust the answer, so the
 two are never allowed to differ.
 
 Empty — the default — means the editor's whole surface: every loaded `Projectured`
-package, which is what the assistant and the MCP server want.
+package, which is what the assistant and the MCP server want. The documentation
+tools read that surface from an index that the process builds on first use, so a
+package that loads after it is not in their answers.
 
 **The list opens as much as it narrows.** The default surface is gathered by
 package name, so a module in a package not called `Projectured…` is unreachable

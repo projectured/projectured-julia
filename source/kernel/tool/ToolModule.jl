@@ -5,8 +5,9 @@ The **capability surface**: what the editor can be asked to do, and what it can
 be asked to read. Seven fragments share this namespace:
 
 - [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), the
-  `MeaningModel` a search by description ranks with, and the `ToolSet` that holds
-  them.
+  `ApiEntry` lines of the API that a set declares, the `MeaningModel` a search by
+  description ranks with, the `ToolSet` that holds them, and
+  `observe_evaluations!`, which tells a host what each code call produced.
 - [`ToolSet.jl`](ToolSet.jl) — registering, listing, finding, and calling them.
 - [`CodeExecution.jl`](CodeExecution.jl) — `execute_julia_code!` and
   `execute_julia_expression!`, which run the code of the `execute_julia_code` tool,
@@ -27,11 +28,26 @@ directions, and none of them knows about the others: an in-process agent loop
 drives it on behalf of a model, an out-of-process protocol server exposes it to
 the outside, and a human calls the same functions from the REPL.
 
-**One `ToolSet` per editor**. Nothing here is
-process-global: the tool list, the resource list, the code-execution scratch
-namespace, and its last
-result all live on the `ToolSet` instance an `Editor` owns, so two editors in one
-process never share a tool registry or evaluate into each other's namespace.
+**One `ToolSet` per editor**. The tool list, the resource list, the declared API,
+the code-execution scratch namespace, and its last result all live on the `ToolSet`
+instance an `Editor` owns, so two editors in one process never share a tool
+registry or evaluate into each other's namespace.
+
+A few values of the layer are process-global, each for a reason:
+
+- `_GUIDE_INDEX` and `_API_INDEX` hold the indexes of the guides and of the whole
+  surface, and `_DECLARED_INDEX` holds one index for each declared API. Each is
+  built on first use from text and code that do not change while the process
+  runs, so it is the same for every editor that reads it.
+- `_EXTRA_GUIDE_ROOTS` holds the guide roots that an application adds with
+  `register_guide_root!` when it loads, for every window that it opens.
+- `_MEANING_STORES` holds the stores of meaning vectors, one for each model. A
+  vector comes from a text that does not change and from its model, so it is the
+  same for every editor that names that model.
+- `_MEANING_FOLDER` and `_MEANING_WAIT_SECONDS` say where the vector files go and
+  how long a search waits for a build. A test sets them.
+- A call of the code tool redirects the `stdout` and the `stderr` of the process
+  while the code runs, so that the answer holds what the code printed.
 """
 module ToolModule
 
