@@ -2,30 +2,6 @@
 # DSL. The left-hand side of a rule is the event pattern syntax, parsed by
 # `EventModule`'s exported parser (`parse_event_pattern_rule`, `build_event_pattern_expr`,
 # `build_event_field_bindings`) rather than re-implemented here.
-#
-# Surface:
-#
-#     @gestures DocumentType begin
-#         when(<precondition over doc, sel>)          # optional, one per block
-#         PATTERN => "human description" => rhs        # description optional
-#         nothing => "human description" => rhs        # no gesture: run it by name
-#         when(PATTERN, guard) => "desc" => rhs        # per-rule event guard
-#         override(PATTERN) => "desc" => rhs           # claims a key the output layers took
-#         ...
-#     end
-#
-# The right side is parsed right-associatively: `PATTERN => "desc" => rhs` is
-# `PATTERN => ("desc" => rhs)`. In `rhs` and in the precondition, `doc` is the
-# document and `sel` the selection; bound pattern variables (e.g. `c` in
-# `KeyPress(c)`) are in scope in `rhs` and in the per-rule guard.
-#
-# `override(…)` wraps a pattern (composing with `when(PATTERN, guard)` inside it) and
-# sets `GestureBinding.override`: the binding fires even when an output layer already
-# turned the key into an operation. Reserve it for a key that cannot be text in its
-# own context — XML's `<` inside a tag name. Without it, a key that the text layer
-# turned into a text edit reaches the document only where no stage can carry that edit,
-# such as a `,` on a delimiter or in a number. Inside a string the edit is carried, so
-# an ordinary structural gesture skips the "am I inside a string?" guard entirely.
 
 # Is this pattern slot the absence of a gesture? The parser hands `nothing` over as
 # the symbol it was written as; a spliced value arrives as `nothing` itself.
@@ -38,8 +14,10 @@ _is_no_pattern(ex) = ex === :nothing || ex === nothing
 # closure still takes an event so every binding fires through one loop, but the
 # event is unused — a command rule binds no pattern variable.
 function _command_binding_expr(rhs, domain::String)
-    (rhs isa Expr && rhs.head == :call && rhs.args[1] == :(=>) && rhs.args[2] isa String) ||
-        error("@gestures: a `nothing` rule needs a description — write `nothing => \"what it does\" => rhs`, got `$rhs`")
+    (rhs isa Expr && rhs.head == :call && rhs.args[1] == :(=>) &&
+     rhs.args[2] isa String) ||
+        error("@gestures: a `nothing` rule needs a description — write " *
+              "`nothing => \"what it does\" => rhs`, got `$rhs`")
     description = rhs.args[2]
     body = rhs.args[3]
     operation = :(($(esc(:doc)), $(gensym(:event))) -> $(esc(body)))
@@ -68,7 +46,7 @@ function _parse_gesture_block(entries, domain::String; scope::Module)
             continue
         end
         # Splice a reusable `Vector{GestureBinding}` (e.g. a `@gesture_set`) inline,
-        # preserving position — the cross-type sharing single inheritance can't do.
+        # preserving position — the cross-type sharing single inheritance cannot do.
         if e isa Expr && e.head == :call && e.args[1] == :splice && length(e.args) == 2
             push!(items, :($(esc(e.args[2]))...))
             continue
@@ -171,10 +149,11 @@ of:
     spending a key on it, from the one table that already says what a document can
     do.
   - `when(PATTERN, cond) => …` — a rule with a per-rule event guard.
-  - `override(PATTERN) => …` — a rule that claims its key even when an output layer
-    already turned it into an operation (see [`GestureBinding`](@ref)). Without it, a
-    printable key that the text layer turned into a text edit reaches the document only
-    where no stage can carry that edit, such as a `,` on a delimiter or in a number.
+  - `override(PATTERN) => …` — a rule that claims its key even when a stage nearer
+    the output already turned it into an operation (see [`GestureBinding`](@ref)).
+    Without it, a printable key that a text stage turned into a text edit reaches the
+    document only where no stage can carry that edit, such as a `,` on a delimiter or
+    in a number.
     Inside a string the edit is carried, so an ordinary structural rule needs no guard
     against firing mid-text.
   - `when(<expr over doc, sel>)` — an optional block-level `applicable` precondition
