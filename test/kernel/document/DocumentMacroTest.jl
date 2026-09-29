@@ -130,6 +130,11 @@ end
     box::Tuple{A}
 end
 
+# A value whose `unwrap_selection` counts the calls that reach it.
+struct DmUnwrapProbe end
+const dm_unwrap_calls = Ref(0)
+DocumentModule.unwrap_selection(value::DmUnwrapProbe) = (dm_unwrap_calls[] += 1; value)
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -265,6 +270,18 @@ end
     # A parameter that no field binds is taken from the source, too.
     @test copy_document(DmNested{Int}((3,))) isa DmNested{Int}
     @test copy_document(ReactiveCell, DmNested{Int}((3,))).box === (3,)
+end
+
+@testset "a read calls unwrap_selection for the selection field only" begin
+    # The read of a field of the reactive kind gets `Any`, so a call to
+    # `unwrap_selection` there dispatches at run time on every read.
+    node = DmParametric(DmUnwrapProbe())
+    dm_unwrap_calls[] = 0
+    @test node.value isa DmUnwrapProbe
+    @test dm_unwrap_calls[] == 0
+    getfield(node, :selection)[] = DmUnwrapProbe()
+    @test node.selection isa DmUnwrapProbe
+    @test dm_unwrap_calls[] == 1
 end
 
 @testset "the layout registry answers for every variant" begin

@@ -194,16 +194,17 @@ end
 Transparent property access. Uniform across every kind — which cell a field holds
 decides the behaviour, so the accessors need no kind dispatch of their own.
 
-The read passes what the cell holds through [`unwrap_selection`](@ref), so a
-`selection` field holding a [`SelectionDocument`](@ref) answers its reference
-while it is live and `nothing` once it is dormant. The dispatch is on the stored
-**value**, not on the field name, so every other field of every other document
-pays nothing for it: the method resolves on the concrete stored type and inlines
-away.
+The read of the field named `selection` passes what the cell holds through
+[`unwrap_selection`](@ref), so a [`SelectionDocument`](@ref) there answers its
+reference while it is live and `nothing` once it is dormant. The read of every
+other field answers what the cell holds and makes no call for the selection.
+That call dispatches at run time, because a field of the reactive kind holds
+`Any`, and the test of the name is one comparison of two symbols.
 """
 _emit_accessors(plan) = (
     :(Base.getproperty(obj::$(plan.name), name::Symbol) =
-        $(unwrap_selection)(getfield(obj, name)[])),
+        name === :selection ? $(unwrap_selection)(getfield(obj, name)[]) :
+                              getfield(obj, name)[]),
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
         (getfield(obj, name)[] = val)),
 )
@@ -562,54 +563,97 @@ function _document_expr(args)
     # injected `:Document` resolves in the caller's scope (the result is `esc`'d).
     supertype = plan.supertype === nothing ? :Document : plan.supertype
 
-    # ── The names of one schema ───────────────────────────────────────────────
-    # `schema` is what the programmer wrote. Every coded name is built from it, so
-    # `AFoo`, `MFoo`, `ACFoo` and the four spellings mean the same thing in every
-    # schema.
-    #
-    # `family` is an abstract type inserted between the cell layout and the
-    # supertype the programmer wrote; every layout subtypes it, so `get_document_family`
-    # recognizes each variant of one schema as the same document even though the
-    # layouts share no type wrapper.
+    names = _get_schema_names(plan, layouts)
+    _add_selection_field!(plan)
+    plan = _make_cell_layout_plan(plan, names)
+
+    # One gensym'd argument list, shared by the inner ctor and the kind ctors.
+    arg_names = [gensym(f) for f in plan.field_names]
+    registry_parts = _emit_layout_registry(plan, names)
+    native_parts = _emit_native_parts(plan, layouts, names)
+    binding_parts = _emit_bare_name_binding(names)
+
+    structdef = _emit_stem!(plan)
+    inner_ctor, outer_ctor = _emit_autowrap_ctor(plan, arg_names; default = default)
+    push!(structdef.args[3].args, inner_ctor)
+    outer_ctor_parts = outer_ctor === nothing ? Any[] : Any[outer_ctor]
+    getprop, setprop = _emit_accessors(plan)
+
+    esc(Expr(:block,
+             :(abstract type $(names.family) <: $supertype end),
+             :(Base.@__doc__ $structdef),
+             outer_ctor_parts...,
+             getprop, setprop,
+             native_parts...,
+             registry_parts...,
+             Expr(:export, names.family),
+             _emit_kind_aliases(plan, arg_names; schema = names.schema,
+                                default = default)...,
+             binding_parts...,
+             _emit_keyword_ctors(plan; schema = names.schema)...,
+             # Rule Y (the struct layer's, generic over any cell struct), each arity
+             # followed by its Rule C companion; then Rule C's element-sugar tail.
+             build_cell_struct_positional_ctors(plan, plan.name;
+                 each_arity = k -> _emit_collection_ctor_at(plan, k))...,
+             _emit_collection_ctors(plan)...))
+end
+
+# ── The names of one schema ───────────────────────────────────────────────────
+# `schema` is what the programmer wrote. Every coded name is built from it, so
+# `AFoo`, `MFoo`, `ACFoo` and the four spellings mean the same thing in every
+# schema.
+#
+# `family` is an abstract type inserted between the cell layout and the
+# supertype the programmer wrote; every layout subtypes it, so `get_document_family`
+# recognizes each variant of one schema as the same document even though the
+# layouts share no type wrapper.
+#
+# One native struct per schema, and the layout list says which spelling it
+# takes: `M` a mutable one, `I` an immutable one. Both carry the declared
+# value types directly, so only mutability and the letter differ.
+#
+# The first entry of the layout list says what the bare name is. `C` leaves it
+# on the cell layout, which is what it means with no list at all, so the struct
+# keeps the programmer's own name and `show` still prints it. Any other binding
+# moves the cell layout to `ACFoo` and makes the bare name a `const`.
+function _get_schema_names(plan, layouts)
     schema = plan.name
-    family = Symbol("A", schema)
-    # One native struct per schema, and the layout list says which spelling it
-    # takes: `M` a mutable one, `I` an immutable one. Both carry the declared
-    # value types directly, so only mutability and the letter differ.
     native_mutable = :I ∉ layouts
-    native = Symbol(native_mutable ? "M" : "I", schema)
-    default_spelling = Symbol("DC", schema)
+    binding = first(layouts)
+    (schema = schema,
+     family = Symbol("A", schema),
+     native = Symbol(native_mutable ? "M" : "I", schema),
+     native_mutable = native_mutable,
+     default_spelling = Symbol("DC", schema),
+     binding = binding,
+     cell_name = binding === :C ? schema : Symbol("AC", schema))
+end
 
-    # ── The bare name ─────────────────────────────────────────────────────────
-    # The first entry of the layout list says what the bare name is. `C` leaves it
-    # on the cell layout, which is what it means with no list at all, so the struct
-    # keeps the programmer's own name and `show` still prints it. Any other binding
-    # moves the cell layout to `ACFoo` and makes the bare name a `const`.
-    binding  = first(layouts)
-    cell_name = binding === :C ? schema : Symbol("AC", schema)
-
-    # ── Inject the selection field ────────────────────────────────────────────
-    # Every document carries a selection — `Union{Nothing, Reference}`, i.e. a
-    # `Reference` (what is selected *inside* that node) or `nothing` for no
-    # selection. Julia has no field inheritance, so the field has to be materialized
-    # on every struct; the macro writes it so the programmer never repeats it.
-    #
-    # The type is emitted as the `Union{…}` expression, not a spliced type object:
-    # `Reference` is defined in the reference layer, *above* this one, so this
-    # module cannot name it directly. The expansion is `esc`'d, so `Reference`
-    # resolves in the caller's module — where it is always in scope, since a module
-    # that declares documents necessarily uses the reference layer.
-    #
-    # Declaring it by hand is normally unnecessary — the macro injects it. But a
-    # **value-document** declares `selection` explicitly to control its *value type*,
-    # which is the isbits pivot: `selection::ImmutableCell{Nothing}` is isbits and
-    # non-selectable (a leaf value), while the injected `Union{Nothing, Reference}` form is selectable.
-    # An explicit field must be declared **last** and defaults to `nothing` (added here
-    # if omitted, so it does not count as a programmer default and leaves Rule Y / the
-    # keyword ctors gated exactly as the injected field would).
+# ── Inject the selection field ────────────────────────────────────────────────
+# Every document carries a selection — `Union{Nothing, Reference}`, i.e. a
+# `Reference` (what is selected *inside* that node) or `nothing` for no
+# selection. Julia has no field inheritance, so the field has to be materialized
+# on every struct; the macro writes it so the programmer never repeats it.
+#
+# The type is emitted as the `Union{…}` expression, not a spliced type object:
+# `Reference` is defined in the reference layer, *above* this one, so this
+# module cannot name it directly. The expansion is `esc`'d, so `Reference`
+# resolves in the caller's module — where it is always in scope, since a module
+# that declares documents necessarily uses the reference layer.
+#
+# Declaring it by hand is normally unnecessary — the macro injects it. But a
+# **value-document** declares `selection` explicitly to control its *value type*,
+# which is the isbits pivot: `selection::ImmutableCell{Nothing}` is isbits and
+# non-selectable (a leaf value), while the injected `Union{Nothing, Reference}`
+# form is selectable.
+# An explicit field must be declared **last** and defaults to `nothing` (added here
+# if omitted, so it does not count as a programmer default and leaves Rule Y / the
+# keyword ctors gated exactly as the injected field would).
+function _add_selection_field!(plan)
     if :selection in plan.field_names
         findfirst(==(:selection), plan.field_names) == length(plan.field_names) ||
-            error("@document $(plan.name): an explicit `selection` field must be declared last.")
+            error("@document $(plan.name): an explicit `selection` field must be " *
+                  "declared last.")
         haskey(plan.defaults, :selection) || (plan.defaults[:selection] = :nothing)
     else
         # `SelectionDocument` is spliced as a type **object**, not as a name: it is
@@ -619,24 +663,27 @@ function _document_expr(args)
                                type = :(Union{Nothing, Reference, $(SelectionDocument)}),
                                default = :nothing)
     end
+    plan
+end
 
-    # The cell layout now subtypes `family` (which subtypes the real supertype), not
-    # the supertype directly — transparent for existing `<: Super` dispatch
-    # (transitive). It also takes `cell_name`, which is the programmer's own name
-    # unless the bare name was bound elsewhere. From here `plan.name` is the cell
-    # layout's *type* name, and `schema` is what coded names are built from.
-    plan = CellStructPlan(plan.definition, cell_name, plan.parameters, family,
-                          plan.field_names, plan.field_types, plan.field_slots,
-                          plan.defaults, plan.declared_field_count,
-                          plan.programmer_default_count)
+# The plan of the cell layout. The cell layout subtypes `family` (which subtypes
+# the real supertype), not the supertype directly — transparent for existing
+# `<: Super` dispatch (transitive). It also takes `cell_name`, which is the
+# programmer's own name unless the bare name was bound elsewhere. In the plan
+# this answers, `plan.name` is the cell layout's *type* name, and `schema` is what
+# coded names are built from.
+_make_cell_layout_plan(plan, names) =
+    CellStructPlan(plan.definition, names.cell_name, plan.parameters, names.family,
+                   plan.field_names, plan.field_types, plan.field_slots,
+                   plan.defaults, plan.declared_field_count,
+                   plan.programmer_default_count)
 
-    # One gensym'd argument list, shared by the inner ctor and the kind ctors.
-    arg_names = [gensym(f) for f in plan.field_names]
-
-    # The layout registry, keyed on the family so either accessor takes any variant.
-    # This is what lets a caller ask for a layout instead of naming one: before it,
-    # the type name was the only way to reach a layout, and `copy_document` therefore
-    # rebuilt whatever layout the source already had.
+# The layout registry, keyed on the family so either accessor takes any variant.
+# This is what lets a caller ask for a layout instead of naming one: before it,
+# the type name was the only way to reach a layout, and `copy_document` therefore
+# rebuilt whatever layout the source already had.
+function _emit_layout_registry(plan, names)
+    family = names.family
     family_method    = :((::typeof($get_document_family))(::Type{<:$family}) = $family)
     cell_type_method = :((::typeof($get_document_cell_type))(::Type{<:$family}) =
                              $(plan.name))
@@ -644,76 +691,63 @@ function _document_expr(args)
     # whichever layout it was handed, and a schema that bound its bare name
     # elsewhere would then read as its layout rather than as itself.
     schema_name_method = :((::typeof($get_document_schema_name))(::Type{<:$family}) =
-                               $(QuoteNode(schema)))
+                               $(QuoteNode(names.schema)))
+    Any[family_method, cell_type_method, schema_name_method]
+end
 
-    # The native layout, emitted only when the layout list asks for it. A schema
-    # that leaves both `M` and `I` out has no native type at all, and the default
-    # `get_document_native_type` answers `nothing` for it — which is what a caller
-    # reads to find out.
-    #
-    # Native-layout constructors target the native's auto (all-args) ctor — the
-    # same Rule Y positional-defaults + keyword forms the stem gets, but storing
-    # raw values (no cell wrapping), so building the native variant is as
-    # ergonomic as building the stem.
+# The native layout, emitted only when the layout list asks for it. A schema
+# that leaves both `M` and `I` out has no native type at all, and the default
+# `get_document_native_type` answers `nothing` for it — which is what a caller
+# reads to find out.
+#
+# Native-layout constructors target the native's auto (all-args) ctor — the
+# same Rule Y positional-defaults + keyword forms the stem gets, but storing
+# raw values (no cell wrapping), so building the native variant is as
+# ergonomic as building the stem.
+function _emit_native_parts(plan, layouts, names)
     native_parts = Any[]
-    if :M in layouts || :I in layouts
-        # When the list starts with `M` or `I`, the bare name is the native struct,
-        # and a lookup of the bare name reaches the binding of that struct. So the
-        # native struct takes the docstring too; the stem keeps it for `ACFoo`.
-        native_def = _emit_native(plan, family, native; mutable = native_mutable)
-        push!(native_parts, binding in (:M, :I) ? :(Base.@__doc__ $native_def) : native_def)
-        append!(native_parts, build_cell_struct_positional_ctors(plan, native))
-        if plan.programmer_default_count > 0 || plan.declared_field_count == 0
-            push!(native_parts, build_cell_struct_keyword_constructor(native, plan.field_names,
-                                build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)))
-        end
-        push!(native_parts, :((::typeof($get_document_native_type))(::Type{<:$family}) =
-                                  $native))
-        push!(native_parts, Expr(:export, native))
+    (:M in layouts || :I in layouts) || return native_parts
+    native, family = names.native, names.family
+    # When the list starts with `M` or `I`, the bare name is the native struct,
+    # and a lookup of the bare name reaches the binding of that struct. So the
+    # native struct takes the docstring too; the stem keeps it for `ACFoo`.
+    native_def = _emit_native(plan, family, native; mutable = names.native_mutable)
+    push!(native_parts, names.binding in (:M, :I) ? :(Base.@__doc__ $native_def) :
+                                                    native_def)
+    append!(native_parts, build_cell_struct_positional_ctors(plan, native))
+    if plan.programmer_default_count > 0 || plan.declared_field_count == 0
+        parameters = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
+        push!(native_parts,
+              build_cell_struct_keyword_constructor(native, plan.field_names, parameters))
     end
+    push!(native_parts, :((::typeof($get_document_native_type))(::Type{<:$family}) =
+                              $native))
+    push!(native_parts, Expr(:export, native))
+    native_parts
+end
 
-    # What the bare name points at, once every coded name exists. `C` needs no
-    # binding — the cell layout already carries the programmer's name — so it gets
-    # the coded alias instead, and both names work in every schema either way.
-    #
-    # A bare name bound to a **spelling** also needs a constructor. An inner
-    # constructor is defined on the parametric name alone, so a concrete
-    # parameterization has no method of its own: `DCFoo(1, "z")` is a `MethodError`
-    # without this. One catch-all covers Rule Y, Rule C and the keyword form, and a
-    # domain's own `Foo(v::String)` stays more specific than it.
+# What the bare name points at, once every coded name exists. `C` needs no
+# binding — the cell layout already carries the programmer's name — so it gets
+# the coded alias instead, and both names work in every schema either way.
+#
+# A bare name bound to a **spelling** also needs a constructor. An inner
+# constructor is defined on the parametric name alone, so a concrete
+# parameterization has no method of its own: `DCFoo(1, "z")` is a `MethodError`
+# without this. One catch-all covers Rule Y, Rule C and the keyword form, and a
+# domain's own `Foo(v::String)` stays more specific than it.
+function _emit_bare_name_binding(names)
+    schema, binding, cell_name = names.schema, names.binding, names.cell_name
     binding_parts = Any[]
     if binding === :C
         push!(binding_parts, Expr(:const, Expr(:(=), Symbol("AC", schema), cell_name)))
     else
-        target = binding === :DC ? default_spelling : native
+        target = binding === :DC ? names.default_spelling : names.native
         push!(binding_parts, Expr(:const, Expr(:(=), schema, target)))
         binding === :DC && push!(binding_parts,
             :((::Type{$target})(args...; kw...) = $cell_name(args...; kw...)))
     end
     push!(binding_parts, Expr(:export, schema, Symbol("AC", schema)))
-
-    structdef = _emit_stem!(plan)
-    inner_ctor, outer_ctor = _emit_autowrap_ctor(plan, arg_names; default = default)
-    push!(structdef.args[3].args, inner_ctor)
-    outer_ctor_parts = outer_ctor === nothing ? Any[] : Any[outer_ctor]
-    getprop, setprop = _emit_accessors(plan)
-
-    esc(Expr(:block,
-             :(abstract type $family <: $supertype end),
-             :(Base.@__doc__ $structdef),
-             outer_ctor_parts...,
-             getprop, setprop,
-             native_parts...,
-             family_method, cell_type_method, schema_name_method,
-             Expr(:export, family),
-             _emit_kind_aliases(plan, arg_names; schema = schema, default = default)...,
-             binding_parts...,
-             _emit_keyword_ctors(plan; schema = schema)...,
-             # Rule Y (the struct layer's, generic over any cell struct), each arity
-             # followed by its Rule C companion; then Rule C's element-sugar tail.
-             build_cell_struct_positional_ctors(plan, plan.name;
-                                          each_arity = k -> _emit_collection_ctor_at(plan, k))...,
-             _emit_collection_ctors(plan)...))
+    binding_parts
 end
 
 """

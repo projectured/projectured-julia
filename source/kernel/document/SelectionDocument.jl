@@ -29,8 +29,8 @@ A [`SelectionDocument`](@ref) answers its `primary` while it is live, and
 `nothing` once it is dormant. Every other value — `nothing`, or a bare
 `Reference` — answers itself.
 
-Dispatch on the stored value, not on the field name, so a read of any other field
-of any other document pays nothing for this.
+The `getproperty` that `@document` emits calls it for the field named `selection`
+only, so a read of any other field makes no call to it.
 
 Answering `nothing` for a dormant selection is deliberate. It makes every reader
 that was written against a bare reference correct by default: a printer draws no
@@ -56,7 +56,7 @@ The field is declared explicitly as `ImmutableCell{Nothing}`, the value-document
 pivot: a selection is not itself selectable, and the explicit field also stops the
 macro from injecting a field whose type names this very type.
 """
-@document struct SelectionDocument
+@document [C] struct SelectionDocument
     primary::Any = nothing
     live::Bool = true
     selection::ImmutableCell{Nothing} = nothing
