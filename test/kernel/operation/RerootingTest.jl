@@ -7,6 +7,10 @@ method — that is exactly the seam pressure that keeps the generic honest. A
 test-local wrapper applies the same pressure to the `WrappingOperation`
 contract: it declares the two generics and nothing else, and the one base method
 must carry it.
+
+It also verifies `operation_reference`, `retarget_operation` and
+`operation_travels_unchanged` for the kernel operations, and what the default
+reader of a test-local projection answers for them.
 """
 
 using Test
@@ -14,6 +18,7 @@ using ProjecturedKernel
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.ReferenceModule
+using ProjecturedKernel.ProjectionModule: Projection, read_intent
 
 # A test-local path-bearing operation: registering a `reroot_operation` method
 # for it below is exactly the seam pressure that keeps the generic open.
@@ -36,6 +41,10 @@ ProjecturedKernel.OperationModule.rewrap_operation(op::ToyWrapperOperation, inne
 
 struct RL end
 struct RN end
+
+# A test-local projection with no reader of its own: it answers what the default
+# reader of the kernel answers.
+struct RerootProbeProjection <: Projection end
 
 function test_rerooting()
 @testset "Rerooting" begin
@@ -69,6 +78,40 @@ function test_rerooting()
         @test rc isa CompoundOperation
         @test length(rc.operations) == 2
         @test rc.operations[1] isa ReplaceSelectionOperation
+    end
+
+    @testset "operation_reference answers the place of a selection and of a write" begin
+        path = strip_reference_types(@reference ::RL.leaf::RN)
+        other = Reference(FieldReferenceStep("other"))
+        @test operation_reference(ReplaceSelectionOperation(path)) == path
+        @test retarget_operation(ReplaceSelectionOperation(path), other).path == other
+
+        write = ReplaceReferencedValueOperation(nothing, path, 1)
+        @test operation_reference(write) == path
+        moved = retarget_operation(write, other)
+        @test moved isa ReplaceReferencedValueOperation
+        @test moved.document === nothing
+        @test moved.reference == other
+        @test moved.value == 1
+
+        # A carried root is the place of the write, so there is no reference to
+        # report and none to replace.
+        carried = ReplaceReferencedValueOperation(RN(), path, 1)
+        @test operation_reference(carried) === nothing
+        @test retarget_operation(carried, other) === carried
+    end
+
+    @testset "an operation that names no place travels unchanged" begin
+        for operation in (DoNothingOperation(), QuitEditorOperation(),
+                          AdjustZoomOperation(1), AdjustFontZoomOperation(-1),
+                          ToggleCollapseOperation(),
+                          SelectNextInsertionOperation(_ -> false))
+            @test operation_reference(operation) === nothing
+            @test operation_travels_unchanged(operation)
+            # The default reader forwards it as it is, so a chain stops at it.
+            @test read_intent(RerootProbeProjection(), nothing, operation) === operation
+        end
+        @test !operation_travels_unchanged(ReplaceSelectionOperation(EmptyReference()))
     end
 
     # A collection travels home the same way a compound does, and for the same

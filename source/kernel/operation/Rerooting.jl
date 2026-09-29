@@ -53,7 +53,24 @@ reroot_operation(op::WrappingOperation, steps::Tuple) =
     rewrap_operation(op, reroot_operation(get_wrapped_operation(op), steps))
 
 operation_reference(op) = nothing
+operation_reference(op::ReplaceSelectionOperation) = op.path
+# A carried root is the place of the write, so only a document-rooted write
+# reports its reference.
+operation_reference(op::ReplaceReferencedValueOperation) =
+    op.document === nothing ? op.reference : nothing
 
 retarget_operation(op, reference) = op
+retarget_operation(::ReplaceSelectionOperation, reference::Reference) =
+    ReplaceSelectionOperation(reference)
+retarget_operation(op::ReplaceReferencedValueOperation, reference::Reference) =
+    op.document === nothing ?
+        ReplaceReferencedValueOperation(nothing, reference, op.value) : op
 
 operation_travels_unchanged(op) = false
+# These name no place in a document, so each travels up a chain as it is: the
+# no-op, the quit, the two zooms, the flip of the node that it carries, and the
+# move of the selection at the root.
+operation_travels_unchanged(::Union{DoNothingOperation, QuitEditorOperation,
+                                    AdjustZoomOperation, AdjustFontZoomOperation,
+                                    ToggleCollapseOperation,
+                                    SelectNextInsertionOperation}) = true
