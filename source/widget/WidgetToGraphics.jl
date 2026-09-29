@@ -4853,12 +4853,16 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
 end
 
-# The viewport shows the content in a canvas of the pane's own, moved by the
-# scroll, that holds the elements of the content's canvas (or the content's canvas
-# itself, when its elements are no vector). So `content` is the content of the
-# pane's viewport, the first viewport among the pane's elements, and the content's
-# own answer goes on from there.
-function map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference)
+# The viewport of a scroll pane or a transform pane shows the content in a canvas
+# of the pane's own, moved by the scroll or the transform, that holds the
+# elements of the content's canvas (or the content's canvas itself, when its
+# elements are no vector). So `content` is the content of the pane's viewport
+# that shows the part (`_find_frozen_region`), and the content's own answer goes
+# on from there.
+map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference) =
+    _map_viewport_content_forward(iomap, reference)
+
+function _map_viewport_content_forward(iomap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa ConcreteReference || return _map_self_forward(reference)
@@ -4870,17 +4874,35 @@ function map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, refere
     inner = map_reference_forward(get_iomap_projection(child), child, reference.tail)
     inner === nothing && return nothing
     elements = unwrap_cell(getfield(unwrap_cell(get_iomap_output(iomap)), :elements))
-    for k in 1:length(elements)
-        viewport = unwrap_cell(elements[k])
-        viewport isa GraphicsViewport || continue
-        held = find_node_reference(getfield(viewport, :content), unwrap_cell(get_iomap_output(child));
-                                   depth = 1)
-        inner = held === nothing ? inner : concat_references(held, inner)
-        return ConcreteReference(FieldReferenceStep("elements"),
-                   ConcreteReference(RangeReferenceStep(k - 1, k),
-                       ConcreteReference(FieldReferenceStep("content"), inner)))
-    end
-    nothing
+    viewports = Int[k for k in 1:length(elements) if unwrap_cell(elements[k]) isa GraphicsViewport]
+    isempty(viewports) && return nothing
+    body = unwrap_cell(elements[viewports[1]])
+    held = find_node_reference(getfield(body, :content), unwrap_cell(get_iomap_output(child)); depth = 1)
+    inner = held === nothing ? inner : concat_references(held, inner)
+    k = viewports[_find_frozen_region(child, body, inner, length(viewports))]
+    ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(k - 1, k),
+            ConcreteReference(FieldReferenceStep("content"), inner)))
+end
+
+# The region of a pane that shows the part at `inner`. A content that holds a
+# prefix of itself still, such as a table with frozen headers, is drawn in four
+# regions in the order of `_pane_frozen_region`: the body, the strip held on the
+# height, the strip held on the width and the corner. A part is held on an axis
+# when all of it lies in the prefix there, and every other content has the one
+# region.
+function _find_frozen_region(child, body::GraphicsViewport, inner, count::Int)
+    count == 4 || return 1
+    frozen = get_frozen_extent(child)
+    frozen === nothing && return 1
+    fx, fy = frozen[]
+    content = unwrap_cell(getfield(body, :content))
+    box = find_reference_box(content, inner)
+    box === nothing && return 1
+    right = box.x - Int(unwrap_cell(getfield(content, :x))) + box.width
+    bottom = box.y - Int(unwrap_cell(getfield(content, :y))) + box.height
+    hold_x, hold_y = right <= fx, bottom <= fy
+    hold_x ? (hold_y ? 4 : 3) : (hold_y ? 2 : 1)
 end
 
 # The scroll pane wraps a single content document as its `.content` field.
@@ -4901,7 +4923,9 @@ end
 
 # The point `(x, y)` of the pane in the frame of its content: past the content
 # origin, and moved by the scroll offset that the printer drew with, so a pane
-# that follows the end maps a point to what is drawn at the end.
+# that follows the end maps a point to what is drawn at the end. On an axis where
+# the point lies in the prefix that the content holds still (`get_frozen_extent`),
+# such as a frozen header of a table, the scroll does not move it.
 function _find_scroll_pane_local_point(p::WidgetScrollPaneToGraphicsCanvas,
                                        iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Int, y::Int)
     w = iomap.input
@@ -4909,7 +4933,14 @@ function _find_scroll_pane_local_point(p::WidgetScrollPaneToGraphicsCanvas,
     sp = getfield(w, :scroll_position)[]::Point2D
     _, ty = _inset_total(p, w)
     sy = _pane_scroll_y(w, iomap.content_iomap.output, Int(iomap.output.h) - ty)
-    (x - cox + Int(sp.x[]), y - coy + sy)
+    sx = Int(sp.x[])
+    frozen = get_frozen_extent(iomap.content_iomap)
+    if frozen !== nothing
+        fx, fy = frozen[]
+        x - cox < fx && (sx = 0)
+        y - coy < fy && (sy = 0)
+    end
+    (x - cox + sx, y - coy + sy)
 end
 
 # Whether `point` lies on what a widget drew, judged as `_outside_widget` judges a
@@ -5144,7 +5175,8 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     WidgetTransformPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
 end
 
-map_reference_forward(::WidgetTransformPaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+map_reference_forward(::WidgetTransformPaneToGraphicsCanvas, iomap, reference) =
+    _map_viewport_content_forward(iomap, reference)
 
 # Like the scroll pane: prepend `.content` to re-root a bubbled path in the
 # transform pane's own input domain.
