@@ -66,11 +66,49 @@ end
 
     is_str(v) = v isa PrimitiveString
     @test length(search_documents(a, is_str)) == 2
-    @test !isempty(search_references(a, is_str))
-    # maxdepth bounds a structure whose nodes are never the *same* object, which
-    # the visited set alone cannot stop.
-    @test length(search_references(a, is_str; maxdepth = 8)) <
+    # The path walk records each node of the current path, so the path that comes
+    # back to `a` through `b.prev` ends there, and `maxdepth` does not change the
+    # count.
+    @test length(search_references(a, is_str)) == 2
+    @test length(search_references(a, is_str; maxdepth = 8)) ==
           length(search_references(a, is_str; maxdepth = 64))
+end
+
+@testset "a doubly linked list: the path count does not grow with maxdepth" begin
+    a = ListNode(PrimitiveString("x"))
+    b = ListNode(PrimitiveString("y"))
+    c = ListNode(PrimitiveString("z"))
+    a.next = b; b.prev = a
+    b.next = c; c.prev = b
+
+    is_str(v) = v isa PrimitiveString
+    # At `b`, a path can go on to `c` or come back to `a`. Only the way on is a
+    # new place, so there is one path to each of the three values. A walk that
+    # does not cut the loop doubles its paths every two levels, so the depths stay
+    # small enough that such a walk fails here and does not hang.
+    count_paths(d) = length(search_references(a, is_str; maxdepth = d))
+    @test [count_paths(d) for d in (12, 16, 24)] == [3, 3, 3]
+end
+
+# ── Equal values in two documents ─────────────────────────────────────────
+# A scalar leaf has no children, so it cannot close a cycle, and the walk does not
+# record it. The second document that holds an equal value is then a match too.
+@testset "equal values in two documents: both documents" begin
+    first_seven  = PrimitiveNumber(7)
+    second_seven = PrimitiveNumber(7)
+    sevens = CellVector([first_seven, second_seven])
+
+    for query in (v -> v == 7, "7")
+        found = search_documents(sevens, query)
+        @test length(found) == 2
+        @test found[1] === first_seven
+        @test found[2] === second_seven
+    end
+
+    # raw=true reports the matched value itself. The two sevens are one value, so
+    # they are one location, and the path search tells the two places apart.
+    @test search_documents(sevens, v -> v == 7; raw = true) == [7]
+    @test length(search_references(sevens, v -> v == 7; raw = true)) == 2
 end
 
 # ── The strategies agree on everything else ───────────────────────────────
