@@ -328,10 +328,20 @@ check) also decides the licence texts that Part B copies.
       archive may carry it, and which text must go with it. It also says which
       texts each package folder of Part B must carry.
 - [ ] The owner decides R3a, R17, R18 and R19 from that list.
-- [ ] Add the licence texts that are missing to `asset/font/`. New files only;
+- [x] Add the licence texts that are missing to `asset/font/`. New files only;
       no folder moves. Done for three on 2026-09-29: `DejaVu-Bitstream-Vera.txt`,
-      `Inconsolata-OFL.txt`, `Ubuntu-UFL.txt`. The text of Liberation waits for
-      R17.
+      `Inconsolata-OFL.txt`, `Ubuntu-UFL.txt`. Liberation after R17, below.
+
+**R17, done on 2026-09-29.** Liberation Sans, Serif and Mono are version 2.1.5
+from the release of their authors (`liberation-fonts-ttf-2.1.5.tar.gz`, SHA-256
+`7191c669…25d0`), each file "Licensed under the SIL Open Font License, Version
+1.1"; `Liberation-OFL.txt` holds the `LICENSE` of that release. The four files
+of Sans Narrow are removed: no code used them, and 2.x has no such family. The
+example `text_baseline`, rendered before and after, differs in 125 of 196,836
+pixels, all inside the box of the one word in Liberation Serif Italic: the
+glyphs changed a little, the layout did not move. `test_sdl()` 719,
+`test_tool_views()` 19 (the inspectors draw their headings in Liberation Sans
+Bold) and `test_hover_probe()` 8 pass.
 - [ ] The archive carries the third-party texts of the results below: extend
       `PROJECTURED_LICENCES`, the `README` text and the assets in
       `source/builder/`, with a test in `test/builder/BuilderTest.jl`. This
