@@ -94,11 +94,11 @@ function recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowI
     event = window_input.event
     if event isa MouseDown
         recognizer.presses[event.button] =
-            _ButtonPress(window_input.window_id, event.x, event.y, event.time)
+            _ButtonPress(window_input.window_id, event.x, event.y, get_event_time(event))
         return window_input
     elseif event isa MouseUp
         press = pop!(recognizer.presses, event.button, nothing)
-        now = event.time
+        now = get_event_time(event)
         if press !== nothing && press.window_id === window_input.window_id &&
            abs(event.x - press.x) < recognizer.click_max_displacement &&
            abs(event.y - press.y) < recognizer.click_max_displacement &&
@@ -155,7 +155,7 @@ function _recognize_key!(recognizer::GestureRecognizer, window_input::WindowInpu
             keys = KeyDown[kept.event for kept in recognizer.chord_buffer]
             window_id = recognizer.chord_buffer[1].window_id
             empty!(recognizer.chord_buffer)
-            return WindowInput(window_id, KeyChord(keys; time = event.time))
+            return WindowInput(window_id, KeyChord(keys; time = get_event_time(event)))
         end
         return nothing
     end
@@ -190,10 +190,9 @@ _is_chord_step(step::KeyDown, event::KeyDown) =
 """
     pop_gesture!(recognizer::GestureRecognizer, source) -> WindowInput or nothing
 
-The next gesture for the reader. `source` is a function with no argument that
-answers the next input of a backend, a `WindowInput`, or `nothing` when no input
-waits. The editor gives a function over `read_from_devices`, and a test gives a
-scripted source.
+The next gesture for the reader. `source` is a function with no argument.
+`source` answers the next input, or `nothing`: the input is a `WindowInput`, and
+`nothing` means that no input waits.
 
 The gestures that wait in `recognizer.pending` come first, before a new input,
 so the reader sees the order of the input: a `MouseUp`, then its `MousePress`.
@@ -203,7 +202,6 @@ follows, so a chord in progress never looks like the end of the input. A
 `nothing` from `source` is the end of the input, and the answer is `nothing`.
 
 A value from `source` that is not a `WindowInput` passes through unchanged.
-The tests of the frame loop push such values through the editor.
 """
 function pop_gesture!(recognizer::GestureRecognizer, source)
     while true

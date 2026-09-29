@@ -46,8 +46,9 @@ end
 - `operation` — the most recent operation; used by `evaluate!` and the
   per-frame log
 - `recognizer` — the event → gesture recognizer that folds raw `MouseDown`/`MouseUp`
-  into `MousePress` and `KeyDown` sequences into `KeyChord`, private to this
-  editor so two editors do not share chord-in-progress state
+  into `MousePress`, private to this editor so two editors do not share the state
+  of a click in progress. The chord table of an editor is empty, so this
+  recognizer makes no `KeyChord`
 - `loop_task` — the task that runs `run_editor!`, or `nothing` while no loop
   runs; see [A call on the editor task](#a-call-on-the-editor-task)
 
@@ -204,11 +205,12 @@ the wake protocol (`attach_fault_wake!`). The whole rule is
 (`pop_gesture!(editor.recognizer, () -> read_from_devices(editor.backend, editor.devices))`).
 `read_from_devices(backend, devices)` polls the backend's event queue (in the
 SDL case, `SDL_PollEvent`); the recognizer folds a `MouseDown`/`MouseUp` pair
-into `MousePress` and a `KeyDown` sequence into `KeyChord` before the frame
-ever sees them, so a reader only ever has to match the folded gesture, not
-reassemble it from raw events. The result is a `WindowInput` wrapping a
-backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord`, `MouseDown`,
-`MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`, or `WindowQuit`.
+into `MousePress` before the frame ever sees them, so a reader only ever has to
+match the folded gesture, not reassemble it from raw events. The chord table of
+an editor is empty, so each `KeyDown` passes through. The result is a
+`WindowInput` wrapping a backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`,
+`MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`, `WindowQuit`,
+`WindowClose`, `WindowResize` or `WindowDefocus`.
 
 The window input is wrapped in an `Intent` and passed through
 `read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)`
@@ -496,10 +498,10 @@ EditorModule.jl    (EditorModule)    — the run_editor! loop and Editor struct
 PlaybackModule.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeline
 ```
 
-The `GestureRecognizer` type that folds `MouseDown`/`MouseUp` into `MousePress`
-and `KeyDown` sequences into `KeyChord` lives in `gesture/` (its only
-dependency is `EventModule`, no editor coupling); each `Editor` owns its own
-instance in `editor.recognizer`. The animation `Clock` type lives in `clock/`
+The `GestureRecognizer` type that folds `MouseDown`/`MouseUp` into `MousePress`,
+and a `KeyDown` sequence of its chord table into `KeyChord`, lives in `gesture/`
+(its only dependency is `EventModule`, no editor coupling); each `Editor` owns
+its own instance in `editor.recognizer`, with an empty chord table. The animation `Clock` type lives in `clock/`
 (every animated projection reads one, so the type belongs beside the engine it
 depends on); each `Editor` likewise owns its own instance in `editor.clock`,
 ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)`
