@@ -173,21 +173,21 @@ function test_relevance_search()
         @test seen[] > 0
     end
 
-    @testset "both search tools take a context" begin
+    @testset "the search tools take no context, and a query can say what the step needs" begin
         tools = ToolSet()
         declare_api!(tools, [RelevanceToy])
         set_relevance_model!(tools, model)
         register_default_tools!(tools)
         for name in ("search_api", "search_guides")
             parameters = find_tool(tools, name).parameters
-            @test any(parameter -> parameter.name == "context" && !parameter.required, parameters)
+            @test !any(parameter -> parameter.name == "context", parameters)
         end
         answer = call_tool(tools, "search_api";
-                           args = Dict("query" => "how busy is the server", "mode" => "description",
-                                       "context" => "the traffic of a link"),
+                           args = Dict("query" => "how busy is the server, for the traffic of a link",
+                                       "mode" => "description"),
                            target = nothing)
-        @test _get_first_relevance_hit(answer) == "count_packets"
-        @test asked[].context == "the traffic of a link"
+        @test asked[].query == "how busy is the server, for the traffic of a link"
+        @test asked[].context == ""
     end
 end
 end # test_relevance_search

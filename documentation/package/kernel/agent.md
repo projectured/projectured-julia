@@ -112,12 +112,16 @@ meaning model ranked says so in its first line, and says what to do instead.
 the tools of `set` do, with its declaration, its meaning model and its
 relevance model, so a call from the REPL answers what a model is answered.
 
-**A search can say what it is asked in.** Both tools take an optional
-`context`: a sentence or two of what the model is doing, such as the request of
-the person and what the window holds. A description reads it, and a keyword or
-a pattern search does not. One sentence can mean two names: "save it" is
-`save_document` for a document open in a pane and `save_user_interface` for the
-arrangement of the windows, and only the context tells them apart.
+**A query says what the step needs.** The description of `query` tells the
+model that a query can be a sentence about what this step needs, and the search
+reads it whole. One sentence can mean two names: "save it" is `save_document`
+for a document open in a pane and `save_user_interface` for the arrangement of
+the windows, and only the words of the situation tell them apart. The tools
+have no separate context argument: measured on 90 questions, 2026-09-29, the
+same words joined into the query ranked as well as a separate context, and a
+context the model wrote beside its own queries changed no rank. The functions
+`search_api` and `search_guides` keep a `context` keyword for a caller from
+code.
 
 **Two searches, two intents.** `search_api` finds the name to call, and
 `search_guides` says how the parts fit together; their descriptions say so in

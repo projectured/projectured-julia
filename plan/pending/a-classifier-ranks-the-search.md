@@ -634,6 +634,12 @@ the tree are what a product can use.
   with Jev through OpenRouter; `search_guides` keeps the meaning vectors and
   lets Jev rank a pool of them; the local classifier is only a fallback.
 
+- **D10. No context argument in the tools** (the owner, 2026-09-29: "yes", to
+  the recommendation after the context check of §10): the query carries what
+  the step needs, and the agent decides how much to write. The same words
+  joined into the query ranked as well as a context apart, and the context the
+  model wrote beside its own queries changed no rank.
+
 ### 8c. The design of Stage 2, as built
 
 These are my decisions inside D5 and D9; each says the fact it rests on.
@@ -662,9 +668,12 @@ These are my decisions inside D5 and D9; each says the fact it rests on.
 4. **`search_guides` by description with a relevance model**: a pool of the
    first 50 by words and 50 by meaning (with the context), then a `noul` each.
    Stage 1: two stages beat the cascade on the guides.
-5. **The context** is an optional argument of both tools. The meaning vector of
+5. ~~**The context** is an optional argument of both tools. The meaning vector of
    a search reads it too when there is no relevance model: on the context
-   pairs of Stage 1 it took the vectors from 3 to 9 first.
+   pairs of Stage 1 it took the vectors from 3 to 9 first.~~ **Changed by D10:**
+   the tools have no context argument; the description of `query` says that a
+   query can be a sentence about what the step needs. The functions keep the
+   `context` keyword for a caller from code.
 6. **A failed relevance model falls back** to the ranking by meaning, and the
    first line of the answer says so, as a failed meaning model does now.
 7. **No call sites in Stage 2.** Stage 1 found no gain from them, for the
