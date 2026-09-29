@@ -99,7 +99,7 @@ end
 
 # A field write: put back what the field holds now.
 _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
-                   step::FieldReferenceStep, value) =
+                   step::AFieldReferenceStep, value) =
     hasproperty(parent, Symbol(step.name)) ?
         ReplaceReferencedValueOperation(parent, Reference(step),
                                         getproperty(parent, Symbol(step.name))) :
@@ -110,7 +110,7 @@ _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
 # way back holds the value that is there now. A cell replaces the slot, so the
 # way back of a cell holds the slot that is there now.
 function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
-                            step::RangeReferenceStep, value)
+                            step::ARangeReferenceStep, value)
     index = step.start + 1
     (index < 1 || index > length(parent)) && return nothing
     old = value isa AbstractCell ? get_slot_at(parent, index) : parent[index]
@@ -122,7 +122,7 @@ end
 # range with items is an insert, and its inverse is a delete; an empty item
 # vector is a delete, and its inverse is an insert. One rule covers all three.
 function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
-                            step::RangeReferenceStep, value::AbstractVector)
+                            step::ARangeReferenceStep, value::AbstractVector)
     (step.start < 0 || step.stop > length(parent) || step.stop < step.start) &&
         return nothing
     old = Any[get_slot_at(parent, index) for index in (step.start + 1):step.stop]

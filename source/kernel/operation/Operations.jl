@@ -163,11 +163,12 @@ function _split_terminal_step(path::ConcreteReference)
     (Reference(steps[1:end-1]...), steps[end])
 end
 
-# Write `value` into the slot `step` selects on `parent`: a FieldReferenceStep names
-# a `Cell`-backed field; a RangeReferenceStep selects and overwrites an element of a
-# sequence container (an element collection). Terminal-kind dispatch is what lets
-# `ReplaceReferencedValueOperation` write either a document or a scalar through one path.
-function _write_slot!(parent, step::FieldReferenceStep, value)
+# Write `value` into the slot `step` selects on `parent`: a field step names a
+# `Cell`-backed field; a range step selects and overwrites an element of a
+# sequence container (an element collection). Each method takes both layouts of its
+# step family. Terminal-kind dispatch is what lets `ReplaceReferencedValueOperation`
+# write either a document or a scalar through one path.
+function _write_slot!(parent, step::AFieldReferenceStep, value)
     f = getfield(parent, Symbol(step.name))
     f isa AbstractCell ||
         error("ReplaceReferencedValueOperation: field $(step.name) of " *
@@ -176,13 +177,13 @@ function _write_slot!(parent, step::FieldReferenceStep, value)
 end
 
 # A field step on a dictionary names a key, and the operation writes no key.
-_write_slot!(parent::AbstractDict, step::FieldReferenceStep, value) =
+_write_slot!(parent::AbstractDict, step::AFieldReferenceStep, value) =
     error("ReplaceReferencedValueOperation: $(step.name) is a key of a " *
           "$(typeof(parent)), and the operation writes no key")
 
 # One value overwrites one element. A range of more than one element takes a
 # vector of items, which is a splice.
-function _write_slot!(parent, step::RangeReferenceStep, value)
+function _write_slot!(parent, step::ARangeReferenceStep, value)
     step.stop - step.start > 1 &&
         error("ReplaceReferencedValueOperation: the range " *
               "[$(step.start), $(step.stop)) holds more than one element; " *
@@ -196,7 +197,7 @@ end
 # that it stores, in a cell of its own or as the value. Zero-width range ⇒ pure
 # insert; empty items ⇒ pure delete; both ⇒ element replacement. A single
 # (non-vector) value instead hits the element-overwrite method above.
-function _write_slot!(parent, step::RangeReferenceStep, items::AbstractVector)
+function _write_slot!(parent, step::ARangeReferenceStep, items::AbstractVector)
     for _ in 1:(step.stop - step.start)
         deleteat!(parent, step.start + 1)
     end

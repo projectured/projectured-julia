@@ -172,6 +172,27 @@ function test_inversion()
         @test c[] == "z"
     end
 
+    # A step of the plain layout (`M…`) writes and inverts as the cell layout does.
+    @testset "a write through a plain step has a way back" begin
+        leaf = _leaf("a")
+        editor = _InvEditor(nothing)
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(leaf, Reference(MFieldReferenceStep("value")),
+                                            "b"))
+        @test leaf.value == "b"
+        evaluate_operation(editor, inverse)
+        @test leaf.value == "a"
+
+        list = _inv_list("a", "b")
+        editor = _InvEditor(list)
+        reference = Reference(MFieldReferenceStep("items"), MRangeReferenceStep(1, 2))
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(nothing, reference, _leaf("z")))
+        @test _values(list) == ["a", "z"]
+        evaluate_operation(editor, inverse)
+        @test _values(list) == ["a", "b"]
+    end
+
     # One rule covers insert, delete and replace, because all three are a splice
     # of `[start, stop)` with a vector of items.
     @testset "a splice is undone by the opposite splice" begin
