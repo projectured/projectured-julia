@@ -671,11 +671,20 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     reads those heights in its walk from the head, but the view is a
     projection above the widgets and must not read the state of another
     projection. The owner (2026-09-29): "the graphics image of the row
-    already has a height, no?" Proposed: the pane over a list writes, as view
-    state with its offset, the index from the head of the row at the top of
-    the body band and that row's offset from the head; the view shares the
-    cell. Waits for the owner's word, because it is a new field of
-    `WidgetScrollPane`.
+    already has a height, no?", then: "It's not the scroll pane who does the
+    relocation, it's the table widget who modifies the scroll pane scroll
+    operation", and: "The table should be outside and the header row and
+    column should be their own widgets, they have to be scrolled on their
+    own scroll pane, just like the cells in its scroll pane in both
+    directions. Synchronization can be done by the table. Scroll relocation
+    also." So the table is the outer widget with three panes of its own —
+    the header row (sideways), the header column (up and down), the cells
+    (both) — and a corner. A scroll of any pane goes up through the table's
+    reader; the table keeps one offset, gives each pane its part, and
+    relocates the head of its rows. The pane then needs no frozen regions:
+    `get_frozen_extent`, `get_frozen_elements` and `_pane_frozen_region`
+    have no other user. Open: whether the eager table changes too, and
+    whether this is a plan of its own before the rest of phase 2.
   - [x] **2.5 The display** (`c4cb7c877`). The editor task is pinned to one
     thread with the internal `jl_set_task_tid`, as `Threads.@threads :static`
     does (the owner, 2026-09-29: "(a)"). A test fails when a release of
