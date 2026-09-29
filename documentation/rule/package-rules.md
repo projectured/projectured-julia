@@ -217,7 +217,7 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 | `ProjecturedSdl` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
 | `ProjecturedWeb` | Collection, Graphics, Kernel, Screen, Style | Base64, HTTP, JSON3 |
 | `ProjecturedOdbc` | Collection, Database, DbCatalog, Kernel, Projection, Sql, Syntax, Text | DBInterface, ODBC, Tables |
-| `ProjecturedDataFrames` | Collection, Kernel, Natural, Primitive, Style, Widget | DataFrames |
+| `ProjecturedDataFrames` | Collection, Kernel, Layout, Natural, Primitive, Projection, Style, Widget | DataFrames |
 
 ### The aggregate and the leaves
 

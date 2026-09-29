@@ -22,5 +22,6 @@ function make_data_frame_example(; rows::Integer = 1000)
         price = [round(1 + (i * 7919 % 1000) / 10; digits = 2) for i in 1:rows],
         quantity = [i * 31 % 97 for i in 1:rows],
         in_stock = [i % 3 != 0 for i in 1:rows],
-        discount = [i % 5 == 0 ? missing : (i % 4) * 0.05 for i in 1:rows])
+        discount = Union{Missing, Float64}[i % 5 == 0 ? missing : (i % 4) * 0.05
+                                           for i in 1:rows])
 end

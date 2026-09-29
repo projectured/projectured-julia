@@ -1,8 +1,9 @@
 """
     ProjecturedDataFramesTest
 
-The DataFrames tier of the test-package DAG: the layering guard, and the shape
-check on `make_data_frame_example`.
+The DataFrames tier of the test-package DAG: the layering guard, the shape of
+`make_data_frame_example`, and the view of a data frame drawn through the
+natural renderer.
 
 Everything is aggregated by `test_dataframes()`.
 """
@@ -10,13 +11,27 @@ module ProjecturedDataFramesTest
 
 using Test
 using DataFrames
+using ProjecturedCollection.CollectionModule
 using ProjecturedDataFrames
+using ProjecturedDataFrames.DataFramesModule
 using ProjecturedDataFramesExample
+using ProjecturedGraphics.GraphicsModule
+using ProjecturedKernel
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.IntentModule
+using ProjecturedKernel.OperationModule
+using ProjecturedKernel.ProjectionModule
 using ProjecturedKernelTest
+using ProjecturedLayout.LayoutModule
+using ProjecturedNatural.NaturalModule
+using ProjecturedStyle.StyleModule
+using ProjecturedWidget.WidgetModule
 
 import ProjecturedKernelTest: check_layering, get_package_source_root
 
 include("../../../test/dataframes/DataFrameExampleTest.jl")
+include("../../../test/dataframes/DataFrameViewTest.jl")
 include("../../../test/dataframes/DataFramesSuite.jl")
 
 end # module ProjecturedDataFramesTest
