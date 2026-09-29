@@ -49,13 +49,13 @@ end
 
 # Run `body` with the log sent to a test logger. Answer the value of `body` and
 # the number of error lines.
-function _report_with_test_logger(body)
+function _run_with_test_logger(body)
     logger = Test.TestLogger()
     value = Base.CoreLogging.with_logger(body, logger)
     value, count(log -> log.level == Base.CoreLogging.Error, logger.logs)
 end
 
-_make_cascade_record(store, site) =
+_record_cascade_fault!(store, site) =
     record_fault!(store, site; origin = :CascadeProbe, exception = ErrorException("x"))
 
 function test_fault_cascade()
@@ -67,7 +67,7 @@ function test_fault_cascade()
                                exception = ErrorException("the screen is gone"))
         # Every tier above tier 5 is broken at once: the store throws and the
         # backend throws. The cascade must still answer a tier.
-        tiers, _ = _report_with_test_logger() do
+        tiers, _ = _run_with_test_logger() do
             (report_fault!(AngryStore(), record; policy = FaultPolicy(),
                            backend = AngryBackend()),
              report_fault!(store, record; policy = FaultPolicy(),
@@ -83,9 +83,9 @@ function test_fault_cascade()
 
     @testset "with the console open, a report reaches the console" begin
         store = FaultStore()
-        record = _make_cascade_record(store, :print)
+        record = _record_cascade_fault!(store, :print)
         backend = CountingSoundBackend()
-        tier, errors = _report_with_test_logger() do
+        tier, errors = _run_with_test_logger() do
             report_fault!(store, record; policy = FaultPolicy(), backend)
         end
         @test tier === :console
@@ -95,10 +95,10 @@ function test_fault_cascade()
 
     @testset "with the console closed, a report plays the sound" begin
         store = FaultStore()
-        record = _make_cascade_record(store, :print)
+        record = _record_cascade_fault!(store, :print)
         backend = CountingSoundBackend()
         policy = FaultPolicy(is_console_enabled = false)
-        tier, errors = _report_with_test_logger() do
+        tier, errors = _run_with_test_logger() do
             report_fault!(store, record; policy, backend)
         end
         @test tier === :sound
@@ -108,9 +108,9 @@ function test_fault_cascade()
 
     @testset "a fault of a device plays the sound also after the console" begin
         store = FaultStore()
-        record = _make_cascade_record(store, :device)
+        record = _record_cascade_fault!(store, :device)
         backend = CountingSoundBackend()
-        tier, errors = _report_with_test_logger() do
+        tier, errors = _run_with_test_logger() do
             report_fault!(store, record; policy = FaultPolicy(), backend)
         end
         @test tier === :console
@@ -120,9 +120,9 @@ function test_fault_cascade()
 
     @testset "a report inside a report goes to the console alone" begin
         store = FaultStore()
-        record = _make_cascade_record(store, :device)
+        record = _record_cascade_fault!(store, :device)
         backend = NestedReportBackend(store, record, 0, Symbol[])
-        tier, errors = _report_with_test_logger() do
+        tier, errors = _run_with_test_logger() do
             report_fault!(store, record; policy = FaultPolicy(), backend)
         end
         # The outer report writes one line and plays the sound. The sound starts
