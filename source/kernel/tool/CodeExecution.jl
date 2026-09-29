@@ -117,34 +117,38 @@ function _scratch_module(set::ToolSet)
             Core.eval(m, Expr(:using, Expr(:(:), Expr(:., :., nameof(entry.module_)),
                                            clauses...)))
         end
-        # **How to look is always in scope.** The declaration says what a model may
-        # DO; finding out what that is, is not one of the things it does. Without
-        # these the locator `search_api` prints for every function — a
-        # `read_function_documentation(…)` call — names something the model cannot
-        # reach, and a model that lists a module it was told about learns only that
-        # the name is not defined. Each such answer costs it a round.
-        #
-        # They arrive with the declaration already applied, so what they answer and
-        # what the code can call are the same set, and a model cannot widen its own
-        # view by passing a different one. The declaration is written after the
-        # splat, because of two equal keywords the later one wins. The meaning
-        # model is read from the set when the search runs, so a model bound after
-        # this module was built still ranks it.
-        declared = copy(srcs)
-        Core.eval(m, :(const read_function_documentation =
-            (mod, name, type_name = nothing) ->
-                $(read_function_documentation)(mod, name, type_name; api = $declared)))
-        Core.eval(m, :(const search_api =
-            (query; kwargs...) -> $(search_api)(query; meaning_model = $(set).meaning_model,
-                                                kwargs..., api = $declared)))
-        Core.eval(m, :(const list_modules = () -> $(list_modules)(; api = $declared)))
-        Core.eval(m, :(const list_types =
-            module_name -> $(list_types)(module_name; api = $declared)))
-        Core.eval(m, :(const list_functions =
-            (module_name, type_name = nothing) ->
-                $(list_functions)(module_name, type_name; api = $declared)))
+        _bind_lookup_functions!(m, set, copy(srcs))
     end
     set.scratch = m
+end
+
+# **How to look is always in scope.** The declaration says what a model may DO;
+# finding out what that is, is not one of the things it does. Without these the
+# locator `search_api` prints for every function — a
+# `read_function_documentation(…)` call — names something the model cannot reach,
+# and a model that lists a module it was told about learns only that the name is
+# not defined. Each such answer costs it a round.
+#
+# They arrive with the declaration already applied, so what they answer and what
+# the code can call are the same set, and a model cannot widen its own view by
+# passing a different one. The declaration is written after the splat, because of
+# two equal keywords the later one wins. The meaning model is read from the set
+# when the search runs, so a model bound after this module was built still ranks
+# it.
+function _bind_lookup_functions!(m::Module, set::ToolSet, declared::Vector{ApiEntry})
+    Core.eval(m, :(const read_function_documentation =
+        (mod, name, type_name = nothing) ->
+            $(read_function_documentation)(mod, name, type_name; api = $declared)))
+    Core.eval(m, :(const search_api =
+        (query; kwargs...) -> $(search_api)(query; meaning_model = $(set).meaning_model,
+                                            kwargs..., api = $declared)))
+    Core.eval(m, :(const list_modules = () -> $(list_modules)(; api = $declared)))
+    Core.eval(m, :(const list_types =
+        module_name -> $(list_types)(module_name; api = $declared)))
+    Core.eval(m, :(const list_functions =
+        (module_name, type_name = nothing) ->
+            $(list_functions)(module_name, type_name; api = $declared)))
+    m
 end
 
 """
@@ -324,13 +328,14 @@ end
 # as it is, and a long `String` without its quotes. A verb that answers
 # `show_layout`'s layout or a search's hits answers it to be read. A function is
 # shown as the Julia REPL shows it, by its name and its number of methods; its
-# plain `repr` in the scratch module is the name of its type. The code just made
-# the function in a newer world, so the display runs in the newest one.
+# plain `repr` in the scratch module is the name of its type. The code can make a
+# function, a type or a `show` method in a newer world than this one, so each
+# display runs in the newest world.
 function _describe_value_for_model(value)
     value === nothing && return ""
     value isa Base.Text && return string(value) * "\n"
     value isa Function && return Base.invokelatest(sprint, show, MIME"text/plain"(), value) * "\n"
-    text = repr(value; context = :limit => true)
+    text = Base.invokelatest(repr, value; context = :limit => true)
     (length(text) <= _SHOWN_VALUE_CHARACTERS && !occursin('\n', text)) && return text * "\n"
     value isa AbstractString && return String(value) * "\n"
     limited = Base.invokelatest(sprint, show, MIME"text/plain"(), value;
@@ -347,7 +352,7 @@ end
 
 function _summarize_value(value)
     text = try
-        summary(value)
+        Base.invokelatest(summary, value)
     catch
         string(typeof(value))
     end

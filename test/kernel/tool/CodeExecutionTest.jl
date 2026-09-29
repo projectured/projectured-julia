@@ -117,6 +117,13 @@ function test_code_execution()
         @test run("phase_q() = 1") == "phase_q (generic function with 1 method)\n"
     end
 
+    @testset "a value shows with the show method that the same call defined" begin
+        code = "struct ShownBoxQ end\n" *
+               "Base.show(io::IO, ::ShownBoxQ) = print(io, \"a shown box\")\n" *
+               "ShownBoxQ()"
+        @test run(code) == "a shown box\n"
+    end
+
     @testset "a name nobody defined is answered with the nearest declared names" begin
         answer = run("count_row([1])")
         @test occursin("UndefVarError", answer)
