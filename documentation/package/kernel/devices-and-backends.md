@@ -621,8 +621,13 @@ The layer lives in [source/kernel/binding/](../../../source/kernel/binding/):
 
 ```
 GestureBindingModule.jl (GestureBindingModule)   — the aggregator
-        ├─ GestureBinding.jl — GestureBinding, the per-document-type
-        │                      registry, read_gesture / read_bound_gesture
+        ├─ GestureBindingInterface.jl — the contract: read_gesture, and the two
+        │                               tables that other packages add bindings to
+        │                               (get_document_gesture_bindings_own,
+        │                               get_instance_gesture_bindings)
+        ├─ GestureBinding.jl — GestureBinding, the per-document-type registry,
+        │                      fire_gesture_bindings / fire_named_gesture_binding,
+        │                      read_bound_gesture, and the catch-all read_gesture
         └─ Gestures.jl — the @gestures / @gesture_set authoring DSL
 ```
 
@@ -633,8 +638,8 @@ an `applicable(document, selection) -> Bool` precondition + a human
 fires the edit and can be listed to a user. [`@gestures`](../../../source/kernel/binding/Gestures.jl)
 emits the `get_document_gesture_bindings_own` method holding a type's own
 table; `get_document_gesture_bindings` walks it plus every supertype's.
-`fire_gesture_bindings(bindings, target, selection, event)` is the one firing
-loop — the first binding whose pattern matches, whose precondition holds, and
+`fire_gesture_bindings(bindings, target, event; selection, claimed = nothing)` is
+the one firing loop — the first binding whose pattern matches, whose precondition holds, and
 whose operation returns non-`nothing`, wins — shared by
 `read_bound_gesture(target, event[, selection])` (the catch-all behind
 `read_gesture(::Document, event)`) and the projection layer's own
@@ -666,16 +671,16 @@ caller runs a row by applying it.
 
 The pattern is optional. A binding whose `pattern` is `nothing` has no gesture at
 all: no key and no click reaches it, and `fire_gesture_bindings` skips it. Only
-its `name` does, through `fire_named_gesture_binding(bindings, target, selection,
-name)` — the counterpart that selects a binding by the name a user types instead
+its `name` does, through `fire_named_gesture_binding(bindings, target, name;
+selection)` — the counterpart that selects a binding by the name a user types instead
 of by the event that fires it, and passes `nothing` for the event.
 
 Write it in the pattern slot of the rule form that already exists:
 
 ```julia
 @gestures JsonObject begin
-    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
-    nothing       => "Move from value to key" => move_to_field(doc, :value, :key)
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
+    nothing       => "Move from value to key" => move_to_field(doc; from = :value, to = :key)
 end
 ```
 
@@ -693,11 +698,16 @@ read `c` from. A rule with no description has none either: its description is th
 gesture rendering (`"Ctrl+K"`), which is not a command name.
 
 This is what puts an operation in front of a user without spending a key on it.
-The command palette in the domain package lists these by name; see
-[the gesturemap slice](../../../source/gesturehelp/CommandPalette.jl).
+The command palette of the `gesturehelp` package of the substrate lists these by
+name; see [CommandPalette.jl](../../../source/gesturehelp/CommandPalette.jl).
 
 ### Downward edges
 
-- `..EventModule`, `..EventModule` — the pattern a binding matches on.
-- `..DocumentModule: Document` — the catch-all `read_gesture(::Document, …)`
-  method.
+- `..EventModule` — the pattern a binding matches on, and the parser of the
+  pattern syntax that `@gestures` uses.
+- `..IntentModule` — `Intent`, `CollectIntents` and `CollectedIntentsOperation`,
+  the answer to a request for everything that is available.
+- `..SelectionModule` — `get_selection`, the selection of a target that comes
+  with no selection of its own.
+- `..DocumentModule` — `Document`, the type of the catch-all
+  `read_gesture(::Document, …)` method.

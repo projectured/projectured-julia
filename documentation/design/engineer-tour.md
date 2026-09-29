@@ -188,8 +188,8 @@ A document type declares which gestures it answers, as data:
 ```julia
 @gestures JsonObject begin
     KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, JsonObjectEntry)
-    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
-    nothing       => "Move from value to key" => move_to_field(doc, :value, :key)
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
+    nothing       => "Move from value to key" => move_to_field(doc; from = :value, to = :key)
 end
 ```
 
