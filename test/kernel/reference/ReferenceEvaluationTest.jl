@@ -36,7 +36,7 @@ ReferenceModule.get_reference_step_kind(::EvaluationToyStep) = :structural
 ReferenceModule.evaluate_reference_step(::EvaluationToyStep, document) = document
 
 function test_reference_evaluation()
-@testset "ReferenceEval" begin
+@testset "ReferenceEvaluation" begin
 
     root = EvaluationBranch(EvaluationLeaf(10, nothing), EvaluationLeaf(20, nothing), nothing)
 

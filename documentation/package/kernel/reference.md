@@ -889,7 +889,7 @@ documents this at the type declaration.
 `test/kernel/reference/` holds four files. `ReferenceBuilderTest.jl` covers the
 `@reference` / `@reference_step` / `@reference_case` DSLs, against
 `ProjecturedKernel.ReferenceModule` directly — no umbrella needed.
-`ReferenceEvalTest.jl` walks `evaluate_reference` over a test-local
+`ReferenceEvaluationTest.jl` walks `evaluate_reference` over a test-local
 `@document struct EvaluationBranch`. `ReferenceRulesTest.jl` covers
 `@reference_rules`, and `ReferencedDocumentTest.jl` covers `ReferencedDocument` and
 `DocumentLocator` over a test-local tree. No concrete engine document is imported;
