@@ -4,12 +4,10 @@ How to work in this repository: what you need, what a change must keep, how to
 run the right test, and how to offer the change. Forks and pull requests are
 welcome.
 
-**The licence.** ProjecturEd is free for non-commercial use, and you can modify
-it for that use ([LICENCE-PD](LICENCE-PD)). Commercial use needs a licence from
-the author ([LICENCE-COMMERCIAL](LICENCE-COMMERCIAL)). By opening a pull
-request you offer your change under both licences, so that the project can stay
-under the two of them. If you cannot offer it under both, say so in the pull
-request, and we find another way or leave the change out.
+**The licence.** ProjecturEd is under the Mozilla Public License 2.0
+([LICENSE](LICENSE)). By opening a pull request you offer your change under the
+same licence. If you cannot, say so in the pull request, and we find another
+way or leave the change out.
 
 ---
 

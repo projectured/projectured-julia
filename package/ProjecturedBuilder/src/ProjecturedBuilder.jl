@@ -50,7 +50,7 @@ export build_distribution, get_staging_root, check_relocation, write_readme, rep
 export get_hidden_directories, make_hidden_command
 export build_package_release!, collect_outside_paths
 export PROJECTURED_BACKENDS, PROJECTURED_OPTIONS, PROJECTURED_REQUIREMENTS,
-       PROJECTURED_LICENCES, make_projectured_usage
+       PROJECTURED_LICENCES, PROJECTURED_SOURCE, make_projectured_usage
 export build_projectured_executable, build_projectured_distribution
 export PROJECTURED_ASSETS, check_projectured_copy
 export PROJECTURED_RELEASE_EXCLUSIONS, PROJECTURED_PACKAGE_ASSETS, PROJECTURED_JULIA_COMPAT,

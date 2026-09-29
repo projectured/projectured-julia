@@ -38,7 +38,7 @@ _track_release_fixture(root) = run(`git -C $root add -A`)
 function _make_release_repository()
     root = mktempdir()
     run(`git -C $root init -q`)
-    write(joinpath(root, "LICENCE-PD"), "the licence\n")
+    write(joinpath(root, "LICENSE"), "the licence\n")
     mkpath(joinpath(root, "asset", "thing"))
     write(joinpath(root, "asset", "thing", "data.txt"), "data\n")
     _write_release_fixture_package(root, "FakeBase", "00000000-0000-0000-0000-00000000000b";
@@ -113,7 +113,7 @@ function test_package_release()
         release(; into = output) =
             build_package_release!(context; packages = ["FakeTop", "FakeBase"], output = into,
                                    assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
-                                   licences = ["LICENCE-PD"], readme = name -> "# $name\n", manifest)
+                                   licences = ["LICENSE"], readme = name -> "# $name\n", manifest)
         read_project(name) = ProjecturedBuilder.TOML.parsefile(joinpath(output, "$name.jl", "Project.toml"))
         commit(repository) = run(`git -C $repository -c user.name=test
                                   -c user.email=test@example.org commit -q -m release`)
@@ -137,7 +137,7 @@ function test_package_release()
             @test isfile(joinpath(output, "FakeBase.jl", "asset", "thing", "data.txt"))
             @test !isdir(joinpath(output, "FakeTop.jl", "asset"))
             for name in ("FakeBase", "FakeTop")
-                @test read(joinpath(output, "$name.jl", "LICENCE-PD"), String) == "the licence\n"
+                @test read(joinpath(output, "$name.jl", "LICENSE"), String) == "the licence\n"
                 @test read(joinpath(output, "$name.jl", "README.md"), String) == "# $name\n"
             end
         end
@@ -255,7 +255,7 @@ function test_package_release()
             release(; into = first_release)
             again(registry) = build_package_release!(context; packages = ["FakeTop", "FakeBase"],
                 output = first_release, assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
-                licences = ["LICENCE-PD"], readme = name -> "# $name\n", manifest, registry)
+                licences = ["LICENSE"], readme = name -> "# $name\n", manifest, registry)
             partial = _write_release_fixture_registry(mktempdir(), ["FakeBase" => ["0.1.0"]])
             message = _read_release_error(() -> again(partial))
             @test occursin("Register them first", message)
@@ -269,7 +269,7 @@ function test_package_release()
             @test length(build_package_release!(context; packages = ["FakeTop", "FakeBase"],
                 output = joinpath(mktempdir(), "Release.jl"),
                 assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
-                licences = ["LICENCE-PD"], manifest, registry = "NoSuchRegistry")) == 2
+                licences = ["LICENSE"], manifest, registry = "NoSuchRegistry")) == 2
         end
 
         @testset "a release that leaves out a dependency, a licence or the manifest, stops" begin

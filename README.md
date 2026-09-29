@@ -104,7 +104,6 @@ ProjecturEd is under development. These limits are true today:
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
 - The packages are not in the General registry. You clone the repository and use `environment/all`.
 - SDL2 and SDL_ttf must be installed for a native window.
-- Commercial use needs a licence from the author.
 
 The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes next.
 
@@ -141,9 +140,6 @@ Forks and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) says how
 
 ## Licence, author and contact
 
-ProjecturEd is free for non-commercial use, and you can modify it for that use. Commercial use needs a licence from the author.
-
-- [LICENCE-PD](LICENCE-PD) — non-commercial use.
-- [LICENCE-COMMERCIAL](LICENCE-COMMERCIAL) — commercial use.
+ProjecturEd is under the [Mozilla Public License 2.0](LICENSE). You can use it, change it and build products on it, commercial ones included. A change to a file of ProjecturEd stays under the MPL, and its source must be available to the people you give it to; files of your own, such as a package that extends ProjecturEd, can be under any licence.
 
 Author: Levente Mészáros. Contact: projectured@gmail.com.

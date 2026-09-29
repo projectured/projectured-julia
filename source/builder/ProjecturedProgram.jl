@@ -50,11 +50,19 @@ const PROJECTURED_REQUIREMENTS = [
 """
     PROJECTURED_LICENCES
 
-The licence files of the repository, which the archive of a distribution
-carries. `LICENCE-PD` asks for its notice in every copy, so an archive without
-it may not be distributed.
+The licence files of the repository, which the archive of a distribution and
+every released package carry: the Mozilla Public License 2.0. It asks that a
+copy of the code carries its text.
 """
-const PROJECTURED_LICENCES = ["LICENCE-PD", "LICENCE-COMMERCIAL"]
+const PROJECTURED_LICENCES = ["LICENSE"]
+
+"""
+    PROJECTURED_SOURCE
+
+Where the source code of this repository is. The README of an archive names it,
+because MPL-2.0 asks a program in executable form to say where its source is.
+"""
+const PROJECTURED_SOURCE = "https://github.com/projectured/projectured-julia"
 
 """
     PROJECTURED_ASSETS
@@ -154,7 +162,7 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
                                           kwargs...)
     build_distribution(context; name = name, bundle = bundle,
                        requirements = PROJECTURED_REQUIREMENTS,
-                       licences = PROJECTURED_LICENCES,
+                       licences = PROJECTURED_LICENCES, source = PROJECTURED_SOURCE,
                        expect = vcat(["share/projectured/font"], last.(PROJECTURED_ASSETS)),
                        check = check_projectured_copy)
 end
@@ -237,7 +245,7 @@ _format_projectured_package_readme(name) = """
     projectional editor. The release of ProjecturEd writes this repository: the
     source of `$name` is `package/$name` there, and a change belongs there.
 
-    The licence files are beside this file.
+    The licence is the Mozilla Public License 2.0, in `LICENSE`.
     """
 
 const _CHECK_WEB = "http://127.0.0.1:8080"

@@ -904,19 +904,28 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 
 ### Step L2: the change
 
-- [ ] `LICENSE` at the root: the text of MPL-2.0, verbatim from
-      <https://www.mozilla.org/en-US/MPL/2.0/>. Remove `LICENCE-PD` and
-      `LICENCE-COMMERCIAL`.
-- [ ] `PROJECTURED_LICENCES` in the builder names `LICENSE`, so the archive,
+- [x] `LICENSE` at the root: the text of MPL-2.0, verbatim from
+      <https://www.mozilla.org/media/MPL/2.0/index.txt> (16,726 bytes, SHA-256
+      `3f3d9e00…9d04`; it differs from the Debian copy only in `https` in
+      Exhibit A). `LICENCE-PD` and `LICENCE-COMMERCIAL` are removed.
+- [x] `PROJECTURED_LICENCES` in the builder names `LICENSE`, so the archive,
       the release copy and each package folder carry it. The `README` of the
       archive says where the source is, which MPL-2.0 §3.2 asks of a program
-      in executable form. A test in `test/builder/`.
-- [ ] `README.md` and `CONTRIBUTING.md`: the licence is MPL-2.0, and a pull
-      request offers its change under MPL-2.0.
+      in executable form: `build_distribution` takes `source`, and
+      `PROJECTURED_SOURCE` is the repository on GitHub, with the tag of the
+      version. The README of each release repository names the licence.
+      `test_builder()` 173, `test_package_release()` 45 + 490.
+- [x] `README.md` and `CONTRIBUTING.md`: the licence is MPL-2.0, and a pull
+      request offers its change under MPL-2.0. The overview presentation in
+      `documentation/presentation/` too.
 - [ ] The web site (`projectured.github.io`, another repository) changes its
-      licence sentence, if the owner asks for it.
-- [ ] `documentation-rewrite.md` D1a (a clause for `LICENCE-PD`) is moot; say
-      so there.
+      licence sentence. The owner asked for it on 2026-09-29.
+- [x] `documentation-rewrite.md` D1a (a clause for `LICENCE-PD`) is moot; it
+      says so there.
+
+**The licence change lands on `main` and reaches GitHub together with the site
+change**, and not before R3a, R17 and R18 are settled for any binary that is
+published under it.
 
 MPL-2.0 does not need a notice in each source file: its Exhibit A allows the
 notice in "a LICENSE file in a relevant directory", and each package folder

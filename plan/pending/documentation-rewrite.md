@@ -572,7 +572,7 @@ The second answers of 2026-09-17:
 
 | # | Question | Decision |
 | --- | --- | --- |
-| D1a | Modification | Non-commercial use includes modification. `LICENCE-PD` §3 gets a clause that allows it (Step 11). |
+| D1a | Modification | Non-commercial use includes modification. `LICENCE-PD` §3 gets a clause that allows it (Step 11). Moot since 2026-09-29: the licence is MPL-2.0 (`release-the-binary-and-the-packages.md`, R21). |
 | D1b | Contribution terms | `CONTRIBUTING.md` states terms under which a contribution can be offered under both licences (Step 8). |
 | D16 | Private names in `plan/` and in the history | They can stay. The repository becomes public as it is. Only the public documents do not name the private repositories. |
 | D17 | The name "omnest" | Private, like the others. It can stay where it is; no public document advertises it. |

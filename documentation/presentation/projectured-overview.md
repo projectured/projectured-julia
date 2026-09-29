@@ -346,7 +346,6 @@ ProjecturEd is under development. Most features work, but it is not a finished p
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
 - SDL2 and SDL_ttf must be installed for a native window.
 - The packages are not in the General registry: clone the repository and use `environment/all`.
-- Commercial use needs a licence from the author.
 
 ---
 
@@ -388,6 +387,6 @@ bin/projectured --mcp a.json                 # with an MCP server
 
 # Thank you
 
-<span class="muted">Free for non-commercial use; commercial use needs a licence from the author.</span>
+<span class="muted">Mozilla Public License 2.0.</span>
 
 <span class="muted">github.com/projectured/projectured-julia</span>

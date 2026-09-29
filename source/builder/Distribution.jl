@@ -11,7 +11,7 @@
 
 """
     build_distribution(context; name, bundle, requirements, expect, version,
-                         output, staging) -> String
+                         output, staging, source) -> String
 
 Check that the bundle of the binary called `name` travels, and write it as an
 archive. Answers the path of the archive.
@@ -36,6 +36,8 @@ archive. Answers the path of the archive.
   called as `check(executable, directory, hidden)` with the copied executable,
   a folder it can write into, and `hidden`, after the start test and before
   the archive.
+- `source` — where the source code of the program is, which the README names
+  with the tag of `version`; `nothing` names none.
 
 The archive unpacks into `<name>-<version>/` and never into the directory it was
 unpacked in.
@@ -49,7 +51,8 @@ function build_distribution(context::BuildContext; name::AbstractString,
                               output::AbstractString = joinpath(context.root, "build"),
                               staging::Union{AbstractString,Nothing} = nothing,
                               hidden = get_hidden_directories(context),
-                              check = nothing)
+                              check = nothing,
+                              source::Union{AbstractString,Nothing} = nothing)
     bundle = abspath(bundle)
     isdir(bundle) ||
         error("build_distribution: no bundle at $bundle — build the executable first")
@@ -90,7 +93,7 @@ function build_distribution(context::BuildContext; name::AbstractString,
                   "its licence may not be distributed")
         cp(source, joinpath(staged, basename(String(licence))))
     end
-    write_readme(staged; name, version, requirements, licences)
+    write_readme(staged; name, version, requirements, licences, source)
 
     mkpath(output)
     archive = joinpath(abspath(output),
@@ -213,16 +216,19 @@ function check_relocation(executable::AbstractString, working_directory::Abstrac
 end
 
 """
-    write_readme(staged; name, version, requirements, licences) -> String
+    write_readme(staged; name, version, requirements, licences, source) -> String
 
-What a person who unpacks the archive reads.
+What a person who unpacks the archive reads. `source`, when a caller gives it,
+says where the source code of this version is, which a licence such as MPL-2.0
+asks of a program in executable form.
 
 The requirements are the reason a distribution is a function per binary rather
 than one call: what the target machine still needs is the one thing that differs
 between them.
 """
 function write_readme(staged::AbstractString; name, version, requirements,
-                        licences = String[])
+                        licences = String[],
+                        source::Union{AbstractString,Nothing} = nothing)
     lines = ["$name $version",
              "",
              "Built $(Dates.format(Dates.now(), "yyyy-mm-dd")) by ProjecturedBuilder, for " *
@@ -255,6 +261,10 @@ function write_readme(staged::AbstractString; name, version, requirements,
         for licence in licences
             push!(lines, "  - " * basename(String(licence)))
         end
+        push!(lines, "")
+    end
+    if source !== nothing
+        push!(lines, "The source code of this version: $source, tag v$version.")
         push!(lines, "")
     end
     push!(lines, "What went into this build:")

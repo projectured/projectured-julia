@@ -535,8 +535,8 @@ function test_builder()
         end
 
         @testset "an archive carries the licence of what is in it" begin
-            # LICENCE-PD asks for its notice in every copy, so an archive that
-            # leaves the file out breaks the licence it is distributed under.
+            # A licence that asks for its text in every copy is broken by an
+            # archive that leaves the file out.
             context = _test_context()
             bundle = mktempdir()
             mkpath(joinpath(bundle, "bin"))
@@ -549,16 +549,22 @@ function test_builder()
             staged = mktempdir()
             readme = read(write_readme(staged; name = "thing", version = "0.1.0",
                                        requirements = String[],
-                                       licences = ["LICENCE-PD", "LICENCE-COMMERCIAL"]), String)
-            @test occursin("LICENCE-PD", readme)
-            @test occursin("LICENCE-COMMERCIAL", readme)
-            @test !occursin("LICENCE", read(write_readme(staged; name = "thing",
-                                                         version = "0.1.0",
-                                                         requirements = String[]), String))
+                                       licences = ["LICENSE", "NOTICE"],
+                                       source = "https://example.org/thing"), String)
+            @test occursin("LICENSE", readme)
+            @test occursin("NOTICE", readme)
+            # The source of this version, which MPL-2.0 asks a binary to name.
+            @test occursin("https://example.org/thing, tag v0.1.0", readme)
+            bare = read(write_readme(staged; name = "thing", version = "0.1.0",
+                                     requirements = String[]), String)
+            @test !occursin("LICENSE", bare)
+            @test !occursin("source code", bare)
             rm(staged; recursive = true, force = true)
 
-            # The application declares both files, and each one is in the tree.
-            @test PROJECTURED_LICENCES == ["LICENCE-PD", "LICENCE-COMMERCIAL"]
+            # The application declares its licence, and the file is in the tree.
+            @test PROJECTURED_LICENCES == ["LICENSE"]
+            @test startswith(read(joinpath(dirname(dirname(@__DIR__)), "LICENSE"), String),
+                             "Mozilla Public License Version 2.0")
             @test all(licence -> isfile(joinpath(dirname(dirname(@__DIR__)), licence)),
                       PROJECTURED_LICENCES)
         end
