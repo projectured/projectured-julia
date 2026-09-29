@@ -497,36 +497,46 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.8: The tool layer
 
-- [ ] **L18-6** (Medium, Correctness)
+- [x] **L18-6** (Medium, Correctness)
   Make search_guides and search_api answer a message for a limit below 1 before the rank, read a real limit with round(Int, limit) in _get_hit_count, and compute the footer only when shown is not empty.
   *Test:* test_search_answer(): limit = 0, -1 and 2.5 answer text and do not throw, for search_guides and for search_api.
-- [ ] **L18-7** (Medium, Correctness)
+  *Done:* lane B, 4656fa027. A limit of `NaN` or `Inf` from the REPL still throws in `round`; a tool call can not give either.
+- [x] **L18-7** (Medium, Correctness)
   Keep the state of a code fence in _index_guide_sections, as _split_doc_paragraphs does, so that a line that starts with # inside a fence stays body text.
   *Test:* test_search_answer(): no section of the guide index has a heading that starts with '@broken:' or 'Fragment of', and the section of testing-guide.md that holds that fence keeps the line.
-- [ ] **L18-8** (Medium, Correctness)
+  *Done:* lane B, b5dfd9fdc.
+- [x] **L18-8** (Medium, Correctness)
   In list_modules, filter the types of each module as _api_types does (the declared names, no schema variant), and list each module once.
   *Test:* test_declared_api(): under a pair declaration, resource://modules names only the declared types, no schema variant, and each module once.
-- [ ] **L18-13** (part) (Medium, State)
+  *Done:* lane B, e61504cd5. `list_types` still lists the schema variants of a whole module; the item named `list_modules` only.
+- [x] **L18-13** (part) (Medium, State)
   Take `_INDEX_LOCK` in `register_guide_root!` for the write. Where the roots belong waits for its decision.
   *Test:* `test_declared_api()` passes; a new case registers a root and reads a guide of it.
-- [ ] **L18-16** (Low, Correctness)
+  *Done:* lane B, b5dfd9fdc. The test passes on the old code too, because the race needs two threads.
+- [x] **L18-16** (Low, Correctness)
   End the whole-module branch of _declared_sentence with " are " also when chosen == 0.
   *Test:* test_declared_api(): the description of a whole-module declaration holds 'The functions of ToyApi are in scope'.
-- [ ] **L18-18** (Low, Correctness)
+  *Done:* lane B, 94a42d90e.
+- [x] **L18-18** (Low, Correctness)
   Read the argument with get(args, "code", nothing), so that execute_julia_code answers 'No code was given'.
   *Test:* test_declared_api(): call_tool of execute_julia_code with no code argument answers 'No code was given' and does not throw.
-- [ ] **L18-20** (Low, Correctness)
+  *Done:* lane B, 94a42d90e.
+- [x] **L18-20** (Low, Correctness)
   Measure the short form with Base.invokelatest(repr, value; context = :limit => true), and call summary through Base.invokelatest in _summarize_value.
   *Test:* test_code_execution(): a call that defines a struct and a Base.show for it and returns a value answers the text of that show method.
-- [ ] **L18-21** (Low, Correctness)
+  *Done:* lane B, f3cd7993a.
+- [x] **L18-21** (Low, Correctness)
   In _all_guides, index the files that sit directly in documentation/package/ under the prefix package/, so that package/README.md is resource://guide/package/README.
   *Test:* test_search_answer(): read_guide("package/README") answers the file, and the guide list names it once.
-- [ ] **L18-22** (part) (Low, Shape)
+  *Done:* lane B, b5dfd9fdc. The documentation guard derives the same name (test/suite/documentation.jl).
+- [x] **L18-22** (part) (Low, Shape)
   Delete `get_api_modules`, `register_tools!` and `register_resources!` with their exports: they have no user in the three repositories. The other seven names wait for their decision.
   *Test:* `test_kernel()` and the omnet-julia load pass.
-- [ ] **L18-23** (part) (Low, Shape)
+  *Done:* lane B, defbf97dc. No repository calls the three names.
+- [x] **L18-23** (part) (Low, Shape)
   Keep one function for the names that a declaration gives a module (`_is_declared`, `_find_declared_names` and `_api_types` use it), and shorten `register_default_tools!`, `search_api` and `_scratch_module` under the size budget. The split of Documentation.jl waits for the decision on new file names; the export block is in export-block-rule.md.
   *Test:* `test_declared_api()` and `test_search_answer()` pass.
+  *Done:* lane B, 4656fa027 to defbf97dc. `_find_declared_names` is the one function for the declared names. test_kernel 2506 in lane B; test_mcp_tools 158; test_assistant_mvp 127 and 4 known failures. The lines that L18-28 cites in DefaultTools.jl moved: :228-229 is :201, :285-288 is :269, :169 is :331.
 
 ### Step 2.9: The llm and agent layers
 
