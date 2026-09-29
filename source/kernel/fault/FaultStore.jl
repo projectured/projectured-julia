@@ -200,11 +200,17 @@ before anything reads the projection. A record is handed over at most once per
 drain and at most once per count bucket, so a store with nothing new writes no
 cell, invalidates nothing, and causes no repaint.
 
-It never throws. A target whose `append_fault!` fails is skipped, and a console
-line reports it when `policy` opens the console tier. A log that can not take a
-fault must not take the editor with it.
+It throws nothing but an `ArgumentError` for a `policy` that is not a
+`FaultPolicy`, and it checks that before it changes the store. A target whose
+`append_fault!` fails is skipped, and a console line reports it when `policy`
+opens the console tier. A log that can not take a fault must not take the editor
+with it.
 """
 function drain_faults!(store::FaultStore; policy = FaultPolicy())
+    # FaultPolicy.jl loads after this file, so the keyword has no type.
+    policy isa FaultPolicy ||
+        throw(ArgumentError("drain_faults!: the policy must be a FaultPolicy, " *
+                            "not a $(typeof(policy))"))
     isempty(store.undrained) && return FaultRecord[]
     keys_to_emit = copy(store.undrained)
     empty!(store.undrained)

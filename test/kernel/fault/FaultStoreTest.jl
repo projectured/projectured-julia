@@ -123,6 +123,18 @@ function test_fault_store()
         @test length(records) == 1
     end
 
+    @testset "a policy that is not a FaultPolicy throws before the drain" begin
+        store = FaultStore()
+        target = QuietTarget(Any[])
+        attach_fault_target!(store, target)
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
+        @test_throws ArgumentError drain_faults!(store; policy = :quiet)
+        @test isempty(target.seen)
+        # The record waits for the next drain.
+        @test length(drain_faults!(store)) == 1
+        @test length(target.seen) == 1
+    end
+
     @testset "no store is a working store" begin
         @test record_fault!(nothing, :print; origin = :P,
                             exception = ErrorException("e")) === nothing
