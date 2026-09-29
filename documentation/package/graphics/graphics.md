@@ -34,7 +34,7 @@ The spline and arrowhead geometry is computed here, by `tessellate_spline` and `
 
 `hit_element_at(canvas, x, y)` returns the offset of the first element that contains the point, or `nothing`. Every caller in `source/` tests only for `nothing`. The test for each shape:
 
-- A box, a viewport and a line use their bounding box. A circle uses its radius.
+- A box, a viewport, an image and a line use their bounding box. A circle uses its radius.
 - A text uses its box: the width, the ascent and the descent of [`compute_text_extent`](../style/style.md).
 - A polyline and a spline take a band of `max(3, width + 2)` pixels around the path. A polygon takes its whole interior.
 - A canvas tests its own elements, with the point moved into its frame.

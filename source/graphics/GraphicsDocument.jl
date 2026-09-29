@@ -637,8 +637,9 @@ end
 
 Returns the 0-based offset of the first element in `canvas` whose bounding area
 contains `(x, y)`, or `nothing` if no element matches.
-Supports `GraphicsViewport` (rectangle bounds), `GraphicsRect` (rectangle
-bounds), and `GraphicsText` (the box of [`compute_text_extent`](@ref)).
+Supports `GraphicsViewport` and `GraphicsImage` (rectangle bounds),
+`GraphicsRect` (rectangle bounds), and `GraphicsText` (the box of
+[`compute_text_extent`](@ref)).
 Skips `GraphicsFence` elements. For `ListNode`-backed canvases with a layout
 direction, stops early when the element position exceeds the click coordinate
 along the layout axis.
@@ -722,7 +723,7 @@ function hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int)
 end
 
 function _hit_test_element(elem, x::Int, y::Int)
-    if elem isa GraphicsViewport
+    if elem isa GraphicsViewport || elem isa GraphicsImage
         vx, vy = Int(elem.x), Int(elem.y)
         vw, vh = Int(elem.w), Int(elem.h)
         x >= vx && x < vx + vw && y >= vy && y < vy + vh

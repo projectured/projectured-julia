@@ -1313,12 +1313,13 @@ function _find_widget_child_point(entry, x::Int, y::Int)
 end
 
 # The part of a container at `point` of its canvas: the child that `entries` holds
-# at the point, and on into that child with the point in its frame. A child that
-# maps nothing at its point is itself the part. The steps from `input` to the
-# child are found by identity, as a route reaches a child (`read_routed_child`),
-# so a child held through a node without an IoMap of its own is found too.
+# at the point, the topmost first (the one drawn last), and on into that child
+# with the point in its frame. A child that maps nothing at its point is itself
+# the part. The steps from `input` to the child are found by identity, as a route
+# reaches a child (`read_routed_child`), so a child held through a node without
+# an IoMap of its own is found too.
 function _map_point_to_child(input, entries, point::PointReferenceStep)
-    for entry in entries
+    for entry in Iterators.reverse(entries)
         local_point = _find_widget_child_point(entry, point.x, point.y)
         local_point === nothing && continue
         child = last(entry)
@@ -2925,10 +2926,12 @@ function _route_composite_drag(child_iomaps::Vector, x::Int, y::Int, make_evt)
     nothing
 end
 
-# Hit-test a coordinate event against each child canvas; returns `(op, i)` for
-# the first child that produced a non-nothing result.
+# Hit-test a coordinate event against each child canvas, the topmost first (the
+# one drawn last); returns `(op, i)` for the first child that produced a
+# non-nothing result.
 function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
-    for (i, entry) in enumerate(child_iomaps)
+    for i in reverse(eachindex(child_iomaps))
+        entry = child_iomaps[i]
         point = _find_widget_child_point(entry, x, y)
         point === nothing && continue
         (lx, ly) = point
