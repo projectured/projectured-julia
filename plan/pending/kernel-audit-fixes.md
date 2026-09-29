@@ -361,39 +361,50 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.4: The operation and intent layers
 
-- [ ] **L13-2** (Medium, Correctness)
+- [x] **L13-2** (Medium, Correctness)
   In Rerooting.jl add operation_reference(op::ReplaceSelectionOperation) = op.path and a retarget_operation that makes a new ReplaceSelectionOperation. Add operation_reference for ReplaceReferencedValueOperation that answers op.reference when op.document === nothing and nothing otherwise, and a retarget_operation that keeps a carried root unchanged.
   *Test:* test_rerooting(): operation_reference answers the path of both types, and nothing for a carried root; retarget_operation replaces the path. Then test_copying_projection() and the assistant tests.
-- [ ] **L13-4** (Medium, Correctness) — same fault as L17-18
+  *Done:* lane B, ba2d2a82. A carried root answers `nothing`.
+- [x] **L13-4** (Medium, Correctness) — same fault as L17-18
   In Rerooting.jl answer operation_travels_unchanged = true for DoNothingOperation, QuitEditorOperation, AdjustZoomOperation, AdjustFontZoomOperation, ToggleCollapseOperation and SelectNextInsertionOperation. Delete the two type branches at ProjectionDefaults.jl:171-179 and correct the comment at :188-190.
   *Test:* test_rerooting(): each of the six types travels, and the default read_intent of a test projection answers DoNothingOperation unchanged. Then test_substrate() for the chains.
-- [ ] **L13-7** (part) (Medium, Architecture)
+  *Done:* lane B, ba2d2a82, with L17-18. No test changed its result because of the new travel.
+- [x] **L13-7** (part) (Medium, Architecture)
   Pass each spliced item as it is, and let the collection wrap it in its cell. The case of a plain `Vector` field waits for its decision.
   *Test:* `test_inversion()` with a test-local document collection.
-- [ ] **L13-12** (part) (Low, Correctness)
+  *Done:* lane B, b0f0c2eb. InversionTest.jl uses a test-local collection that keeps each element in a `MutableCell`.
+- [x] **L13-12** (part) (Low, Correctness)
   In `_write_slot!`, refuse a field step on an `AbstractDict` and an overwrite wider than one item with a clear error, and add `CompoundOperation(operation::Operation)`. Item 1 waits for its decision.
   *Test:* `test_inversion()`: the two refusals throw, and the one-argument constructor works.
-- [ ] **L13-13** (part) (Low, Shape)
+  *Done:* lane B, b0f0c2eb.
+- [x] **L13-13** (part) (Low, Shape)
   Move the catch-all `invalidate_projection!` to OperationDefaults.jl, delete `describe_operation(::ReplaceViewStateOperation)` because the `WrappingOperation` method covers it, and build the field reference with `Reference(FieldReferenceStep(field))`. The move of `reroot_reference` waits for its decision.
   *Test:* `test_rerooting()` and `test_inversion()` pass.
-- [ ] **L13-14** (Low, Shape)
+  *Done:* lane B, 451a985b.
+- [x] **L13-14** (Low, Shape)
   Sort the using lines by module name. Delete the trailing comments of the includes. Make count of delete_elements a keyword (count = 1) and change the one positional call at source/text/TextDocument.jl:1310. Wrap the lines over 90 characters. Shorten the five fragment headers to one line.
   *Test:* test_arguments(), test_rerooting(), test_inversion(), and the text document tests for the call.
-- [ ] **L14-1** (Medium, Architecture)
+  *Done:* lane B, 451a985b. Six fragment headers were long, not five: `Description.jl` had one too. The `OperationInterface.jl` header no longer says where the bodies are; its three banners name the files (for L13-16). The one positional call of `delete_elements` at `TextDocument.jl:1310` names `count`. omnet-julia and inet-julia have no call of either builder.
+- [x] **L14-1** (Medium, Architecture)
   Add make_inverse_operation(document, ::CollectedIntentsOperation) = DoNothingOperation() in Intent.jl, and import make_inverse_operation beside reroot_operation in IntentModule.jl.
   *Test:* test_intent() (L14-3): the inverse of a CollectedIntentsOperation is DoNothingOperation().
-- [ ] **L14-4** (Low, Architecture) — same fault as L17-3
+  *Done:* lane B, 70903277. Its test is in the `CollectedIntentsOperation` testset of RerootingTest.jl until L14-3 makes `test_intent()`.
+- [x] **L14-4** (Low, Architecture) — same fault as L17-3
   In the default bridge return Intent(change.gesture, op, change.description, change.domain), so the labels stay.
   *Test:* A testset: a projection with no 4-argument reader keeps the description and the domain of the Intent that it reads.
-- [ ] **L14-5** (Low, Shape)
+  *Done:* lane B, 70903277. L17-3 builds on this change of the same bridge.
+- [x] **L14-5** (Low, Shape)
   Delete with_intent_labels and its export (the smaller option). No code, test, example or plan in the three repositories calls it.
   *Test:* test_exports() and test_kernel_layering(); the kernel loads.
-- [ ] **L14-7** (Low, Shape)
+  *Done:* lane B, 70903277.
+- [x] **L14-7** (Low, Shape)
   Sort the using lines by module name (OperationModule before ReferenceModule). Wrap Intent.jl:1 (126 characters) and :78 (95).
   *Test:* test_kernel_layering(); no behaviour changes.
-- [ ] **L17-18** (Low, Shape)
+  *Done:* lane B, 70903277. The `Intent.jl` header is one line of 89 characters. test_kernel 2476 in lane B; test_substrate 86839; test_json 194; test_xml 73; the others at their counts.
+- [x] **L17-18** (Low, Shape)
   Add operation_travels_unchanged(::ToggleCollapseOperation) = true and operation_travels_unchanged(::SelectNextInsertionOperation) = true in the operation layer, and delete the two branches of the default read_intent.
   *Test:* test_rerooting(): operation_travels_unchanged is true for both; the default read_intent of a fixture projection forwards both unchanged.
+  *Done:* lane B, ba2d2a82, with L13-4.
 
 ### Step 2.5: The binding layer
 
@@ -1117,6 +1128,13 @@ The classifiers and the implementers found faults that the audit does not hold:
   do not extend the functions of the projection layer. Qualify them
   (`ProjectionModule.map_reference_forward(...) = ...`), as PAR-QUALIFIED-EXTENSION asks.
   *Test:* `ProjecturedSdl` has no own `map_reference_forward`, and `test_sdl()` passes.
+- [ ] **N-5** (Medium, Correctness, Suspected) — found in step 2.4
+  The undo of an element overwrite on a reactive `CellVector` can put back the new value:
+  `get_slot_at` answers the slot cell, and `setindex!` writes the new value into that same cell,
+  so the inverse holds a cell that already has the new value. First prove it with a run (an
+  overwrite of one element of a reactive `CellVector`, then its inverse). If it holds, make the
+  inverse keep the old value, not the cell, as `make_inverse_operation` promises.
+  *Test:* `test_inversion()`: the inverse of an overwrite puts back the old value.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
