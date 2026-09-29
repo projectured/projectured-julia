@@ -403,10 +403,14 @@ In the example packages this is wired up for you — see `play_live_example` and
 
 - `Device` is an abstract type. Concrete subtypes are `Display`, `Keyboard`,
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
-- `Backend` is the abstraction over the display/input platform. There are two
-  implementations: `SdlBackend` (graphics) and `ConsoleBackend` (terminal). The
-  backend provides `initialize_backend!`, `quit_backend!`, and
-  the per-frame device I/O `read_from_devices` / `write_to_devices`.
+- `Backend` is the abstraction over the display/input platform. There are four
+  implementations: `SdlBackend` (native windows), `WebBackend` (a browser page),
+  `ConsoleBackend` (a terminal) and `VideoBackend` (the frames of a video file),
+  and the test double `HeadlessBackend`. The backend provides
+  `initialize_backend!`, `quit_backend!`, the per-frame device I/O
+  `read_from_devices` / `write_to_devices`, and the wait between frames
+  `wait_for_input` / `wake_backend!` — see
+  [the devices and backends guide](devices-and-backends.md#backends).
 - Projections that need to measure text take a `measure::TextMeasure` argument
   (e.g. `TextToGraphics`); `FontFileMeasure()` of `ProjecturedStyle` is the
   usual injection, and every backend draws what it measures.

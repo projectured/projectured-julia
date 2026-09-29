@@ -316,10 +316,11 @@ composes with any higher-order projection.
 | Module | Role |
 |---|---|
 | `EditorModule.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
-| `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
-| `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../../asset/web) |
-| `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
+| `sdl/Sdl.jl` (opt-in `ProjecturedSdl`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
+| `console/Console.jl` (substrate `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
+| `web/Web.jl` (opt-in `ProjecturedWeb`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [asset/web/](../../asset/web) |
+| `video/VideoBackend.jl` (opt-in `ProjecturedVideo`) | Video backend: plays a scripted timeline through the editor loop into the frames of a video file |
+| `pdf/Pdf.jl` (substrate `ProjecturedPdf`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
 | `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
@@ -371,8 +372,8 @@ includes them in:
                language (EventPattern, matches, describe, @event_case)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
  8 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
- 9 backend     the Backend seam (lifecycle, text, device I/O, display size, device
-               config, image/video output)
+ 9 backend     the Backend seam (lifecycle, device I/O, the wait and the wake, display
+               size, device config, image/video output)
 10 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents
 11 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
@@ -492,10 +493,10 @@ for adding one.
 | Tree domain | `SyntaxDocument.jl` | ✅ |
 | Styled string domain | `TextDocument.jl` | ✅ |
 | Graphics domain | `GraphicsDocument.jl` | ✅ |
-| SDL backend | `backend/Sdl.jl` | ✅ |
-| Console (terminal) backend | `backend/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
-| Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
-| PDF export backend | `backend/Pdf.jl` | ✅ |
+| SDL backend | `sdl/Sdl.jl` | ✅ |
+| Console (terminal) backend | `console/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
+| Web backend (browser renderer) | `web/Web.jl` | ✅ (new in Julia port) |
+| PDF export backend | `pdf/Pdf.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
 | References | `reference/` (layer 11) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |

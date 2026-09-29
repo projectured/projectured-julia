@@ -9,8 +9,8 @@ provides the render/decode/image seam methods. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
 primitives `_open_offscreen_renderer` and `_close_offscreen_renderer` that the
 opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives
-there, not here); `record_video` reaches the unexported `_emit_frames!`
-through the qualified name.
+there, not here); `ProjecturedVideo` imports the unexported `_emit_frames!` and
+the other offscreen helpers by name.
 """
 module ProjecturedSdl
 

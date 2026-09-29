@@ -33,7 +33,7 @@ include("../../../source/kernel/clock/ClockModule.jl")               # layer 5  
 include("../../../source/kernel/event/EventModule.jl")               # layer 6  — input events + the pattern language
 include("../../../source/kernel/device/DeviceModule.jl")             # layer 7  — the devices and their physical properties
 include("../../../source/kernel/gesture/GestureRecognizerModule.jl") # layer 8  — event → gesture recognition
-include("../../../source/kernel/backend/BackendModule.jl")           # layer 9  — rendering-target seam
+include("../../../source/kernel/backend/BackendModule.jl")           # layer 9  — the seam to a platform: input, output, the wait
 include("../../../source/kernel/document/DocumentModule.jl")         # layer 10 — the document contract
 include("../../../source/kernel/reference/ReferenceModule.jl")       # layer 11 — reference machinery
 include("../../../source/kernel/selection/SelectionModule.jl")       # layer 12 — document current-focus state

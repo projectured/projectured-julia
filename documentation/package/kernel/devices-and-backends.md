@@ -12,10 +12,12 @@ dispatch.
 
 The abstract interfaces live in
 [backend/BackendInterface.jl](../../../source/kernel/backend/BackendInterface.jl) and
-[device/DeviceInterface.jl](../../../source/kernel/device/DeviceInterface.jl). There are three backends: the
-SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
-a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
-the browser (all described below).
+[device/DeviceInterface.jl](../../../source/kernel/device/DeviceInterface.jl). There are four backends:
+`SdlBackend` draws in native windows and is the default, `ConsoleBackend` draws
+in a terminal, `WebBackend` runs the editor in an HTTP and WebSocket server and
+draws in the browser, and `VideoBackend` draws the frames of a video file. The
+test double `HeadlessBackend` keeps its output in memory. The section
+[Backends](#backends) describes each one.
 
 Every backend is a drop-in: `run_editor!` takes the backend as an argument, so switching
 is just e.g. `run_editor!(WebBackend(), projection, document)` instead of
@@ -80,32 +82,74 @@ any reader has seen it. A dialog, an insertion and the command palette all bind
 Escape, and a quit the backend issues directly leaves no reader able to stop it.
 The editor loop quits on an unmodified
 Escape that the pipeline did not handle, in the same place it recognises the
-readability zoom (`read!` in [editor/EditorModule.jl](../../../source/kernel/editor/EditorModule.jl)).
+readability zoom (`read!` in [editor/ReadEvaluatePrint.jl](../../../source/kernel/editor/ReadEvaluatePrint.jl)).
 
 ## Backends
+
+A backend subtypes `Backend` and adds a method of each generic of
+[backend/BackendInterface.jl](../../../source/kernel/backend/BackendInterface.jl)
+that it answers, for its own type:
 
 ```julia
 abstract type Backend end
 
-# Backend interface (backend/BackendInterface.jl) — all dispatched on the concrete backend
-initialize_backend!(::Backend)                    # set up libraries, allocate caches
-quit_backend!(::Backend)                    # release everything
-read_from_devices(::Backend, devices)           # poll → WindowInput
-write_to_devices(::Backend, devices, document)  # render the output
-wait_for_input(::Backend, devices, timeout_seconds)  # block until input, a wake, or the timeout
-wake_backend!(::Backend)                        # end a wait, from any task or thread
+initialize_backend!(::Backend)                       # load libraries, allocate caches
+configure_devices!(::Backend, devices)               # fill the properties of the devices
+open_native_windows!(::Backend, document)            # open the windows before the first print
+read_from_devices(::Backend, devices)                # the next input, or nothing
+write_to_devices(::Backend, devices, document)       # show the output of a frame
+wait_for_input(::Backend, devices, timeout_seconds)  # block until input, a wake or the timeout
+wake_backend!(::Backend)                             # end a wait, from any task or thread
+get_display_size(::Backend)                          # the usable size in logical pixels
+get_pointer_position(::Backend)                      # the global position of the pointer
+quit_backend!(::Backend)                             # release everything
 ```
 
+`make_editor` calls `initialize_backend!`, `configure_devices!` and
+`open_native_windows!`, in that order, before the first print, and `play_live!`
+calls them in the same order. `configure_devices!` fills the devices of the
+editor in place. A backend that draws with a device keeps that device: the SDL
+backend draws with the `Display` that it gets. `open_native_windows!` opens the
+native window of each window of the document, and corrects the document to the
+size that the window system gives. So the first layout has the final size. After
+that, `write_to_devices` reconciles the native windows with each new
+`ScreenDocument`.
+
 The wait is where the editor sleeps between frames, and the wake is how a
-producer on another task ends the sleep. The defaults in
-`BackendDefaults.jl` are one 10 ms poll slice and a no-op, so a backend that
-answers neither behaves exactly as the loop did when it slept.
+producer on another task ends the sleep. `timeout_seconds` must be above zero, and
+`Inf` is legal. The defaults in `BackendDefaults.jl` are one 10 ms poll slice and
+a no-op, so a backend that answers neither polls every 10 ms.
 
-There is no `open_window!`/`close_window!`: native windows are reconciled on
-demand inside `write_to_devices` whenever it sees a new `ScreenDocument` output.
+There are four backends and a test double:
 
-There are three backends: `SdlBackend` (native graphics), `ConsoleBackend`
-(terminal), and `WebBackend` (browser, over HTTP + WebSocket).
+| Backend | Package | Output | Input |
+| --- | --- | --- | --- |
+| `SdlBackend` | `ProjecturedSdl`, opt-in | native windows | the keyboard, the mouse and the windows |
+| `WebBackend` | `ProjecturedWeb`, opt-in | a canvas in a browser page | the events that the page sends |
+| `ConsoleBackend` | `ProjecturedConsole`, substrate | a terminal, for the text domain | the bytes of the terminal |
+| `VideoBackend` | `ProjecturedVideo`, opt-in | the frames of a video file | a scripted timeline |
+| `HeadlessBackend` | `ProjecturedKernelExample`, test double | a log of each output | a queue of scripted events |
+
+Each generic has a method of its own in a backend (✓), or the backend uses the
+default of `BackendDefaults.jl`. A generic with no default and no method raises a
+`MethodError` (—).
+
+| Generic | Default | SDL | Web | Console | Video | Headless |
+| --- | --- | --- | --- | --- | --- | --- |
+| `initialize_backend!` | — | ✓ | ✓ | ✓ raw mode | ✓ | ✓ no-op |
+| `quit_backend!` | — | ✓ | ✓ | ✓ | ✓ | ✓ no-op |
+| `read_from_devices` | — | ✓ motion coalesced | ✓ | ✓ | ✓ timeline | ✓ queue |
+| `write_to_devices` | — | `ScreenDocument` | `ScreenDocument`, an error for another value | `TextBlock`, an error for another value | `ScreenDocument`, one window | any value |
+| `wait_for_input` | a sleep of at most 10 ms | ✓ | ✓ | ✓ | ✓ at most one frame | default |
+| `wake_backend!` | no-op | ✓ | ✓ | ✓ | default | default |
+| `open_native_windows!` | no-op | ✓ | default | default | default | default |
+| `configure_devices!` | no-op | ✓ keeps the `Display` | default | default | default | default |
+| `get_display_size` | `(1280, 800)` | ✓ | default | default | ✓ the video size | default |
+| `get_pointer_position` | `(-1, -1)` | ✓ | default | default | ✓ the last pointer | default |
+| `write_image` | — | ✓ | — | — | — | — |
+| `record_video` | — | — | — | — | ✓ | — |
+| `render_canvas` | — | an empty image | — | — | — | — |
+| `decode_image` | — | ✓ | — | — | — | — |
 
 ### SdlBackend
 
@@ -144,7 +188,8 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   translates terminal bytes — printable chars, the `ESC [` sequences of the
   arrows, Home/End, Insert/Delete, Page Up/Down and the function keys with the
   modifiers of their xterm parameter, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C,
-  Escape and the ESC-prefixed Alt chords — into the same
+  the Ctrl bytes of the letters (0x01 is Ctrl+A), Escape and the ESC-prefixed Alt
+  chords — into the same
   `KeyDown`/`KeyPress`/`WindowQuit` vocabulary the readers already use, wrapped in
   an `WindowInput(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - `wait_for_input` waits on an autoreset gate a watcher task notifies: the
@@ -193,13 +238,15 @@ Then open `http://127.0.0.1:8080`: the **primary** (first) `WindowDocument`
 renders directly in that tab immediately — no button to click. Every
 **additional** `WindowDocument` opens as a browser window of its own.
 
-A browser opens a window only inside a transient user activation, and a window
-the editor opens on a hover — a tooltip — has none. **The client solves that and
-does not fold the window into the page**: on the first interaction in the tab it
+A browser opens a window only inside a transient user activation. The client
+does not fold a window into the page: on the first interaction in the tab it
 opens one window and holds it empty, and gives it to the next window that arrives
 without an activation. A gesture refills the reserve. A window is a window here
 as it is on SDL, which is
-[PAR-MANY-WINDOWS](../../rule/architecture-invariants.md#par-many-windows). Selecting the web backend is just passing
+[PAR-MANY-WINDOWS](../../rule/architecture-invariants.md#par-many-windows). The
+page sends pointer motion only while a button is held, so a hover effect and a
+tooltip do not happen in the browser ([web.md](../web/web.md) states the limit).
+Selecting the web backend is just passing
 `backend=WebBackend(...)` to `run_example`, which otherwise takes the same
 arguments; `WebBackend`'s constructor defaults `host`/`port`.
 
@@ -247,9 +294,12 @@ Client → server (raw browser key fields; the server maps them):
 {"type":"resize","window":"json","w":…,"h":…}   {"type":"resync"}   {"type":"quit"}
 ```
 
-Key mapping is done **on the server** (`convert_web_key_to_symbol`, mirroring
-`sdl_keysym_to_symbol`) so the `:left`/`:char`/… vocabulary has a single source
-of truth.
+The server maps the keys (`convert_web_key_to_symbol`) to the names of the event
+layer. A letter key has the name of its lower-case letter, as in the SDL and the
+console backends. The page names the left, the middle and the right button, and
+it sends no `mousedown` and no `mouseup` for a side button; the server also drops
+a message with another button name. A wheel turn away from the user sends a
+positive `dy`, as SDL does.
 
 #### Incremental rendering (dirty-rect patches)
 
@@ -287,11 +337,9 @@ SDL backend.
 
 ## File-export backends
 
-The backends above (`SdlBackend`, `ConsoleBackend`, `WebBackend`) are
-*interactive* — they drive live output and input devices. Output-only file
-export lives alongside the backend layer but does **not** subtype
-`Backend` — there are no devices or events, just a `GraphicsCanvas` turned into a
-file:
+The backends above drive output and input. The file export below does not
+subtype `Backend`: it has no devices and no events, and it turns a
+`GraphicsCanvas` into a file.
 
 - **`write_image`** ([package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
@@ -304,6 +352,8 @@ file:
   window: it rasterizes each frame through the same offscreen SDL renderer as
   `write_image`, then encodes the frames with `ffmpeg` (via `FFMPEG.jl`). It
   is a separate opt-in package because it is the only one that pulls in FFMPEG.
+  The same package holds `VideoBackend`, a `Backend` over the same renderer,
+  which plays a scripted timeline through the `run_editor!` loop.
 
 See [the graphics guide](../graphics/graphics.md) for the image and PDF APIs.
 
@@ -335,11 +385,18 @@ instead.
 ## Adding a new backend
 
 1. Subtype `Backend` (defined in `source/kernel/backend/`) in your backend package.
-2. Implement the `Backend` interface (`initialize_backend!`, `quit_backend!`,
-   `read_from_devices`, `write_to_devices`).
-3. Translate native events into the existing backend-agnostic event types
-   so projection code does not need to change.
-4. Draw each glyph where a `TextMeasure` places it, so the ink lands where the
+2. Add a method of `initialize_backend!`, `quit_backend!`, `read_from_devices`
+   and `write_to_devices`, which have no default.
+3. If the platform can block until input arrives, add a method of
+   `wait_for_input` and of `wake_backend!`. If the backend has native windows,
+   add a method of `open_native_windows!`. If it can find the properties of the
+   hardware, add a method of `configure_devices!`.
+4. Translate native events into the existing backend-agnostic event types
+   so projection code does not need to change. A letter key has the name of its
+   lower-case letter, a button that the event layer does not name makes no
+   event, and a positive `dy` of a `MouseScroll` is a wheel turn away from the
+   user.
+5. Draw each glyph where a `TextMeasure` places it, so the ink lands where the
    layout put it.
 
 The fact that every event at the projection level is a `KeyPress`/`KeyDown`/`Mouse*`/`WindowQuit`
@@ -480,10 +537,13 @@ no intent. The only import of the layer is `EventModule`.
 
 ## The backend layer (layer 9)
 
-Layer 9 of the kernel — **rendering targets**. The layer carries the abstract
-`Backend` type and the backend generics; the concrete backends live in opt-in
-packages, and the dependency-free `HeadlessBackend` test double lives in
-`ProjecturedKernelExample` (PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
+Layer 9 of the kernel — **the seam to a platform**: the life of a backend, one
+input at a time, the output of each frame, the wait between frames, a few
+queries, and the output to a file. The layer carries the abstract `Backend` type
+and the backend generics. The SDL, web and video backends live in opt-in
+packages, and the console backend is a substrate package. The dependency-free
+`HeadlessBackend` test double lives in `ProjecturedKernelExample`
+(PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
 
 The layer lives in [source/kernel/backend/](../../../source/kernel/backend/):
 
@@ -496,11 +556,12 @@ BackendDefaults.jl  (BackendModule)         — the fallback behaviours the cont
 ### BackendModule
 
 Declares `Backend <: Any` and the backend generics `initialize_backend!`,
-`quit_backend!`, `read_from_devices`, `write_to_devices`,
-`get_display_size`, `configure_devices!`, `open_native_windows!`, `write_image`,
-`record_video`, `render_canvas`, `decode_image`, `get_pointer_position`. Concrete backends
-(SDL, Web, Console, Headless, …) live in opt-in packages that subtype `Backend`
-and add methods for their own `::MyBackend` type. A backend is constructed by
+`quit_backend!`, `write_to_devices`, `open_native_windows!`, `read_from_devices`,
+`wait_for_input`, `wake_backend!`, `get_pointer_position`, `get_display_size`,
+`configure_devices!`, `write_image`, `record_video`, `render_canvas` and
+`decode_image`. A concrete backend lives in a package above the kernel, subtypes
+`Backend` and adds methods for its own `::MyBackend` type (see the tables in
+[Backends](#backends)). A backend is constructed by
 naming its type directly (`SdlBackend()`, `ConsoleBackend()`). Code that must
 pick a backend without depending on its package uses
 [`ProjecturedExample.default_backend`](../../../example/projectured/DefaultBackend.jl),
@@ -511,11 +572,12 @@ no per-backend registration.
 `BackendInterface.jl` is an **interface file** (PAR-INTERFACE-DECLARES-ONLY): it declares and never implements,
 so every generic there is a bodiless `function f end`. The fallback behaviours
 the contract supplies for itself sit beside it in `BackendDefaults.jl`, for the
-capabilities a backend may not support: `get_pointer_position` answers `(-1, -1)`,
+capabilities a backend can lack: `get_pointer_position` answers `(-1, -1)`,
 `get_display_size` answers `(1280, 800)`, `configure_devices!` is a no-op that
-leaves the devices at their default properties, and `open_native_windows!` is a
-no-op for a backend that has no native windows to open — each a legal answer
-rather than a missing implementation. The batch generics deliberately have no
+leaves the devices at their default properties, `open_native_windows!` is a
+no-op for a backend that has no native windows to open, `wait_for_input` sleeps
+for at most 10 ms, and `wake_backend!` is a no-op. Each is a legal answer rather
+than a missing implementation. The batch generics deliberately have no
 such fallback: an unimplemented `write_to_devices` or `write_image` must raise a
 `MethodError` rather than fabricate a result.
 

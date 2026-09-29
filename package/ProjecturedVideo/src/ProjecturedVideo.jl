@@ -15,7 +15,8 @@ out to `ffmpeg` (via `FFMPEG.jl`) to encode the frames into an `.mp4`. The
 a scripted timeline played through the real `run_editor!` loop — every tool the loop
 offers, not one projection printed by hand — rather than `record_video`'s own loop.
 
-Usage: `using Projectured, ProjecturedSdl, ProjecturedVideo; record_video(doc, proj, gestures, "out.mp4")`.
+Usage: `using Projectured, ProjecturedSdl, ProjecturedVideo;
+record_video(doc, proj; gestures, filename = "out.mp4")`.
 """
 module ProjecturedVideo
 
