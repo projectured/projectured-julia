@@ -435,6 +435,13 @@ end
 # a loop variable reassigned on the next iteration.
 _project_output_cell(child_cell) = Cell(@computation child_cell[].output)
 
+# The child IoMaps of the collection `doc.<field>`, each element printed by its own
+# projection. An element that stays at its index keeps its IoMap across an edit.
+_reconcile_element_iomaps(doc, field::Symbol; recursion, context) =
+    reconcile_child_iomaps(() -> getproperty(doc, field), (i, x) ->
+        print_child(recursion, x, make_child_context(context,
+            FieldReferenceStep(String(field)), ElementReferenceStep(i))))
+
 # A node-shaped output: recurse over `doc.<input>` (School A), reconstruct the
 # node with the projected children and a deferred selection cell, and store the
 # child iomaps so the mappers can delegate each child's tail.
@@ -443,9 +450,7 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
     elements_fn = () -> getproperty(doc, input_field)
     child_iomaps = if coll.element === nothing
         # homogeneous: each element projected by its own projection
-        reconcile_child_iomaps(elements_fn, (i, x) ->
-            print_child(recursion, x,
-                make_child_context(ctx, FieldReferenceStep(String(input_field)), ElementReferenceStep(i))))
+        _reconcile_element_iomaps(doc, input_field; recursion, context = ctx)
     else
         # templated: build a fixed-children node per element via the element builder
         reconcile_child_iomaps(elements_fn, (i, x) ->
@@ -619,10 +624,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
         end
     end
     coll_field === nothing && error("ProjectionTemplate: mixed node has no spliced collection")
-    coll_iomaps = Cell(@computation([
-        print_child(recursion, x,
-            make_child_context(ctx, FieldReferenceStep(String(coll_field)), ElementReferenceStep(i)))
-        for (i, x) in enumerate(getproperty(doc, coll_field))]))
+    coll_iomaps = _reconcile_element_iomaps(doc, coll_field; recursion, context = ctx)
     children = make_children_container(() -> vcat(
         [s isa Cell ? s[].output : s for s in prefix_sources],
         [im.output for im in coll_iomaps[]]))
@@ -692,14 +694,13 @@ end
 # section index is dynamic; `make_wrapper(entry_outputs)` is consumer code that
 # builds the (output-domain) wrapper node, keeping the engine output-neutral.
 function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
+    entry_iomaps = [_reconcile_element_iomaps(doc, field; recursion, context = ctx)
+                    for (field, _) in specs]
     section_iomaps = Cell(@computation begin
         res = NamedTuple[]
-        for (field, mk) in specs
-            coll = getproperty(doc, field)
-            isempty(coll) && continue
-            entries = [print_child(recursion, x,
-                           make_child_context(ctx, FieldReferenceStep(String(field)), ElementReferenceStep(i)))
-                       for (i, x) in enumerate(coll)]
+        for ((field, mk), entries_cell) in zip(specs, entry_iomaps)
+            entries = entries_cell[]
+            isempty(entries) && continue
             push!(res, (field=field, mk=mk, entries=entries))
         end
         res

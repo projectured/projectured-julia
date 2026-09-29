@@ -216,3 +216,84 @@ function test_projection_template_gesture_descent()
         @test P.RECEIVED_RECURSION[] === projection
     end
 end
+
+# A mixed node, a heading leaf with the items spliced after it, and a sectioned
+# node, one wrapper for each field that has entries.
+module _ReconciledChildrenProbe
+    import ProjecturedKernel.DocumentModule: Document, var"@document"
+    import ProjecturedKernel.CellModule: Cell, Computation
+    import ProjecturedKernel.ReferenceModule: Reference
+    import ProjecturedKernel.ProjectionModule: Projection, print_document
+    import ProjecturedKernel.ProjectionModule: var"@projection"
+    import ProjecturedKernel.ProjectionModule: var"@projection_template"
+    import ProjecturedCollection.CollectionModule: CellVector
+    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode
+    import ProjecturedText.TextModule: TextString
+    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedStyle.StyleModule: color_default
+
+    @document struct Item <: Document
+        text::String
+    end
+    Item(text::AbstractString) = Item(Cell(String(text)), Cell(nothing))
+
+    @document struct Group <: Document
+        name::String
+        items::CellVector
+    end
+
+    @document struct Sheet <: Document
+        rows::CellVector
+        notes::CellVector
+    end
+
+    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+
+    @projection struct ItemToLeaf <: Projection end
+    @projection_template ItemToLeaf Item (p, doc) ->
+        SyntaxLeaf(bound(:text, String, _text(() -> doc.text)))
+
+    @projection struct GroupToNode <: Projection end
+    @projection_template GroupToNode Group (p, doc) ->
+        SyntaxNode(nothing, nothing, nothing,
+                   Any[ SyntaxLeaf(bound(:name, String, _text(() -> doc.name))),
+                        collection(:items) ],
+                   0, false, nothing)
+
+    @projection struct SheetToNode <: Projection end
+    @projection_template SheetToNode Sheet (p, doc) ->
+        SyntaxNode(sections([(:rows, outs -> SyntaxNode(outs)),
+                             (:notes, outs -> SyntaxNode(outs))]))
+end
+
+function test_projection_template_reconciled_children()
+    @testset "ProjectionTemplate keeps the child IoMaps of mixed and sections nodes" begin
+        P = _ReconciledChildrenProbe
+        projection = RecursiveProjection(TypeDispatchingProjection(
+            P.Group => P.GroupToNode(), P.Sheet => P.SheetToNode(),
+            P.Item => P.ItemToLeaf()))
+        make_items(texts) = CellVector([P.Item(text) for text in texts])
+
+        # An insert into the spliced collection prints the new element only.
+        group = P.Group("g", make_items(["a", "b"]), nothing)
+        iomap = print_document(projection, group)
+        before = copy(iomap.child_iomaps.coll[])
+        push!(group.items, P.Item("c"))
+        after = iomap.child_iomaps.coll[]
+        @test length(after) == 3
+        @test after[1] === before[1] && after[2] === before[2]
+        @test occursin("c", render(iomap.output))
+
+        # An insert into one section keeps the entries of that section and of the other.
+        sheet = P.Sheet(make_items(["r1", "r2"]), make_items(["n1"]), nothing)
+        iomap = print_document(projection, sheet)
+        rows = copy(iomap.child_iomaps[1].entries)
+        notes = copy(iomap.child_iomaps[2].entries)
+        push!(sheet.rows, P.Item("r3"))
+        after_rows = iomap.child_iomaps[1].entries
+        @test length(after_rows) == 3
+        @test after_rows[1] === rows[1] && after_rows[2] === rows[2]
+        @test iomap.child_iomaps[2].entries[1] === notes[1]
+        @test occursin("r3", render(iomap.output))
+    end
+end
