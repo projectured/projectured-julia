@@ -1190,7 +1190,7 @@ function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
             (mins[k], maxs[k], prefs[k], wts[k]) =
                 _gl_axis_inputs(policy, reads(k) ? content[k][] : 0)
         end
-        (avail === nothing || !weighted) && return prefs
+        (avail === nothing || !weighted) && return Int[clamp(prefs[k], mins[k], maxs[k]) for k in 1:c]
         allocate_axis(Int(avail[]); mins, maxs, prefs, weights = wts, gap = gap[], n = c)
     end))
 end
@@ -1278,6 +1278,9 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     column_offers = doc.column_offers
     offers_to_cells(k::Int) = _gl_offers(peek_column_policy(k)) &&
         !(column_offers isa AbstractVector && k <= length(column_offers) && column_offers[k] === false)
+    row_offers = doc.row_offers
+    offers_to_row_cells(k::Int) = _gl_offers(peek_row_policy(k)) &&
+        !(row_offers isa AbstractVector && k <= length(row_offers) && row_offers[k] === false)
 
     # Up to n columns and n rows — one child per column, or one column of n.
     #
@@ -1297,7 +1300,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end
     col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w;
                                    reads = k -> !offers_to_cells(k))
-    row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h)
+    row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h;
+                                   reads = k -> !offers_to_row_cells(k))
     col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
     row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
 
@@ -1337,7 +1341,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
             cctx = offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    withhold_offer(cctx, :x)
-            cctx = _gl_offers(peek_row_policy(row)) ?
+            cctx = offers_to_row_cells(row) ?
                 with_exact_size(cctx; height = _gl_int32_cell(row_h[row])) :
                 withhold_offer(cctx, :y)
         end

@@ -129,6 +129,34 @@ end
     @test Int(io.output.w[]) < 120
 end
 
+@testset "a column is at least its minimum, and a sized row can keep its height from its cells" begin
+    ctx = with_exact_size(PrinterContext(EmptyReference());
+                          width=_LC_Cell(600), height=_LC_Cell(400))
+    # A recursive projection, so a print answers the IO map of the grid.
+    proj = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
+    cells() = Any[WidgetLabel("a"), WidgetLabel("b")]
+    # A column that is its content and has a minimum is at least that wide,
+    # in a grid with no weight as in one with a weight.
+    plain = print_document(proj, nothing, GridLayout(cells(), 2), ctx)
+    floored = print_document(proj, nothing,
+                             GridLayout(cells(), 2; column_policies=Any[SizePolicy(100, nothing, nothing, 0.0),
+                                                                        Content]), ctx)
+    @test Int(plain.col_w[1][]) < 100
+    @test Int(floored.col_w[1][]) == 100
+    # A row told its height hands it to its cells, unless `row_offers` keeps
+    # it: then the cell draws the height it measures, and the row clips it.
+    one() = Any[WidgetLabel("a")]
+    offered = print_document(proj, nothing, GridLayout(one(), 1; row_policies=Any[Fixed(200)]), ctx)
+    withheld = print_document(proj, nothing,
+                              GridLayout(one(), 1; row_policies=Any[Fixed(200)], row_offers=Bool[false]), ctx)
+    cell(io) = only(e for e in io.output.elements if e isa GraphicsViewport).content.elements[1]
+    @test Int(withheld.row_h[1][]) == 200
+    @test Int(cell(offered).h[]) == 200
+    @test Int(cell(withheld).h[]) < 200
+end
+
 @testset "StackLayout active shows exactly one page" begin
     # The full widget pipeline registers StackLayout (the layout-only example omits it).
     wproj = make_widget_projection_example()

@@ -248,6 +248,12 @@ An entry past the end of a vector, or `nothing` in one, means the default.
 A weighted column or row is given its share of what the parent offered, and its
 cells are offered that share. A `Content` one keeps the axis withheld, because
 its extent comes from those cells and offering it back would close a cycle.
+Every column and row is at least the `min` and at most the `max` of its policy.
+
+`column_offers` and `row_offers` are one `Bool` for each column and each row: a
+`false` keeps the extent of a sized column or row from its cells, which it then
+clips. A caller uses it to measure a cell at its own size in a column or a row
+that another grid sizes.
 """
 @document struct GridLayout <: LayoutDocument
     children::CellVector
@@ -270,6 +276,8 @@ its extent comes from those cells and offering it back would close a cycle.
     # what a table means by a clipped cell, and it is said here because the
     # offer is the grid's to make.
     column_offers::Any
+    # Vector{Bool}, one per row; the same for the height of a row.
+    row_offers::Any
 end
 
 function GridLayout(children::Vector, columns::Integer;
@@ -282,7 +290,8 @@ function GridLayout(children::Vector, columns::Integer;
                     row_policy::SizePolicy=Content,
                     column_policies=Any[],
                     row_policies=Any[],
-                    column_offers=Bool[])
+                    column_offers=Bool[],
+                    row_offers=Bool[])
     columns >= 1 || error("GridLayout: columns must be >= 1")
     GridLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(Int(columns)),
@@ -291,7 +300,7 @@ function GridLayout(children::Vector, columns::Integer;
                Cell(collect(column_align)),
                Cell(column_policy), Cell(row_policy),
                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
-               Cell(collect(Bool, column_offers)),
+               Cell(collect(Bool, column_offers)), Cell(collect(Bool, row_offers)),
                Cell(nothing))
 end
 
@@ -315,7 +324,7 @@ function GridLayout(rows::ListNode, columns::Integer;
                Cell(collect(column_align)),
                Cell(column_policy), Cell(row_policy),
                Cell(collect(Any, column_policies)), Cell(Any[]),
-               Cell(collect(Bool, column_offers)),
+               Cell(collect(Bool, column_offers)), Cell(Bool[]),
                Cell(nothing))
 end
 

@@ -6,8 +6,8 @@
 #
 # A whole-element selection is *not* a distinct reference step: it is just a
 # path terminating AT the element, i.e. `∅`. The table renderer — the one place
-# that owns the grid geometry (read off the GridLayout iomap) — turns a 1-D axis
-# handle into a 2-D highlight band. Reference vocabulary on WidgetTable:
+# that owns the geometry of the grids of its parts — turns a 1-D axis handle into
+# a 2-D highlight band. Reference vocabulary on WidgetTable:
 #   * whole table   → `∅`
 #   * whole row r   → `rows[r]∅`
 #   * whole column c→ `column_headers[c]∅`
@@ -28,17 +28,22 @@ _wt_cell(r, c) = ConcreteReference(FieldReferenceStep("rows"),
                     ConcreteReference(ElementReferenceStep(r),
                         ConcreteReference(ElementReferenceStep(c), EmptyReference())))
 
-# The translucent selection band(s) the renderer prepends (alpha 0x40),
-# materialised to value tuples *immediately*. The band is a single persistent
+# The translucent selection band(s) in the graphics of the table (a quarter
+# opaque, as the theme makes the band of a selected row),
+# which every region of the table shows, materialised to value tuples
+# *immediately*. The band is a single persistent
 # reactive overlay whose (x, y, w, h) cells read the LIVE `w.selection`, so holding
 # the `GraphicsRect` and reading its cells later would report whichever selection is
 # current then — not the one active at this print. Snapshotting here pins each band
 # to the selection that produced it. A 0×0 band (no whole-element selection — e.g. an
-# in-cell cursor) draws nothing and is filtered out.
+# in-cell cursor) draws nothing and is filtered out. The region of the cells is
+# the last element of the table, and its graphics are in its first viewport.
 function _table_highlights(io)
     bands = @NamedTuple{x::Int, y::Int, w::Int, h::Int}[]
-    for c in collect(io.output.elements)
-        (c isa GraphicsRect && c.color.alpha == 0x40 / 255) || continue
+    region = io.output.elements[end]
+    graphics = only(e for e in region.elements if e isa GraphicsViewport).content
+    for c in collect(graphics.elements)
+        (c isa GraphicsRect && c.color.alpha ≈ 0.25) || continue
         x, y, w, h = Int(c.x[]), Int(c.y[]), Int(c.w[]), Int(c.h[])
         (w > 0 && h > 0) || continue
         push!(bands, (x = x, y = y, w = w, h = h))

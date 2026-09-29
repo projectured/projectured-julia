@@ -297,7 +297,7 @@ plan.
     the rows `Fixed` (a row as tall as its cells would change while the pane
     scrolls sideways), and the grid places a list of the column positions
     that draws nothing, so the pane stops at the first and the last column.
-- [ ] **2. The table of layouts.** Implementation design, 2026-09-30:
+- [x] **2. The table of layouts.** Implementation design, 2026-09-30:
   - **The parts.** The cells are a `GridLayout` over `rows` (a flat vector
     of the cells for an eager table, the list of rows for a lazy one), with
     the gaps of the table (`2 × cell padding + border`). The header row is a
@@ -326,7 +326,7 @@ plan.
     Alt+click selects the cell, the hover names a row, and the keys move over
     rows and cells. They read the geometry that the grids report, shifted by
     the offset.
-  - [x] **2a. The table of a list** (this commit). `WidgetTableParts.jl`
+  - [x] **2a. The table of a list** (`b04592aec`). `WidgetTableParts.jl`
     replaces `WidgetTableList.jl`; the eager table prints as before until 2b.
     Facts and decisions of the implementation:
     - **The kind of a policy is read with `peek`.** Both grid printers read
@@ -366,13 +366,60 @@ plan.
     - The data frame view draws the table with no pane and shares its
       `scroll_position` with the table. The test is
       `WidgetTablePartsTest.jl`.
-  - [ ] **2b. The eager table** on the same parts, with a header column, and
-    `row_offers` on `GridLayout` (P9).
+  - [x] **2b. The eager table** (this commit), on the same parts, with a
+    header column, and `row_offers` on `GridLayout` (P9). Facts and decisions:
+    - **The readers keep the geometry of the whole table**, `WTGeometry`, as
+      if it were not scrolled: the widths from the grid of the cells (of the
+      header row when there are no rows), the heights from the grids of the
+      cells and of the header row. A point over a part that scrolls moves by
+      the offset that the pane of the cells draws with. So the hit test, the
+      hover, the bands, the keys and the selection shapes of the old printer
+      stay as they were, and `test_table_selection`,
+      `test_table_navigation`, `test_table_cell_editing` and
+      `test_widget_table` pass.
+    - **One list of graphics, four regions.** The table draws its rules, its
+      header bands and its two bands once, in the coordinates of the
+      geometry; the corner, the header row, the header column and the cells
+      each show that list behind their pane, moved by their own offset and
+      clipped to their box, as the regions of a frozen pane showed one
+      content. So the band of a row spans the header column and the cells,
+      and the band of a column the header row and the cells.
+    - **The parts are built again when the table changes its shape**, in one
+      computed cell, as the old printer built its grid again.
+    - **The floors.** A column that is its content takes the width of its
+      header as its `min`; a weighted column that clips takes the larger of
+      its header and its widest cell, read after the cells print; a column
+      whose header is offered its width and wraps has no floor. A `Content`
+      row takes the height of its header as its `min`; a weighted row takes
+      none, as before. `GridLayout` now clamps every extent to the `min` and
+      the `max` of its policy when no weight shares the offer too; before, a
+      `min` without a weight was ignored. No caller had such a policy.
+    - **The table fills its offer.** A table that was offered less than its
+      columns need was wider than the offer; it now is as wide as the offer
+      and scrolls its cells. `test_widget_table_content_floor` and
+      `test_widget_table_cell_policy` read the geometry now.
+    - **The table no longer declares `get_frozen_extent`**, because it holds
+      its headers itself. `test_frozen_table_headers` tests the four regions
+      of the table and the offsets of its parts. The frozen code of the pane
+      has no user left; phase 5 removes it.
+    - **Events.** The wheel goes to the pane of the cells. A button down or
+      up goes to the cell under it, a header as well, in the coordinates of
+      the cell, and any answer is rooted under the cell. An operation from
+      below gets no answer, as before: the grid that had it had no selection.
+    - The IO map of the list table is `WidgetTableListIoMap` again.
+    - `test_table_selection` failed on `main` already (9 fail, 1 error): its
+      filter compared the alpha of a band with `0x40 / 255`, and the theme
+      makes it 0.25. The filter reads the graphics of the regions now and
+      compares with 0.25; 21 pass.
+    - A stored `x` past the end of the columns shows empty space at the
+      right, because a pane clamps `x` only as it scrolls.
 - [ ] **3. Relocation** in both directions (§3.6), and the row at the top
   (§3.7).
 - [ ] **4. Selection, keys and bands across the parts.** `test_table_selection`,
   `test_table_navigation`, `test_table_cell_editing`, `test_widget_table`,
-  `test_widget_table_list`.
+  `test_widget_table_list`. The eager table has them since 2b. Left for the
+  table of a list: the band of a selected column in the header row and the
+  cells, and a button down or up to the cell under it (2a).
 - [ ] **5. The pane loses its frozen regions.** §3.10, the frozen example,
   `test_frozen_table_headers` becomes a test of the table,
   `DirtyRectTest`, `WidgetColorTest`, widget.md, sdl.md.

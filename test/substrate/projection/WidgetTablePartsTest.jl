@@ -133,7 +133,7 @@ apply!(table, op) = (getfield(table, :scroll_position)[] = get_wrapped_operation
 @testset "a list of 100,000 rows builds a handful" begin
     built = Ref(0)
     io = print_document(rec, nothing, make_table(make_list(100_000, texts_of; built)), context())
-    @test io isa WidgetTablePartsIoMap
+    @test io isa WidgetTableListIoMap
     @test head_of(io) isa ListNode
     # Printing built the head and nothing else; following twenty links builds
     # twenty more, and the other 99,979 are never built.
