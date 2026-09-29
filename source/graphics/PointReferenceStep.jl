@@ -36,7 +36,7 @@ function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_
         if $hex isa $(GlobalRef(GraphicsModule, :PointReferenceStep))
             $inner1
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

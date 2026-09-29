@@ -47,7 +47,7 @@ function ReferenceModule.match_reference_step(::Val{:rulestoy}, hex, argpats, re
         if $hex isa $RulesToyStep
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

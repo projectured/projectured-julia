@@ -53,7 +53,7 @@ function ReferenceModule.match_reference_step(::Val{:row}, hex, argpats, rest_su
         if $hex isa $(GlobalRef(SequenceChartModule, :SequenceChartRowReferenceStep))
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

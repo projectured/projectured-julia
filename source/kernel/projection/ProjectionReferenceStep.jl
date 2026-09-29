@@ -134,7 +134,7 @@ function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_s
         if $hex isa $(GlobalRef(ProjectionModule, :ProjectionReferenceStep))
             $after_proj
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

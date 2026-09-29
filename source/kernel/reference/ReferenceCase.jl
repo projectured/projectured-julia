@@ -571,30 +571,30 @@ end
 # ------------------------------------------------------------
 
 # The value of an arm that does not match. The generated arms and the match branch
-# that an extension step returns (`match_reference_step`) name it as `_nomatch`, and
+# that an extension step returns (`match_reference_step`) name it as `_NO_MATCH`, and
 # the expansion reads it from this module, so no call allocates one.
-const _nomatch = Base.RefValue{Any}()
+const _NO_MATCH = Base.RefValue{Any}()
 
 # Returns (expr, boundnames)
 #
-# `expr` evaluates either to `success` or to `_nomatch`.
+# `expr` evaluates either to `success` or to `_NO_MATCH`.
 function _gen_value_match(valex, pat::PatValueWildcard, success, bound::Set{Symbol})
     return success, bound
 end
 
 function _gen_value_match(valex, pat::PatValueLiteral, success, bound::Set{Symbol})
     lit = pat.value
-    return :($valex == $(QuoteNode(lit)) ? $success : _nomatch), bound
+    return :($valex == $(QuoteNode(lit)) ? $success : _NO_MATCH), bound
 end
 
 function _gen_value_match(valex, pat::PatValueInterp, success, bound::Set{Symbol})
-    return :($valex == $(esc(pat.expr)) ? $success : _nomatch), bound
+    return :($valex == $(esc(pat.expr)) ? $success : _NO_MATCH), bound
 end
 
 function _gen_value_match(valex, pat::PatValueBind, success, bound::Set{Symbol})
     name = pat.name
     if name in bound
-        return :($valex == $(esc(name)) ? $success : _nomatch), bound
+        return :($valex == $(esc(name)) ? $success : _NO_MATCH), bound
     else
         return :(let $(esc(name)) = $valex
                      $success
@@ -605,12 +605,12 @@ end
 function _gen_value_match(valex, pat::PatValueGlob, success, bound::Set{Symbol})
     return :(($valex isa AbstractString &&
               ReferenceModule.glob_matches($(pat.pattern), $valex)) ?
-             $success : _nomatch), bound
+             $success : _NO_MATCH), bound
 end
 
 function _gen_value_match(valex, pat::PatValueRange, success, bound::Set{Symbol})
     lo, hi = esc(pat.lo), esc(pat.hi)
-    return :(($valex isa Number && $lo <= $valex <= $hi) ? $success : _nomatch), bound
+    return :(($valex isa Number && $lo <= $valex <= $hi) ? $success : _NO_MATCH), bound
 end
 
 # An alternation never reaches codegen: `_gen_rule` routes a pattern holding one to the
@@ -624,14 +624,14 @@ function _gen_value_match(valex, pat::PatValueTypedBind, success, bound::Set{Sym
     name = pat.name
     ty = esc(pat.ty)
     if name in bound
-        return :(($valex isa $ty && $valex == $(esc(name))) ? $success : _nomatch), bound
+        return :(($valex isa $ty && $valex == $(esc(name))) ? $success : _NO_MATCH), bound
     else
         return :(if $valex isa $ty
                      let $(esc(name)) = $valex
                          $success
                      end
                  else
-                     _nomatch
+                     _NO_MATCH
                  end), union(bound, Set([name]))
     end
 end
@@ -678,7 +678,7 @@ function _gen_step_match(hex, tex, step::PatStepField, rest_success, bound::Set{
         if $hex isa ReferenceModule.AFieldReferenceStep
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound2
@@ -693,7 +693,7 @@ function _gen_step_match(hex, tex, step::PatStepIndex, rest_success, bound::Set{
            ReferenceModule.is_element_reference_step($hex)
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound2
@@ -708,7 +708,7 @@ function _gen_step_match(hex, tex, step::PatStepPosition, rest_success, bound::S
            ReferenceModule.is_position_reference_step($hex)
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound2
@@ -725,7 +725,7 @@ function _gen_step_match(hex, tex, step::PatStepRange, rest_success, bound::Set{
         if $hex isa ReferenceModule.ARangeReferenceStep
             $inner1
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1
@@ -782,7 +782,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         test = terminal === :below ?
                :($path_ex isa ReferenceModule.ConcreteReference) :
                :($path_ex isa ReferenceModule.EmptyReference)
-        return :($test ? $success : _nomatch), bound
+        return :($test ? $success : _NO_MATCH), bound
     end
 
     # A gap whose length is arithmetic rather than a search — see `_computed_gap_split`,
@@ -806,10 +806,10 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
             let $p = $path_ex
                 let $taken = ReferenceModule._navigation_length($p) - $(length(suffix))
                     if $taken < 0
-                        _nomatch
+                        _NO_MATCH
                     else
                         let $skipped = ReferenceModule._drop_navigation_steps($p, $taken)
-                            $skipped === nothing ? _nomatch : $rest
+                            $skipped === nothing ? _NO_MATCH : $rest
                         end
                     end
                 end
@@ -822,7 +822,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         # A tail bind swallows whatever remains, so the leftover is empty by
         # construction — which `below` can never satisfy.
         name = steps[1].name
-        terminal === :below && return :(_nomatch), union(bound, Set([name]))
+        terminal === :below && return :(_NO_MATCH), union(bound, Set([name]))
         return :(let $(esc(name)) = $path_ex; $success end), union(bound, Set([name]))
     end
 
@@ -839,7 +839,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         nodetype = gensym(:nodetype)
         ex = quote
             let $sp = $path_ex, $nodetype = ReferenceModule._type_step_node_type($sp)
-                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _nomatch
+                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _NO_MATCH
             end
         end
         return ex, b
@@ -871,7 +871,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         test = terminal === :at ? :($a == $b) :
                terminal === :below ? :(ReferenceModule.is_reference_prefix($b, $a)) :
                :($a == $b || ReferenceModule.is_reference_prefix($b, $a))
-        return :($test ? $success : _nomatch), bound
+        return :($test ? $success : _NO_MATCH), bound
     end
 
     p = gensym(:p)
@@ -889,7 +889,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
                     $step_success
                 end
             else
-                _nomatch
+                _NO_MATCH
             end
         end
     end
@@ -906,8 +906,9 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
     if isempty(steps)
         # The pattern is spent, so the input was not strictly shallower. It is `at`
         # if the input is spent too, which only `toward` accepts.
-        include_at || return :(_nomatch), bound
-        return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _nomatch), bound
+        include_at || return :(_NO_MATCH), bound
+        return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _NO_MATCH),
+               bound
     end
 
     if length(steps) == 1 && steps[1] isa PatStepPathInterp
@@ -918,7 +919,7 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
         test = include_at ?
                :(ReferenceModule.is_reference_prefix($a, $b) || $a == $b) :
                :(ReferenceModule.is_reference_prefix($a, $b))
-        return :($test ? $success : _nomatch), bound
+        return :($test ? $success : _NO_MATCH), bound
     end
 
     # A leading `::T` is a non-navigating **narrowing** type assertion (the same
@@ -932,7 +933,7 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
         nodetype = gensym(:nodetype)
         ex = quote
             let $sp = $path_ex, $nodetype = ReferenceModule._type_step_node_type($sp)
-                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _nomatch
+                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _NO_MATCH
             end
         end
         return ex, b
@@ -969,7 +970,7 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
                     $step_match
                 end
             else
-                _nomatch
+                _NO_MATCH
             end
         end
     end
@@ -986,7 +987,7 @@ function _gen_rule(rule)
         :(if $(esc(cond))
               $(esc(rhs))
           else
-              _nomatch
+              _NO_MATCH
           end)
 
     # A lone anonymous gap is the catch-all arm — by far the commonest arm there is, and
@@ -1000,7 +1001,7 @@ function _gen_rule(rule)
         # take anything, leaving the whole input over, so "strictly deeper" reduces to
         # "the input is not empty".
         mode === :below || return body
-        return :(_ref_input isa ReferenceModule.ConcreteReference ? $body : _nomatch)
+        return :(_ref_input isa ReferenceModule.ConcreteReference ? $body : _NO_MATCH)
     end
 
     # A gap whose length is arithmetic compiles like everything else.
@@ -1059,7 +1060,7 @@ function _gen_interpreted_rule(mode, pat::Vector{PatStep}, body)
         let $bindings = ReferenceModule.match_reference_pattern($(QuoteNode(mode)),
                                                                 $pattern, _ref_input)
             if $bindings === nothing
-                _nomatch
+                _NO_MATCH
             else
                 let $(lets...)
                     $body
@@ -1132,7 +1133,7 @@ macro reference_case(ref, block)
         rule_ex = _gen_rule(rule)
         chain = quote
             let _m = $rule_ex
-                _m === _nomatch ? $chain : _m
+                _m === _NO_MATCH ? $chain : _m
             end
         end
     end

@@ -25,7 +25,7 @@ function ReferenceModule.match_reference_step(::Val{:sample}, hex, argpats, rest
         if $hex isa $(GlobalRef(ChartModule, :ChartSampleReferenceStep))
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1
