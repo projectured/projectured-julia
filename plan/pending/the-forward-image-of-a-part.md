@@ -380,7 +380,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
     must map back from the center of its visible box or from the center of a
     drawn element under its image. 224 parts make the round trip, 133 are not
     displayed, 44 are out of view and 2 draw nothing. The row headers of the
-    frozen table map back to their rows (Q12), marked `@test_broken`.
+    frozen table mapped back to their rows; after Q12 they map to themselves.
   - Found by the test in the whole suite, where the SDL package is loaded and
     decodes the images of the examples: **an image was never hit.**
     `_hit_test_element` had no case for `GraphicsImage`, so a press on a label
@@ -404,12 +404,25 @@ Facts from a search on 2026-09-28, with the two central ones read again:
 
 ## 5. Open questions
 
-- **Q12. What a point on a row header of a table maps back to.** The table's
-  backward map answers `rows[k]`, the whole row, for a point on a row header,
-  because an Alt+press there selects the row; for a point on a column header it
-  answers `column_headers[k]`, the header. The round trip wants the part that is
-  drawn there, `row_headers[k]`, which would make an Alt+press on a row header
-  select the header label and not the row. Open.
+- ~~**Q12. What a point on a row header of a table maps back to.**~~
+  **Settled** (owner 2026-09-29): "row_headers[k], a row header can contain
+  anything and an Alt+press should be able to also select inside, the table
+  reader can still allow selecting a row or a column by some other means: e.g.
+  Alt+cursor navigation. This whole issue is generic and exists in all domains
+  and cross domain nesting." The rule: a point maps back to the most specific
+  part that is drawn there, and a part that holds it (a row, a column, a group)
+  is reached by navigation, not by the point. The table's backward map answers
+  `row_headers[k]` for a point on a row header, as it answers
+  `column_headers[k]` for a column header, and its hover band reads a row header
+  as its row. Follow-up work that this rule asks for, not done here:
+  - A selected header is drawn as its whole row or column
+    (`_wt_selection_shape` answers `:row` for `row_headers[k]` and `:col` for
+    `column_headers[k]`); it must mark the header only.
+  - A point inside a header or a cell maps to the header or the cell, and not
+    on into what it holds; an Alt+press must reach a part inside it.
+  - Alt+arrow navigation must reach a row and a column of a table.
+  - The rule is generic, in every domain and across nested domains, and belongs
+    in the documents of selection and reference (step 7).
 - ~~**Q1. A part that is scrolled out of view.**~~ **Settled with Q6.** It has a
   forward reference, as every part has.
 - ~~**Q2. A part on a hidden tab, in a closed card, or under a closed tree

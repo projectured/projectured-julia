@@ -8682,7 +8682,7 @@ function _map_wt_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraph
     hit = _find_wt_hit(p, iomap, point.x, point.y)
     kind = hit[1]
     kind === :corner && return EmptyReference()
-    kind === :row && return ConcreteReference(FieldReferenceStep("rows"),
+    kind === :row && return ConcreteReference(FieldReferenceStep("row_headers"),
                                 ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2])))
     kind === :col && return ConcreteReference(FieldReferenceStep("column_headers"),
                                 ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2])))
@@ -8866,6 +8866,8 @@ end
 # Returns the `hovered` reference for the place that `route` names, or nothing.
 function _find_wt_hover_at(route)
     row = _widget_element_selected(route, "rows")
+    row > 0 && return _wt_row_ref(row)
+    row = _widget_element_selected(route, "row_headers")
     row > 0 && return _wt_row_ref(row)
     column = _widget_element_selected(route, "column_headers")
     column > 0 && return _wt_col_ref(column)

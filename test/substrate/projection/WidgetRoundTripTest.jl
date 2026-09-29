@@ -117,17 +117,11 @@ function _rt_round_trip(document, projection, iomap, output, part)
     (other === nothing ? :no_part : :other_part, other)
 end
 
-# A row header of a table maps back to its row, the part that an Alt+press there
-# selects, and not to the label that the header draws.
-_rt_is_row_header(reference) = any(step -> step isa FieldReferenceStep && step.name == "row_headers",
-                                   get_reference_steps(reference))
-
 function test_widget_round_trip()
 @testset "every part of a widget example maps forward and back again" begin
     examples = filter(example -> startswith(example.name, "widget"), substrate_examples)
     @test length(examples) >= 40
     failures = String[]
-    row_headers = String[]
     for example in examples
         document = example.make_document()
         projection = example.make_projection()
@@ -141,17 +135,12 @@ function test_widget_round_trip()
             outcome, answer = _rt_round_trip(document, projection, iomap, output, part)
             outcome === :returns && (returned += 1; continue)
             outcome in (:hidden, :out_of_view, :draws_nothing) && continue
-            line = string(example.name, " ", strip_reference_types(part), ": ", outcome,
-                          answer === nothing ? "" : string(" ", answer))
-            push!(outcome === :other_part && _rt_is_row_header(strip_reference_types(part)) ?
-                  row_headers : failures, line)
+            push!(failures, string(example.name, " ", strip_reference_types(part), ": ", outcome,
+                                   answer === nothing ? "" : string(" ", answer)))
         end
         returned > 0 || push!(failures, string(example.name, ": no part makes the round trip"))
     end
     isempty(failures) || foreach(line -> println("  ", line), failures)
     @test isempty(failures)
-    # @broken: a row header maps back to its row (Alt+press selects the row); the
-    # round trip wants the header label. Open question Q12 of the-forward-image-of-a-part.md.
-    @test_broken isempty(row_headers)
 end
 end
