@@ -1327,3 +1327,36 @@ the name, cut at 800 characters. It cost $1.51; the ledger holds $6.69.
 - **Deferred by the owner, 2026-09-29**: "let's defer adding call sites for now,
   we will come back to this when we have more real life examples". The plan of
   the change is `plan/pending/the-relevance-model-reads-code-and-call-sites.md`.
+
+### The context: apart, joined into the query, or none, 2026-09-29
+
+The owner: "the user's original text may or may not be useful as a context
+because the agent may carry out the task in several steps and one step may have
+a very specific context which only the agent knows about. So it's either no
+context at all, the agent writes the context or somehow the agent knows whether
+it's worth writing a context at all." The check: does Jev need the context as a
+separate part, or does the same text joined into the query serve as well?
+
+The stage `context-check`: 90 questions; one pool for the three readings (the
+first 30 by words, by meaning and by meaning with the context), so they differ
+only in what Jev reads. The 19 searches of Stage 2 in which the model wrote a
+context and its next code worked (of 123 `search_api` calls, 24 had a context);
+and the questions of Stage 1 that carry one. It cost $0.18; the ledger holds
+$6.87.
+
+| questions | Jev, the query alone | the context apart | the context joined |
+| --- | --- | --- | --- |
+| 19 searches with the model's own context | 17 / 18 / 18 / 18 | 17 / 18 / 18 / 18 | 17 / 18 / 18 / 18 |
+| 16 context pairs | 3 / 8 / 10 / 11 | 13 / 15 / 15 / 15 | 13 / 15 / 15 / 15 |
+| 41 logged searches | 35 / 39 / 40 / 40 | 36 / 39 / 41 / 41 | 35 / 40 / 41 / 41 |
+| 14 study steps | 12 / 13 / 14 / 14 | 10 / 14 / 14 / 14 | 8 / 14 / 14 / 14 |
+
+- **Joined serves as well as apart**: the same on the model's searches and on
+  the pairs, one question apart on the logged searches; two worse first on the
+  study steps, whose context is a long request that names the whole study.
+- **The model's own context changes nothing**: its queries are specific
+  already, and all three readings rank 17 of 19 first.
+- **A context matters only when the query alone is ambiguous** (the pairs: 3
+  first against 13), and there the words joined into the query do the same work.
+- So a separate `context` parameter buys nothing that a query written as a
+  sentence does not. A long context can cost a place (the study steps).
