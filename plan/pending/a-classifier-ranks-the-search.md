@@ -573,7 +573,7 @@ Each step says what stops the stage.
   starts when Step 6 says so.
   - [x] The kernel: `RelevanceModel`, `set_relevance_model!`, the `context` of
     both searches, the ranking by relevance, and a miss of a large declaration
-    that names its modules (`3fc6a999`, `b9a7cbb9`); `test_relevance_search`
+    that names its modules (`b2919aea`, `10495e56`); `test_relevance_search`
     (29), and the search suites pass.
   - [x] The backend: `make_jev_relevance_model` in `tool/search/typesafe_classifier.jl`.
   - [x] The harness: the conditions in `tool/assistant/study_rehearsal.jl` of
@@ -1158,7 +1158,7 @@ application showed on the way, and the harness works around the first:
   holds them. The harness leaves them out; the kernel still has the fault.
 - **The `search_api` of the scratch module passed the meaning model and not the
   relevance model**, so a search written as code skipped Jev. Fixed
-  (`1263eed6`).
+  (`cd866a68`).
 
 ### Step 7, the results of Stage 2, 2026-09-29
 
