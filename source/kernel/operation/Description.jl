@@ -36,8 +36,8 @@ function describe_operation(operation)
     reference === nothing ? name : string(name, " ", _short_reference(reference))
 end
 
-# The type name without the `Operation` suffix — `StringReplaceRangeOperation`
-# reads as `StringReplaceRange`.
+# The type name without the `Operation` suffix — `ReplaceSelectionOperation`
+# reads as `ReplaceSelection`.
 function _operation_name(operation)
     name = string(nameof(typeof(operation)))
     endswith(name, "Operation") ? name[1:end - length("Operation")] : name

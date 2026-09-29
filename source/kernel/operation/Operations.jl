@@ -66,6 +66,13 @@ splice_value!(owner, field::Symbol, value::Number, s::Int, e::Int,
               replacement::AbstractString) =
     setproperty!(owner, field, splice_number(string(value), s, e, replacement))
 
+"""
+    QuitEditorException()
+
+The exception that `evaluate_operation` throws for a `QuitEditorOperation`. It is
+a request to stop the editor, not a fault: `is_passthrough_exception` answers
+`true` for it, so no fault barrier catches it.
+"""
 struct QuitEditorException <: Exception end
 
 # A request to quit is not a fault and no barrier may catch it: catching one
@@ -99,8 +106,8 @@ end
 """
     QuitEditorOperation()
 
-Operation that signals the editor to stop, by throwing `QuitEditorException`
-(which the editor loop catches to exit).
+Operation that asks the editor to stop. `evaluate_operation` throws a
+`QuitEditorException`, and the code that runs the editor catches it and stops.
 """
 struct QuitEditorOperation <: Operation end
 
@@ -114,8 +121,8 @@ end
 Editor-global *uniform* readability zoom: `delta` is +1 (in), -1 (out) or 0
 (reset). Magnifies the whole editor. The concrete behaviour — rescaling the
 display factor, reflowing and repainting — lives in a rendering backend's
-`evaluate_operation`; the generic no-op fallback above keeps it harmless under
-backends that do not implement it.
+`evaluate_operation`; the catch-all `evaluate_operation` in OperationDefaults.jl
+keeps it harmless under backends that do not implement it.
 """
 struct AdjustZoomOperation <: Operation
     delta::Int
@@ -300,7 +307,7 @@ function replace_document(path::Reference, document)
 end
 
 """
-    insert_elements(path, index, items[, selection]; root=nothing) -> operation
+    insert_elements(path, index, items; selection=nothing, root=nothing) -> operation
 
 Insert each of `items` into the sequence container at `path` (an element collection), at
 the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation`

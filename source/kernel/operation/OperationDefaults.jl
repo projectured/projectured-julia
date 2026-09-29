@@ -5,9 +5,9 @@ function evaluate_operation(editor, op::Nothing) end
 
 # Catch-all: silently ignore anything that is not an Operation. Unlike the device
 # I/O generics (which deliberately omit a catch-all so an unimplemented backend
-# fails loudly), this one is *meant* to swallow: a reader that declines returns a
-# raw gesture/event or `nothing`, and those flow all the way up to here, where
-# "not an operation" simply means "nothing to apply".
+# fails loudly), this one is *meant* to swallow. A reader that declines returns
+# `nothing`, which the method above takes. This method takes any other value that
+# is not an `Operation`, so a stray value does no harm.
 function evaluate_operation(editor, op) end
 
 # Catch-all: an object that caches no projection has nothing to drop; one that

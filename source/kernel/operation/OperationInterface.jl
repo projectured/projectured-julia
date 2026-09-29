@@ -11,10 +11,13 @@ be inspected, refused, logged, undone, or sent somewhere else before it happens.
 
 # Example
 
-    struct ShrinkBoxOperation <: Operation
+    struct ResizeBoxOperation <: Operation
         box::Any
+        delta::Int
     end
-    evaluate_operation(editor, o::ShrinkBoxOperation) = (o.box.width[] -= 1)
+    evaluate_operation(editor, o::ResizeBoxOperation) = (o.box.width += o.delta)
+    make_inverse_operation(document, o::ResizeBoxOperation) =
+        ResizeBoxOperation(o.box, -o.delta)
 
 See also `evaluate_operation`, which applies one, and `read_intent`, which
 answers one.
@@ -242,8 +245,8 @@ Use it to read an element you intend to restore. The default answers the value.
 A container whose elements live in cells answers the cell, so a restored element
 is the same object it was and whatever followed that cell follows it still.
 
-This layer can not name a cell collection — those live in a package above it — so
-it asks through this seam and the collection package answers.
+This layer can not name a cell collection, so it asks through this seam, and a
+package that defines a cell collection adds a method for it.
 
 # Example
 

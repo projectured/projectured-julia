@@ -25,21 +25,19 @@ cursor-navigation gesture. Its evaluation:
 
 ```julia
 function evaluate_operation(editor, op::ReplaceSelectionOperation)
-    document = editor.document
-    clear_selection!(document)
-    set_selection!(document, op.path)
+    replace_selection!(editor.document, op.path)
 end
 ```
 
-`clear_selection!` walks the *old* selection path and writes `nothing` at
-every level. `set_selection!` walks the *new* path and writes each suffix
-into the matching child's `selection` cell. The two-step pattern is
+`replace_selection!` does two steps. It clears the *old* selection path, which
+writes `nothing` at every level, and then walks the *new* path and writes each
+suffix into the matching child's `selection` cell. The first step is
 important: if you only call `set_selection!`, fragments of the old
 selection can remain in branches the new path doesn't visit, producing
 multiple visible cursors.
 
-The shortcut `replace_selection!(document, path)` performs both steps and
-is the function to call when scripting selection from Julia code.
+`replace_selection!(document, path)` is also the function to call when scripting
+selection from Julia code.
 
 ### `QuitEditorOperation()`
 
@@ -130,11 +128,18 @@ These do something other than a single-slot write, so they stay their own types:
 
 | Operation | Where it lives | Why it stays |
 |---|---|---|
-| `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
+| `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` | `primitive/PrimitiveDocument.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `dragging/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
-| `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `operation/Operations.jl` | view/window state |
+| `ToggleCollapseOperation` | `operation/Operations.jl` | view state |
+| `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `screen/ScreenDocument.jl` | window state; an operation whose vocabulary belongs to one domain is declared with that domain's document |
 | `ToggleClipboardSliceOperation`, `ToggleClipboardCollectionOperation`, `SetVersionCriterionOperation` | `clipboard/ClipboardSliceToAny.jl`, `clipboard/ClipboardCollectionToAny.jl`, `versioning/VersioningToAny.jl` | switch *which child* a projection exposes. Each one writes a cell, and the output of the projection is a computed cell over it, so the stages after it print again with no `editor.iomap` drop |
+| `LoadDocumentOperation`, `SaveDocumentOperation` | `serialization/BinarySerialization.jl` | file I/O |
+| `SaveFileOperation`, `ExportDocumentOperation` | `fileformat/DocumentFile.jl`, `fileformat/NaturalFormat.jl` | file I/O |
+| `UpdateDatabaseCellOperation`, `InsertDatabaseRowOperation` | `database/DatabaseDocument.jl` | SQL I/O |
+| `WriteOsClipboardOperation` | `clipboard/Clipboard.jl` | side-effecting OS-clipboard write — mirrors a copy/cut/note out to the system clipboard at evaluate time (best-effort; degrades to a no-op when no clipboard tool exists) |
+| `InvokeActionOperation(action)` | `widget/WidgetDocument.jl` | runs an `Action`'s callback — an effect, not a field write. The one activation operation: every control (button, menu item, toolbar entry, keyboard shortcut) is a view of an `Action` and answers a press with this. It names its own target, so a projection that hosts controls forwards it unchanged rather than re-rooting it |
+| assistant/composer & splitter-drag operations | `assistant/AssistantTurn.jl`, `conversation/ConversationEditor.jl`, `widget/WidgetDocument.jl` | async turns, multi-field resets, transient drag state |
 
 ### A text paste is a range edit
 
@@ -149,10 +154,6 @@ the rules for a whole document; `accepts_pasted_text` returns whether a document
 accepts the paste and the cut. It is in [clipboard/Clipboard.jl](../../../source/clipboard/Clipboard.jl)
 and [clipboard/ClipboardSliceToAny.jl](../../../source/clipboard/ClipboardSliceToAny.jl).
 A field that holds a span of the text domain is not a text target yet.
-| `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
-| `WriteOsClipboardOperation` | `clipboard/Clipboard.jl` | side-effecting OS-clipboard write — mirrors a copy/cut/note out to the system clipboard at evaluate time (best-effort; degrades to a no-op when no clipboard tool exists) |
-| `InvokeActionOperation(action)` | `widget/WidgetDocument.jl` | runs an `Action`'s callback — an effect, not a field write. The one activation operation: every control (button, menu item, toolbar entry, keyboard shortcut) is a view of an `Action` and answers a press with this. It names its own target, so a projection that hosts controls forwards it unchanged rather than re-rooting it |
-| assistant/composer & splitter-drag operations | `editor/*`, `widget/WidgetDocument.jl` | async turns, multi-field resets, transient drag state |
 
 Operation modules are the right place to look when wiring a new gesture: the
 operation declares its semantics once, the projections that emit it stay small, and
@@ -299,44 +300,56 @@ When you do need a new one:
 
 ```julia
 evaluate_operation(editor, ::Nothing) = nothing
-evaluate_operation(editor, op)        = nothing  # any other type
+evaluate_operation(editor, op)        = nothing  # any other value
 ```
 
-These exist so the reader can return whatever it likes, including a raw
-event that has no handler, without crashing the editor. Unknown values
-simply produce no effect.
+A reader that declines returns `nothing`, and the first method takes it. The
+second method takes any other value that is not an `Operation`, so a stray value
+does no harm: it produces no effect. Both methods are in
+[operation/OperationDefaults.jl](../../../source/kernel/operation/OperationDefaults.jl).
 
 ## The operation layer
 
 The material above is *how* to reach for and add operations. The rest of this
-guide is the layer's **structure** — where the code lives and the two open seams
-every path-bearing operation or container document extends.
+guide is the layer's **structure**: where the code lives, and the open seams that
+a path-bearing operation, a container document or a new operation type extends.
 
 Layer 13 of the kernel is **changing documents**. An operation is the reified
 edit the reader side of the projection pipeline produces and
-`evaluate_operation` applies. The layer holds the abstract `Operation`
-supertype, the built-in concrete operations, the selection propagation, the
-splice helpers, and the **two open seams** below.
+`evaluate_operation` applies. The layer holds the abstract `Operation` and
+`WrappingOperation` supertypes, the built-in concrete operations, the builders
+and the splice helpers, the seams that reroot an operation, the way back of an
+operation, and the description of an operation for a person.
 
 The layer lives in [source/kernel/operation/](../../../source/kernel/operation/), inside one aggregator
-module (`OperationModule`) split across three fragments:
+module (`OperationModule`) split across six fragments:
 
 ```
 OperationModule.jl        (OperationModule)             — the aggregator
-        │ imports Cell + Document + Reference; exports every public name
-        ├─ Interface.jl        — Operation abstract + evaluate_operation +
-        │                        invalidate_projection! generics
-        ├─ Operations.jl       — the built-in ops (DoNothing, ReplaceSelection,
-        │                        ReplaceReferencedValue, CompoundOperation,
-        │                        SelectNextInsertion, Adjust*, Quit,
-        │                        ToggleCollapse), splice helpers, selection
-        │                        propagation (clear/set/update), and the
-        │                        open child_reference_steps seam
-        └─ Rerooting.jl        — reroot_reference + the open
-                                 reroot_operation seam with its base methods
+        │ uses Cell, Document, Fault, Reference and Selection; exports every public name
+        ├─ OperationInterface.jl — the contract: Operation, WrappingOperation with
+        │                          get_wrapped_operation / rewrap_operation,
+        │                          evaluate_operation, invalidate_projection!, and
+        │                          the declaration of each seam below
+        ├─ OperationDefaults.jl  — the fallbacks: evaluate_operation for nothing and
+        │                          for any other value, and invalidate_projection!
+        ├─ Operations.jl         — the built-in ops (DoNothing, CompoundOperation,
+        │                          Quit with QuitEditorException, ReplaceSelection,
+        │                          ReplaceViewState, ReplaceReferencedValue,
+        │                          SelectNextInsertion, Adjust*, ToggleCollapse),
+        │                          the builders, the splice helpers, and the open
+        │                          child_reference_steps seam
+        ├─ Rerooting.jl          — reroot_reference, and the reroot_operation /
+        │                          operation_reference / retarget_operation /
+        │                          operation_travels_unchanged seams with their
+        │                          base methods
+        ├─ Inversion.jl          — the way back: make_inverse_operation,
+        │                          evaluate_invertible_operation! and the
+        │                          get_slot_at seam
+        └─ Description.jl        — describe_operation and describe_reference
 ```
 
-The three files share one namespace because they are only ever imported
+The six files share one namespace because they are only ever imported
 together.
 
 ### The open `child_reference_steps(node)` traversal seam
@@ -360,18 +373,18 @@ The `isa CellVector` branch is the smell: an operation-layer file
 hard-referencing a concrete document type. The open generic form dissolves it:
 
 ```julia
-function child_reference_steps end                # declaration in Operations.jl
+function child_reference_steps end         # declaration in OperationInterface.jl
 
 child_reference_steps(node) = [(FieldReferenceStep(...), val), ...]   # default (fieldnames)
 
-# in base's Collection.jl:
+# in collection/CellVector.jl:
 child_reference_steps(node::CellVector) = [(RangeReferenceStep(i-1, i), node[i]), ...]
 ```
 
 A new container document type adds a `child_reference_steps` method beside its
 type definition. The default handles ordinary structs.
 
-**Testing pressure.** `test/operation/TraversalTest.jl` defines a test-local
+**Testing pressure.** `test/kernel/operation/TraversalTest.jl` defines a test-local
 `@document struct ToyList` and registers its own `child_reference_steps`
 method: the exact pressure that keeps the seam honest. If a fresh test-local
 type could not drive the walk, the seam would not be open.
@@ -408,11 +421,11 @@ reroot_operation(op::CompoundOperation, steps) = ...
 reroot_operation(op::WrappingOperation, steps) = ...   # every wrapper, once
 ```
 
-The `Primitive` methods live in `document/Primitive.jl` beside the
+The `Primitive` methods live in `primitive/PrimitiveDocument.jl` beside the
 operation type declarations:
 
 ```julia
-# document/Primitive.jl:
+# primitive/PrimitiveDocument.jl:
 reroot_operation(op::ReplaceStringRangeOperation, steps) =
     ReplaceStringRangeOperation(reroot_reference(op.reference, steps), op.replacement)
 reroot_operation(op::ReplaceNumberRangeOperation, steps) = ...
@@ -424,18 +437,67 @@ reference is never rerooted. This is one half of the [reference-carrying
 registration invariant](#two-invariants-every-operation-must-respect) above (the
 other half is the default `read_intent`).
 
-**Testing pressure.** `test/operation/RerootingTest.jl` declares a test-local
+**Testing pressure.** `test/kernel/operation/RerootingTest.jl` declares a test-local
 `ToyPathOperation <: Operation` and registers its own `reroot_operation` method,
 proving the seam is genuinely open: you cannot depend on a concrete
 higher-layer type at layer 13.
 
+### An operation that names no place: `operation_travels_unchanged`
+
+An operation either says *where* it acts, with a reference, or says *what* it acts
+on, with the object in a field. A chain re-targets the first kind at each stage
+through `operation_reference` and `retarget_operation`. The second kind has
+nothing to re-target, so a stage either passes it up as it is or drops it.
+`operation_travels_unchanged(op)` answers which. The default is `false`, so a
+stage drops what it can not place. `Rerooting.jl` answers `true` for the
+operations of this layer that name no place: `DoNothingOperation`,
+`QuitEditorOperation`, the two zoom operations, `ToggleCollapseOperation` and
+`SelectNextInsertionOperation`. A package whose operations carry their subject
+adds one method for them.
+
+### The way back: `make_inverse_operation`
+
+`make_inverse_operation(document, op)` answers the operation that takes
+`document` back to the state it is in now, once `op` is applied, or `nothing`
+when `op` has no way back. It reads the document, so a caller takes it before it
+applies `op`. `evaluate_invertible_operation!(editor, op)` does the two in that
+order. For a `CompoundOperation` it inverts each member against the state that
+member sees, and runs the inverses in the opposite order. An operation that
+changes no document, such as a zoom, answers `DoNothingOperation()`. The inverse
+of a `ReplaceReferencedValueOperation` carries the object that it writes into, not
+a path, so it stays right when the document moves in the tree. `get_slot_at` is
+the seam through which a collection of cells gives back the cell of an element
+for a splice, so the element that comes back is the same object. The operations
+of a higher package declare their inverses beside their own declarations.
+
+### The description: `describe_operation`
+
+`describe_operation(op)` writes an operation in one line for a person:
+`select entries[1].value`, `set entries[2].key = "b"`. An operation type
+that this layer does not name reads as its type name without the `Operation`
+suffix, followed by the reference that `operation_reference` reports, so a domain
+that adds an operation needs no method here. `describe_operation(op, root)` and
+`describe_reference(reference, root)` write a reference from the deepest document
+on it that has a title (`get_document_title`), past the fields that
+`get_edited_field` names: `items.json › [2].price`.
+
+### A write of view state: `ReplaceViewStateOperation`
+
+`ReplaceViewStateOperation(operation)` is a `WrappingOperation` that marks
+`operation` as a write of view state: what the pointer is over, what it holds
+down, what a drag carries. Applying it applies `operation`. A history does not
+record it, because a hover is not an edit. The reader that writes the state marks
+it, because only that reader knows that the field belongs to the pointer and not
+to the document.
+
 ### Downward edges
 
-- `..FaultModule` — the barrier around the evaluation of an operation
+- `..FaultModule` — `is_passthrough_exception`, which `QuitEditorException`
+  extends so that no fault barrier catches a request to quit
 - `..CellModule: Cell, AbstractCell`
-- `..DocumentModule: Document`
+- `..DocumentModule: Document, get_edited_field, get_document_title`
 - `..ReferenceModule: Reference, …, extend_reference, evaluate_reference, …`
-- `..SelectionModule: clear_selection!, set_selection!, with_selection`
+- `..SelectionModule: replace_selection!, set_selection!, get_selection`
 
 That is the whole import surface. No projection, no device, no editor. This
 is what keeps the operation layer below the binding, iomap and projection layers.

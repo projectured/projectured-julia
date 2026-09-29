@@ -2,13 +2,15 @@
 
 """
     Intent(gesture, operation = nothing, description = "", domain = "")
+    Intent(gesture, operation, description, domain, route)
 
 The backward-flowing unit of the reader pipeline — the symmetric dual of the
 document that flows forward through the printer. It carries the same user change
 in two coordinate frames:
 
-- `gesture` — the originating input (a device event such as `MousePress`/`KeyDown`,
-  or an `WindowInput` at the screen layer). **Invariant**: it is threaded
+- `gesture` — the originating input: a device event such as `MousePress`/`KeyDown`,
+  or a `WindowInput`, the event of the event layer that holds the id of its
+  window. **Invariant**: it is threaded
   unchanged through the whole reader chain, so any reader can inspect *what the
   user did*, not just what it currently means.
 - `operation` — the change expressed in the current projection's input domain.
@@ -72,25 +74,25 @@ end
     ClaimedGesture(gesture, operation)
 
 A reader **payload**: `gesture`, offered to a projection that has already been
-handed an `operation` an *output* layer produced for it.
+handed an `operation` that an *output* stage produced for it.
 
 Reading runs last-to-first, so by the time a change reaches an input-domain
-projection the output layers have had their say — a printable key they understood is
-already a character edit. That is the good default: it is what makes JSON's `,` a
-literal comma inside a string without a guard, and why a structural gesture never has
-to reconstruct what the text layer would have done in order to decline.
+projection the output stages have had their say: a printable key that a text stage
+understood is already a character edit. That is the good default. A key that is
+text inside a string needs no guard, and a structural gesture never has to
+reconstruct what the text stage would have done in order to decline.
 
-A few keys cannot be text in their own context and must win anyway (XML's `<` inside
-a tag name inserts a child element). The generic reader bridge offers this payload to
-such a projection *before* translating the claimed operation; only `override`
-bindings fire for it (see `fire_gesture_bindings`), so it is inert for every ordinary
-gesture. A projection with nothing to say returns `nothing` and the claimed operation
-is translated exactly as before.
+A few keys can not be text in their own context and must win anyway, such as a key
+that inserts a child element inside a tag name. A reader offers this payload to such
+a projection *before* it translates the claimed operation. A projection that answers
+it acts only for a gesture that must win over the claimed operation, so the payload
+is inert for every ordinary gesture. A projection with nothing to say returns
+`nothing`, and the claimed operation is translated as it is with no offer.
 
 It is a payload rather than a fifth generic function on purpose: descent rides
 `read_intent`, which already dispatches on what the payload *is* — a raw event, an
-`Operation`, or (now) a claimed event. The recursion contract forbids a new function
-to descend with (see `ProjectionModule`).
+`Operation`, or a claimed event. The recursion contract forbids a new function to
+descend with.
 """
 struct ClaimedGesture
     gesture::Any
@@ -107,7 +109,7 @@ carrying that rule's built operation.
 
 It is a payload rather than an event because no device reports it and no pattern
 matches it — `Intent.gesture` is untyped, so a reader payload needs no place in
-the input vocabulary. `ClaimedGesture` is the precedent.
+the input vocabulary.
 
 A reader that does not answer it declines, exactly as it declines an unknown
 event. The failure mode is a missing row, never an error.
