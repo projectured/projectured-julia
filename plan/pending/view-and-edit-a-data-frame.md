@@ -409,6 +409,48 @@ is safe only when nothing writes the frame at the same time.
 - Formulas in cells. [excel-julia-formulas.md](excel-julia-formulas.md) is the
   spreadsheet idea.
 
+### 4.10 As few dependencies as possible (the owner)
+
+The owner (2026-09-30): "Remove the ProjecturedSdl dependency, backends should
+register themselves and automatically used if there's only one and none was
+given. I would also remove the wrapper package dependencies if possible too.
+And they would also register and map to a keyword argument in the run editor
+function somewhere. The point is to have as few dependencies as possible."
+
+Today `ProjecturedDataFrames` depends on three packages only to open its
+window (phase 2.5):
+
+- `ProjecturedSdl`, for `SdlBackend()`, the default of `display_in_editor`.
+- `ProjecturedScreen`, for `make_editor`, which puts the document in a window.
+- `ProjecturedPane`, for `PaneTree`, `PaneGroup`, `PaneTab` and
+  `PaneToWidget`, which put each frame in a tab, and for `open_pane!`,
+  `find_pane` and `focus_pane!`.
+
+The other dependencies are what the view is: `DataFrames`, `ProjecturedKernel`,
+`ProjecturedCollection`, `ProjecturedProjection`, `ProjecturedLayout`,
+`ProjecturedWidget`, `ProjecturedStyle`, `ProjecturedPrimitive`, and
+`ProjecturedNatural`, whose registry takes the natural row of the view.
+
+The direction:
+
+- **A backend registers itself.** The `__init__` of a backend package adds
+  its backend to a registry, as a domain adds its natural row today. A run
+  function that is given no backend takes the one registered backend; with
+  none, or with more than one, it says so and names the registered ones. This
+  reverses a rule that `ProjecturedScreen.make_editor` states now: "`backend`
+  is a CONSTRUCTED backend, so this package depends on none of them [...]
+  There is no reflection over the loaded backends here". The reflection that
+  exists, `default_backend()` of `ProjecturedExample`, finds a loaded backend
+  by the subtypes of `Backend` and a fixed order of preference; the registry
+  replaces it.
+- **A wrapper registers itself too, and maps to a keyword of the run
+  function.** The window of `ProjecturedScreen` and the tabs of
+  `ProjecturedPane` wrap a document and add a rule to the projection. Each
+  registers what its keyword does, so a caller asks for tabs with a keyword
+  of the run function and does not load the package that makes them.
+
+The points to settle are D13.
+
 ## 5. Decisions
 
 ### 5.1 Made
@@ -579,6 +621,32 @@ instances when DataFrames loads after the editor stack (§6.1).
 Recommendation: (a), because it is the rule that the other packages follow.
 A test run that is slower after the change goes back to D12.
 
+**D13. The registries of the backends and of the wrappers (§4.10).** The
+direction is the owner's. The points to settle, with my recommendations:
+
+1. Where the two registries and the run function live. My recommendation:
+   the backend registry beside `Backend` in the kernel (`EditorModule`), and
+   the run function and the wrapper registry in `ProjecturedScreen`, which
+   every window needs. The data frame package then keeps one dependency to
+   open a window, `ProjecturedScreen`, or none if the run function goes into
+   the kernel as well.
+2. What a keyword maps to. My recommendation: a function that takes the
+   document and the projection and gives both back wrapped, registered under
+   the name of the keyword (`tabs = true` for `ProjecturedPane`), and an
+   error that names the registered keywords for a keyword that nothing
+   registered.
+3. Two backends loaded and none given. The owner's words say "automatically
+   used if there's only one". My recommendation: an error that names both,
+   and no order of preference, so a program does not change its backend when
+   one more package is loaded.
+4. The code that runs the editor beside the REPL (the pinned thread, the
+   session, `invokelatest`, phase 2.5) is not about data frames. My
+   recommendation: it moves to the run function as a keyword too, for any
+   package that shows a value from the REPL.
+5. The callers of `make_editor(...; backend)` and of `default_backend()`
+   (`ProjecturedExample`, the gallery, the builder of the binary) move to the
+   registry in the same change, so one mechanism is left.
+
 **D8. Group and pivot. Deferred, see §5.1.** One query model and two layouts: a grouped table with
 header rows (§4.6), and a cross table (§4.7). Or the grouped table as a pivot
 with no column dimension and a sub-table in each cell. Recommendation: one
@@ -714,6 +782,10 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       which is why the package posts through `invokelatest`. The SDL window
       has an empty `WM_NAME`, so a tool that finds a window by that name does
       not find it; the driver found it by its class and its size.
+  - [ ] **2.6 As few dependencies as possible** (§4.10, the owner,
+    2026-09-30). The registries and the run function of D13, then
+    `ProjecturedDataFrames` without `ProjecturedSdl`, `ProjecturedScreen` and
+    `ProjecturedPane` where D13 allows it. Waits for D13.
 - [ ] **3. Refresh.** The three levels of §4.3. The triggers A, B with the
   busy flag, and D. C is a keyword that is off by default (D3).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
