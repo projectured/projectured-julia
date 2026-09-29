@@ -270,9 +270,10 @@ Use the run of the report as the regression test: a print of 200 000 bytes retur
 
 The docstring half (L06-1) is in step 3.6, because `KeyboardEvent.jl` is sealed.
 
-- [ ] **L09-1** (High, Correctness) — same fault as L06-1
+- [x] **L09-1** (High, Correctness) — same fault as L06-1
   Each backend names every letter key a to z as :a to :z. SDL: keysyms 97 to 122 give Symbol(Char(keysym)), and the lines for single letters and their comments go. Web: a one-letter key a-z or A-Z gives its lower case. Console: a Ctrl byte 0x01 to 0x1A gives KeyDown of its letter with ctrl, except the bytes that the console reads already (0x03 quit, 0x08, 0x09, 0x0A, 0x0D).
   *Test:* test_sdl_keysym(): keysyms 97 to 122 give :a to :z (replace the assertions 'q' and 'z' to :char), and Ctrl+Z from sdl_to_keydown matches the undo pattern; test_web_backend(): 'z' and 'Z' give :z; test_console_backend(): the byte 0x1A gives KeyDown(:z) with ctrl.
+  *Done:* lane A, 8ca1bfdd. SDL, the web page and the console name :a to :z; the console reads 0x01 to 0x1A as Ctrl and a letter, after the bytes that it read before. No binding or reader in the three repositories expects a letter as `:char`. test_sdl 791, test_web_backend 40, test_console_backend 86.
 
 ### Step 1.8: The whole surface for the documentation tools
 
@@ -289,12 +290,14 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.1: The backends
 
-- [ ] **L09-7** (part) (Medium, Architecture)
+- [x] **L09-7** (part) (Medium, Architecture)
   Remove the duplicate `using` lines, and reduce the import lists of ProjecturedSdl and ProjecturedVideo to the names that each package extends. The private renderer names wait for their decision.
   *Test:* `test_sdl()` and `test_video()` pass; the load of both packages gives no warning.
-- [ ] **L09-9** (Low, Correctness)
+  *Done:* lane A, aaf8f50e. `_bounds_elem!` and `_bounds_extend!` of GraphicsModule come in by `using` now; the offscreen renderer names stay as they were (the decision of L09-7). A load with `--warn-overwrite=yes` prints no warning.
+- [x] **L09-9** (Low, Correctness)
   A MouseMove takes its held buttons from evt.motion.state. For the modifiers, the SdlBackend keeps the modifier state of the last key event in the order of the queue (keysym.mod), seeded from SDL_GetModState, and a mouse or text event reads that state in place of _current_modifiers().
   *Test:* test_input_coalescing(): a queue with a motion that holds the left button and then a release gives a MouseMove that holds the left button; a Ctrl key up after a click in the same queue leaves ctrl on the MouseDown.
+  *Done:* lane A, aaf8f50e. `SdlBackend.modifiers` holds the modifiers of the last key event in queue order; a MouseMove reads `evt.motion.state`. MouseScroll still reads its position at the poll. test_sdl 801.
 
 ### Step 2.2: The document layer
 
@@ -1082,13 +1085,19 @@ Do each one after its decision, if it still applies.
 
 ## Faults that the classification found
 
-The classifiers found three faults that the audit does not hold:
+The classifiers and the implementers found faults that the audit does not hold:
 
 - [ ] **N-1** (Medium, Correctness) — omnet-julia and inet-julia
   `KeyDown(:enter)` names a key that no backend reports: the name of the key is `:return`. Write
   `:return` in omnet-julia `source/tool/record_precompile.jl:111` and in inet-julia
   `source/tool/repl/record/driver.jl:56`.
   *Test:* the two record scripts run, and the recorded trace holds the key.
+- [ ] **N-4** (Medium, Correctness) — found in step 2.1
+  `Sdl.jl` defines `map_reference_forward` and `map_reference_backward` for
+  `GraphicsCanvasToImageFile` with no import, so they are new functions of ProjecturedSdl and
+  do not extend the functions of the projection layer. Qualify them
+  (`ProjectionModule.map_reference_forward(...) = ...`), as PAR-QUALIFIED-EXTENSION asks.
+  *Test:* `ProjecturedSdl` has no own `map_reference_forward`, and `test_sdl()` passes.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
