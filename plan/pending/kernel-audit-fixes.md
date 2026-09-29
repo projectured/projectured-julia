@@ -662,32 +662,39 @@ Sealed files: `FrameMeasurement.jl`, `PerformanceCounter.jl`.
 
 Sealed files: `CellComputation.jl`, `CellDefaults.jl`, `CellInterface.jl`, `ImmutableCell.jl`, `MutableCell.jl`, `ReactiveCell.jl`.
 
-- [ ] **L03-4** (Medium, Correctness) — 🔒 `ReactiveCell.jl`
+- [x] **L03-4** (Medium, Correctness) — 🔒 `ReactiveCell.jl`
   Convert first: write the method as `setindex!(c::ReactiveCell{T}, value) where {T}`, and do `v = convert(T, value)` before any change of the cell; then store `v`.
   *Test:* test_cell: tc = ReactiveCell{Int}(@computation t[] + 1); tc[] = 2.5 throws InexactError; tc still follows t after a write to t.
-- [ ] **L03-5** (Medium, Correctness) — 🔒 `CellDefaults.jl`
+  *Done:* lane A, b92e4165d.
+- [x] **L03-5** (Medium, Correctness) — 🔒 `CellDefaults.jl`
   Add `Base.setindex!(c::MutableCell, ::Computation) = _reject_computation("MutableCell")` to CellDefaults.jl.
   *Test:* test_cell: a write of @computation into MutableCell{Any}(0) throws ArgumentError, and the cell keeps 0; the same through a mutable field of a @cell_struct.
-- [ ] **L03-6** (Medium, Correctness) — 🔒 `ReactiveCell.jl`
+  *Done:* lane A, b92e4165d.
+- [x] **L03-6** (Medium, Correctness) — 🔒 `ReactiveCell.jl`
   In `ReactiveCell{T}(::Computation)`, write `nothing` into `value` when `nothing isa T`, as `set_cell_computation!` does, and correct the comment above it. The case of another `T` goes with L03-8.
   *Test:* test_cell: getfield(Cell(@computation 1), :value) === nothing before the first read; test_serialization: a save of a document with an unread computed field works.
-- [ ] **L03-7** (Low, Correctness) — 🔒 `ReactiveCell.jl`
+  *Done:* lane A, b92e4165d. A cell whose `T` does not admit `nothing` still has an undefined value; that waits for L03-8.
+- [x] **L03-7** (Low, Correctness) — 🔒 `ReactiveCell.jl`
   Move `@count_performance :computes` above `push!(stack, c)` in `_recompute!`, so that a computation that throws also counts. Chosen over the `finally` block: the same count, and the cleanup stays clean.
   *Test:* Only in a build with the counters: a computation that throws adds one to :computes. No default test can see it (L02-1, L02-3).
-- [ ] **L03-11** (Low, Documentation) — 🔒 `ReactiveCell.jl`, `CellComputation.jl`, `CellInterface.jl`, `ImmutableCell.jl`, `MutableCell.jl`
+  *Done:* lane A, b92e4165d. No default test: a probe with the counters on gave `:computes` 0 on the old code and 1 on the new.
+- [x] **L03-11** (Low, Documentation) — 🔒 `ReactiveCell.jl`, `CellComputation.jl`, `CellInterface.jl`, `ImmutableCell.jl`, `MutableCell.jl`
   State each goal in the terms of the layer (a field, a struct, a value that a computation reads), and remove the names of documents, projections, renderers and `CellVector`.
   *Test:* test_documentation().
-- [ ] **L03-12** (Low, Documentation) — 🔒 `CellComputation.jl`, `ReactiveCell.jl`
+  *Done:* lane A, 06abbae0e.
+- [x] **L03-12** (Low, Documentation) — 🔒 `CellComputation.jl`, `ReactiveCell.jl`
   Correct cell.md:93 and the same sentence of PAR-ACYCLIC-CELLS (a direct self-read also recurses), apply the writing rules to cell.md, renumber the fan-in table of architecture.md, write 'was written' in the docstring of @computation, and let `show` print `ReactiveCell{T}` for a typed cell.
   *Test:* test_cell: repr(ReactiveCell{Int}(2)) starts with the type name, and repr(Cell(2)) with 'Cell('; test_documentation().
+  *Done:* lane A, 06abbae0e. cell.md follows the writing rules now, and its anchors still work. The fan-in table of architecture.md also had stale counts for EventModule and ReferenceModule. cell.md does not say what the engine does with a computation that throws, or the rules for threads: that waits for L03-1 and L03-2.
 
 ### Step 3.4: The struct layer
 
 Sealed files: `CellStruct.jl`, `CellStructPlan.jl`.
 
-- [ ] **L04-1** (Low, Correctness) — 🔒 `CellStructPlan.jl`
+- [x] **L04-1** (Low, Correctness) — 🔒 `CellStructPlan.jl`
   In `make_cell_struct_plan`, skip only a `LineNumberNode` and a `String`, and throw an `ArgumentError` that names any other expression of the body, as `_reject_inner_constructor` does.
   *Test:* test_cell_struct_plan: a body with `const a::Int` throws ArgumentError, and a field docstring still parses; then test_document_macro() and test_kernel().
+  *Done:* lane A, 1006a6759. No body of `@document`, `@cell_struct`, `@iomap` or `@projection` in the three repositories is rejected.
 - [ ] **L04-9** (Low, Documentation) — 🔒 `CellStructPlan.jl`, `CellStruct.jl`; after L04-7, L04-8
   Add a 'Use it to' paragraph and an example, with the goal of a macro writer, to the fifteen names that have neither.
   *Test:* test_documentation().
@@ -696,12 +703,14 @@ Sealed files: `CellStruct.jl`, `CellStructPlan.jl`.
 
 Sealed files: `Clock.jl`.
 
-- [ ] **L05-1** (part) (Medium, Documentation) — 🔒 `Clock.jl`
+- [x] **L05-1** (part) (Medium, Documentation) — 🔒 `Clock.jl`
   Add one sentence to the docstring of `start_wall_clock!`: a computation that reads the clock must not yield. The engine change waits for L03-2.
   *Test:* Documentation only.
-- [ ] **L05-2** (Low, Correctness) — 🔒 `Clock.jl`
+  *Done:* lane A, 40496d8b8.
+- [x] **L05-2** (Low, Correctness) — 🔒 `Clock.jl`
   Take `start` and each tick from `time_ns()`, converted to seconds, in place of `Base.time()`.
   *Test:* test_clock: the sets for start, stop, restart and continue still pass.
+  *Done:* lane A, 40496d8b8.
 
 ### Step 3.6: The event layer
 
@@ -866,21 +875,24 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.3: Tests of the cell layer
 
-- [ ] **L03-13** (Low, Tests)
+- [x] **L03-13** (Low, Tests)
   Add one test set for each name with no test: unwrap_cell, set_cell_value!, copy_cell_as for MutableCell and ImmutableCell, is_computed_cell for the stored kinds, peek inside a computation, and show. Add the sets for L03-4 to L03-6 with their fixes, and mark the sets for L03-1 and L03-2 @test_broken until the owner decides.
   *Test:* test_cell: the new sets pass, and the Broken count grows by the marked sets.
+  *Done:* lane A, 4f24012b3, with two `@test_broken` sets for L03-1 and L03-2. No set for a cycle (L03-3), because it overflows the stack.
 
 ### Step 4.4: Tests of the struct layer
 
-- [ ] **L04-10** (Low, Tests)
+- [x] **L04-10** (Low, Tests)
   Add test sets for a `mutable struct` and for `add_cell_struct_field!` followed by `build_cell_struct_exprs` now. Add the set for L04-1 with its fix. The sets for L04-2 to L04-4 follow those decisions.
   *Test:* test_cell_struct and test_cell_struct_plan: the new sets pass.
+  *Done:* lane A, 1006a6759. The sets for L04-2 to L04-4 wait for their decisions. `build_cell_struct_exprs` parses the definition again, so a default that `add_cell_struct_field!` records has no constructor; the test checks only that the field exists.
 
 ### Step 4.5: Tests of the clock layer
 
-- [ ] **L05-4** (Low, Tests)
+- [x] **L05-4** (Low, Tests)
   Add a test set: start a heartbeat, read a computed cell of `get_reactive_clock_time`, wait with a bound until `is_cell_up_to_date` is false, and read a larger value. Make the docstring of the file name what it tests.
   *Test:* test_clock: the new set passes within its bound.
+  *Done:* lane A, 40496d8b8. A 5 s bound; the set also passes on the old code, so it adds coverage and is no regression test. test_kernel 2559 pass and 2 broken; test_substrate 86852 and the 7 known failures; test_julia 407, test_fault 73, test_sdl 801, test_serialization 58.
 
 ### Step 4.6: Tests of the event layer
 
