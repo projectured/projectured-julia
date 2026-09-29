@@ -99,6 +99,21 @@ function test_console_backend()
         @test _parse(0x1b, UInt8('[')) === nothing
     end
 
+    # ── the letters ──────────────────────────────────────────────────────
+    @testset "each letter has the name of its lower-case letter" begin
+        # A letter byte is a KeyPress of the letter. A Ctrl byte that no other row
+        # reads is a KeyDown of its letter with Ctrl: 0x01 is Ctrl+A. The console
+        # reads no mouse, so the table holds no button and no wheel.
+        read_already = (0x03, 0x08, 0x09, 0x0a, 0x0d)
+        for (index, letter) in enumerate('a':'z')
+            @test _parse(UInt8(letter)) == KeyPress(letter; time = 0.0)
+            byte = UInt8(index)
+            byte in read_already && continue
+            @test _parse(byte) ==
+                  KeyDown(Symbol(letter), ModifierKeys(ctrl = true); time = 0.0)
+        end
+    end
+
     # ── Escape, Alt chords and the modifiers of a CSI sequence ───────────
     @testset "escape and modifiers" begin
         ESC = 0x1b

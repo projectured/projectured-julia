@@ -17,6 +17,15 @@ function test_sdl_keysym()
         end
     end
 
+    # The same table through the constructor of the event that the poll calls.
+    @testset "sdl_to_keydown names every letter key by its letter" begin
+        for (keysym, letter) in zip(97:122, 'a':'z')
+            event = ProjecturedSdl.sdl_to_keydown(Int32(keysym), UInt16(0), false;
+                                                  time = 0.0)
+            @test event == KeyDown(Symbol(letter), ModifierKeys(); time = 0.0)
+        end
+    end
+
     # The precompile recording presses keys by name. A name that no backend reports
     # matches no binding, so the code behind that key is not in the recording.
     @testset "every key the precompile recording presses is one SDL reports" begin

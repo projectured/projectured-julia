@@ -73,6 +73,31 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]).event.button === :right
     end
 
+    @testset "the letters, the buttons and the wheel have the names of the event layer" begin
+        backend = WebBackend(port = 0)
+        # Each letter key has the name of its lower-case letter, with or without Shift.
+        for letter in 'a':'z', key in (string(letter), uppercase(string(letter)))
+            code = "Key" * uppercase(string(letter))
+            _WEB._decode_and_enqueue!(backend,
+                """{"type":"keydown","window":"main","key":"$key","code":"$code"}""")
+            @test read_from_devices(backend, Device[]).event.key === Symbol(letter)
+        end
+        # The page names the left, the middle and the right button. The server
+        # drops another name, as the page sends none for a side button.
+        for (button, name) in (("left", :left), ("middle", :middle), ("right", :right),
+                               ("forward", nothing))
+            _WEB._decode_and_enqueue!(backend,
+                """{"type":"mousedown","window":"main","button":"$button","x":5,"y":6}""")
+            down = read_from_devices(backend, Device[])
+            @test name === nothing ? down === nothing : down.event.button === name
+        end
+        # A turn of the wheel away from the user: the page sends a positive `dy`.
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"scroll","window":"main","dx":0,"dy":1,"x":5,"y":6}""")
+        scroll = read_from_devices(backend, Device[]).event
+        @test scroll isa MouseScroll && scroll.dy > 0
+    end
+
     @testset "a motion holds every button that the mask of the browser holds" begin
         backend = WebBackend(port = 0)
         # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.

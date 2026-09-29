@@ -11,6 +11,7 @@ const _SDL_KEYUP           = 0x00000301
 const _SDL_MOUSEMOTION     = 0x00000400
 const _SDL_MOUSEBUTTONDOWN = 0x00000401
 const _SDL_MOUSEBUTTONUP   = 0x00000402
+const _SDL_MOUSEWHEEL      = 0x00000403
 const _SDL_BUTTON_LEFT     = 0x01
 const _SDL_BUTTON_X1       = 0x04         # a side button: the event layer has no name
 const _SDL_BUTTON_LMASK    = 0x00000001   # the left button in the `state` of a motion
@@ -41,6 +42,16 @@ _push_button_up!(x, y; button::UInt8 = _SDL_BUTTON_LEFT) =
     _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONUP, UInt32(0), UInt32(0),
                                                UInt32(0), button, UInt8(0),
                                                UInt8(1), UInt8(0), Int32(x), Int32(y)))
+
+# A wheel turn of `dy` steps, as SDL reports it: a positive `dy` is a turn away from
+# the user. The fields of the event differ between the versions of the SDL bindings,
+# so each field that the turn does not name is 0.
+function _push_wheel!(dy)
+    T = _SDL.SDL_MouseWheelEvent
+    values = Dict(:type => _SDL_MOUSEWHEEL, :y => dy)
+    fields = (fieldtype(T, name)(get(values, name, 0)) for name in fieldnames(T))
+    _push_sdl_event!(T(fields...))
+end
 
 # A key event of the left Ctrl key, with the modifier mask `mod` that SDL gives it.
 _push_ctrl_key!(type, mod) =
@@ -139,6 +150,31 @@ function test_input_coalescing()
         _push_button_down!(10, 10; button = _SDL_BUTTON_X1)
         _push_button_up!(10, 10; button = _SDL_BUTTON_X1)
         @test read_from_devices(backend, Device[]) === nothing
+    end
+
+    @testset "the buttons and the wheel have the names of the event layer" begin
+        # SDL numbers the left button 1, the middle 2 and the right 3. A side button,
+        # 4 or 5, has no name in the event layer and makes no event.
+        for (button, name) in ((0x01, :left), (0x02, :middle), (0x03, :right),
+                               (0x05, nothing))
+            _reset_input!(backend)
+            _push_button_down!(10, 10; button)
+            _push_button_up!(10, 10; button)
+            if name === nothing
+                @test read_from_devices(backend, Device[]) === nothing
+            else
+                down = read_from_devices(backend, Device[]).event
+                up = read_from_devices(backend, Device[]).event
+                @test down isa MouseDown && down.button === name
+                @test up isa MouseUp && up.button === name
+            end
+        end
+        # A turn of the wheel away from the user scrolls up: a positive `dy`.
+        _reset_input!(backend)
+        _push_wheel!(1)
+        scroll = read_from_devices(backend, Device[]).event
+        @test scroll isa MouseScroll && scroll.dy > 0
+        _reset_input!(backend)
     end
 
     @testset "a click holds the modifiers of its own place in the queue" begin

@@ -1,7 +1,8 @@
 """
 `HeadlessBackend` — the dependency-free in-memory backend test double. Exercises
-construction, the lifecycle no-ops, the write/read/measure I/O paths, and the
-`get_display_size` / `configure_devices!` fallbacks.
+construction, the lifecycle no-ops, the write and read paths, and the defaults of
+`get_display_size`, `get_pointer_position`, `configure_devices!` and
+`open_native_windows!`.
 """
 
 using Test
@@ -44,6 +45,14 @@ function test_headless_backend()
     @testset "get_display_size falls back to the display-free default" begin
         b = HeadlessBackend()
         @test get_display_size(b) == (1280, 800)
+    end
+
+    @testset "get_pointer_position falls back to (-1, -1)" begin
+        @test get_pointer_position(HeadlessBackend()) == (-1, -1)
+    end
+
+    @testset "open_native_windows! is a no-op for a backend with no windows" begin
+        @test open_native_windows!(HeadlessBackend(), :document) === nothing
     end
 
     @testset "configure_devices! is a no-op for a backend that discovers nothing" begin
