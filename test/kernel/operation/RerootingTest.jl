@@ -114,6 +114,15 @@ function test_rerooting()
         @test !operation_travels_unchanged(ReplaceSelectionOperation(EmptyReference()))
     end
 
+    # Rerooting changes where an operation points, never what it is called.
+    @testset "a projection with no reader of its own keeps the labels" begin
+        change = Intent(nothing, DoNothingOperation(), "Do nothing", "Probe")
+        answer = read_intent(RerootProbeProjection(), nothing, change, nothing)
+        @test answer.operation isa DoNothingOperation
+        @test answer.description == "Do nothing"
+        @test answer.domain == "Probe"
+    end
+
     # A collection travels home the same way a compound does, and for the same
     # reason: the operations inside must arrive rooted where the caller can apply
     # them. The labels are not touched — rerooting moves an operation, it does not
@@ -135,6 +144,8 @@ function test_rerooting()
         # Labels survive.
         @test [i.description for i in rc.intents] == ["Do the thing", "Cannot right now"]
         @test all(i -> i.domain == "Probe", rc.intents)
+        # A carrier changes no document, so its way back is to do nothing.
+        @test make_inverse_operation(nothing, collected) isa DoNothingOperation
     end
 
     @testset "merge_collected_intents takes both answers, in order" begin

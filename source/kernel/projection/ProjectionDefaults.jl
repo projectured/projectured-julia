@@ -196,14 +196,15 @@ Generic bridge from the symmetric 4-arg `Intent` interface to the 3-arg
 reader. For any projection without its own 4-arg method, unwrap the `Intent` and
 dispatch `read_intent(p, iomap, payload)` on the operation (when one
 has already been produced) or otherwise the gesture (the gesture→operation stage),
-then re-wrap the result as a `Intent` with the gesture preserved. Compound
+then re-wrap the result as a `Intent` with the gesture, the description and the
+domain preserved. Compound
 projections that must thread the change to their children override this with a
 4-arg method of their own.
 """
 function read_intent(p::Projection, recursion, change::Intent, iomap)
     payload = change.operation === nothing ? change.gesture : change.operation
     op = read_intent(p, iomap, payload)
-    return Intent(change.gesture, op)
+    return Intent(change.gesture, op, change.description, change.domain)
 end
 
 # @positional: the arity of the reader of the projection protocol, which it calls.

@@ -1,4 +1,4 @@
-# Fragment of `IntentModule` — the carrier itself: the gesture plus the operation-so-far, and the intent collection machinery.
+# Fragment of `IntentModule` — the carrier, its two reader payloads and their collection.
 
 """
     Intent(gesture, operation = nothing, description = "", domain = "")
@@ -67,15 +67,6 @@ function follow_intent_route(change::Intent, steps::ReferenceStep...)
     end
     Intent(change.gesture, change.operation, change.description, change.domain, route)
 end
-
-"""
-    with_intent_labels(intent, description, domain) -> Intent
-
-`intent` with its labels replaced. The one place labels are attached, so a reader
-that builds an operation does not have to remember the field order.
-"""
-with_intent_labels(intent::Intent, description::AbstractString, domain::AbstractString) =
-    Intent(intent.gesture, intent.operation, String(description), String(domain), intent.route)
 
 """
     ClaimedGesture(gesture, operation)
@@ -165,3 +156,6 @@ reroot_operation(op::CollectedIntentsOperation, steps::Tuple) =
     CollectedIntentsOperation([Intent(i.gesture, reroot_operation(i.operation, steps),
                                       i.description, i.domain)
                                for i in op.intents])
+
+# A carrier changes no document, so its way back is to do nothing.
+make_inverse_operation(document, ::CollectedIntentsOperation) = DoNothingOperation()
