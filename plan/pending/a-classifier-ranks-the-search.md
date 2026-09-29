@@ -532,6 +532,23 @@ Each step says what stops the stage.
   **Stop** if no classifier shape with the call sites and the context beats
   the best control at the full scale on the report half. Then the result is the
   text or nothing.
+- [ ] **Step 4b. The untuned answers** (the owner, 2026-09-29: "Did we measure
+  search API tool calls for many different questions with a large set of
+  possible answer functions where the documentation is not specifically tuned
+  as in the mm1k study?"). The 60 answers of the scale questions have a median
+  docstring of 969 characters and 72 % carry a "Use it to" paragraph; the
+  corpus has 159 characters, 4 %, and 34 % of its names have no docstring. So:
+  1. About 60 answers drawn at random from the functions and types of the full
+     corpus, 20 with no docstring, 20 with a short one (up to 300 characters),
+     20 with a longer one, with a fixed seed.
+  2. For each, a code excerpt: a call site that is not among the three the
+     rankers show, or the definition of the name when it has three or fewer.
+  3. A Sonnet subagent writes one request per excerpt in a person's words; it
+     never sees a docstring, and a question that holds a word of the name or of
+     its module is written again.
+  4. The rankers of Stage 1 on the full corpus: words, meaning, meaning with
+     call sites, and Jev in two stages and as a cascade, with and without the
+     call sites. About $1.
 - [x] **Step 5. The guide ranks.** The same for `search_guides`, at the three
   sizes of §5a. Done 2026-09-28 (§10), with words, meaning, and Jev in two
   stages and as a cascade; the tree and the local classifier were not run on
