@@ -2,7 +2,9 @@
 
 Status: **deferred**, 2026-09-29. Nothing is implemented. The owner: "let's
 defer adding call sites for now, we will come back to this when we have more
-real life examples". The evidence of §3 comes from 60 answers drawn at random
+real life examples", and of the code of the definition: "clearly there will be
+docstring for all function that the AI will use"; the code helped only names
+with no docstring. The evidence of §3 comes from 60 answers drawn at random
 and questions a model wrote from code; real requests of real users are the
 evidence to wait for. It builds on the branch `classifier-search`, which is not
 on `main` yet (§7, question 4).
