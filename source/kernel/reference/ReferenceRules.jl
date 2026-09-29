@@ -224,18 +224,18 @@ _match_value(value, pat::PatValueInterp, b::ReferenceRuleBindings) =
           "interpolation is evaluated at construction, so store the value")
 
 _match_step(h, step::PatStepField, b::ReferenceRuleBindings) =
-    h isa FieldReferenceStep ? _match_value(h.name, step.namepat, b) : nothing
+    h isa AFieldReferenceStep ? _match_value(h.name, step.namepat, b) : nothing
 
 _match_step(h, step::PatStepIndex, b::ReferenceRuleBindings) =
-    (h isa RangeReferenceStep && is_element_reference_step(h)) ?
+    (h isa ARangeReferenceStep && is_element_reference_step(h)) ?
     _match_value(h.start + 1, step.idxpat, b) : nothing
 
 _match_step(h, step::PatStepPosition, b::ReferenceRuleBindings) =
-    (h isa RangeReferenceStep && is_position_reference_step(h)) ?
+    (h isa ARangeReferenceStep && is_position_reference_step(h)) ?
     _match_value(h.start, step.idxpat, b) : nothing
 
 function _match_step(h, step::PatStepRange, b::ReferenceRuleBindings)
-    h isa RangeReferenceStep || return nothing
+    h isa ARangeReferenceStep || return nothing
     start = step.numbering === :element ? h.start + 1 : h.start
     b1 = _match_value(start, step.startpat, b)
     b1 === nothing ? nothing : _match_value(h.stop, step.stoppat, b1)

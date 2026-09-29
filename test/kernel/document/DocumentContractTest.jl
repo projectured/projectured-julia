@@ -20,8 +20,8 @@ using ProjecturedKernel.CellModule: Cell, Computation, @computation, ImmutableCe
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
 using ProjecturedKernel.ReferenceModule: EmptyReference, Reference,
-                                         FieldReferenceStep, extend_reference,
-                                         strip_reference_types
+                                         FieldReferenceStep, MFieldReferenceStep,
+                                         extend_reference, strip_reference_types
 
 @document struct ToyNode
     label::String
@@ -143,6 +143,13 @@ function test_document_contract()
         @test strip_reference_types(get_selection(n)) == deep
         clear_selection!(n)
         @test get_selection(n) === nothing
+        @test get_selection(n.child) === nothing
+        # A path of the plain `M` steps descends the same way.
+        plain = Reference(MFieldReferenceStep("child"), MFieldReferenceStep("label"))
+        set_selection!(n, plain)
+        @test strip_reference_types(get_selection(n.child)) ==
+              Reference(FieldReferenceStep("label"))
+        clear_selection!(n)
         @test get_selection(n.child) === nothing
     end
 

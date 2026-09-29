@@ -313,7 +313,7 @@ end
 # `clear_selection!`, `_set_selection_walk!`, and `_sync_selection!`.
 function _selection_child(document, path::ConcreteReference)
     h = path.head
-    child = if h isa FieldReferenceStep
+    child = if h isa AFieldReferenceStep
         sym = Symbol(h.name)
         # The path may not match this node (a stale or cross-domain selection):
         # stop walking gracefully rather than throwing FieldError. In the folded
@@ -321,7 +321,7 @@ function _selection_child(document, path::ConcreteReference)
         # guard the field's presence explicitly.
         hasproperty(document, sym) || return nothing
         unwrap_cell(getfield(document, sym))
-    elseif h isa RangeReferenceStep
+    elseif h isa ARangeReferenceStep
         document isa AbstractString && return nothing
         _find_indexed_child(document, h.start + 1)
     else

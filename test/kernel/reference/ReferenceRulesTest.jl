@@ -98,14 +98,26 @@ _rules_compiled_case(path) = @reference_case path begin
     __  => :miss
 end
 
+# The same path built of the plain `M` steps, with the same node types.
+_make_value_step(step::AFieldReferenceStep) = MFieldReferenceStep(step.name)
+_make_value_step(step::ARangeReferenceStep) = MRangeReferenceStep(step.start, step.stop)
+_make_value_step(step) = step
+_make_value_path(path::EmptyReference) = path
+_make_value_path(path::ConcreteReference) =
+    ConcreteReference(path.type, _make_value_step(path.head), _make_value_path(path.tail))
+
 # Assert a `@reference_case` block and a `ReferenceRules` object answer identically
 # across the whole corpus. `case` is the compiled matcher as a one-argument function.
+# Each path of the corpus also gives the same answer when it is built of `M` steps.
 function _conforms(name, case, rules, paths = _corpus_paths())
     @testset "$name" begin
         for path in paths
             expected = case(path)
             actual = apply_reference_rules(rules, path)
             @test actual == expected
+            value_path = _make_value_path(path)
+            @test (case(value_path), apply_reference_rules(rules, value_path)) ==
+                  (expected, expected)
         end
     end
 end

@@ -205,7 +205,10 @@ Base.hash(s::ATypeReferenceStep, h::UInt) = hash(s.type, hash(:TypeReferenceStep
 
 # ── Cross-type step equality ──────────────────────────────────────────────
 
-Base.:(==)(::ReferenceStep, ::ReferenceStep) = false
+# Two steps of different kinds are never equal. A step of a type that defines no
+# `==` of its own equals itself, so a path that holds it is valid, and the default
+# `hash` agrees with this `==`.
+Base.:(==)(a::ReferenceStep, b::ReferenceStep) = a === b
 
 # ── Hashing ───────────────────────────────────────────────────────────────
 #

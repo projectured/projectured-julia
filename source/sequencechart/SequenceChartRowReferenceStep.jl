@@ -36,6 +36,8 @@ ReferenceModule.get_reference_step_kind(::SequenceChartRowReferenceStep) = :stru
 
 Base.:(==)(a::SequenceChartRowReferenceStep, b::SequenceChartRowReferenceStep) =
     a.index == b.index
+Base.hash(s::SequenceChartRowReferenceStep, h::UInt) =
+    hash(s.index, hash(:SequenceChartRowReferenceStep, h))
 
 Base.show(io::IO, s::SequenceChartRowReferenceStep) = print(io, "row(", s.index, ")")
 

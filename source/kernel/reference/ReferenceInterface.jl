@@ -16,6 +16,10 @@ one level down, into a field or an element; a checkpoint step stays where it is
 and states what must be true there, which is what keeps a path honest while the
 document changes.
 
+A step type defines `==` by value and a `hash` that agrees with it, because a
+`Reference` compares and hashes by its steps. A step of a type that defines no
+`==` equals only itself.
+
 # Example
 
     for step in reference

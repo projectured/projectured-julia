@@ -219,8 +219,10 @@ copy_reference(reference::ConcreteReference) =
 copy_reference(reference) = reference
 
 # A range step is the one step that is written in place, so it is the one that is
-# rebuilt. Every other step is answered as it is.
+# rebuilt, in its own layout. Every other step is answered as it is.
 _copy_reference_step(step::RangeReferenceStep) = RangeReferenceStep(step.start, step.stop)
+_copy_reference_step(step::MRangeReferenceStep) =
+    MRangeReferenceStep(step.start, step.stop)
 _copy_reference_step(step) = step
 
 """
@@ -239,7 +241,7 @@ _fold_reference_types(p::EmptyReference, pending) =
     EmptyReference(pending === nothing ? p.type : pending)
 
 function _fold_reference_types(p::ConcreteReference, pending)
-    if p.head isa TypeReferenceStep
+    if p.head isa ATypeReferenceStep
         # A checkpoint step types the *next* navigation node — carry it forward.
         return _fold_reference_types(p.tail, p.head.type)
     end

@@ -10,6 +10,7 @@ using ProjecturedKernel.DocumentModule: @document, Document
 # `reroot_reference` is the container readers' path-prepender; the narrowing
 # tests below need the untyped nodes it produces, not a hand-built stand-in.
 using ProjecturedKernel.OperationModule: reroot_reference
+using ProjecturedKernel.ProjectionModule: ProjectionReferenceStep
 
 @document struct EvaluationLeaf
     value::Int
@@ -23,6 +24,11 @@ end
 struct EA end
 struct EB end
 struct EC end
+
+# A step type that defines no `==` of its own.
+mutable struct EvaluationToyStep <: ReferenceStep end
+ReferenceModule.get_reference_step_kind(::EvaluationToyStep) = :structural
+ReferenceModule.evaluate_reference_step(::EvaluationToyStep, document) = document
 
 function test_reference_evaluation()
 @testset "ReferenceEval" begin
@@ -263,6 +269,36 @@ function test_reference_evaluation()
         annotated = annotate_reference_types(native, skeleton)
         @test annotated.type === EvaluationBranch
         @test evaluate_reference(root, strip_reference_types(annotated)) === root.left
+    end
+
+    @testset "copy_reference copies a range step in its own layout" begin
+        caret = MPositionReferenceStep(2)
+        path = Reference(MFieldReferenceStep("items"), caret)
+        copied = get_reference_head(get_reference_tail(copy_reference(path)))
+        @test copied isa MRangeReferenceStep
+        @test copied == caret
+        @test copied !== caret
+        reactive = PositionReferenceStep(2)
+        copied = get_reference_head(copy_reference(Reference(reactive)))
+        @test copied isa RangeReferenceStep
+        @test copied == reactive
+        @test copied !== reactive
+    end
+
+    @testset "a step type with no == of its own equals itself" begin
+        step = EvaluationToyStep()
+        @test step == step
+        @test step != EvaluationToyStep()
+        @test is_valid_reference(root, Reference(step))
+    end
+
+    @testset "a projection step hashes as it compares" begin
+        projection = Ref(0)
+        first_step = ProjectionReferenceStep(projection, Reference(FieldReferenceStep("x")))
+        second_step = ProjectionReferenceStep(projection, Reference(FieldReferenceStep("x")))
+        @test first_step == second_step
+        @test hash(first_step) == hash(second_step)
+        @test length(Set([Reference(first_step), Reference(second_step)])) == 1
     end
 
 end
