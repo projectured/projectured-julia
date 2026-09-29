@@ -5016,15 +5016,18 @@ end
 # A wheel turn over a list. It starts from the offset that the pane draws with,
 # and it stops at the ends that a walk from the head reaches. So a turn past the
 # last row moves nothing and answers `nothing`, and a turn back moves at once.
+# The list has no height, but it has a width: a turn to the side stops at the
+# right edge of the content, as it does over any content.
 function _scroll_list_by(p, iomap, content::GraphicsCanvas, dx::Int, dy::Int)
     w = iomap.input
-    _, ty = _inset_total(p, w)
+    tx, ty = _inset_total(p, w)
     view_h = Int(iomap.output.h) - ty
     frozen_h = _get_frozen_height(get_frozen_extent(iomap.content_iomap))
     drawn = _pane_scroll_y(w, content, view_h, frozen_h)
     y = _clamp_to_list_ends(content, drawn + dy, frozen_h, view_h)
     old_x = Int(w.scroll_position.x[])
-    x = old_x + dx
+    room_x = max(0, Int(content.w) - (Int(iomap.output.w) - tx))
+    x = clamp(old_x + dx, 0, room_x)
     (x == old_x && y == drawn) && return nothing
     _write_view_state(w, "scroll_position", Point2D(x, y))
 end

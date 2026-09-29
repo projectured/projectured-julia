@@ -358,6 +358,27 @@ end
     @test in_strip == Set(["name", "value"])
 end
 
+@testset "a turn to the side stops at the right edge of a wide list" begin
+    wide = WidgetScrollPane(WidgetTable(; column_headers = Any["name", "value"],
+                                        rows = make_indexed_list(10, texts_of), column_count = 2,
+                                        column_policies = Any[Fixed(400), Fixed(400)]);
+                            size = Point2D(600, 300))
+    io = print_document(rec, nothing, wide, context())
+    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = 0.0))
+    content_w = Int(io.content_iomap.output.w)
+    @test content_w > 600
+    # Left at the left edge moves nothing.
+    @test side(1) === nothing
+    # Right, turn after turn, stops at the edge and then answers nothing.
+    turns = 0
+    while (op = side(-1)) !== nothing && turns < 1000
+        getfield(wide, :scroll_position)[] = get_wrapped_operation(op).value
+        turns += 1
+    end
+    @test turns < 1000
+    @test Int(wide.scroll_position.x[]) == content_w - 600
+end
+
 @testset "a list shorter than the pane starts at its top" begin
     printed = print_pane(make_indexed_list(3, texts_of); scroll_y = 400)
     @test label_y(printed, "row 1") == body_top(printed) + text_inset(printed)
