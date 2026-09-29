@@ -450,39 +450,50 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.7: The projection layer
 
-- [ ] **L17-3** (Medium, Correctness) — same fault as L14-4
+- [x] **L17-3** (Medium, Correctness) — same fault as L14-4
   In the bridge and in read_template_intent, build the answer with the 4-argument Intent constructor, so description and domain stay. When change.route is a non-empty reference, answer Intent(change.gesture, nothing), because these readers do not follow a route.
   *Test:* New kernel test with a fixture projection: the bridge keeps description and domain; a change with a route of one step answers operation === nothing. Then test_referenced_document_editor() for insert_elements! into a nested element.
-- [ ] **L17-4** (Medium, Correctness)
+  *Done:* lane B, 50200364. A route that is a `ConcreteReference` gives `Intent(gesture, nothing)`; the template reader keeps the description and the domain.
+- [x] **L17-4** (Medium, Correctness)
   Add Base.hash(s::ProjectionReferenceStep, h::UInt) = hash(s.output_path, hash(objectid(s.projection), hash(:ProjectionReferenceStep, h))), as the report gives.
   *Test:* New kernel test: two make_introduced_reference results with the same projection and path are ==, have the same hash, and a Set of the two has length 1.
-- [ ] **L17-5** (Medium, Architecture)
+  *Done:* lane B, 490aac09.
+- [x] **L17-5** (Medium, Architecture)
   In _mixed_print and in _sections_print, make the child IoMaps of the spliced collection and of each section with reconcile_child_iomaps, as _node_print does, in place of one computation that prints every child.
   *Test:* Substrate test with a mixed node and a sections node: insert one element; assert that the IoMaps of the other elements are === the IoMaps before the insert.
-- [ ] **L17-6** (Medium, Architecture)
+  *Done:* lane B, 582cc6c1, through one private helper `_reconcile_element_iomaps`. omnet-julia's IniToSyntax.jl (a mixed node) and NedToSyntax.jl (sections) get this change; they are not run yet.
+- [x] **L17-6** (Medium, Architecture)
   Carry value_field in KeySlot and InlineWiring, and write FieldReferenceStep(String(value_field)) in _key_leaf_sel, the slot mappers, the mixed mappers and the inline mappers. Share doc.selection as it is only when the output field has the name of the input field (value_field === bound_field).
   *Test:* Substrate test: a template leaf with bound(:x, ...) in a field that is not value; assert that a caret .x{1} maps to that field of the leaf and back.
-- [ ] **L17-7** (Medium, Architecture)
+  *Done:* lane B, a42da081. The leaf shares `doc.selection` only when `value_field === bound_field`.
+- [x] **L17-7** (Medium, Architecture)
   In the gesture descent, call read_intent(child.projection, recursion, Intent(evt), child) and read its operation. Pass recursion from read_template_intent into a private gesture helper with 4 arguments. Keep the RecursiveProjection disambiguations of ReaderDefaults.jl, or remove the ones that only the 3-argument path needs.
   *Test:* Substrate test: a template node whose child projection has only a 4-argument reader; a key at the child reaches that reader. Then test_example(json_example).
-- [ ] **L17-10** (Medium, Architecture) — same fault as L15-2
+  *Done:* lane B, 50200364. The descent `_read_template_gesture(iomap, evt; recursion)` takes 3 arguments, because it never reads the projection.
+- [x] **L17-10** (Medium, Architecture) — same fault as L15-2
   Declare function get_projection_gesture_bindings end, with its docstring, in ProjectionInterface.jl. Keep the default method and read_projection_gesture in GestureBindings.jl, correct its header, and correct the export order in ProjectionModule.jl.
   *Test:* test_kernel_layering() and test_documentation(); test_exports() for the export order.
-- [ ] **L17-11** (part) (Medium, State)
+  *Done:* lane B, d48309e7.
+- [x] **L17-11** (part) (Medium, State)
   In the two inspectors, derive the context from the one that the printer receives (`with_exact_size(make_child_context(ctx, EmptyReference()); width = nothing, height = nothing)`). The fault log and the gesture log wait for their decision.
   *Test:* The inspector suites pass; a clock read in an inspector subtree follows the editor clock.
-- [ ] **L17-13** (Low, Correctness)
+  *Done:* lane B, d11f9b63.
+- [x] **L17-13** (Low, Correctness)
   In the default map_reference_backward, answer make_introduced_reference(projection, iomap.input, reference) in place of the literal @reference(iomap.input, proj(projection, ^(reference))).
   *Test:* New kernel test: the default backward map of a path is == make_introduced_reference(p, input, path), and its terminal type is Position. Then test_example(json_example), because the strict == separates the two forms in a stored caret.
-- [ ] **L17-19** (part) (Low, Shape)
+  *Done:* lane B, 39f2dece. Three hand-built literals of the old form stay outside the kernel: MarkdownToSyntax.jl:329, RstToSyntax.jl:912, DatabaseInstanceToDbCatalog.jl:110.
+- [x] **L17-19** (part) (Low, Shape)
   After the engine fixes of this layer, wrap the lines of ProjectionTemplate.jl over 90 characters, and give the private helpers with 4 to 7 positional arguments keywords. The split of the file waits for the decision on new file names; the export block is in export-block-rule.md.
   *Test:* `test_substrate()` gives its baseline count.
-- [ ] **L17-20** (Low, Types/performance)
+  *Done:* lane B, 15a3f818. No line is over 90 characters, and no private helper takes more than 3 positional arguments. test_kernel 2488 in lane B (the 6 known failures stay there), test_substrate 86852 and the 7 known failures, the domain suites at their counts, `test_example(json_example)` 4977.
+- [x] **L17-20** (Low, Types/performance)
   Dispatch the two generic mappers on the wiring type (_forward(w::NodeWiring, ...)) in place of the isa chain of 7 branches. Type the wiring fields that hold types (intype, outtype, bound_type, retype). Declare projection, input, output and wiring of RuleIoMap as ImmutableCell fields, which @cell_struct supports.
   *Test:* test_projection_template_fixed_children() and test_example(json_example).
-- [ ] **L17-21** (part) (Low, Correctness)
+  *Done:* lane B, 935aea03. `value_checkpoint` and the `in_type` and `checkpoint` of `KeySlot` are typed too. The four constant fields of `RuleIoMap` are `ImmutableCell{Any}`, so a printer walk counts fewer cells.
+- [x] **L17-21** (part) (Low, Correctness)
   Make `withhold_offer` throw an `ArgumentError` for an axis that is not `:x` or `:y`. The names wait for their decision.
   *Test:* A new case: `withhold_offer` with `:z` throws.
+  *Done:* lane B, 30f5eb54.
 
 ### Step 2.8: The tool layer
 
