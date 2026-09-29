@@ -813,7 +813,7 @@ function _hl_build(recursion, doc, ctx)
     # declares a preferred cross extent gets that number. A child that declares
     # nothing is `Content`, and it draws its content up to the edge — a badge in
     # a column stays badge-shaped, and a paragraph wraps at the column
-    # (`_cross_context`). This is what makes `child_width`/`child_height` mean
+    # (`make_cross_axis_context`). This is what makes `child_width`/`child_height` mean
     # something on the axis the layout does not divide.
     cross_default = getfield(doc, :child_height)[]
 
@@ -823,7 +823,7 @@ function _hl_build(recursion, doc, ctx)
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_w, :x, default,
                              gap_cell, ctx.maximum_width)
-        cctx = _cross_context(cctx, child, :y, cross_default)
+        cctx = make_cross_axis_context(cctx, child, :y, cross_default)
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 
@@ -952,18 +952,25 @@ function _main_context(cctx, i::Int, children, child_iomaps, slotted::Vector{Boo
     with_size_range(cctx; on_axis((minimum > 0 ? Cell(Int32(minimum)) : nothing, bound))...)
 end
 
-# The range a stack gives a child on the axis it does NOT divide.
-#
-# The stack's own edge on that axis, `B`, is the maximum of the range it was
-# given. `Fill` and `Relative` take it exactly, `(B, B)`; a declared preferred
-# extent takes that number exactly; and everything else is `Content`: the child
-# draws its content up to the edge, `(minᵢ, min(B, maxᵢ))`, from the placement's
-# minimum and maximum. `axis` is the cross axis, and `default` is the layout's own
-# `child_width`/`child_height` for that axis.
-#
-# The edge is the cell the stack's parent gave, never the stack's own extent,
-# which is computed from its children, so no child reads a result of its own.
-function _cross_context(cctx, child, axis::Symbol, default)
+"""
+    make_cross_axis_context(cctx, child, axis, default) -> PrinterContext
+
+The context of `child` with the range that a container gives it on an axis
+that the container does not divide: the cross axis of a stack, and both axes
+of a `WidgetComposite`, whose children overlap.
+
+The edge `B` on that axis is the maximum of the range of `cctx`. `Fill` and
+`Relative` take it exactly, `(B, B)`; a declared preferred extent takes that
+number exactly; and everything else is `Content`: the child draws its content
+up to the edge, `(minᵢ, min(B, maxᵢ))`, from the placement's minimum and
+maximum. The policy is the `LayoutConstraint` that `child` is, else `default`,
+the container's `child_width` or `child_height` for that axis.
+
+The edge is a cell that the container's parent gave, never the container's own
+extent, which is computed from its children, so no child reads a result of its
+own.
+"""
+function make_cross_axis_context(cctx, child, axis::Symbol, default)
     edge = axis === :x ? cctx.maximum_width : cctx.maximum_height
     on_axis(range) = axis === :x ? (; width = range) : (; height = range)
     layout_weight(child, axis; default) > 0 && return with_size_range(cctx; on_axis((edge, edge))...)
@@ -1029,7 +1036,7 @@ function _vl_build(recursion, doc, ctx)
     # declares a preferred cross extent gets that number. A child that declares
     # nothing is `Content`, and it draws its content up to the edge — a badge in
     # a column stays badge-shaped, and a paragraph wraps at the column
-    # (`_cross_context`). This is what makes `child_width`/`child_height` mean
+    # (`make_cross_axis_context`). This is what makes `child_width`/`child_height` mean
     # something on the axis the layout does not divide.
     cross_default = getfield(doc, :child_width)[]
 
@@ -1039,7 +1046,7 @@ function _vl_build(recursion, doc, ctx)
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
         cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_h, :y, default,
                              gap_cell, ctx.maximum_height)
-        cctx = _cross_context(cctx, child, :x, cross_default)
+        cctx = make_cross_axis_context(cctx, child, :x, cross_default)
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
 

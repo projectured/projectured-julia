@@ -47,7 +47,7 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        LayoutToGraphics, GridLayoutIoMap
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
-export descend_reference_forward, make_slot_reference, clip_child_to_slot
+export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context
 export read_child_event, make_layout_selection_ring
 
 

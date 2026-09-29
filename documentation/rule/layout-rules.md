@@ -145,6 +145,16 @@ its width, a `WidgetCard` none on its height and a `WidgetToolbar` none on its
 width — each because its extent on that axis is the sum or the maximum of what
 it holds. Each still gives its edge.
 
+A `WidgetComposite` gives no slot on either axis: its children overlap, each at
+its own position, and its extent is the largest of theirs. It gives each child,
+on both axes, the range that a stack gives on its cross axis
+(`make_cross_axis_context`), from the composite's `child_width` and
+`child_height` or the `LayoutConstraint` that the child is. A bare child is
+`Content`: a label in a window has the size of its text. The edge is the
+composite's edge less its insets and less the position of the child, so a
+`Fill` child ends at the edge of the composite. The root of a pane tree sets
+both defaults to `Fill`, so its panes divide the whole window.
+
 A **viewport** — `WidgetScrollPane`, `WidgetTransformPane` — gives an offer on
 every axis where it has an extent of its own, an authored size or the space
 its parent gave.

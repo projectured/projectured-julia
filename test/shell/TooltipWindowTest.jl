@@ -214,6 +214,27 @@ end
     @test (tip.x, tip.y) == (100 + 10, 100 + 30 + 24 + 4)
 end
 
+@testset "a command opens the tooltip below a label, which has the size of its text" begin
+    # A label with no size of its own fits its text in the window, so the window
+    # of its tooltip stands below the text, not at the bottom of the window.
+    label = WidgetLabel("Name"; position = Point2D(10, 30), tooltip = "what this label is for")
+    alone = print_document(make_widget_projection_example(measure = _tw_measure()), WidgetLabel("Name"))
+    height = Int(unwrap_cell(get_iomap_output(alone)).h[])
+    @test height < 300
+    editor, backend, scene = _tw_editor(WidgetComposite(Any[label]))
+    place = extend_reference(EmptyReference(),
+                             FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"), FieldReferenceStep("windows"),
+                             ElementReferenceStep(1), FieldReferenceStep("content"),
+                             FieldReferenceStep("elements"), ElementReferenceStep(1))
+    @test evaluate_reference(editor.document, place) === label
+    binding = only(filter(binding -> binding.domain == "tooltip",
+                          get_document_gesture_bindings(WidgetLabel)))
+    evaluate_operation(editor, read_rooted_operation(editor, place, binding.operation(label, nothing)))
+    tip = only(_tw_tooltips(scene))
+    @test (tip.x, tip.y) == (100 + 10, 100 + 30 + height + 4)
+end
+
 @testset "a command opens the signature of a Julia function below the function" begin
     # A pane of Julia source, drawn as syntax, text and graphics; the layout and
     # the box read the same font files. A line follows the function, so the image

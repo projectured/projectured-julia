@@ -171,13 +171,13 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
                 nothing : (get_exact_width(ctx), get_exact_height(ctx))
 
     # The layout, and one layer over it. A `WidgetComposite` is what can carry the
-    # overlay: it hands each child the extent it was given itself, so the panes
-    # still divide the whole window, and it places each child at its own position,
-    # so the indicator can sit anywhere over them. (A `StackLayout` clears the
-    # available size for its children, which would collapse the split panes to
-    # their intrinsic sizes.)
+    # overlay: its children fill it (`Fill` on both axes), so the panes divide the
+    # whole window, and it places each child at its own position, so the indicator
+    # can sit anywhere over them; the indicator authors its size, which wins over
+    # the fill. (A `StackLayout` clears the available size for its children, which
+    # would collapse the split panes to their intrinsic sizes.)
     indicator = _drop_indicator(tree, available)
-    composite = WidgetComposite(Any[])
+    composite = WidgetComposite(Any[]; child_width = Fill, child_height = Fill)
     set_cell_computation!(getfield(composite.elements, :elements),
                        () -> Cell[Cell(root_iomap[].output), Cell(indicator)])
     iomap = PaneTreeToWidgetIoMap(p, tree, composite, root_iomap, available)

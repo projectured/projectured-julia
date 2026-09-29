@@ -742,13 +742,17 @@ set_cell_computation!(w::WidgetToolbarItem, f::Function) = (set_cell_computation
 # ── WidgetComposite ────────────────────────────────────────────────────────
 
 """
-    WidgetComposite(elements; position, <base kwargs>)
+    WidgetComposite(elements; position, child_width, child_height, <base kwargs>)
 
 A container that holds child widgets in order, each at its own position.
 
 Use it to group a few widgets that are placed by hand, each with a `position`
 of its own. When a row, a column or a grid is wanted, a layout places its
 children itself: `HorizontalLayout`, `VerticalLayout` or `GridLayout`.
+
+A child fits its content, up to the edge of the composite. `child_width` and
+`child_height` give all children another policy, such as `Fill`, which makes a
+child reach the edge; a `LayoutConstraint` gives one child its own.
 
 # Example
 
@@ -761,6 +765,8 @@ See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`
 @document struct WidgetComposite <: WidgetDocument
     position::Point2D
     elements::CellVector
+    child_width::Any
+    child_height::Any
     visible::Bool
     margin::Inset
     border::Inset
@@ -770,11 +776,13 @@ See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`
 end
 
 function WidgetComposite(elements::Vector; position::Point2D=Point2D(0, 0),
+                         child_width::Union{Nothing,SizePolicy}=nothing,
+                         child_height::Union{Nothing,SizePolicy}=nothing,
                          visible::Bool=true,
                          margin=nothing, border=nothing, padding=nothing,
                          style=nothing, tooltip=nothing)
     WidgetComposite(Cell(position), CellVector(Cell[Cell(x) for x in elements]),
-                    Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                    Cell(child_width), Cell(child_height), Cell(visible), Cell(margin), Cell(border), Cell(padding),
                     Cell(style), Cell(tooltip), Cell(nothing))
 end
 

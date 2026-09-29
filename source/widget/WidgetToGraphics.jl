@@ -2754,12 +2754,14 @@ end
 function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::WidgetComposite, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
-    # A composite renders widget children and embedded layout children (e.g. a
-    # GridLayout form from ObjectToWidget); both re-enter the recursion. Reconcile
-    # the filtered children by identity so a structural edit reuses survivors.
+    # A composite renders widget children, embedded layout children (e.g. a
+    # GridLayout form from ObjectToWidget) and a child in a `LayoutConstraint`;
+    # each re-enters the recursion. Reconcile the filtered children by identity so
+    # a structural edit reuses survivors.
     child_cells = reconcile_child_iomaps(
-        () -> Any[c for c in w.elements if (c isa WidgetDocument || c isa LayoutDocument)],
-        (i, c) -> print_child(recursion, c, ctx))
+        () -> Any[c for c in w.elements
+                  if (c isa WidgetDocument || c isa LayoutDocument || c isa LayoutConstraint)],
+        (i, c) -> print_child(recursion, c, _make_composite_child_context(p, w, c, ctx)))
     # The natural extent of the children together, before the box around them.
     extent = Cell(@computation begin
         content_width, content_height = 0, 0
@@ -2804,6 +2806,35 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
     ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
                                               _p_measure(p)),
                   Cell(@computation build[].child_iomaps))
+end
+
+# The context of a child of a composite. The children overlap, each at its own
+# position, so the composite divides neither axis, and it gives each child on both
+# axes the range of `make_cross_axis_context`: the policy is the
+# `LayoutConstraint` that the child is, else the composite's `child_width` and
+# `child_height`, else `Content`. The edge is the maximum of the composite's
+# range less its insets and less the position of the child, so a child that
+# fills ends at the edge of the composite, and a child that fits its content
+# draws it up to there.
+function _make_composite_child_context(p, w::WidgetComposite, child, ctx)
+    ctx isa PrinterContext || return ctx
+    position = () -> _get_placed_position(child)
+    edge(maximum, inset, coordinate) = maximum === nothing ? nothing :
+        Cell(@computation Int32(max(0, Int(maximum[]) - inset() - coordinate())))
+    cctx = with_bounded_size(ctx;
+        width = edge(ctx.maximum_width, () -> _inset_total(p, w)[1], () -> position()[1]),
+        height = edge(ctx.maximum_height, () -> _inset_total(p, w)[2], () -> position()[2]))
+    cctx = make_cross_axis_context(cctx, child, :x, w.child_width)
+    make_cross_axis_context(cctx, child, :y, w.child_height)
+end
+
+# The position of a child placed by hand, `(x, y)`, through a `LayoutConstraint`;
+# `(0, 0)` for a child with none.
+_get_placed_position(child::LayoutConstraint) = _get_placed_position(child.child)
+function _get_placed_position(child)
+    hasproperty(child, :position) || return (0, 0)
+    position = child.position
+    position isa Point2D ? (round(Int, position.x[]), round(Int, position.y[])) : (0, 0)
 end
 
 map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)

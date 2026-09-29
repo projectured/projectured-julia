@@ -45,3 +45,50 @@ end
     @test 150 < widths[2] <= 250
 end
 end # test_size_range_cross_axis
+
+# A composite printed in a window of `width` by `height`, or with no window when
+# `width` is `nothing`, and the size that each of its children draws, in order.
+function _range_composite_child_sizes(composite, width, height)
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+    ctx = width === nothing ? PrinterContext() :
+          PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}())
+    iomap = print_document(projection, nothing, composite, ctx)
+    [(Int(last(entry).output.w[]), Int(last(entry).output.h[])) for entry in getfield(iomap, :child_iomaps)[]]
+end
+
+"""
+    test_size_range_composite()
+
+A composite gives each child its content, up to the composite's edge: a label in
+a window keeps the size of its text. A `Fill` child reaches the edge from its
+own position, and a composite whose children fill gives the edge to every child
+that has no size of its own.
+"""
+function test_size_range_composite()
+@testset "a child of a composite fits its content, and a Fill child reaches the edge" begin
+    natural = only(_range_composite_child_sizes(WidgetComposite(Any[WidgetLabel("Name")]), nothing, nothing))
+    sizes = _range_composite_child_sizes(
+        WidgetComposite(Any[WidgetLabel("Name"),
+                            LayoutConstraint(WidgetButton("Go"); width = Fill),
+                            LayoutConstraint(WidgetButton("Go"; position = Point2D(10, 20));
+                                             width = Fill, height = Fill)]),
+        400, 300)
+    @test sizes[1] == natural
+    @test sizes[1][1] < 400 && sizes[1][2] < 300
+    @test sizes[2][1] == 400
+    @test sizes[2][2] < 300
+    # The edge less the position of the child.
+    @test sizes[3] == (390, 280)
+end
+
+@testset "a composite whose children fill gives every child the edge" begin
+    sizes = _range_composite_child_sizes(
+        WidgetComposite(Any[WidgetLabel("Name"), WidgetButton("Go"; size = Point2D(80, 24))];
+                        child_width = Fill, child_height = Fill),
+        400, 300)
+    @test sizes[1] == (400, 300)
+    # A size of its own wins over the fill.
+    @test sizes[2] == (80, 24)
+end
+end # test_size_range_composite

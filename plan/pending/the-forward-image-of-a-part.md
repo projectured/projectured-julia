@@ -159,7 +159,8 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   test) while the composite reports 62 by 63; a window below such a label
   stands at the bottom of the window. That is how the composite sizes its
   children, not a fault of the forward map. **Settled** (owner 2026-09-29):
-  "Label size: should fit the content by default." Step 5c changes it.
+  "Label size: should fit the content by default." Step 5c changed it: a label
+  in a composite now has the size of its text.
 - [x] 5. **Text** (Q4). `TextToGraphics` maps a text reference as specifically as
   possible. Decided with the owner (2026-09-29):
   - **Q7. A text part is the segment that draws it** (way (a)), "but even more
@@ -239,7 +240,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   meets forward answers for the two lazy examples); the palette error of step 5
   is gone; the naming guard passes, the documentation check has the notes of
   step 5, and the omnet tests have their results.
-- [ ] 5c. **A child of a composite fits its content by default** (Q9, way (a)
+- [x] 5c. **A child of a composite fits its content by default** (Q9, way (a)
   with (ii) and the constraint). The work:
   - `WidgetComposite` gets `child_width` and `child_height`, the default policy
     of its children, `Content` when none is given, as a layout has them.
@@ -270,6 +271,32 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   layout-rules.md and get a step of their own later: a widget with parts around
   its content gives the content its size less those parts, and an overlay gives
   a bounded range.
+  Built: `_cross_context` of the layout package is public now, as
+  `make_cross_axis_context`, with a docstring that names both of its users, the
+  cross axis of a stack and both axes of a composite. `WidgetComposite` has
+  `child_width` and `child_height` (`nothing` is `Content`), and
+  `_make_composite_child_context` gives each child the edge less the insets and
+  less the child's position, then the rule on both axes. The composite printed
+  only a widget or a layout document; a `LayoutConstraint` is neither, so it
+  prints a constraint child too. The root of the pane tree sets both defaults
+  to `Fill`; the existing test that the splitters of a nested split reach the
+  bottom and the right edge of a window of 400 by 300 covers it. The file
+  chooser is left as it is: no table, example or test prints a chooser with
+  `FileSystemChooserToWidget` (the file dialog test prints the dialog with the
+  widget projection, which has no rule for a chooser), and a `VerticalLayout`
+  there would make the file system package depend on the layout package. Its
+  two children stand at the same place, and its rule that a row types its name
+  (`name_file`) is made but not used; both wait for the step that wires the
+  printer. layout-rules.md §3 and pane.md say how a composite sizes its
+  children. Tests: `test_size_range_composite()` (7): a label in a window of
+  400 by 300 has the size it has with no window, a `Fill` child reaches the
+  edge, less its position, and a composite that fills gives the edge to a label
+  but not to a button with a size of its own; the tooltip window opens below a
+  label, 4 pixels under its text (3). Checks: the wide sweep has the counts of
+  5b, with 35 more passes in the substrate suite (the 7 new ones and 28 in the
+  sweep over the examples, which checks each output node) and 3 in the shell
+  suite; the naming guard passes, the documentation check has the notes of
+  step 5, and the omnet tests have their results.
 - [ ] 6. **A round trip test over the widget gallery.** For each part of each
   example: the forward reference reaches a printed node, and a point inside its box
   maps backward to the part or to a part inside it. This ties the two maps
