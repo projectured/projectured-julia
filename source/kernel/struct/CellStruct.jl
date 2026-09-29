@@ -66,13 +66,13 @@ build_cell_struct_keyword_parameters(field_names, defaults) =
         for name in field_names]
 
 """
-    build_cell_struct_keyword_constructor(type_name, field_names, parameters) -> Expr
+    build_cell_struct_keyword_constructor(type_name, field_names; parameters) -> Expr
 
 The keyword constructor `type_name(; parameters…)`. It calls the positional
 constructor `type_name(field_names…)`, so only the positional constructor wraps a
 value in a cell.
 """
-function build_cell_struct_keyword_constructor(type_name, field_names, parameters)
+function build_cell_struct_keyword_constructor(type_name, field_names; parameters)
     # `Expr(:call, type_name, field_names...)` lowers to `Core._apply_iterate` on the
     # generic `Expr` constructor. A `juliac --trim=safe` build of omnet-julia reported
     # that call as a verifier error, so `append!` builds the same expression.
@@ -84,7 +84,8 @@ function build_cell_struct_keyword_constructor(type_name, field_names, parameter
 end
 
 """
-    build_cell_struct_positional_ctors(plan, type_name; each_arity = _ -> ()) -> Vector
+    build_cell_struct_positional_constructors(plan, type_name; each_arity = _ -> ())
+        -> Vector
 
 The positional constructors that leave out fields with a default at the end of the
 declaration, as `Base.@kwdef` does for keywords. For each arity `k` from
@@ -103,8 +104,8 @@ not compute that condition again.
 When `find_cell_struct_parameter_slots(plan)` returns `nothing`, the constructors
 name the type parameters: `type_name{A…}(f₁, …, f_k) where {A…}`.
 """
-function build_cell_struct_positional_ctors(plan::CellStructPlan, type_name;
-                                            each_arity = _ -> ())
+function build_cell_struct_positional_constructors(plan::CellStructPlan, type_name;
+                                                   each_arity = _ -> ())
     field_count = length(plan.field_names)
     required    = get_cell_struct_required_count(plan)
     ctors = Any[]
@@ -167,7 +168,7 @@ function build_cell_struct_exprs(definition; default = ReactiveCell)
     # one of its type parameters binds from no argument.
     if !isempty(plan.defaults) && (isempty(plan.parameters) || inferring !== nothing)
         parameters = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
-        push!(parts, build_cell_struct_keyword_constructor(plan.name, plan.field_names,
+        push!(parts, build_cell_struct_keyword_constructor(plan.name, plan.field_names;
                                                            parameters))
     end
     Expr(:block, parts...)

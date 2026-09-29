@@ -167,7 +167,7 @@ end
 
 @testset "positional constructors that leave out a trailing run of defaults" begin
     plan = make_cell_struct_plan(:(struct Y1; a; b; c = 1; d = 2; end))
-    ctors = build_cell_struct_positional_ctors(plan, :Y1)
+    ctors = build_cell_struct_positional_constructors(plan, :Y1)
 
     # Two fields are required and four exist, so the arities are 2 and 3. The inner
     # constructor has the full arity, and no arity is zero.
@@ -179,35 +179,35 @@ end
 @testset "no positional constructor when every field has a default" begin
     # An arity of zero has the signature of the keyword constructor.
     plan = make_cell_struct_plan(:(struct Y2; a = 1; b = 2; end))
-    @test isempty(build_cell_struct_positional_ctors(plan, :Y2))
+    @test isempty(build_cell_struct_positional_constructors(plan, :Y2))
 end
 
 @testset "no positional constructor when no field has a default" begin
     plan = make_cell_struct_plan(:(struct Y3; a; b; end))
-    @test isempty(build_cell_struct_positional_ctors(plan, :Y3))
+    @test isempty(build_cell_struct_positional_constructors(plan, :Y3))
 end
 
 @testset "each_arity adds expressions after the constructor of its arity" begin
     plan = make_cell_struct_plan(:(struct Y4; a; b; c = 1; end))
-    ctors = build_cell_struct_positional_ctors(plan, :Y4;
-                                               each_arity = k -> (:(companion($k)),))
+    ctors = build_cell_struct_positional_constructors(
+        plan, :Y4; each_arity = k -> (:(companion($k)),))
 
     @test _bare(ctors) == _bare([:(Y4(a, b) = Y4(a, b, 1)), :(companion(2))])
 
     # Without a constructor, the function does not call `each_arity`.
     allgone = make_cell_struct_plan(:(struct Y5; a = 1; end))
-    @test isempty(build_cell_struct_positional_ctors(allgone, :Y5;
-                                               each_arity = k -> (:(companion($k)),)))
+    @test isempty(build_cell_struct_positional_constructors(
+        allgone, :Y5; each_arity = k -> (:(companion($k)),)))
 end
 
 @testset "positional constructors name a parameter that binds from no argument" begin
     plan = make_cell_struct_plan(:(struct Y6{A<:Real}; a::Vector{A}; b = 1; end))
-    @test _bare(build_cell_struct_positional_ctors(plan, :Y6)) ==
+    @test _bare(build_cell_struct_positional_constructors(plan, :Y6)) ==
           _bare([:((Y6{A}(a) where A<:Real) = Y6{A}(a, 1))])
 
     # A parameter that binds from an argument needs no name in the constructor.
     plan = make_cell_struct_plan(:(struct Y7{A<:Real}; a::A; b = 1; end))
-    @test _bare(build_cell_struct_positional_ctors(plan, :Y7)) ==
+    @test _bare(build_cell_struct_positional_constructors(plan, :Y7)) ==
           _bare([:(Y7(a) = Y7(a, 1))])
 end
 

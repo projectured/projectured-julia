@@ -325,7 +325,8 @@ function _emit_keyword_ctors(plan; schema::Symbol = plan.name)
     # the forwarding constructor, and when it is bound to the native layout that
     # layout has a keyword constructor of its own.
     names = [plan.name, Symbol("IC", schema), Symbol("MC", schema)]
-    [build_cell_struct_keyword_constructor(nm, plan.field_names, kw_params) for nm in names]
+    [build_cell_struct_keyword_constructor(nm, plan.field_names; parameters = kw_params)
+     for nm in names]
 end
 
 # The single collection field's position, or 0 when there is not exactly one. A
@@ -350,8 +351,9 @@ instead of the collection. Hence this companion. The two coexist: the
 `::AbstractVector` variant is more specific for a `Vector` argument, while a real
 collection value (a `Document`, not an `AbstractVector`) falls through to the raw
 form. Emitted only for an arity whose kept prefix actually reaches the collection
-slot; it is passed to `build_cell_struct_positional_ctors` as its `each_arity` hook,
-which is what ties it to Rule Y's own `get_cell_struct_required_count ≥ 1` gate.
+slot; it is passed to `build_cell_struct_positional_constructors` as its
+`each_arity` hook, which is what ties it to Rule Y's own
+`get_cell_struct_required_count ≥ 1` gate.
 """
 function _emit_collection_ctor_at(plan, k)
     p = _collection_slot(plan)
@@ -593,7 +595,7 @@ function _document_expr(args)
              _emit_keyword_ctors(plan; schema = names.schema)...,
              # Rule Y (the struct layer's, generic over any cell struct), each arity
              # followed by its Rule C companion; then Rule C's element-sugar tail.
-             build_cell_struct_positional_ctors(plan, plan.name;
+             build_cell_struct_positional_constructors(plan, plan.name;
                  each_arity = k -> _emit_collection_ctor_at(plan, k))...,
              _emit_collection_ctors(plan)...))
 end
@@ -714,11 +716,11 @@ function _emit_native_parts(plan, layouts, names)
     native_def = _emit_native(plan, family, native; mutable = names.native_mutable)
     push!(native_parts, names.binding in (:M, :I) ? :(Base.@__doc__ $native_def) :
                                                     native_def)
-    append!(native_parts, build_cell_struct_positional_ctors(plan, native))
+    append!(native_parts, build_cell_struct_positional_constructors(plan, native))
     if plan.programmer_default_count > 0 || plan.declared_field_count == 0
         parameters = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
         push!(native_parts,
-              build_cell_struct_keyword_constructor(native, plan.field_names, parameters))
+              build_cell_struct_keyword_constructor(native, plan.field_names; parameters))
     end
     push!(native_parts, :((::typeof($get_document_native_type))(::Type{<:$family}) =
                               $native))

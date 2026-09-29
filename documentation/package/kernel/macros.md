@@ -44,7 +44,7 @@ layer's codegen kit for everything that is not document-specific:
   the parameters for a type application (`get_cell_struct_parameter_names`);
 - the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
   `build_cell_struct_keyword_constructor`), and **Rule Y**
-  (`build_cell_struct_positional_ctors`).
+  (`build_cell_struct_positional_constructors`).
 Rule Y fills a trailing run of defaults positionally; it is a rule about any
 cell struct, not about documents. `@document` is then a parse plus six emitters, each a pure
 function of the plan. Use `@cell_struct` directly for a transparent-Cell struct
