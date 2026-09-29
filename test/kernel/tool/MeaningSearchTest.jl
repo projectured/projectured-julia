@@ -111,6 +111,16 @@ function test_meaning_search()
                       "XDG_CACHE_HOME" => nothing) ==
               joinpath(homedir(), ".cache", "projectured", "meaning")
         rm(root; recursive = true)
+
+        # A package that Pkg installed has no `package/` above its source, so
+        # it keeps its vectors in the cache folder too.
+        installed = mktempdir()
+        @test withenv(() -> _MeaningTools._get_default_meaning_folder(nothing, installed),
+                      "XDG_CACHE_HOME" => "/cache") == "/cache/projectured/meaning"
+        mkpath(joinpath(installed, "package"))
+        @test _MeaningTools._get_default_meaning_folder(nothing, installed) ==
+              joinpath(installed, "build", "meaning")
+        rm(installed; recursive = true)
     end
 
     @testset "a backend with a meaning model gives it to a tool set" begin

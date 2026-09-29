@@ -448,12 +448,22 @@ the name is final. For each package of the registry set (R16), the function:
 
 ### Step B3: the meaning folder of an installed package
 
-- [ ] Check [SEALING.md](../../SEALING.md) for `tool/MeaningSearch.jl` again
-      before the edit.
-- [ ] In `_get_default_meaning_folder`, use the cache folder of the user also
-      when the checkout folder is not writable. A Julia session in a checkout
-      keeps `build/meaning/`.
-- [ ] The narrowest test of the meaning search.
+- [x] Check [SEALING.md](../../SEALING.md) for `tool/MeaningSearch.jl` again
+      before the edit. Done on 2026-09-29: `⬜`, not sealed.
+- [x] In `_get_default_meaning_folder`, use the cache folder of the user also
+      for an installed package. A Julia session in a checkout keeps
+      `build/meaning/`.
+
+      **Changed during the step: the test is `package/`, not writability.** B1
+      showed that Pkg leaves the folder of an installed package writable, so a
+      test of writability can not tell it from a checkout. The function now
+      takes a second parameter, `root`, the folder three levels above the
+      file. `root` is a checkout when it holds `package/`, the same marker that
+      `BuildContext` uses. Everything else goes to the cache folder.
+- [x] The narrowest test of the meaning search:
+      `ProjecturedKernelTest.test_meaning_search()`, 69 of 69 pass. Two new
+      assertions: a `root` without `package/` gives the cache folder, and a
+      `root` with it gives `build/meaning`.
 
 ### Step B4: the full test of the release copy
 

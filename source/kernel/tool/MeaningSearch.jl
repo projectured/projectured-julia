@@ -16,14 +16,16 @@
 # `_get_default_meaning_folder` answers. A test points it at a folder of its own.
 const _MEANING_FOLDER = Ref("")
 
-# Where the vector files go when `_MEANING_FOLDER` is empty. A Julia session
-# keeps them in `build/meaning/` under the repository root. A binary is a copy
-# that can be in a folder the user can not write, so it keeps them in the cache
-# folder of the user: `$XDG_CACHE_HOME/projectured/meaning`, or
-# `~/.cache/projectured/meaning`.
-function _get_default_meaning_folder(bundle = _get_bundle_directory())
-    bundle === nothing &&
-        return normpath(joinpath(@__DIR__, "..", "..", "..", "build", "meaning"))
+# Where the vector files go when `_MEANING_FOLDER` is empty. A Julia session in
+# a checkout keeps them in `build/meaning/` under the repository root, which is
+# `root` when it holds `package/`. A binary, and a package that Pkg installed,
+# keep them in the cache folder of the user: `$XDG_CACHE_HOME/projectured/meaning`,
+# or `~/.cache/projectured/meaning`. A binary can be in a folder the user can
+# not write, and the folder of an installed package belongs to Pkg.
+function _get_default_meaning_folder(bundle = _get_bundle_directory(),
+                                     root = normpath(joinpath(@__DIR__, "..", "..", "..")))
+    bundle === nothing && isdir(joinpath(root, "package")) &&
+        return joinpath(root, "build", "meaning")
     cache = get(ENV, "XDG_CACHE_HOME", "")
     isempty(cache) && (cache = joinpath(homedir(), ".cache"))
     joinpath(cache, "projectured", "meaning")
