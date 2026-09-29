@@ -4,9 +4,9 @@
 
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
-that responds to user input. The implementation lives in
-[source/kernel/editor/EditorModule.jl](../../../source/kernel/editor/EditorModule.jl), whose `run_editor!`
-function is the entry point.
+that responds to user input. The implementation lives in the nine files of
+[source/kernel/editor/](../../../source/kernel/editor/), and `run_editor!` of
+[EditorLoop.jl](../../../source/kernel/editor/EditorLoop.jl) is the entry point.
 
 ## The Editor struct
 
@@ -22,6 +22,13 @@ mutable struct Editor
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
     recognizer::GestureRecognizer
+    faults::FaultStore
+    fault_policy::FaultPolicy
+    replaced_projection::Union{Projection, Nothing}
+    feeds::Vector{Feed}
+    wake_pending::Threads.Atomic{Bool}
+    frame_measurements::FrameMeasurementStore
+    loop_task::Union{Task, Nothing}
 end
 ```
 
@@ -45,10 +52,24 @@ end
   `read_intent` to translate the next event back to a domain operation
 - `operation` — the most recent operation; used by `evaluate!` and the
   per-frame log
-- `recognizer` — the event → gesture recognizer that folds raw `MouseDown`/`MouseUp`
-  into `MousePress`, private to this editor so two editors do not share the state
-  of a click in progress. The chord table of an editor is empty, so this
-  recognizer makes no `KeyChord`
+- `recognizer` — the event → gesture recognizer. It makes a `MousePress` from a
+  `MouseDown`/`MouseUp` pair and delivers it after the `MouseUp`. It is private
+  to this editor, so two editors do not share the state of a click in progress.
+  The chord table of an editor is empty, so the editor recognizes no chord and
+  this recognizer makes no `KeyChord`
+- `faults` — the `FaultStore` of this editor: every barrier writes to it, and
+  each frame drains it; see [fault.md](../fault/fault.md)
+- `fault_policy` — what the barriers do with a fault. `Editor(…)` starts with
+  `make_strict_fault_policy()`, `make_editor` turns the barriers on, and
+  `run_editor!` keeps the policy of its editor
+- `replaced_projection` — the projection that the safe mode put aside, or
+  `nothing` while the editor is not in the safe mode
+- `feeds` — the registered inflows, drained once per frame, with the built-in
+  `InboxFeed` first; see [The feeds](#the-feeds)
+- `wake_pending` — set by `wake_editor!` from any task; each frame takes every
+  wake posted before it
+- `frame_measurements` — the `FrameMeasurementStore` of the last frames; see
+  [Performance counters](#performance-counters)
 - `loop_task` — the task that runs `run_editor!`, or `nothing` while no loop
   runs; see [A call on the editor task](#a-call-on-the-editor-task)
 
@@ -57,14 +78,20 @@ end
 `run_editor!(editor)` executes (the fault barriers around each stage elided):
 
 ```julia
+editor.iomap === nothing && print!(editor)   # an editor with no IoMap prints first
+t_start = time_ns()                          # the monotonic clock
 while true
-    if !editor.wake_pending[]                        # a pending wake skips the wait
-        timeout = compute_wait_timeout(editor)       # animation, feed deadlines, else Inf
-        timeout > 0 && wait_for_input(editor.backend, editor.devices, timeout)
+    # A pending wake skips the wait; else animation, feed deadlines, else Inf.
+    timeout = editor.wake_pending[] ? 0.0 : compute_wait_timeout(editor)
+    if timeout > 0
+        wait_for_input(editor.backend, editor.devices, timeout)
+    else
+        yield()                      # the turn of the other tasks of this thread
     end
     Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
     with_performance_counters() do   # bind a fresh per-frame counter store
-        set_clock_time!(editor.clock, Base.time() - t_start)  # tick the animation clock
+        wall_time = (time_ns() - t_start) / 1e9
+        set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))
         drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
         perf!(editor)                # log reactive counters
@@ -79,22 +106,29 @@ timeout. The timeout is `FRAME_INTERVAL` while anything subscribes to the
 editor's clock (an animation), else the nearest feed deadline, else `Inf`.
 The wake-pending flag starts set, so the first frame paints before the first
 wait. A backend without a wait of its own sleeps one 10 ms poll slice per
-call — the cadence this loop had when it slept — and that slice is also where
-cooperative `@async` tasks on the thread get their turn.
+call, and that slice is also where cooperative `@async` tasks on the thread get
+their turn. A frame that does not wait yields once for the same reason.
 
 `run_frame!` is what a burst of input runs through:
 
 ```julia
 function run_frame!(editor)
+    report_frame_faults!(editor)           # the faults of the last frame, before any read
     applied = nothing
+    is_input_left = true
     for _ in 1:MAX_OPERATIONS_PER_FRAME    # = 32
-        read!(editor) || break             # poll devices → read_intent → editor.operation
+        if !read!(editor)                  # poll devices → read_intent → editor.operation
+            is_input_left = false
+            break
+        end
         evaluate!(editor)                  # evaluate_operation(editor, editor.operation)
         applied = editor.operation
         editor.iomap === nothing && break  # a projection-invalidating op ends the frame early
     end
+    is_input_left && (editor.wake_pending[] = true)  # the next frame does not wait
     editor.operation = applied
     print!(editor)                         # print_document → editor.iomap; render to devices
+    # then the safe mode, when the print failed in too many frames in a row
 end
 ```
 
@@ -205,10 +239,11 @@ feeds (`attach_fault_wake!`). The whole rule is
 `read!(editor)` pulls one gesture from `editor.recognizer`
 (`pop_gesture!(editor.recognizer, () -> read_from_devices(editor.backend, editor.devices))`).
 `read_from_devices(backend, devices)` polls the backend's event queue (in the
-SDL case, `SDL_PollEvent`); the recognizer folds a `MouseDown`/`MouseUp` pair
-into `MousePress` before the frame ever sees them, so a reader only ever has to
-match the folded gesture, not reassemble it from raw events. The chord table of
-an editor is empty, so each `KeyDown` passes through. The result is a
+SDL case, `SDL_PollEvent`); the recognizer makes a `MousePress` from a
+`MouseDown`/`MouseUp` pair and delivers it after the `MouseUp`, so a reader
+matches a click as one gesture and does not assemble it from the raw events. The
+chord table of an editor is empty, so the editor recognizes no chord today, and
+each `KeyDown` passes through. The result is a
 `WindowInput` wrapping a backend-agnostic event: `KeyDown`, `KeyUp`, `KeyPress`,
 `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`, `WindowQuit`,
 `WindowClose`, `WindowResize` or `WindowDefocus`.
@@ -433,7 +468,7 @@ the editor when the loop starts, so the server serves the tools that a caller
 registers between `make_editor` and `run_editor!`. It launches the server at `mcp_host` and `mcp_port`,
 `http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
 seam (see
-[source/kernel/agent/AgentModule.jl](../../../source/kernel/agent/AgentModule.jl)). The server
+[source/kernel/agent/AgentInterface.jl](../../../source/kernel/agent/AgentInterface.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
 [ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
 
@@ -499,25 +534,43 @@ document through the projection, tick the clock.
 The layer lives in [source/kernel/editor/](../../../source/kernel/editor/):
 
 ```
-EditorModule.jl    (EditorModule)    — the run_editor! loop and Editor struct
-PlaybackModule.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeline
+EditorModule.jl        (EditorModule) — the module: its docstring, imports, exports and fragments
+    ├─ Editor.jl            — Editor, its constructor, the invalidation of its projection,
+    │                         the editor as the start of a reference, and its fault store
+    ├─ Inbox.jl             — post_operation!, wake_editor!, drain_operations!, and the
+    │                         calls that another task runs on the editor task
+    ├─ Feeds.jl             — InboxFeed, the timeout of the wait, the frame
+    │                         measurements, and drain_feeds!
+    ├─ ReadEvaluatePrint.jl — read!, evaluate!, print! and read_rooted_operation
+    ├─ DocumentEdits.jl     — find_rooted_operation, insert_elements! and delete_elements!
+    ├─ SafeMode.jl          — the safe mode, which shows the fault list in place of a
+    │                         projection that fails
+    ├─ FaultBarriers.jl     — the barrier of each stage, the report of the faults of a
+    │                         frame, the limits of the fault counts, and the repairs
+    └─ EditorLoop.jl        — perf!, run_frame!, get_frame_clock_time, run_editor! and
+                              make_editor
 ```
 
-The `GestureRecognizer` type that folds `MouseDown`/`MouseUp` into `MousePress`,
-and a `KeyDown` sequence of its chord table into `KeyChord`, lives in `gesture/`
-(its only dependency is `EventModule`, no editor coupling); each `Editor` owns
-its own instance in `editor.recognizer`, with an empty chord table. The animation `Clock` type lives in `clock/`
-(every animated projection reads one, so the type belongs beside the engine it
-depends on); each `Editor` likewise owns its own instance in `editor.clock`,
-ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)`
+Scripted playback is a layer of its own, above this one, in `playback/`.
+
+The `GestureRecognizer` type lives in `gesture/` (its only dependency is
+`EventModule`, no editor coupling). It makes a `MousePress` after a `MouseUp`, and
+a `KeyChord` from a `KeyDown` sequence of its chord table. Each `Editor` owns its
+own instance in `editor.recognizer`, with an empty chord table. The animation
+`Clock` type lives in `clock/` (every animated projection reads one, so the type
+belongs beside the engine it depends on); each `Editor` likewise owns its own
+instance in `editor.clock`, ticked once per frame with
+`set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))`
 — invalidating every cell that subscribed to `get_reactive_clock_time(editor.clock)`
 — so two editors in the same process animate independently. What's left in
-`editor/` is the loop itself and its scripted playback.
+`editor/` is the loop itself.
 
 ### Downward edges
 
 - `..ProjectionModule` — `Projection`, `print_document`, `read_intent`,
-  `Intent`, `IoMap`.
+  `PrinterContext`.
+- `..IntentModule` — `Intent`, the unit that `read!` passes to the readers.
+- `..IoMapModule` — `IoMap`, the type of `editor.iomap`.
 - `..DeviceModule` — `Device`, `Display`.
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`,
   `read_from_devices`, `write_to_devices`.
@@ -526,12 +579,22 @@ ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)
 - `..PerformanceModule` — the counters bumped inline in the loop.
 - `..ClockModule` — `Clock`, `set_clock_time!`, `get_reactive_clock_time`.
 - `..DocumentModule` — the abstract `Document` type.
+- `..ReferenceModule` — `Reference` and `DocumentLocator`, so a reference can
+  start at an editor.
+- `..SelectionModule` — `get_selection`, which a repair after a failed
+  operation reads.
+- `..CellModule` — `has_dependent_cells`, which says whether anything animates.
 - `..OperationModule` — the operation abstract + evaluate seam.
+- `..FaultModule` — the store, the policy, the barrier and the report of a
+  fault.
+- `..FeedModule` — `Feed` and its three generics, which the loop drives once per
+  frame.
 - `..GestureRecognizerModule` — the frame's gesture folding.
 - `..ToolModule` — `ToolSet`, the `tools` field every `Editor` owns
   ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
 - `..AgentModule` — the make_agent_server/start/stop seam driven by
-  `Editor` when an agent server is configured.
+  `Editor` when an agent server is configured, and `run_on_editor_task!`, which
+  the editor layer answers for an `Editor`.
 
 That is nearly the full kernel — the editor is the layer that consumes
 every other layer. Playback additionally depends on `EditorModule` (to
@@ -547,5 +610,10 @@ place the loop can be exercised without any real backend package. It covers
 the printer/reader/REPL drivers and navigation (`PrinterTest.jl`,
 `ReaderTest.jl`, `ReplTest.jl`, `NavigationTest.jl`, `ConstructTest.jl`), the
 `Escape`-closes-unless-claimed rule (`EscapeQuitTest.jl`), the inbox
-(`InboxTest.jl`), and the `run_frame!` multi-operation-per-frame batching
-(`FrameDrainTest.jl`).
+(`InboxTest.jl`), the wait between frames (`WaitTest.jl`), the feeds and the
+frame measurements (`FeedsTest.jl`), the fault barriers of the loop
+(`FaultBarriersTest.jl`), the edits through the readers (`DocumentEditsTest.jl`),
+and the `run_frame!` multi-operation-per-frame batching (`FrameDrainTest.jl`).
+The safe mode needs the fault view, so its test is in the suite of
+`ProjecturedFault`, in
+[test/fault/FaultSafeModeTest.jl](../../../test/fault/FaultSafeModeTest.jl).
