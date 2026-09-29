@@ -1,7 +1,7 @@
 """
-What `execute_julia_code` answers: what the code printed, the value of the last
-expression shown or described, "Done." for nothing, and the nearest declared
-names for a name nobody defined.
+What `execute_julia_code` answers: what the code printed, whole and also before
+an error, the value of the last expression shown or described, "Done." for
+nothing, and the nearest declared names for a name nobody defined.
 """
 
 using Test
@@ -85,6 +85,32 @@ function test_code_execution()
         @test run("nothing") == "Done."
         @test run("x = 3; nothing") == "Done."
         @test run("println(\"hi\"); nothing") == "hi\n"
+    end
+
+    @testset "a print larger than a pipe answers whole" begin
+        # A pipe holds 64 KiB. The call runs on its own task with a bounded wait,
+        # so a print that waits for a reader fails here and the suite goes on.
+        console_stdout = stdout
+        console_stderr = stderr
+        call = @async run("print(repeat('x', 200_000))")
+        finished = timedwait(() -> istaskdone(call), 60) === :ok
+        if !finished
+            # The blocked call holds the process streams, and a failed test prints.
+            redirect_stdout(console_stdout)
+            redirect_stderr(console_stderr)
+        end
+        @test finished
+        if finished
+            answer = fetch(call)
+            @test length(answer) == 200_000
+            @test count(==('x'), answer) == 200_000
+        end
+    end
+
+    @testset "what the code printed comes before the error" begin
+        @test startswith(run("println(1)\nerror(\"stop here\")"), "1\nstop here")
+        # The statements before a syntax error run, and what they print shows.
+        @test startswith(run("println(1)\ny = ("), "1\nParseError")
     end
 
     @testset "a function is shown as the REPL shows it" begin

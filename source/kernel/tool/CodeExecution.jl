@@ -158,8 +158,9 @@ because an empty answer reads as a broken tool.
 guesses `plot_results`, and the error names `make_result_plot`: the search that
 starts from a guess, done where the guess fails, so it costs no round.
 
-Never throws: an error comes back as its formatted message, because the caller is
-usually an agent that must be able to read the failure and try again.
+Never throws: an error comes back as its formatted message, after what the code
+printed before it, because the caller is usually an agent that must be able to
+read the failure and try again.
 
 **A call with no code answers that, rather than answering nothing.** Empty source
 evaluates to nothing and prints nothing, and a model reads an empty answer as a
@@ -219,21 +220,25 @@ end
 # Everything an evaluation does after the parse. `make_expression` runs inside
 # the guard, so a failure to make the expression is answered like any other.
 # `describe_value` renders the last value once the capture is closed, so its
-# text never lands inside the same pipe as the code's own `println`s.
+# text never lands inside the same pipe as the code's own `println`s. What the
+# code printed comes first in the answer, also before an error.
 function _run_expression(set::ToolSet, target, make_expression::Function;
                           describe_value::Function = _describe_value_for_model)
-    output = try
+    pipes = (Pipe(), Pipe())
+    readers = Task[]
+    printed = ""
+    described = try
         m = _scratch_module(set)
         # (Re)bind `editor` each call, so user code can reference it and so it
         # always tracks the current target.
         Core.eval(m, :(editor = $(QuoteNode(target))))
         expr = make_expression()
 
-        stdout_pipe = Pipe()
-        stderr_pipe = Pipe()
-
         result = nothing
-        redirect_stdio(stdout = stdout_pipe, stderr = stderr_pipe) do
+        redirect_stdio(stdout = pipes[1], stderr = pipes[2]) do
+            # A write into a full pipe waits for a reader, so one task reads each
+            # pipe while the code runs. `redirect_stdio` opens the pipes.
+            append!(readers, [@async(read(pipe.out, String)) for pipe in pipes])
             # Evaluate each top-level statement in order and keep the last value
             # (REPL semantics); top-level assignments persist as module globals.
             if expr isa Expr && expr.head == :toplevel
@@ -246,19 +251,17 @@ function _run_expression(set::ToolSet, target, make_expression::Function;
             end
         end
         set.last_value = result
-
-        close(stdout_pipe.in)
-        close(stderr_pipe.in)
-        stdout_output = String(read(stdout_pipe.out))
-        stderr_output = String(read(stderr_pipe.out))
-        close(stdout_pipe.out)
-        close(stderr_pipe.out)
-
-        answer = stdout_output * stderr_output * describe_value(result)
-        isempty(strip(answer)) ? "Done." : answer
+        describe_value(result)
     catch e
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
+    finally
+        # A reader reads to the end of its pipe, which comes when its write end closes.
+        foreach(pipe -> close(pipe.in), pipes)
+        printed = join(fetch(reader) for reader in readers)
+        foreach(pipe -> close(pipe.out), pipes)
     end
+    answer = printed * described
+    output = isempty(strip(answer)) ? "Done." : answer
     _notify_evaluation(set)
     output
 end
