@@ -35,6 +35,12 @@ function test_device_module()
         @test Keyboard(layout = :azerty).layout === :azerty
     end
 
+    @testset "a scale or a zoom of 0 or less is no display" begin
+        @test_throws ArgumentError Display(scale = 0)
+        @test_throws ArgumentError Display(zoom = -1.0)
+        @test_throws ArgumentError Display(scale = NaN)
+    end
+
     @testset "a backend writes the properties in place" begin
         display = Display()
         display.scale = 2.0

@@ -6,17 +6,26 @@
 A display. `width` and `height` give its usable size in logical pixels. `scale`
 is the number of device pixels in one logical pixel of the hardware: `2.0` on a
 display with twice the usual pixel density. `zoom` is the uniform zoom of the
-editor that draws on the display.
+editor that draws on the display. `scale` and `zoom` must be above 0, and the
+constructor throws an `ArgumentError` for another value, `NaN` too.
 
-A backend draws each logical pixel as `get_device_pixel_ratio(display)` device
-pixels. Layout works in logical pixels, so a change of `scale` or `zoom` changes
-the size on the screen and not the layout.
+The SDL backend draws each logical pixel as `get_device_pixel_ratio(display)`
+device pixels. Layout works in logical pixels, so a change of `scale` or `zoom`
+changes the size on the screen and not the layout. The web, console and video
+backends do not read the `Display`.
 """
 mutable struct Display <: Device
     width::Int
     height::Int
     scale::Float64
     zoom::Float64
+    function Display(width, height, scale, zoom)
+        scale > 0 ||
+            throw(ArgumentError("the scale of a display must be above 0, got $scale"))
+        zoom > 0 ||
+            throw(ArgumentError("the zoom of a display must be above 0, got $zoom"))
+        new(width, height, scale, zoom)
+    end
 end
 
 Display(; width::Integer = 1280, height::Integer = 800, scale::Real = 1.0,
