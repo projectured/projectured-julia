@@ -184,6 +184,19 @@ When all items are done, move this plan to `plan/done/`.
     | `test_arguments()`, `test_exports()` | 6 and 3 failures | the same |
 
     The two broken tests of the kernel are L03-1 and L03-2, which wait for decisions.
+  - **omnet-julia and inet-julia** after Phase 5, each in a scratch environment with absolute
+    paths, run once against a worktree of the base `a1e0b8a5` and once against this branch with
+    their own branches `kernel-audit-fixes` (the renames, N-1, the trace lines):
+
+    | Repository | Base | Fixed |
+    | --- | --- | --- |
+    | inet-julia `test/suite/runtests.jl` | 20105 pass, 11 fail | the same |
+    | omnet-julia `test/runtests.jl` | 12332 pass, 37 fail, 72 error | 12332 pass, 36 fail, 71 error |
+
+    The two differences of omnet-julia come from the checkout, not from the fixes: the base ran in
+    the main checkout, whose untracked folder `mm1k/` adds one NED file (one more error of
+    `NedAgreement`) and one INI file (one more pass of `IniAgreement`), and whose untracked
+    manifests fail "every folder holds one kind of thing". Every other test set has the same counts.
 - [x] Run the baseline of "How to work", item 2, and write the counts here.
   On `a1e0b8a5`, in the worktree of lane A, each suite in its own process (2026-09-29):
 
