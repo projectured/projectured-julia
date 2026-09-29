@@ -1324,3 +1324,6 @@ the name, cut at 800 characters. It cost $1.51; the ledger holds $6.69.
   meaning vectors put 3 and 6. The kernel of Stage 2 reads neither the code nor
   the call sites (§8c, item 7); that decision rests on Step 4, whose answers were
   documented, and Step 4c reverses it for the names that are not.
+- **Deferred by the owner, 2026-09-29**: "let's defer adding call sites for now,
+  we will come back to this when we have more real life examples". The plan of
+  the change is `plan/pending/the-relevance-model-reads-code-and-call-sites.md`.
