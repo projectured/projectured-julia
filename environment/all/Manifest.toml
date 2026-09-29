@@ -1384,7 +1384,7 @@ uuid = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 version = "0.1.0"
 
 [[deps.ProjecturedSdl]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedScreen", "ProjecturedStyle", "SDL2_jll", "SimpleDirectMediaLayer"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedScreen", "ProjecturedStyle", "SDL2_jll", "SimpleDirectMediaLayer", "Xorg_libX11_jll"]
 path = "../../package/ProjecturedSdl"
 uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"

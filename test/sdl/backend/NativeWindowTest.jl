@@ -1,6 +1,11 @@
 function test_native_window()
 @testset "native windows opened before the first projection" begin
 
+    # Xlib finds its locale data, so SDL can give a window its title. SDL keeps
+    # its own copy of the title, so asking SDL for it proves nothing; the folder
+    # that the package set is what X11 needs.
+    @test isfile(joinpath(ENV["XLOCALEDIR"], "locale.dir"))
+
     backend = SdlBackend()
     initialize_backend!(backend)
     devices = Device[Display(), Keyboard(), Mouse()]

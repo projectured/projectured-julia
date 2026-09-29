@@ -5,6 +5,18 @@ export SdlBackend,
        write_image, GraphicsCanvasToImageFile,
        _open_offscreen_renderer, _close_offscreen_renderer
 
+# Xlib reads its locale data from the folder that its build named, and that
+# folder exists only on the machine that built `Xorg_libX11_jll`. Without the
+# data `XSupportsLocale` is false, and SDL then gives a window no title: X11
+# shows neither `WM_NAME` nor `_NET_WM_NAME`. The artifact of the JLL holds the
+# data, so SDL reads it there. A value that the user set wins.
+function __init__()
+    haskey(ENV, "XLOCALEDIR") && return nothing
+    directory = joinpath(Xorg_libX11_jll.artifact_dir, "share", "X11", "locale")
+    isdir(directory) && (ENV["XLOCALEDIR"] = directory)
+    nothing
+end
+
 # Pixel size of the primary monitor from xrandr's RandR 1.5
 # `--listmonitors`. SDL can fold a multi-monitor X screen into a single
 # "display" whose bounds span every monitor, hiding the per-monitor layout;

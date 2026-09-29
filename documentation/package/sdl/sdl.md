@@ -96,6 +96,7 @@ Both repaint every window in full.
 - **The repaint follows the reactive graph.** The cells that a change invalidated say which graphics changed, so the backend compares no pixels. See [plan/done/optimize-rendering-dirty-rect.md](../../../plan/done/optimize-rendering-dirty-rect.md).
 - **The damage history follows the buffer age.** A swap chain of two or three buffers would otherwise show an old edit on the buffer that was not repainted.
 - **The two zooms take two routes.** The uniform zoom needs no new print; the font zoom prints again, because the widgets keep the sizes that they measured.
+- **Xlib finds its locale data in its artifact.** The `__init__` of `ProjecturedSdl` sets `XLOCALEDIR` to the locale folder of `Xorg_libX11_jll`, unless the user set it. The build of that JLL names a folder that exists only on the machine that built it; without the data `XSupportsLocale` is false, and SDL gives a window no title, so X11 shows no `WM_NAME` and no `_NET_WM_NAME`.
 - **The state of an editor is on its backend.** The pending input, the time of the rate limit of idle motion, the switches `partial_render` and `debug_dirty`, and the `Display` are fields of the backend, so two backends in one process keep them apart. The SDL session is still one for each process: one event queue, and one set of open fonts.
 
 ## Usage
