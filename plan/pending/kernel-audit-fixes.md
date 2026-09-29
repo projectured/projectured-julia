@@ -830,63 +830,77 @@ Sealed files: `BackendDefaults.jl`, `BackendInterface.jl`, `BackendModule.jl`, `
 
 Sealed files: `DocumentSearch.jl`, `ForwardProtocol.jl`.
 
-- [ ] **L10-20** (Low, Correctness) — 🔒 `ForwardProtocol.jl`
+- [x] **L10-20** (Low, Correctness) — 🔒 `ForwardProtocol.jl`
   In `_forward_defs`, make the forwarded `push!`, `insert!`, `deleteat!` and `setindex!` return `x`, the wrapper. Emit `Base.length` over the field in `@adapt_map_protocol`.
   *Test:* test_document_contract(): push!(wrapper, v) === wrapper; length and collect work on a toy type under @adapt_map_protocol.
-- [ ] **L10-25** (Low, Documentation) — 🔒 `DocumentSearch.jl`
+  *Done:* lane A, 1462e0874. `JsonObject` and `XmlElement` have a length now. The own `setindex!` of an adapted map still returns the value.
+- [x] **L10-25** (Low, Documentation) — 🔒 `DocumentSearch.jl`
   Name concepts, not functions or types of higher layers. Rewrite the personified sentences with the mechanism as the subject. Merge the fifth paragraph of the `Document` docstring. Give the reason for the place of SelectionDocument without the count: the macro splices the type as an object, so the type must be at or below this layer.
   *Test:* test_documentation(); no code change.
+  *Done:* lane A, 1462e0874.
 
 ### Step 3.11: The sealed files of the reference layer
 
 Sealed files: `ReferenceInterface.jl`, `ReferenceSearch.jl`, `SelectionDefaults.jl`.
 
-- [ ] **L11-3** (Medium, Correctness) — 🔒 `SelectionDefaults.jl`
+- [x] **L11-3** (Medium, Correctness) — 🔒 `SelectionDefaults.jl`
   Chosen option: test the layout family (`AFieldReferenceStep`, `ARangeReferenceStep`, `ATypeReferenceStep`) in each `isa` of the two matchers, of strip and fold, of `_copy_reference_step` (an M step copies to an M step) and of `_selection_child` in SelectionDefaults.jl.
   *Test:* test_reference_rules(): each corpus row matches the same on a path of M steps; test_reference_evaluation(): copy_reference copies an M range step.
-- [ ] **L11-7** (Medium, Correctness) — 🔒 `ReferenceInterface.jl`
+  *Done:* lane A, 2b175b2cc. In omnet-julia the M-step references of `make_statistic_reference` and `collect_result_values` can now match an arm and descend in `set_selection!`. `_drop_terminal_cursor` and `_mutate_terminal_step!` of SelectionDefaults.jl still test the C layout only.
+- [x] **L11-7** (Medium, Correctness) — 🔒 `ReferenceInterface.jl`
   Add a `Base.hash` that agrees with `==` to the seven step types. Change the fallback `==(::ReferenceStep, ::ReferenceStep)` to `a === b`. State in the `ReferenceStep` docstring that a step type defines `==` and a consistent `hash`.
   *Test:* test_reference_evaluation(): a toy step type with no `==` equals itself; test_text(): two equal paths with a text-range step have equal hashes and give one element in a Set.
-- [ ] **L11-14** (Medium, Types/performance) — 🔒 `ReferenceSearch.jl`
+  *Done:* lane A, 2b175b2cc. The seven types and their tests: the three text steps (test_text), PointReferenceStep (test_point_reference), ChartSampleReferenceStep (test_chart), SequenceChartRowReferenceStep (test_sequencechart), ProjectionReferenceStep (test_reference_evaluation). The fallback `==` is `===`, in ReferenceStep.jl.
+- [x] **L11-14** (Medium, Types/performance) — 🔒 `ReferenceSearch.jl`
   In `_PATH_WALK`, carry the location as a cheap reversed chain of steps (for example nested tuples), and build a `Reference` for each result only, in `search_references`.
   *Test:* test_document_walk() and test_referenced_document() answers unchanged; an allocation count of search_references on a deep toy tree drops.
-- [ ] **L11-16** (Medium, Documentation) — 🔒 `ReferenceInterface.jl`, `ReferenceSearch.jl`
+  *Done:* lane A, 0d4328d57. A location is a `Pair{Any,Any}(parent, step)` chain, because a nested tuple gets a new type at each depth. A chain of 200 nodes: 17.1 MB before, 2.60 MB after.
+- [x] **L11-16** (Medium, Documentation) — 🔒 `ReferenceInterface.jl`, `ReferenceSearch.jl`
   Correct each of the twelve items in place so that the text matches the code. Items 5 and 6 also change the sealed ReferenceInterface.jl and ReferenceSearch.jl, and item 6 about twelve comments in other packages.
   *Test:* test_documentation(); no code change.
-- [ ] **L11-25** (part) (Low, Documentation) — 🔒 `ReferenceInterface.jl`
+  *Done:* lane A, 705fd1bfc and 5e715ab5b. Item 6 also corrected 16 comments in 12 other packages.
+- [x] **L11-25** (part) (Low, Documentation) — 🔒 `ReferenceInterface.jl`
   Delete the history comments, move each misplaced comment to its code, and correct the header of ReferenceInterface.jl so that it names where the seam defaults are. The rule text waits for its decision.
   *Test:* Documentation only.
+  *Done:* lane A, 705fd1bfc.
 
 ### Step 3.12: The selection layer
 
 Sealed files: `SelectionDefaults.jl`, `SelectionInterface.jl`, `SelectionModule.jl`.
 
-- [ ] **L12-4** (Medium, Documentation) — 🔒 `SelectionInterface.jl`
+- [x] **L12-4** (Medium, Documentation) — 🔒 `SelectionInterface.jl`
   Move the goals 'move the caret after an edit' and 'select what a search found' to a new 'Use it to' paragraph of replace_selection!, with an example that writes at the root document. Keep only 'build a document that nothing holds yet' for set_selection!.
   *Test:* test_documentation().
-- [ ] **L12-6** (part) (Low, Documentation) — 🔒 `SelectionModule.jl`
+  *Done:* lane A, e360373f0.
+- [x] **L12-6** (part) (Low, Documentation) — 🔒 `SelectionModule.jl`
   Say in the module docstring of `SelectionModule` that a document extends `has_dormant_selection`, and that no other generic of the layer has a method outside it. The value readers wait for their decision.
   *Test:* Documentation only.
-- [ ] **L12-7** (Low, Shape) — 🔒 `SelectionModule.jl`, `SelectionInterface.jl`, `SelectionDefaults.jl`
+  *Done:* lane A, e360373f0.
+- [x] **L12-7** (Low, Shape) — 🔒 `SelectionModule.jl`, `SelectionInterface.jl`, `SelectionDefaults.jl`
   Wrap the eight lines over 90 characters. Shorten the fragment headers of SelectionInterface.jl and SelectionDefaults.jl to one line each.
   *Test:* test_kernel_layering() and test_document_contract(); no behaviour changes.
-- [ ] **L12-8** (Low, Documentation) — 🔒 `SelectionInterface.jl`
+  *Done:* lane A, e360373f0.
+- [x] **L12-8** (Low, Documentation) — 🔒 `SelectionInterface.jl`
   clear_selection!: say that it clears the selection along the path that the document holds; delete 'the whole document' and 'all its children'. replace_selection!: say that a caret move in a leaf writes the selection cell of the leaf once and writes no ancestor cell; the start/stop write in place applies only where the path starts with the range step.
   *Test:* test_documentation().
-- [ ] **L12-9** (Low, Documentation) — 🔒 `SelectionDefaults.jl`
+  *Done:* lane A, e360373f0.
+- [x] **L12-9** (Low, Documentation) — 🔒 `SelectionDefaults.jl`
   Replace the comment with: 'At a divergence the old branch is cleared, or kept and marked dormant when a document on it asks to keep it. Marking walks the same path as a clear and writes a flag.' Then correct code-quality-rules.md section 2, which names this line as the history comment that waits for permission.
   *Test:* The grep of code-quality-rules.md section 2 finds no match in source/kernel/selection/.
-- [ ] **L12-10** (Low, Documentation) — 🔒 `SelectionInterface.jl`, `SelectionDefaults.jl`, `SelectionModule.jl`
+  *Done:* lane A, e360373f0. A comment near SelectionDefaults.jl:240 repeats the claim of L12-8 that a caret move writes no selection cell; it is not in the item. code-quality-rules.md §6 says that 27 comments match the history grep; 32 match today.
+- [x] **L12-10** (Low, Documentation) — 🔒 `SelectionInterface.jl`, `SelectionDefaults.jl`, `SelectionModule.jl`
   Correct the headers: the interface declares nine generics; the defaults header is one line (L12-7); the module docstring names the dormant generics and map_selection_forward. Replace 'a tab group', 'a pane group', 'a tabbed pane' and 'CellVector' with the concept. In selection.md: the layers are 11 and 10; link SelectionMismatchException to its own section; delete the fallback sentence at lines 319-321.
   *Test:* test_documentation().
+  *Done:* lane A, e360373f0.
 
 ### Step 3.13: The sealed files of the iomap layer
 
 Sealed files: `IoMapInterface.jl`.
 
-- [ ] **L16-9** (Low, Documentation) — 🔒 `IoMapInterface.jl`
+- [x] **L16-9** (Low, Documentation) — 🔒 `IoMapInterface.jl`
   Remove the idiom and the personification in IoMapInterface.jl; drop ChainingIoMap; add the optional cell kind to the @iomap signature; replace 'unminimal', the string example and 'crucially'; make the fragment header one line; wrap line 95; add IoMapReconcile.jl and the reconcilers to architecture.md and system-anatomy.md; say in PAR-STABLE-IOMAP-IDENTITY that the key is the identity and the index.
   *Test:* test_documentation().
+  *Done:* lane A, dfd3b7281.
 
 ## Phase 4 — The missing tests
 
@@ -1233,12 +1247,13 @@ The classifiers and the implementers found faults that the audit does not hold:
   overwrite of one element of a reactive `CellVector`, then its inverse). If it holds, make the
   inverse keep the old value, not the cell, as `make_inverse_operation` promises.
   *Test:* `test_inversion()`: the inverse of an overwrite puts back the old value.
-- [ ] **N-6** (High, Correctness) — found in step 3.9
+- [x] **N-6** (High, Correctness) — found in step 3.9
   `play_live!` throws `UndefVarError` for `read!` on every call on Julia 1.13, because
   `EditorModule` and `Base` both export `read!` (L22-13 proved). So every live example of
   playback fails. Call `EditorModule.read!` by its qualified name in Playback.jl. The name of
   `read!` stays the decision of L22-13.
   *Test:* `test_playback()`: its `@test_broken` for this call becomes a `@test` and passes.
+  *Done:* lane A, eb1c4ece9. test_kernel 3260 pass and 2 broken (644 checks of the corpus on M paths); test_substrate 86866 and the 7 known failures; test_mcp_tools 152; test_julia 407; test_json 194; test_xml 73.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
