@@ -549,7 +549,7 @@ Each step says what stops the stage.
   4. The rankers of Stage 1 on the full corpus: words, meaning, meaning with
      call sites, and Jev in two stages and as a cascade, with and without the
      call sites. About $1.
-- [ ] **Step 4c. The code of the definition** (the owner, 2026-09-29: "We can
+- [x] **Step 4c. The code of the definition** (the owner, 2026-09-29: "We can
   assume that some documentation needs to be written for each function. But in
   general the usage examples will probably not be there and certainly not tuned
   for the task. Do the follow up"). The rankers also read the first lines of the
@@ -1261,3 +1261,66 @@ four or more letters of its answer.
 - **Some questions are more exact than a person would be** ("offset from the
   client count by two"), because the writer saw only code. That helps a reader
   of the documentation, so it can favour Jev.
+
+### Step 4c, the code of the definition, 2026-09-29
+
+60 other answers drawn at random (seed 20260930), each with at least four call
+sites and none an answer of Step 4b, 20 per stratum, from 12, 14 and 11
+packages; each question written by a Sonnet subagent from one call site that
+the rankers do not show, never from the definition or the docstring. The
+questions are `UNTUNED_CODE_SEARCH_QUESTIONS` in
+`example/ide/SearchUntunedCodeCorpus.jl` of omnet-julia; the stage
+`untuned-code` ranks them. `collect_definition_code` found the code of 4,205 of
+the 4,454 functions and types: the first 15 lines from the line that defines
+the name, cut at 800 characters. It cost $1.51; the ledger holds $6.69.
+
+| answers | ranker | first / 5 / 8 / 10 |
+| --- | --- | --- |
+| no docstring, 20 | meaning | 0 / 0 / 0 / 1 |
+| | meaning, code | 1 / 1 / 2 / 2 |
+| | Jev, two stages | 1 / 2 / 3 / 4 |
+| | Jev, two stages, code | 3 / 4 / 4 / 4 |
+| | Jev, cascade | 5 / 10 / 14 / 15 |
+| | Jev, cascade, code | 6 / 14 / 16 / 17 |
+| | **Jev, cascade, code, call sites** | **9 / 17 / 18 / 18** |
+| short docstring, 20 | meaning | 3 / 5 / 6 / 6 |
+| | meaning, code | 2 / 4 / 6 / 7 |
+| | Jev, two stages | 10 / 13 / 13 / 13 |
+| | Jev, two stages, code | 9 / 13 / 13 / 13 |
+| | Jev, cascade | 11 / 15 / 17 / 18 |
+| | Jev, cascade, code | 10 / 15 / 17 / 19 |
+| | Jev, cascade, code, call sites | 12 / 16 / 18 / 18 |
+| longer docstring, 20 | meaning | 6 / 9 / 9 / 12 |
+| | meaning, code | 5 / 10 / 11 / 13 |
+| | Jev, two stages | 13 / 16 / 17 / 17 |
+| | Jev, two stages, code | 14 / 16 / 16 / 17 |
+| | Jev, cascade | 13 / 15 / 16 / 16 |
+| | Jev, cascade, code | 13 / 16 / 16 / 16 |
+| | Jev, cascade, code, call sites | 14 / 16 / 16 / 16 |
+
+- **Where there is no docstring, the code and the call sites together take the
+  cascade from 5 to 9 first and from 10 to 17 in five** — almost what a short
+  docstring gives. The code alone gives 10 to 14 in five, the call sites the
+  rest. So a classifier that reads what the code says and how it is used can
+  stand in for a missing docstring, which the vectors can not: with the code
+  their vector finds 2 of 20 in ten.
+- **Where there is a docstring, the code adds nothing clear, and the call sites
+  one or two first.** The docstring already says what the code would.
+- **Only the cascade reaches the names with no docstring.** The pool of two
+  stages comes from words and vectors, and they do not find these names, so a
+  classifier that reads more can not help there.
+- **The source of a question matters much.** Step 4b wrote the questions of
+  names with no docstring mostly from their definitions, and the cascade found
+  6 of 20 in ten; here, from call sites, 15. A question that says how a caller
+  uses a name is easier to answer than one that says what its body does.
+- **A limit**: the call sites shown to Jev and the call site a question came
+  from are different places, but they can show the same way of using the name.
+  That is what call sites are for, and it is also why they help most when the
+  question is written from a use.
+- **What this says for the product** (the owner: every function gets some
+  documentation, and usage examples will not be there): the call sites are the
+  usage examples that nobody has to write, and with a short docstring the
+  cascade with code and call sites puts 12 of 20 first and 18 in ten, where the
+  meaning vectors put 3 and 6. The kernel of Stage 2 reads neither the code nor
+  the call sites (§8c, item 7); that decision rests on Step 4, whose answers were
+  documented, and Step 4c reverses it for the names that are not.
