@@ -3,10 +3,17 @@
 
 using Test
 import ProjecturedKernel.AgentModule: Agent, run_turn!, AgentToolResult
-import ProjecturedKernel.LlmModule: LlmMessage
+import ProjecturedKernel.FaultModule: FaultStore, get_fault_records
+import ProjecturedKernel.LlmModule: LlmMessage, LlmFailure, LlmTextStart, LlmTurnEnd
 import ProjecturedKernel.ToolModule: Tool, ToolSet, register_tool!
 using ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,
                                 make_scripted_say
+
+# A target that keeps a fault store, as an editor does.
+struct AgentLoopTarget
+    faults::FaultStore
+end
+ProjecturedKernel.FaultModule.get_fault_store(target::AgentLoopTarget) = target.faults
 
 # A callable object in the place of a function: it keeps each event that it gets.
 struct AgentLoopEventLog
@@ -57,6 +64,36 @@ function test_agent_loop()
         @test occursin("no such pane", result.output)
     end
 
+    @testset "a tool that throws records a fault in the store of the target" begin
+        tools = _make_agent_loop_tools((target, arguments) -> error("no such pane"))
+        llm = ScriptedLlm([_make_agent_loop_call_round(),
+                           _make_agent_loop_answer_round("It failed.")])
+        target = AgentLoopTarget(FaultStore())
+        events = Any[]
+        stop = run_turn!(Agent(llm, tools), target; messages = () -> LlmMessage[],
+                         on_event = event -> push!(events, event))
+        @test stop === :end_turn
+        @test only(_get_agent_tool_results(events)).is_error
+        record = only(get_fault_records(target.faults))
+        @test record.site === :tool
+        @test record.origin === :probe
+        @test occursin("no such pane", record.message)
+    end
+
+    @testset "a tool name that no tool answers gives a result marked as an error" begin
+        tools = _make_agent_loop_tools((target, arguments) -> "unused")
+        round = make_scripted_turn(
+            make_scripted_run(""; tool_id = "tu_1", tool_name = "agent_loop_missing");
+            stop_reason = "tool_use")
+        llm = ScriptedLlm([round, _make_agent_loop_answer_round("Done.")])
+        stop, events = _run_agent_loop_turn(Agent(llm, tools))
+        result = only(_get_agent_tool_results(events))
+        @test stop === :end_turn
+        @test result.is_error
+        @test occursin("KeyError", result.output)
+        @test occursin("agent_loop_missing", result.output)
+    end
+
     @testset "a tool that answers gives a result not marked as an error" begin
         tools = _make_agent_loop_tools((target, arguments) -> "three words")
         llm = ScriptedLlm([_make_agent_loop_call_round(),
@@ -78,6 +115,52 @@ function test_agent_loop()
         @test stop === :error
         @test calls[] == 0
         @test isempty(_get_agent_tool_results(events))
+    end
+
+    @testset "a failure in the stream ends the turn with :error" begin
+        calls = Ref(0)
+        tools = _make_agent_loop_tools((target, arguments) -> (calls[] += 1; "ran"))
+        # The round streams a whole tool call, and then the failure.
+        round = vcat(make_scripted_run(""; tool_id = "tu_1", tool_name = "probe"),
+                     NamedTuple[(event = LlmFailure("overloaded"), delay = 0.0)])
+        stop, events = _run_agent_loop_turn(Agent(ScriptedLlm([round]), tools))
+        @test stop === :error
+        @test calls[] == 0
+        @test any(event -> event isa LlmFailure, events)
+        @test isempty(_get_agent_tool_results(events))
+    end
+
+    # The answer is the stop reason of the last round that ran: the model still
+    # waits for tools when the cap ends the turn.
+    @testset "the round cap ends a turn that keeps calling tools" begin
+        calls = Ref(0)
+        tools = _make_agent_loop_tools((target, arguments) -> (calls[] += 1; "ran"))
+        llm = ScriptedLlm([_make_agent_loop_call_round() for _ in 1:3])
+        agent = Agent(llm, tools; max_rounds = 2)
+        stop = @test_logs (:warn, r"round cap") match_mode = :any run_turn!(
+            agent, (name = :target,); messages = () -> LlmMessage[],
+            on_event = event -> nothing)
+        @test stop === :tool_use
+        @test calls[] == 2
+        @test llm.cursor == 2
+    end
+
+    @testset "the results follow the round that asked, in the order of the calls" begin
+        tools = _make_agent_loop_tools((target, arguments) -> "ran")
+        round = make_scripted_turn(
+            make_scripted_run(""; tool_id = "tu_1", tool_name = "probe"),
+            make_scripted_run(""; tool_id = "tu_2", tool_name = "probe");
+            stop_reason = "tool_use")
+        llm = ScriptedLlm([round, _make_agent_loop_answer_round("Done.")])
+        stop, events = _run_agent_loop_turn(Agent(llm, tools))
+        @test stop === :end_turn
+        @test [result.call.id for result in _get_agent_tool_results(events)] ==
+              ["tu_1", "tu_2"]
+        turn_end = findfirst(event -> event isa LlmTurnEnd, events)
+        @test events[turn_end].stop_reason === :tool_use
+        @test turn_end < findfirst(event -> event isa AgentToolResult, events)
+        @test findlast(event -> event isa AgentToolResult, events) <
+              findfirst(event -> event isa LlmTextStart, events)
     end
 
     @testset "an interrupt in a tool goes through the loop" begin

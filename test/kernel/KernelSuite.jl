@@ -87,7 +87,8 @@ function test_kernel()
         test_editor_fault_barriers()
         test_editor_document_edits()
         test_frame_measurements()
-        test_agent_seam()
+        test_llm_defaults()
+        test_agent_defaults()
         test_agent_loop()
         test_declared_api()
         test_search_query()
@@ -112,7 +113,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_inversion, test_traversal, test_description, test_intent,
        test_event_module, test_event_case,
        test_device_module, test_gesture_binding, test_gesture_recognizer,
-       test_headless_backend, test_agent_seam, test_agent_loop,
+       test_headless_backend, test_llm_defaults, test_agent_defaults, test_agent_loop,
        test_declared_api, test_search_query, test_meaning_search, test_search_answer,
        test_code_execution,
        test_editor_inbox, test_editor_frame_drain, test_editor_feeds,

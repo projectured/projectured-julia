@@ -124,11 +124,15 @@ gives what each of them costs.
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
 | `test_catalog()` | Runs printer/reader/repl (+ position-navigation on `:graphics`) over the **generated** atomic-example catalog — see below. Run by `test_all`. |
 
-`test_kernel()` also runs the tool/agent seam suites under
+`test_kernel()` also runs the tool, llm and agent suites under
 [test/kernel/tool/](../../test/kernel/tool/DeclaredApiTest.jl) (the declared API a model
-may call, search by name/pattern/description, and `execute_julia_code`) and
-[test/kernel/agent/AgentSeamTest.jl](../../test/kernel/agent/AgentSeamTest.jl) (the inbound
-agent-server seam) — this table does not name them individually.
+may call, search by name/pattern/description, and `execute_julia_code`),
+[test/kernel/llm/LlmDefaultsTest.jl](../../test/kernel/llm/LlmDefaultsTest.jl) (the
+fallbacks of the provider contract) and
+[test/kernel/agent/AgentDefaultsTest.jl](../../test/kernel/agent/AgentDefaultsTest.jl) (the
+inbound agent-server seam) with
+[AgentLoopTest.jl](../../test/kernel/agent/AgentLoopTest.jl) (the agent loop) — this
+table does not name them individually.
 
 ## The time and the memory of each part
 
