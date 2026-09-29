@@ -2,7 +2,7 @@
 # corpus: where a caller writes a name, found with the parser of Julia.
 #
 # A docstring says what a name does, and a call site shows how a caller writes it
-# and which names it goes with. `plan/pending/a-classifier-ranks-the-search.md`
+# and which names it goes with. `plan/done/a-classifier-ranks-the-search.md`
 # measures whether a search ranks better with them.
 
 const _JS = Base.JuliaSyntax

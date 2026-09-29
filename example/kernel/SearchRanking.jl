@@ -2,7 +2,7 @@
 # same questions: by words, by meaning, and by a classifier that reads the
 # question, its context and each candidate together.
 #
-# `plan/pending/a-classifier-ranks-the-search.md` says which comparison each
+# `plan/done/a-classifier-ranks-the-search.md` says which comparison each
 # number serves.
 
 """

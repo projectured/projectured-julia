@@ -7,7 +7,7 @@
 # which a run reads from `~/.config/openrouter/api.env`; it is never printed. Every answer is kept in
 # a file by the hash of its request, and every request adds its input tokens to
 # a ledger that the Python probes share, so the limit of cost holds for both.
-# See plan/pending/a-classifier-ranks-the-search.md.
+# See plan/done/a-classifier-ranks-the-search.md.
 
 using SHA: sha256
 import ProjecturedKernel

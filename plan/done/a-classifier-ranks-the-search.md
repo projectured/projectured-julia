@@ -1,7 +1,10 @@
 # A classifier ranks the search
 
-Status: a plan, 2026-09-28. Nothing is implemented. The owner answered the
-questions of §8 the same day, and nothing is open.
+Status: done, 2026-09-29. The kernel mechanism (Stage 2), the harness and the
+measurements are on `main` (`b4127e3e`), and so is the package
+`ProjecturedOpenRouter` of `an-openrouter-backend-package.md`. Stage 3 did not
+run: the owner did not ask for it. The code and the call sites in the text of a
+candidate wait in `plan/pending/the-relevance-model-reads-code-and-call-sites.md`.
 
 ## 1. The request
 
@@ -513,7 +516,7 @@ Each step says what stops the stage.
   order. It prints the table of §5e for each ranker, the paired comparison, and
   the tokens and seconds of each. Done 2026-09-28 (§10). The ladder of §5c is
   not built yet.
-- [ ] **Step 4. The API ranks.** In this order:
+- [x] **Step 4. The API ranks.** In this order:
   1. Words and meaning on every size of the ladder, with and without the call
      sites, with and without the context (the controls of §4). The recall of the
      first stage at 50 and at 100 comes from the same runs. None of this costs
@@ -532,6 +535,12 @@ Each step says what stops the stage.
   **Stop** if no classifier shape with the call sites and the context beats
   the best control at the full scale on the report half. Then the result is the
   text or nothing.
+
+  Done 2026-09-28 (§10), at the full scale only. Items 1, 3 and 4 ran. Item 2
+  ran the tree once, with the call sites and the context, and not the three
+  variants one after another. Item 5 did not run. Item 6 ran B2 in two stages;
+  its run with the pool of three rankers (`local-pool`) did not finish, and
+  7,784 answers are in its cache.
 - [x] **Step 4b. The untuned answers** (the owner, 2026-09-29: "Did we measure
   search API tool calls for many different questions with a large set of
   possible answer functions where the documentation is not specifically tuned
@@ -580,7 +589,8 @@ Each step says what stops the stage.
     omnet-julia (`e531c0e6`), and `/var/tmp/classifier-search/stage2/run_conditions.jl`.
   - [x] The runs: six conditions (§10, Step 7), in a warm session of the
     scratch environment of the two worktrees. Done 2026-09-29.
-- [ ] **Step 8. Stage 3** (§5g), if the owner asks for it.
+- [ ] **Step 8. Stage 3** (§5g), if the owner asks for it. Not run: the owner
+  did not ask for it.
 
 ## 7. Rules of a run
 

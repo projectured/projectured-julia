@@ -5,7 +5,7 @@
 # Include it in a script that has loaded `ProjecturedOllama`; it takes `HTTP` and
 # `JSON3` from there. Every answer is kept in a file by the hash of its request,
 # so a second run of a measurement asks the model nothing.
-# See plan/pending/a-classifier-ranks-the-search.md.
+# See plan/done/a-classifier-ranks-the-search.md.
 
 using SHA: sha256
 import ProjecturedOllama

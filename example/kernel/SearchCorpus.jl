@@ -4,7 +4,7 @@
 # A window declares about a hundred names, and an application reaches several
 # thousand. A measurement of a search is decided at the second size, so this
 # gathers the modules of the loaded packages and declares all of them.
-# `plan/pending/a-classifier-ranks-the-search.md` says which numbers it serves.
+# `plan/done/a-classifier-ranks-the-search.md` says which numbers it serves.
 
 """
     collect_package_modules(prefixes; excluded_suffixes = ("Example", "Test", "Bench"))

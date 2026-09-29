@@ -1,8 +1,7 @@
 # An OpenRouter backend package
 
-Status: built and checked, 2026-09-29 (`2fef98b4`), on the branch
-`classifier-search`, whose kernel holds the `RelevanceModel`. It lands with the
-branch.
+Status: done, 2026-09-29. Built and checked (`2fef98b4`), and on `main` with
+the kernel `RelevanceModel` (`b4127e3e`).
 
 ## 1. The request
 

@@ -11,7 +11,7 @@ on `main` yet (§7, question 4).
 
 ## 1. The request
 
-Step 4c of `a-classifier-ranks-the-search.md` measured what a classifier ranks
+Step 4c of `plan/done/a-classifier-ranks-the-search.md` measured what a classifier ranks
 when it also reads the first lines of the definition of each name and its call
 sites. The owner said before it: "We can assume that some documentation needs
 to be written for each function. But in general the usage examples will
@@ -154,7 +154,7 @@ sentence, and one clear hit its docstring.
 
 ## 6. Rules
 
-The rules of a run of `a-classifier-ranks-the-search.md` §7 hold: memory, the
+The rules of a run of `plan/done/a-classifier-ranks-the-search.md` §7 hold: memory, the
 key, the limit of cost of the ledger, the work in the worktree with a commit per
 step, and this plan updated as the steps are done.
 
