@@ -18,9 +18,8 @@
 #
 # The rules from `MathSymbolToSyntaxLeaf` on are `@projection_template`
 # builders, so printing, reference mapping and the structural readers are
-# generic. Each compound rule collapses an unmapped caret to a bounded flat
-# offset (`_syntax_to_flat`), because a formula is full of
-# projection-introduced chrome.
+# generic. A brace, an operator glyph or a name that a rule printed is named by
+# the rule's own introduced step.
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct MathInsertionToSyntaxLeaf
@@ -39,30 +38,37 @@ end
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
-function map_reference_forward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_forward(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::MathVariable.name{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.output))
+        proj(^(p), inner) => inner
+        ::MathVariable.name{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
     end
 end
 
-function map_reference_backward(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_backward(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::MathVariable.name::String{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.input))
+        ::SyntaxLeaf.value{s:e} => @reference ::MathVariable.name::String{s:e}::Position
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function print_document(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable, ctx)
-    SimpleIoMap(p, v, SyntaxLeaf(
-        TextString(() -> v.name, p.style);
-        selection=getfield(v, :selection)))
+    iomap_cell = Cell(nothing)
+    selection = Cell(@computation begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing :
+            map_selection_forward(v, path -> map_reference_forward(p, iomap, path))
+    end)
+    iomap = SimpleIoMap(p, v, SyntaxLeaf(TextString(() -> v.name, p.style); selection))
+    iomap_cell[] = iomap
+    iomap
 end
 
-function read_intent(::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
-    path isa ConcreteReference || return nothing
-    h = path.head
-    h isa FieldReferenceStep && h.name == "value" || return nothing
-    return ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("name"), path.tail))
+function read_intent(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
@@ -77,6 +83,7 @@ end
 # child IO maps (child_iomaps = [left, right]) rather than re-walking math types.
 function map_reference_forward(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::MathBinaryOperation.left.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -108,9 +115,10 @@ function map_reference_backward(p::MathBinaryOperationToSyntaxNode, iomap::Child
                 translated === nothing && return nothing
                 @reference ::MathBinaryOperation.right.^(translated)
             else
-                nothing
+                make_introduced_reference(p, iomap, reference)
             end
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -141,7 +149,7 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
                            ConcreteReference(ElementReferenceStep(3), child_sel))
             end
         elseif h isa ProjectionReferenceStep
-            return path
+            return find_introduced_path(p, path)
         end
         return nothing
     end)
@@ -155,11 +163,7 @@ end
 
 function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
@@ -172,6 +176,7 @@ end
 # parentheses are projection-introduced. child_iomaps holds the one content IO map.
 function map_reference_forward(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::MathParenthesized.content.rest... => begin
             child = iomap.child_iomaps
             inner = map_reference_forward(child.projection, child, rest)
@@ -184,12 +189,13 @@ end
 function map_reference_backward(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ::SyntaxNode.children{s:_}.leaf_path... => begin
-            s + 1 == 1 || return nothing
+            s + 1 == 1 || return make_introduced_reference(p, iomap, reference)
             child = iomap.child_iomaps
             translated = map_reference_backward(child.projection, child, leaf_path)
             translated === nothing && return nothing
             @reference ::MathParenthesized.content.^(translated)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -208,7 +214,7 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
             return ConcreteReference(FieldReferenceStep("children"),
                        ConcreteReference(ElementReferenceStep(1), child_sel))
         elseif h isa ProjectionReferenceStep
-            return path
+            return find_introduced_path(p, path)
         end
         return nothing
     end)
@@ -223,11 +229,7 @@ end
 
 function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
@@ -241,6 +243,7 @@ end
 # projection-introduced. child_iomaps = [target, value].
 function map_reference_forward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::MathAssignment.target.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -272,9 +275,10 @@ function map_reference_backward(p::MathAssignmentToSyntaxNode, iomap::ChildrenIo
                 translated === nothing && return nothing
                 @reference ::MathAssignment.value.^(translated)
             else
-                nothing
+                make_introduced_reference(p, iomap, reference)
             end
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -305,7 +309,7 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
                            ConcreteReference(ElementReferenceStep(3), child_sel))
             end
         elseif h isa ProjectionReferenceStep
-            return path
+            return find_introduced_path(p, path)
         end
         return nothing
     end)
@@ -319,11 +323,7 @@ end
 
 function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # ── Shared styles for the template rules ─────────────────────────────────────
@@ -610,31 +610,6 @@ end
                    open=TextString("{", p.chrome),
                    close=TextString("}", p.chrome),
                    sep=TextString("; ", p.chrome))])
-
-# ── Structural-caret navigation ──────────────────────────────────────────────
-#
-# A formula is mostly projection-introduced chrome: every brace, every operator
-# glyph and every LaTeX-like name. A caret on that chrome maps back to nothing
-# through the wiring, and the engine's fallback would then grow the path on
-# every round trip. Collapse it to a bounded flat offset instead — the
-# `XmlElementToSyntaxNode` precedent, which the original three compound rules
-# above already use.
-
-for T in (:MathRowToSyntaxNode, :MathUnaryOperationToSyntaxNode,
-          :MathFractionToSyntaxNode, :MathScriptToSyntaxNode,
-          :MathRadicalToSyntaxNode, :MathBigOperatorToSyntaxNode,
-          :MathDifferentialToSyntaxNode, :MathDerivativeToSyntaxNode,
-          :MathFunctionToSyntaxNode, :MathAccentToSyntaxNode,
-          :MathMatrixToSyntaxNode, :MathCaseToSyntaxNode, :MathCasesToSyntaxNode)
-    @eval function read_intent(p::$T, iomap::RuleIoMap, op::ReplaceSelectionOperation)
-        result = map_reference_backward(p, iomap, op.path)
-        result !== nothing && return ReplaceSelectionOperation(result)
-        flat = _syntax_to_flat(iomap.output, op.path, SyntaxCompoundToText(), 0)
-        flat < 0 && return nothing
-        ReplaceSelectionOperation(
-            make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
-    end
-end
 
 # ── MathToSyntax (composite) ──────────────────────────────────────────────────
 

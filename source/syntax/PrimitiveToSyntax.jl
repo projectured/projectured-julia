@@ -4,33 +4,49 @@
 # `PrimitiveNumber`, and `PrimitiveString` into `SyntaxLeaf` nodes
 # with appropriate delimiters and colors.
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
+#
+# Each leaf maps its selection forward into a cell of its own, so the primitive
+# holds a path of its own domain. A part that the leaf printed, such as a quote of
+# a string, is named by the leaf's own introduced step, and the forward map
+# answers the path of that part in the leaf.
 
 @projection struct PrimitiveBoolToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-function map_reference_forward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_forward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::PrimitiveBool.value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.output))
+        proj(^(p), inner) => inner
+        ::PrimitiveBool.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
     end
 end
 
-function map_reference_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_backward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::PrimitiveBool.value::Bool{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.input))
+        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveBool.value::Bool{s:e}::Position
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function print_document(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBool, ctx)
-    SimpleIoMap(p, b, SyntaxLeaf(TextString(() -> string(b.value), p.style); selection=getfield(b, :selection)))
+    iomap_cell = Cell(nothing)
+    selection = Cell(@computation begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing :
+            map_selection_forward(b, path -> map_reference_forward(p, iomap, path))
+    end)
+    iomap = SimpleIoMap(p, b, SyntaxLeaf(
+        TextString(() -> string(b.value), p.style);
+        selection))
+    iomap_cell[] = iomap
+    iomap
 end
 
-function read_intent(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
-    path isa ConcreteReference || return nothing
-    h = path.head
-    h isa FieldReferenceStep && h.name == "value" || return nothing
-    return op
+function read_intent(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
@@ -39,28 +55,39 @@ end
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
 end
 
-function map_reference_forward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_forward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::PrimitiveNumber.value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.output))
+        proj(^(p), inner) => inner
+        ::PrimitiveNumber.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
     end
 end
 
-function map_reference_backward(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_backward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::PrimitiveNumber.value::Number{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.input))
+        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveNumber.value::Number{s:e}::Position
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function print_document(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveNumber, ctx)
-    SimpleIoMap(p, n, SyntaxLeaf(TextString(() -> string(n.value), p.style); selection=getfield(n, :selection)))
+    iomap_cell = Cell(nothing)
+    selection = Cell(@computation begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing :
+            map_selection_forward(n, path -> map_reference_forward(p, iomap, path))
+    end)
+    iomap = SimpleIoMap(p, n, SyntaxLeaf(
+        TextString(() -> string(n.value), p.style);
+        selection))
+    iomap_cell[] = iomap
+    iomap
 end
 
-function read_intent(::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
-    path isa ConcreteReference || return nothing
-    h = path.head
-    h isa FieldReferenceStep && h.name == "value" || return nothing
-    return op
+function read_intent(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
@@ -70,36 +97,41 @@ end
     value::ImmutableCell{StyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 
-function map_reference_forward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_forward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::PrimitiveString.value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.output))
+        proj(^(p), inner) => inner
+        ::PrimitiveString.value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
     end
 end
 
-function map_reference_backward(::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
+function map_reference_backward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::PrimitiveString.value::String{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.input))
+        ::SyntaxLeaf.value{s:e} => @reference ::PrimitiveString.value::String{s:e}::Position
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function print_document(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveString, ctx)
-    SimpleIoMap(p, s, SyntaxLeaf(
+    iomap_cell = Cell(nothing)
+    selection = Cell(@computation begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing :
+            map_selection_forward(s, path -> map_reference_forward(p, iomap, path))
+    end)
+    iomap = SimpleIoMap(p, s, SyntaxLeaf(
         TextString(() -> something(s.value, ""), p.value);
         open=TextString("\"", p.quote_style),
         close=TextString("\"", p.quote_style),
-        selection=getfield(s, :selection)))
+        selection))
+    iomap_cell[] = iomap
+    iomap
 end
 
 function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
-    path isa ConcreteReference || return nothing
-    h = path.head
-    h isa FieldReferenceStep || return nothing
-    if h.name == "value"
-        return op
-    else
-        return ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, path))
-    end
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # String character-editing (insert / Backspace / Delete) is reified once as

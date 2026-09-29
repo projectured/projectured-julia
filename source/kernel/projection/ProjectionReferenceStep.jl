@@ -55,6 +55,21 @@ make_introduced_reference(projection, document, output_path::Reference) =
     make_introduced_reference(projection, get_reference_node_type(document), output_path)
 
 """
+    make_introduced_reference(projection, iomap::IoMap, output_path) -> Reference
+
+The introduced reference that a backward map makes for a part that `projection`
+printed. The node records the type of `iomap.input`, and `output_path`, a path in
+`iomap.output`, gets the node types of that document. So the forward map that takes
+off the step answers a fully typed path, which a parent can splice into an
+`@reference` literal.
+"""
+function make_introduced_reference(projection, iomap::IoMap, output_path::Reference)
+    typed = is_fully_typed_reference(output_path) ? output_path :
+            annotate_reference_types(iomap.output, output_path)
+    make_introduced_reference(projection, iomap.input, typed)
+end
+
+"""
     is_introduced_reference(reference) -> Bool
     is_introduced_reference(reference, projection) -> Bool
 
@@ -74,6 +89,19 @@ is_introduced_reference(reference) =
 
 is_introduced_reference(reference, projection) =
     is_introduced_reference(reference) && reference.head.projection === projection
+
+"""
+    has_introduced_step(reference) -> Bool
+
+Does `reference` pass through a part that a projection printed: is any of its
+steps a `ProjectionReferenceStep`? The step can stand below the head, as in
+`.elements[2]‹.open{0}›` for the bracket of a nested array. Such a path has no
+input pre-image, so a reader declines an edit whose reference has one, and the
+raw key falls through to the structural gesture.
+"""
+has_introduced_step(reference::ConcreteReference) =
+    reference.head isa ProjectionReferenceStep || has_introduced_step(reference.tail)
+has_introduced_step(::Any) = false
 
 """
     find_introduced_path(projection, reference) -> Union{Reference,Nothing}

@@ -54,7 +54,7 @@ component Toggle
 
 A transition line is `[on EVENT | on timeout(TIMER)] [when GUARD] (-> TARGET | stay | ignore) [/ ACTION]`. The action comes last because it is the one part that can have many lines: a block action prints as indented lines below its transition. A machine with `on_unhandled = :ignore` prints `ignoring unhandled` after its initial state.
 
-The trigger, the target and the initial state print as a leaf that reads the name of the referent. The rule never recurses into the referent, because a target printed in full would contain its own transitions, and a self-loop would not end. These names and the keywords are text that the projection adds. A caret on them maps to a flat offset in the rendered node, as in the XML element rule, so the navigation walk stays bounded.
+The trigger, the target and the initial state print as a leaf that reads the name of the referent. The rule never recurses into the referent, because a target printed in full would contain its own transitions, and a self-loop would not end. These names and the keywords are text that the projection adds. The template names a caret on them by the rule's own introduced step, which holds the path of the part in the rule's output, and the forward map gives that path back.
 
 `,` on a machine inserts a state, and `,` on a state inserts a transition. The Insert key and the insertion buffer come from `@domain Fsm`; see [domain-anatomy.md](../../design/domain-anatomy.md#the-placeholder-and-the-insertion).
 

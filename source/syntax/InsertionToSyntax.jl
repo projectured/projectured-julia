@@ -97,12 +97,14 @@ _typed_color(p, state::Symbol) =
 # not the caret `value{k}`: a caret is the range `{k:k}`, and Backspace or Delete reaches
 # this leaf as an edit of the one-character range it removes.
 
-function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
+function map_reference_forward(p::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
         # Whole insertion → whole delimitation, typed against the output (as the
         # generic `Projection` fallback does) so a parent that splices it — e.g.
         # `YamlSequence`'s `.content.^(inner)` — keeps a fully-typed reference.
         ∅        => EmptyReference(get_reference_node_type(iomap.output))
+        # A caret on the label or the hint, which this projection printed.
+        proj(^(p), inner) => inner
         value{s:e} => begin
             inner = @reference ::SyntaxLeaf.value::TextString{s:e}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
@@ -171,14 +173,14 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     node_selection = Cell(@computation begin
         path = getfield(ins, :selection)[]
         path isa ConcreteReference || return nothing
-        is_introduced_reference(path) && return path
         map_reference_forward(p, iomap_cell[], path)
     end)
     leaf_selection = Cell(@computation begin
         whole = node_selection[]
         whole isa ConcreteReference || return nothing
-        is_introduced_reference(whole) && return whole
-        whole.tail
+        @reference_case whole begin
+            content.rest... => rest
+        end
     end)
     leaf = SyntaxLeaf(typed; close=hint, selection=leaf_selection)
     io = SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
@@ -220,7 +222,7 @@ function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSe
     h = path.head
     h isa FieldReferenceStep || return nothing
     h.name == "value" ? op :
-        ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, path))
+        ReplaceSelectionOperation(make_introduced_reference(p, iomap, path))
 end
 
 # A text edit lowered onto the buffer's rendered value span (the pipeline turns a

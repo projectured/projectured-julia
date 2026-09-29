@@ -53,11 +53,8 @@
 # a caret offset out from under whoever is typing.
 #
 # The rules are `@projection_template` builders, so printing, reference mapping
-# and the structural readers are generic. Each compound rule additionally
-# collapses an unmapped caret to a bounded flat offset (`_syntax_to_flat`, the
-# `XmlElementToSyntaxNode` precedent) — every keyword in this notation is
-# projection-introduced text with no input pre-image, and without that collapse
-# the navigation walk grows its paths without bound.
+# and the structural readers are generic. Every keyword is a part that a rule
+# printed, and the rule names a caret on it by its own introduced step.
 # ── Shared styles ────────────────────────────────────────────────────────────
 #
 # Control-flow keywords take the Julia projection's keyword colour: an embedded
@@ -280,30 +277,6 @@ end
         end
         children
     end)
-
-# ── Structural-caret navigation ──────────────────────────────────────────────
-#
-# Every keyword and every unrefined-hole marker in this notation is
-# projection-introduced text with no input pre-image, so a text caret there maps
-# back to nothing through the wiring. The engine's domain-neutral fallback wraps
-# the whole output path in a `ProjectionReferenceStep`, which
-# `strip_reference_types` does not collapse — each round trip through such a
-# caret grows the path and the navigation walk never terminates. Collapsing to a
-# flat offset into the rendered node keeps the caret set bounded;
-# `FsmToSyntax` needs it on every compound rule for the same reason.
-
-for T in (:ProcessModelToSyntaxNode, :ProcessStepToSyntaxNode,
-          :ProcessDecisionToSyntaxNode, :ProcessWhileToSyntaxNode,
-          :ProcessForeachToSyntaxNode, :ProcessReturnToSyntaxNode)
-    @eval function read_intent(p::$T, iomap::RuleIoMap, op::ReplaceSelectionOperation)
-        result = map_reference_backward(p, iomap, op.path)
-        result !== nothing && return ReplaceSelectionOperation(result)
-        flat = _syntax_to_flat(iomap.output, op.path, SyntaxCompoundToText(), 0)
-        flat < 0 && return nothing
-        ReplaceSelectionOperation(
-            make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
-    end
-end
 
 # ── Compound convenience constructor ─────────────────────────────────────────
 #

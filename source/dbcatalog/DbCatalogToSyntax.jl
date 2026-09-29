@@ -40,13 +40,11 @@ function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalo
         selection=sel))
 end
 
-function map_reference_forward(::DbCatalogColumnToSyntaxLeaf, iomap, reference)
-    reference = reference
-    reference isa EmptyReference && return EmptyReference()
-    reference isa ConcreteReference || return nothing
-    h = reference.head
-    h isa ProjectionReferenceStep || return nothing
-    return h.output_path
+function map_reference_forward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference)
+    @reference_case reference begin
+        ∅ => EmptyReference()
+        proj(^(p), inner) => inner
+    end
 end
 
 function map_reference_backward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference)
@@ -68,7 +66,11 @@ end
 # All non-leaf catalog projections share the same 2-level output shape:
 #   entity_node → keyword_node → children
 # so the reference mapping logic is factored into shared helpers parameterised
-# by the input-domain children field name ("databases", "schemas", etc.).
+# by the input-domain children field name ("databases", "schemas", etc.). The
+# forward helper is written by hand, not as one `@reference_case`, because a
+# pattern names its fields when it is written and this field name is a value.
+# A part that the entity node printed (its name, a keyword, the layout) is named
+# by the projection's own introduced step, which holds its path in the output.
 
 """
 Forward: `<field_name>[i].rest → children[1].children[i].delegated(rest)`
@@ -78,8 +80,9 @@ function _catalog_forward_ref(p, iomap::ChildrenIoMap, reference, field_name::St
     reference = reference
     reference isa EmptyReference && return EmptyReference()
     reference isa ConcreteReference || return nothing
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
     h = reference.head
-    h isa ProjectionReferenceStep && h.projection === p && return reference
     # Match: field_name{s:e}.rest (FieldReferenceStep + RangeReferenceStep + tail)
     h isa FieldReferenceStep && h.name == field_name || return nothing
     rest = reference.tail
@@ -109,7 +112,8 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
                 ::SyntaxNode.children{s:e}.rest2... => begin
                     child_i = s + 1
                     iomaps = iomap.child_iomaps
-                    1 <= child_i <= length(iomaps) || return nothing
+                    1 <= child_i <= length(iomaps) ||
+                        return make_introduced_reference(p, iomap, reference)
                     child = iomaps[child_i]
                     inner = map_reference_backward(child.projection, child, rest2)
                     inner === nothing && return nothing
@@ -119,25 +123,21 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
                             Cell(ElementReferenceStep(child_i)),
                             Cell(inner))))
                 end
-                __ => nothing
+                __ => make_introduced_reference(p, iomap, reference)
             end
         end
-        __ => nothing
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 """
-Reader for `ReplaceSelectionOperation`: try backward mapping, fall back to
-`make_introduced_reference(p, …, {flat})` for structural positions (entity names,
-keyword labels, whitespace).
+Reader for `ReplaceSelectionOperation`: the backward map, which names a
+structural position (an entity name, a keyword label, whitespace) by the
+projection's own introduced step.
 """
 function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # ── Lazy-expansion helper ─────────────────────────────────────────────────────

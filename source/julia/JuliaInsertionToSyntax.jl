@@ -113,15 +113,20 @@ JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(
     StyleText(font_ubuntu_monospace_regular_20, color_completion_hint))
 
 # `value{k}` char-cursor ↔ the rendered `SyntaxLeaf`'s value span (identity offset).
-function map_reference_forward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
+# The completion after the buffer is a part that the leaf printed.
+function map_reference_forward(p::JuliaInsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        value{k} => @reference ::SyntaxLeaf.value::TextString{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.output))
+        proj(^(p), inner) => inner
+        value{s:e} => @reference ::SyntaxLeaf.value::TextString{s:e}::Position
     end
 end
 
-function map_reference_backward(::JuliaInsertionToSyntaxLeaf, iomap, reference)
+function map_reference_backward(p::JuliaInsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
-        ::SyntaxLeaf.value{k} => @reference ::JuliaInsertion.value::String{k}::Position
+        ∅ => EmptyReference(get_reference_node_type(iomap.input))
+        ::SyntaxLeaf.value{s:e} => @reference ::JuliaInsertion.value::String{s:e}::Position
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -146,20 +151,24 @@ function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInse
                        Cell(p.value.font),
                        Cell(@computation _julia_typed_color(p, something(ins.value, ""))),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    SimpleIoMap(p, ins, SyntaxLeaf(typed;
+    iomap_cell = Cell(nothing)
+    selection = Cell(@computation begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing :
+            map_selection_forward(ins, path -> map_reference_forward(p, iomap, path))
+    end)
+    iomap = SimpleIoMap(p, ins, SyntaxLeaf(typed;
         close=TextString(() -> get_julia_completion(something(ins.value, "")), p.completion),
-        selection=getfield(ins, :selection)))
+        selection))
+    iomap_cell[] = iomap
+    iomap
 end
 
 # Only the structural selection mapping lives here; raw key input has no method and
 # falls through to the generic `read_gesture` fallback → `@gestures JuliaInsertion`.
 function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    path = op.path
-    path isa ConcreteReference || return nothing
-    h = path.head
-    h isa FieldReferenceStep || return nothing
-    h.name == "value" ? op :
-        ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, path))
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # Commit the buffer via `_julia_commit` (keyword scaffold or `parse_julia`); the

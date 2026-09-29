@@ -373,12 +373,11 @@ function _find_sections(out)
 end
 
 # Selection cell for a bound child leaf of a fixed node: lens `doc.<in_field>{k}`
-# onto the leaf's own `.value{k}` span (the only shape `_leaf_cursor` understands);
-# pass a proj-wrapped structural cursor through unchanged.
+# onto the leaf's own `.value{k}` span (the only shape `_leaf_cursor` understands).
+# A caret on a part that the fixed node printed is the node's, not the leaf's.
 function _key_leaf_sel(doc, in_field::Symbol)
     fname = String(in_field)
     Cell(@computation(map_selection_forward(doc, sel -> begin
-        is_introduced_reference(sel) && return sel
         core = sel
         if core isa ConcreteReference && core.head isa FieldReferenceStep && core.head.name == fname
             return ConcreteReference(FieldReferenceStep("value"), core.tail)
@@ -734,6 +733,12 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
 end
 
 # ── Generic, data-driven mappers (one method, all template projections) ───────
+#
+# These mappers are written by hand, not as one `@reference_case` each: the wiring
+# gives the field names at run time, and a pattern names its fields when it is
+# written. A part that the projection printed itself is named by its own
+# introduced step, which holds the path of the part in the output; each forward
+# mapper answers that path (`find_introduced_path`).
 
 # Ensure a generic (template) mapper emits a fully-typed sub-path so a parent's
 # `^(inner)` splice stays typed (the reference-types-always-present invariant).
@@ -762,27 +767,32 @@ end
 const _INTRODUCING_WIRINGS = Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,
                                    FixedNodeWiring,ConditionalNodeWiring}
 
-# A child maps a position of its own output back to its input. A position that the
-# child can not map is a part that its own projection printed, so the step that names
-# it stands at the child: as late in the reference as it can, never at an ancestor.
-function _map_child_backward(child, reference)
-    inner = map_reference_backward(child.projection, child, reference)
-    inner === nothing || return inner
-    (child isa RuleIoMap && child.wiring isa _INTRODUCING_WIRINGS) || return nothing
-    return make_introduced_reference(child.projection, child.input, reference)
+# A child maps a position of its own output back to its input. A part that the child
+# printed is named by the child's own introduced step, which its backward map makes:
+# the step stands as late in the reference as it can, never at an ancestor.
+_map_child_backward(child, reference) = map_reference_backward(child.projection, child, reference)
+
+# A part that a node printed has no input pre-image, so the backward map names it by
+# the node's own introduced step, which holds the path of the part in the output.
+function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
+    r = _map_wiring_backward(p, iomap, reference)
+    if r === nothing && iomap.wiring isa _INTRODUCING_WIRINGS && reference isa ConcreteReference
+        return make_introduced_reference(p, iomap, reference)
+    end
+    _typed_generic(r, iomap.input)
 end
 
-function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
+# The backward map of the wiring alone: `nothing` for a part that the node printed.
+function _map_wiring_backward(p, iomap::RuleIoMap, reference)
     w = iomap.wiring
-    r = w isa AtomicWiring    ? _atomic_backward(p, w, reference) :
-        w isa NodeWiring      ? _node_backward(p, w, iomap, reference) :
-        w isa FixedNodeWiring ? _fixed_backward(p, w, iomap, reference) :
-        w isa ConditionalNodeWiring ? _conditional_backward(p, w, iomap, reference) :
-        w isa MixedNodeWiring ? _mixed_backward(p, w, iomap, reference) :
-        w isa InlineWiring    ? _inline_backward(p, w, reference) :
-        w isa SectionsWiring  ? _sections_backward(p, w, iomap, reference) :
-        nothing
-    _typed_generic(r, iomap.input)
+    w isa AtomicWiring    ? _atomic_backward(p, w, reference) :
+    w isa NodeWiring      ? _node_backward(p, w, iomap, reference) :
+    w isa FixedNodeWiring ? _fixed_backward(p, w, iomap, reference) :
+    w isa ConditionalNodeWiring ? _conditional_backward(p, w, iomap, reference) :
+    w isa MixedNodeWiring ? _mixed_backward(p, w, iomap, reference) :
+    w isa InlineWiring    ? _inline_backward(p, w, reference) :
+    w isa SectionsWiring  ? _sections_backward(p, w, iomap, reference) :
+    nothing
 end
 
 # ── atomic (leaf) ─────────────────────────────────────────────────────────────
@@ -841,16 +851,15 @@ end
 #
 # Peel the one step this projection owns (.input[i] ↔ .children[i]) and delegate
 # the tail to child i's own mapper through the stored child iomap (School A). A
-# `proj(^(p), …)` head is this projection's own introduced output (a delimiter /
-# structural position) — kept wrapped forward, produced by the reader fallback.
+# `proj(^(p), …)` head is a part that this projection printed (a delimiter, a
+# structural position): the forward map answers its path in the output.
 
 function _node_forward(p, w, iomap, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.outtype)                 # whole ⇒ ::Out
-    if is_introduced_reference(core, p)
-        return reference                                                   # keep wrapped
-    end
+    introduced = find_introduced_path(p, core)
+    introduced === nothing || return introduced
     if core isa ConcreteReference && core.head isa FieldReferenceStep && core.head.name == String(w.coll_input_field)
         after = core.tail
         if after isa ConcreteReference && after.head isa RangeReferenceStep
@@ -963,7 +972,10 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 # selection delegates: its `leaf_path` may resolve to a real child.
                 leaf_path isa EmptyReference &&
                     return make_introduced_reference(slot.iomap.projection, intype, reference)
-                return map_reference_backward(slot.iomap.projection, slot.iomap, leaf_path)
+                # The sub-node shares this node's input and sees `leaf_path` without
+                # the `.children[k]` step, so a part that it printed is named here,
+                # with the whole reference, and not by the sub-node.
+                return _map_wiring_backward(slot.iomap.projection, slot.iomap, leaf_path)
             else
                 return nothing                                             # introduced
             end
@@ -972,22 +984,27 @@ function _slots_backward(slots, project_child, children_field, intype, reference
     return nothing
 end
 
-# A `ProjectionReferenceStep(^(p), …)` head is this projection's own introduced output
-# (a delimiter / structural position with no input pre-image) — keep it wrapped
-# forward, mirroring `_node_forward` / `_mixed_forward` / `_inline_forward`. Without
-# this the cursor on an introduced token of a fixed/conditional node fails to
-# forward-project (selection → nothing), so no caret renders and relative navigation
-# and typein die (a keyword node's leading/operator tokens are all such positions).
-_fixed_forward(p, w, iomap, reference) =
-    is_introduced_reference(reference, p) ? reference :
+# A `ProjectionReferenceStep(^(p), …)` head is a part that this projection printed
+# (a delimiter, a structural position with no input pre-image), and the forward map
+# answers its path in the output, as `_node_forward` does. Without it the cursor on
+# an introduced token of a fixed or conditional node maps forward to nothing, so no
+# caret renders and relative navigation and type-in stop (a keyword node's leading
+# and operator tokens are all such positions).
+function _fixed_forward(p, w, iomap, reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
     _slots_forward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.outtype, reference)
+end
 _fixed_backward(p, w, iomap, reference) =
     _slots_backward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.intype, reference)
 
 # Conditional node: read the current (slots, store) from the reactive state cell.
-_conditional_forward(p, w, iomap, reference) =
-    is_introduced_reference(reference, p) ? reference :
-    (st = iomap.child_iomaps; _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference))
+function _conditional_forward(p, w, iomap, reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
+    st = iomap.child_iomaps
+    _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference)
+end
 _conditional_backward(p, w, iomap, reference) =
     (st = iomap.child_iomaps; _slots_backward(st[1], fn -> st[2][fn][], w.children_field, w.intype, reference))
 
@@ -1003,9 +1020,8 @@ function _mixed_forward(p, w, iomap, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.outtype)
-    if is_introduced_reference(core, p)
-        return reference
-    end
+    introduced = find_introduced_path(p, core)
+    introduced === nothing || return introduced
     (core isa ConcreteReference && core.head isa FieldReferenceStep) || return nothing
     fname = Symbol(core.head.name)
     for (k, slot) in enumerate(w.prefix_slots)
@@ -1089,9 +1105,8 @@ function _inline_forward(p, w, reference)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.outtype)
-    if is_introduced_reference(core, p)
-        return reference
-    end
+    introduced = find_introduced_path(p, core)
+    introduced === nothing || return introduced
     if core isa ConcreteReference && core.head isa FieldReferenceStep && Symbol(core.head.name) === w.bound_field
         inner = core.tail
         inner isa EmptyReference &&
@@ -1132,9 +1147,8 @@ function _sections_forward(p, w, iomap, reference)
     secs = iomap.child_iomaps
     core = reference
     core isa EmptyReference && return _typed(w.outtype)
-    if is_introduced_reference(core, p)
-        return reference
-    end
+    introduced = find_introduced_path(p, core)
+    introduced === nothing || return introduced
     (core isa ConcreteReference && core.head isa FieldReferenceStep) || return nothing
     field = Symbol(core.head.name)
     sec_i = findfirst(s -> s.field === field, secs)
@@ -1407,14 +1421,11 @@ end
 # package imports `RuleIoMap` + `AtomicWiring` from this module to preserve the
 # same dispatch behaviour.
 
-# Whole-element selection: map back, else (node) the position is a structural
-# introduced one with no input pre-image ⇒ wrap into this projection's own step
-# (the domain-neutral counterpart of the Syntax flat-offset fallback).
+# A caret on a part that a node printed maps back to the node's own introduced step,
+# which the backward map makes.
 function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    iomap.wiring isa _INTRODUCING_WIRINGS || return nothing
-    return ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, op.path))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────

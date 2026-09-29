@@ -23,17 +23,30 @@ _empty(font) = TextString("", font, color_default)
 # ── FormulaInsertionToSyntaxLeaf ───────────────────────────────────────────────
 #
 # The "insert formula" placeholder. A projection-introduced leaf with no editable
-# input value, so the default forward mapper (proj-unwrapping) is correct.
+# input value, so the default mappers are correct: the backward map names a caret
+# on the text by the leaf's own introduced step, and the forward map answers the
+# path in the leaf. Each leaf of this file maps its selection forward into a cell
+# of its own.
+
+function _make_forward_selection_leaf(p, input, make_leaf)
+    iomap_cell = Cell(nothing)
+    selection = Cell(@computation begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing :
+            map_selection_forward(input, path -> map_reference_forward(p, iomap, path))
+    end)
+    iomap = SimpleIoMap(p, input, make_leaf(selection))
+    iomap_cell[] = iomap
+    iomap
+end
 
 @projection struct FormulaInsertionToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 
-function print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx)
-    SimpleIoMap(p, b, SyntaxLeaf(
-        TextString("insert formula", p.style);
-        selection=getfield(b, :selection)))
-end
+print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx) =
+    _make_forward_selection_leaf(p, b,
+        selection -> SyntaxLeaf(TextString("insert formula", p.style); selection))
 
 # ── FormulaReferenceToSyntaxLeaf ───────────────────────────────────────────────
 #
@@ -46,14 +59,13 @@ end
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
 end
 
-function print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx)
-    SimpleIoMap(p, r, SyntaxLeaf(
+print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx) =
+    _make_forward_selection_leaf(p, r, selection -> SyntaxLeaf(
         TextString(() -> begin
             t = r.target
             t isa FormulaFormula ? t.name : "#REF!"
         end, p.style);
-        selection=getfield(r, :selection)))
-end
+        selection))
 
 # ── FormulaFormulaToSyntaxNode ─────────────────────────────────────────────────
 #

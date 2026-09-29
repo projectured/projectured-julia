@@ -424,9 +424,8 @@ walkers rather than introducing an interface method:
   image for each. A deeply nested reference can only have an image if the mapper
   delegated all the way down; a flattening mapper drops what it never recursed into.
 - **Round-trip** — `map_reference_backward(map_reference_forward(ref))` returns the
-  original (modulo the documented `ProjectionReferenceStep`/flat-offset collapse for
-  projection-introduced positions). Round-tripping at every level is the signature
-  of lockstep recursion.
+  original, a reference to a projection-introduced position included. Round-tripping
+  at every level is the signature of lockstep recursion.
 - **Printer lockstep** — reuse `_walk!` to reach every iomap; for any iomap carrying
   `child_iomaps`, assert each `child_iomap.output` is object-identical to the
   corresponding child of the parent output (the printer spliced delegated children,

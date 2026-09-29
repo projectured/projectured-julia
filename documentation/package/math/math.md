@@ -52,7 +52,7 @@ k T B        λ        1/(μ - λ)        P_{t}^{2}        \sqrt[n]{x}
 \matrix[2]{1, 2, 3, 4}                 \cases{1 if x < n; 0 otherwise}
 ```
 
-Most rules are `@projection_template` builders, so the printer, the reference maps and the structural readers come from the template. A formula has much chrome that no field produces: braces, backslash names and parentheses. So each compound rule maps a caret that the template can not map to a flat offset with `_syntax_to_flat`, as the XML element does. The set of flat offsets is bounded, so the navigation search ends.
+Most rules are `@projection_template` builders, so the printer, the reference maps and the structural readers come from the template. A formula has much chrome that no field produces: braces, backslash names and parentheses. The template names a caret on it by the rule's own introduced step, which holds the path of the part in the rule's output, and the forward map gives that path back.
 
 `parse_math(text)` reads the line back into a tree. The printer is the grammar: a line that the printer writes reads back to a tree that prints the same line. A read accepts more than a print writes: `ρ^n` reads as `ρ^{n}` does, and `\rho` as `ρ` does. An error names the position that the reader could not read, and the reader never evaluates. Where the line is ambiguous, the reader applies these rules:
 

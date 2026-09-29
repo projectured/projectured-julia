@@ -142,7 +142,7 @@ end
 function map_reference_forward(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlSubqueryFromItem.subquery.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -161,16 +161,13 @@ function map_reference_backward(p::SqlSubqueryFromItemToSyntaxNode, iomap::Child
             inner === nothing && return nothing
             @reference ::SqlSubqueryFromItem.subquery.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -234,7 +231,7 @@ end
 function map_reference_forward(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlSelectItem.expression.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -253,16 +250,13 @@ function map_reference_backward(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoM
             inner === nothing && return nothing
             @reference ::SqlSelectItem.expression.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -307,7 +301,7 @@ end
 function map_reference_forward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlSelectClause.items{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps
@@ -327,25 +321,22 @@ function map_reference_backward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenI
         ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_i = outer_s + 1
             body_idx = iomap.input.distinct !== nothing ? 3 : 2
-            outer_i != body_idx && return nothing
+            outer_i != body_idx && return make_introduced_reference(p, iomap, reference)
             item_i = t + 1
             cims = iomap.child_iomaps
-            1 <= item_i <= length(cims) || return nothing
+            1 <= item_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
             child = cims[item_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlSelectClause.items::CellVector[item_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -398,7 +389,7 @@ end
 function map_reference_forward(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlJoinedFromItem.join_type.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -439,22 +430,19 @@ function map_reference_backward(p::SqlJoinedFromItemToSyntaxNode, iomap::Childre
         end
         ::SyntaxNode.children[3].rest... => begin
             cims = iomap.child_iomaps
-            length(cims) < 3 && return nothing
+            length(cims) < 3 && return make_introduced_reference(p, iomap, reference)
             child = cims[3]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlJoinedFromItem.condition.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -493,7 +481,7 @@ end
 function map_reference_forward(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlJoinOnCondition.expression.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -512,16 +500,13 @@ function map_reference_backward(p::SqlJoinOnConditionToSyntaxNode, iomap::Childr
             inner === nothing && return nothing
             @reference ::SqlJoinOnCondition.expression.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -530,8 +515,7 @@ read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 #
 # `USING (a, b)`: the keyword, then the column names in parentheses, each through
 # its own rule. The keyword and the parentheses have no input field, so a caret on
-# them becomes a flat offset, through the two methods it shares with the leaves
-# (`_SqlTemplateRule`, below).
+# them is a part that this projection printed, named by its own introduced step.
 
 @projection struct SqlJoinUsingConditionToSyntaxNode
     keyword::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
@@ -594,7 +578,7 @@ end
 function map_reference_forward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlFromItem.base_item.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -624,26 +608,23 @@ function map_reference_backward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap
             @reference ::SqlFromItem.base_item.^(inner)
         end
         ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
-            outer_s != 1 && return nothing       # joins_body is always at pos 2
+            outer_s != 1 && return make_introduced_reference(p, iomap, reference)       # joins_body is always at pos 2
             join_i = t + 1
             cims = iomap.child_iomaps
             cim_i = join_i + 1                  # index 1 is base_im
-            1 <= cim_i <= length(cims) || return nothing
+            1 <= cim_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
             child = cims[cim_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlFromItem.joins::CellVector[join_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -683,7 +664,7 @@ end
 function map_reference_forward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlFromClause.items{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps
@@ -700,25 +681,22 @@ function map_reference_backward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoM
     @reference_case reference begin
         ∅ => @reference ::SqlFromClause
         ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
-            outer_s != 1 && return nothing          # items_body is always at pos 2
+            outer_s != 1 && return make_introduced_reference(p, iomap, reference)          # items_body is always at pos 2
             item_i = t + 1
             cims = iomap.child_iomaps
-            1 <= item_i <= length(cims) || return nothing
+            1 <= item_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
             child = cims[item_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlFromClause.items::CellVector[item_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -757,7 +735,7 @@ end
 function map_reference_forward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNavigation
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlWhereFilterCondition.expression.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -776,16 +754,13 @@ function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::C
             inner === nothing && return nothing
             @reference ::SqlWhereFilterCondition.expression.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -828,7 +803,7 @@ end
 function map_reference_forward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlWhereClause.condition.rest... => begin
             cims = iomap.child_iomaps
             isempty(cims) && return nothing
@@ -845,22 +820,19 @@ function map_reference_backward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIo
         ∅ => @reference ::SqlWhereClause
         ::SyntaxNode.children[2].children[1].rest... => begin
             cims = iomap.child_iomaps
-            isempty(cims) && return nothing
+            isempty(cims) && return make_introduced_reference(p, iomap, reference)
             child = cims[1]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlWhereClause.condition.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -903,46 +875,6 @@ end
 @projection_template SqlRawConditionToSyntaxLeaf SqlRawCondition (p, doc) ->
     SyntaxLeaf(TextString(() -> doc.text, p.style))
 
-# All nine SQL leaf projections are opaque display leaves: their content is a
-# computed multi-field display with no editable interior. A caret on that introduced
-# text has no input pre-image, so — exactly like XmlElementToSyntaxNode — it is
-# collapsed to a bounded flat offset carried as a projection-introduced reference
-# (`proj(p, {flat})`). This keeps text-navigation bounded (the domain-neutral fallback
-# would grow the path without bound) while naming the whole node. The one template
-# node, `SqlJoinUsingConditionToSyntaxNode`, has introduced text of the same kind (its
-# keyword and parentheses), so it takes the same two methods.
-#
-# The reader must name the *operation* types, not carry an `op` catch-all: a catch-all
-# `read_intent(::Sql…Leaf, ::RuleIoMap, op)` is ambiguous with the template's typed
-# readers — the gesture reader `read_intent(::Projection, ::RuleIoMap, ::Union{KeyPress,KeyDown})`,
-# the `ClaimedGesture` reader, and `ReaderDefaults`' `::ReplaceStringRangeOperation` — so a
-# bare SQL leaf atom would throw `MethodError` on every raw gesture. Instead we only add
-# the selection reader; raw gestures fall to the template's own reader, and text edits are
-# declined by `ReaderDefaults`' opaque-leaf rule (no bound field).
-const _SqlDisplayLeaf = Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
-                              SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
-                              SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
-                              SqlScalarValueToSyntaxLeaf, SqlRawExpressionToSyntaxLeaf,
-                              SqlRawConditionToSyntaxLeaf}
-
-const _SqlTemplateRule = Union{_SqlDisplayLeaf, SqlJoinUsingConditionToSyntaxNode}
-
-function read_intent(p::_SqlTemplateRule, iomap::RuleIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxDocument, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
-end
-
-# A `proj(p, …)` selection is this projection's own introduced position — pass it through
-# unchanged; everything else defers to the generic template mapper.
-function map_reference_forward(p::_SqlTemplateRule, iomap::RuleIoMap, reference)
-    is_introduced_reference(reference) && return reference
-    invoke(map_reference_forward, Tuple{Projection, RuleIoMap, Any}, p, iomap, reference)
-end
-
 # ── SqlComparisonToSyntaxNode ─────────────────────────────────────────────────
 
 @projection struct SqlComparisonToSyntaxNode
@@ -984,7 +916,7 @@ end
 function map_reference_forward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlComparison.left.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1015,16 +947,13 @@ function map_reference_backward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoM
             inner === nothing && return nothing
             @reference ::SqlComparison.right.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1075,7 +1004,7 @@ end
 function map_reference_forward(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         left.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1106,16 +1035,13 @@ function map_reference_backward(p::SqlBooleanBinaryToSyntaxNode, iomap::Children
             inner === nothing && return nothing
             @reference ::SqlBooleanExpression.right.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1155,7 +1081,7 @@ end
 function map_reference_forward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlNot.expression.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1174,16 +1100,13 @@ function map_reference_backward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, ref
             inner === nothing && return nothing
             @reference ::SqlNot.expression.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1239,7 +1162,7 @@ end
 function map_reference_forward(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlSelectStatement.select_clause.rest... => _map_select_clause_forward(iomap, "select_clause", rest)
         ::SqlSelectStatement.from_clause.rest... => _map_select_clause_forward(iomap, "from_clause", rest)
         ::SqlSelectStatement.where_clause.rest... => _map_select_clause_forward(iomap, "where_clause", rest)
@@ -1264,12 +1187,12 @@ function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::Childr
         ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps
-            1 <= child_i <= length(cims) || return nothing
+            1 <= child_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
             child = cims[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             names = _get_printed_select_clauses(iomap.input)
-            child_i <= length(names) || return nothing
+            child_i <= length(names) || return make_introduced_reference(p, iomap, reference)
             name = names[child_i]
             if name == "select_clause"
                 @reference ::SqlSelectStatement.select_clause.^(inner)
@@ -1279,16 +1202,13 @@ function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::Childr
                 @reference ::SqlSelectStatement.where_clause.^(inner)
             end
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # ── SqlInsertStatementToSyntaxNode ────────────────────────────────────────────
@@ -1362,7 +1282,7 @@ function map_reference_forward(p::SqlInsertStatementToSyntaxNode, iomap::Childre
     vals_idx = ncols == 0 ? 5 : 6
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlInsertStatement.table.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1393,9 +1313,6 @@ function map_reference_forward(p::SqlInsertStatementToSyntaxNode, iomap::Childre
 end
 
 function map_reference_backward(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
-    ncols = length(iomap.input.columns)
-    cols_present = ncols != 0
-    vals_idx = cols_present ? 6 : 5
     @reference_case reference begin
         ∅ => @reference ::SqlInsertStatement
         ::SyntaxNode.children[3].rest... => begin
@@ -1405,37 +1322,37 @@ function map_reference_backward(p::SqlInsertStatementToSyntaxNode, iomap::Childr
             @reference ::SqlInsertStatement.table.^(inner)
         end
         ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
+            ncols = length(iomap.input.columns)
+            cols_present = ncols != 0
+            vals_idx = cols_present ? 6 : 5
             outer_i = outer_s + 1
             child_i = t + 1
             cims = iomap.child_iomaps
             if cols_present && outer_i == 4
                 cim_i = 1 + child_i
-                1 <= cim_i <= length(cims) || return nothing
+                1 <= cim_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
                 child = cims[cim_i]
                 inner = map_reference_backward(child.projection, child, rest)
                 inner === nothing && return nothing
                 @reference ::SqlInsertStatement.columns::CellVector[child_i].^(inner)
             elseif outer_i == vals_idx
                 cim_i = 1 + ncols + child_i
-                1 <= cim_i <= length(cims) || return nothing
+                1 <= cim_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
                 child = cims[cim_i]
                 inner = map_reference_backward(child.projection, child, rest)
                 inner === nothing && return nothing
                 @reference ::SqlInsertStatement.values::CellVector[child_i].^(inner)
             else
-                return nothing
+                return make_introduced_reference(p, iomap, reference)
             end
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1483,7 +1400,7 @@ end
 function map_reference_forward(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlUpdateAssignment.column_name.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1514,16 +1431,13 @@ function map_reference_backward(p::SqlUpdateAssignmentToSyntaxNode, iomap::Child
             inner === nothing && return nothing
             @reference ::SqlUpdateAssignment.value.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1598,7 +1512,7 @@ function map_reference_forward(p::SqlUpdateStatementToSyntaxNode, iomap::Childre
     nassign = length(iomap.input.assignments)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlUpdateStatement.table.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1627,7 +1541,6 @@ function map_reference_forward(p::SqlUpdateStatementToSyntaxNode, iomap::Childre
 end
 
 function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
-    nassign = length(iomap.input.assignments)
     @reference_case reference begin
         ∅ => @reference ::SqlUpdateStatement
         ::SyntaxNode.children[2].rest... => begin
@@ -1637,8 +1550,9 @@ function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::Childr
             @reference ::SqlUpdateStatement.table.^(inner)
         end
         ::SyntaxNode.children[6].rest... => begin
+            nassign = length(iomap.input.assignments)
             cims = iomap.child_iomaps
-            length(cims) < 2 + nassign && return nothing
+            length(cims) < 2 + nassign && return make_introduced_reference(p, iomap, reference)
             child = cims[2 + nassign]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
@@ -1646,26 +1560,23 @@ function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::Childr
         end
         ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_i = outer_s + 1
-            outer_i != 4 && return nothing
+            outer_i != 4 && return make_introduced_reference(p, iomap, reference)
             child_i = t + 1
             cims = iomap.child_iomaps
             cim_i = 1 + child_i
-            1 <= cim_i <= length(cims) || return nothing
+            1 <= cim_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
             child = cims[cim_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlUpdateStatement.assignments::CellVector[child_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1708,7 +1619,7 @@ end
 function map_reference_forward(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlColumnDefinition.column_name.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1727,16 +1638,13 @@ function map_reference_backward(p::SqlColumnDefinitionToSyntaxNode, iomap::Child
             inner === nothing && return nothing
             @reference ::SqlColumnDefinition.column_name.^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1804,7 +1712,7 @@ end
 function map_reference_forward(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlCreateTableStatement.table_name.rest... => begin
             child = iomap.child_iomaps[1]
             inner = map_reference_forward(child.projection, child, rest)
@@ -1835,26 +1743,23 @@ function map_reference_backward(p::SqlCreateTableStatementToSyntaxNode, iomap::C
         end
         ::SyntaxNode.children{outer_s:_}.children{t:u}.rest... => begin
             outer_i = outer_s + 1
-            outer_i != 4 && return nothing
+            outer_i != 4 && return make_introduced_reference(p, iomap, reference)
             child_i = t + 1
             cims = iomap.child_iomaps
             cim_i = 1 + child_i
-            1 <= cim_i <= length(cims) || return nothing
+            1 <= cim_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
             child = cims[cim_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::SqlCreateTableStatement.columns::CellVector[child_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1897,23 +1802,20 @@ end
 function map_reference_forward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
     end
 end
 
 function map_reference_backward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SqlCreateSchemaStatement
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1972,7 +1874,7 @@ end
 function map_reference_forward(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::SqlStatementList.statements{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps
@@ -1993,24 +1895,21 @@ function map_reference_backward(p::SqlStatementListToSyntaxNode, iomap::Children
         ::SyntaxNode.children{s:_}.rest... => begin
             child_i = s + 1
             cims = iomap.child_iomaps
-            1 <= child_i <= length(cims) || return nothing
+            1 <= child_i <= length(cims) || return make_introduced_reference(p, iomap, reference)
             child = cims[child_i]
             path = _has_own_semicolon(get_iomap_input(child)) ? rest : _get_closed_statement_path(rest)
-            path === nothing && return nothing
+            path === nothing && return make_introduced_reference(p, iomap, reference)
             inner = map_reference_backward(child.projection, child, path)
             inner === nothing && return nothing
             @reference ::SqlStatementList.statements::CellVector[child_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 read_intent(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing

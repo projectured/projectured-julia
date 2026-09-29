@@ -300,7 +300,9 @@ its docstring), so getting it right gives the forward cursor mapping for free.
 - If the input reference begins with `ProjectionReferenceStep(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and
-  forward mapping is where it gets unwrapped.
+  forward mapping is where it gets unwrapped. Unwrap only the step of this
+  projection, `proj(^(p), inner) => inner`: the step of another projection is
+  for that projection to unwrap, and a later stage never reads it.
 """
 function map_reference_forward end
 
@@ -334,12 +336,15 @@ The resulting path reads like a sentence: the input steps say where in the
 document you are, and the `ProjectionReferenceStep(projection, …)` step marks the
 exact point where you cross into something that exists only in `projection`'s
 output. Because `map_reference_forward` strips that same step, the path
-round-trips cleanly. (When a projection's introduced positions are not separately
-addressable — the brackets/commas of a node, say — it is fine to collapse the
-whole group to a single flattened character offset, `ProjectionReferenceStep(p,
-{flat})`, which the projection's own flat-offset reader inverts; this is the usual
-choice for the delimiters a node owns. Use the fine-grained form above when the
-individual positions matter.)
+round-trips cleanly.
+
+The suffix is a path in the output of this projection, such as `.open{0}` for
+the bracket of a syntax node, and never an offset in the output of a later stage,
+which only that stage can read. A flat offset is correct only where it is a
+position in the output of this projection itself, for a group of parts that has
+no path of its own. Every kind of path crosses in this way, the selection and the
+part under the pointer alike, so the node that printed a bracket is the node
+that a caret or the pointer on the bracket names.
 
 ## Coordinates are an input domain too
 

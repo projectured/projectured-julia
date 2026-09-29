@@ -59,7 +59,7 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,
        build_syntax_child_path, peel_child_step
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
-       SyntaxCompoundToTextIoMap, _syntax_to_flat
+       SyntaxCompoundToTextIoMap
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
        StringToSyntaxLeaf, SymbolToSyntaxLeaf, CharToSyntaxLeaf,
        ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax

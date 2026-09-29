@@ -83,9 +83,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         path = b.selection
         path isa ConcreteReference || return nothing
         h = path.head
-        if h isa ProjectionReferenceStep
-            return path
-        end
+        h isa ProjectionReferenceStep && return find_introduced_path(p, path)
         h isa FieldReferenceStep || return nothing
         name = h.name
         if name == "title"
@@ -149,6 +147,7 @@ function map_reference_forward(p::BookBookToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     b = iomap.input
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::BookBook.title.rest...     => rest isa ConcreteReference && rest.head isa RangeReferenceStep ? (@reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)) : nothing
         ::BookBook.author.rest...    => (b.author !== nothing && rest isa ConcreteReference && rest.head isa RangeReferenceStep) ? (@reference ::SyntaxNode.children::CellVector[2]::SyntaxLeaf.value::TextString.^(rest)) : nothing
         ::BookBook.elements{s:_}.rest... => begin
@@ -174,34 +173,33 @@ function map_reference_backward(p::BookBookToSyntaxNode,
             if child_i == 1
                 @reference_case rest begin
                     value.tail... => @reference ::BookBook.title::String.^(tail)
+                    __ => make_introduced_reference(p, iomap, reference)
                 end
             elseif child_i == 2 && b.author !== nothing
                 @reference_case rest begin
                     value.tail... => @reference ::BookBook.author.^(tail)
+                    __ => make_introduced_reference(p, iomap, reference)
                 end
             else
                 offset = b.author !== nothing ? 2 : 1
                 elem_i = child_i - offset
-                elem_i < 1 && return nothing
+                elem_i < 1 && return make_introduced_reference(p, iomap, reference)
                 iomaps = iomap.child_iomaps
-                elem_i > length(iomaps) && return nothing
+                elem_i > length(iomaps) && return make_introduced_reference(p, iomap, reference)
                 child = iomaps[elem_i]
                 translated = map_reference_backward(child.projection, child, rest)
                 translated === nothing && return nothing
                 @reference ::BookBook.elements::CellVector[elem_i].^(translated)
             end
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::BookBookToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
@@ -210,7 +208,7 @@ end
 function read_intent(p::BookBookToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
@@ -267,9 +265,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
         path = b.selection
         path isa ConcreteReference || return nothing
         h = path.head
-        if h isa ProjectionReferenceStep
-            return path
-        end
+        h isa ProjectionReferenceStep && return find_introduced_path(p, path)
         h isa FieldReferenceStep || return nothing
         name = h.name
         if name == "title" || name == "numbering"
@@ -320,6 +316,7 @@ function map_reference_forward(p::BookChapterToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     b = iomap.input
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::BookChapter.title{s:_}.rest... => begin
             offset = let num = b.numbering; isempty(num) ? 0 : length(num) + 2 end
             adj = s + offset
@@ -356,32 +353,30 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
                             offset = isempty(num) ? 0 : length(num) + 2
                             adj_s = s2 - offset
                             adj_e = e2 - offset
-                            adj_s < 0 && return nothing
+                            adj_s < 0 && return make_introduced_reference(p, iomap, reference)
                             @reference ::BookChapter.title::String{adj_s:adj_e}.^(tail)
                         end
                     end
+                    __ => make_introduced_reference(p, iomap, reference)
                 end
             else
                 elem_i = child_i - 1
                 iomaps = iomap.child_iomaps
-                elem_i > length(iomaps) && return nothing
+                elem_i > length(iomaps) && return make_introduced_reference(p, iomap, reference)
                 child = iomaps[elem_i]
                 translated = map_reference_backward(child.projection, child, rest)
                 translated === nothing && return nothing
                 @reference ::BookChapter.elements::CellVector[elem_i].^(translated)
             end
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::BookChapterToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
@@ -390,7 +385,7 @@ end
 function read_intent(p::BookChapterToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
@@ -448,7 +443,7 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
 
     sel = Cell(@computation begin
         path = b.selection
-        is_introduced_reference(path) && return b.selection
+        is_introduced_reference(path) && return find_introduced_path(p, path)
         @reference_case path begin
             ::BookList.elements{s:_}.rest... => begin
                 child_i = s + 1
@@ -479,6 +474,7 @@ end
 function map_reference_forward(p::BookListToSyntaxNode,
                                 iomap::ChildrenIoMap, reference)
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::BookList.elements{s:_}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
@@ -497,23 +493,20 @@ function map_reference_backward(p::BookListToSyntaxNode,
         ::SyntaxNode.children{s:_}.content.tail... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
-            child_i > length(iomaps) && return nothing
+            child_i > length(iomaps) && return make_introduced_reference(p, iomap, reference)
             child = iomaps[child_i]
             translated = map_reference_backward(child.projection, child, tail)
             translated === nothing && return nothing
             @reference ::BookList.elements::CellVector[child_i].^(translated)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::BookListToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxNode, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    return ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
+    result === nothing ? nothing : ReplaceSelectionOperation(result)
 end
 
 # Type-in: each bullet wraps its element at `.children[i].content`; the edit
@@ -521,7 +514,7 @@ end
 function read_intent(p::BookListToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 

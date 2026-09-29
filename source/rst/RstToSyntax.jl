@@ -878,39 +878,35 @@ function ProjectionModule.print_document(p::RstStyledTextToSyntaxLeaf, recursion
     style = get_property(ctx, :rst_style, p.style)
     sel = Cell(@computation begin
         s = t.selection
-        is_introduced_reference(s) && return s
         map_reference_forward(p, nothing, s)
     end)
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
 end
 
-function map_reference_forward(::RstStyledTextToSyntaxLeaf, iomap, reference)
+function map_reference_forward(p::RstStyledTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::RstText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
     end
 end
 
-function map_reference_backward(::RstStyledTextToSyntaxLeaf, iomap, reference)
+function map_reference_backward(p::RstStyledTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
+        ∅ => EmptyReference(get_reference_node_type(iomap.input))
         ::SyntaxLeaf.value.rest... => @reference ::RstText.content::String.^(rest)
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
 function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
-    path = op.path
-    path isa ConcreteReference || return nothing
-    h = path.head
-    if h isa FieldReferenceStep && h.name == "value"
-        return ReplaceSelectionOperation(@reference ::RstText.content::String.^(path.tail))
-    else
-        return ReplaceSelectionOperation(@reference(iomap.input, proj(p, ^(path))))
-    end
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # ── RstStyledInline (rendered Strong / Emphasis) ──────────────────────────────
@@ -953,7 +949,7 @@ end
 function map_reference_forward(p::RstStyledInline, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         content{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
@@ -973,12 +969,13 @@ for (T, D) in ((:RstStrongToStyledNode, :RstStrong), (:RstEmphasisToStyledNode, 
             ::SyntaxNode.children{s:e}.rest... => begin
                 child_i = s + 1
                 iomaps = iomap.child_iomaps
-                1 <= child_i <= length(iomaps) || return nothing
+                1 <= child_i <= length(iomaps) || return make_introduced_reference(p, iomap, reference)
                 child = iomaps[child_i]
                 inner = map_reference_backward(child.projection, child, rest)
                 inner === nothing && return nothing
                 @reference ::$D.content::CellVector[child_i].^(inner)
             end
+            __ => make_introduced_reference(p, iomap, reference)
         end
     end
 end
@@ -1085,7 +1082,7 @@ end
 function map_reference_forward(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         items{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
@@ -1104,12 +1101,13 @@ function map_reference_backward(p::RstEnumeratedListToStyledNode, iomap::Childre
         ::SyntaxNode.children{s:e}.content.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
-            1 <= child_i <= length(iomaps) || return nothing
+            1 <= child_i <= length(iomaps) || return make_introduced_reference(p, iomap, reference)
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::RstEnumeratedList.items::CellVector[child_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -1121,7 +1119,7 @@ end
 
 function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 

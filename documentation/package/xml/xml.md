@@ -31,12 +31,7 @@ An attribute is an `XmlAttribute` document, not a string on the element. So a se
 
 An attribute prints as `name="value"`, and text prints with `&`, `<` and `>` escaped. An attribute value escapes `&`, `<` and `"`. An edit of the tag changes both tags, because both read the one field.
 
-The delimiters and the closing tag are chrome that no field produces. A caret there maps back to nothing through the template. The generic fallback of the template wraps the output path in a `ProjectionReferenceStep`, and each round trip through such a caret makes the path longer, so the navigation search does not end. So `XmlElementToSyntaxNode` has two hand-written methods:
-
-- `read_intent` for a `ReplaceSelectionOperation` maps the path back through the template first. If that returns `nothing`, it computes the flat offset of the caret in the printed element with `_syntax_to_flat` and returns an introduced reference to that offset.
-- `map_reference_forward` passes an introduced reference through unchanged, and gives any other reference to the template.
-
-A flat offset is one integer, so the set of carets is bounded and the search ends. The printer and every other reader come from the template.
+The delimiters and the closing tag are chrome that no field produces. The backward map of the template names a caret there by the rule's own introduced step, which holds the path of the part in the rule's output, and the forward map gives that path back. So the printer, the reference maps and every reader come from the template.
 
 ### The gestures
 
@@ -67,7 +62,7 @@ The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/xml/` is
 
 - **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See [plan/done/xml-attribute-insertable.md](../../../plan/done/xml-attribute-insertable.md).
 - **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See [plan/done/xml-authoring-gestures.md](../../../plan/done/xml-authoring-gestures.md) and [plan/done/xml-to-syntax-template.md](../../../plan/done/xml-to-syntax-template.md).
-- **A caret on the chrome is a flat offset.** It is the one part that the template does not supply for XML. The reason is in the comment above `read_intent` in `source/xml/XmlToSyntax.jl`.
+- **A caret on the chrome is the rule's own introduced step.** It holds the path of the delimiter in the output of the rule, so the forward map gives the same caret back.
 - **`<`, `"` and `=` override the text stage.** Neither `<` nor `"` can occur in a tag name, so the keys can mean "insert a child" with the caret in the name. `=` can not occur in an attribute name, so it moves the caret to the value.
 - **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See [plan/done/document-file-storage.md](../../../plan/done/document-file-storage.md).
 

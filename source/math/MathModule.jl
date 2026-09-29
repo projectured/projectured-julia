@@ -31,6 +31,7 @@ using ..ProjectionModule
 using ..SerializationModule
 import ..SerializationModule: get_file_domain, is_file_domain_node, parse_file_content, emit_text
 using ..ReferenceModule
+using ..SelectionModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule

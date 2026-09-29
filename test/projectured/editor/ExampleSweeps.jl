@@ -126,17 +126,11 @@ function posnav_seed_broken(name)
     name == "graph" && return ("under-typed @reference",)
     # @broken: seed produces no selection — Ctrl+Home returns nothing (these
     # domains have no whole-document caret seed yet) or a raw gesture.
-    name in ("conversation_editor", "filesystem", "natural", "navigator") &&
+    name in ("conversation_editor", "natural") &&
         return ("returned nothing",)
     name == "rotating_vector" && return ("KeyDown instead of ReplaceSelectionOperation",)
     nothing
 end
-
-# @broken: the CollectionToSyntax examples navigate a caret onto an undelimited
-# PrimitiveString's phantom `.open` slot, and `set_selection!` then throws a
-# SelectionMismatchException that escapes the walk. plan/pending/simplest-syntax-document.md
-posnav_throws_broken(name) =
-    name in ("collection", "searching") ? (m -> occursin("PrimitiveString.open", m)) : nothing
 
 function test_position_navigations()
     @testset "PositionNavigation" begin
@@ -188,8 +182,7 @@ function test_position_navigations()
             @testset "$(example.name)" begin
                 sigs = posnav_seed_broken(example.name)
                 test_position_navigation(example.name, example.document, example.projection;
-                    seed_broken = sigs === nothing ? nothing : (errs -> _all_known(errs, sigs)),
-                    throws_broken = posnav_throws_broken(example.name))
+                    seed_broken = sigs === nothing ? nothing : (errs -> _all_known(errs, sigs)))
             end
         end
     end
@@ -337,10 +330,6 @@ function click_broken(name)
     # @broken: clicking inside the formula grid produces no ReplaceSelection
     # operation (the grid cell has no text-cursor reader yet).
     name == "formula" && return ("produced no ReplaceSelectionOperation",)
-    # @broken: a click on an undelimited PrimitiveString maps to a phantom
-    # `.open`/`.close` caret that fails to re-apply (SelectionMismatchException).
-    # plan/pending/simplest-syntax-document.md
-    name == "searching" && return ("SelectionMismatchException",)
     nothing
 end
 
@@ -414,13 +403,9 @@ const NAV_RIGHT_WALK_MISSES_END = ("formula",)
 
 # @broken: these examples cannot complete a walk at all — the seed gesture or a
 # reader throws partway through. Pre-existing and unrelated to navigation
-# direction (they surface as uncaught errors before the walk can proceed).
-const NAV_WALK_THROWS = Dict(
-    # SelectionMismatchException in set_selection! on a CollectionToSyntax leaf: an
-    # undelimited PrimitiveString still offers a phantom `.open{…}` caret; the seed
-    # throws before either walk can proceed.
-    "searching"         => (:walk_right, :walk_left),
-)
+# direction (they surface as uncaught errors before the walk can proceed). No
+# example is known to throw.
+const NAV_WALK_THROWS = Dict{String, Tuple{Vararg{Symbol}}}()
 
 # The invariants a given example is known to fail, for `test_text_navigation_invariants`.
 # A bare `test_text_navigation_invariants(example)` runs unannotated and will report the

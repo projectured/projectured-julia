@@ -60,7 +60,7 @@ function map_reference_backward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMa
         ::SyntaxLeaf.value{k} => reference
     end
     caret === nothing && return reference
-    make_introduced_reference(p, iomap.input, caret)
+    make_introduced_reference(p, iomap, caret)
 end
 
 function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -137,7 +137,7 @@ end
 function map_reference_forward(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::FileSystemDirectory.elements{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
@@ -156,12 +156,13 @@ function map_reference_backward(p::FileSystemDirectoryToSyntaxNode, iomap::Child
         ::SyntaxNode.children[2].children{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
-            1 <= child_i <= length(iomaps) || return nothing
+            1 <= child_i <= length(iomaps) || return make_introduced_reference(p, iomap, reference)
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::FileSystemDirectory.elements::CellVector[child_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 

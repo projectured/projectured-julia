@@ -59,8 +59,6 @@ function map_reference_forward(::SyntaxLeafToText, iomap, reference)
         ::SyntaxLeaf.open{s:_}     => _leaf_elem_path(leaf, :open, s)
         ::SyntaxLeaf.value{s:_}    => _leaf_elem_path(leaf, :value, s)
         ::SyntaxLeaf.close{s:_}    => _leaf_elem_path(leaf, :close, s)
-        proj(_, open{s:_})         => _leaf_elem_path(leaf, :open, s)
-        proj(_, close{s:_})        => _leaf_elem_path(leaf, :close, s)
     end
 end
 
@@ -296,8 +294,8 @@ end
 # close/sep/newline/indent/ellipsis chrome — and delegate anything inside a child
 # to that child's *own* mapper via the stored `child_iomaps`, shifting between the
 # child's element space and this node's spliced element space. No projection ever
-# re-walks the input subtree by type. `_syntax_to_flat` survives only as the shared
-# flat metric for the `*ToSyntax` flat-offset readers (see its section below).
+# re-walks the input subtree by type. `_syntax_to_flat` is the flat metric of a
+# subtree for the edit disambiguation (see its section below).
 
 _rr_start(x) = x isa RangeReferenceStep ? x.start::Int : nothing
 
@@ -379,14 +377,15 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     node = iomap.input
     h = reference.head
     if h isa ProjectionReferenceStep
-        # A projection-introduced position. A bare flat `{k}` is this node's own
-        # offset; any other inner path is transparent — keep navigating this node.
+        # A part that this projection printed: its step holds a flat offset in this
+        # node's own text. The step of another projection is for that projection to
+        # take off before the path reaches here. The check is by type, because each
+        # instance of this projection holds text markers of its own.
+        h.projection isa SyntaxCompoundToText || return nothing
         inner = h.output_path
-        inner isa ConcreteReference || return nothing
-        if inner.head isa RangeReferenceStep && inner.tail isa EmptyReference
-            return _flat_to_text_elem_path(elements, inner.head.start::Int)
-        end
-        return map_reference_forward(p, iomap, inner)
+        (inner isa ConcreteReference && inner.head isa RangeReferenceStep &&
+         inner.tail isa EmptyReference) || return nothing
+        return _flat_to_text_elem_path(elements, inner.head.start::Int)
     end
     h isa FieldReferenceStep || return nothing
     # A step into a child — `.children[i]` or `.content`, whichever this compound uses.
@@ -1323,24 +1322,6 @@ function _leaf_cursor(leaf::SyntaxLeaf)
             leaf.close === nothing && return -1  # no closing delimiter: no cursor there
             return _delimiter_len(leaf.open) + _span_len(leaf.value) + k
         end
-    elseif h isa ProjectionReferenceStep
-        inner = h.output_path
-        inner isa ConcreteReference || return -1
-        field = inner.head
-        field isa FieldReferenceStep || return -1
-        fname = field.name
-        rest = inner.tail
-        rest isa ConcreteReference || return -1
-        idx = rest.head
-        idx isa RangeReferenceStep || return -1
-        k = idx.start::Int
-        if fname == "open"
-            leaf.open === nothing && return -1
-            return k
-        elseif fname == "close"
-            leaf.close === nothing && return -1
-            return _delimiter_len(leaf.open) + _span_len(leaf.value) + k
-        end
     end
     return -1
 end
@@ -1351,14 +1332,9 @@ _delimiter_len(t::TextString) = _span_len(t)
 
 # ── Shared flat metric of a syntax subtree ────────────────────────────────────
 # `_syntax_to_flat` / `_subtree_len` / `_span_len` are the canonical flat-character
-# metric of a syntax subtree, measured with a default `SyntaxCompoundToText()` at
-# depth 0. SyntaxToText's *own* mapping does not use them — it delegates through
-# `child_iomaps` — and they are here because six `*ToSyntax` projections rely on
-# for the flat-offset `ReplaceSelectionOperation` reader pattern — MathToSyntax,
-# BookToSyntax, SqlToSyntax, CollectionToSyntax, XmlToSyntax, DbCatalogToSyntax —
-# collapsing an unmapped caret on their output syntax subtree to a bounded flat
-# offset. The zero-width edit disambiguation above also still uses `_syntax_to_flat`.
-# Do not widen the accepted reference shapes.
+# metric of a syntax subtree. SyntaxToText's own reference mapping does not use
+# them — it delegates through `child_iomaps` — and the zero-width edit
+# disambiguation above does. Do not widen the accepted reference shapes.
 
 # Maps a SyntaxLeaf-domain path to the flat character offset within the leaf.
 # .open[k] → k,  .value[k] → L_o+k,  .close[k] → L_o+L_v+k.  Returns -1 on mismatch.
@@ -1383,7 +1359,7 @@ _own_len(pair::Pair) = _span_len(pair.second)
 
 # Maps a compound-domain path to the flat character offset within the rendered
 # compound. Handles its own delimiters and separator (by whatever field names the
-# compound gives them), a ProjectionReferenceStep (flat pass-through), and `.children[i]`
+# compound gives them), its own ProjectionReferenceStep (a flat offset), and `.children[i]`
 # descent, accumulating the opening/separator/indent offsets ahead of the child.
 function _syntax_to_flat(node::SyntaxCompound, path::Reference, p::SyntaxCompoundToText, depth::Int)
     path = strip_reference_types(path)
@@ -1444,15 +1420,13 @@ function _syntax_to_flat(node::SyntaxCompound, path::Reference, p::SyntaxCompoun
         return -1
     end
     if h isa ProjectionReferenceStep
-        # A ProjectionReferenceStep is a position some projection introduced. It is
-        # transparent here: strip the wrapper and keep navigating the inner path
-        # within this same node. The one terminal case — a bare flat {k} — is this
-        # node's own offset (what SyntaxToText's backward mapper emits as `proj(p, {k})`).
+        # A part that this projection printed, at a flat offset in this node's own
+        # text (what the backward map of `SyntaxCompoundToText` emits as `proj(p, {k})`).
+        h.projection isa SyntaxCompoundToText || return -1
         inner = h.output_path
-        inner isa ConcreteReference || return -1
-        inner.head isa RangeReferenceStep && inner.tail isa EmptyReference &&
-            return inner.head.start::Int
-        return _syntax_to_flat(node, inner, p, depth)
+        (inner isa ConcreteReference && inner.head isa RangeReferenceStep &&
+         inner.tail isa EmptyReference) || return -1
+        return inner.head.start::Int
     end
     return -1
 end

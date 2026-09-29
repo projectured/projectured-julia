@@ -19,18 +19,6 @@ import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionModule: RuleIoMap, AtomicWiring, find_template_value_retype
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
-import ProjecturedKernel.ProjectionModule: ProjectionReferenceStep
-import ProjecturedKernel.ReferenceModule: ConcreteReference
-
-# Does the (input-domain) reference pass through any projection-introduced output?
-# A `ProjectionReferenceStep` step *anywhere* means that part of the path has no document
-# pre-image, so an edit targeting it cannot be applied and the op-reader defers it —
-# the raw key then falls through to the structural gesture. Head-only
-# `is_introduced_reference` is not enough: a scalar nested in a container maps to
-# `.elements[i] → ProjectionReferenceStep(.open)`, with the introduced step below the head.
-_targets_introduced_output(p::ConcreteReference) =
-    p.head isa ProjectionReferenceStep || _targets_introduced_output(p.tail)
-_targets_introduced_output(::Any) = false
 
 # The value-edit retype for ProjectionTemplate's RuleIoMap lives here (not
 # in `kernel/projection/ProjectionTemplate.jl`) because it references
@@ -50,8 +38,8 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOper
     # deferred, so the raw key falls through to the structural gesture rather than
     # writing into the projection's own constant output. `_atomic_backward` proj-wraps
     # such a reference (at the head for a directly-projected scalar, or below an
-    # `.elements[i]` step for a nested one), which `_targets_introduced_output` detects.
-    _targets_introduced_output(new_ref) && return nothing
+    # `.elements[i]` step for a nested one), which `has_introduced_step` detects.
+    has_introduced_step(new_ref) && return nothing
     # The leaf that holds the edited value retypes the edit, also when a
     # container holds the leaf: the container finds it through its children.
     retype = find_template_value_retype(iomap, strip_reference_types(new_ref))

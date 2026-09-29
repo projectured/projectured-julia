@@ -723,11 +723,15 @@ end
         steps = _steps(back)
         @test length(steps) > length(_content(i)) && steps[1:length(_content(i))] == _content(i)
     end
-    # The corner of the second box is on no part of its content: the point is the vertex.
+    # The corner of the second box is on the opening brace of its content, a part that
+    # the object printed: the object's own introduced step names it, at the object.
     vl = layout.vertex_layouts[2]
     corner = map_reference_backward(proj, iomap, PointReferenceStep(Int(vl.x) + 3, Int(vl.y) + 3))
-    @test is_reference_equal(strip_reference_types(corner),
-                             strip_reference_types(@reference(g, vertices[2])))
+    corner_steps = _steps(corner)
+    @test corner_steps[1:length(_content(2))] == _content(2)
+    brace = corner_steps[length(_content(2)) + 1]
+    @test brace isa ProjectionReferenceStep
+    @test get_reference_head(strip_reference_types(brace.output_path)) == FieldReferenceStep("open")
     @test map_reference_backward(proj, iomap, PointReferenceStep(5000, 5000)) === nothing
 end
 

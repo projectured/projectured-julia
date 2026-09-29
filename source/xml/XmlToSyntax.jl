@@ -100,39 +100,6 @@ end
     SyntaxConcatenation([ tag_leaf, attrs_node, body_node, close_leaf ])
 end
 
-# ── Structural-caret navigation (the one bit the template engine can't supply) ─
-#
-# The element node carries projection-introduced text that has no input pre-image:
-# the delimiters (`<`, `>`, `</`, `"`, `=`) and the closing tag (which re-renders
-# `.tag` as a display-only child). A text caret there maps back to *nothing* through
-# the wiring. The template's domain-neutral fallback wraps the whole (output-domain)
-# path in a `ProjectionReferenceStep`; but `strip_reference_types` (which the navigation
-# BFS dedups on) does not collapse that, so each round-trip through such a caret grows
-# the path without bound and the caret walk never terminates.
-#
-# XML instead collapses an unmapped caret to a single canonical **flat offset** into
-# the rendered node (`_syntax_to_flat`, the same machinery SyntaxToText round-trips
-# through) — a bounded set, so navigation terminates. This is the SyntaxToText-specific
-# piece the engine deliberately leaves to the domain; the printer, reference mapping,
-# and every other reader still come from `@projection_template`.
-function read_intent(p::XmlElementToSyntaxNode, iomap::RuleIoMap, op::ReplaceSelectionOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxConcatenation, op.path, SyntaxCompoundToText(), 0)
-    flat < 0 && return nothing
-    ReplaceSelectionOperation(
-        make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
-end
-
-# Render that flat structural caret back out: a `proj(p, …)` selection is this
-# projection's own introduced position, so pass it through unchanged (the fixed-node
-# forward mapper handles field references but not our own projection wrap). Everything
-# else defers to the generic template mapper.
-function map_reference_forward(p::XmlElementToSyntaxNode, iomap::RuleIoMap, reference)
-    is_introduced_reference(reference) && return reference
-    invoke(map_reference_forward, Tuple{Projection, RuleIoMap, Any}, p, iomap, reference)
-end
-
 # ── XmlToSyntax (composite) ─────────────────────────────────────────────────
 
 function XmlToSyntax()

@@ -839,11 +839,10 @@ end
 #
 # Independently, the leaves are still *opaque* (no `bound(…)` marker), so a cursor
 # does NOT descend into a leaf's own text: an identifier/number/string edits at
-# whole-element granularity only. Making the leaves `bound` would need the
-# flat-offset projection-reference machinery JsonToSyntax carries
-# (`_syntax_to_flat`) to traverse the projection-introduced structural tokens
-# (`function`, `(`, `)`, `==`, `if`, `end`, …) that have no Julia pre-image; that
-# is the still-deferred follow-up (the High finding in
+# whole-element granularity only. Making the leaves `bound` would need a caret on
+# the projection-introduced structural tokens (`function`, `(`, `)`, `==`, `if`,
+# `end`, …), which have no Julia pre-image, named by the projection's own
+# introduced step. That is the still-deferred follow-up (the High finding in
 # plan/pending/consistency-report.md, §D — the source of the 28 unreached
 # `…name{k}` carets in `test_position_navigation(julia_example; check_reaches_all=true)`).
 

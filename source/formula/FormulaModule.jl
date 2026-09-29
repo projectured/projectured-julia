@@ -16,6 +16,7 @@ using ..JuliaModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SelectionModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule

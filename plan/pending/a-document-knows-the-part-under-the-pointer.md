@@ -376,7 +376,7 @@ already; the sealed selection files do not change (Q4).
   the wide sweep has the counts of step 1 in every suite, with 29 passes more in
   the substrate (the new test); the omnet tests pass; the naming guard passes
   and the documentation check has no note on the changed files.
-- [ ] 3a. **An introduced part maps forward and backward** (Q12). Each
+- [x] 3a. **An introduced part maps forward and backward** (Q12). Each
   projection that puts a flat offset of a later stage into an introduced
   reference (about 34 places, `PositionReferenceStep(flat)` after
   `_syntax_to_flat`, in the collection, SQL, math, the book, markdown and
@@ -389,6 +389,85 @@ already; the sealed selection files do not change (Q4).
   holds the output path of the node that printed it. Tests: a caret on a
   bracket goes back and forth in each domain that changes, and lands where it
   landed before.
+  Facts (survey of 2026-09-29, about 145 projection types): the rule template
+  already wraps an introduced part at the child that printed it
+  (`_map_child_backward`), and its rule reader wraps `op.path`; only its forward
+  maps passed their own step on, and so did about 16 hand-written node
+  projections (`proj(^(p), _) => reference`) and 12 that pass on the step of
+  any projection. The flat offset comes from readers that override the
+  template (SQL 10 leaves in one method, math 13, FSM 5, process 6, XML 1)
+  and from hand-written nodes (SQL 20, book 3, math 3, the database catalog 4,
+  the collection 1). Hand-written backward maps answer `nothing` for their own
+  parts, and their readers wrap. Several leaves share their selection cell with
+  their input (primitive, math variable, Julia insertion, formula) or compute
+  it by hand (book, math, markdown and rst styled text, insertion), so the
+  input holds paths typed for the output; `SyntaxToText` reads the step of any
+  projection in three places (`map_reference_forward` of the compound,
+  `_leaf_cursor`, `_syntax_to_flat`) and in two arms of the leaf's forward map.
+  The order of the work: the template overrides go; the hand-written nodes
+  wrap their own parts in the backward map and unwrap in the forward map; the
+  leaves get a forward-mapped selection cell; last, `SyntaxToText` reads only
+  its own step. `test_fsm()` and `test_process()` fail on main (their tables
+  put the Julia table's `Document` fallback first), so they can not check the
+  FSM and process changes.
+  Built: the forward maps of the rule template answer the path of their own
+  introduced step (`find_introduced_path`), as the atomic wiring did; the
+  readers that put a flat offset on top of the template go (SQL leaves and
+  join, math 13, FSM 5, process 6, the XML element), and so do their forward
+  overrides, so the rule reader wraps `op.path`. The flat offset was there
+  because the forward maps passed the wrapped path on: the keyboard reader of
+  the syntax tree built the next path from that output selection, and each
+  move wrapped the path again. The hand-written nodes (SQL 20, book 3, math 3,
+  the database catalog 4, the collection, markdown 5, rst 3, YAML 1, the file
+  system directory) take off their own step in the forward map and wrap, in
+  the backward map, every path that reaches no child: a last arm
+  `__ => make_introduced_reference(p, iomap.input, reference)`, and the early
+  `nothing` answers of the arms, inner blocks included. Their readers only map.
+  The collection maps a child path through the child's own backward map.
+  The leaves that shared their selection cell with their input (the three
+  primitive leaves, the math variable, the Julia insertion, the two formula
+  leaves) map it forward into a cell of their own, so the input holds a path of
+  its own domain; their value arms take a range (`{s:e}`), which also covers a
+  caret. The cells that compute an output selection by hand (book 3, math 3,
+  the insertion, markdown and rst styled text) take off only their own step;
+  making their forward maps cover every case, so that these cells can go, is
+  left for later. An edit of a part that a projection printed has no input
+  pre-image: the kernel predicate `has_introduced_step` (from the private
+  `_targets_introduced_output` of the template reader) makes the default reader,
+  the template reader and ten hand-written edit readers decline it, where the
+  backward map answered `nothing` before. The mapper contract in
+  `ProjectionInterface.jl` states the rule.
+  Found while checking: the rule template wrapped a node's own part only in its
+  reader, so a hand-written parent that calls the child's backward map got
+  `nothing` (the `USING (…)` of an SQL join); the backward map of the template now
+  wraps it, and a sub-node slot, which sees the parent's path without its
+  `.children[k]` step, maps through the wiring alone so that the parent wraps the
+  whole path. A backward map wraps the output path with its node types
+  (`make_introduced_reference(p, iomap, path)` types it against `iomap.output`),
+  because a parent splices the unwrapped path into an `@reference` literal, which
+  rejects an untyped path. `SyntaxCompoundToText` knows its own step by type, not
+  by identity: each instance holds text markers of its own. The "searching"
+  example no longer throws, and `filesystem` and `navigator` seed a caret, so
+  their broken markers go. In the graph example the corner of a vertex is on the
+  `{` that the object prints, so the point names that brace (Q12), where it named
+  the vertex before. "Lands where it landed before" was checked by the rendered
+  caret places of every reached state, old code against new: the three SQL
+  documents and `book` reach every place of the old code, and the nested SQL
+  document 7 more (the old code had two names for some carets).
+  Tests: `test_introduced_part_round_trip()` (every caret of `[1, [2, 3]]` goes
+  back and forth; the inner array names its own `[`; no introduced step of the
+  collection holds an offset of the text) and a check of the corner point in
+  the graph test. Checks: the wide sweep has the counts of step 2 but more
+  passes (the substrate 851 more, the new test and the examples that now reach
+  more carets); the position navigation passes 437 more with the same 3
+  failures and 2 broken where there were 6; the tree navigation 84 where there
+  were 70; the text navigation invariants 11 more passes with the same
+  failures; the SQL, book, markdown, rst, YAML, XML, catalog, JSON, math, file
+  system, FSM and process suites, the type-in sweep and the repl sweep have
+  their counts; the omnet tests pass; the naming guard passes, and the
+  documentation check has its notes. The domain documents (FSM, math, XML, SQL),
+  the projection system guide, the testing guide and the reference document
+  state the rule.
 - [ ] 3b. **The backward map of every kind of path** (Q7, option (a)). The 75
   readers in 33 files that take `ReplaceSelectionOperation` by type, and the 7
   places of omnet, take `ReplacePathOperation` and answer

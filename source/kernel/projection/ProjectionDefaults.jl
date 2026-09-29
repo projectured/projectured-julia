@@ -139,7 +139,7 @@ function read_intent(projection::Projection, iomap, operation)
         # re-target the reference, like the dedicated path-bearing ops below.
         operation.document === nothing || return operation
         input_ref = map_reference_backward(projection, iomap, operation.reference)
-        input_ref === nothing && return nothing
+        (input_ref === nothing || has_introduced_step(input_ref)) && return nothing
         return ReplaceReferencedValueOperation(nothing, input_ref, operation.value)
     elseif operation isa ReplaceSelectionOperation
         input_selection = map_reference_backward(projection, iomap, operation.path)
@@ -191,7 +191,8 @@ function read_intent(projection::Projection, iomap, operation)
         reference === nothing &&
             return operation_travels_unchanged(operation) ? operation : nothing
         input_reference = map_reference_backward(projection, iomap, reference)
-        input_reference === nothing && return nothing
+        # A write to a part that a projection printed has no input pre-image.
+        (input_reference === nothing || has_introduced_step(input_reference)) && return nothing
         return retarget_operation(operation, input_reference)
     end
 end

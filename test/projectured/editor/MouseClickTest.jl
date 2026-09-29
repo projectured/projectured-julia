@@ -318,9 +318,6 @@ function mouse_broken(name)
     # no rendered caret — the domain does not propagate the selection forward to
     # a visible cursor yet. plan/pending/json-navigation-and-clicks.md
     name in ("natural", "filesystem_widget") && return ("no cursor found",)
-    # @broken: a click on an undelimited PrimitiveString maps to a phantom caret
-    # that fails to re-apply (SelectionMismatchException).
-    name == "searching" && return ("SelectionMismatchException",)
     nothing
 end
 

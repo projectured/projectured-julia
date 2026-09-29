@@ -396,11 +396,13 @@ Two principles keep these methods correct across the whole pipeline:
   the indentation of a line follows the same rule: the level that widens the
   indentation prints those spaces, so the step stands at that level.
 
-  When a projection's introduced positions are not separately addressable, such
-  as the brackets and commas of a node, it is fine to collapse the whole group to a
-  single flattened character offset `ProjectionReferenceStep(p, {flat})`, which
-  `_syntax_to_flat` inverts. The `*ToSyntax` node readers use this for the
-  delimiters they own. Use the fine-grained form when individual positions matter.
+  The step holds a path in the output of the projection that made it, such as
+  `.open{0}` for the bracket of a syntax node, and never an offset in the output of
+  a later stage, which only that stage can read. The forward map takes off its own
+  step and answers that path (`proj(^(p), inner) => inner`), so the next stage maps
+  it forward as any path of its input. A flat offset is correct only where it is a
+  position in the projection's own output, as in the chrome of
+  `SyntaxCompoundToText`.
 
 ## IoMap
 
@@ -718,8 +720,9 @@ delegate to:
 - **Projection-introduced output** — brackets, operators, the object key leaf, an
   XML element's tag and attributes — is mapped by an explicit structural rewrite
   the projection writes itself.
-- **Structural positions with no input pre-image** collapse to a flat offset
-  (`ProjectionReferenceStep(p, {flat})`, inverted by `_syntax_to_flat`).
+- **Structural positions with no input pre-image** are named by the projection's
+  own introduced step, which holds their path in its output; the forward map
+  answers that path.
 
 When the child the printer recursed into went through a `CopyingProjection` (as
 `JsonObjectToSyntaxNode`'s entries do), reach its stored child IO map with

@@ -178,7 +178,7 @@ end
 function map_reference_forward(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::YamlSequence.elements{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
@@ -197,12 +197,13 @@ function map_reference_backward(p::YamlSequenceToBlockSyntaxNode, iomap::Childre
         ::SyntaxNode.children{s:e}.content.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
-            1 <= child_i <= length(iomaps) || return nothing
+            1 <= child_i <= length(iomaps) || return make_introduced_reference(p, iomap, reference)
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::YamlSequence.elements::CellVector[child_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -214,7 +215,7 @@ end
 
 function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 

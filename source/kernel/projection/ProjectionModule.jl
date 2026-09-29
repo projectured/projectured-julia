@@ -89,7 +89,7 @@ export Projection, print_document, print_child, print_document_pure, print_child
        get_child_iomaps, read_routed_child
 export @projection, print_pure
 export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
-       find_introduced_path, normalize_named_node_reference
+       has_introduced_step, find_introduced_path, normalize_named_node_reference
 export PrinterContext, make_child_context, with_exact_size, with_bounded_size, with_size_range,
        with_inner_size, get_exact_width, get_exact_height, withhold_offer, with_clock, with_property, get_property
 export make_children_container, get_children_container_type

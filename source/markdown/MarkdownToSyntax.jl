@@ -291,15 +291,18 @@ end
     style::ImmutableCell{StyleText} = _BODY
 end
 
-function map_reference_forward(::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
+function map_reference_forward(p::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
+        proj(^(p), inner) => inner
         ::MarkdownText.content.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
     end
 end
 
-function map_reference_backward(::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
+function map_reference_backward(p::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
+        ∅ => EmptyReference(get_reference_node_type(iomap.input))
         ::SyntaxLeaf.value.rest... => @reference ::MarkdownText.content::String.^(rest)
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -307,7 +310,6 @@ function print_document(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::Markdow
     style = get_property(ctx, :md_style, p.style)
     sel = Cell(@computation begin
         s = t.selection
-        is_introduced_reference(s) && return s
         map_reference_forward(p, nothing, s)
     end)
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
@@ -315,19 +317,13 @@ end
 
 function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
-    new_ref === nothing && return nothing
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
-    path = op.path
-    path isa ConcreteReference || return nothing
-    h = path.head
-    if h isa FieldReferenceStep && h.name == "value"
-        return ReplaceSelectionOperation(@reference ::MarkdownText.content::String.^(path.tail))
-    else
-        return ReplaceSelectionOperation(@reference(iomap.input, proj(p, ^(path))))
-    end
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # ── MarkdownStyledInline (rendered Strong/Emphasis/Heading/Link) ───────────────
@@ -376,7 +372,7 @@ end
 function map_reference_forward(p::MarkdownStyledInline, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         content{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
@@ -401,12 +397,13 @@ for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
             ::SyntaxNode.children{s:e}.rest... => begin
                 child_i = s + 1
                 iomaps = iomap.child_iomaps
-                1 <= child_i <= length(iomaps) || return nothing
+                1 <= child_i <= length(iomaps) || return make_introduced_reference(p, iomap, reference)
                 child = iomaps[child_i]
                 inner = map_reference_backward(child.projection, child, rest)
                 inner === nothing && return nothing
                 @reference ::$D.content::CellVector[child_i].^(inner)
             end
+            __ => make_introduced_reference(p, iomap, reference)
         end
     end
 end
@@ -418,7 +415,7 @@ end
 
 function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
-    r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
+    (r === nothing || has_introduced_step(r)) ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
 
 # ── MarkdownImageToStyledNode (rendered; real image via TextGraphics) ─────────
@@ -492,7 +489,7 @@ function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::Repla
 end
 function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
-    r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
+    (r === nothing || has_introduced_step(r)) ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
 
 # ── MarkdownListToStyledNode (rendered; `1.` ordered / `•` unordered) ──────────
@@ -536,7 +533,7 @@ end
 function map_reference_forward(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        proj(^(p), _) => reference
+        proj(^(p), inner) => inner
         ::MarkdownList.items{s:e}.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
@@ -555,12 +552,13 @@ function map_reference_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMa
         ::SyntaxNode.children{s:e}.content.rest... => begin
             child_i = s + 1
             iomaps = iomap.child_iomaps
-            1 <= child_i <= length(iomaps) || return nothing
+            1 <= child_i <= length(iomaps) || return make_introduced_reference(p, iomap, reference)
             child = iomaps[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
             @reference ::MarkdownList.items::CellVector[child_i].^(inner)
         end
+        __ => make_introduced_reference(p, iomap, reference)
     end
 end
 
@@ -570,7 +568,7 @@ function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::Repl
 end
 function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
-    r === nothing ? nothing : ReplaceStringRangeOperation(r, op.replacement)
+    (r === nothing || has_introduced_step(r)) ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
 
 # ══════════════════════════════════════════════════════════════════════════════

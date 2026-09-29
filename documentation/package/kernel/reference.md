@@ -191,6 +191,14 @@ projection printed, and the terminal records `Position`. Both types are needed, 
 `@reference` errors on an under-typed path, and an embedder — a pane tab holding a foreign
 document — splices whatever a content projection returns into an `@reference` literal.
 
+The output path is a path in the output of the projection that printed the part, never
+an offset in the output of a later stage. The projection's forward map takes off its own
+step, `find_introduced_path(projection, reference)`, and answers that path, so the next
+stage maps it as any path of its input. The step stands at the node that printed the
+part: the bracket of a nested array is `.elements[2]‹.open{0}›`, named by the inner array.
+Such a path has no input pre-image, so a reader declines an edit whose reference has an
+introduced step anywhere, `has_introduced_step(reference)`.
+
 ## Reference paths and their structs
 
 A `Reference` chains steps. It is an **immutable linked list**, so
