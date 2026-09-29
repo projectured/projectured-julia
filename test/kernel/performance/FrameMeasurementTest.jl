@@ -72,6 +72,20 @@ function test_frame_measurements()
         @test get_frame_count(store) == 1
     end
 
+    @testset "a name in both groups of one call leaves the store as it was" begin
+        store = FrameMeasurementStore(capacity = 2)
+        record_frame_measurements!(store; counts = [:reads => 5], end_time = 1.0)
+        end_times = copy(store.end_times)
+        columns = Dict(name => copy(column) for (name, column) in store.columns)
+        @test_throws ArgumentError record_frame_measurements!(store;
+                                                              times = [:x => 0.01],
+                                                              counts = [:x => 3])
+        @test get_frame_count(store) == 1
+        @test get_frame_measurement_names(store) == [:reads]
+        @test isequal(store.end_times, end_times)
+        @test isequal(store.columns, columns)
+    end
+
     @testset "the ring keeps the last frames" begin
         store = FrameMeasurementStore(capacity = 3)
         for value in 1:5

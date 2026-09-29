@@ -80,12 +80,15 @@ count is a number of things. `end_time` is the time at which the frame ended,
 in seconds.
 
 A name keeps the unit of the group that first gave it. A name given later in
-the other group is an error, because its column would mix two units.
+the other group is an error, and so is a name in both groups of one call,
+because its column would mix two units. A call that is an error leaves the store
+as it was.
 """
 function record_frame_measurements!(store::FrameMeasurementStore; times = (), counts = (),
                                     end_time::Real = time())
     _check_frame_units(store, times, :second)
     _check_frame_units(store, counts, :count)
+    _check_frame_groups(times, counts)
     store.frame_count += 1
     slot = _get_frame_slot(store, store.frame_count)
     for name in store.names
@@ -108,6 +111,15 @@ function _check_frame_units(store::FrameMeasurementStore, measurements, unit::Sy
     end
 end
 
+# A name in both groups of one call is an error, also when the store does not
+# know the name yet. The check runs before the frame changes the store.
+function _check_frame_groups(times, counts)
+    for (name, _) in counts
+        any(pair -> first(pair) === name, times) &&
+            throw(ArgumentError("the frame measurement $(name) is in both groups"))
+    end
+end
+
 function _record_frame_values!(store::FrameMeasurementStore, slot::Int, measurements,
                                unit::Symbol)
     for (name, value) in measurements
@@ -117,9 +129,6 @@ function _record_frame_values!(store::FrameMeasurementStore, slot::Int, measurem
             store.columns[name] = column
             store.units[name] = unit
             push!(store.names, name)
-        elseif store.units[name] !== unit
-            # One call gave the name in both groups.
-            throw(ArgumentError("the frame measurement $(name) is in both groups"))
         end
         column[slot] = Float64(value)
     end
@@ -130,6 +139,18 @@ end
 
 The summary of the measurement `name` over the frames that the ring holds. A
 frame that did not measure `name` does not count. The store must know `name`.
+
+Use it to see how slow the frames are, or how much work a frame does: the mean
+and the worst frame time, or the mean count of the cells that a frame reads.
+
+# Example
+
+    summary = compute_frame_measurement_summary(editor.frame_measurements, :frame_time)
+    (summary.mean, summary.maximum)
+
+See also [`get_frame_measurement_names`](@ref), which lists the names that the
+store knows, and [`collect_recent_frame_measurements`](@ref), which gives the
+single frames.
 """
 function compute_frame_measurement_summary(store::FrameMeasurementStore, name::Symbol)
     column = store.columns[name]
@@ -162,6 +183,14 @@ end
 
 The measurement names in first-seen order. The answer is a copy, so a caller
 can not change the store through it.
+
+Use it to find what a store measured before you ask for a summary.
+
+# Example
+
+    names = get_frame_measurement_names(editor.frame_measurements)
+
+See also [`compute_frame_measurement_summary`](@ref).
 """
 get_frame_measurement_names(store::FrameMeasurementStore) = copy(store.names)
 
@@ -171,6 +200,14 @@ get_frame_measurement_names(store::FrameMeasurementStore) = copy(store.names)
 How many frames the store recorded since the start. The ring holds the last
 `capacity` of them. A reader that shows the frames can keep the count that it
 last showed, and show them again when this count is larger.
+
+Use it to find whether new frames arrived since you last read the store.
+
+# Example
+
+    shown = get_frame_count(editor.frame_measurements)
+
+See also [`collect_recent_frame_measurements`](@ref).
 """
 get_frame_count(store::FrameMeasurementStore) = store.frame_count
 
