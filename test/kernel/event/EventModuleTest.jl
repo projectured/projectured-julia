@@ -43,6 +43,29 @@ function test_event_module()
         @test MouseMove(1, 2; time = 0.0).buttons == MouseButtons()
     end
 
+    @testset "each modifier predicate reads get_modifier_keys" begin
+        key = KeyDown(:a, ModifierKeys(ctrl = true, alt = true); time = 0.0)
+        @test has_ctrl_modifier_key(key) && has_alt_modifier_key(key)
+        @test !has_shift_modifier_key(key) && !has_meta_modifier_key(key)
+        click = MousePress(:left, 1, 2, ModifierKeys(shift = true, meta = true); time = 0.0)
+        @test has_shift_modifier_key(click) && has_meta_modifier_key(click)
+        @test !has_ctrl_modifier_key(click) && !has_alt_modifier_key(click)
+    end
+
+    @testset "an event with no modifiers of its own holds none" begin
+        # A chord holds its modifiers on its keys.
+        chord = KeyChord([KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0)]; time = 0.0)
+        @test get_modifier_keys(chord) == ModifierKeys()
+        @test !has_ctrl_modifier_key(chord)
+        @test get_modifier_keys(WindowResize(10, 20; time = 0.0)) == ModifierKeys()
+        @test get_modifier_keys(WindowQuit(; time = 0.0)) == ModifierKeys()
+    end
+
+    @testset "get_event_time reads the time of an event of another module" begin
+        @test get_event_time(EmTestRestEvent(3, 4, 1.5)) === 1.5
+        @test get_event_time(KeyPress('a'; time = 2)) === 2.0
+    end
+
     @testset "MouseButtons holds every held button" begin
         @test MouseButtons() == MouseButtons(left = false, middle = false, right = false)
         @test MouseButtons(:left) == MouseButtons(left = true)
@@ -101,6 +124,11 @@ function test_event_module()
         @test describe_event_pattern(MouseUpPattern(:right; modifiers = [:ctrl])) ==
               "Ctrl+Right button up"
         @test describe_event_pattern(MouseDownPattern(nothing)) == "button down"
+        @test describe_event_pattern(KeyUpPattern(:home)) == "release Home"
+        @test describe_event_pattern(KeyUpPattern(:a; modifiers = [:ctrl])) ==
+              "release Ctrl+A"
+        @test describe_event_pattern(EventPattern{KeyChord}(NamedTuple(), nothing,
+                                                            nothing)) == "key chord"
         @test describe_event_pattern(MouseMovePattern(; modifiers = [:shift])) ==
               "Shift+move pointer"
         @test describe_event_pattern(EventPattern{WindowResize}(NamedTuple(), nothing,
