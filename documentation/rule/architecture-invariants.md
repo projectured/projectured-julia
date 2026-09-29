@@ -101,7 +101,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-GEOMETRY-FREE-IN-DOCUMENT](#par-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
 | [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
 | [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
-| [PAR-STABLE-IOMAP-IDENTITY](#par-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity |
+| [PAR-STABLE-IOMAP-IDENTITY](#par-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity and index |
 | [PAR-CROSS-DOMAIN-LATE](#par-cross-domain-late) | Cross domains as late as possible in the mappers |
 | [PAR-HIGHER-ORDER-IS-DOMAIN-FREE](#par-higher-order-is-domain-free) | Higher-order projections touch no domain; generic projections are input-domain-independent |
 | [PAR-USE-PROJECTION-MACRO](#par-use-projection-macro) | Use `@projection` for projection structs with reactive fields, defaulting the supertype |
@@ -547,13 +547,16 @@ backward.
 ### PAR-STABLE-IOMAP-IDENTITY
 
 **A projection's IoMap keeps its identity; its varying parts are computed cells,
-and its children reconcile by identity.** `print_document` returns one IoMap per
-projection instance and never rebuilds or replaces it in response to a change.
+and its children reconcile by identity and index.** `print_document` returns one
+IoMap per projection instance and never rebuilds or replaces it in response to a
+change.
 Every part that can vary — the output document, its `selection`, and every child
 IoMap — is a *computed cell* deriving from the projection's input and parameter
 cells, not a value captured eagerly at print time; and a collection of children
-goes through the shared reconciler (keyed by child identity) so a surviving
-child's IoMap is reused and only a genuinely-changed child is rebuilt. A change
+goes through the shared reconciler, keyed by the identity and the index of each
+child, so the IoMap of a child that keeps its object and its index is reused. A
+delete or a front insert moves the later children to other indices, so their
+IoMaps are made again. A change
 therefore propagates through the cells the projection already wired — never by
 allocating a new IoMap, and never by nulling `editor.iomap`. This is the
 generalization, from "a compound projection should" to "every projection must,"

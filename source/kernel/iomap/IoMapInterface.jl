@@ -5,13 +5,13 @@
 """
     IoMap
 
-What a projection made, and what it made it from: the record that lets an edit
-find its way home.
+What a projection made, and what it made it from: the record that maps an edit
+on the output back to the input.
 
 Use it to hold the result of showing a document. It carries the projection, the
 document that went in, and what came out, so a later click on the output can be
 carried back to the place in the input that it belongs to. Every printer
-answers one.
+returns one.
 
 # Example
 

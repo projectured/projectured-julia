@@ -385,8 +385,9 @@ includes them in:
                readers, CollectIntents and CollectedIntentsOperation
 15 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
-16 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
-               (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap)
+16 iomap       the IoMap contract (IoMap + accessors), the concrete IO maps
+               (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap), and the child
+               reconcilers (reconcile_child_iomaps, reconcile_child_iomap)
 17 projection  the four interface functions, @projection, ProjectionTemplate,
                ProjectionReferenceStep
 18 tool        the editor's capability surface: Tool / Resource / ToolSet,
