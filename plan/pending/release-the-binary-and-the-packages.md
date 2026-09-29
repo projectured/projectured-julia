@@ -272,13 +272,18 @@ check) also decides the licence texts that Part B copies.
 
 ### Step A1: check that the builder still works, with no compile
 
-- [ ] `test_builder()` in `environment/all`. It compiles nothing.
-- [ ] `bin/build_projectured --no-compile`. It writes the package of the binary
-      in about a second.
+- [x] `test_builder()`. It compiles nothing. Done on 2026-09-29: 167 of 167
+      pass. It needs only the builder, so it runs without the test umbrella:
+      `julia --project=environment/build -e 'using ProjecturedBuilder, Test;
+      include("test/builder/BuilderTest.jl"); test_builder()'`.
+- [x] `bin/build_projectured --no-compile`. It writes the package of the binary
+      in about a second. Done on 2026-09-29: exit 0.
 - [ ] `bin/projectured --help`, and one start of `bin/projectured` with two
-      files. This is the program that the build compiles.
+      files. This is the program that the build compiles. Moved to Step A3:
+      it loads every package, so it compiles the whole stack for the paths of
+      the worktree, and Step A3 needs that compile for its own tests.
 - [ ] The grep of §2.1 for private names in `documentation/` and `asset/web/`
-      again, on the release commit.
+      again, on the release commit. On 2026-09-29, on the branch: no hit.
 
 ### Step A2: the licence check (gate)
 
@@ -369,16 +374,49 @@ gh release create v0.1.0 \
 Before the generator covers every package of the registry set (R16), prove each part of the mechanism by hand,
 under `/var/tmp`, with a memory cap and a timeout:
 
-- [ ] Copy `ProjecturedKernel` to a release layout: `Project.toml` without
+- [x] Copy `ProjecturedKernel` to a release layout: `Project.toml` without
       `[sources]`, `src/ProjecturedKernel.jl` with the include prefix
       `../source/`, and `source/kernel/`. Make it a git repository.
-- [ ] Make a registry with `LocalRegistry.create_registry`, and `register` the
+- [x] Make a registry with `LocalRegistry.create_registry`, and `register` the
       package in it.
-- [ ] In an empty depot: add General and the local registry, `add
-      ProjecturedKernel`, and `using ProjecturedKernel`.
-- [ ] Do the same for `ProjecturedJson`, which brings 16 siblings. This proves
+- [x] In an empty depot: add the local registry, `add ProjecturedKernel`, and
+      `using ProjecturedKernel`.
+- [x] Do the same for `ProjecturedJson`, which brings 16 siblings. This proves
       that the siblings resolve through the registry.
-- [ ] Record what worked and what did not in this plan, before Step B2.
+- [x] Record what worked and what did not in this plan, before Step B2.
+
+Results of 2026-09-29 (Julia 1.13.0, `LocalRegistry` 0.5.7). The prototype
+scripts were `generate.jl`, `register.jl` and `user.jl` under
+`/var/tmp/release-plan/b1/`.
+
+- **Everything worked on the first real run.** A release copy of the closure
+  of `ProjecturedJson` (17 packages, 18 MB) was committed to a git repository
+  and registered in dependency order, with `repo = "file://…"`. In an empty
+  depot that knew only this registry, `add ProjecturedKernel` and `add
+  ProjecturedJson` resolved, and `using` loaded both. The 17 packages
+  precompiled in 12 seconds.
+- **The layout works as §2.3 says.** The kernel found its guides in
+  `…/packages/ProjecturedKernel/<slug>/documentation`, and `ProjecturedStyle`
+  found its 40 font files in `…/packages/ProjecturedStyle/<slug>/asset/font`.
+- **An installed package folder holds only what the copy put there:**
+  `LICENCE-COMMERCIAL LICENCE-PD Project.toml documentation source src` for the
+  kernel.
+- **The meaning folder resolves into the installed package**:
+  `…/packages/ProjecturedKernel/<slug>/build/meaning`. So Step B3 is necessary.
+- **Pkg makes the files read-only, not the folders**: `-r--r--r--` on each
+  file, `drwxrwxr-x` on the package folder. A write to `build/meaning` would
+  succeed, but it would change a folder that Pkg manages, and a shared depot
+  can be read-only as a whole. §2.3 said "Pkg installs a package read-only";
+  that is true of the files only.
+- **A package with no dependency outside the registry needs no General.** Both
+  test packages have none. The packages that bring `SDL2_jll` and the others do
+  need it (§3.3).
+- **`TOML.print` drops the comments of a `Project.toml`.** The copy does not
+  need them.
+- **The entry file of each of the 65 packages includes exactly one slice**, and
+  each package folder holds only `Project.toml` and `src/<Name>.jl`. Eight of
+  them have a `[compat]` section already, which the generator keeps and
+  extends.
 
 ### Step B2: the generator
 
