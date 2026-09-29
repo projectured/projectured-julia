@@ -18,24 +18,23 @@ not merely unminimal. `elements_fn` is read inside the cell on every recompute, 
 the reactive dependency on the collection's structure is preserved.
 """
 function reconcile_child_iomaps(elements_fn, make_iomap)
-    cache = Dict{Tuple{UInt64,Int},Any}()
+    # The IoMaps of the last computation. Each computation fills a new table, which
+    # holds only the slots that are there now, and puts it in place of the old one.
+    cache = Ref(Dict{Tuple{UInt64,Int},Any}())
     Cell(@computation begin
         elems = elements_fn()
         result = Vector{Any}(undef, length(elems))
-        live = Set{Tuple{UInt64,Int}}()
+        previous = cache[]
+        current = Dict{Tuple{UInt64,Int},Any}()
+        sizehint!(current, length(elems))
         for (i, x) in enumerate(elems)
             key = (objectid(x), i)
-            push!(live, key)
-            im = get(cache, key, nothing)
-            if im === nothing
-                im = make_iomap(i, x)
-                cache[key] = im
-            end
+            im = get(previous, key, nothing)
+            im === nothing && (im = make_iomap(i, x))
+            current[key] = im
             result[i] = im
         end
-        for k in collect(keys(cache))
-            k in live || delete!(cache, k)
-        end
+        cache[] = current
         result
     end)
 end

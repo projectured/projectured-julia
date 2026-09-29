@@ -92,5 +92,5 @@ its identity; `iomap.output` reads the current value, `getfield` reaches the raw
     projection::Any
     input::Any
     output::Any
-    inner_iomap::IoMap        # the projected content's IoMap (documentary — @iomap stores it as a Cell)
+    inner_iomap::Any
 end
