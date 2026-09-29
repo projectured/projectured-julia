@@ -9,16 +9,16 @@ tree, gives it a projection, and registers the feed when it creates the
 editor.
 
 This module holds only the contract. A concrete feed lives beside its store
-and its target document: the inbox feed in `EditorModule`, the message log
-feed in `ProjecturedLog`.
+and its target document: a feed that holds a queue of operations lives beside
+that queue, and a feed of log lines beside the log.
 
 The module lives in two fragments that share this namespace:
 
 - [`FeedInterface.jl`](FeedInterface.jl) — the contract: the abstract `Feed`
   type and the open generics a concrete feed answers.
 - [`FeedDefaults.jl`](FeedDefaults.jl) — the fallback behaviours the contract
-  supplies itself, for the parts a feed may decline (the deadline, the wake
-  callback).
+  supplies itself, for the generics that a feed does not have to implement: no
+  deadline, and no wake callback.
 """
 module FeedModule
 

@@ -18,9 +18,9 @@ struct InboxFeed <: Feed end
 drain_changes!(::InboxFeed, editor::Editor) = drain_operations!(editor)
 
 # How long the editor may sleep while something subscribes to its clock. One
-# tick per sleep, so an animation advances at the cadence the polling loop
-# had. With no subscriber the clock does not tick and the editor sleeps to
-# the nearest feed deadline, or forever.
+# tick per sleep, so an animation advances every 10 milliseconds. With no
+# subscriber the clock does not tick and the editor sleeps to the nearest feed
+# deadline, or forever.
 const FRAME_INTERVAL = 0.01
 
 """

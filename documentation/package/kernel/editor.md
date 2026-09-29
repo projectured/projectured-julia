@@ -184,7 +184,7 @@ handed to each store as a callback at registration. A feed whose data arrives
 only with frames (the frame statistics) never wakes; it answers a deadline
 from `compute_wake_deadline` instead, and the wait honours the minimum.
 
-The concrete feeds so far:
+The concrete feeds:
 
 | feed | producer | store shape | target |
 | --- | --- | --- | --- |
@@ -192,10 +192,11 @@ The concrete feeds so far:
 | `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
 | `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FramePlot` |
 | `ReflectionFeed` (`ProjecturedReflection`) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
+| `TooltipFeed` (`ProjecturedTooltip`) | the probe of a window, on each pointer event | the place and the time of the last move | the inbox: at its deadline it posts the operation that the projection answers for a `PointerRest` |
 
-The fault store predates the feeds and stays what it is: `run_frame!` reports
-it at its top, so a hand-driven frame collects its faults too; it joined only
-the wake protocol (`attach_fault_wake!`). The whole rule is
+The fault store is not a feed: `run_frame!` reports it at its top, so a
+hand-driven frame collects its faults too. It uses only the wake protocol of the
+feeds (`attach_fault_wake!`). The whole rule is
 `PAR-STORE-THEN-DRAIN` in
 [architecture-invariants.md](../../rule/architecture-invariants.md).
 

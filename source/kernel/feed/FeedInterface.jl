@@ -1,7 +1,8 @@
 # Fragment of `FeedModule` — the feed **contract**: the abstract `Feed` type
 # every feed subtypes, and the open generics a concrete feed answers with a
 # method for its own type. Nothing here carries a body — the fallback
-# behaviours for the parts a feed may decline sit in `FeedDefaults.jl`.
+# behaviours of the generics that a feed does not have to implement sit in
+# `FeedDefaults.jl`.
 
 """
     Feed
@@ -18,9 +19,10 @@ abstract type Feed end
 Move what the feed's store held when the drain started into its target
 document, and answer how many items moved. What a producer stores during the
 drain waits for the next drain, so a drain ends. The editor calls it once per
-frame, on its own task, before `read!`. A feed must write only what is new: an
-empty store writes no cell, so an idle feed repaints nothing. A feed must not
-block — a producer waits for the editor through its store, never the other way.
+frame, on its own task, before the read step of the frame. A feed must write only
+what is new: an empty store writes no cell, so an idle feed repaints nothing. A
+feed must not block — a producer waits for the editor through its store, never
+the other way.
 
 A drain that throws is recorded as a fault of its feed, and the next feed still
 drains.
@@ -36,8 +38,8 @@ function drain_changes! end
 At most this many seconds until this feed needs a frame, or `nothing` when it
 can wait forever. The editor sleeps at most the minimum deadline over its
 feeds. A feed that rate-limits its flush answers its interval while unflushed
-data exists — the editor is passed because the data may live on it, as the
-frame measurement store does. The default answers `nothing`.
+data exists — the editor is passed because the data may live on it. The
+default answers `nothing`.
 """
 function compute_wake_deadline end
 
@@ -46,7 +48,7 @@ function compute_wake_deadline end
 
 Hand `feed` the wake function of its editor, once, at registration. The feed
 passes it to its producer-side store, so a producer wakes the editor without
-naming it. The default does nothing — a feed whose producers never wake
-declines the callback.
+naming it. The default does nothing, for a feed whose producers never wake the
+editor.
 """
 function attach_wake_callback! end
