@@ -113,8 +113,6 @@ function _refuse_declared_twice(entries::Vector{ApiEntry})
     entries
 end
 
-register_tools!(set::ToolSet, ts) = (foreach(t -> register_tool!(set, t), ts); set.tools)
-
 """
     list_tools(set) -> Vector{Tool}
 """
@@ -151,9 +149,6 @@ function register_resource!(set::ToolSet, r::Resource)
     i === nothing ? push!(set.resources, r) : (set.resources[i] = r)
     r
 end
-
-register_resources!(set::ToolSet, rs) =
-    (foreach(r -> register_resource!(set, r), rs); set.resources)
 
 """
     list_resources(set) -> Vector{Resource}

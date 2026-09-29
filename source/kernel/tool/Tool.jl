@@ -137,14 +137,6 @@ function api_source_name(api, mod::Module, name::Symbol)
 end
 
 """
-    get_api_modules(set) -> Vector{Module}
-
-The modules a declaration names, for a reader that wants those rather than the
-names.
-"""
-get_api_modules(set) = Module[entry.module_ for entry in set.api]
-
-"""
     MeaningModel(name, compute)
 
 What turns a text into a **meaning vector**: a list of numbers that lies close to

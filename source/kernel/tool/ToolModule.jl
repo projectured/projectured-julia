@@ -35,10 +35,10 @@ process never share a tool registry or evaluate into each other's namespace.
 module ToolModule
 
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
-       get_api_modules, get_api_entry_names,
+       get_api_entry_names,
        api_entry_bindings, api_source_name, describe_api, register_guide_root!,
-       register_tool!, register_tools!, list_tools, find_tool, call_tool, declare_api!,
-       register_resource!, register_resources!, list_resources, find_resource,
+       register_tool!, list_tools, find_tool, call_tool, declare_api!,
+       register_resource!, list_resources, find_resource,
        read_resource, describe_resources,
        register_default_tools!,
        observe_evaluations!,
