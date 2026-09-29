@@ -19,7 +19,7 @@ import ProjecturedKernel.FeedModule: compute_wake_deadline
 import ProjecturedKernel.EditorModule: Editor, post_operation!, wake_editor!,
                                        compute_wait_timeout, FRAME_INTERVAL,
                                        run_editor!, make_editor
-import ProjecturedKernel.FaultModule: make_strict_fault_policy
+import ProjecturedKernel.FaultModule: make_strict_fault_policy, FaultPolicy, get_fault_records
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation,
                                           QuitEditorOperation
 using ProjecturedKernelExample
@@ -78,6 +78,13 @@ end
 FeedModule.drain_changes!(::DeadlineFeed, editor::Editor) = 0
 FeedModule.compute_wake_deadline(feed::DeadlineFeed, editor) = feed.deadline
 
+# A feed whose deadline throws, as a feed whose clock fails does.
+struct DeadlineFailingFeed <: Feed end
+FeedModule.drain_changes!(::DeadlineFailingFeed, editor::Editor) = 0
+FeedModule.compute_wake_deadline(::DeadlineFailingFeed, editor) = error("the deadline failed")
+
+_quiet_wait_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
+
 struct ProbeWaitOperation <: Operation
     log::Vector{Any}
     tag::Symbol
@@ -100,6 +107,16 @@ function test_editor_wait()
                               feeds = Feed[DeadlineFeed(0.25), DeadlineFeed(nothing),
                                            DeadlineFeed(0.75)])
         @test compute_wait_timeout(editor) == 0.25
+    end
+
+    @testset "a deadline that throws is recorded and counts as no deadline" begin
+        editor = _wait_editor(ProbeWaitBackend();
+                              feeds = Feed[DeadlineFailingFeed(), DeadlineFeed(0.5)])
+        editor.fault_policy = _quiet_wait_policy()
+        @test compute_wait_timeout(editor) == 0.5
+        records = get_fault_records(editor.faults)
+        @test length(records) == 1
+        @test records[1].origin === :DeadlineFailingFeed
     end
 
     @testset "a clock subscriber bounds the wait to the animation" begin

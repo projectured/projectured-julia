@@ -174,7 +174,14 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # extent; the cell operations below count into it and `perf!` reads it.
             frame_started = Base.time()
             with_performance_counters() do
-                set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, frame_started - t_start))
+                wall_time = frame_started - t_start
+                # A backend whose time throws is recorded, and the frame shows
+                # the wall time.
+                clock_time = _run_barrier(editor, :device; origin = typeof(editor.backend),
+                                          fallback = wall_time) do
+                    get_frame_clock_time(editor.backend, wall_time)
+                end
+                set_clock_time!(editor.clock, clock_time)
                 # What was posted or stored from outside this task, applied
                 # here so the frame paints what its feeds just wrote. Each feed
                 # drains in a barrier of its own.
