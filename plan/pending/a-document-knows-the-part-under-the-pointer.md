@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending. Nothing is built. It replaces the mouse target tracker of
+> **Status:** pending; the steps are written (2026-09-29), and Q6 to Q8 are open. Nothing is built. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -126,18 +126,58 @@ The gesture tracker stays: it recognizes a click and a dwell from their times.
 The tooltip window and the context menu window stay: each keeps one window for
 the screen, which no part can do.
 
-## 5. Facts to check before the design is final
+## 5. Facts checked before the design (2026-09-29)
 
-- How a click becomes the selection in each package: the readers that answer
-  `ReplaceSelectionOperation`, `read_child_event` with its two conversions, and
-  the containers that ask a child directly.
-- How the selection chain is written (`replace_selection!`, `_sync_selection!`
-  in `source/kernel/selection/SelectionDefaults.jl`), with its dormant selection
-  and its typed paths, and which parts of it the mouse target can share.
-- How the output selection is wired (`PAR-REACTIVE-OUTPUT-SELECTION`,
-  `map_selection_forward` in `source/kernel/projection/ProjectionTemplate.jl`),
-  and which projections that end in graphics wire it.
-- Every place that reads `hovered`, `MouseEnter`, `MouseLeave` or `MouseHover`.
+- **How a press becomes the selection.** A container hands a pointer event to
+  the child at the point with `read_child_event` (`LayoutToGraphics.jl`), which
+  converts the child's answer in two cases: an Alt+press makes the innermost
+  document the selection (`convert_to_whole_selection`), and a plain press on a
+  focusable child that answers nothing selects the child
+  (`convert_to_focus_selection`). About fifteen readers answer
+  `ReplaceSelectionOperation` for a press themselves: the text, the graphics
+  cache, math, the graph, the table, the table list, the tree, the chart, the
+  sequence chart, syntax, and two of the conversation. Four containers ask a
+  child directly and put the prefix on by hand: the graph layout, the table
+  list, the grid of the table, and `_resolve_click` of syntax. The answer goes up
+  by `reroot_operation`, and the default reader of a projection and the reader
+  of a rule projection map it backward (`ProjectionDefaults.jl`,
+  `ProjectionTemplate.jl`). `evaluate_operation` writes it at the root with
+  `replace_selection!`.
+- **How the selection is stored.** `@document` adds the field `selection` to
+  every document (`DocumentMacro.jl`), `Union{Nothing, Reference,
+  SelectionDocument}`, default `nothing`; a value document declares it by hand
+  as `ImmutableCell{Nothing}`, last. Many printers call the constructor of a
+  document with every field and pass the selection cell last, so a second field
+  needs a constructor without it. `_sync_selection!` of the sealed
+  `SelectionDefaults.jl` writes the chain: it goes down while the old and the
+  new path agree, writes only a cell that changes, moves a caret in place, and
+  clears the old branch below the place where the paths part (or keeps it
+  dormant). Every function of it names `:selection`; nothing takes the kind of
+  path as a parameter. **The plan believed that the selection is not saved and
+  not copied; it is both:** the binary format saves it and restores it on load,
+  and a copy takes a snapshot of it (`copy_selection_cell`). A history does not
+  record it (`_is_no_edit`). So the mouse target must be kept out of the save
+  and the copy on purpose.
+- **How the output selection is wired.** `PAR-REACTIVE-OUTPUT-SELECTION`: a
+  printer sets the selection of its output to the forward map of its input's
+  (`map_selection_forward`, which carries a dormant selection as one). The
+  places: seven wiring points of the rule projections (`ProjectionTemplate.jl`),
+  the leaf and the compound of `SyntaxToText`, five text transformations (which
+  read the live property, so they drop a dormant selection), the workspace view,
+  and the draft of the conversation editor. **A graphics document has no
+  selection:** each painter reads the selection of its own input document, the
+  rings the live property and the caret of the text the stored value. So a
+  widget will draw from its own `mouse_target` in the same way.
+- **What goes away.** `MouseEnter`, `MouseLeave` and `MouseHover` with their
+  patterns: 126 uses in 23 files of the editor (the button, the list, the table,
+  the table list, the tree, the chart and the sequence chart read them; the
+  tracker is the only producer). `hovered`: the list, the button, the menu item,
+  the toolbar item, the table, the tree, the chart and the sequence chart, with
+  175 uses; the chart and the sequence chart keep the part under the pointer in
+  it, which is their mouse target. The tracker package: `make_tracking_screen`
+  builds it into every editor that `make_editor` makes, and the gallery, five
+  shell tests and three omnet tests use it; inet has none of it.
+  `_read_outward` in `read_routed_child` is the walk of 9a.
 
 ## 6. Open points
 
@@ -174,10 +214,91 @@ One at a time, with the owner.
   whose open points are asked again first; (3) this plan; (4) steps 9d, 9e and
   9f of the plan of the pointer, and then its steps 10 to 12, planned again with
   this model.
+- **Q6. No part under the pointer.** When the pointer leaves every window, or
+  stands where no part is, no document holds a mouse target. Claude's proposal:
+  the root holds `nothing`, and `ReplaceMouseTargetOperation(nothing)` clears
+  the chain; the screen answers it for the leave of a window, after it hands
+  the leave to the old part. Open.
+- **Q7. One operation shape for every kind of path.** Four containers put the
+  prefix on a selection by hand, and two default readers map it backward by
+  name. Claude's proposal: `ReplaceSelectionOperation` and
+  `ReplaceMouseTargetOperation` share an abstract type of "an operation that
+  replaces a kind of path", with the path and a way to make the same kind with
+  another path, and each of those places handles the abstract type once, as Q4
+  asks of the wiring. The selection keeps its own evaluation. Open.
+- **Q8. The brackets of a JSON array.** The first example of section 1. Claude's
+  proposal: a step of this plan draws the delimiters of a syntax node lit while
+  the mouse target of the node is set, to show that a behaviour comes from
+  composition. Open.
 
 ## 7. Steps
 
-Written when this plan starts. The last step writes the design and the user
-interface documents of the mouse target, as step 11 of
-[events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
-them.
+Each step ends with a commit, a wide sweep against the counts of the step
+before, and the omnet tests. The files of the kernel that change are unsealed
+already; the sealed selection files do not change (Q4).
+
+- [ ] 1. **The field.** `@document` adds `mouse_target`, `Union{Nothing,
+  Reference}`, default `nothing`, next to `selection`, and a value document
+  declares it as `ImmutableCell{Nothing}`. The macro also makes the positional
+  constructor without it, so the calls that pass every field but it still work.
+  It is view state: the binary save skips it and a load gives `nothing`, a copy
+  gives `nothing`, and a history does not record it. Tests: the field on a
+  document, the save, the copy.
+- [ ] 2. **The operation and the chain.** `ReplaceMouseTargetOperation(path)`
+  (Q6, Q7): not an edit, re-rooted as a selection is, and evaluated at the root
+  of the editor. The chain write is written for a kind of path, in a new kernel
+  file: it goes down while the old and the new path agree, writes a cell only
+  when its value changes, and clears the old branch below the place where the
+  paths part; it has no dormant state. Tests: on `[1, [2, 3]]`, the outer array
+  holds `.elements[2].elements[1]`, the inner `.elements[1]`, the number the
+  empty path, a document off the path `nothing`, and a move inside the same part
+  writes no cell.
+- [ ] 3. **The backward map of the operation.** The default reader of a
+  projection and the reader of a rule projection map it backward as they map a
+  selection, and the four containers that put a prefix on by hand handle it
+  (Q7). Tests: a mouse target at a text caret of the JSON chain arrives at the
+  JSON document as the path of the number.
+- [ ] 4. **The forward wiring** (M4, Q4). One kernel helper wires every kind of
+  path of an output document from the forward map of the place, a dormant
+  selection as one; the places that wire the output selection call it. A view
+  that makes a widget for a part of a domain wires the widget's mouse target
+  from the part's, as the tree of the workspace wires its selection; the step
+  finds those views first. Tests: the mouse target of a file lights its row in
+  the tree of the workspace.
+- [ ] 5. **The move** (M6, M7). A container hands a `MouseMove` first to the
+  child that its own mouse target names, along the old path, with the point in
+  that child's frame, and then to the child at the point; when both are the
+  same child, once. `read_child_event` makes a move that the child answered
+  with nothing into `ReplaceMouseTargetOperation(EmptyReference())` for the
+  child, as it makes a press into a whole selection. A container that reads its
+  own parts, such as a list, a table, a tree, a chart, a text and syntax,
+  answers the path of its part under the point. A part that gets a move not on
+  it while its mouse target is set answers what the leave means to it: the
+  button clears `pressed`. The screen hands a move in another window, and the
+  leave of a window, to the old window first (Q6). Tests: moves across the JSON
+  document, across a composite of buttons and across two windows write the
+  chains of step 2; a press held on a button and moved off clears `pressed`.
+- [ ] 6. **The light** (M9). The button, the menu item and the toolbar item
+  light while their mouse target is set; the list, the table, the table list and
+  the tree light the row that their mouse target names; the chart and the
+  sequence chart light the part that their mouse target names. `hovered` goes
+  from every document and every writer. Tests: the light of each widget,
+  through a real editor.
+- [ ] 7. **The dwell and the right click by position** (M3, D76). The outward
+  reading of the gesture tables (D64) runs in the helpers that hand a pointer
+  gesture to the child at its point; `_read_dwell` of the tracker and the walk
+  of `read_routed_child` for a gesture go. Tests: the tooltip tests, and a dwell
+  in a second window.
+- [ ] 8. **The tracker goes.** `ProjecturedMouseTargetTracking`, the gestures
+  `MouseEnter`, `MouseLeave` and `MouseHover` with their patterns, the routes of
+  the crossings, the leave route of Q35 and the timer of the waiting crossings.
+  `make_tracking_screen` keeps the gesture tracker. The hosts follow: the
+  gallery, the application, the shell tests, and the omnet IDE and campaign
+  tests.
+- [ ] 9. **The brackets** (Q8), if the owner wants them here.
+- [ ] 10. **The documents.** `package/kernel/mouse-target.md` and
+  `guide/pointer-guide.md`, as step 11 of
+  [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
+  them, and the widget, selection and screen documents. Then steps 8 to 12 of
+  that plan are planned again from this model: 9d, 9e and 9f, the drag of step
+  10, the rules and the documents of step 11, and the check of step 12.
