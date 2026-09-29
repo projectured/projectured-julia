@@ -1391,13 +1391,14 @@ The classifiers and the implementers found faults that the audit does not hold:
   `MethodError`. Dispatch on the layout family, as L11-3 does.
   *Test:* `test_inversion()`: a write and its inverse through an `M…` step.
   *Done:* 957396802. The review found it. Also from the review (ed76c017d to 7e5b277d4): `@reference_step a.b` and `x...` raise again, as before L11-21 (a regression of L11-21); the way back of an overwrite with a cell puts the old slot back (N-5); the first exception of the loop or of its end goes on to the caller (L22-10); the test of a failing feed ends when the feed barrier regresses (L21-2); `drain_faults!` refuses a policy that is not a `FaultPolicy` (L01-10); the sentinel is `_NO_MATCH` (L11-23); and text and line fixes. test_kernel 3920 and 2 broken; the other suites at their counts.
-- [ ] **N-10** (Low, Correctness) — found by the fix of L22-10
+- [x] **N-10** (Low, Correctness) — found by the fix of L22-10
   The `catch` of `make_editor` calls `quit_backend!`, which can hide the error of the build, as
   the end of `run_editor!` did before L22-10. Let the first exception go on, as L22-10 does.
   The fix of L22-10 has two costs: when the loop has thrown, an exception of a cleanup step is
   dropped and not recorded; after a normal quit, the exception of a step is thrown again from
   the `finally`, so its stack trace starts there.
   *Test:* `test_editor_inbox()`: a build that throws, and a `quit_backend!` that throws; the
+  *Done:* 240e0a2dd. The quit runs inside its own `try`, and the build error goes on; the exception of the quit is dropped, as in L22-10. test_kernel 3922 and 2 broken.
   caller sees the build error.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
