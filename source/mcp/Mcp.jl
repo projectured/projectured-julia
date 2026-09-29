@@ -155,10 +155,11 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                 text = run_on_editor_task!(editor) do
                     # The barrier is here and not only in the transport library.
                     # A tool that throws must answer the client an error text and
-                    # must not take the server task with it, and this file is
-                    # the only place that can promise both. The fault is recorded
-                    # too, so a person reading the editor's log sees what a
-                    # client ran into.
+                    # must not stop the server task, except an exception that
+                    # means stop, which goes on. This file is the only place
+                    # that can promise both. The fault is recorded too, so a
+                    # person reading the editor's log sees what a client ran
+                    # into.
                     try
                         tool.handler(editor, args)
                     catch exception

@@ -37,8 +37,9 @@ A few values of the layer are process-global, each for a reason:
 
 - `_GUIDE_INDEX` and `_API_INDEX` hold the indexes of the guides and of the whole
   surface, and `_DECLARED_INDEX` holds one index for each declared API. Each is
-  built on first use from text and code that do not change while the process
-  runs, so it is the same for every editor that reads it.
+  built on first use and kept, so it is the same for every editor that reads it.
+  `_API_INDEX` does not see a package that loads after it is built, and
+  `register_guide_root!` resets `_GUIDE_INDEX`.
 - `_EXTRA_GUIDE_ROOTS` holds the guide roots that an application adds with
   `register_guide_root!` when it loads, for every window that it opens.
 - `_MEANING_STORES` holds the stores of meaning vectors, one for each model. A

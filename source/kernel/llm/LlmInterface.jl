@@ -112,8 +112,7 @@ backend, not to a caller: a Claude model id means nothing to a local server, so 
 caller that holds one model name for every provider holds the wrong name for all but
 one.
 
-A backend can choose another model when `make_llm` gets an empty `model`. The
-Anthropic adapter first asks the Models API for the newest model, and it uses this
-model only when it has no key or when that request fails.
+When `make_llm` gets an empty `model`, a backend can ask its provider for a newer
+model first, and it falls back to this one.
 """
 function get_default_llm_model end

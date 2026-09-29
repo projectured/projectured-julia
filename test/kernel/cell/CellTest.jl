@@ -382,7 +382,7 @@ end
     @test c[] == -1
     a[] = 2
     # A failed computation leaves its cell invalid, so the walk of the write stops
-    # there. The finding is L03-1 in plan/pending/kernel-audit/03-cell.md.
+    # there.
     # @broken: a failed computation stops the walk of a later write (L03-1)
     @test_broken c[] == 5
 end
@@ -400,7 +400,7 @@ end
     @test p[] == 2
     t[] = 20
     # The walk of the first write stopped at `p`, which computed, and `q` stays
-    # invalid. The finding is L03-2 in plan/pending/kernel-audit/03-cell.md.
+    # invalid.
     # @broken: a write while a reader computes leaves the reader stale (L03-2)
     @test_broken p[] == 21
 end

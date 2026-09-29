@@ -185,6 +185,11 @@ Inside `[]`, `{}`, `field(...)`, and extension calls the arguments are ordinary
 Julia expressions evaluated at runtime; bare symbols in *path* position are
 literal field names.
 
+A type step takes a bare type name. A name that starts with a capital letter
+after a type step reads as a qualified type name, and the parser throws an error:
+`::JsonObject.Name` throws. So a field whose name starts with a capital letter can
+not follow a type step.
+
 **Two ways to get a fully-typed path.** Either spell every node's type inline
 (`@reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::Document`),
 or hand the path a **document** and let it fill the types:

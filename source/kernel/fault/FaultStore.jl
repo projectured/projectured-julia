@@ -192,8 +192,7 @@ Hand every record that is new, or that grew by an order of magnitude, to each
 attached target, and answer the records that were handed over.
 
 The answer is what lets the caller report the same records on the console: the
-drain is the one place that knows which records are new, and the console tier
-needs exactly that.
+drain holds the list of the new records, and the console tier needs exactly that.
 
 Call it once per frame, on the task of the editor, outside every computation and
 before anything reads the projection. A record is handed over at most once per
@@ -203,8 +202,7 @@ cell, invalidates nothing, and causes no repaint.
 It throws nothing but an `ArgumentError` for a `policy` that is not a
 `FaultPolicy`, and it checks that before it changes the store. A target whose
 `append_fault!` fails is skipped, and a console line reports it when `policy`
-opens the console tier. A log that can not take a fault must not take the editor
-with it.
+opens the console tier. A log that can not take a fault must not stop the editor.
 """
 function drain_faults!(store::FaultStore; policy = FaultPolicy())
     # FaultPolicy.jl loads after this file, so the keyword has no type.

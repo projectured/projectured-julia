@@ -40,9 +40,10 @@ A `Computation` that computes `expression`: a cell evaluates it on its first
 read, and again on the first read after a cell that it read was written.
 
 Use it to state a derived value where it belongs, beside the thing that has it,
-instead of computing it again at every place that needs it. It goes wherever a
-cell takes a value: a new cell, a typed cell, a write into a cell, or a field of
-a struct of cells.
+instead of computing it again at every place that needs it. It goes into a
+reactive cell: a new cell, a typed cell, a write into a cell, or a reactive field
+of a struct of cells. A `MutableCell` or an `ImmutableCell` throws an
+`ArgumentError` for it.
 
 # Example
 

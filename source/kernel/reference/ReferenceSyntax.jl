@@ -301,11 +301,14 @@ end
 
 # A type step takes a bare type name: `::Mod.T` reads as the type `Mod` and a field
 # `.T`. A capital letter starts a type name, as for a `::T` of a pattern, so a type
-# followed by such a name is a qualified type name, and the parser refuses it.
+# followed by such a name is a qualified type name, and the parser refuses it. So a
+# field whose name starts with a capital letter can not follow a type step
+# (`::JsonObject.Name`).
 function _check_bare_type_name(type_name::Symbol, next_name::AbstractString)
     isuppercase(first(next_name)) || return nothing
     error("a type step takes a bare type name, not `$type_name.$next_name`: " *
-          "bring `$next_name` into scope and write `::$next_name`")
+          "bring `$next_name` into scope and write `::$next_name`. A field " *
+          "whose name starts with a capital letter can not follow a type step")
 end
 
 # `x::T` type suffix: a bare `T` is the type step; `T{i}` / `T[i]` (which Julia parses as
