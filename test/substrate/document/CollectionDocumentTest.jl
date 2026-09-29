@@ -394,5 +394,15 @@ end # @testset "ReactiveCollection"
         @test [x for x in CellVector(@computation [1, 2])] == [1, 2]
     end
 
+    @testset "a list in a document copies in a kind by its own method" begin
+        # The walk calls the four-argument form for a child. A list of the mutable
+        # kind holds plain values, so a `push!` to the copy works.
+        copied = copy_document(MutableCell, ListNode(CellVector([1, 2])))
+        inner = copied.value
+        @test !any(x -> x isa AbstractCell, getfield(inner, :elements)[])
+        push!(inner, 3)
+        @test collect(inner) == [1, 2, 3]
+    end
+
 end # @testset "CellVector protocol"
 end # test_collection

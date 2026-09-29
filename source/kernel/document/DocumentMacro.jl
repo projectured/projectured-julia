@@ -276,11 +276,10 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     #
     # The types it answers with mention the programmer's parameters when the
     # schema has any, so the method takes them from the type it is asked about:
-    # `Type{<:Foo{A}} where {A}`. A caller that asks about the bare name — which
-    # is what a copy does — names no parameter, matches no method here, and gets
-    # the default `nothing`, so the copy reads the source's own field types
-    # instead. The types are not knowable without the parameters, and saying so
-    # is what the default means.
+    # `Type{<:Foo{A}} where {A}`. A copy asks with the parameters of its source.
+    # A caller that asks about the bare name names no parameter, matches no method
+    # here, and gets the default `nothing`. The types are not knowable without the
+    # parameters, and saying so is what the default means.
     dvt = isempty(names) ?
         :((::typeof($(_declared_value_types)))(::Type{<:$(plan.name)}) = ($(Tvals...),)) :
         Expr(:(=),

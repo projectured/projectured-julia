@@ -222,8 +222,7 @@ end
     @test getfield(node, :value) isa ImmutableCell{Int}
     @test MCDmParametric{Int}(3, nothing) isa MCDmParametric{Int}
     # The declared value types mention the parameter too, so that method takes
-    # it from the type. Asked about the bare name, which is what a copy does,
-    # it answers `nothing` and the copy reads the source's own field types.
+    # it from the type. Asked about the bare name, it answers `nothing`.
     types = DocumentModule._declared_value_types(DmParametric{Int})
     @test types isa Tuple && first(types) === Int
     @test DocumentModule._declared_value_types(DmParametric) === nothing
@@ -251,6 +250,21 @@ end
     @test_throws TypeError DmBounded("text")
     nested = DmBoundedNested{Int}((3,))
     @test nested.box === (3,) && nested.selection === nothing
+end
+
+@testset "a copy keeps the parameters of a schema" begin
+    # A cell of `Any` binds a parameter as `Any`, so a copy through the bare name
+    # gave `DmParametric{Any}`, and a bounded parameter refused `Any`.
+    @test copy_document(DmParametric(3)) isa DmParametric{Int}
+    @test copy_document(ReactiveCell, DmParametric(3)) isa DmParametric{Int}
+    @test copy_document(ReactiveCell, DmBounded(2.0)) isa DmBounded{Float64}
+    @test copy_document(ReactiveCell, DmBounded(2.0)).value === 2.0
+    # The kinded copy of a native source converts, and keeps the parameter.
+    @test copy_document(ImmutableCell, MDmBounded(2.0)) isa ICDmBounded{Float64}
+    @test copy_document(MDmBounded(2.0)) isa MDmBounded{Float64}
+    # A parameter that no field binds is taken from the source, too.
+    @test copy_document(DmNested{Int}((3,))) isa DmNested{Int}
+    @test copy_document(ReactiveCell, DmNested{Int}((3,))).box === (3,)
 end
 
 @testset "the layout registry answers for every variant" begin

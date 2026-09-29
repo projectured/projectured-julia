@@ -290,12 +290,16 @@ copy_document(policy::PlainCopyPolicy, cv::CellVector) =
     copy_document_fields(policy, cv; selection = nothing)
 
 # Kind-converting deep copy: the target storage follows the kind convention —
-# reactive → per-element slot Cells (via `CellVector(items)`), immutable/mutable
-# → plain value vector wrapped in an outer typed cell.
-function copy_document(::Type{K}, cv::CellVector) where {K<:AbstractCell}
-    vals = Any[copy_document(K, x) for x in cv]
-    K === ReactiveCell ? CellVector(vals) :
-        CellVector(K{Vector}(vals), K{Union{Nothing, Reference}}(nothing))
+# reactive → per-element slot Cells, immutable/mutable → plain value vector
+# wrapped in an outer typed cell. It is the four-argument form, which the walk
+# calls for a child, so a list nested in a document copies by this method too. The
+# copy of the storage vector applies the bound of `policy` to the elements.
+function copy_document(::Type{K}, cv::CellVector, policy,
+                       depth::Int) where {K<:AbstractCell}
+    copied = copy_document(K, _plain(cv), policy, depth + 1)
+    K === ReactiveCell && return CellVector(copied)
+    CellVector(K{Vector}(Any[unwrap_cell(x) for x in copied]),
+               K{Union{Nothing, Reference}}(nothing))
 end
 
 # The CellVector method for `child_reference_steps`:

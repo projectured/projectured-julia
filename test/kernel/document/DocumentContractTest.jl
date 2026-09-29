@@ -78,6 +78,14 @@ struct ContractShoutPolicy <: CopyPolicy end
 ProjecturedKernel.DocumentModule.copy_document(p::ContractShoutPolicy, document::ToyNode) =
     copy_document_fields(p, document; label = uppercase(document.label))
 
+# A kind with a kinded copy of its own, in the four-argument form that a kind adds.
+@document struct ContractOwnCopy
+    label::String = ""
+end
+ProjecturedKernel.DocumentModule.copy_document(::Type{<:AbstractCell}, ::ContractOwnCopy,
+                                               policy, depth::Int) =
+    ContractOwnCopy(label = "own copy at depth $depth")
+
 function test_document_contract()
 @testset "DocumentContract" begin
 
@@ -140,6 +148,40 @@ function test_document_contract()
         node = ToyNode(callback, nothing, nothing)
         @test copy_document(node).label === callback
         @test copy_document(ImmutableCell, node).label === callback
+    end
+
+    @testset "the copy of a vector keeps its element type" begin
+        # A comprehension takes its element type from the values it makes, so a
+        # vector of `Document` that held one kind came back as a vector of that kind.
+        items = Document[ToyNode("one", nothing, nothing)]
+        for copied in (copy_document(items), copy_document(ReactiveCell, items),
+                       copy_document(ContractPair(items, nothing, nothing)).first)
+            @test copied isa Vector{Document}
+            push!(copied, ToyBox(nothing, nothing))
+            @test length(copied) == 2
+        end
+        @test copy_document(Cell[]) isa Vector{Cell}
+        @test copy_document(Any[1]) isa Vector{Any}
+        # A kinded copy converts a native element, which then does not fit the
+        # element type, so the copy takes the type of what it holds.
+        converted = copy_document(ReactiveCell, [MToyNode("one", nothing, nothing)])
+        @test only(converted) isa ToyNode
+    end
+
+    @testset "a kind that copies in its own way adds the four-argument form" begin
+        # The walk calls the four-argument form for a child, and the shorter forms
+        # call it too, so the method of the kind is reached at any depth.
+        own = ContractOwnCopy(label = "source")
+        @test copy_document(ReactiveCell, own).label == "own copy at depth 0"
+        box = copy_document(ReactiveCell, ToyBox(own, nothing))
+        @test box.content.label == "own copy at depth 1"
+        @test startswith(only(copy_document(ReactiveCell, [own])).label, "own copy")
+    end
+
+    @testset "the hidden elements of a bounded walk check their bounds" begin
+        hidden = HiddenElements([10, 20, 30, 40], 2, 3)
+        @test collect(hidden) == [20, 30]
+        @test_throws BoundsError hidden[3]
     end
 
     @testset "a kinded copy targets the cell layout, a plain copy keeps the layout" begin

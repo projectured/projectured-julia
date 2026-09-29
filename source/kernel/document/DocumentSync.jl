@@ -95,7 +95,7 @@ end
 # refinement if a front-heavy queue ever demands it.
 function _sync_elements!(shadow, source, K, policy, depth)
     ns, nc = length(source), length(shadow)
-    limit = sync_element_limit(policy, source, shadow)
+    limit = min(sync_element_limit(policy, source, shadow), ns)
     for i in 1:min(limit, nc)
         s, c = source[i], shadow[i]
         if s isa Document
@@ -111,8 +111,12 @@ function _sync_elements!(shadow, source, K, policy, depth)
             isequal(c, s) || (shadow[i] = copy_shadow_element(K, s))
         end
     end
+    # A new element document faces the bound as a slot that holds nothing, so a
+    # grown shadow holds what a copy of the source holds.
     for i in (nc + 1):limit
-        push!(shadow, copy_shadow_element(K, source[i], policy, depth + 1))
+        s = source[i]
+        s isa Document && (s = _synced_child(nothing, s, K, policy, depth + 1))
+        push!(shadow, s)
     end
     _fit_shadow_tail!(shadow, source, policy, limit, ns)
 end

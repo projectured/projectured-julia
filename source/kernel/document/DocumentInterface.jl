@@ -182,6 +182,7 @@ function get_cell_layout_field_type end
     copy_document(value)          -> value      # preserve every cell's kind
     copy_document(policy, value)  -> value      # preserve every cell's kind, as `policy` says
     copy_document(K, value)       -> value      # rebuild every cell as kind K
+    copy_document(K, value, policy, depth::Int) -> value   # the same, bounded by `policy`
 
 Deep-copy a document subtree, allocating fresh `Cell`s and containers so the
 result shares no cell with the source. A value that is not a document, a vector
@@ -189,7 +190,17 @@ or a cell is shared, and a policy can share a document it does not descend
 into. The one-argument form preserves each cell's kind; the form with a cell
 type `K` rebuilds every cell as kind `K` (`ReactiveCell` / `MutableCell` /
 `ImmutableCell`). Plain immutable leaves
-(strings, numbers, symbols) pass through unchanged.
+(strings, numbers, symbols) pass through unchanged. A copy keeps the type
+parameters that the programmer declared on a schema, and a copied vector keeps
+its element type when each copied element fits it.
+
+**A kind adds the four-argument form.** The form with a cell type walks each
+child with `copy_document(K, child, policy, depth)`, and its shorter forms call
+the four-argument form too. So a kind that copies in its own way adds
+`copy_document(K, value::MyKind, policy, depth::Int)`, and the walk reaches that
+method for a value at any depth. `policy` is the bound of
+[`is_descendable_for_sync`](@ref), or `nothing`, and `depth` is the depth of
+`value` below the root of the copy.
 
 The form with a [`CopyPolicy`](@ref) is the walk that preserves the kind, steered.
 `copy_document(value)` is that walk under [`PlainCopyPolicy`](@ref). A policy

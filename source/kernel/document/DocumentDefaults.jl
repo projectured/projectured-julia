@@ -26,7 +26,10 @@ struct HiddenElements{S} <: AbstractVector{Any}
     to::Int
 end
 Base.size(h::HiddenElements) = (max(0, h.to - h.from + 1),)
-Base.getindex(h::HiddenElements, i::Int) = h.source[h.from + i - 1]
+function Base.getindex(h::HiddenElements, i::Int)
+    @boundscheck checkbounds(h, i)
+    h.source[h.from + i - 1]
+end
 
 # The unbounded default: descend everywhere, keep every element, and so never
 # reach the third. A policy overriding these is what bounds a sync or a copy —

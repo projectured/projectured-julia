@@ -30,6 +30,11 @@ end
 
 sync_chain(n::Int) = n == 0 ? SyncNode("leaf", nothing) : SyncNode("n$n", sync_chain(n - 1))
 
+# A policy whose element limit is more than the source holds.
+struct OverLimitSyncPolicy <: SyncPolicy end
+ProjecturedKernel.DocumentModule.sync_element_limit(::OverLimitSyncPolicy, source,
+                                                    shadow) = length(source) + 5
+
 # The way a consumer gets a shadow: bounded from the start. A shadow built by the
 # ordinary full copy has already grown everything, and a bound can only withhold
 # what has not been grown yet.
@@ -199,6 +204,33 @@ end
         @test shadow[shown + 1].size == 100 - shown
         @test !shadow[shown + 1].requested         # the request is spent, not sticky
     end
+end
+
+# ── The copy and the sync stop at the same elements ───────────────────────
+# A shadow born by a copy, one grown by a sync, and one synced over slots of
+# another kind hold the same markers.
+@testset "a copy and a sync stop at the same elements" begin
+    src = CellVector([sync_chain(2), sync_chain(2)])
+    policy = DepthPolicy(0)                    # an element stands at depth 1
+    born  = copy_document(ReactiveCell, src, policy)
+    grown = sync_document!(CellVector(Any[]), src, policy)
+    over  = sync_document!(CellVector(Any[0, 0]), src, policy)
+    for shadow in (born, grown, over)
+        @test length(shadow) == 2
+        @test all(e -> e isa AUnsyncedDocument, shadow)
+    end
+end
+
+@testset "a limit above the length of the source reads no element past it" begin
+    src = CellVector([sync_chain(1), sync_chain(1)])
+    shadow = copy_document(ReactiveCell, src, OverLimitSyncPolicy())
+    @test length(shadow) == 2
+    push!(src, sync_chain(1))
+    sync_document!(shadow, src, OverLimitSyncPolicy())
+    @test length(shadow) == 3
+    pop!(src); pop!(src)
+    sync_document!(shadow, src, OverLimitSyncPolicy())
+    @test length(shadow) == 1
 end
 
 @testset "a collection shorter than the cap has no tail marker" begin
