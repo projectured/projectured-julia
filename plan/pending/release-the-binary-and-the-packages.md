@@ -233,12 +233,10 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
 | R3a | Step A2 found that the sound chain makes the archive one that nobody may give to others (Step A2 results). Which way removes it? | A stub `alsa_plugins_jll` in the generated environment of the binary: the same name and uuid, no dependencies, an empty `artifact_dir`. It removes 58 of the 99 JLLs, 462 of the 577 MB of artifacts, and every item that is a problem. It changes the builder, not the structure of the repository. SDL sound can then never work in the binary; the application uses none (`SDL_INIT_VIDEO` only). Part B is not touched. |
 | R17 | Liberation 1.07.3 is GPL-2 with a font exception. Ship its source or a written offer, or switch to Liberation 2.x (OFL-1.1, the same metrics)? | Switch to Liberation 2.x. The OFL needs only its text, in both routes. Compare a render of each family first, because the glyph shapes can differ. |
 | R18 | After the cut, the binary still holds LGPL and GPL parts: `alsa`, GMP, MPFR, libquadmath, the GCC runtime, libgit2, 7-Zip, and a part of libjulia (`dl-cache.h`). Each needs its source, or a written offer. In which form? | A source archive of those parts in the same GitHub release as the binary. That is the simplest form that puts the source "in the same place". |
-| R22 | Seven pairs of our names fail the name rule of General (§3.3). Rename, or ask for manual merges? | Ask for manual merges. The first version of 64 of the 65 needs a manual merge anyway (the URL rule), so the name rule adds no step. Rename only if the maintainers ask. |
 | R23 | Ask the maintainers of General before the first registration? | Yes. 65 packages from one repository, 64 manual merges and 13 levels are a large request. An issue in `JuliaRegistries/General` that describes the plan, before the first pull request, lets them say how they want it. |
-| R24 | Other people wrote part of the code: `mwallensoftware` has 54 commits and `tabgab` 1 (`git log`). `CONTRIBUTING.md` says that a pull request offers a change under `LICENCE-PD` and `LICENCE-COMMERCIAL`, not under MPL-2.0. | Ask both, in writing, to agree to MPL-2.0 for their commits before Part L. I think the old clause does not let the owner relicense their code; a lawyer can confirm. |
-| R25 | A version that was committed but never registered makes the next version skip it, and AutoMerge refuses a skip. Guard it in the generator? | Yes: give `build_package_release!` an optional registry to check, and let it stop when a released version is missing there. Until then, the procedure registers right after each commit. |
+| R23 | One release repository with 65 subdirectories, or one repository for each package? | Open: the owner asked whether one repository for each package makes the registration automatic. It makes the URL rule pass, so the first version of about 61 packages merges with no maintainer. But the name rule still stops 4 or more of them, the first registration still goes one dependency level at a time with 3 days of waiting for each new package (13 levels), and 65 repositories must then be kept and pushed at each release. My view: one repository, and a word first in `#pkg-registration` on the Julia Slack, which the README of General names for a review by a person. |
+| R26 | Without the port, which engine does `ProjecturedGraph` use when none is registered? Today `make_pure_julia_layout_engine` picks `SpringEmbedderLayout` (20 vertices or more) or `ForceDirectedLayout`, both from the port. The private repository can register its engines through the `register_layout_engine!` that exists, as `ProjecturedAdaptagrams` does. | Open. Options: `GridEmbedding` only, which exists and draws a plain grid; an engine from `NetworkLayout.jl` (MIT, in General), which lays out by springs and stress but ignores node sizes; or a new force-directed engine written from the textbook algorithm, not from the port. |
 | R20 | The guides live in `ProjecturedKernel` (§2.3), so each change to a guide gives the kernel a new version, and Julia compiles every package above it again after `pkg> up`. A change to a licence text gives all 65 a new version. Accept that, or give the guides a package of their own later? | Accept it now. The kernel changes in most releases anyway, and a package of its own for the guides is a change of structure. |
-| R19 | `source/graph/cpp/` (in `ProjecturedGraph`, so in both routes) ports ten OMNeT++ files. Their headers name OpenSim Ltd. and Andras Varga and the Academic Public License; the port carries no notice, and `LICENCE-PD` names Levente Meszaros. `source/domain/Domain.jl:28-33` adapts one function of Julia's `InteractiveUtils` (MIT). | Only the owner can confirm the rights to the port, and whether it keeps the notice of the originals. The MIT function needs the MIT notice beside it, in one comment. |
 
 ### 4.2 Decided
 
@@ -263,6 +261,10 @@ The owner decided these on 2026-09-29.
 | R9 | Where does the release copy live? | In `projectured/Projectured.jl`, the usual Julia name (free on 2026-09-29: `404`). Not `projectured/projectured`: that name is the redirect to the Lisp original (§3.3). |
 | R10 | The name and place of the registry? | The General registry (changed on 2026-09-29 by R21). Before that: `projectured/ProjecturedRegistry`, made with `LocalRegistry.jl`, which Step B4 still uses as a local stand-in for General. |
 | R21 | The licence of the repository and of the packages? | **MPL-2.0** (the owner, 2026-09-29). Other people may build and sell products on ProjecturEd with packages of their own; their changes to the files of ProjecturEd stay MPL and public when they distribute them; the owner can use those changes in his own closed products with no contributor licence agreement. It is OSI-approved, so the packages can go into General. It replaces `LICENCE-PD` and `LICENCE-COMMERCIAL`, and it makes R15 moot. Part L does the change. |
+| R22 | Seven pairs of our names fail the name rule of General. Rename, or ask for manual merges? | Manual merges (the owner, 2026-09-29). |
+| R24 | Do the other two authors agree to MPL-2.0 for their commits? | Yes (the owner, 2026-09-29: "I know them well and they agreed"). Keep their agreement in writing with the release records. |
+| R25 | Guard against a version that skips one? | Yes (the owner, 2026-09-29). Done: `build_package_release!` takes `registry`, and `build_projectured_package_release!` checks General (commit after `507ef1c06`). |
+| R19 | The ten files in `source/graph/cpp/` port the layout engine of OMNeT++, whose headers name OpenSim Ltd. and Andras Varga and the Academic Public License. | Move them out of this repository, into the private downstream repository that uses them (the owner, 2026-09-29). R26 holds what `ProjecturedGraph` uses in their place. The MIT function in `source/domain/Domain.jl` keeps its notice in one comment. |
 | R16 | What to do with the four packages of §2.4 that can not go in as they are? | Skip them: `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`. `ProjecturedExample` and the other example packages stay out by R12, so the registry gives no application; the binary gives it. The registry set is 65 packages. |
 
 **The rules of R11.** The owner chose one version per package. These rules
@@ -758,9 +760,10 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 
 ### Step L1: what must be settled first
 
-- [ ] R19: the rights to the port in `source/graph/cpp/`, and the MIT notice
-      in `source/domain/Domain.jl`.
-- [ ] R24: the two other authors agree to MPL-2.0 for their commits.
+- [ ] R19: the port in `source/graph/cpp/` leaves this repository (R26 first), and
+      the MIT function in `source/domain/Domain.jl` gets its notice.
+- [x] R24: the two other authors agree to MPL-2.0 for their commits (the owner,
+      2026-09-29).
 
 ### Step L2: the change
 
