@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending; the steps are written (2026-09-29), and Q7 and Q8 are open. Nothing is built. It replaces the mouse target tracker of
+> **Status:** pending; the steps are written (2026-09-29), and Q8 is open. Nothing is built. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -226,13 +226,17 @@ One at a time, with the owner.
   the first move. The backend reports only that the pointer left the windows,
   not where it is, and the screen needs no more. (Claude's proposal of
   `ReplaceMouseTargetOperation(nothing)` is dropped.)
-- **Q7. One operation shape for every kind of path.** Four containers put the
-  prefix on a selection by hand, and two default readers map it backward by
-  name. Claude's proposal: `ReplaceSelectionOperation` and
-  `ReplaceMouseTargetOperation` share an abstract type of "an operation that
-  replaces a kind of path", with the path and a way to make the same kind with
-  another path, and each of those places handles the abstract type once, as Q4
-  asks of the wiring. The selection keeps its own evaluation. Open.
+- ~~**Q7. One operation shape for every kind of path.**~~ **Settled** (Claude's
+  proposal; owner 2026-09-29: "yes"). Four containers put the prefix on a
+  selection by hand (the graph layout, the table list, the grid of the table,
+  `_resolve_click` of syntax), and two default readers map it backward by its
+  type. `ReplaceSelectionOperation` and `ReplaceMouseTargetOperation` share an
+  abstract type of "an operation that replaces a kind of path", which gives the
+  path and makes the same kind with another path, and each of those six places
+  handles the abstract type once, so a later kind needs no code there, as Q4
+  asks of the wiring. Each kind keeps its own evaluation: the selection
+  `replace_selection!`, the mouse target its chain write. The names follow the
+  naming rules when the step is built.
 - **Q8. The brackets of a JSON array.** The first example of section 1. Claude's
   proposal: a step of this plan draws the delimiters of a syntax node lit while
   the mouse target of the node is set, to show that a behaviour comes from
