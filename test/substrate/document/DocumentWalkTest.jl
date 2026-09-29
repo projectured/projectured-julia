@@ -90,6 +90,27 @@ end
     @test [count_paths(d) for d in (12, 16, 24)] == [3, 3, 3]
 end
 
+# ── The path walk builds a reference for a result only ────────────────────
+# A deep chain with one match at the bottom. The path search pays for the walk and
+# for one path. A search that built the path of each node it visits pays once for
+# each node and each depth, several times the cost of the walk.
+@testset "a deep path search costs about as much as its walk" begin
+    head = ListNode(PrimitiveString("top"))
+    node = head
+    for _ in 1:200
+        node.next = ListNode(PrimitiveNumber(0))
+        node = node.next
+    end
+    node.next = ListNode(PrimitiveString("bottom"))
+    is_bottom(v) = v isa PrimitiveString && v.value == "bottom"
+    object_walk = DocumentWalk(policy = :once_per_path)
+    walk() = walk_document(object_walk, head, is_bottom; maxdepth = 1000)
+    search() = search_references(head, is_bottom; maxdepth = 1000)
+    @test length(walk()) == length(search()) == 1
+    @test evaluate_reference(head, only(search())) === node.next.value
+    @test @allocated(search()) < 2 * @allocated(walk())
+end
+
 # ── Equal values in two documents ─────────────────────────────────────────
 # A scalar leaf has no children, so it cannot close a cycle, and the walk does not
 # record it. The second document that holds an equal value is then a match too.
