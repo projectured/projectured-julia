@@ -259,12 +259,14 @@ Use the run of the report as the regression test: a print of 200 000 bytes retur
 
 ### Step 1.6: The Anthropic adapter
 
-- [ ] **L19-1** (High, Correctness)
+- [x] **L19-1** (High, Correctness)
   Give `_drain_sse_events!` an `input_tokens::Ref{Int}` keyword and pass it on to `_translate_sse!`. Pass the `Ref` of `stream_turn` at the two calls (Anthropic.jl:335 and :337).
   *Test:* A new testset in test/anthropic/AnthropicTest.jl (ProjecturedAnthropicTest) sends a recorded SSE body (message_start, one text block, message_delta) through `_drain_sse_events!`. It asserts no throw, the text events, and an `LlmTurnEnd` that carries the input count of message_start.
-- [ ] **L19-2** (part) (Medium, Correctness)
+  *Done:* lane B, 28c1660a. The Anthropic suite: 35 pass, 1 broken (baseline 20 and 1 broken); the new stream test fails on the old code with the `UndefVarError`. Every run of these suites had no outside network (`unshare -rn`).
+- [x] **L19-2** (part) (Medium, Correctness)
   Throw when a stream ends before its terminal event, as the `stream_turn` docstring says for a dead socket, and map `stop_sequence`, `refusal` and `pause_turn` to `:end_turn` in the Anthropic adapter. The read timeout waits for its decision.
   *Test:* A test of the stream parser: an early end throws, and each stop reason maps.
+  *Done:* lane B, 28c1660a. The throw at an early end is in both adapters, Anthropic and Ollama. It sits after `HTTP.open` returns, because HTTP.jl wraps an exception of the block in `RequestError`. `model_context_window_exceeded` is not in the table and goes on as its own symbol.
 
 ### Step 1.7: One name for each letter key in every backend
 
@@ -484,27 +486,34 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.9: The llm and agent layers
 
-- [ ] **L19-5** (Low, State)
+- [x] **L19-5** (Low, State)
   Replace the one `Ref` with a `Dict` keyed by `(models_url, api_key)` under a lock, so each key and URL gets its own answer. The report gives two ways; the keyed cache is the smaller, and it keeps the documented ask once in a process (llm.md), where a cache on the instance asks once per backend.
   *Test:* AnthropicTest.jl: two calls of `get_newest_anthropic_model` with different `models_url` values (one served by a local `HTTP.serve` stub, one not reachable) answer different models.
-- [ ] **L20-3** (Medium, Correctness)
+  *Done:* lane B, 9fdc1490. The cache still keeps the fallback answer of a failed request; the lock is held during the request, so each address and key is asked once.
+- [x] **L20-3** (Medium, Correctness)
   Let the call on the editor task answer `(text, is_error)`: the normal arm gives `(output, _is_error_output(output))`, the catch arm gives `(text, true)`, and `AgentToolResult` takes that flag. The `AgentToolResult` docstring already says that `is_error` says whether the tool failed.
   *Test:* AgentLoopTest.jl (L20-7): a ScriptedLlm round calls a tool whose handler calls `error(...)`; assert that the `AgentToolResult` has `is_error == true`.
-- [ ] **L20-5** (Medium, Correctness)
+  *Done:* lane B, 9fdc1490. AssistantTurn.jl:218 keeps its own copy of the text check; the assistant half of the finding is not in this plan.
+- [x] **L20-5** (Medium, Correctness)
   Start each round with `stop = nothing`, and after `stream_turn` returns set `stop = :error` when no `LlmTurnEnd` or `LlmFailure` came. This is the smallest form of the report's fix; the report also sends a synthetic `LlmFailure` to `on_event`, which the assistant does not read today, so it is left out.
   *Test:* AgentLoopTest.jl: a ScriptedLlm round with text and a tool call and no terminal event; assert that `run_turn!` answers `:error` and runs no tool.
-- [ ] **L20-6** (Medium, Architecture)
+  *Done:* lane B, 9fdc1490.
+- [x] **L20-6** (Medium, Architecture)
   In both catch arms, add `is_passthrough_exception(e) && rethrow()` first, and guard `sprint(showerror, e, traceback)` with a try that answers a fixed text, as FaultRecord.jl:74-102 does. The shared exported helper of the report is left out: it needs a new public name and a choice of layer.
   *Test:* AgentLoopTest.jl: a tool whose handler throws `InterruptException()`; assert that `run_turn!` throws it and sends no `AgentToolResult`.
-- [ ] **L20-8** (Low, Correctness)
+  *Done:* lane B, 9fdc1490, in AgentLoop.jl and Mcp.jl. When `showerror` throws, the text is the name of the exception type, as FaultRecord.jl does.
+- [x] **L20-8** (Low, Correctness)
   Add `max_rounds >= 1 || throw(ArgumentError(...))` to the keyword constructor of `Agent`.
   *Test:* AgentLoopTest.jl: `@test_throws ArgumentError Agent(llm, ToolSet(); max_rounds = 0)`.
-- [ ] **L20-9** (part) (Low, Shape)
+  *Done:* lane B, 9fdc1490.
+- [x] **L20-9** (part) (Low, Shape)
   Make `Agent` a `struct` (no code writes a field), drop `::Function` from the two callbacks of `run_turn!`, and let the error of `make_agent_server` list the loaded servers from the method table, as LlmDefaults.jl does. `AgentEvent` waits for its decision.
   *Test:* `test_agent_loop()` passes (L20-7).
-- [ ] **L20-10** (part) (Low, Shape)
+  *Done:* lane B, 9fdc1490.
+- [x] **L20-10** (part) (Low, Shape)
   Sort the `using` lines of AgentModule.jl by module name. The export block is in export-block-rule.md.
   *Test:* The layering guard passes.
+  *Done:* lane B, 9fdc1490. test_kernel in lane B: 2436 pass and the 6 failures that step 1.1 repairs in lane A; test_ollama 101; test_mcp_tools 158; test_assistant_mvp 127 pass and 4 fail, the same 4 as before the step (AssistantMvpTest.jl:383 and :384, a layout fault).
 
 ### Step 2.10: The feed and editor layers
 
