@@ -148,7 +148,31 @@ map_reference_backward(::ScreenToScreen, iomap::ScreenToScreenIoMap, reference) 
 map_reference_forward(::ScreenToScreen, iomap::ScreenWindowIoMap, reference) =
     _map_window(map_reference_forward, iomap, reference)
 map_reference_backward(::ScreenToScreen, iomap::ScreenWindowIoMap, reference) =
-    _map_window(map_reference_backward, iomap, reference)
+    _map_window(map_reference_backward, iomap, _move_content_point(iomap, reference))
+
+# The place of the root canvas of the content of a window, `(x, y)` in the frame
+# of the window. A widget reads a point in the frame of its own canvas, so the
+# window takes this place off a point before the content reads it, as a container
+# takes off the place of its child.
+function _get_content_place(iomap::ScreenWindowIoMap)
+    output = unwrap_cell(get_iomap_output(iomap.content_iomap))
+    output isa GraphicsDocument && hasproperty(output, :x) && hasproperty(output, :y) || return (0, 0)
+    (_wval(getfield(output, :x)), _wval(getfield(output, :y)))
+end
+
+# `content` followed by a point of the window, with the point in the frame of the
+# root canvas of the content.
+function _move_content_point(iomap::ScreenWindowIoMap, reference)
+    reference isa ConcreteReference || return reference
+    tail = get_reference_tail(reference)
+    (tail isa ConcreteReference && get_reference_head(tail) isa PointReferenceStep &&
+     get_reference_tail(tail) isa EmptyReference) || return reference
+    x, y = _get_content_place(iomap)
+    (x == 0 && y == 0) && return reference
+    point = get_reference_head(tail)
+    ConcreteReference(get_reference_head(reference),
+        ConcreteReference(PointReferenceStep(point.x - x, point.y - y), EmptyReference()))
+end
 
 # ── Reader ────────────────────────────────────────────────────────────────────
 # Route an WindowInput to the matching window's content, then prepend the
@@ -198,8 +222,11 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
     window_input = change.gesture
     if window_input isa WindowInput
         cim = iomap.content_iomap
-        inner = read_intent(cim.projection, recursion, Intent(window_input.event, nothing), cim)
-        op = _prefix_op(inner.operation, (FieldReferenceStep("content"),))
+        x, y = _get_content_place(iomap)
+        event = window_input.event
+        event isa Union{Event, Gesture} && (event = shift_event_position(event, -x, -y))
+        inner = read_intent(cim.projection, recursion, Intent(event, nothing), cim)
+        op = _prefix_op(shift_operation_position(inner.operation, x, y), (FieldReferenceStep("content"),))
         return Intent(change.gesture, _open_popup_windows(op, iomap.input))
     end
     payload = change.operation === nothing ? change.gesture : change.operation

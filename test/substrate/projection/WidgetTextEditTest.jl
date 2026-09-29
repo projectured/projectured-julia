@@ -125,9 +125,11 @@ end
     two_y = first(y for (text, y) in lines if occursin("two", text))
     @test two_y > one_y
 
-    # A press on the drawn second line puts the caret into that line.
+    # A press on the drawn second line puts the caret into that line. The test is
+    # the window: the press is in the frame of the textarea's own canvas.
     _, x, y = first(t for t in _drawn_texts(iomap.output) if occursin("two", t[1]))
-    click = read_intent(_proj(), iomap, MouseClick(:left, x + 25, y + 4, ModifierKeys(); time = 0.0))
+    click = read_intent(_proj(), iomap, MouseClick(:left, x + 25 - Int(iomap.output.x), y + 4 - Int(iomap.output.y),
+                                                   ModifierKeys(); time = 0.0))
     @test click isa ReplaceSelectionOperation
     @test click.path.head == FieldReferenceStep("content")
     @test click.path.tail.head isa TextRangeReferenceStep

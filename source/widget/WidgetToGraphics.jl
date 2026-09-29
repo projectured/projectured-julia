@@ -1540,9 +1540,11 @@ end
 # contract nothing enforces is not one to build on. A 100x30 button with no
 # container above it would answer a press 800 pixels to its right.
 #
-# So each widget asks whether the position is inside what it drew. The printer
-# already produced that canvas and a canvas carries its own frame, so this is
-# one comparison per event and needs nothing new stored.
+# So each widget asks whether the position is inside what it drew. A widget
+# reads a position in the frame of its own canvas, as its container, or the
+# window at the root, took the place of the canvas off; so the canvas spans 0 to
+# its width and 0 to its height, one comparison per event with nothing new
+# stored.
 #
 # Only POSITIONED events are judged. A crossing (`MouseEnter` / `MouseLeave`)
 # comes by route from the mouse target tracking, which already found the widget
@@ -1557,8 +1559,7 @@ function _outside_widget(iomap, evt)
     canvas isa GraphicsCanvas || return false      # nothing drawn: nothing to bound
     canvas.w <= 0 && return false                  # unsized: the container decides
     canvas.h <= 0 && return false
-    !(canvas.x <= evt.x < canvas.x + canvas.w &&
-      canvas.y <= evt.y < canvas.y + canvas.h)
+    !(0 <= evt.x < canvas.w && 0 <= evt.y < canvas.h)
 end
 
 # A key pressed with no modifier. A control takes Return, Space and the arrows
@@ -1793,9 +1794,7 @@ function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
     content_iomap === nothing && return nothing
     op = @gesture_case evt begin
         MouseClick(button, x, y) => begin
-            canvas = iomap.output
-            cox = Int(canvas.x) + left
-            coy = Int(canvas.y) + top
+            cox, coy = left, top
             # The box can be wider and taller than what it holds: it has a `width`
             # floor, and an empty document measures nothing at all. Clamp the
             # press into the content's own extent, so a click anywhere in the box
@@ -2165,8 +2164,22 @@ map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
 map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
 # Child ops re-root by prepending `.child`.
-map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) =
-    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("child"), reference)
+# A point maps into the child, in the child's frame, where the child drew
+# something; any other reference of the child goes under `child`.
+function map_reference_backward(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference)
+    reference === nothing && return nothing
+    point = find_reference_point(reference)
+    point === nothing && return ConcreteReference(FieldReferenceStep("child"), reference)
+    child_iomap = iomap.child_iomap
+    child_iomap === nothing && return nothing
+    dx, dy = _get_context_menu_child_offset(p, iomap)
+    canvas = child_iomap.output
+    lx, ly = point.x - dx, point.y - dy
+    canvas isa GraphicsCanvas && hit_element_at(canvas, lx, ly) !== nothing || return nothing
+    answer = map_reference_backward(child_iomap.projection, child_iomap, PointReferenceStep(lx, ly))
+    annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("child"),
+                                                            answer === nothing ? EmptyReference() : answer))
+end
 map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
 
 read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
@@ -2185,20 +2198,23 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     end
     child_iomap = iomap.child_iomap
     child_iomap === nothing && return nothing
-    cox, coy = _content_offset(p, w)
+    dx, dy = _get_context_menu_child_offset(p, iomap)
     op = @gesture_case evt begin
-        MouseClick(button, x, y) =>
-            shift_operation_position(
-                read_intent(child_iomap.projection, child_iomap,
-                            MouseClick(button, x - cox, y - coy, evt.count, evt.modifiers;
-                                       time = evt.time)),
-                cox, coy)
-        MouseScroll(dx, dy, x, y) =>
-            read_intent(child_iomap.projection, child_iomap,
-                        MouseScroll(dx, dy, x - cox, y - coy; time = evt.time))
+        MouseClick => shift_operation_position(
+            read_intent(child_iomap.projection, child_iomap, shift_event_position(evt, -dx, -dy)), dx, dy)
+        MouseScroll => read_intent(child_iomap.projection, child_iomap, shift_event_position(evt, -dx, -dy))
         _ => read_intent(child_iomap.projection, child_iomap, evt)
     end
     _retarget_op(p, iomap, op)
+end
+
+# Where the child of a context menu stands in the menu's frame: the content offset
+# and the place of the child's own canvas.
+function _get_context_menu_child_offset(p, iomap::WidgetContextMenuToGraphicsCanvasIoMap)
+    cox, coy = _content_offset(p, iomap.input)
+    canvas = iomap.child_iomap.output
+    canvas isa GraphicsCanvas || return (cox, coy)
+    (cox + Int(canvas.x), coy + Int(canvas.y))
 end
 
 # Open the menu at the point of the press. The popup window takes the extent of
@@ -3320,21 +3336,12 @@ function _find_captured_band(p::WidgetShellToGraphicsCanvas, shell, child_iomaps
     nothing
 end
 
-# The same pointer event at another point.
-_move_pointer_event(evt::MouseDown, x, y) = MouseDown(evt.button, x, y, evt.modifiers;
-                                                      time = evt.time)
-_move_pointer_event(evt::MouseUp, x, y) = MouseUp(evt.button, x, y, evt.modifiers;
-                                                  time = evt.time)
-_move_pointer_event(evt::MouseMove, x, y) = MouseMove(x, y, evt.buttons, evt.modifiers;
-                                                      time = evt.time)
-
 # Hand `evt` to one band, translated into its frame.
 function _read_band_event(entry, evt)
     (ox, oy, cim) = entry::Tuple{Int,Int,Any}
     canvas = cim.output
     canvas isa GraphicsCanvas || return nothing
-    read_child_event(cim, _move_pointer_event(evt, evt.x - ox - Int(canvas.x),
-                                              evt.y - oy - Int(canvas.y)))
+    read_child_event(cim, shift_event_position(evt, -ox - Int(canvas.x), -oy - Int(canvas.y)))
 end
 
 function _route_shell_down!(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
@@ -4909,8 +4916,7 @@ end
 function _is_point_on_canvas(canvas, point)
     canvas isa GraphicsCanvas || return false
     (canvas.w <= 0 || canvas.h <= 0) && return true
-    Int(canvas.x) <= point.x < Int(canvas.x) + Int(canvas.w) &&
-        Int(canvas.y) <= point.y < Int(canvas.y) + Int(canvas.h)
+    0 <= point.x < Int(canvas.w) && 0 <= point.y < Int(canvas.h)
 end
 
 # The part of a pane at `local_point` of its content: on into the content, whose
@@ -6309,10 +6315,9 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
                      iomap::WidgetSliderToGraphicsCanvasIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
-    canvas = iomap.output
     width  = Int(iomap.track_width)
     content_x, _ = _content_offset(p, w)
-    resolve_write_at(x) = resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[]) - content_x))
+    resolve_write_at(x) = resolve_slider_write(w, _slider_value(width, x - content_x))
     @gesture_case evt begin
         MouseDown(button, x, y) => begin
             button === :left || return nothing
@@ -6491,7 +6496,7 @@ function read_intent(::WidgetRadioGroupToGraphicsCanvas,
     selected = Int(w.selected)
     option = if evt isa MouseClick
         evt.button === :left || return nothing
-        _find_row_index(iomap.row_bounds, evt.y - Int(iomap.output.y))
+        _find_row_index(iomap.row_bounds, evt.y)
     elseif _is_plain_key(evt, :down, :right)
         _step_radio_option(selected, count, 1)
     elseif _is_plain_key(evt, :up, :left)
@@ -7104,11 +7109,10 @@ function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
     @gesture_case evt begin
         MouseClick(button, x, y) => begin
             button === :left || return nothing
-            canvas = iomap.output
             # The border and the padding belong to the control: a press on them
             # picks the segment beside it, so the whole control answers.
             widths = iomap.segment_widths
-            local_x = clamp(x - Int(canvas.x[]) - content_x, 0, max(0, sum(widths) - 1))
+            local_x = clamp(x - content_x, 0, max(0, sum(widths) - 1))
             segment = _toggle_group_segment(widths, local_x)
             # Pressing the segment that is already on is not a change. Answering
             # nothing rather than a write of the same value keeps an enclosing
@@ -7924,7 +7928,7 @@ function map_reference_backward(::WidgetAccordionToGraphicsCanvas, iomap, refere
     point = find_reference_point(reference)
     (point === nothing || !(iomap isa WidgetAccordionToGraphicsCanvasIoMap)) && return nothing
     _is_point_on_canvas(iomap.output, point) || return nothing
-    item = _find_row_index(iomap.header_bounds, point.y - Int(iomap.output.y))
+    item = _find_row_index(iomap.header_bounds, point.y)
     item === nothing ||
         return annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("items"),
                                         ConcreteReference(RangeReferenceStep(item - 1, item))))
@@ -7949,7 +7953,7 @@ end
 function _get_accordion_body_offset(iomap::WidgetAccordionToGraphicsCanvasIoMap, entry)
     (x, y, _, body_iomap) = entry
     canvas = body_iomap.output
-    (Int(iomap.output.x) + x + Int(canvas.x), Int(iomap.output.y) + y + Int(canvas.y))
+    (x + Int(canvas.x), y + Int(canvas.y))
 end
 
 # Invisible accordion (the printer returned a bare empty canvas): inert.
@@ -7968,7 +7972,7 @@ function read_intent(::WidgetAccordionToGraphicsCanvas,
     # A click on a header opens or closes a section of the view. It is view state,
     # so a history does not record it.
     if evt isa MouseClick && evt.button === :left
-        item = _find_row_index(iomap.header_bounds, evt.y - Int(iomap.output.y))
+        item = _find_row_index(iomap.header_bounds, evt.y)
         item === nothing ||
             return _write_view_state(w, "expanded", item == Int(w.expanded) ? 0 : item)
     end

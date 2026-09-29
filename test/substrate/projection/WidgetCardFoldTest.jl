@@ -126,7 +126,11 @@ function test_widget_card_fold()
         @test "the first body" in texts && !("the second body" in texts)
         at = _fold_text_positions(iomap.output)
         second = at["Second"]
-        press(x, y; button = :left) = read_intent(proj, iomap, MouseClick(button, x, y, ModifierKeys(); time = 0.0))
+        # The test is the window: it gives the accordion a press in the frame of
+        # its own canvas, the drawn place less the place of the canvas.
+        press(x, y; button = :left) =
+            read_intent(proj, iomap, MouseClick(button, x - Int(iomap.output.x), y - Int(iomap.output.y),
+                                                ModifierKeys(); time = 0.0))
 
         # A press on the title of a closed item opens it, and the other one closes.
         # It is view state, so a history does not record it.

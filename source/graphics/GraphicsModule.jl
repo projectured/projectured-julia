@@ -39,7 +39,7 @@ export is_infinite_canvas, compute_first_visible_index, has_declared_extent
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 export get_canvas_content_bounds
 export make_selection_ring, SELECTION_RING_COLOR
-export map_operation_position, shift_operation_position
+export map_operation_position, shift_operation_position, shift_event_position
 
 
 include("PointReferenceStep.jl")
@@ -49,6 +49,7 @@ include("GraphicsCaching.jl")
 include("GraphicsToGraphics.jl")
 include("SelectionRing.jl")
 include("OperationPosition.jl")
+include("EventPosition.jl")
 include("ReferenceBox.jl")
 
 end # module
