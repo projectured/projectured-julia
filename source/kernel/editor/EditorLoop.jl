@@ -62,7 +62,7 @@ function run_frame!(editor::Editor)
     # anything. It belongs to the frame rather than to the loop above it: a
     # driver that steps frames by hand — a playback, a test — must collect its
     # faults too. It runs first because a write to a log document has to happen
-    # outside every thunk, and this is the one point in a frame that is.
+    # outside every computation, and this is the one point in a frame that is.
     _run_barrier(editor, :report) do
         report_frame_faults!(editor)
     end

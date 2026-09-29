@@ -44,12 +44,12 @@ export FaultStore, record_fault!, drain_faults!, get_fault_records,
 export FaultPolicy, make_strict_fault_policy
 export report_fault!, run_fault_barrier
 
-include("FaultInterface.jl")   # the open seams (declaration-only)
-include("FaultDefaults.jl")    # what each seam answers on its own
-include("FaultRecord.jl")      # one fault as a value
-include("FaultStore.jl")       # the per-editor collection
-include("FaultPolicy.jl")      # whether the barriers catch, and the tiers
-include("FaultCascade.jl")     # report_fault! and the tiers
-include("FaultBarrier.jl")     # run_fault_barrier
+include("FaultInterface.jl")
+include("FaultDefaults.jl")
+include("FaultRecord.jl")
+include("FaultStore.jl")
+include("FaultPolicy.jl")
+include("FaultCascade.jl")
+include("FaultBarrier.jl")
 
 end # module

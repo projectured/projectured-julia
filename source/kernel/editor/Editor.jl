@@ -100,7 +100,7 @@ function Editor(backend, document, projection, devices;
         attach_wake_callback!(feed, wake)
     end
     # The fault store wakes the same way: a fault recorded while the editor
-    # sleeps — or during the frame, from inside a thunk — reaches the log on
+    # sleeps — or during the frame, from inside a computation — reaches the log on
     # the very next frame rather than on the next unrelated event.
     attach_fault_wake!(faults, wake)
     editor

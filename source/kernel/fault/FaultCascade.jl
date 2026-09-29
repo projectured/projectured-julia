@@ -3,16 +3,16 @@
 
 # The tiers, in the order they are tried:
 #
-#   1  in the output document, where it failed   — the barrier projection, above
-#   2  in the message log on the screen          — the store plus drain_faults!
-#   3  on the console                            — here
+#   1  a mark in the output document, where it failed
+#   2  a target of the store                     — record_fault! and drain_faults!
+#   3  the console                               — here
 #   4  a sound                                   — here
 #   5  nothing                                   — here
 #
-# Tiers 1 and 2 are not in this file, because neither needs a fallback: putting
-# a mark in the output is what the projection barrier already did, and putting a
-# record in the store is what `record_fault!` already did. This function is what
-# happens when a person can still be told and neither of those reaches one.
+# Tiers 1 and 2 are not in this file, because neither needs a fallback. Code that
+# can put a mark in its output puts it there and records the fault in the store,
+# and the drain hands each new record to the targets. `report_fault!` is for a
+# record that a person must see and that neither tier shows.
 
 """
     report_fault!(store, record; policy, backend) -> Symbol
@@ -41,7 +41,15 @@ See also [`run_fault_barrier`](@ref), which is what calls it.
 """
 function report_fault!(store, record; policy::FaultPolicy, backend)
     try
-        depth = _enter_fault_report!(store)
+        # A store that fails to count the depth gives depth 1, and the report goes
+        # on to the console. A store that fails to leave it keeps the tier.
+        is_entered = true
+        depth = try
+            _enter_fault_report!(store)
+        catch
+            is_entered = false
+            1
+        end
         try
             depth > 1 && return _report_on_console(policy, record) ? :console : :swallowed
             tier = _report_on_console(policy, record) ? :console : :swallowed
@@ -52,15 +60,18 @@ function report_fault!(store, record; policy::FaultPolicy, backend)
             end
             return tier
         finally
-            _leave_fault_report!(store)
+            if is_entered
+                try
+                    _leave_fault_report!(store)
+                catch
+                end
+            end
         end
     catch
         # Tier 5. Nothing left to try, and nothing this function may raise.
         return :swallowed
     end
 end
-
-report_fault!(store, ::Nothing; policy::FaultPolicy, backend) = :swallowed
 
 _enter_fault_report!(store::FaultStore) = (store.depth += 1; store.depth)
 _enter_fault_report!(::Nothing) = 1
@@ -95,7 +106,8 @@ end
 
 # The drain reports a target that could not take a record. It is the same tier 3,
 # and it must not be allowed to raise from inside the drain either.
-function _log_fault_report_failure(target, exception)
+function _log_fault_report_failure(policy::FaultPolicy, target, exception)
+    policy.is_console_enabled || return nothing
     try
         @error("[fault] a fault target refused a record",
                target = typeof(target), exception = exception)

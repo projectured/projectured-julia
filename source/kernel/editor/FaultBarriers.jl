@@ -27,10 +27,10 @@ many there were.
 Call it once per frame, before anything reads the projection. This is the one
 place a fault is reported on the console, because it is the one place that knows
 which records are new — a printer's fault arrives here too, recorded from inside
-a thunk that could not report anything itself.
+a computation that could not report anything itself.
 """
 function report_frame_faults!(editor::Editor)
-    records = drain_faults!(editor.faults)
+    records = drain_faults!(editor.faults; policy = editor.fault_policy)
     for record in records
         report_fault!(editor.faults, record; policy = editor.fault_policy,
                       backend = editor.backend)

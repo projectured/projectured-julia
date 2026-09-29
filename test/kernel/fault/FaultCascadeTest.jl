@@ -2,7 +2,8 @@
 `FaultModule` — the report cascade.
 
 Confirms:
-- `report_fault!` never throws, also when the store and the backend throw;
+- `report_fault!` never throws, also when the store and the backend throw, and
+  a store that throws does not close the console tier;
 - with the console open, a report reaches the console and plays no sound;
 - with the console closed, a report plays the sound;
 - a fault of a device plays the sound also when the console took it;
@@ -72,12 +73,10 @@ function test_fault_cascade()
              report_fault!(store, record; policy = FaultPolicy(),
                            backend = AngryBackend()))
         end
-        @test tiers[1] === :swallowed
+        @test tiers[1] === :console
         @test tiers[2] isa Symbol
         quiet = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
         @test report_fault!(store, record; policy = quiet,
-                            backend = AngryBackend()) === :swallowed
-        @test report_fault!(store, nothing; policy = FaultPolicy(),
                             backend = AngryBackend()) === :swallowed
         @test store.depth == 0
     end

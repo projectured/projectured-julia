@@ -10,7 +10,7 @@ Show `record` on `target`, whatever showing it means there.
 
 Use it through [`drain_faults!`](@ref) rather than directly: the drain calls it
 once per new record, per target, on the editor's own task. A target that holds
-cells may therefore write them, which a reactive thunk may not.
+cells may therefore write them, which a reactive computation may not.
 
 The kernel answers nothing. A package that owns a log document adds the method
 for its own type, so this layer never names one.

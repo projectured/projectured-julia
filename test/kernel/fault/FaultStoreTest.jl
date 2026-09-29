@@ -65,7 +65,11 @@ function test_fault_store()
         @test store.dropped == 7
     end
 
-    @testset "the drain hands a record over once per power of ten" begin
+    @testset "a store holds at least one fault" begin
+        @test_throws ArgumentError FaultStore(capacity = 0)
+    end
+
+    @testset "one drain hands a record over once, with its last count" begin
         store = FaultStore()
         target = QuietTarget(Any[])
         attach_fault_target!(store, target)
@@ -73,10 +77,18 @@ function test_fault_store()
             record_fault!(store, :print; origin = :SyntaxToText,
                           exception = ErrorException("e"))
         end
-        # Counts 1, 10, 100 and 1000 each open a new bucket; 3000 does not.
-        @test length(drain_faults!(store)) == 4
-        @test length(target.seen) == 4
+        # Counts 1, 10, 100 and 1000 each open a new bucket before the drain.
+        drained = drain_faults!(store)
+        @test length(drained) == 1
+        @test drained[1].count == 3000
+        @test length(target.seen) == 1
         @test isempty(drain_faults!(store))
+        # The next bucket starts at 10000, and it queues the record again.
+        for _ in 1:7000
+            record_fault!(store, :print; origin = :SyntaxToText,
+                          exception = ErrorException("e"))
+        end
+        @test [record.count for record in drain_faults!(store)] == [10000]
     end
 
     @testset "a drain with nothing new writes nothing" begin
@@ -96,8 +108,19 @@ function test_fault_store()
         attach_fault_target!(store, AngryTarget())
         attach_fault_target!(store, good)
         record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
-        @test length(drain_faults!(store)) == 1
+        records = @test_logs((:error, "[fault] a fault target refused a record"),
+                             drain_faults!(store))
+        @test length(records) == 1
         @test length(good.seen) == 1
+    end
+
+    @testset "a policy with the console closed writes no line for a refusal" begin
+        store = FaultStore()
+        attach_fault_target!(store, AngryTarget())
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
+        quiet = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
+        records = @test_logs drain_faults!(store; policy = quiet)
+        @test length(records) == 1
     end
 
     @testset "no store is a working store" begin
