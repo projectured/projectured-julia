@@ -683,8 +683,10 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     reader; the table keeps one offset, gives each pane its part, and
     relocates the head of its rows. The pane then needs no frozen regions:
     `get_frozen_extent`, `get_frozen_elements` and `_pane_frozen_region`
-    have no other user. Open: whether the eager table changes too, and
-    whether this is a plan of its own before the rest of phase 2.
+    have no other user. The eager table changes too, and
+    this is a plan of its own before the rest of phase 2. Both yes (the
+    owner, 2026-09-29): [a-table-scrolls-its-own-parts.md](a-table-scrolls-its-own-parts.md)
+    comes first, and it also gives the lazy columns of §4.2.
   - [x] **2.5 The display** (`c4cb7c877`). The editor task is pinned to one
     thread with the internal `jl_set_task_tid`, as `Threads.@threads :static`
     does (the owner, 2026-09-29: "(a)"). A test fails when a release of
