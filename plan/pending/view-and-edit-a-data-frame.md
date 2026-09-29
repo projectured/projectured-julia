@@ -676,9 +676,33 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     the body band and that row's offset from the head; the view shares the
     cell. Waits for the owner's word, because it is a new field of
     `WidgetScrollPane`.
-  - [ ] **2.5 The display.** The editor task is pinned to one thread with the
-    internal `jl_set_task_tid`, as `Threads.@threads :static` does (the owner,
-    2026-09-29: "(a)"). A test fails when a release of Julia changes it.
+  - [x] **2.5 The display** (`c4cb7c877`). The editor task is pinned to one
+    thread with the internal `jl_set_task_tid`, as `Threads.@threads :static`
+    does (the owner, 2026-09-29: "(a)"). A test fails when a release of
+    Julia changes it.
+    - `display_in_editor(df; title, backend)` and `ProjecturedDisplay`; the
+      package pushes no display. `close_data_frame_editor!()` stops the
+      editor. The editor is `ProjecturedScreen.make_editor` of a `PaneTree`,
+      drawn by `PaneToWidget` and `NaturalToGraphics`; a new frame is
+      `open_pane!`, a frame shown again is `focus_pane!` of its tab.
+    - The thread is the last thread of the default pool that is not the
+      caller's. With no such thread, the editor runs on the caller's thread
+      with `@async`.
+    - The session keeps each frame by identity (`IdDict`). A `WeakKeyDict`
+      compares with `isequal`, so two frames with equal rows were one tab,
+      and a lookup hashed every row.
+    - A closed window ends no loop, so a display after the window closed
+      ends that loop and starts a new editor.
+    - The package depends on `ProjecturedSdl`, `ProjecturedScreen` and
+      `ProjecturedPane` too.
+    - Checked in a real REPL (plain `julia`) with a real SDL window: the
+      window shows the table in a tab; the loop runs on thread 2, sticky; the
+      REPL answers an input in 1.2 ms with the editor open, as without it;
+      a second frame opens a second tab; the close ends the loop. A call that
+      the REPL posts to the editor directly fails with "method too new",
+      which is why the package posts through `invokelatest`. The SDL window
+      has an empty `WM_NAME`, so a tool that finds a window by that name does
+      not find it; the driver found it by its class and its size.
 - [ ] **3. Refresh.** The three levels of §4.3. The triggers A, B with the
   busy flag, and D. C is a keyword that is off by default (D3).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
