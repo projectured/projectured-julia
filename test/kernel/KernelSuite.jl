@@ -76,6 +76,8 @@ function test_kernel()
         test_device_module()
         test_gesture_recognizer()
         test_gesture_binding()
+        test_iomap_reconcile()
+        test_iomap_defaults()
         test_headless_backend()
         test_escape_quit()
         test_editor_inbox()
@@ -108,6 +110,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_rerooting,
        test_inversion, test_traversal, test_event_module, test_event_case,
        test_device_module, test_gesture_binding, test_gesture_recognizer,
+       test_iomap_reconcile, test_iomap_defaults,
        test_headless_backend, test_agent_seam,
        test_declared_api, test_search_query, test_meaning_search, test_search_answer,
        test_code_execution,
