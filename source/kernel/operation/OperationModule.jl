@@ -35,9 +35,9 @@ any object carrying `editor.document`.
 """
 module OperationModule
 
-using ..FaultModule
 using ..CellModule
 using ..DocumentModule
+using ..FaultModule
 using ..ReferenceModule
 using ..SelectionModule
 using Base.ScopedValues: ScopedValue, with
@@ -61,11 +61,11 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        # from Description.jl
        describe_operation, describe_reference
 
-include("OperationInterface.jl")   # the operation contract (declaration-only)
-include("OperationDefaults.jl")    # the fallback behaviours the contract supplies itself
-include("Operations.jl")  # concrete ops, splice helpers, traversal seam
-include("Rerooting.jl")   # reference-rewrite seams + reroot_reference
-include("Inversion.jl")  # the way back: inverses + the slot seam
-include("Description.jl") # one line about an operation, for a human
+include("OperationInterface.jl")
+include("OperationDefaults.jl")
+include("Operations.jl")
+include("Rerooting.jl")
+include("Inversion.jl")
+include("Description.jl")
 
 end # module

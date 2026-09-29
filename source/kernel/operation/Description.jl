@@ -1,10 +1,4 @@
-# Fragment of `OperationModule` — how an operation is written for a human. One
-# line, short enough for a list: `select entries[1].value`, `set entries[2].key =
-# "b"`, `compound(2): … + …`.
-#
-# It lives beside the operations it describes, because more than one thing shows
-# a list of them: a log of what the person did, a history of what can be taken
-# back, a listing of what is available.
+# Fragment of `OperationModule` — how an operation is written for a human, in one line.
 
 """
     describe_operation(operation) -> String
@@ -19,16 +13,18 @@ needs no change here.
 """
 describe_operation(::Nothing) = "no operation"
 describe_operation(::DoNothingOperation) = "do nothing"
-describe_operation(operation::ReplaceViewStateOperation) = describe_operation(operation.operation)
 describe_operation(::QuitEditorOperation) = "quit"
 describe_operation(::SelectNextInsertionOperation) = "select next insertion"
 describe_operation(::ToggleCollapseOperation) = "toggle collapse"
-describe_operation(operation::ReplaceSelectionOperation) = "select " * _short_reference(operation.path)
+describe_operation(operation::ReplaceSelectionOperation) =
+    "select " * _short_reference(operation.path)
 describe_operation(operation::AdjustZoomOperation) = "zoom " * _delta(operation.delta)
-describe_operation(operation::AdjustFontZoomOperation) = "font zoom " * _delta(operation.delta)
+describe_operation(operation::AdjustFontZoomOperation) =
+    "font zoom " * _delta(operation.delta)
 
 describe_operation(operation::ReplaceReferencedValueOperation) =
-    string("set ", _short_reference(operation.reference), " = ", _short_value(operation.value))
+    string("set ", _short_reference(operation.reference), " = ",
+           _short_value(operation.value))
 
 describe_operation(operation::CompoundOperation) =
     string("compound(", length(operation.operations), "): ",
@@ -57,7 +53,8 @@ _delta(delta::Integer) = delta > 0 ? "in" : delta < 0 ? "out" : "reset"
 `operation` start at: `set items.json › [2].price = 12` in place of the whole
 path from the root.
 """
-describe_operation(operation, root) = with(() -> describe_operation(operation), _DESCRIBED_ROOT => root)
+describe_operation(operation, root) =
+    with(() -> describe_operation(operation), _DESCRIBED_ROOT => root)
 
 """
     describe_reference(reference, root) -> String
@@ -89,7 +86,8 @@ end
 _short_reference(reference) = _truncate(string(reference), 60)
 
 _write_reference(reference::Reference) =
-    _truncate(sprint(show, strip_reference_types(reference); context = :compact => true), 60)
+    _truncate(sprint(show, strip_reference_types(reference);
+                     context = :compact => true), 60)
 
 # `title › rest` for the deepest document on `reference` that has a title, where
 # `rest` starts at the document that titled document edits; `nothing` when no
@@ -112,7 +110,8 @@ function _find_titled_reference(root, reference::Reference)
     while depth <= length(steps) && depth < length(nodes)
         field = get_edited_field(nodes[depth])
         step = steps[depth]
-        (field !== nothing && step isa FieldReferenceStep && step.name == String(field)) || break
+        (field !== nothing && step isa FieldReferenceStep &&
+         step.name == String(field)) || break
         depth += 1
     end
     rest = steps[depth:end]
@@ -129,7 +128,8 @@ function _get_title_text(node)
         nothing
     end
     title === nothing && return nothing
-    text = strip(string(title isa Document && hasproperty(title, :value) ? title.value : title))
+    value = title isa Document && hasproperty(title, :value) ? title.value : title
+    text = strip(string(value))
     isempty(text) ? nothing : String(text)
 end
 
@@ -140,7 +140,8 @@ _short_value(value::Union{Number,Bool,Nothing}) = string(value)
 _short_value(value) = string(nameof(typeof(value)))
 
 _truncate(text::AbstractString, limit::Integer) =
-    length(text) <= limit ? String(text) : String(text[1:nextind(text, 0, limit - 1)]) * "…"
+    length(text) <= limit ? String(text) :
+        String(text[1:nextind(text, 0, limit - 1)]) * "…"
 
 # A wrapper is what it holds: the wrapper is how a step is recorded, not what the
 # step does.

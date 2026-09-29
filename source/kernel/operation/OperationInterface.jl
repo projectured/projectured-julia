@@ -1,8 +1,4 @@
-# Fragment of `OperationModule` — the operation **contract**: the `Operation`
-# abstract supertype, the `WrappingOperation` supertype an operation that holds
-# another implements, and the `evaluate_operation` / `invalidate_projection!`
-# generics. The concrete operations and the seams that implement and extend this
-# contract live in `Operations.jl` and `Rerooting.jl`.
+# Fragment of `OperationModule` — the contract: the abstract types and the open generics.
 
 """
     Operation
