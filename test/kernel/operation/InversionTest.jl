@@ -6,10 +6,11 @@ apply the inverse, and the document is what it was.
 
 A **test-local** operation with no method proves the default is `nothing`, and a
 test-local wrapper proves a wrapper's way back is the way back of what it holds.
-The lists are a test-local collection that keeps each element in a cell of its
-own, so a splice must give each item as it is and let the collection wrap it. A
-second test-local collection writes a value into the slot cell that is there, so
-the way back of an overwrite must hold the old value and not the slot.
+It also verifies the splice helpers that the text edits use. The lists are a
+test-local collection that keeps each element in a cell of its own, so a splice
+must give each item as it is and let the collection wrap it. A second test-local
+collection writes a value into the slot cell that is there, so the way back of an
+overwrite must hold the old value and not the slot.
 """
 
 using Test
@@ -67,6 +68,10 @@ end
 
 @document struct InvBox
     collapsed::Bool
+end
+
+@document struct InvNumber
+    value::Union{Nothing, Real}
 end
 
 # The editor an operation is applied against: whatever object holds the document.
@@ -203,6 +208,35 @@ function test_inversion()
     @testset "a compound of one operation holds that operation" begin
         compound = CompoundOperation(DoNothingOperation())
         @test compound.operations == Any[DoNothingOperation()]
+    end
+
+    # Each text edit goes through this one splice, between 0-based boundaries, so a
+    # character of more than one byte stays whole.
+    @testset "splice_string replaces the characters between two boundaries" begin
+        @test splice_string("hello", 1, 3, "EY") == "hEYlo"
+        @test splice_string("abc", 1, 1, "x") == "axbc"
+        @test splice_string("aéb", 1, 2, "x") == "axb"
+        @test splice_string("abc", -1, 1, "x") == "xbc"
+        @test splice_string("abc", 2, 10, "x") == "abx"
+    end
+
+    @testset "splice_number splices the text and reads the number back" begin
+        @test splice_number("4", 1, 1, "2") === 42
+        @test splice_number("4", 1, 1, ".5") === 4.5
+        @test splice_number("1", 1, 1, "e3") === 1000.0
+        @test splice_number("4", 0, 1, "") === nothing
+        @test splice_number("4", 1, 1, "x") === nothing
+    end
+
+    @testset "splice_value! writes the splice of the value that the field holds" begin
+        leaf = _leaf("abc")
+        splice_value!(leaf, :value, leaf.value, 1, 2, "X")
+        @test leaf.value == "aXc"
+        splice_value!(leaf, :value, nothing, 0, 0, "new")
+        @test leaf.value == "new"
+        number = InvNumber(4, nothing)
+        splice_value!(number, :value, number.value, 1, 1, "2")
+        @test number.value === 42
     end
 
     # An entry outlives the moment it was made, and the document may move in the

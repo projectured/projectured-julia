@@ -71,6 +71,8 @@ function test_kernel()
         test_rerooting()
         test_inversion()
         test_traversal()
+        test_description()
+        test_intent()
         test_event_module()
         test_event_case()
         test_device_module()
@@ -107,7 +109,8 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_evaluation, test_reference_rules, test_referenced_document,
        test_rerooting,
-       test_inversion, test_traversal, test_event_module, test_event_case,
+       test_inversion, test_traversal, test_description, test_intent,
+       test_event_module, test_event_case,
        test_device_module, test_gesture_binding, test_gesture_recognizer,
        test_headless_backend, test_agent_seam, test_agent_loop,
        test_declared_api, test_search_query, test_meaning_search, test_search_answer,
