@@ -477,7 +477,7 @@ convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothin
 form.
 
 For `@document`, the keyword constructor is generated for the bare name, the
-`CI`-prefixed and `CM`-prefixed spellings, and the native `MFoo` layout. It is
+`IC`-prefixed and `MC`-prefixed spellings, and the native `MFoo` layout. It is
 generated only when **the programmer** declares at least one field default; the
 always-defaulted, macro-injected `selection` field does not itself count. A struct with no defaults of its own
 (`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free

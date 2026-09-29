@@ -23,10 +23,8 @@
 # `true` when `a` and `b` are the same document IGNORING variant — a reactive
 # `RCFoo`, an immutable `ICFoo`, and the native mutable `MFoo` all answer `true`,
 # via `get_document_family` (the schema's abstract family type; for a plain type it
-# falls back to the name wrapper, so this is equivalent to the old wrapper test
-# everywhere except that it now also unifies the two struct layouts). The shape
-# test the sync makes before recursing into a slot: same document ⇒ sync in place,
-# different ⇒ rebuild it.
+# falls back to the name wrapper). The shape test the sync makes before recursing
+# into a slot: same document ⇒ sync in place, different ⇒ rebuild it.
 _is_same_document_type(a, b) = get_document_family(a) === get_document_family(b)
 
 # A source element rebuilt for a shadow of cell kind `K`: a document is copied in
@@ -116,9 +114,9 @@ function _sync_elements!(shadow, source, K, policy, depth)
     for i in 1:min(limit, nc)
         s, c = source[i], shadow[i]
         if s isa Document
-            # A slot already holding the very same object needs no work — the
-            # original short-circuit, kept: only a slot that is a *different*
-            # object, or a same-type one to recurse into, reaches the walk.
+            # A slot already holding the very same object needs no work: only a
+            # slot that is a *different* object, or a same-type one to recurse
+            # into, reaches the walk.
             same = c isa Document && _is_same_document_type(c, s)
             if same || !isequal(c, s)
                 new = _synced_child(c, s, K, policy, depth + 1)

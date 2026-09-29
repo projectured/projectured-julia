@@ -65,9 +65,7 @@ function get_document_family end
 
 The **cell layout** of a schema: the parametric struct whose fields hold cells.
 Together with [`get_document_native_type`](@ref) this is the layout registry — the way
-to ask for a layout without naming a type. Before it existed the only way to reach
-a layout was to write its name, which is why a caller that wanted the plain struct
-had to spell `MFoo`.
+to ask for a layout without naming a type.
 
 Takes any variant, because every variant of a schema subtypes its family. Defaults
 to the type's own name wrapper, so a hand-written document is its own cell layout
@@ -163,8 +161,7 @@ layout, when the reactive representation of a value differs from the plain one.
 **This is what lets a declaration state the PLAIN type.** A field written
 `items::Vector{Item}` is exactly that in the native layout — no cells — while
 the cell layout substitutes the reactive collection, so an editor still gets one
-cell per element. Before it, a declaration had to name `CellVector` to get the
-editor what it needs, and the plain layout then carried cells it had no use for.
+cell per element. The declaration names no reactive type.
 
 Keyed on the declared type's **symbol**, the same way `is_collection_field_type`
 is, so the `@document` macro asks without resolving or naming the type: the

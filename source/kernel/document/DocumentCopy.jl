@@ -253,8 +253,7 @@ function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing,
     # The target is the schema's **cell layout**, not the source's own layout. A kind
     # is a property of a cell, so a kinded copy only means something in a tree that
     # has cells; a native source therefore converts here rather than rebuilding
-    # itself. Building through `Base.typename(T).wrapper` instead is what let a
-    # native child land in a reactive shadow, where nothing could invalidate it.
+    # itself. A native child in a reactive shadow could never invalidate a reader.
     base = _apply_schema_parameters(get_document_cell_type(T), T)
     Ts = _declared_value_types(base)
     # Every field of a macro-emitted cell layout is a cell slot, whatever the source
