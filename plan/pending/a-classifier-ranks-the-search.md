@@ -538,7 +538,7 @@ Each step says what stops the stage.
   the guides.
 - [x] **Step 6. The decision.** The owner reads the tables and decides if
   Stage 2 runs, and with which backend. Done 2026-09-28: D9.
-- [ ] **Step 7. Stage 2** (§5f, §8c). The mechanism is approved (D5); the step
+- [x] **Step 7. Stage 2** (§5f, §8c). The mechanism is approved (D5); the step
   starts when Step 6 says so.
   - [x] The kernel: `RelevanceModel`, `set_relevance_model!`, the `context` of
     both searches, the ranking by relevance, and a miss of a large declaration
@@ -547,8 +547,8 @@ Each step says what stops the stage.
   - [x] The backend: `make_jev_relevance_model` in `tool/search/typesafe_classifier.jl`.
   - [x] The harness: the conditions in `tool/assistant/study_rehearsal.jl` of
     omnet-julia (`e531c0e6`), and `/var/tmp/classifier-search/stage2/run_conditions.jl`.
-  - [ ] The runs: six conditions, seeds 1 to 5, in a warm session of the scratch
-    environment of the two worktrees.
+  - [x] The runs: six conditions (§10, Step 7), in a warm session of the
+    scratch environment of the two worktrees. Done 2026-09-29.
 - [ ] **Step 8. Stage 3** (§5g), if the owner asks for it.
 
 ## 7. Rules of a run
@@ -1119,3 +1119,58 @@ application showed on the way, and the harness works around the first:
 - **The `search_api` of the scratch module passed the meaning model and not the
   relevance model**, so a search written as code skipped Jev. Fixed
   (`1263eed6`).
+
+### Step 7, the results of Stage 2, 2026-09-29
+
+The study rehearsal of omnet-julia with `qwen3.8:27b` on the seeds, the full
+declaration of 5,187 names in every condition. Stage 2 cost $0.52 of Jev; the
+ledger holds $4.38.
+
+| condition | seeds | turns passed, mean of 7 | full arcs | turn 5 passed | rounds per passed turn 1–5 | `search_api` / `search_guides` per run | guessed names per run |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| c5 meaning, no guide | 10 | 4.4 | 2 | 4 of 8 | 3.40 | 1.7 / 0.6 | 0.5 |
+| c6 Jev, the model's context, no guide | 10 | 5.2 | 4 | 8 of 8 | 3.34 | 3.4 / 1.9 | 0.2 |
+| c7 Jev, no context, no guide | 10 | 5.0 | 2 | 9 of 9 | 3.50 | 4.0 / 2.1 | 0.0 |
+| c8 Jev, the request as context, no guide | 10 | 5.2 | 3 | 9 of 9 | 3.09 | 3.2 / 1.4 | 0.4 |
+| c1 meaning, with the guide | 3 | 7.0 | 3 | 3 of 3 | 2.07 | 0 / 0.3 | 0 |
+| c3 Jev, with the guide | 3 | 7.0 | 3 | 3 of 3 | 2.07 | 0 / 0.3 | 0 |
+
+Seed by seed, against c5 (turns passed): c6 better on 6 seeds, worse on 2; c7
+better on 6, worse on 1; c8 better on 5, worse on 1. At ten seeds none of the
+three is significant alone (a sign test gives 0.13 to 0.29); together they
+point one way.
+
+- **With the guide sections, the model does not search, and Jev changes
+  nothing**: 3 of 3 full arcs in both conditions, the same rounds.
+- **Without them, turn 6 is a wall of composition, not of names.** The model
+  knew every name it used; it failed on the code that joins them (`Startswith`
+  for `startswith`, `v[! :runID]`, the filter of a vector by run). A ranking of
+  names can not move it.
+- **The difference is in turn 5, and it comes from turns 2 and 3.** Under
+  meaning, 4 of 8 runs failed turn 5 with no result file at all, because the
+  NED or the INI they wrote earlier held an invented key or parameter
+  (`maxMessageCount = -1`, `arrivalTime`, `packetLimit`) or a wrong topology
+  (a `Server` after the `Queue`). The checks of turns 2 and 3 only test that a
+  file is there. Under Jev, 26 of 26 runs passed turn 5.
+- **The mechanism is plausible and measured in part**: the guide section
+  "OT-CONFIGURE — write the configuration" reached the model in 7, 7 and 5 of 10
+  Jev runs and in 3 of 10 meaning runs, and the model searched about twice as
+  often with Jev, which is what a model does when the answers are worth it.
+- **The context is not what helps here**: c7 (none) and c6 (the model's) end
+  alike, and c8 (the request) takes the fewest rounds. The context mattered in
+  Stage 1 on the pairs, which the study does not hold.
+- **A false failure of the harness was found and fixed.** The check of turn 2
+  read a submodule only with its `{` on the same line, so a correct network
+  with the brace on the next line failed, and the arc stopped at turn 2. It hit
+  c5 seeds 4 and 5; the check was fixed (`5bfa12fd` in omnet-julia) and the two
+  seeds ran again (4 of 7 each, from 1). The old runs are in `stage2/excluded/`.
+- **Other sessions share the machine**: the memory check of the harness
+  skipped seeds while another session's suites ran; the command now waits for
+  memory, and every seed ran.
+
+**What Stage 2 says.** At the level of the agent, a classifier search helps where
+the model must find what it does not know (without the guide sections): more
+turns passed, a surer turn 5, fewer guessed names. The gain is modest at ten
+seeds, and the wall of the study is composition, which the guide sections
+answer and a search does not. Where the knowledge is already in the system
+text, the search is not used and changes nothing.
