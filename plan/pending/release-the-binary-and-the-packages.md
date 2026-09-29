@@ -332,6 +332,24 @@ check) also decides the licence texts that Part B copies.
       no folder moves. Done for three on 2026-09-29: `DejaVu-Bitstream-Vera.txt`,
       `Inconsolata-OFL.txt`, `Ubuntu-UFL.txt`. Liberation after R17, below.
 
+**R18, done on 2026-09-30.** `build_source_archive` (`source/builder/SourceArchive.jl`)
+writes `<name>-<version>-sources.tar` beside the binary archive: for each
+`SourceOffer`, the tarball of its authors, downloaded once into
+`build/source-cache` and checked against a SHA-256 that a download verified,
+the patches its build applies, and a README with the JLL, the recipe at its
+Yggdrasil commit and a note. It first checks that each JLL carries the version
+of its offer (stdlib, manifest, or `VERSION` for Julia) and stops otherwise, so
+an upgrade can not ship the wrong source. `PROJECTURED_SOURCE_OFFERS` holds
+seven parts, researched and verified on 2026-09-30: alsa-lib 1.2.15.3, GMP 6.3.0
+(two patches), MPFR 4.2.2, GCC 15.2.0 (the runtime libraries; their banner says
+15.2.0), libgit2 at `0060d9cf`, 7-Zip 26.02 (which `p7zip_jll` 17.8.2 builds)
+and Julia 1.13.0. The archive of this release: 131 MB, 2.8 s from the cache.
+Two limits, which its README says: GitHub does not promise the bytes of the
+archive of a git revision (libgit2), and the patches that Yggdrasil applies to
+GCC itself are named by their recipe, not pinned to a commit.
+`build_projectured_distribution` builds it after the bundle and before the
+archive, and the README of the archive names it. `test_builder()` 217.
+
 **R3a, done on 2026-09-29.** `write_app_package` and `build_executable` take
 `stand_ins`, `"<name>" => "<uuid>"` of JLLs that a binary must not carry. The
 builder writes a package of the same name and uuid under `stand_in/` of the app

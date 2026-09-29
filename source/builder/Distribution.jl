@@ -12,7 +12,7 @@
 """
     build_distribution(context; name, bundle, requirements, expect, version,
                          output, staging, source, licence_texts, project,
-                         licence_cache, credits, extra_texts) -> String
+                         licence_cache, credits, extra_texts, source_archive) -> String
 
 Check that the bundle of the binary called `name` travels, and write it as an
 archive. Answers the path of the archive.
@@ -46,6 +46,9 @@ archive. Answers the path of the archive.
   the documentation; the README of the archive and the index hold them.
   `extra_texts`, `"<name>" => "<file of context.root>"`, adds the text of a
   library whose JLL names no artifact to take it from.
+- `source_archive` — the file name of the archive of the sources that the
+  licences of some libraries ask for ([`build_source_archive`](@ref)), which the
+  README names; `nothing` names none.
 
 The archive unpacks into `<name>-<version>/` and never into the directory it was
 unpacked in.
@@ -65,7 +68,8 @@ function build_distribution(context::BuildContext; name::AbstractString,
                               project::AbstractString = joinpath(context.root, "build", "app", String(name)),
                               licence_cache::AbstractString = joinpath(context.root, "build", "licence-cache"),
                               credits = String[],
-                              extra_texts = Pair{String,String}[])
+                              extra_texts = Pair{String,String}[],
+                              source_archive::Union{AbstractString,Nothing} = nothing)
     bundle = abspath(bundle)
     isdir(bundle) ||
         error("build_distribution: no bundle at $bundle — build the executable first")
@@ -111,7 +115,7 @@ function build_distribution(context::BuildContext; name::AbstractString,
                                            extra_texts = [name => joinpath(context.root, file)
                                                           for (name, file) in extra_texts])
     write_readme(staged; name, version, requirements, licences, source,
-                 third_party = licence_texts, credits)
+                 third_party = licence_texts, credits, source_archive)
 
     mkpath(output)
     archive = joinpath(abspath(output),
@@ -252,7 +256,7 @@ end
 
 """
     write_readme(staged; name, version, requirements, licences, source,
-                 third_party, credits) -> String
+                 third_party, credits, source_archive) -> String
 
 What a person who unpacks the archive reads. `source`, when a caller gives it,
 says where the source code of this version is, which a licence such as MPL-2.0
@@ -268,7 +272,8 @@ function write_readme(staged::AbstractString; name, version, requirements,
                         licences = String[],
                         source::Union{AbstractString,Nothing} = nothing,
                         third_party::Bool = false,
-                        credits = String[])
+                        credits = String[],
+                        source_archive::Union{AbstractString,Nothing} = nothing)
     lines = ["$name $version",
              "",
              "Built $(Dates.format(Dates.now(), "yyyy-mm-dd")) by ProjecturedBuilder, for " *
@@ -310,6 +315,11 @@ function write_readme(staged::AbstractString; name, version, requirements,
     if third_party
         push!(lines, "The licences of the other parts of this archive, the Julia runtime and the")
         push!(lines, "libraries among them: share/licenses/README.")
+        push!(lines, "")
+    end
+    if source_archive !== nothing
+        push!(lines, "The source code of the libraries under the LGPL and the GPL in this archive:")
+        push!(lines, "$source_archive, beside this archive in the same release.")
         push!(lines, "")
     end
     for credit in credits

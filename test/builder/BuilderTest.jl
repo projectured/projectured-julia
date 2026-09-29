@@ -645,6 +645,67 @@ function test_builder()
             rm(empty_bundle; recursive = true, force = true)
         end
 
+        @testset "a source archive holds exactly the offered sources" begin
+            root = mktempdir()
+            context = _test_context()
+            # Two upstream tarballs and a patch, served from files.
+            for (file, text) in (("lib-1.0.tar.gz", "library source"), ("fix.patch", "a patch"))
+                write(joinpath(root, file), text)
+            end
+            digest(file) = bytes2hex(open(ProjecturedBuilder.sha256, joinpath(root, file)))
+            stdlib = joinpath(root, "stdlib")
+            mkpath(joinpath(stdlib, "Lib_jll"))
+            write(joinpath(stdlib, "Lib_jll", "Project.toml"), "name = \"Lib_jll\"\nversion = \"1.0.0+1\"\n")
+            project = joinpath(root, "project")
+            mkpath(project)
+            write(joinpath(project, "Manifest.toml"), """
+                [[deps.Other_jll]]
+                git-tree-sha1 = "1111111111111111111111111111111111111111"
+                uuid = "00000000-0000-0000-0000-0000000000cc"
+                version = "2.0.0+0"
+                """)
+            offer(jll, version; sha = digest("lib-1.0.tar.gz"), name = "Lib (a library)") =
+                SourceOffer(name, "1.0", jll, version, "file://$root/lib-1.0.tar.gz", sha;
+                            recipe = "https://example.org/recipe",
+                            patches = ["file://$root/fix.patch"], notes = "A note.")
+            build(offers) = build_source_archive(context; name = "thing", version = "0.1.0", offers,
+                                                 output = joinpath(root, "out"),
+                                                 cache = joinpath(root, "cache"), project, stdlib)
+
+            error_text(action) = try action(); "" catch exception; sprint(showerror, exception) end
+            archive = build([offer("Lib_jll", "1.0.0+1"), offer("Other_jll", "2.0.0+0"; name = "Other"),
+                             offer("julia", string(VERSION); name = "Julia")])
+            @test basename(archive) == "thing-0.1.0-sources.tar"
+            listing = split(read(`tar -tf $archive`, String))
+            @test "thing-0.1.0-sources/README" in listing
+            @test "thing-0.1.0-sources/Lib-1.0/lib-1.0.tar.gz" in listing
+            @test "thing-0.1.0-sources/Lib-1.0/patches/fix.patch" in listing
+            readme = read(`tar -xOf $archive thing-0.1.0-sources/README`, String)
+            @test "thing-0.1.0-sources/Other-1.0/lib-1.0.tar.gz" in listing
+            for line in ("Lib (a library) 1.0", "of:      Lib_jll 1.0.0+1", "of:      Other_jll 2.0.0+0",
+                         "recipe:  https://example.org/recipe", "patches: fix.patch", "  A note.")
+                @test occursin(line, readme)
+            end
+
+            # A tarball that is not the one that was checked stops the build.
+            @test occursin("must be checked again",
+                           error_text(() -> build([offer("Lib_jll", "1.0.0+1"; sha = "0"^64)])))
+            # So does a JLL of another version than its offer, and one the binary lacks.
+            @test occursin("change the offer", error_text(() -> build([offer("Lib_jll", "1.0.0+2")])))
+            @test occursin("carries no Missing_jll", error_text(() -> build([offer("Missing_jll", "1.0.0")])))
+            # And two offers that would share one folder.
+            @test occursin("share the folder",
+                           error_text(() -> build([offer("Lib_jll", "1.0.0+1"), offer("julia", string(VERSION))])))
+
+            # The offers of this repository: seven parts, each with a checked SHA-256.
+            @test length(PROJECTURED_SOURCE_OFFERS) == 7
+            @test all(offer -> occursin(r"^[0-9a-f]{64}$", offer.sha256), PROJECTURED_SOURCE_OFFERS)
+            @test Set(offer.jll for offer in PROJECTURED_SOURCE_OFFERS) ==
+                  Set(["alsa_jll", "GMP_jll", "MPFR_jll", "CompilerSupportLibraries_jll",
+                       "LibGit2_jll", "p7zip_jll", "julia"])
+            rm(root; recursive = true)
+        end
+
         @testset "a distribution carries the libstdc++ of Julia, not of the machine" begin
             own = joinpath(Sys.BINDIR, "..", "lib", "julia", "libstdc++.so.6")
             if Sys.islinux() && isfile(own)
