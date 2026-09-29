@@ -14,6 +14,12 @@ built), while a delete or front-insert shifts indices so the shifted tail
 re-projects — which is *correct*, because a child's absolute reference moved
 there and reuse would be wrong. `elements_fn` is read inside the cell on every
 recompute, so the reactive dependency on the collection's structure is preserved.
+
+The IoMap that `make_iomap` returns must hold `element`, as its `input`. The cache
+key is `objectid(element)`, a number and not a reference, so only the cached IoMap
+keeps the element alive. The key of a mutable element comes from its address, and
+Julia can give that address to a new object after the element is collected. A new
+element at the same index then gets the IoMap of the old one.
 """
 function reconcile_child_iomaps(elements_fn, make_iomap)
     # The IoMaps of the last computation. Each computation fills a new table, which
@@ -46,6 +52,12 @@ during an edit inside the value document) the built child IoMap is reused; when
 the field is *swapped* for a new object, for example one of a different type,
 `objectid` changes and the child IoMap is rebuilt against the new value. Reading
 `value_fn()` inside the cell makes the result react to the field changing.
+
+The IoMap that `make_iomap` returns must hold the value, as its `input`. The cache
+key is `objectid(value)`, a number and not a reference, so only the cached IoMap
+keeps the value alive. The key of a mutable value comes from its address, and Julia
+can give that address to a new object after the value is collected. A new value
+then gets the IoMap of the old one.
 """
 function reconcile_child_iomap(value_fn, make_iomap)
     cached_id = Ref{UInt64}(0)
