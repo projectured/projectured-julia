@@ -41,7 +41,9 @@ plan holds each default, and the body keeps it until `retype_cell_struct_fields!
 writes the slot of the field.
 
 An inner constructor in the body is an error, because the builders generate the
-only inner constructor. Define the constructor outside the struct.
+only inner constructor. Define the constructor outside the struct. Any other
+expression that is not a field, a line number or a docstring is an error too,
+such as `const f::T` or `@atomic f::T`.
 """
 function make_cell_struct_plan(definition)
     definition isa Expr && definition.head === :struct ||
@@ -77,8 +79,10 @@ function make_cell_struct_plan(definition)
             push!(defaults, field_name => expression.args[2])
         elseif expression isa Expr && expression.head === :function
             _reject_inner_constructor(name, expression.args[1])
-        else
+        elseif expression isa LineNumberNode || expression isa String
             continue                                    # a line number, a docstring
+        else
+            _reject_body_expression(name, expression)
         end
         push!(field_names, field_name)
         push!(field_types, field_type)
@@ -97,6 +101,10 @@ _reject_inner_constructor(name, signature) = throw(ArgumentError(
     "make_cell_struct_plan: `$(signature)` in the body of `$(name)` is an inner " *
     "constructor. The builders generate the only inner constructor, so define " *
     "this one outside the struct."))
+
+_reject_body_expression(name, expression) = throw(ArgumentError(
+    "make_cell_struct_plan: `$(expression)` in the body of `$(name)` is not a " *
+    "field. A field is `f`, `f::T`, `f = v` or `f::T = v`."))
 
 """
     add_cell_struct_field!(plan, name; type, default) -> CellStructPlan

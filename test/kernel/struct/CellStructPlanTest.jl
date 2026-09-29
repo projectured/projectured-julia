@@ -49,6 +49,19 @@ end
     @test plan.field_names == [:width]
 end
 
+@testset "an expression that is not a field is an error" begin
+    @test_throws ArgumentError make_cell_struct_plan(
+        :(mutable struct C; const a::Int; end))
+    @test_throws ArgumentError make_cell_struct_plan(
+        :(mutable struct C; @atomic a::Int; end))
+    # A docstring and a line number on their own lines are no error.
+    plan = make_cell_struct_plan(:(mutable struct C
+        "the width"
+        width::Int
+    end))
+    @test plan.field_names == [:width]
+end
+
 @testset "an inner constructor is an error" begin
     @test_throws ArgumentError make_cell_struct_plan(
         :(struct Q; a::Int; Q(x) = new(x); end))
@@ -94,6 +107,17 @@ end
     retype_cell_struct_fields!(plan, [:C1, :C2])
     @test filter(e -> e isa Expr, plan.definition.args[3].args) ==
           [:(a::C1), :(selection::C2)]
+end
+
+@testset "build_cell_struct_exprs makes the field that add_cell_struct_field! adds" begin
+    plan = make_cell_struct_plan(:(struct Added; a::Int; end))
+    add_cell_struct_field!(plan, :extra; type = :Any, default = :nothing)
+    scope = Module(:CsAddedScope)
+    Core.eval(scope, build_cell_struct_exprs(plan.definition))
+    # The methods are newer than this function, so the reads run in the module.
+    @test Core.eval(scope, :(fieldnames(Added))) == (:a, :extra)
+    @test Core.eval(scope, :(getfield(Added(1, 2), :extra))) isa Cell
+    @test Core.eval(scope, :(Added(1, 2).extra)) == 2
 end
 
 @testset "the kind of each field" begin
