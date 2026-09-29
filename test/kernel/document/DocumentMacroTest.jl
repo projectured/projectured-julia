@@ -1,18 +1,16 @@
 """
 `@document`'s **emitted constructor surface** — Rule Y (positional defaults) and
-Rule C (single-`CellVector` element sugar).
+Rule C (single-collection element sugar).
 
-These rules are the subtlest part of the macro and were, until the plan/emitter
-split, untestable except by declaring a struct and seeing whether a call happened
-to work. They are tested here by counting and calling the *methods* the macro
-emits, which is the macro's actual public contract.
+These rules are the subtlest part of the macro. They are tested here by counting
+and calling the *methods* the macro emits, which is the macro's actual public
+contract.
 
-The `CellVector` cases use a **test-local stand-in**: Rule C detects its collection
-field by matching the declared type's *symbol*, so the real `CellVector` (which
-lives in `base`, above the kernel) need not be in scope for the macro to fire — and
-the kernel test package cannot see it. That the rule works on a look-alike is not a
-loophole in the test; it is the wart the rule is built on, and is documented as such
-on `_emit_collection_ctors`.
+The Rule C cases use a **test-local collection**, `DmCollection`. Rule C finds a
+collection field through `is_collection_field_type(::Val{name})`, keyed on the
+declared type's *symbol*, and this file registers `Val{:DmCollection}` before its
+first `@document`. The real `CellVector` lives in the collection package above the
+kernel, and the kernel test package does not load it.
 """
 
 using Test
@@ -21,15 +19,17 @@ using ProjecturedKernel.CellStructModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule: Reference
 
-# A stand-in for base's CellVector: Rule C keys off the *name*, and the emitted
-# `CellVector(items)` call has to resolve to something. `<: Document` (not
-# `<: AbstractVector`) mirrors the real one, which is what makes the raw and
-# bracketed Rule C forms non-overlapping.
-struct CellVector <: Document
+# The collection of the Rule C cases. The emitted `DmCollection(items)` call wraps
+# a raw vector with it. `<: Document` (not `<: AbstractVector`) mirrors the real
+# `CellVector`, which is what makes the raw and bracketed Rule C forms
+# non-overlapping. The macro asks `is_collection_field_type` at expansion, so the
+# registration comes before the first `@document` that declares the type.
+struct DmCollection <: Document
     items::Vector{Any}
 end
-CellVector(items::AbstractVector) = CellVector(collect(Any, items))
-Base.:(==)(a::CellVector, b::CellVector) = a.items == b.items
+DmCollection(items::AbstractVector) = DmCollection(collect(Any, items))
+Base.:(==)(a::DmCollection, b::DmCollection) = a.items == b.items
+DocumentModule.is_collection_field_type(::Val{:DmCollection}) = true
 
 # ── Rule Y ────────────────────────────────────────────────────────────────
 @document struct DmRuleY
@@ -41,13 +41,13 @@ end
 
 # ── Rule C: the collection is the sole content, everything else defaults ──
 @document struct DmSoleVector
-    items::CellVector = CellVector([])
+    items::DmCollection = DmCollection([])
 end
 
 # ── Rule C: the collection sits beside a *required* sibling ───────────────
 @document struct DmVectorWithSibling
     callee::Int
-    args::CellVector
+    args::DmCollection
 end
 
 # ── No collection: Rule C must stay silent ────────────────────────────────
@@ -164,25 +164,25 @@ end
 
 @testset "Rule C wraps a raw Vector into the collection" begin
     # Without Rule C the auto-wrapping inner ctor would store Cell(Vector) — a cell
-    # wrapping a plain Vector — instead of a CellVector.
-    @test DmSoleVector([1, 2]).items == CellVector([1, 2])
+    # wrapping a plain Vector — instead of a DmCollection.
+    @test DmSoleVector([1, 2]).items == DmCollection([1, 2])
 
     # Beside a required sibling, the bracketed form accompanies the Rule Y arity.
     d = DmVectorWithSibling(7, [1, 2])
     @test d.callee == 7
-    @test d.args == CellVector([1, 2])
+    @test d.args == DmCollection([1, 2])
     @test d.selection === nothing
 end
 
 @testset "an already-built collection reaches the variadic, and is nested" begin
     # Passing a real collection to a sole-collection document does NOT pass it
-    # through: a CellVector is a `Document`, not an `AbstractVector`, so the call
+    # through: a DmCollection is a `Document`, not an `AbstractVector`, so the call
     # lands on Rule C's variadic `T(items::Document...)` and becomes a one-element
     # collection *containing* it. Surprising, and long-standing — pinned here so a
     # future change to Rule C's tail cannot alter it silently.
-    @test DmSoleVector(CellVector([1, 2])).items == CellVector([CellVector([1, 2])])
+    @test DmSoleVector(DmCollection([1, 2])).items == DmCollection([DmCollection([1, 2])])
     # To wrap an existing collection, name the selection too and take the inner ctor.
-    @test DmSoleVector(CellVector([1, 2]), nothing).items == CellVector([1, 2])
+    @test DmSoleVector(DmCollection([1, 2]), nothing).items == DmCollection([1, 2])
 end
 
 @testset "Rule C emits its bracketed form exactly ONCE" begin
@@ -266,8 +266,8 @@ end
 
     # A hand-written document is its own cell layout and has no native one, so a
     # copy of one rebuilds exactly what it was.
-    @test get_document_cell_type(CellVector([]))   === CellVector
-    @test get_document_native_type(CellVector([])) === nothing
+    @test get_document_cell_type(DmCollection([]))   === DmCollection
+    @test get_document_native_type(DmCollection([])) === nothing
 end
 
 @testset "the layout list says which layouts a schema emits" begin
