@@ -176,6 +176,16 @@ end
 # Anthropic SSE → LlmEvent
 # ═══════════════════════════════════════════════════════════════════════
 
+# The stop reasons of the Messages API, as the reasons of `LlmTurnEnd`. A stop
+# sequence, a refusal and a paused turn end the turn as a finished answer does.
+# A reason that is not in the table goes on as its own symbol.
+const _STOP_REASONS = Dict("end_turn"      => :end_turn,
+                           "tool_use"      => :tool_use,
+                           "max_tokens"    => :max_tokens,
+                           "stop_sequence" => :end_turn,
+                           "refusal"       => :end_turn,
+                           "pause_turn"    => :end_turn)
+
 # Translate one Anthropic SSE event and hand the result to `emit`. This function is
 # the whole of what the rest of the system is spared: above `stream_turn`,
 # `content_block_delta` and `input_json_delta` do not exist.
@@ -225,9 +235,11 @@ function _translate_sse!(emit::Function, type::Symbol, data; input_tokens::Ref{I
         delta = get(data, :delta, nothing)
         delta === nothing && return
         sr = get(delta, :stop_reason, nothing)
+        sr === nothing && return
         usage = get(data, :usage, nothing)
         output_tokens = usage === nothing ? 0 : Int(get(usage, :output_tokens, 0))
-        sr === nothing || emit(LlmTurnEnd(Symbol(sr), input_tokens[], output_tokens))
+        reason = get(_STOP_REASONS, String(sr), Symbol(sr))
+        emit(LlmTurnEnd(reason, input_tokens[], output_tokens))
     elseif type === :error
         err = get(data, :error, nothing)
         msg = err === nothing ? "unknown streaming error" :
@@ -242,7 +254,9 @@ end
 
 POST a streaming Messages request and translate the SSE stream into `LlmEvent`s. An
 HTTP failure throws; an error reported *inside* the stream arrives as an
-`LlmFailure`.
+`LlmFailure`. A stream that ends before its turn end throws, as a dead socket
+does. The stop reasons `stop_sequence`, `refusal` and `pause_turn` give
+`:end_turn`.
 """
 function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
     body = Dict{String,Any}(
@@ -274,6 +288,8 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
     tool_input = Ref(IOBuffer())
     # What the model read this round, said at the start and carried to the end.
     input_tokens = Ref(0)
+    # Whether the stream sent its terminal event, a turn end or a failure.
+    ended = Ref(false)
     emit = function (ev)
         if ev === nothing                            # a content_block_stop
             b = open_block[]
@@ -300,6 +316,8 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
             tool_input[] = IOBuffer()
         elseif ev isa LlmToolInputDelta
             print(tool_input[], ev.json)
+        elseif ev isa LlmTurnEnd || ev isa LlmFailure
+            ended[] = true
         end
         on_event(ev)
         nothing
@@ -326,17 +344,18 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
             chunk = try
                 readavailable(io)
             catch e
-                # SSE streams can close abruptly after the last event; treat EOF as
-                # a clean end-of-stream, the final message_stop having been seen.
+                # An EOF ends the read. The check after the read throws when the
+                # stream sent no terminal event.
                 e isa EOFError ? UInt8[] : rethrow()
             end
             isempty(chunk) && continue
             write(buf, chunk)
-            _drain_sse_events!(buf, emit)
+            _drain_sse_events!(buf, emit; input_tokens)
         end
-        _drain_sse_events!(buf, emit; final = true)
+        _drain_sse_events!(buf, emit; final = true, input_tokens)
         HTTP.closeread(io)
     end
+    ended[] || error("Anthropic API error: the stream ended before its turn end")
     nothing
 end
 
@@ -361,7 +380,10 @@ function _parse_tool_input(raw::AbstractString)
 end
 
 # Pull complete SSE events ("event: …\ndata: …\n\n") out of `buf` and translate each.
-function _drain_sse_events!(buf::IOBuffer, emit::Function; final::Bool = false)
+# `input_tokens` carries the input count of `message_start` to the `message_delta`
+# of a later read.
+function _drain_sse_events!(buf::IOBuffer, emit::Function; final::Bool = false,
+                            input_tokens::Ref{Int})
     s = String(take!(buf))
     isempty(s) && return
     parts = split(s, "\n\n")

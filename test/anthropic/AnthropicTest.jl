@@ -82,3 +82,119 @@ function test_anthropic_model()
         end
     end
 end
+
+# One answer of the streaming Messages API, in the form that its documentation
+# shows: the message starts with the input count, one text block streams, and
+# the message delta carries the stop reason and the output count. The adapter
+# translates no `ping`.
+const _RECORDED_STREAM = """
+event: message_start
+data: {"type":"message_start","message":{"id":"msg_1","type":"message",\
+"role":"assistant","content":[],"model":"claude-opus-5","stop_reason":null,\
+"usage":{"input_tokens":25,"output_tokens":1}}}
+
+event: content_block_start
+data: {"type":"content_block_start","index":0,\
+"content_block":{"type":"text","text":""}}
+
+event: ping
+data: {"type":"ping"}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,\
+"delta":{"type":"text_delta","text":"Hello"}}
+
+event: content_block_delta
+data: {"type":"content_block_delta","index":0,\
+"delta":{"type":"text_delta","text":" there"}}
+
+event: content_block_stop
+data: {"type":"content_block_stop","index":0}
+
+event: message_delta
+data: {"type":"message_delta",\
+"delta":{"stop_reason":"end_turn","stop_sequence":null},"usage":{"output_tokens":7}}
+
+event: message_stop
+data: {"type":"message_stop"}
+
+"""
+
+# The events of a stream `body` that arrives in two reads, split after byte
+# `split_at`. `nothing` stands for a block stop: `stream_turn` turns it into the
+# typed stop of the open block.
+function _get_anthropic_stream_events(body::AbstractString;
+                                      split_at::Integer = ncodeunits(body))
+    events = Any[]
+    emit = event -> push!(events, event)
+    input_tokens = Ref(0)
+    buffer = IOBuffer()
+    write(buffer, SubString(body, 1, split_at))
+    ProjecturedAnthropic._drain_sse_events!(buffer, emit; input_tokens)
+    write(buffer, SubString(body, split_at + 1))
+    ProjecturedAnthropic._drain_sse_events!(buffer, emit; final = true, input_tokens)
+    events
+end
+
+# A server on this machine that answers each request with `body`.
+_serve_anthropic_answer(body::AbstractString) =
+    HTTP.serve!(request -> HTTP.Response(200, body), "127.0.0.1", 0; listenany = true)
+
+_get_local_url(server, path::AbstractString) =
+    "http://127.0.0.1:" * string(HTTP.port(server)) * path
+
+function test_anthropic_stream()
+    @testset "the stream of a turn" begin
+        @testset "a stream in two reads keeps the input count to the turn end" begin
+            # The first read ends in the middle of the text, after `message_start`.
+            text_start = findfirst("event: content_block_delta", _RECORDED_STREAM)
+            split_at = first(text_start) + 9
+            events = _get_anthropic_stream_events(_RECORDED_STREAM; split_at)
+            @test length(events) == 5
+            @test events[1] isa LlmTextStart
+            @test events[2] == LlmTextDelta("Hello")
+            @test events[3] == LlmTextDelta(" there")
+            @test events[4] === nothing
+            @test events[5] == LlmTurnEnd(:end_turn, 25, 7)
+        end
+
+        @testset "each stop reason of the API maps to one of the four" begin
+            for (word, reason) in ("end_turn" => :end_turn, "tool_use" => :tool_use,
+                                   "max_tokens" => :max_tokens,
+                                   "stop_sequence" => :end_turn,
+                                   "refusal" => :end_turn, "pause_turn" => :end_turn)
+                body = "event: message_delta\n" *
+                       "data: {\"type\":\"message_delta\"," *
+                       "\"delta\":{\"stop_reason\":\"$word\"}," *
+                       "\"usage\":{\"output_tokens\":3}}\n\n"
+                @test only(_get_anthropic_stream_events(body)) == LlmTurnEnd(reason, 0, 3)
+            end
+        end
+
+        @testset "a stream that ends before its turn end throws" begin
+            request = LlmRequest(messages = [LlmMessage(:user, "Say hello.")])
+            cut = first(_RECORDED_STREAM,
+                        first(findfirst("event: message_delta", _RECORDED_STREAM)) - 1)
+            for (body, is_whole) in ((_RECORDED_STREAM, true), (cut, false))
+                server = _serve_anthropic_answer(body)
+                try
+                    url = _get_local_url(server, "/v1/messages")
+                    llm = AnthropicLlm(; api_key = "key", model = "claude-opus-5",
+                                         base_url = url)
+                    events = Any[]
+                    record = event -> push!(events, event)
+                    if is_whole
+                        stream_turn(llm, request; on_event = record)
+                        @test events[end] == LlmTurnEnd(:end_turn, 25, 7)
+                    else
+                        @test_throws ErrorException stream_turn(llm, request;
+                                                                on_event = record)
+                        @test events[end] == LlmTextStop()
+                    end
+                finally
+                    close(server)
+                end
+            end
+        end
+    end
+end
