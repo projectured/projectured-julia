@@ -301,6 +301,41 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   example: the forward reference reaches a printed node, and a point inside its box
   maps backward to the part or to a part inside it. This ties the two maps
   together, so a later change that breaks one of them fails it.
+  Found by a probe over the 45 widget examples in a window of 1200 by 800
+  (every `WidgetDocument` and `LayoutDocument` of each document, 409 parts, of
+  which 133 make the round trip today):
+  - **Faults of the maps.** (1) A widget at a place of its own, such as the
+    composite and the table of their examples at (40, 40), maps a point to the
+    wrong child: `_outside_widget` reads the point in the frame of the widget's
+    parent, but `_find_widget_child_point` gives a child a point in the child's
+    own frame, and at the root nothing takes the place of the root canvas off.
+    **Q10, settled** (owner 2026-09-29: "agree, it's b"): a widget gets a point
+    in the frame of its own canvas. The container takes the place of the child
+    off, as it does now; `_outside_widget` checks the point against 0 to the
+    width and 0 to the height; at the root, the window takes the place of the
+    root canvas off. This is how the hit test of the graphics package works
+    (`_hit_test_element` takes the place of a nested canvas off), and how Qt
+    and most toolkits give a widget its events. (2) The open tab of the gallery, page 6, has no forward image. (3)
+    `find_reference_box` reads 0 by 0 for a canvas that sizes itself from its
+    elements, such as the content of a scroll pane and of a table. (4)
+    `WidgetTransformPane` has no forward map. (5) A layout at the root answers
+    `nothing` for the empty reference. (6) `_map_screen` returns a bare point
+    unchanged as its backward answer. (7) A tab page itself,
+    `selector_element_pairs[k]`, has no image. **Q11, settled** (owner
+    2026-09-29): "The open page should be mapped to the pane's canvas simply.
+    For a closed page it should map to nothing. The header graphics should be
+    mapped to the header's in the pane." So the open page maps to the canvas of
+    the tabbed pane, a closed page to `nothing`, and the header of every page,
+    open or closed (its `selector`), to the graphics of that header in the tab
+    strip. The pieces of a header (the shape behind the open tab, the name and
+    the buttons) are loose elements of the strip today, so each header gets a
+    canvas of its own that holds them, as the rows of a list did in 3b.
+  - **No image, and correct:** the content of a tab that is not open, a
+    submenu or a context menu that is closed (`submenu`, `menu`), the dialog of
+    a button (`dialog`), a label inside an action (`action`), a style
+    (`WidgetStyle`), and a label with no text (a box of no size).
+  - A leaf answers `nothing` for a point on itself, and a container reads that
+    as the child itself; at the root, the test reads it the same way.
 - [ ] 7. **The documents:** the widget, layout, screen and text documents say
   which projections map forward, and how a caller finds the place of a part.
   The feature "the place of a part" gets its design and user interface
