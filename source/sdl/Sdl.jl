@@ -3244,11 +3244,13 @@ function print_document(p::GraphicsCanvasToImageFile,
     SimpleIoMap(p, canvas, output)
 end
 
-function map_reference_forward(::GraphicsCanvasToImageFile, iomap, reference)
+function ProjecturedKernel.ProjectionModule.map_reference_forward(
+        ::GraphicsCanvasToImageFile, iomap, reference)
     nothing
 end
 
-function map_reference_backward(::GraphicsCanvasToImageFile, iomap, reference)
+function ProjecturedKernel.ProjectionModule.map_reference_backward(
+        ::GraphicsCanvasToImageFile, iomap, reference)
     nothing
 end
 

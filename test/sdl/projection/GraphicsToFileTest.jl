@@ -78,6 +78,17 @@ end
     rm(filename)
 end
 
+@testset "GraphicsCanvasToImageFile maps references with the projection generics" begin
+    # The methods extend the generics of the projection layer: the package holds
+    # no function of its own under these names.
+    for name in (:map_reference_forward, :map_reference_backward)
+        generic = getfield(Projectured.ProjectionModule, name)
+        method = which(generic, Tuple{GraphicsCanvasToImageFile, Any, Any})
+        @test method.module === ProjecturedSdl
+        @test !isdefined(ProjecturedSdl, name) || getfield(ProjecturedSdl, name) === generic
+    end
+end
+
 @testset "unsupported format raises error" begin
     canvas = GraphicsCanvas()
     @test_throws ErrorException write_image(canvas, tempname() * ".jpg")
