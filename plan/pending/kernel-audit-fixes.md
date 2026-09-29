@@ -303,36 +303,46 @@ One step for each layer. No step changes a sealed file.
 
 ### Step 2.2: The document layer
 
-- [ ] **L10-4** (Medium, Correctness)
+- [x] **L10-4** (Medium, Correctness)
   In both copy forms, take the programmer's parameters from `typeof(document)` (the leading parameters, before the one cell parameter for each field) and call `base{params...}(args...)`. Ask `_declared_value_types` with those parameters.
   *Test:* test_document_macro(): copy_document(DmParametric(3)) isa DmParametric{Int}; copy_document(ReactiveCell, DmBounded(2.0)) throws no TypeError.
-- [ ] **L10-5** (Medium, Correctness)
+  *Done:* lane A, 75dd3879. A hand-written document still copies through its bare constructor, because no rule says which of its parameters are the programmer's. omnet-julia: `reactive_simulator` and `reactive_parallel_simulator` build by hand what a kinded copy now gives.
+- [x] **L10-5** (Medium, Correctness)
   Build the copy of a vector with `similar(v)` and set each element, as the bounded path does. In the kind form a native element type can not hold a converted element, so keep `eltype(v)` only when every copy is an instance of it, as `_kinded_value_type` does for a field.
   *Test:* test_document_contract(): the copy of a vector with an abstract element type that holds one subtype keeps the element type, and a push! of another subtype works.
-- [ ] **L10-8** (part) (Medium, Correctness)
+  *Done:* lane A, 75dd3879. The rule "keep `eltype(v)` only when every copied element fits" covers the policy form too, because a policy can put a placeholder of another type. The methods for `Vector{Cell}` and `Vector{Any}` are gone. **Check in omnet-julia at the merge:** a plain policy copy of a `Sweep` gives `Vector{Any}` now, not the narrowed type.
+- [x] **L10-8** (part) (Medium, Correctness)
   Move the `CellVector` kind copy to the four-argument form, and document that form as the method that a kind adds. The signature waits for its decision.
   *Test:* `test_document_contract()`: a nested collection copies with its own kind method.
-- [ ] **L10-10** (part) (Medium, Shape)
+  *Done:* lane A, 75dd3879. A bounded copy of a CellVector goes through its own four-argument method and keeps the bound; a kinded copy of a nested CellVector starts with `selection = nothing`.
+- [x] **L10-10** (part) (Medium, Shape)
   Remove the `try` around `fieldnames(typeof(obj))` in the walk: it does not throw. The catch around the predicate waits for L01-8.
   *Test:* `test_document_walk()` passes.
-- [ ] **L10-16** (Low, Correctness)
+  *Done:* lane A, eb3984ec.
+- [x] **L10-16** (Low, Correctness)
   In `_copy_elements`, ask `is_descendable_for_sync` for each element document, at the depth that `_sync_elements!` uses. Clamp the push loop of `_sync_elements!` to `min(limit, ns)`. Pass the partial result, not `()`, as the shadow to `sync_element_limit`. Add `@boundscheck` to `HiddenElements`.
   *Test:* test_bounded_sync(): with a policy that stops at depth 1, a shadow born by copy and a shadow grown by sync hold the same markers; a limit above length(source) throws no BoundsError.
-- [ ] **L10-17** (Low, Correctness)
+  *Done:* lane A, 75dd3879. The report was wrong in one point: the push loop of the sync did not ask the bound either. It asks now through `_synced_child(nothing, …)`, and the limit is clamped where `sync_element_limit` is called.
+- [x] **L10-17** (Low, Correctness)
   Take the kind of a rebuilt child from the cell of its slot, not from the first field of the shadow.
   *Test:* test_document_contract(): a shadow whose first field is an ImmutableCell and whose next field holds a child document syncs twice with no MethodError, and a rebuilt child is reactive.
-- [ ] **L10-18** (Low, Correctness)
+  *Done:* lane A, 14d650d1.
+- [x] **L10-18** (Low, Correctness)
   In `_sync_fields!`, read and write the `selection` field through its cell (`getfield`, unwrapped for a native source), not through `getproperty`, so a dormant SelectionDocument syncs as a document.
   *Test:* test_document_contract(): a dormant selection survives a sync, and a second sync with no change writes no selection cell.
-- [ ] **L10-19** (Low, Correctness)
+  *Done:* lane A, 14d650d1. The write stays `setproperty!`, which writes the cell of the field.
+- [x] **L10-19** (Low, Correctness)
   Remove the `fn == :ref` skip. The `AbstractArray` branch now walks an Array, so the skip of the `ref` field of Array has no use. Remove the same skip in the mirror of the walk in ConstructTest.jl:110, and correct its comments at lines 27 and 63.
   *Test:* test_document_walk(): search_documents finds a match under a field named `ref`.
-- [ ] **L10-21** (part) (Low, Shape)
+  *Done:* lane A, eb3984ec.
+- [x] **L10-21** (part) (Low, Shape)
   Declare `SelectionDocument` with `[C]`, remove the dead `base === nothing` check, and split `_document_expr` into private helpers under the size budget. Re-record the precompile traces of omnet-julia that name `MSelectionDocument`. The split of the file and `_declared_value_types` wait for their decisions.
   *Test:* `test_document_macro()` gives its baseline count.
-- [ ] **L10-22** (Low, Types/performance)
+  *Done:* lane A, 75dd3879 (the dead check) and adfe0143 (the helpers); seven declarations expand the same with the old and the new macro, apart from the new `getproperty`. **At the merge:** re-record the omnet-julia traces that name `MSelectionDocument`: `asset/precompile/WorkloadStatements.jl:1616` and `asset/precompile/PrecompileStatements.jl:8240`.
+- [x] **L10-22** (Low, Types/performance)
   In the generated `getproperty`, call `unwrap_selection` only when `name === :selection`, which constant-folds for a literal field name. Correct the docstring claim that the call inlines away.
   *Test:* test_document_macro() and test_document_contract() unchanged; a dispatch count of a field read shows one dynamic call less.
+  *Done:* lane A, adfe0143. The name test does not constant-fold: `getproperty(::T, ::Symbol)` is not inlined, so the name is compared at run time. The gain is one run-time dispatch less for each read of another field. test_kernel 2462, test_substrate 86852 and the 7 known failures.
 
 ### Step 2.3: The reference layer
 
