@@ -1,7 +1,7 @@
 # A table scrolls its own parts
 
-> **Kind:** plan · **Status:** pending, 2026-09-29. Nothing is implemented. P1
-> is made; the other points of §5 wait for the owner. · **Stands on:**
+> **Kind:** plan · **Status:** pending, 2026-09-29. Nothing is implemented. The
+> owner accepted the plan with the recommendations of §5. · **Stands on:**
 > [widget.md](../../documentation/package/widget/widget.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
 > [widget-sizing-rules.md](../done/widget-sizing-rules.md),
@@ -235,7 +235,11 @@ pane drag, and 2 errors in `test_anchor_point()`, as on `main`.
 
 ## 5. Points for the owner
 
-Each recommendation is the view of the writer of this plan.
+The owner (2026-09-29), on the plan with these recommendations: "Looks good,
+the WidgetTable keeps its shape down to its cells including headers, adding
+lazy list." So P2 to P8 are made as recommended: the document of the table
+keeps its fields down to its cells and headers, and `rows` and `row_headers`
+can each be a lazy list.
 
 **P1. The regions are `WidgetScrollPane` documents.** The owner (2026-09-29):
 "A CellVector is a document, also the header column must be a lazy list also.
