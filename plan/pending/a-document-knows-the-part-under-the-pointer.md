@@ -37,7 +37,7 @@ No global component decides where the pointer is or which part gets an input
 - **M4. An introduced widget gets the path by the forward map.** "The mouse
   target path should be probably forward printed like the selection does."
   (Owner 2026-09-28.) The forward map is path to path, independent of what is
-  printed (Q6 of [the-forward-image-of-a-part.md](the-forward-image-of-a-part.md)).
+  printed (Q6 of [the-forward-image-of-a-part.md](../done/the-forward-image-of-a-part.md)).
 - **M5. A route is fixed in advance only to return an operation from one
   place** (D76 of the plan of the pointer). A leave needs no route under M1,
   because a part sees from its own stored path that the pointer left it.
@@ -170,7 +170,7 @@ One at a time, with the owner.
 - ~~**Q5. The order.**~~ **Settled** (owner 2026-09-29: "Yes"), all on the
   branch `gesture-type`: (1) the documents are committed first, with no code,
   and the half-built code of step 9d stays uncommitted in the worktree; (2) the
-  forward maps of [the-forward-image-of-a-part.md](the-forward-image-of-a-part.md),
+  forward maps of [the-forward-image-of-a-part.md](../done/the-forward-image-of-a-part.md),
   whose open points are asked again first; (3) this plan; (4) steps 9d, 9e and
   9f of the plan of the pointer, and then its steps 10 to 12, planned again with
   this model.

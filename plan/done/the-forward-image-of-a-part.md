@@ -1,9 +1,11 @@
 # The forward image of a part
 
-> **Status:** pending; every open point is settled (2026-09-29). The owner chose
+> **Status:** done (2026-09-29), on the branch `gesture-type`. The owner chose
 > this way on 2026-09-28 (way (c) of the question about where a tooltip that a
-> command opens goes). Nothing is built. It comes before the mouse target of
-> [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md).
+> command opens goes). It comes before the mouse target of
+> [a-document-knows-the-part-under-the-pointer.md](../pending/a-document-knows-the-part-under-the-pointer.md).
+> The work that it found and did not do is in
+> [the-work-that-the-forward-image-found.md](../pending/the-work-that-the-forward-image-found.md).
 
 ## 1. The purpose
 
@@ -11,7 +13,7 @@ A person runs "Show the tooltip" from the command palette on the selection, or
 an agent runs it. The answer has no point, because no pointer rested. The
 tooltip window must open beside the part, in screen coordinates.
 
-D73 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
+D73 of [events-gestures-and-the-pointer.md](../pending/events-gestures-and-the-pointer.md)
 says how: at the forward image of the part. The tooltip wrapper already asks
 for it (`find_part_point` in `source/screen/WindowLayers.jl`). But no widget
 reference has a forward image today, so the window opens at the corner of the
@@ -399,7 +401,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   which projections map forward, and how a caller finds the place of a part.
   The feature "the place of a part" gets its design and user interface
   documents as step 11 of
-  [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
+  [events-gestures-and-the-pointer.md](../pending/events-gestures-and-the-pointer.md) lists
   them.
   Done: reference.md has a section "The place of a part": what the forward map
   answers (the node that draws a part, the characters of a text, a region, and
@@ -512,5 +514,5 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   recommendation; owner 2026-09-29: "Option a, I agree".)
 - ~~**Q5. Where it is built.**~~ **Settled** (owner 2026-09-29): on the branch
   `gesture-type`, before the mouse target of
-  [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md),
+  [a-document-knows-the-part-under-the-pointer.md](../pending/a-document-knows-the-part-under-the-pointer.md),
   because a widget that a view makes gets its mouse target by the forward map.

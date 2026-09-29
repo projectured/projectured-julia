@@ -1444,7 +1444,7 @@ it holds the example.
     - No projection that ends in graphics maps a widget forward, so a tooltip
       that a command opens with no point stands at the corner of the screen.
       The owner chose to complete the forward map (way (c), 2026-09-28):
-      [the-forward-image-of-a-part.md](the-forward-image-of-a-part.md). Until
+      [the-forward-image-of-a-part.md](../done/the-forward-image-of-a-part.md). Until
       then that one assertion of `test_tooltip_window()` is `@test_broken`.
     - The omnet IDE moves to the wrapper in this part, not in 9f, so omnet
       loads after each commit: `make_ide_window_wrap` loses `pointer` and
