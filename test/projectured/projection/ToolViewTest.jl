@@ -168,8 +168,39 @@ end
     @test occursin("4", after)
 end
 
+@testset "an inspector prints its subtree with the clock of the editor" begin
+    # Each inspector derives the context of what it prints from the context it
+    # gets, so an animation in the subtree follows the clock of the editor.
+    clock = Clock()
+    context = with_clock(make_context(other), clock)
+    empty!(_PROBED_CLOCKS)
+    # A text block computes its spans when they are read.
+    view = SelectionInspector(_ClockProbeReference())
+    shown = print_document(SelectionInspectorToText(), nothing, view, context).output
+    length(shown.elements)
+    probe = ReferenceInspector(reference = _ClockProbeReference())
+    shown = print_document(ReferenceInspectorToText(), nothing, probe, context).output
+    length(shown.elements)
+    @test length(_PROBED_CLOCKS) == 4
+    @test all(probed -> probed === clock, _PROBED_CLOCKS)
+end
+
 end
 end
+
+# A reference whose two renderings record the clock of the context they get.
+struct _ClockProbeReference <: Reference end
+const _PROBED_CLOCKS = Any[]
+function _print_clock_probe(projection, reference, context)
+    push!(_PROBED_CLOCKS, context.clock)
+    SimpleIoMap(projection, reference, TextBlock(TextDocument[]))
+end
+ProjectionModule.print_document(p::ReferenceToText, recursion,
+                                reference::_ClockProbeReference, ctx) =
+    _print_clock_probe(p, reference, ctx)
+ProjectionModule.print_document(p::ReferenceToHumanReadableText, recursion,
+                                reference::_ClockProbeReference, ctx) =
+    _print_clock_probe(p, reference, ctx)
 
 # A gesture log opened in a tab fills while a person works.
 #

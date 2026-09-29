@@ -35,11 +35,15 @@ SelectionInspectorToText(; font = font_ubuntu_monospace_regular_20,
 function print_document(p::SelectionInspectorToText, recursion,
                         input::SelectionInspector, ctx)
     root = get_property(ctx, :root)
+    # The inner print keeps the clock and the properties of the editor, and has a
+    # free range on each axis.
+    inner_ctx = with_exact_size(make_child_context(ctx, EmptyReference());
+                                width = nothing, height = nothing)
     out = TextBlock(() -> begin
         source = input.source          # tracked: a value, or a thunk that re-runs
         probe = ReferenceInspector(reference = find_inspected_selection(source, root),
                                    target = get_inspected_document(source, root))
-        block = print_document(p.inner, nothing, probe, PrinterContext()).output
+        block = print_document(p.inner, nothing, probe, inner_ctx).output
         TextDocument[block.elements[i] for i in 1:length(block.elements)]
     end)
     SimpleIoMap(p, input, out)

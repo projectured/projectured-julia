@@ -52,6 +52,10 @@ end
 
 function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
     short_proj = ReferenceToText(font = p.font)
+    # The two renderings keep the clock and the properties of the editor, and have a
+    # free range on each axis.
+    ictx = with_exact_size(make_child_context(ctx, EmptyReference());
+                           width = nothing, height = nothing)
     out = TextBlock(() -> begin
         ref    = input.reference        # tracked: Reference or nothing
         target = input.target
@@ -59,7 +63,6 @@ function print_document(p::ReferenceInspectorToText, recursion, input::Reference
         canonical = (ref isa ConcreteReference && target !== nothing) ?
                     annotate_reference_types(target, ref) : ref
         long_proj = ReferenceToHumanReadableText(document = target, font = p.font)
-        ictx = PrinterContext()
         short = print_document(short_proj, nothing, canonical, ictx).output
         long  = print_document(long_proj,  nothing, canonical, ictx).output
 
