@@ -518,9 +518,18 @@ TMPDIR=/var/tmp/projectured-release JULIA_IMAGE_THREADS=2 JULIA_NUM_PRECOMPILE_T
       bundle whose `libstdc++` is not Julia's own. A binary still probes on its
       user's machine and loads a newer system library when there is one.
       `test_builder()` 199.
-- [ ] Record in this plan: the wall time, the peak memory, the bundle size, the
-      archive size and the SHA-256 digest that the build prints.
-- [ ] Write the digest to `<archive>.sha256`, beside the archive.
+- [x] Record in this plan: the wall time, the peak memory, the bundle size, the
+      archive size and the SHA-256 digest that the build prints. **The release
+      candidate of 2026-09-30** (commit `731e6bc67`, `bin/build_projectured
+      --distribution`): with the stand-in and its two kept JLLs, Liberation
+      2.1.5, Julia's own `libstdc++` (GCC 15.2.0, `GLIBC_2.17`), the licence
+      texts and the source archive. Bundle 1,174 MB; archive 317.4 MB,
+      SHA-256 `dc86af797f3de453e6f9512700738e7acc7f94206e12baea261a4bdff4ad3f8b`;
+      source archive `projectured-0.1.0-sources.tar`, 131 MB. About 13 minutes
+      with warm caches; the peak memory was not measured. The relocation test,
+      the program check and the check of missing libraries passed.
+- [ ] Write the digest to `<archive>.sha256`, beside the archive. At Step A7,
+      from the archive that is published.
 
 ### Step A5: test the archive as a user gets it
 
@@ -544,13 +553,19 @@ test of a copy on this machine passed, because this machine has
 - [ ] Unpack the archive under `/var/tmp`, far from the checkout. Start it with
       a window on this machine (`DISPLAY=:0`), and open a JSON, a Markdown and a
       Julia file. The owner looks at the window before Step A7.
-- [ ] In `podman` containers of two or three distributions (for example
+- [x] In `podman` containers of two or three distributions (for example
       Debian 12, Ubuntu 22.04 and Fedora), unpack the archive and run
       `--build-info`. Then start `--backend=web --assistant=none` and read the
       web client with `curl`. A library that fails to load shows a gap in the
-      requirements of the `README`.
-- [ ] If a container needs a system package, add it to
-      `PROJECTURED_REQUIREMENTS` and build again.
+      requirements of the `README`. Done with the release candidate
+      (`/var/tmp/release-plan/a5/containers.sh`, no network in the container,
+      a bash socket in place of `curl`): Debian 12 (glibc 2.36), Ubuntu 22.04
+      (2.35) and Fedora 41 (2.40) all answer `--build-info`, serve the web
+      client (HTTP 200) within 2 s, end on `SIGTERM` with 143 and no output, and
+      carry the licence index and a README that names the source archive.
+- [x] If a container needs a system package, add it to
+      `PROJECTURED_REQUIREMENTS` and build again. None needed: the first run
+      found two missing libraries, which the bundle now carries (above).
 
 ### Step A6: the guides name the download
 
