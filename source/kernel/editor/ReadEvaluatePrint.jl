@@ -136,8 +136,63 @@ function _zoom_operation(window_input)
     m.alt ? AdjustFontZoomOperation(delta) : AdjustZoomOperation(delta)
 end
 
+"""
+    evaluate!(editor::Editor)
 
-# An editor is what keeps faults, and this is how code that holds one without
-# being able to name its type reaches them. The kernel's agent layer drives a
-# tool against a target it knows only as `Any`.
-FaultModule.get_fault_store(editor::Editor) = editor.faults
+Apply the current operation to the document. Logs the operation when it is
+non-nothing.
+"""
+function evaluate!(editor::Editor)
+    # Log via @info, not a raw println: the assistant runs `execute_julia_code` on
+    # a concurrent task that globally redirects `stdout`/`stderr` to a pipe (and
+    # closes it), so a raw write to the live global stdout from this loop can land
+    # in that closed pipe and crash. The logger writes to the stream captured at
+    # startup, which the redirect leaves untouched.
+    editor.operation !== nothing && @info "[operation] $(editor.operation)"
+    operation = editor.operation
+    editor.fault_policy.is_barrier_enabled ||
+        return evaluate_operation(editor, operation)
+    inverse = _make_operation_inverse(editor, operation)
+    answer = _run_barrier(editor, :evaluate;
+                          origin = operation === nothing ? :nothing : typeof(operation),
+                          fallback = _BARRIER_FAILED) do
+        evaluate_operation(editor, operation)
+    end
+    answer === _BARRIER_FAILED || return answer
+    _repair_after_operation_fault!(editor, inverse)
+    nothing
+end
+
+"""
+    print!(editor::Editor)
+
+Project the editor's document through its projection pipeline. The root
+`PrinterContext` is minted with the editor's own `clock`, so animated cells
+descendants build subscribe to this editor's clock rather than a shared one.
+
+It also carries the editor's own document under `:root`. A projection deep in
+the tree cannot reach the root any other way, and one that shows something about
+the whole editor — where the selection is, which tabs are open — needs it.
+"""
+function print!(editor::Editor)
+    if editor.iomap === nothing
+        # The store and the policy ride down with the context. A projection
+        # barrier deep in the tree records into the store from inside a
+        # computation, where it can write no cell and reach no editor, and it
+        # catches only what the policy lets it catch. `PrinterContext` itself
+        # does not change.
+        ctx = with_property(
+                  with_property(
+                      with_property(with_clock(PrinterContext(), editor.clock),
+                                    :root, editor.document),
+                      :fault_store, editor.faults),
+                  :fault_policy, editor.fault_policy)
+        editor.iomap = print_document(editor.projection, nothing,
+                                      editor.document, ctx)
+    end
+    is_editor_degraded(editor, :device_write) && return nothing
+    _run_barrier(editor, :device; counter = :device_write,
+                 origin = typeof(editor.backend)) do
+        write_to_devices(editor.backend, editor.devices, editor.iomap.output)
+    end
+end

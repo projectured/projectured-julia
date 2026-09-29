@@ -119,3 +119,8 @@ ReferenceModule.get_parent(editor::Editor, x::Union{Reference, ReferencedDocumen
     get_parent(editor.document, x)
 ReferenceModule.find_referenced_document(locator::DocumentLocator{<:Editor}) =
     find_referenced_document(DocumentLocator(locator.start.document, locator.reference))
+
+# An editor is what keeps faults, and this is how code that holds one without
+# being able to name its type reaches them. The kernel's agent layer drives a
+# tool against a target it knows only as `Any`.
+FaultModule.get_fault_store(editor::Editor) = editor.faults

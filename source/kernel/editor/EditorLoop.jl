@@ -1,4 +1,5 @@
-# Fragment of `EditorModule` — the loop itself: the per-frame counters log, one frame, and the waiting main loop.
+# Fragment of `EditorModule` — the loop: the counter log, one frame,
+# `get_frame_clock_time`, the waiting main loop, and `make_editor`.
 
 # ── Performance logging ───────────────────────────────────────────────
 
