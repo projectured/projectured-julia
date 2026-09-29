@@ -292,10 +292,20 @@ function _ref_type_and_fields!(steps::Vector{ReferenceSyntaxStep}, base)
     end
     cur isa Symbol ||
         error("type step must start with a type name: $base")
+    isempty(fields) || _check_bare_type_name(cur, first(fields))
     push!(steps, ReferenceSyntaxType(cur))
     for f in fields
         push!(steps, ReferenceSyntaxField(f))
     end
+end
+
+# A type step takes a bare type name: `::Mod.T` reads as the type `Mod` and a field
+# `.T`. A capital letter starts a type name, as for a `::T` of a pattern, so a type
+# followed by such a name is a qualified type name, and the parser refuses it.
+function _check_bare_type_name(type_name::Symbol, next_name::AbstractString)
+    isuppercase(first(next_name)) || return nothing
+    error("a type step takes a bare type name, not `$type_name.$next_name`: " *
+          "bring `$next_name` into scope and write `::$next_name`")
 end
 
 # `x::T` type suffix: a bare `T` is the type step; `T{i}` / `T[i]` (which Julia parses as
@@ -332,6 +342,9 @@ function _ref_leading_type!(steps::Vector{ReferenceSyntaxStep}, X)
         root = steps[n + 1]
         root isa ReferenceSyntaxField ||
             error("leading ::T must start with a type name: $X")
+        next = length(steps) > n + 1 ? steps[n + 2] : nothing
+        next isa ReferenceSyntaxField &&
+            _check_bare_type_name(Symbol(root.name), next.name)
         steps[n + 1] = ReferenceSyntaxType(Symbol(root.name))
     end
 end

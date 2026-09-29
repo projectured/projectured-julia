@@ -582,6 +582,11 @@ end
 # Code generation helpers
 # ------------------------------------------------------------
 
+# The value of an arm that does not match. The generated arms and the match branch
+# that an extension step returns (`match_reference_step`) name it as `_nomatch`, and
+# the expansion reads it from this module, so no call allocates one.
+const _nomatch = Base.RefValue{Any}()
+
 # Returns (expr, boundnames)
 #
 # `expr` evaluates either to `success` or to `_nomatch`.
@@ -1061,14 +1066,22 @@ end
 # arrived at is a defect either way.
 # ------------------------------------------------------------
 
+# True when the code that builds a pattern reads the call site: a `^(…)`, a `::T` or
+# the bound of a range is an escaped expression.
+_reads_call_site(ex) =
+    ex isa Expr && (ex.head === :escape || any(_reads_call_site, ex.args))
+
 function _gen_interpreted_rule(mode, pat::Vector{PatStep}, body)
     bindings = gensym(:bindings)
     lets = [:($(esc(name)) = $bindings[$(QuoteNode(name))])
             for name in _pattern_binder_names(pat)]
+    # A pattern that reads nothing at the call site is the same on every call, so the
+    # expansion holds the pattern itself. The matcher does not change a pattern.
+    built = _quote_pattern(pat)
+    pattern = _reads_call_site(built) ? built : pat
     quote
         let $bindings = ReferenceModule.match_reference_pattern($(QuoteNode(mode)),
-                                                                $(_quote_pattern(pat)),
-                                                                _ref_input)
+                                                                $pattern, _ref_input)
             if $bindings === nothing
                 _nomatch
             else
@@ -1135,16 +1148,16 @@ macro reference_case(ref, block)
     for rule in reverse(rules)
         rule_ex = _gen_rule(rule)
         chain = quote
-            let _ref_input = $(esc(ref))
-                let _m = $rule_ex
-                    _m === _nomatch ? $chain : _m
-                end
+            let _m = $rule_ex
+                _m === _nomatch ? $chain : _m
             end
         end
     end
 
+    # The input is evaluated once, and every arm reads it. The expansion gives
+    # `_ref_input` a fresh name, so it can not capture a name of the call site.
     return quote
-        let _nomatch = Base.RefValue{Any}()
+        let _ref_input = $(esc(ref))
             $chain
         end
     end

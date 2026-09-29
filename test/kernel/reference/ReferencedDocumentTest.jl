@@ -21,6 +21,14 @@ end
     entries::Dict{String, Any}
 end
 
+# A document that iterates its items and has no index, so a read through a
+# referenced document finds each item by its identity.
+@document struct ReferencedBag
+    items::Vector{Any}
+end
+
+Base.iterate(bag::ReferencedBag, state...) = iterate(bag.items, state...)
+
 function _make_referenced_tree()
     ReferencedBranch("root",
         Any[ReferencedLeaf("a", nothing),
@@ -102,6 +110,19 @@ function test_referenced_document()
             @test key == "leaf"
             @test evaluate_reference(root, get_reference(value)) === root.entries["leaf"]
         end
+    end
+
+    @testset "a value found by its identity gets its own place, or none" begin
+        # The collection sits under a document, and the reference names the
+        # collection, not the document around it.
+        bag = ReferencedBag(Any[Any[1, 2]], nothing)
+        item = first(ReferencedDocument(bag, EmptyReference()))
+        @test item isa ReferencedDocument
+        @test evaluate_reference(bag, get_reference(item)) === bag.items[1]
+        # The step of a key that is not a name does not lead back to the value, so
+        # the value has no reference.
+        numbers = ReferencedDocument(Dict(1 => Any[1]), EmptyReference())
+        @test !(numbers[1] isa ReferencedDocument)
     end
 
     @testset "a write goes to the document, and stores a document, never a referenced one" begin

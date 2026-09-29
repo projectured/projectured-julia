@@ -93,10 +93,13 @@ end
 function _find_referenced_value(x::ReferencedDocument, value)
     _is_referenced_value(value) || return value
     document = get_document(x)
-    found = search_references(document, node -> node === value)
+    # The search answers the path to the value itself, with its types recorded. The
+    # step that it records for a key of a dictionary is the key as a string, so a key
+    # of another type gives a path that does not lead back to the value.
+    found = search_references(document, node -> node === value; raw = true)
     length(found) == 1 || return value
-    ReferencedDocument(value, concat_references(get_reference(x),
-                                                annotate_reference_types(document, only(found))))
+    try_evaluate_reference(document, only(found)) === value || return value
+    ReferencedDocument(value, concat_references(get_reference(x), only(found)))
 end
 
 function Base.getproperty(x::ReferencedDocument, name::Symbol)

@@ -23,7 +23,11 @@ pattern carrying several of them still answers exactly.
 glob_matches(pattern::AbstractString, name::AbstractString) =
     _glob_match(pattern, firstindex(pattern), name, firstindex(name))
 
-function _glob_match(pat::AbstractString, pi::Int, s::AbstractString, si::Int)
+# `failed` holds each state `(pi, si)` that answered false. A state answers the same on
+# every route to it, so each one is tried once, and a pattern with many `*` takes time
+# in proportion to the product of the two lengths. The first `*` or `{n..m}` makes it.
+function _glob_match(pat::AbstractString, pi::Int, s::AbstractString, si::Int;
+                     failed::Union{Nothing, Set{Tuple{Int, Int}}} = nothing)
     while true
         pi > lastindex(pat) && return si > lastindex(s)
         c = pat[pi]
@@ -32,9 +36,10 @@ function _glob_match(pat::AbstractString, pi::Int, s::AbstractString, si::Int)
             # Try every split. Which one wins is invisible: a glob answers yes or no and
             # binds nothing, so there is no greediness to choose here.
             npi = nextind(pat, pi)
+            failed === nothing && (failed = Set{Tuple{Int, Int}}())
             k = si
             while true
-                _glob_match(pat, npi, s, k) && return true
+                _glob_match_once(pat, npi, s, k; failed) && return true
                 k > lastindex(s) && return false
                 k = nextind(s, k)
             end
@@ -56,7 +61,8 @@ function _glob_match(pat::AbstractString, pi::Int, s::AbstractString, si::Int)
             close === nothing && error("unterminated `{` in glob pattern: $pat")
             body = pat[nextind(pat, pi):prevind(pat, close)]
             npi = nextind(pat, close)
-            occursin("..", body) && return _glob_match_number(body, pat, npi, s, si)
+            occursin("..", body) &&
+                return _glob_match_number(body, pat, npi, s, si; failed)
             si > lastindex(s) && return false
             negated = startswith(body, '^')
             negated && (body = body[nextind(body, firstindex(body)):end])
@@ -76,21 +82,33 @@ end
 # "10" and not "1". The range does not imply the run's length, so every length is tried,
 # longest first.
 function _glob_match_number(body::AbstractString, pat::AbstractString, npi::Int,
-                            s::AbstractString, si::Int)
+                            s::AbstractString, si::Int;
+                            failed::Union{Nothing, Set{Tuple{Int, Int}}})
     bounds = split(body, ".."; limit = 2)
     lo = tryparse(Int, bounds[1])
     hi = tryparse(Int, bounds[2])
     (lo === nothing || hi === nothing) &&
         error("`{$body}` in a glob pattern must be a numeric range like {38..47}")
+    failed === nothing && (failed = Set{Tuple{Int, Int}}())
     stop = si
     while stop <= lastindex(s) && isdigit(s[stop])
         stop = nextind(s, stop)
     end
     while stop > si
         value = tryparse(Int, s[si:prevind(s, stop)])
-        value !== nothing && lo <= value <= hi && _glob_match(pat, npi, s, stop) && return true
+        value !== nothing && lo <= value <= hi &&
+            _glob_match_once(pat, npi, s, stop; failed) && return true
         stop = prevind(s, stop)
     end
+    false
+end
+
+# `_glob_match` from the state `(pi, si)`, unless that state already failed.
+function _glob_match_once(pat::AbstractString, pi::Int, s::AbstractString, si::Int;
+                          failed::Set{Tuple{Int, Int}})
+    (pi, si) in failed && return false
+    _glob_match(pat, pi, s, si; failed) && return true
+    push!(failed, (pi, si))
     false
 end
 

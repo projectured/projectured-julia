@@ -55,6 +55,30 @@ function test_reference_evaluation()
         @test matched2 === :miss
     end
 
+    @testset "@reference_case evaluates its input once" begin
+        reads = Ref(0)
+        read_input() = (reads[] += 1; Reference(FieldReferenceStep("right")))
+        matched = @reference_case read_input() begin
+            left.value  => :a
+            left        => :b
+            right.value => :c
+            below(left) => :d
+            right       => :e
+        end
+        @test matched === :e
+        @test reads[] == 1
+    end
+
+    @testset "a type step takes a bare type name" begin
+        message = "a type step takes a bare type name"
+        @test_throws message parse_reference_path(:(::Mod.T))
+        @test_throws message parse_reference_path(:(left::Mod.T))
+        @test_throws message parse_reference_path(:(left::Mod.T{1}))
+        # A field after a type stays a field.
+        @test length(parse_reference_path(:(left::EB.value))) == 3
+        @test length(parse_reference_path(:(::EB.value{0:1}))) == 3
+    end
+
     @testset "a `::T` in a pattern narrows the match" begin
         # The skeleton records no node type anywhere; annotating it against `root`
         # fills every node in — so the pair below is the same shape, once untyped

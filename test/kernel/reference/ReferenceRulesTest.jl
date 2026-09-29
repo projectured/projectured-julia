@@ -95,6 +95,12 @@ function _corpus_paths()
     ]
 end
 
+# A compiled `@reference_case` of two arms, for the allocation count of one call.
+_rules_compiled_case(path) = @reference_case path begin
+    a.b => :hit
+    __  => :miss
+end
+
 # Assert a `@reference_case` block and a `ReferenceRules` object answer identically
 # across the whole corpus. `case` is the compiled matcher as a one-argument function.
 function _conforms(name, case, rules, paths = _corpus_paths())
@@ -918,6 +924,9 @@ function test_reference_rules()
         end
         @test glob_matches("a\\*b", "a*b")
         @test !glob_matches("a\\*b", "axb")
+        # Each state of a match is tried once, so many `*` on a long name answer at
+        # once. A search of every split takes seconds here.
+        @test @elapsed(glob_matches("*a"^10 * "*b", "a"^36)) < 1.0
 
         # All three print as they were written.
         printed = sprint(show, @reference_rules begin
@@ -1154,6 +1163,12 @@ function test_reference_rules()
         @test guarded(Reference(_fld("a"), _fld("buckets"), _el(3))) === :big
         @test guarded(Reference(_fld("a"), _fld("buckets"), _el(1))) === :small
         @test guarded(Reference(_fld("a"))) === :miss
+    end
+
+    @testset "a call of compiled arms allocates nothing" begin
+        path = Reference(_fld("a"), _fld("b"))
+        @test _rules_compiled_case(path) === :hit
+        @test (@allocated _rules_compiled_case(path)) == 0
     end
 
 end
