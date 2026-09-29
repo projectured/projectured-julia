@@ -38,6 +38,12 @@ The policy is a property of the placement, not of the child: `child_width` and `
 
 A grid column that is offered a size must not read its cells to find its own width, or the cell graph has a cycle. `column_offers` lets a caller keep the offer from a sized column; the column then clips its cells with `clip_child_to_slot` instead of making them flow again. A table uses this. `GridLayoutIoMap` also gives the column and row positions as cells, so a table can draw its lines over a grid that has no code for tables.
 
+The grid reads the kind of a policy, `Fixed`, a weight or `Content`, when it prints, with no dependency, because the kind decides what each cell is offered. It reads the numbers of a policy inside its extent cells. So a policy can be a computed cell: the header row of a table takes the widths of the grid of its cells as `Fixed`, and a new width does not print the header row again.
+
+### Children in a list
+
+The `children` of a `VerticalLayout` or a `HorizontalLayout` can be a `ListNode`, and so can the rows of a `GridLayout`, each row a vector of the cells of its columns. The layout walks the list from its head in both directions and builds only the children that a viewport shows, each after its neighbour; a `WidgetScrollPane` around it stops at the ends of the list. `children[k]` counts from the head, and a child before the head has an index of 0 or less. A list has no count, so its axis takes no weight: a child along a list is `Fixed` or its content, and a column of a grid of a list is `Fixed` or a weight of an offered width, because a column that is its content would read rows that are never built. `GridLayoutListIoMap` gives the edges of the columns as cells, `get_grid_list_head` gives the list of the row canvases that the grid placed, and `find_grid_list_row` gives one row and its cells, so a container can draw graphics around the rows and route a press to a cell.
+
 ### The constraint layout
 
 `ConstraintLayout` takes relations built with `make_layout_anchor(child, edge)` and `constrain(lhs, op, rhs; strength)`. Child `0` is the container. It solves in two passes:
@@ -91,11 +97,12 @@ projection = RecursiveProjection(LayoutToGraphics())
 ```
 
 - Examples: `layout_example` and `constraint_layout_example` in `example/substrate/`; `example/tulip/LayoutProjectionExample.jl` uses the Tulip solver.
-- Tests: `test_graphics_layout()`, `test_layout_allocator()`, `test_layout_closeout()` and `test_anchored_layout()` in `test/substrate/`.
+- Tests: `test_graphics_layout()`, `test_layout_allocator()`, `test_layout_closeout()`, `test_anchored_layout()` and `test_layout_list()` in `test/substrate/`.
 
 ## Limits
 
 - A `ConstraintLayout` with the default solver ignores its relations. Pass `ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())` to solve them.
 - The anchored layout maps no reference back: its `map_reference_backward` returns `nothing`.
 - `StackLayout.active` is a field for the caller. The printer draws every child.
+- A layout of a list maps no reference back, and a grid of a list has no lazy columns yet: the cells of a row are a vector.
 - The widget and table projections still place their parts with their own arithmetic instead of these layouts. [plan/tentative/layout-extensions.md](../../../plan/tentative/layout-extensions.md) lists this.

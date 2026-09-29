@@ -43,7 +43,8 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
        ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
-       LayoutToGraphics, GridLayoutIoMap, LayoutListIoMap, GridLayoutListIoMap
+       LayoutToGraphics, GridLayoutIoMap, LayoutListIoMap, GridLayoutListIoMap,
+       get_grid_list_head, find_grid_list_row
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
 export descend_reference_forward, shift_child_image, clip_child_to_slot

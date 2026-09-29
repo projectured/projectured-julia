@@ -40,9 +40,14 @@ function _data_frame_texts(node, ox = 0, oy = 0, found = Tuple{Int,Int,String}[]
     found
 end
 
-# The body region of the pane, the first of the four viewports of a frozen
-# header: the rows as they are drawn under the header.
-_data_frame_body(io) = first(e for e in io.output.elements if e isa GraphicsViewport)
+# The viewport of the cells: the rows as they are drawn under the header row.
+# The region of the cells is the last element of the table, and it holds the
+# graphics of the rows and the pane of the cells.
+function _data_frame_body(io)
+    cells = io.output.elements[end]
+    pane = only(e for e in cells.elements if e isa GraphicsCanvas)
+    only(e for e in pane.elements if e isa GraphicsViewport)
+end
 
 _data_frame_texts_in_body(io) = _data_frame_texts(_data_frame_body(io))
 
@@ -55,10 +60,10 @@ end
 """
     test_data_frame_view()
 
-A `DataFrameView` draws through the natural renderer as a table in a scroll
-pane: a header with the name and the type of each column, the rows that the pane
-shows and no others, and Ctrl+Home and Ctrl+End that jump to the first and the
-last row.
+A `DataFrameView` draws through the natural renderer as a table that scrolls
+its own parts: a header with the name and the type of each column, the rows that
+the table shows and no others, and Ctrl+Home and Ctrl+End that jump to the first
+and the last row.
 """
 function test_data_frame_view()
     @testset "a data frame drawn as a table" begin
@@ -88,7 +93,7 @@ function test_data_frame_view()
             frame = DataFrame(id = _CountingColumn(10_000_000, reads); copycols = false)
             io = print_document(projection, nothing, DataFrameView(frame), context())
             body = _data_frame_body(io)
-            Int(body.content.y)          # the pane places the list: a walk to its bottom
+            Int(body.content.y)          # the table places the list: a walk to its bottom
             @test reads[] < 30
             found = _data_frame_texts_in_body(io)
             @test any(t -> t[3] == "1", found)
@@ -112,11 +117,11 @@ function test_data_frame_view()
             before_y = only(t[2] for t in found if t[3] == string(count - 1))
             @test before_y < last_y
             body = _data_frame_body(io)
-            row_height = last_y - before_y
-            # The last row fills the bottom of the pane: its text starts one
-            # row above the bottom edge, at the same place in its row as the
-            # first row's text is in the first row.
-            @test last_y + row_height - (first_row_y - Int(body.y)) == Int(body.y) + Int(body.h)
+            # The first row starts at the top of the cells, and the last row
+            # ends at their bottom. A line of text is the ascent and the
+            # descent of the measure, 12 and 4.
+            @test first_row_y == Int(body.y)
+            @test last_y + 12 + 4 == Int(body.y) + Int(body.h)
             @test reads[] < 200
 
             first_op = _read_data_frame_key(projection, io, :home)

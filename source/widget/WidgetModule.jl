@@ -80,7 +80,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export CellTableToWidgetTable
-export WidgetTableListIoMap, make_widget_table_row
+export WidgetTablePartsIoMap, make_widget_table_row
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
@@ -96,7 +96,7 @@ export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle
 include("WidgetDocument.jl")
 include("WidgetStyle.jl")
 include("WidgetToGraphics.jl")
-include("WidgetTableList.jl")
+include("WidgetTableParts.jl")
 include("WidgetEmbedCard.jl")
 include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")

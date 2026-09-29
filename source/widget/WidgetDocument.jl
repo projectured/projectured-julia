@@ -2237,6 +2237,7 @@ See also `make_result_table` and `WidgetList` for one column.
     padding::Inset
     style::Any
     hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
+    scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
     tooltip::Any
 end
 
@@ -2272,7 +2273,8 @@ _table_rows(rows::ListNode) = Cell(rows)
                 border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
-                cell_policy=:clip, column_cell_policies=Symbol[], column_align=Symbol[])
+                cell_policy=:clip, column_cell_policies=Symbol[], column_align=Symbol[],
+                scroll_position=Point2D(0, 0))
 
 Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 `Document`/`nothing`, and a table has no row headers unless it is given some.
@@ -2283,7 +2285,9 @@ Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 reaches it, with no count and no end it has to have. Each node's value is a row,
 which [`make_widget_table_row`](@ref) builds from a vector of values or
 documents. Every column must be given a width — `Fixed`, or a weight — and the
-rows are `Fixed` or `Content`; a list draws no row headers.
+rows are `Fixed` or `Content`; a list draws no row headers. Such a table fills
+the height that it is offered and scrolls its own parts there: the header row
+holds still above the rows, and `scroll_position` is the offset of both.
 
 **A body column and a body row take a `SizePolicy`**, the way a `GridLayout`'s
 do: `column_policy` / `row_policy` say what every one is and the two vectors name
@@ -2307,7 +2311,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
-                     column_align=Symbol[],
+                     column_align=Symbol[], scroll_position::Point2D=Point2D(0, 0),
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
@@ -2327,7 +2331,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
                 Cell(collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(nothing), Cell(tooltip))
+                Cell(nothing), Cell(scroll_position), Cell(tooltip))
 end
 
 """

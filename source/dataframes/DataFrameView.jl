@@ -9,7 +9,7 @@
     DataFrameView(frame; anchor = 1)
 
 The view of `frame`, an `AbstractDataFrame`. `anchor` is the row of the frame at
-the head of the list of rows, and `scroll_position` is the offset of the pane
+the head of the list of rows, and `scroll_position` is the offset of the table
 from that row, in pixels. The two are the state of the view: a jump writes them
 together, and a history does not record them.
 """

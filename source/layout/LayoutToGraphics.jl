@@ -1260,20 +1260,23 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
     avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
 
-    # A column's and a row's policy, read once. What a policy IS, a caller says
-    # when it builds the grid; nothing changes one while the grid is on screen,
-    # so this is a plain read and not a dependency.
-    column_policy = doc.column_policy
-    row_policy    = doc.row_policy
-    column_policies = doc.column_policies
-    row_policies    = doc.row_policies
-    policy_of_column(k::Int) = _gl_policy_at(column_policies, k, column_policy)
-    policy_of_row(k::Int)    = _gl_policy_at(row_policies, k, row_policy)
+    # A column's and a row's policy. Its KIND — `Fixed`, a weight or `Content` —
+    # decides what a cell is offered, and that is read when the grid prints,
+    # with no dependency: a caller says what a column is when it builds the
+    # grid. Its NUMBERS are read inside the extent cells, so a policy that is a
+    # computed cell — a header row that takes the widths of the grid under it —
+    # follows what it reads, and a new number does not print the grid again.
+    policy_of_column(k::Int) = _gl_policy_at(doc.column_policies, k, doc.column_policy)
+    policy_of_row(k::Int)    = _gl_policy_at(doc.row_policies, k, doc.row_policy)
+    peek_column_policy(k::Int) = _gl_policy_at(peek(getfield(doc, :column_policies)), k,
+                                               peek(getfield(doc, :column_policy)))
+    peek_row_policy(k::Int)    = _gl_policy_at(peek(getfield(doc, :row_policies)), k,
+                                               peek(getfield(doc, :row_policy)))
     # A column that was given an extent hands it to its cells unless the grid
     # was told not to for that column; a column that was not given one has
     # nothing to hand out either way.
     column_offers = doc.column_offers
-    offers_to_cells(k::Int) = _gl_offers(policy_of_column(k)) &&
+    offers_to_cells(k::Int) = _gl_offers(peek_column_policy(k)) &&
         !(column_offers isa AbstractVector && k <= length(column_offers) && column_offers[k] === false)
 
     # Up to n columns and n rows — one child per column, or one column of n.
@@ -1303,7 +1306,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # columns. It reads only columns that come before it, and nothing forces it
     # while the cells are printed. A sized column that keeps its extent from its
     # cells (`column_offers`) clips them instead, and gives them no edge.
-    is_content_column(k::Int) = !_gl_offers(policy_of_column(k))
+    is_content_column(k::Int) = !_gl_offers(peek_column_policy(k))
     edge_w = ctx === nothing ? nothing : ctx.maximum_width
     function make_column_edge(col::Int)
         edge_w === nothing && return nothing
@@ -1334,7 +1337,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
             cctx = offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    withhold_offer(cctx, :x)
-            cctx = _gl_offers(policy_of_row(row)) ?
+            cctx = _gl_offers(peek_row_policy(row)) ?
                 with_exact_size(cctx; height = _gl_int32_cell(row_h[row])) :
                 withhold_offer(cctx, :y)
         end
@@ -1387,8 +1390,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         c isa GraphicsDocument || continue
         col = columns_now > 0 ? _grid_col(i, columns_now) : 1
         row = columns_now > 0 ? _grid_row(i, columns_now) : 1
-        clip_x = _gl_offers(policy_of_column(col))
-        clip_y = _gl_offers(policy_of_row(row))
+        clip_x = _gl_offers(peek_column_policy(col))
+        clip_y = _gl_offers(peek_row_policy(row))
         if clip_x || clip_y
             push!(wrapped, clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i],
                                               y_cell = child_y[i], slot_x = col_x[col],

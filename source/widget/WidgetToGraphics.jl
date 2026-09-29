@@ -4894,7 +4894,11 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                               Cell(color_transparent),
                               Cell(nothing)))
     if inner_canvas !== nothing
-        inner_elems_cv = inner_canvas.elements
+        # A content whose elements are a collection is drawn element by element.
+        # A content that holds its elements in a cell — a layout of a list — is
+        # drawn as its canvas, so a new list in that cell reaches the viewport
+        # and the pane reads no cell of its content as it prints.
+        inner_elems_cv = getfield(inner_canvas, :elements)
         # A content that holds a prefix of itself still is drawn in four regions;
         # every other content is the one viewport it has always been, and pays
         # nothing for a feature it does not use.
@@ -8352,7 +8356,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     # The printer reads the type of `rows` and nothing else says which table
     # this is: a list draws the rows a viewport shows, a vector draws them all.
-    w.rows isa ListNode && return _wtl_print(p, recursion, w, ctx)
+    w.rows isa ListNode && return _print_table_parts(p, recursion, w, ctx)
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.

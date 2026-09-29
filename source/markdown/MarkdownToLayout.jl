@@ -139,6 +139,7 @@ function _make_page_table(table::MarkdownTable)
                          Cell(true),                       # visible
                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
                          Cell(nothing),                    # hovered
+                         Cell(Point2D(0, 0)),              # scroll_position
                          Cell(nothing))                    # tooltip
     set_cell_computation!(getfield(widget, :selection), () -> begin
         inner = getfield(table, :selection)[]

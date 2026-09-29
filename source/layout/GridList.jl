@@ -72,12 +72,14 @@ end
 
 function _print_grid_list(p, recursion, doc, ctx)
     n = Int(doc.columns)
-    column_policy = doc.column_policy
-    column_policies = doc.column_policies
     row_policy = doc.row_policy
-    policy_of_column(k::Int) = _gl_policy_at(column_policies, k, column_policy)
+    # The kind of a column policy is read now, with no dependency, and its
+    # numbers in the extent cells, as the eager grid reads them.
+    policy_of_column(k::Int) = _gl_policy_at(doc.column_policies, k, doc.column_policy)
+    peek_column_policy(k::Int) = _gl_policy_at(peek(getfield(doc, :column_policies)), k,
+                                               peek(getfield(doc, :column_policy)))
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
-    _check_grid_list(n, policy_of_column, row_policy, avail_w)
+    _check_grid_list(n, peek_column_policy, row_policy, avail_w)
     hgap = getfield(doc, :horizontal_gap)
     vgap = getfield(doc, :vertical_gap)
     # Every column is given its extent, so no cell is read to find it.
@@ -139,14 +141,14 @@ function _make_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
             width = cim === nothing ? 0 : _child_w(cim)
             Int32(Int(col_x[c][]) + _get_layout_list_align_offset(align, Int(col_w[c][]), width))
         end)
-        push!(entries, (x_cell, cim))
+        push!(entries, (x_cell, Cell(Int32(0)), cim))
     end
-    cims = Any[entry[2] for entry in entries]
+    cims = Any[entry[3] for entry in entries]
     row_h = Cell(@computation Int32(fixed_h !== nothing ? Int(fixed_h) :
         maximum((cim === nothing ? 0 : _child_h(cim) for cim in cims); init = 0)))
     cells = Any[]
     for c in 1:n
-        (x_cell, cim) = entries[c]
+        (x_cell, _, cim) = entries[c]
         cim === nothing && continue
         child = cim.output
         child isa GraphicsDocument || continue
@@ -202,6 +204,26 @@ function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, 
 end
 
 # ── The rows the walk has built ──────────────────────────────────────────────
+
+"""
+    get_grid_list_head(iomap::GridLayoutListIoMap) -> ListNode or nothing
+
+The node of the head row among the rows that a grid of a list placed, or
+`nothing` for a grid with no rows. Its values are the canvases of the rows, so a
+container walks it to draw graphics around the rows that a viewport shows. The
+read is a dependency: a new head in `children` reaches the reader.
+"""
+get_grid_list_head(iomap::GridLayoutListIoMap) = iomap.state.head[]
+
+"""
+    find_grid_list_row(iomap::GridLayoutListIoMap, k) -> (canvas, entries, height) or nothing
+
+Row `k` of a grid of a list, counted from the head, walked to from the head and
+built on the way; `nothing` when the list ends before it. `entries` has one
+`(x, y, iomap)` for each column: the `x` of the cell in the grid, its `y` in the
+canvas of the row, and its IO map, which is `nothing` for an empty cell.
+"""
+find_grid_list_row(iomap::GridLayoutListIoMap, k::Integer) = _find_grid_list_row(iomap.state, Int(k))
 
 # Row `k` as `(row canvas, cell entries, row height)`, walked to from the head
 # and built on the way, or `nothing` when the list ends before it.
@@ -263,9 +285,8 @@ function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap::GridLayoutLi
     found === nothing && return nothing
     canvas, entries, _ = found
     1 <= c <= length(entries) || return nothing
-    entry = entries[c]
-    length(entry) == 3 || return nothing
-    (x_cell, y_cell, cim) = entry
+    (x_cell, y_cell, cim) = entries[c]
+    cim === nothing && return nothing
     row_y = Cell(@computation Int32(Int(canvas.y) + Int(y_cell[])))
     shift_child_image(map_reference_forward(cim.projection, cim, rest), cim;
                       off_x = x_cell, off_y = row_y)
@@ -296,11 +317,10 @@ function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, e
     canvas, entries, _ = found
     1 <= c <= length(entries) || return nothing
     entry = entries[c]
-    length(entry) == 3 || return nothing
+    entry[3] === nothing && return nothing
     answer = if pointer
         row_y = Int(canvas.y)
-        local_entry = (entry[1], entry[2], entry[3])
-        point = _find_child_point(local_entry, Int(evt.x), Int(evt.y) - row_y; bounded = true)
+        point = _find_child_point(entry, Int(evt.x), Int(evt.y) - row_y; bounded = true)
         point === nothing && return nothing
         local_event = _translate_layout_list_event(evt, point...)
         local_event === nothing && return nothing

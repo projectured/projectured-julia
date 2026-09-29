@@ -281,10 +281,11 @@ function test_widget_table_column_align()
                                        make(; column_align = Symbol[:left, :center, :right]), ctx)
             plain, placed = lefts(plain_io.output), lefts(placed_io.output)
             # A list draws its rows as the viewport reaches them, so the x of a
-            # body cell is read from the row the table built first.
-            body_shift(c, text) = make === list ?
-                Int(placed_io.state.built[1][2][c][1][]) - Int(plain_io.state.built[1][2][c][1][]) :
-                placed[text] - plain[text]
+            # body cell is read from the head row that the grid of the cells
+            # placed.
+            cell_x(io, c) = Int(find_grid_list_row(io.state.cells_pane.content_iomap, 1)[2][c][1][])
+            body_shift(c, text) = make === list ? cell_x(placed_io, c) - cell_x(plain_io, c) :
+                                                  placed[text] - plain[text]
             # A cell 8 wide in a column 120 wide: none at the left, half the
             # rest in the middle, all of it at the right.
             @test body_shift(1, "p") == 0

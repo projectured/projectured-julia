@@ -325,10 +325,49 @@ plan.
     its column, a click in a cell goes to the cell or selects its row, an
     Alt+click selects the cell, the hover names a row, and the keys move over
     rows and cells. They read the geometry that the grids report, shifted by
-    the offset. The corner, the three panes, the layouts of
-  §3.2 for the eager and the lazy table alike, the rules and bands shifted by
-  the one offset, the shared geometry of §3.5, and the synchronized wheel.
-  `WidgetTableList.jl` goes away.
+    the offset.
+  - [x] **2a. The table of a list** (this commit). `WidgetTableParts.jl`
+    replaces `WidgetTableList.jl`; the eager table prints as before until 2b.
+    Facts and decisions of the implementation:
+    - **The kind of a policy is read with `peek`.** Both grid printers read
+      the kind of a column or row policy at print with no dependency, and its
+      numbers in the extent cells. A tracked read made the print of the
+      enclosing table depend on every width, and the width cells that are set
+      after the print invalidated it at once.
+    - **The order of the print.** The header row prints first, with
+      `Fixed(widths[c])`, where `widths` are plain cells; the cells print
+      next, with the natural width of each header as the floor of a weighted
+      column; then each `widths[c]` gets the computation of the width of
+      column `c` of the cells. A header whose column wraps is offered the
+      width and gives no floor, else the floor would read itself.
+    - **The paddings of the panes.** The pane of the header row has the
+      padding `bw + pad` above and to the sides and `pad` under it; the pane
+      of the cells `bw + pad` on all four sides. So the rules sit in the
+      padding and the gaps, and the grid is at the place of the eager grid.
+      The panes have a transparent `content_color`, because the table draws
+      its bands behind them.
+    - **A row cut by an edge** shows its rules and bands up to the edge of
+      the table and its text only up to the edge of the viewport, which is
+      `bw + pad` inside. A pane that clips at its padding box, as CSS does,
+      would remove the difference; not done.
+    - **The pane wraps a list canvas by its field.** The pane decided from
+      the value of `elements` of its content whether to draw them one by one
+      or to draw the canvas; that read made the print depend on the head of
+      the list, and a list that came after an empty vector never reached the
+      viewport. It now decides by the field: a cell is a list layout, drawn
+      as its canvas.
+    - **The grid of a list gives two readers**, `get_grid_list_head` and
+      `find_grid_list_row`, and every entry of a row is `(x, y, iomap)`.
+    - **The readers.** A press goes to the cell through
+      `find_grid_list_row`, in the coordinates of the cell. A turn of the
+      wheel over either part goes to the reader of the pane of the cells, at
+      a point moved into its viewport. A button down or up still goes to the
+      selected cell as it did (phase 4).
+    - The data frame view draws the table with no pane and shares its
+      `scroll_position` with the table. The test is
+      `WidgetTablePartsTest.jl`.
+  - [ ] **2b. The eager table** on the same parts, with a header column, and
+    `row_offers` on `GridLayout` (P9).
 - [ ] **3. Relocation** in both directions (§3.6), and the row at the top
   (§3.7).
 - [ ] **4. Selection, keys and bands across the parts.** `test_table_selection`,
