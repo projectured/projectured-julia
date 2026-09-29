@@ -2,13 +2,13 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md), [build-guide.md](../../guide/build-guide.md)
 
-`ProjecturedBuilder` makes a native binary of a program: it writes a package for the binary, compiles it with PackageCompiler, and can test a copy and pack it as a distribution. This document describes the architecture: the app package under `build/app/`, the preferences, the distribution, and the workload that runs `warm_application()`. [build-guide.md](../../guide/build-guide.md) holds the steps and the options.
+`ProjecturedBuilder` makes a native binary of a program: it writes a package for the binary, compiles it with PackageCompiler, and can test a copy and pack it as a distribution. It also writes the release copy of the packages that a registry serves. This document describes the architecture: the app package under `build/app/`, the preferences, the distribution, the workload that runs `warm_application()`, and the release copy. [build-guide.md](../../guide/build-guide.md) holds the steps and the options.
 
 ## How it works
 
 ### Two halves
 
-The core names no program and no repository: `BuildContext`, `Preference`, `Usage`, `write_app_package`, `build_executable` and `build_distribution`. A `BuildContext` gives the root that a build writes into and the folders where `get_package_directory` finds a package by its name, in order. `ProjecturedProgram.jl` is the half of this repository. It describes the binary `projectured`: its backends, its options, its assets, its licences and the test of a copy. It names the packages as strings and loads none of them, so a downstream program can use the same core with a context of its own.
+The core names no program and no repository: `BuildContext`, `Preference`, `Usage`, `write_app_package`, `build_executable`, `build_distribution`, `build_package_release!` and `collect_outside_paths`. A `BuildContext` gives the root that a build writes into and the folders where `get_package_directory` finds a package by its name, in order. `ProjecturedProgram.jl` is the half of this repository. It describes the binary `projectured`: its backends, its options, its assets, its licences and the test of a copy. It also says which packages go into the registry, which folders each of them reads, and the oldest Julia they name. It names the packages as strings and loads none of them, so a downstream program can use the same core with a context of its own.
 
 The package depends on `Dates`, `Pkg`, `Preferences`, `SHA` and `TOML`, and on no package of ProjecturEd. It loads PackageCompiler only in the step that compiles, through `Base.PkgId` and `Base.require`. So a build that only writes the package, and the tests, need no compiler, and no `import` at run time makes a binding in a later world age.
 
@@ -17,7 +17,7 @@ The package depends on `Dates`, `Pkg`, `Preferences`, `SHA` and `TOML`, and on n
 `write_app_package` writes the package that the build compiles, under `build/app/<name>/`. It is a build artefact like an object file: every build writes it again, and nobody commits it.
 
 - **`Project.toml`** gets `[deps]` and `[sources]` from one list of packages, so the two can not disagree. Its UUID comes from the SHA-256 of the module name, so a rebuild keeps the identity of the package and the caches of PackageCompiler stay valid.
-- **The module**, `ProjecturedApp` for `projectured`, loads every package and holds the constant `BUILD_INFO` that `--build-info` prints. It takes `--log-level=` out of `ARGS` before the program sees it, and reads `PROJECTURED_LOG_LEVEL` behind the flag. With a `Usage` it answers `--help` and `--version` and stops on an unknown flag; without one, the program owns the command line.
+- **The module**, `ProjecturedApp` for `projectured`, loads every package and holds the constant `BUILD_INFO` that `--build-info` prints. It takes `--log-level=` out of `ARGS` before the program sees it, and reads `PROJECTURED_LOG_LEVEL` behind the flag. With a `Usage` it answers `--help` and `--version` and stops on an unknown flag; without one, the program owns the command line. On Linux, `_end_on_terminate!` gives `SIGTERM` back its default action on the main thread, so the program ends at once, with exit status 143 and no output. The signal listener of the Julia runtime would take the signal as fatal and print the stack of every thread.
 - **`julia_main()`** has the expression `main` as its body. `main` and `workload` are `Expr` values, so the parser checks them while the build function runs and not minutes later inside PackageCompiler.
 
 `write_if_changed` writes a file only when its content differs, apart from the line with the build time. Julia takes a changed source file as a stale cache, and this module compiles from nothing at each build. `bin/projectured` writes the same package with `compile = false` and runs its `julia_main` in a Julia session, so a person tries a change with no build.
@@ -50,6 +50,18 @@ A build is incremental by default: it compiles on top of the image of the runnin
 4. The `check` of the program runs. For `projectured`, `check_projectured_copy` starts the copy with `--backend=web --mcp --assistant=none` and reads the web client, a font and the list of guides over HTTP.
 5. It copies the licence files, writes a README with the requirements, and packs `<name>-<version>-<system>-<architecture>.tar.gz`.
 
+### The release copy
+
+Pkg installs only the folder of a package, and a package of this repository includes its code from `source/<slice>/`, outside that folder. `build_package_release!(context; packages, output, …)` writes a copy in which each package folder holds everything it reads, so a registry can serve it while the repository keeps its layout:
+
+1. It checks that the set is closed: every package of the repository that a released package depends on is released too.
+2. For each package, in dependency order, it writes into a staging folder: the `Project.toml`, the entry file with the include prefix `../../../source/` changed to `../source/`, the slice, the folders that the package reads while it runs (`assets`), and the licence files. It copies only what git tracks.
+3. `collect_outside_paths` reads the syntax tree of every file of the copy. A literal `include` path or a `joinpath(@__DIR__, …)` path that leaves the package folder, or names nothing there, stops the build, and so does a path that the scan can not follow.
+4. Each package gets its version. A package whose content did not change keeps its released folder byte for byte, so its tree and its version stay. A changed package gets the next patch version and caret `[compat]` bounds on its siblings from their versions in this release; a package of another registry gets a caret bound from `environment/all/Manifest.toml`.
+5. Only when every package passed does it replace the changed folders in `output`, the working tree of the release repository.
+
+The last release is what the last commit of `output` holds: an uncommitted change stops the build. The registration is a separate step with `LocalRegistry.jl`, in the order that the build answers; [build-guide.md](../../guide/build-guide.md) holds it.
+
 ## How it fits
 
 `ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. `source/builder/build_binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `ProjecturedExample`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../guide/static-compilation-guide.md).
@@ -62,6 +74,9 @@ A build is incremental by default: it compiles on top of the image of the runnin
 - **A build value is a preference.** A change then compiles again, and a stale image can not keep an old value.
 - **The copy is tested out of sight of the checkout.** A copy tested where it was built proves nothing: an absolute path into the checkout or the depot works there and nowhere else.
 - **An incremental image is never distributed.** One constant, `INCREMENTAL_MARK`, is written by `build_info` and read by `check_relocation`, so the two ends can not disagree.
+- **The release copy takes what git tracks.** A coverage file or an editor lock file in a slice never reaches a user, and never changes a version.
+- **A package that did not change keeps its folder.** Its tree stays, so the registry sees no new version, and a user downloads nothing for it.
+- **The last release is the last commit.** The builder reads no registry, and a release copy with an uncommitted change is refused, so a registration that was cut short is safe to run again.
 - **The smoke test passes `--build-info`.** The builder writes that flag into every binary. `--version` reaches the `main` of a binary with no usage. A window program can take it for a folder to open, and the measure of the start then does not end.
 
 ## Usage
@@ -71,12 +86,15 @@ using ProjecturedBuilder                     # julia --project=environment/build
 build_projectured_executable()               # build/projectured/bin/projectured
 build_projectured_executable(; compile = false, backends = (:sdl,))
 build_projectured_distribution()             # build/projectured-<version>-linux-x86_64.tar.gz
+build_projectured_package_release!("../Projectured.jl")   # the release copy of the packages
 ```
 
 - Test: `test_builder()` in `test/builder/BuilderTest.jl`. The tests compile nothing: they check what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
+- Test: `test_package_release()` in `test/builder/PackageReleaseTest.jl`, also with no compile: the layout of the copy, the versions, the bounds, the scan, and a release copy of this repository.
 
 ## Limits
 
 - A distribution needs `bwrap`, and the test of `projectured` also needs `curl` and the ports 8080 and 9876.
 - A file that the program reads at run time needs two changes: a name in `assets`, and a reader that looks in the bundle first. Nothing checks the second.
 - A build takes minutes and much memory; [build-guide.md](../../guide/build-guide.md) gives the numbers.
+- The guides live in the copy of `ProjecturedKernel`, so a change to a guide gives the kernel a new version, and Julia compiles every package above it again after an update.
