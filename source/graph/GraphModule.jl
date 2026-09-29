@@ -76,6 +76,7 @@ export ForceDirectedEmbedding, default_force_directed_parameters,
 export StarTreeEmbedding, embed_star_tree!
 export HeapEmbedding, embed_heap!
 export ForceDirectedLayout
+export FruchtermanReingoldLayout
 export DeferredLayout, make_deferred_layout_engine, register_layout_engine!,
        resolve_layout_engine, make_pure_julia_layout_engine, ADVANCED_LAYOUT_LIMIT
 export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
@@ -87,6 +88,7 @@ export GraphGraph, GraphVertex, GraphEdge, GraphConstraint, GraphLayout, VertexL
 include("GraphDocument.jl")
 include("GraphLayout.jl")
 include("GraphLayoutEngine.jl")
+include("FruchtermanReingoldLayout.jl")
 include("cpp/LcgRandom.jl")
 include("cpp/LayoutGeometry.jl")
 include("cpp/GraphComponent.jl")

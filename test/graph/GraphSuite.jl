@@ -24,7 +24,8 @@ function test_graph()
     @testset "ProjecturedGraph" begin
         test_graph_layering()
         test_graph_projection()
+        test_fruchterman_reingold_layout()
     end
 end
 
-export test_graph, test_graph_layering, test_graph_projection, test_graph
+export test_graph, test_graph_layering, test_graph_projection, test_fruchterman_reingold_layout, test_graph

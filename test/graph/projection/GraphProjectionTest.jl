@@ -103,35 +103,28 @@ end
 end
 
 @testset "the engine a caller gets when it names none" begin
-    # Qtenv picks by size and so does DeferredLayout: twenty vertices or more go
-    # to the fast layouter, fewer go to the advanced one. Both thresholds are the
-    # same number for the same reason — the advanced one is already slow at
-    # thirty or forty modules.
-    @test ADVANCED_LAYOUT_LIMIT == 20
-    @test resolve_layout_engine(DeferredLayout(), 19) isa ForceDirectedLayout
-    @test resolve_layout_engine(DeferredLayout(), 20) isa SpringEmbedderLayout
-    @test resolve_layout_engine(DeferredLayout(), 500) isa SpringEmbedderLayout
+    # With nothing registered, the deferred engine is the force-directed engine
+    # of this package, for a graph of any size.
+    @test resolve_layout_engine(DeferredLayout(), 5) isa FruchtermanReingoldLayout
+    @test resolve_layout_engine(DeferredLayout(), 500) isa FruchtermanReingoldLayout
     @test resolve_layout_engine(GridEmbedding(), 500) isa GridEmbedding
-
     @test layout_engine_name(GridEmbedding()) === :grid
-    @test layout_engine_name(SpringEmbedderLayout()) === :spring_embedder
-    @test layout_engine_name(ForceDirectedLayout()) === :force_directed
+    @test layout_engine_name(FruchtermanReingoldLayout()) === :fruchterman_reingold
 
-    # And the choice really is made per layout, from the graph it is given.
+    # And the choice is made per layout, so a registered engine takes over.
     small = [GraphVertex(JsonString("v$i")) for i in 1:5]
-    large = [GraphVertex(JsonString("v$i")) for i in 1:25]
     small_graph = GraphGraph(small, [GraphEdge(small[i], small[i+1]) for i in 1:4])
-    large_graph = GraphGraph(large, [GraphEdge(large[i], large[i+1]) for i in 1:24])
     small_sizes = Dict(objectid(v) => (40, 20) for v in small)
-    large_sizes = Dict(objectid(v) => (40, 20) for v in large)
-
-    advanced, _ = layout_graph(ForceDirectedLayout(), small_graph, small_sizes, [])
+    direct, _ = layout_graph(FruchtermanReingoldLayout(), small_graph, small_sizes, [])
     deferred, _ = layout_graph(DeferredLayout(), small_graph, small_sizes, [])
-    @test deferred == advanced
-
-    fast, _ = layout_graph(SpringEmbedderLayout(), large_graph, large_sizes, [])
-    deferred_large, _ = layout_graph(DeferredLayout(), large_graph, large_sizes, [])
-    @test deferred_large == fast
+    @test deferred == direct
+    register_layout_engine!((; orthogonal = false) -> GridEmbedding())
+    try
+        @test resolve_layout_engine(DeferredLayout(), 5) isa GridEmbedding
+    finally
+        register_layout_engine!(nothing)
+    end
+    @test resolve_layout_engine(DeferredLayout(), 5) isa FruchtermanReingoldLayout
 end
 
 @testset "a layout says which engine drew it" begin
@@ -143,19 +136,11 @@ end
     content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
 
     for (engine, name) in ((GridEmbedding(), :grid),
-                           (SpringEmbedderLayout(), :spring_embedder),
-                           (ForceDirectedLayout(), :force_directed),
-                           (DeferredLayout(), :force_directed))
+                           (FruchtermanReingoldLayout(), :fruchterman_reingold),
+                           (DeferredLayout(), :fruchterman_reingold))
         layout = print_document(GraphGraphToGraphLayout(engine), content, graph, _gctx()).output
         @test layout.engine === name
     end
-
-    # Twenty-five vertices and the deferred engine reports the fast one, because
-    # that is what ran.
-    many = [GraphVertex(JsonString("v$i")) for i in 1:25]
-    big = GraphGraph(many, [GraphEdge(many[i], many[i+1]) for i in 1:24])
-    layout = print_document(GraphGraphToGraphLayout(DeferredLayout()), content, big, _gctx()).output
-    @test layout.engine === :spring_embedder
 end
 
 @testset "ForceDirectedLayout draws what OMNeT++ draws" begin

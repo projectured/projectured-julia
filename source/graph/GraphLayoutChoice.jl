@@ -3,11 +3,10 @@
 # Which engine a caller gets when it names none, and when that is decided.
 #
 # `DeferredLayout` decides **when the layout runs**, not when the projection is
-# built, and it decides the way the module layouter of the C++ original
-# decides: twenty vertices or more go
-# to `SpringEmbedderLayout`, which is fast, and fewer go to `ForceDirectedLayout`,
-# which is better and costs more. A package with a native engine registers a
-# factory and takes over both.
+# built. With nothing registered it is `FruchtermanReingoldLayout`. A package
+# with an engine of its own registers a factory and takes over; the factory may
+# answer an engine that decides by the size of the graph, which is why the
+# vertex count travels with the choice.
 #
 # This module sits above the engines rather than beside the interface, because
 # choosing between them means naming them.
@@ -67,14 +66,12 @@ make_deferred_layout_engine(; orthogonal::Bool = false) = DeferredLayout(orthogo
 """
     make_pure_julia_layout_engine(vertex_count; orthogonal = false) -> GraphLayoutEngine
 
-The engine to use for a graph of this size when nothing is installed: the rule
-of the original, `SpringEmbedderLayout` from [`ADVANCED_LAYOUT_LIMIT`](@ref) vertices up
-and `ForceDirectedLayout` below it.
+The engine to use for a graph of this size when nothing is installed:
+[`FruchtermanReingoldLayout`](@ref), for every size.
 
-`orthogonal` is accepted and ignored, because neither of these routes edges.
+`orthogonal` is accepted and ignored, because it routes edges as straight lines.
 """
-make_pure_julia_layout_engine(vertex_count::Integer; orthogonal::Bool = false) =
-    vertex_count >= ADVANCED_LAYOUT_LIMIT ? SpringEmbedderLayout() : ForceDirectedLayout()
+make_pure_julia_layout_engine(::Integer; orthogonal::Bool = false) = FruchtermanReingoldLayout()
 
 """
     resolve_layout_engine(engine[, vertex_count]) -> GraphLayoutEngine
@@ -101,9 +98,8 @@ get_supported_constraint_kinds(engine::DeferredLayout) =
 layout_engine_name(engine::DeferredLayout) =
     layout_engine_name(resolve_layout_engine(engine))
 
-# Resolution happens per layout call, and reads the vertex count, so one
-# projection draws a small graph with the advanced layouter and a large one with
-# the fast layouter — the same rule and the same threshold as the original.
+# Resolution happens per layout call, and reads the vertex count, so an engine
+# that a package registered can draw a small graph and a large one differently.
 #
 # `GraphGraphToGraphLayout` memoizes on topology, sizes and constraints — not on
 # the engine — so a graph already laid out keeps its old picture until something
