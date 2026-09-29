@@ -29,12 +29,12 @@ _gr_key(name, t; modifiers = _GR_CTRL, repeat = false) =
     WindowInput(:win, KeyDown(name, modifiers; repeat, time = t))
 
 # One click through `rec`: a press 0.02 s before `t_up` and a release at `t_up`,
-# both at `(x, y)`. Answers the count of the `MousePress` that follows, or 0 when
-# the release makes no click.
-function _drive_click!(rec, x, y, t_up; button = :left)
+# both at `(x, y)` in `window`. Answers the count of the `MousePress` that follows,
+# or 0 when the release makes no click.
+function _drive_click!(rec, x, y, t_up; button = :left, window = :win)
     empty!(rec.pending)
-    recognize_gesture!(rec, _gr_down(button, x, y, t_up - 0.02))
-    recognize_gesture!(rec, _gr_up(button, x, y, t_up))
+    recognize_gesture!(rec, _gr_down(button, x, y, t_up - 0.02; window))
+    recognize_gesture!(rec, _gr_up(button, x, y, t_up; window))
     isempty(rec.pending) ? 0 : rec.pending[end].event.count
 end
 
@@ -60,13 +60,27 @@ function test_gesture_recognizer()
     end
 
     @testset "the times of the events decide, not the time of processing" begin
-        # The release is processed a second after the press, as after a slow frame,
-        # but the two events are 0.1 s apart: a click.
+        # The recognizer reads no clock. The two events are 0.1 s apart, so they
+        # make a click, also when a slow frame lies between their processing.
         rec = GestureRecognizer()
         recognize_gesture!(rec, _gr_down(:left, 10, 20, 100.0))
-        sleep(0.35)
         recognize_gesture!(rec, _gr_up(:left, 10, 20, 100.1))
         @test length(rec.pending) == 1
+    end
+
+    @testset "a click window ends before its limit" begin
+        # The tests are strict: a release 5 px away from its press, or 0.3 s after
+        # it, is no click. 4 px and 0.29 s are inside.
+        release_at(x, y, t) = begin
+            rec = GestureRecognizer()
+            recognize_gesture!(rec, _gr_down(:left, 10, 20, 0.0))
+            recognize_gesture!(rec, _gr_up(:left, x, y, t))
+            length(rec.pending)
+        end
+        @test release_at(15, 20, 0.1) == 0
+        @test release_at(10, 25, 0.1) == 0
+        @test release_at(10, 20, 0.3) == 0
+        @test release_at(14, 24, 0.29) == 1
     end
 
     @testset "a release too far, too late or of another button is no click" begin
@@ -140,6 +154,13 @@ function test_gesture_recognizer()
         @test _drive_click!(rec, 10, 20, 0.05) == 1
         @test _drive_click!(rec, 10, 20, 0.15) == 2
         @test _drive_click!(rec, 10, 20, 0.25) == 3
+    end
+
+    @testset "the next click in another window starts the count again" begin
+        rec = GestureRecognizer()
+        @test _drive_click!(rec, 10, 20, 0.05) == 1
+        @test _drive_click!(rec, 10, 20, 0.15; window = :popup) == 1
+        @test _drive_click!(rec, 10, 20, 0.25; window = :popup) == 2
     end
 
     @testset "the count starts again after a gap, a move or another button" begin
