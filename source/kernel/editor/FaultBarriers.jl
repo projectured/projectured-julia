@@ -103,13 +103,16 @@ function _evaluate_operation_guarded!(editor::Editor, operation)
 end
 
 # An inverse reads the state the change starts from, so it is taken BEFORE the
-# change is applied. Taking one can itself fail, and a way back that could not be
-# worked out is `nothing` — a truthful answer, not an error.
+# change is applied. Taking one can itself fail: the fault is recorded, and a way
+# back that could not be worked out is `nothing` — a truthful answer, not an error.
 function _make_operation_inverse(editor::Editor, operation)
     operation === nothing && return nothing
     try
         make_inverse_operation(editor.document, operation)
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
+        record_fault!(editor.faults, :evaluate; origin = typeof(operation), exception,
+                      traceback = catch_backtrace())
         nothing
     end
 end
@@ -122,9 +125,12 @@ function _repair_after_operation_fault!(editor::Editor, inverse)
     if inverse !== nothing
         try
             evaluate_operation(editor, inverse)
-        catch
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
             # The way back failed too. The document stands as it is, and the
             # two repairs below still run.
+            record_fault!(editor.faults, :evaluate; origin = typeof(inverse), exception,
+                          traceback = catch_backtrace())
         end
     end
     # Repair 1 — re-print from scratch. A change that failed half way often
@@ -143,9 +149,12 @@ function _repair_selection!(editor::Editor)
         is_valid_reference(editor.document, path) && return nothing
         clear_selection!(editor.document)
         @warn "[fault] the selection did not survive a failed operation and was cleared"
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
         # A document that can not even be asked where its selection is has
         # nothing this repair can do for it.
+        record_fault!(editor.faults, :evaluate; origin = :_repair_selection!, exception,
+                      traceback = catch_backtrace())
     end
     nothing
 end
