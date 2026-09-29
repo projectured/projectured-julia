@@ -2,12 +2,12 @@
     ToolModule
 
 The **capability surface**: what the editor can be asked to do, and what it can
-be asked to read. Seven fragments share this namespace:
+be asked to read. Eight fragments share this namespace:
 
 - [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), the
-  `ApiEntry` lines of the API that a set declares, the `MeaningModel` a search by
-  description ranks with, the `ToolSet` that holds them, and
-  `observe_evaluations!`, which tells a host what each code call produced.
+  `ApiEntry` lines of the API that a set declares, the `MeaningModel` and the
+  `RelevanceModel` a search by description ranks with, the `ToolSet` that holds
+  them, and `observe_evaluations!`, which tells a host what each code call produced.
 - [`ToolSet.jl`](ToolSet.jl) — registering, listing, finding, and calling them.
 - [`CodeExecution.jl`](CodeExecution.jl) — `execute_julia_code!` and
   `execute_julia_expression!`, which run the code of the `execute_julia_code` tool,
@@ -19,6 +19,8 @@ be asked to read. Seven fragments share this namespace:
 - [`MeaningSearch.jl`](MeaningSearch.jl) — how a description is ranked by what it
   means, where the vectors of that rank are kept, and how a guide section's
   meaning rank joins the rank of its words.
+- [`RelevanceSearch.jl`](RelevanceSearch.jl) — how a `RelevanceModel` ranks a
+  description, its context and each thing a search could find, read together.
 - [`DefaultTools.jl`](DefaultTools.jl) — `register_default_tools!`, which puts the
   above into a `ToolSet`.
 
@@ -53,6 +55,7 @@ A few values of the layer are process-global, each for a reason:
 module ToolModule
 
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
+       RelevanceModel, set_relevance_model!,
        get_api_entry_names,
        get_api_entry_bindings, get_api_source_name, describe_api, register_guide_root!,
        register_tool!, list_tools, find_tool, call_tool, declare_api!,
@@ -75,6 +78,7 @@ include("CodeExecution.jl")
 include("SearchQuery.jl")
 include("Documentation.jl")
 include("MeaningSearch.jl")
+include("RelevanceSearch.jl")
 include("DefaultTools.jl")
 
 end # module

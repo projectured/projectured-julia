@@ -101,6 +101,13 @@ end
 _is_cell_name_answer(answer) =
     occursin("Cell", answer) && !occursin("UndefVarError", answer)
 
+# A module with a value of its own under a word the model looks the API up with.
+module ToyLookalike
+export search_api
+"""A search of toys only."""
+search_api(query) = "toys"
+end
+
 function test_declared_api()
 @testset "Declared API" begin
 
@@ -388,6 +395,34 @@ function test_declared_api()
         @test occursin("ToyRival", message)
         # Nothing was declared by the refusal.
         @test isempty(set.api)
+    end
+
+    # A wide declaration names the tool module too, which exports the helpers.
+    @testset "a declared module that exports the helpers builds, and the helpers keep the declaration" begin
+        set = register_default_tools!(ToolSet())
+        declare_api!(set, [ToyApi, ToolModule])
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
+        listed = execute_julia_code!(set, nothing, "list_modules()")
+        @test occursin("ToyApi", listed)
+        @test occursin("ToolModule", listed)
+        # The whole surface would list the cell module as well.
+        @test !occursin("CellModule", listed)
+    end
+
+    @testset "another value under a helper name is refused, and arrives under its own" begin
+        set = ToolSet()
+        message = try
+            declare_api!(set, [ToyApi, ToyLookalike])
+            ""
+        catch error
+            sprint(showerror, error)
+        end
+        @test occursin("search_api", message)
+        @test occursin("ToyLookalike", message)
+        @test isempty(set.api)
+        declare_api!(set, [ToyApi, ToyLookalike => (:search_api => :search_toys,)])
+        @test strip(execute_julia_code!(set, nothing, "search_toys(1)")) == "\"toys\""
+        @test occursin("toy_verb", execute_julia_code!(set, nothing, "search_api(\"toy\")"))
     end
 
     # What is discoverable is what is callable, and a pair narrows both halves.

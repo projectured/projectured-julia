@@ -749,9 +749,11 @@ end
 Every name a declaration gives, grouped by module: one signature line each, or
 just the names when `signatures` is false.
 
-**It is what a search answers when it matched nothing.** A search that says only
-"no match" costs a round and teaches nothing, and the round after it is a guess.
-The names are short, and they are the answer to "then what may I write?".
+**It is what a search answers when it matched nothing**, while the declaration
+is small. A search that says only "no match" costs a round and teaches nothing,
+and the round after it is a guess. The names are short, and they are the answer
+to "then what may I write?". A declaration of thousands of names is not listed:
+the miss names its modules instead.
 
 **It is not carried in a prompt.** The surface is 43 names and 900 tokens today,
 and it grows with the application; a menu in every round is a cost that never
@@ -909,7 +911,8 @@ end
 
 """
     search_guides(query; mode = "keywords", detail = "summary", limit = nothing,
-                  meaning_model = nothing) -> String
+                  meaning_model = nothing, relevance_model = nothing,
+                  context = nothing) -> String
 
 Search the guides. They are split into sections at their headings, and the hits
 are sections, each with the URI `read_resource` reads it by:
@@ -933,10 +936,20 @@ An answer that is long ends with what to do next.
   twice. Without a meaning model, or when it fails, the words alone rank them,
   and the first line of the answer says why.
 
+With a `relevance_model`, a description or keywords go to it with the first 50
+sections by words and the first 50 by meaning, and it orders them; when it
+fails, the ranks above stand, and the first line says so. A pattern does not go
+to it.
+
+`context` is what the search is asked in, such as the request of the person. The
+meaning vector of the query reads it before the sentence, and the relevance
+model reads it beside the query. A pattern search does not read it.
+
 A query that can not be read answers the reason as text, and never throws.
 """
 function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
-                       detail = "summary", limit = nothing, meaning_model = nothing)
+                       detail = "summary", limit = nothing, meaning_model = nothing,
+                       relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
@@ -947,11 +960,37 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     hit_count >= 1 || return _say_limit_below_one(limit)
     sections = _guide_index()
     ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    by_words = ranked
     note = nothing
+    context_text = _get_context_text(context)
+    by_meaning = nothing
     if read isa _DescriptionQuery
-        by_meaning, note = _rank_guide_sections_by_meaning(read, sections, meaning_model)
+        by_meaning, note = _rank_guide_sections_by_meaning(_add_query_context(read, context_text),
+                                                           sections, meaning_model)
         by_meaning === nothing ||
             (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
+    end
+    # **Keywords are asked of the relevance model too.** A model searches with
+    # keywords far more than with a sentence, and names its intent in them.
+    if relevance_model !== nothing && !(read isa Regex)
+        described = read isa _DescriptionQuery ? read : _DescriptionQuery(String(query))
+        if read isa KeywordQuery
+            fold = _get_query_fold(read)
+            by_meaning, _ = _rank_guide_sections_by_meaning(_add_query_context(described, context_text),
+                                                            sections, meaning_model)
+            by_meaning === nothing ||
+                (by_meaning = filter(section -> _is_passing(read, fold(section.heading),
+                                                            fold(section.body)), by_meaning))
+        end
+        pool = _make_relevance_pool(by_words, something(by_meaning, _GuideSection[]))
+        by_relevance, relevance_note = _rank_guide_sections_by_relevance(described, context_text, pool,
+                                                                         relevance_model)
+        if by_relevance === nothing
+            note = _join_notes(relevance_note, note)
+        elseif !isempty(by_relevance)
+            ranked = by_relevance
+            note = nothing
+        end
     end
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).\n" *
                                                  "A verb may do it: `search_api` with the same words.")
@@ -1268,7 +1307,8 @@ end
 
 """
     search_api(query; mode = "keywords", detail = "summary", kind = nothing, limit = nothing,
-               api = ApiEntry[], meaning_model = nothing) -> String
+               api = ApiEntry[], meaning_model = nothing, relevance_model = nothing,
+               context = nothing) -> String
 
 Search modules, types, and functions by name and docstring. Ranks exact name
 matches above name substrings above docstring matches and returns the top `limit`
@@ -1288,10 +1328,24 @@ process built its index, on first use.
 default, a pattern with `"regex"` or a `Regex`, and a sentence with
 `"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
 for a written word only: a pattern ranks by where it matches.
+
+A `relevance_model` ranks a description before the meaning model does, and
+keywords before their words do, unless their words match one name as strongly
+as that name itself would and no other name so: it
+reads the query, the `context` and each entry together. The filters of a
+keyword query (`+word`, `-word`) still say which entries it may rank. It scores
+every entry of a declaration of up to 255, and of a larger one it scores the
+best few of each group of 255 that it chose among by their first sentences.
+When it fails, the meaning model or the words rank, and the first line of the
+answer says why.
+
+`context` is what the search is asked in, such as the request of the person and
+what the window holds. A description and the relevance model read it; a pattern
+search does not.
 """
 function search_api(query::Union{AbstractString,Regex}; mode = "keywords",
                     detail = "summary", kind = nothing, limit = nothing, api = ApiEntry[],
-                    meaning_model = nothing)
+                    meaning_model = nothing, relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
@@ -1302,7 +1356,8 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords",
     hit_count >= 1 || return _say_limit_below_one(limit)
     entries = _ApiEntry[entry for entry in _api_index(api)
                         if kind === nothing || entry.kind == kind]
-    ranked, alone, note = _rank_api_hits(read, entries, meaning_model)
+    ranked, alone, note = _rank_api_hits(read, entries; query, meaning_model,
+                                         relevance_model, context)
     # **A miss answers what there IS.** A search that says only "no match" costs a
     # round and teaches nothing, and the round after it is a guess. The names of
     # the declaration are short, and they are the answer to "then what may I
@@ -1310,7 +1365,7 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords",
     # carried in every prompt.
     if isempty(ranked)
         suffix = kind === nothing ? "" : " (kind=$kind)"
-        names = isempty(api) ? "" : describe_api(api; signatures = false)
+        names = isempty(api) ? "" : _describe_api_for_miss(api)
         return _prefix_note(note, "No API matches $(repr(query))$suffix. " *
             "A guide may say it: `search_guides` with the same words." *
             (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
@@ -1346,8 +1401,9 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords",
 end
 
 # The entries a query finds, best first; whether the first is the one clear
-# answer; and the note of a description that no meaning model ranked.
-function _rank_api_hits(read, entries::Vector{_ApiEntry}, meaning_model)
+# answer; and the note of a ranking that a model could not do.
+function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
+                        relevance_model, context)
     scored = _rank_api_entries(read, entries)
     ranked = _ApiEntry[entry for (_, entry) in scored]
     note = nothing
@@ -1359,16 +1415,63 @@ function _rank_api_hits(read, entries::Vector{_ApiEntry}, meaning_model)
         # of the five weightings of a rank fusion that were tried, none put a verb
         # above where the meaning alone put it, and each put three or four of
         # eight test sentences' verbs below it.
-        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
-        by_meaning === nothing || (ranked = by_meaning)
+        context_text = _get_context_text(context)
+        by_relevance, relevance_note = relevance_model === nothing ? (nothing, nothing) :
+            _rank_api_entries_by_relevance(read, context_text, entries, relevance_model)
+        if by_relevance === nothing
+            by_meaning, note = _rank_api_entries_by_meaning(
+                _add_query_context(read, context_text), entries, meaning_model)
+            by_meaning === nothing || (ranked = by_meaning)
+            note = _join_notes(relevance_note, note)
+        else
+            ranked = by_relevance
+        end
         # A sentence names no verb, so only a single hit is a clear answer.
         alone = length(ranked) == 1
     else
         # One hit, or one whose NAME is exactly what was asked while no other's is.
-        alone = length(scored) == 1 ||
-                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
+        named = !isempty(scored) && scored[1][1][1] >= 100 &&
+                (length(scored) == 1 || scored[2][1][1] < 100)
+        alone = length(scored) == 1 || named
+        # **Keywords are asked of the relevance model too**, among the entries
+        # their filters let pass, unless they name one entry as `named` says. A
+        # model searches with keywords far more than with a sentence: measured
+        # 2026-09-28, the rehearsals of a study searched only by keywords, with a
+        # context. On 41 such logged searches the classifier put the needed name
+        # first in 35, the words in 26.
+        if relevance_model !== nothing && read isa KeywordQuery && !named
+            fold = _get_query_fold(read)
+            passing = _ApiEntry[entry for entry in entries
+                                if _is_passing(read, fold(entry.qualname), fold(entry.text))]
+            by_relevance, relevance_note = isempty(passing) ? (nothing, nothing) :
+                _rank_api_entries_by_relevance(_DescriptionQuery(String(query)),
+                                               _get_context_text(context), passing,
+                                               relevance_model)
+            if by_relevance === nothing
+                note = relevance_note
+            else
+                ranked = by_relevance
+                alone = length(ranked) == 1
+            end
+        end
     end
     (ranked, alone, note)
+end
+
+# The most names a miss lists. An application declares thousands, and a list of
+# them all is some 25,000 tokens: one answer would fill the context of a model.
+const _MISS_NAME_LIMIT = 300
+
+# What a miss says of the declaration: every name, grouped by module, while there
+# are few; the modules alone when there are more.
+function _describe_api_for_miss(api)
+    entries = _api_entries(api)
+    count = sum(length(get_api_entry_bindings(entry)) for entry in entries; init = 0)
+    count <= _MISS_NAME_LIMIT && return describe_api(api; signatures = false)
+    modules = unique(String(nameof(entry.module_)) for entry in entries)
+    "The declaration gives " * string(count) * " names in " * string(length(modules)) *
+    " modules, too many to list. The modules: " * join(modules, ", ") *
+    ". Say in a sentence what you want, with mode \"description\"."
 end
 
 # A hit is two lines: what a caller writes, and what it does.
@@ -1392,27 +1495,31 @@ end
 
 """
     search_api(set::ToolSet, query; mode = "keywords", detail = "summary", kind = nothing,
-               limit = nothing) -> String
+               limit = nothing, context = nothing) -> String
 
-Search what the tools of `set` search: its declared API, ranked by its meaning
-model when it has one. This is what the `search_api` tool answers, so a call
-from the REPL and a call from a model answer the same text.
+Search what the tools of `set` search: its declared API, ranked by its relevance
+model and its meaning model when it has them. This is what the `search_api` tool
+answers, so a call from the REPL and a call from a model answer the same text.
 """
 search_api(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-           detail = "summary", kind = nothing, limit = nothing) =
+           detail = "summary", kind = nothing, limit = nothing, context = nothing) =
     search_api(query; mode = mode, detail = detail, kind = kind, limit = limit, api = set.api,
-               meaning_model = set.meaning_model)
+               meaning_model = set.meaning_model, relevance_model = set.relevance_model,
+               context = context)
 
 """
-    search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing) -> String
+    search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing,
+                  context = nothing) -> String
 
 Search the guides as the tools of `set` search them, ranked by its meaning model
-when it has one. This is what the `search_guides` tool answers.
+and its relevance model when it has them. This is what the `search_guides` tool
+answers.
 """
 search_guides(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-              detail = "summary", limit = nothing) =
+              detail = "summary", limit = nothing, context = nothing) =
     search_guides(query; mode = mode, detail = detail, limit = limit,
-                  meaning_model = set.meaning_model)
+                  meaning_model = set.meaning_model, relevance_model = set.relevance_model,
+                  context = context)
 
 # ── Tool-argument coercion ─────────────────────────────────────────────────
 # A tool argument arrives from JSON, so it may be a number, a string, or nothing.

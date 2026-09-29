@@ -28,12 +28,13 @@ on both.
 
 ```
 Tool.jl           Tool (an action), Resource (a read-only datum), ApiEntry, MeaningModel,
-                  ToolSet, observe_evaluations!
+                  RelevanceModel, ToolSet, observe_evaluations!
 ToolSet.jl        register / list / find / call — all on a ToolSet
 CodeExecution.jl  execute_julia_code! and execute_julia_expression!, and their persistent scratch namespace
 SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
 Documentation.jl  guide / module / type / function docs, and search over them
 MeaningSearch.jl  the rank of a description by its meaning, and the stores of vectors
+RelevanceSearch.jl the rank of a description by a classifier that reads it with each hit
 DefaultTools.jl   register_default_tools!, which puts the above into a ToolSet
 ```
 
@@ -118,8 +119,19 @@ the list says how to read a hit in full: a function with
 meaning model ranked says so in its first line, and says what to do instead.
 
 `search_api(set, query; …)` and `search_guides(set, query; …)` search as
-the tools of `set` do, with its declaration and its meaning model, so a call
-from the REPL answers what a model is answered.
+the tools of `set` do, with its declaration, its meaning model and its
+relevance model, so a call from the REPL answers what a model is answered.
+
+**A query says what the step needs.** The description of `query` tells the
+model that a query can be a sentence about what this step needs, and the search
+reads it whole. One sentence can mean two names: "save it" is `save_document`
+for a document open in a pane and `save_user_interface` for the arrangement of
+the windows, and only the words of the situation tell them apart. The tools
+have no separate context argument: measured on 90 questions, 2026-09-29, the
+same words joined into the query ranked as well as a separate context, and a
+context the model wrote beside its own queries changed no rank. The functions
+`search_api` and `search_guides` keep a `context` keyword for a caller from
+code.
 
 **Two searches, two intents.** `search_api` finds the name to call, and
 `search_guides` says how the parts fit together; their descriptions say so in
@@ -217,6 +229,32 @@ words of the description rank the hits as optional keywords, and the first line
 of the answer says why. For a model
 that is not installed, the reason says how to install it: `Run ollama pull
 nomic-embed-text`.
+
+**A relevance model ranks a description before the meaning does, and keywords
+before their words do.** A `RelevanceModel` is a classifier: it reads the query,
+its context and one thing a search could find together, and answers how likely
+that thing does what was asked. Keywords go to it because a model searches with
+keywords far more than with a sentence; a keyword query whose words match one
+name as strongly as the name itself would, and no other name so, is answered
+with that name in full, as before, and the `+word` and
+`-word` filters still say which entries it may rank. A pattern never goes to it. A meaning vector is made from one text alone, so it cannot weigh a
+docstring against the question it is asked for. `set_relevance_model!` gives a
+tool set one; the kernel holds its two functions and no client of a server.
+
+- **`search_api`** has the model score every entry of a declaration of up to
+  255. Above that, the model first chooses among the entries by their first
+  sentences, in groups of 255 asked at once, keeps the best 3 of each group, and
+  scores those.
+- **`search_guides`** has the model score the first 50 sections by words and the
+  first 50 by meaning. The meaning vectors already rank the sections of a guide
+  well, so the model orders their first hits rather than choosing among all.
+- **A model that throws leaves the ranking to the meaning model**, and the first
+  line of the answer says why, as it does for a meaning model.
+
+Measured on the 5,187 names of an IDE and 131 questions, 2026-09-28: the meaning
+vectors put 30 of 60 questions' names in the first ten; a classifier that scores
+the first fifty of words and meaning put 43; the choice and then the score, 54.
+On the sections of the guides the gain is small: 10 of 13 first against 9.
 
 ## `llm/`: how the editor talks to a model
 
@@ -394,7 +432,13 @@ finding out what that is, is not one of the things it does. So `search_api` and
 the declaration already applied — which is what makes the locator `search_api`
 prints for every function, a `read_function_documentation(…)` call, name something
 the model can actually reach. It cannot widen its own view by passing a different
-list.
+list. `list_modules`, `list_types` and `list_functions` are bound the same way.
+
+These five names always belong to the namespace. A declared module that exports
+one of these functions, as the tool module does, gives nothing more: the name
+arrives as the helper, with the declaration applied. A declaration that gives
+another value under one of the names is refused, because the model would write
+the word and reach the helper; the value can come under another name.
 
 The tool description follows the declaration too. With a list it names the modules
 and says that anything else is an `UndefVarError`; with none it keeps the wider

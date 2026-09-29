@@ -108,7 +108,9 @@ end
 # every request, so the syntax is said here in four lines, and the guide says the
 # rest.
 const _QUERY_PARAMETER = (name = "query", type = "string",
-    description = "What to look for. `mode` says how it is read.", required = true)
+    description = "What to look for. `mode` says how it is read. It can be a sentence " *
+                  "that says what this step needs; the search reads it whole.",
+    required = true)
 
 const _MODE_PARAMETER = (name = "mode", type = "string",
     description = "How `query` is read. \"keywords\" (the default): words that rank a " *

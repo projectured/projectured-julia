@@ -1,0 +1,21 @@
+name = "ProjecturedOpenRouterTest"
+uuid = "dc1d00c5-94ff-4244-b58f-31c92e267a9e"
+version = "0.1.0"
+authors = []
+
+# The OpenRouter tier of the test-package DAG. The suite tests translation — the
+# questions of a relevance model into a request of the Decisions API, and its
+# answer back into probabilities — with a stand-in for the network. The one test
+# that asks the real API skips itself when no key is exported.
+
+[deps]
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedOpenRouter = "52a43d73-2617-4b68-a734-0e5186e9ad8a"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedOpenRouter = {path = "../ProjecturedOpenRouter"}

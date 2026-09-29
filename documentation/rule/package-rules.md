@@ -209,6 +209,7 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 | --- | --- | --- |
 | `ProjecturedAnthropic` | Kernel | HTTP, JSON3 |
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
+| `ProjecturedOpenRouter` | Kernel | HTTP, JSON3 |
 | `ProjecturedMcp` | Kernel | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
 | `ProjecturedVideo` | Graphics, Kernel, Screen, Sdl | FFMPEG |

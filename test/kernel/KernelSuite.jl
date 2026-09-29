@@ -100,6 +100,7 @@ function test_kernel()
         test_declared_api()
         test_search_query()
         test_meaning_search()
+        test_relevance_search()
         test_search_answer()
         test_code_execution()
         test_construct_oracle()
@@ -123,7 +124,8 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_device_module, test_gesture_binding, test_gesture_recognizer,
        test_iomap_reconcile, test_iomap_defaults,
        test_headless_backend, test_llm_defaults, test_agent_defaults, test_agent_loop,
-       test_declared_api, test_search_query, test_meaning_search, test_search_answer,
+       test_declared_api, test_search_query, test_meaning_search, test_relevance_search,
+       test_search_answer,
        test_code_execution,
        test_editor_inbox, test_editor_frame_drain, test_editor_feeds,
        test_editor_wait, test_frame_measurements, test_editor_frame_performance,
