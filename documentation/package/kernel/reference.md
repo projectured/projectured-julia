@@ -52,7 +52,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        one name; independent of `Reference` itself
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
         │                        (destructures a path against pattern => result
-        │                        rules), plus when/prefix guards
+        │                        rules), plus the when guard
         ├─ ReferenceRules.jl   — the @reference_rules DSL: the same block of arms
         │                        kept as a VALUE (ReferenceRules), matched by an
         │                        interpreter over the same pattern AST
