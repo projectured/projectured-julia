@@ -297,7 +297,35 @@ plan.
     the rows `Fixed` (a row as tall as its cells would change while the pane
     scrolls sideways), and the grid places a list of the column positions
     that draws nothing, so the pane stops at the first and the last column.
-- [ ] **2. The table of layouts.** The corner, the three panes, the layouts of
+- [ ] **2. The table of layouts.** Implementation design, 2026-09-30:
+  - **The parts.** The cells are a `GridLayout` over `rows` (a flat vector
+    of the cells for an eager table, the list of rows for a lazy one), with
+    the gaps of the table (`2 × cell padding + border`). The header row is a
+    `GridLayout` of one row over `column_headers`. The header column is a
+    `GridLayout` of one column over `row_headers`. Each is the content of a
+    `WidgetScrollPane` that the table prints through the recursion.
+  - **The shared widths and heights (P9).** The column policies of the cells
+    grid take a minimum from the natural width of each header (a header
+    clips, so that width does not depend on the column), and the header grid
+    takes the widths of the cells grid as `Fixed`. The grid reads the values
+    of its policies inside its cells, so a policy that is a computed cell
+    follows what it reads; the kind of a policy, `Fixed`, a weight or
+    `Content`, stays what it was at the print.
+  - **The graphics.** A `StackLayout` wraps each layer in a canvas of its own,
+    so a list inside it would be two levels deep and the pane would not find
+    it to clamp. So the content of a pane is the grid alone, and the table
+    draws its rules and bands in a viewport of its own behind each pane, with
+    the box of the pane and the offset that the table owns: over the edges of
+    an eager grid, and in a list that mirrors the rows of a lazy grid.
+  - **The offset.** The pane of the cells shares the `scroll_position` cell of
+    the table; the panes of the headers read a computed cell of it, `(x, 0)`
+    and `(0, y)`. A wheel over any part goes to the pane of the cells, so the
+    pane clamps it at the ends of its lists, and the header panes follow.
+  - **The readers.** The table keeps its readers: a click on a header selects
+    its column, a click in a cell goes to the cell or selects its row, an
+    Alt+click selects the cell, the hover names a row, and the keys move over
+    rows and cells. They read the geometry that the grids report, shifted by
+    the offset. The corner, the three panes, the layouts of
   §3.2 for the eager and the lazy table alike, the rules and bands shifted by
   the one offset, the shared geometry of §3.5, and the synchronized wheel.
   `WidgetTableList.jl` goes away.
