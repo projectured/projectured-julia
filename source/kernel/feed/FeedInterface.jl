@@ -21,6 +21,9 @@ task, before `read!`. A feed must write only what is new: an empty store
 writes no cell, so an idle feed repaints nothing. A feed must not block —
 a producer waits for the editor through its store, never the other way.
 
+A drain that throws is recorded as a fault of its feed, and the next feed still
+drains.
+
 There is deliberately no default method: a feed that cannot drain is a bug,
 not a no-op, so an unimplemented feed raises a `MethodError`.
 """

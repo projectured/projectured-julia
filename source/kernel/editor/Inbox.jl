@@ -53,16 +53,18 @@ Apply every operation waiting in the inbox and answer how many there were.
 Called once per frame by `run_editor!`, before `read!`, so the frame paints what
 it just applied.
 
-Applied through `evaluate_operation` rather than [`evaluate!`](@ref): posted
-operations do not become `editor.operation`, because that field means "what the
-reader made of this frame's input" and is what `perf!` uses to tell a frame in
-which the user did something from an idle one. It also keeps a sync arriving ten
-times a second out of the operation log.
+Each operation applies in the operation barrier of [`evaluate!`](@ref), with the
+same repairs: an operation that fails half way is taken back where it has a way
+back, the fault is recorded, and the next operation still applies. It is not
+`evaluate!` itself: posted operations do not become `editor.operation`, because
+that field means "what the reader made of this frame's input" and is what
+`perf!` uses to tell a frame in which the user did something from an idle one.
+It also keeps a sync arriving ten times a second out of the operation log.
 """
 function drain_operations!(editor::Editor)
     count = 0
     while isready(editor.inbox)
-        evaluate_operation(editor, take!(editor.inbox))
+        _evaluate_operation_guarded!(editor, take!(editor.inbox))
         count += 1
     end
     count

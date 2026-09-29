@@ -17,7 +17,7 @@ import ProjecturedKernel.FeedModule: drain_changes!, compute_wake_deadline,
 import ProjecturedKernel.EditorModule: Editor, InboxFeed, post_operation!,
                                        drain_feeds!, wake_editor!
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
-import ProjecturedKernel.FaultModule: record_fault!
+import ProjecturedKernel.FaultModule: record_fault!, FaultPolicy, get_fault_records
 using ProjecturedKernelExample
 
 @document struct FeedProbe
@@ -45,6 +45,12 @@ function drain_changes!(feed::ProbeFeed, editor::Editor)
 end
 
 attach_wake_callback!(feed::ProbeFeed, wake) = (feed.wake = wake; nothing)
+
+# A feed whose drain throws, as a feed with a broken store does.
+struct DrainFailingFeed <: Feed end
+drain_changes!(::DrainFailingFeed, editor::Editor) = error("the drain failed")
+
+_quiet_feed_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 struct ProbeFeedOperation <: Operation
     log::Vector{Any}
@@ -84,6 +90,18 @@ function test_editor_feeds()
         post_operation!(editor, ProbeFeedOperation(Any[]))
         @test drain_feeds!(editor) == 6      # 1 operation + 2 + 3
         @test drain_feeds!(editor) == 0      # everything is drained
+    end
+
+    @testset "a drain that throws is recorded, and the next feed still drains" begin
+        log = Any[]
+        editor = _feed_editor(Feed[DrainFailingFeed(), ProbeFeed(log, :after; pending = 2)])
+        editor.fault_policy = _quiet_feed_policy()
+        @test drain_feeds!(editor) == 2            # the failed drain counts as no item
+        @test [tag for (tag, _) in log] == [:after]
+        records = get_fault_records(editor.faults)
+        @test length(records) == 1
+        @test records[1].site === :evaluate
+        @test records[1].origin === :DrainFailingFeed
     end
 
     @testset "construction starts with a pending wake" begin

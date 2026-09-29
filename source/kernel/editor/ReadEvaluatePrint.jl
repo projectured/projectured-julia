@@ -149,18 +149,7 @@ function evaluate!(editor::Editor)
     # in that closed pipe and crash. The logger writes to the stream captured at
     # startup, which the redirect leaves untouched.
     editor.operation !== nothing && @info "[operation] $(editor.operation)"
-    operation = editor.operation
-    editor.fault_policy.is_barrier_enabled ||
-        return evaluate_operation(editor, operation)
-    inverse = _make_operation_inverse(editor, operation)
-    answer = _run_barrier(editor, :evaluate;
-                          origin = operation === nothing ? :nothing : typeof(operation),
-                          fallback = _BARRIER_FAILED) do
-        evaluate_operation(editor, operation)
-    end
-    answer === _BARRIER_FAILED || return answer
-    _repair_after_operation_fault!(editor, inverse)
-    nothing
+    _evaluate_operation_guarded!(editor, editor.operation)
 end
 
 """

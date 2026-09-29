@@ -12,8 +12,11 @@ using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 import ProjecturedKernel.EditorModule
-import ProjecturedKernel.EditorModule: Editor, MAX_OPERATIONS_PER_FRAME
-import ProjecturedKernel.OperationModule: Operation, evaluate_operation, invalidate_projection!
+import ProjecturedKernel.EditorModule: Editor, MAX_OPERATIONS_PER_FRAME, post_operation!,
+                                       drain_operations!
+import ProjecturedKernel.FaultModule: FaultPolicy, get_fault_records
+import ProjecturedKernel.OperationModule: Operation, evaluate_operation, invalidate_projection!,
+                                          make_inverse_operation
 using ProjecturedKernelExample
 
 @document struct FrameDrainProbe
@@ -35,6 +38,27 @@ end
 
 evaluate_operation(editor::Editor, op::DrainFrameSwapOperation) =
     (push!(op.log, :swap); invalidate_projection!(editor); nothing)
+
+# Writes the value of the document, then fails: an operation that fails half way.
+struct HalfWayFrameOperation <: Operation
+    value::Int
+end
+
+evaluate_operation(editor::Editor, operation::HalfWayFrameOperation) =
+    (editor.document.value = operation.value; error("the operation failed half way"))
+
+# The way back writes the value that the document holds before the change.
+make_inverse_operation(document, ::HalfWayFrameOperation) =
+    RestoreFrameValueOperation(document.value)
+
+struct RestoreFrameValueOperation <: Operation
+    value::Int
+end
+
+evaluate_operation(editor::Editor, operation::RestoreFrameValueOperation) =
+    (editor.document.value = operation.value; nothing)
+
+_quiet_frame_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 # Turns each scripted window input into one operation, so a queue of N events is
 # a queue of N operations.
@@ -117,6 +141,21 @@ function test_editor_frame_drain()
         @test length(log) == MAX_OPERATIONS_PER_FRAME
         EditorModule.run_frame!(editor)                  # the rest, on the next frame
         @test length(log) == MAX_OPERATIONS_PER_FRAME + 5
+    end
+
+    @testset "a posted operation that fails is taken back, and the next one applies" begin
+        log = Any[]
+        editor, backend = _frame_editor(log)
+        editor.fault_policy = _quiet_frame_policy()
+        post_operation!(editor, HalfWayFrameOperation(7))
+        post_operation!(editor, DrainFrameOperation(log, :next))
+        @test drain_operations!(editor) == 2
+        @test editor.document.value == 0             # the inverse took the change back
+        @test log == [:next]                         # in the same drain
+        @test editor.iomap === nothing               # the next print starts from scratch
+        records = get_fault_records(editor.faults)
+        @test length(records) == 1
+        @test records[1].origin === :HalfWayFrameOperation
     end
 
 end

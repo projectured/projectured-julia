@@ -176,10 +176,9 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             with_performance_counters() do
                 set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, frame_started - t_start))
                 # What was posted or stored from outside this task, applied
-                # here so the frame paints what its feeds just wrote.
-                _run_barrier(editor, :evaluate) do
-                    drain_feeds!(editor)
-                end
+                # here so the frame paints what its feeds just wrote. Each feed
+                # drains in a barrier of its own.
+                drain_feeds!(editor)
                 run_frame!(editor)
                 _run_barrier(editor, :report) do
                     perf!(editor)

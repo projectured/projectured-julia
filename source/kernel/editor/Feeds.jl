@@ -72,14 +72,19 @@ end
     drain_feeds!(editor) -> Int
 
 Drain every registered feed, in registration order, and answer how many
-items moved in total. Runs once per frame on the editor task, inside the
-`:evaluate` barrier of [`run_editor!`](@ref), before `read!` — so the frame
-paints what its feeds just wrote.
+items moved in total. Runs once per frame on the editor task, before `read!` —
+so the frame paints what its feeds just wrote.
+
+Each drain runs in its own `:evaluate` barrier. A drain that throws is recorded
+with the type of its feed as the origin and counts as no item, and the next feed
+still drains.
 """
 function drain_feeds!(editor::Editor)
     count = 0
     for feed in editor.feeds
-        count += drain_changes!(feed, editor)
+        count += _run_barrier(editor, :evaluate; origin = typeof(feed), fallback = 0) do
+            drain_changes!(feed, editor)
+        end
     end
     count
 end
