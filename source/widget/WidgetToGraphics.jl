@@ -4196,26 +4196,33 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         tab_strip_color = _get_part_color(w, :tab_strip_color, p.tab_strip_color)
         # The tab strip's own fill behind the whole tab row.
         _push_panel!(result, cox, coy, g.strip_w, sel_h; fill=tab_strip_color, radius=tab_radius)
+        # Each tab is a canvas of its own in the strip, in the order of the tabs,
+        # with no size of its own: the header of the tab, the image of its
+        # `selector`. No other element of the strip is a canvas.
         for i in eachindex(tabs)
             label, icon, iw, gap, tx, rw = tabs[i]
             state = i == active ? :selected : nothing
             tab_color = _get_state_color(p, w, :tab; state)
+            header = Any[]
             if i == active
                 # Active tab: a raised background pill.
-                _push_panel!(result, tx, coy, rw, sel_h; fill=tab_color, radius=tab_radius)
+                _push_panel!(header, tx, coy, rw, sel_h; fill=tab_color, radius=tab_radius)
             end
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
-            iw > 0 && _push_icon!(result, icon, tx + sel_pad, coy + sel_pad, iw, fg)
+            iw > 0 && _push_icon!(header, icon, tx + sel_pad, coy + sel_pad, iw, fg)
             name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad
             found = name_caret[]
             if found !== nothing && found[1] == i
-                push!(result, _make_canvas(name_x, name_y, Any[name_view[].output]))
+                push!(header, _make_canvas(name_x, name_y, Any[name_view[].output]))
             else
-                _push_text!(result, p.measure, tab_text.font, label, name_x, name_y, fg)
+                _push_text!(header, p.measure, tab_text.font, label, name_x, name_y, fg)
             end
             # The button column sits at the tab's right edge, tinted like its label.
-            _push_tab_buttons!(result, g, tabs[i], fg)
+            _push_tab_buttons!(header, g, tabs[i], fg)
+            push!(result, GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
+                                         CellVector(Cell[Cell(e) for e in header]),
+                                         layout_none, true, Cell(nothing)))
         end
         # The new-tab button follows the last tab.
         g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad,
@@ -4364,15 +4371,88 @@ function _compute_page_extent(cim, avail_w_inner, avail_h_inner)
      avail_h_inner === nothing ? Int(reach()[2]) : max(0, Int(avail_h_inner[])))
 end
 
-map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
+# A page maps as the pane shows it: the open page to the pane's own canvas, a
+# page that is not open to nothing, the `selector` of any page to its header in
+# the tab strip, and the `element` of the open page to the content.
+function map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
+    reference isa Reference || return nothing
+    page = _find_tab_page_place(strip_reference_types(reference))
+    page === nothing && return _map_child_forward(iomap, reference)
+    index, rest = page
+    w = get_iomap_input(iomap)
+    w isa WidgetTabbedPane || return nothing
+    if rest isa EmptyReference
+        active = _tab_index_from_selection(get_stored_selection(w), length(w.selector_element_pairs))
+        return index == (active == 0 ? 1 : active) ? EmptyReference() : nothing
+    end
+    head = get_reference_head(rest)
+    (head isa FieldReferenceStep && head.name == "selector") || return _map_child_forward(iomap, reference)
+    get_reference_tail(rest) isa EmptyReference || return nothing
+    _find_tab_header_reference(iomap, index)
+end
+
+# `selector_element_pairs[i]` and the rest after it, as `(i, rest)`, or `nothing`.
+function _find_tab_page_place(reference)
+    reference isa ConcreteReference || return nothing
+    head = get_reference_head(reference)
+    (head isa FieldReferenceStep && head.name == "selector_element_pairs") || return nothing
+    rest = get_reference_tail(reference)
+    rest isa ConcreteReference || return nothing
+    step = get_reference_head(rest)
+    (step isa ARangeReferenceStep && is_element_reference_step(step)) || return nothing
+    (step.start + 1, get_reference_tail(rest))
+end
+
+# The header of tab `index`: the canvas number `index` of the tab strip, which is
+# the content of the pane's first viewport.
+function _find_tab_header_reference(iomap, index::Int)
+    output = unwrap_cell(get_iomap_output(iomap))
+    strip = _find_first_viewport_content(output)
+    strip isa GraphicsCanvas || return nothing
+    elements = unwrap_cell(getfield(strip, :elements))
+    elements isa Union{AbstractVector, CellVector} || return nothing
+    count = 0
+    for k in 1:length(elements)
+        header = unwrap_cell(elements[k])
+        header isa GraphicsCanvas || continue
+        count += 1
+        count == index && return find_node_reference(output, header; depth = 6)
+    end
+    nothing
+end
+
+# The content of the first viewport in `canvas`, level by level, at most three
+# levels deep.
+function _find_first_viewport_content(canvas)
+    level = Any[canvas]
+    for _ in 1:3
+        next = Any[]
+        for node in level
+            node isa GraphicsCanvas || continue
+            elements = unwrap_cell(getfield(node, :elements))
+            elements isa Union{AbstractVector, CellVector} || continue
+            for k in 1:length(elements)
+                child = unwrap_cell(elements[k])
+                child isa GraphicsViewport && return unwrap_cell(getfield(child, :content))
+                push!(next, child)
+            end
+        end
+        level = next
+    end
+    nothing
+end
 
 # A tabbed pane's input has `.selector_element_pairs[i]` (a Pair whose
 # second member is the i-th tab's content widget). The reader prepends
 # `selector_element_pairs[i]` to bubbled paths so the active tab is
 # encoded; upstream projections (e.g. `PaneGroupToWidgetTabbedPane`)
 # decode it. Without a slot index this generic mapper has nothing to add.
-function map_reference_backward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
-    find_reference_point(reference) === nothing || return _map_child_point(iomap, reference)
+function map_reference_backward(p::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    if point !== nothing
+        header = _find_tab_header_at(p, iomap, point)
+        return header === nothing ? _map_open_page_point(iomap, point) : header
+    end
     # A bare `selector_element_pairs[i]` is a tab-strip click. This projection emits
     # it in its own input coordinates, so it maps back as itself; without the case
     # the generic reader re-targets it to `nothing` and the click is dropped before
@@ -4384,6 +4464,36 @@ function map_reference_backward(::WidgetTabbedPaneToGraphicsCanvas, iomap, refer
             return reference
     end
     return nothing
+end
+
+# A point in the page maps into the content of the open page, the one that the
+# pane draws: the contents of the other pages are printed, at the same place, but
+# not drawn.
+function _map_open_page_point(iomap, point)
+    iomap isa ChildrenIoMap || return nothing
+    w = iomap.input
+    w isa WidgetTabbedPane || return nothing
+    pages = w.selector_element_pairs
+    isempty(pages) && return nothing
+    active = _tab_index_from_selection(get_stored_selection(w), length(pages))
+    content = unwrap_cell(pages[active == 0 ? 1 : active].element)
+    entries = Any[entry for entry in getfield(iomap, :child_iomaps)[]::Vector
+                  if unwrap_cell(get_iomap_input(last(entry))) === content]
+    _map_point_to_child(w, entries, point)
+end
+
+# The `selector` of the tab whose header is at `point`, the part that the header
+# draws, or `nothing` when no header is there.
+function _find_tab_header_at(p::WidgetTabbedPaneToGraphicsCanvas, iomap, point)
+    iomap isa ChildrenIoMap || return nothing
+    w = iomap.input
+    w isa WidgetTabbedPane || return nothing
+    strip_x = _tab_strip_coordinate(p, w, iomap, point.x, point.y)
+    strip_x === nothing && return nothing
+    index, _ = _find_tab_at_strip_point(_tab_strip_geometry(p, w), strip_x, point.y)
+    index == 0 && return nothing
+    annotate_reference_types(w, extend_reference(EmptyReference(), FieldReferenceStep("selector_element_pairs"),
+                                                 ElementReferenceStep(index), FieldReferenceStep("selector")))
 end
 
 # Selector-viewport width as drawn (the clip box). Read back from the output so the
