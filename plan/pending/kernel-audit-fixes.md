@@ -1000,12 +1000,14 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.13: Tests of the operation and intent layers
 
-- [ ] **L13-11** (Medium, Tests)
+- [x] **L13-11** (Medium, Tests)
   Add testsets for: the 'next hole' evaluation; describe_operation of each kernel type and the (operation, root) form; splice_string, splice_number and splice_value!; the reroot of a document-rooted ReplaceReferencedValueOperation; the defaults of operation_reference, retarget_operation and operation_travels_unchanged. Make the ToyList override in TraversalTest.jl use .items[i].
   *Test:* test_rerooting(), test_inversion(), test_traversal(), and a new test_description().
-- [ ] **L14-3** (Medium, Tests)
+  *Done:* lane B, 908ac1a91 (`test_description` is new), except the ToyList part: `child_reference_steps` gives one step for each child and `.items[i]` is two steps, so it waits for the decision of L13-3.
+- [x] **L14-3** (Medium, Tests)
   Add test/kernel/intent/IntentTest.jl with test_intent(): a route that starts with the steps, one that does not, a route of nothing, the labels that each constructor keeps, and ClaimedGesture. Move the two testsets of CollectedIntentsOperation and merge_collected_intents from RerootingTest.jl. Register it in KernelSuite.jl and ProjecturedKernelTest.jl.
   *Test:* test_intent() and test_rerooting().
+  *Done:* lane B, 908ac1a91 (`test_intent`).
 
 ### Step 4.14: Tests of the binding layer
 
@@ -1024,27 +1026,32 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.16: Tests of the projection layer
 
-- [ ] **L17-12** (Medium, Tests) — after L17-1
+- [x] **L17-12** (Medium, Tests) — after L17-1
   Add kernel tests with fixture documents for with_inner_size, with_size_range, get_property, the typed make_child_context, the default mappers, the branches of the default reader, the bridge, read_routed_intent, ProjectionReferenceStep (==, show, the .proj DSL), @projection and read_projection_gesture. Add substrate tests for each wiring kind (tokens, sections, mixed, conditional) with an edit through the same IoMap.
   *Test:* The new test functions, each run alone: for example test_projection_defaults() in test/kernel/projection/ and test_projection_template_wirings() in test/substrate/projection/.
+  *Done:* lane B, a1c05ca12 (`test_projection_macro` and `test_projection_template_wirings` are new). test_kernel 2826 in lane B and the 6 known failures; test_substrate 86871 and the 7 known failures; test_mcp_tools 158; test_anthropic 38 and 1 broken.
 
 ### Step 4.17: Tests of the tool layer
 
-- [ ] **L18-14** (Medium, Tests)
+- [x] **L18-14** (Medium, Tests)
   Make the four assertions exact: compare the answer of string(Cell) with the quoted name, or also assert that the answer holds no UndefVarError.
   *Test:* test_declared_api().
-- [ ] **L18-15** (Medium, Tests) — after L18-1, L18-2, L18-5, L18-6, L18-7, L18-8
+  *Done:* lane B, 7e6c25115.
+- [x] **L18-15** (Medium, Tests) — after L18-1, L18-2, L18-5, L18-6, L18-7, L18-8
   Add kernel cases for an observer that throws, call_tool with an unknown name, the replacement in register_tool!, and register_guide_root!, and move the observe_evaluations! case down from EvaluatorToplevelTest.jl. The cases of L18-1, L18-2, L18-5, L18-6, L18-7 and L18-8 come with those fixes.
   *Test:* test_declared_api() and test_code_execution().
+  *Done:* lane B, 7e6c25115. The observer lines of EvaluatorToplevelTest.jl stay: they test the evaluator, which a kernel test can not reach; the kernel case is beside them.
 
 ### Step 4.18: Tests of the llm and agent layers
 
-- [ ] **L19-9** (Low, Tests)
+- [x] **L19-9** (Low, Tests)
   Add test/kernel/llm/LlmDefaultsTest.jl with `FakeLlm`: the error of `make_llm` and `default_llm_model` for a kind that no package answers, the answer of `get_llm_backend_names()`, `is_walk_opaque(::Llm)`, and the conversions of the `LlmRequest` and `LlmMessage` constructors. Register it in the kernel test package and suite.
   *Test:* test_llm_defaults() in ProjecturedKernelTest.
-- [ ] **L20-7** (Medium, Tests)
+  *Done:* lane B, 8512f0c9a (`test_llm_defaults`, with a test-local kind `:llm_defaults_probe`).
+- [x] **L20-7** (Medium, Tests)
   Add test/kernel/agent/AgentLoopTest.jl with `ScriptedLlm` and a NamedTuple target: the round cap and its answer, `LlmFailure` gives `:error`, a tool that throws (the fault record and `is_error`), a tool name that no tool answers, a stream with no terminal event, and the order of the `AgentToolResult` events. Rename AgentSeamTest.jl to AgentDefaultsTest.jl and `test_agent_seam` to `test_agent_defaults`.
   *Test:* test_agent_loop() and test_agent_defaults() in ProjecturedKernelTest.
+  *Done:* lane B, 8512f0c9a. AgentSeamTest.jl is AgentDefaultsTest.jl (`test_agent_defaults`); the link in testing-guide.md follows.
 
 ### Step 4.19: Tests of the feed and editor layers
 
@@ -1240,13 +1247,14 @@ The classifiers and the implementers found faults that the audit does not hold:
   (`ProjectionModule.map_reference_forward(...) = ...`), as PAR-QUALIFIED-EXTENSION asks.
   *Test:* `ProjecturedSdl` has no own `map_reference_forward`, and `test_sdl()` passes.
   *Done:* lane A, c75569085. ProjecturedSdl binds no name `ProjectionModule`, so the methods name `ProjecturedKernel.ProjectionModule.map_reference_*`.
-- [ ] **N-5** (Medium, Correctness, Suspected) — found in step 2.4
+- [x] **N-5** (Medium, Correctness, Suspected) — found in step 2.4
   The undo of an element overwrite on a reactive `CellVector` can put back the new value:
   `get_slot_at` answers the slot cell, and `setindex!` writes the new value into that same cell,
   so the inverse holds a cell that already has the new value. First prove it with a run (an
   overwrite of one element of a reactive `CellVector`, then its inverse). If it holds, make the
   inverse keep the old value, not the cell, as `make_inverse_operation` promises.
   *Test:* `test_inversion()`: the inverse of an overwrite puts back the old value.
+  *Done:* lane B, 0f0ccf25a. A run on the old code proved it: `CellVector(["a","b"])`, overwrite the second element with "z", apply the inverse, and it still read ["a","z"]. The inverse of one element keeps `parent[index]`, the value; a splice still keeps the slot cells.
 - [x] **N-6** (High, Correctness) — found in step 3.9
   `play_live!` throws `UndefVarError` for `read!` on every call on Julia 1.13, because
   `EditorModule` and `Base` both export `read!` (L22-13 proved). So every live example of
