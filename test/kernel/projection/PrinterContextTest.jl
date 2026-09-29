@@ -7,6 +7,7 @@ Confirms:
 - each helper changes only the axis it is given, and keeps the other;
 - `get_exact_width` / `get_exact_height` read the extent of an exact range and
   `nothing` otherwise;
+- `withhold_offer` takes the axis `:x` or `:y`, and throws for any other;
 - a child context, a new clock and a new property keep the ranges.
 """
 
@@ -62,6 +63,7 @@ function test_printer_context_range()
         free = withhold_offer(ctx, :x)
         @test free.minimum_width === nothing && free.maximum_width === nothing
         @test free.minimum_height === nothing && free.maximum_height === edge
+        @test_throws ArgumentError withhold_offer(ctx, :z)
     end
 
     @testset "a child context, a clock and a property keep the ranges" begin

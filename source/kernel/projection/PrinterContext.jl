@@ -244,13 +244,15 @@ size, which closes a reactive cycle and overflows the stack when the cell
 evaluates.
 
 So the offer is derived from what the container is, not chosen at each site. This
-is that rule, written once — `axis` is the axis the container derives, and the
-other axis passes through untouched. The axis becomes free: no minimum and no
-maximum.
+is that rule, written once — `axis` is the axis the container derives, `:x` or
+`:y`, and the other axis passes through untouched. The axis becomes free: no
+minimum and no maximum. Any other `axis` throws an `ArgumentError`.
 """
-withhold_offer(ctx::PrinterContext, axis::Symbol) =
-    axis === :x ? with_exact_size(ctx; width = nothing) :
-                  with_exact_size(ctx; height = nothing)
+function withhold_offer(ctx::PrinterContext, axis::Symbol)
+    axis === :x && return with_exact_size(ctx; width = nothing)
+    axis === :y && return with_exact_size(ctx; height = nothing)
+    throw(ArgumentError("withhold_offer: the axis is :x or :y, not :$axis"))
+end
 
 """
     with_clock(ctx, clock) -> PrinterContext
