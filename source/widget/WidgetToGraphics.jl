@@ -5737,7 +5737,7 @@ function _card_build(p, w, ctx, tim, cim)
         push!(child_iomaps, (padding, y, cim))
         inner = cim.output
         # The card offered its body an inner width, so the card clips that width
-        # (§3b of layout-rules.md) and a body wider than the card no longer draws
+        # (§3b of layout-rules.md), and a body wider than the card does not draw
         # past its border. It is the same width the card's own texts break to, so
         # a card of a declared width holds everything it draws. Height is not
         # clipped: the card withholds that axis and takes its own height from
