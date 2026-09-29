@@ -1,7 +1,8 @@
 # An OpenRouter backend package
 
-Status: a plan, 2026-09-29. Nothing is implemented. It builds on the branch
-`classifier-search`, whose kernel holds the `RelevanceModel`.
+Status: built and checked, 2026-09-29 (`a9d28a1b`), on the branch
+`classifier-search`, whose kernel holds the `RelevanceModel`. It lands with the
+branch.
 
 ## 1. The request
 
@@ -37,7 +38,7 @@ name `ProjecturedOpenRouter` and the names that follow from it (§3).
   `ProjecturedKernel`, HTTP and JSON3, as `ProjecturedAnthropic` does. The slice
   folder is `source/openrouter/`, its file `OpenRouter.jl`.
 - **The one function**
-  `make_openrouter_relevance_model(; api_key = get(ENV, "OPENROUTER_API_KEY", ""), model = "typesafe/jev-1.13")`
+  `make_openrouter_relevance_model(; api_key = get(ENV, "OPENROUTER_API_KEY", ""), model = "~typesafe/jev-latest")`
   answers a `RelevanceModel` named `"openrouter/" * model`:
   - `score` sends the query as the state (and the context, when a caller from
     code gives one) and one `noul` per text, 150 texts a request;
@@ -65,15 +66,33 @@ name `ProjecturedOpenRouter` and the names that follow from it (§3).
 
 ## 4. Steps
 
-- [ ] **Step 0.** The owner answers §5.
-- [ ] **Step 1.** The package, the test package, `environment/all`, and the
+- [x] **Step 0.** The owner answers §5 (§6).
+- [x] **Step 1.** The package, the test package, `environment/all`, and the
   naming guard.
-- [ ] **Step 2.** `make_openrouter_relevance_model` and its tests.
-- [ ] **Step 3.** The documents, and `test_package_graph()`.
-- [ ] **Step 4.** One real request with the key, and the Step 4c questions
-  through the kernel's `search_api` with this model: the ranks must match the
-  ranks of the harness within a question or two. About $0.20.
-- [ ] **Step 5.** Where it is bound (§5, question 1).
+- [x] **Step 2.** `make_openrouter_relevance_model` and its tests:
+  `test_openrouter()` passes 30 checks offline and skips the live one without a
+  key; with the key the live check passes. The keywords `send` and `wait`
+  replace the request and the wait, so the tests reach no network.
+- [x] **Step 3.** The documents (`documentation/package/openrouter/openrouter.md`,
+  the row of the package rules, the index), and `test_package_graph()` (675
+  checks, run on its own: it reads only the project files).
+- [x] **Step 4.** The questions of Step 4c through the kernel's `search_api`
+  with this model, end to end (`/var/tmp/classifier-search/e2e/run.jl`, in the
+  scratch environment of the two worktrees). First / five / eight / ten of 20:
+
+  | answers | the kernel with the package | the harness (Step 4c) |
+  | --- | --- | --- |
+  | no docstring | 5 / 11 / 14 / 14 | 5 / 10 / 14 / 15 |
+  | short docstring | 12 / 16 / 17 / 17 | 11 / 15 / 17 / 18 |
+  | longer docstring | 13 / 16 / 16 / 16 | 13 / 15 / 16 / 16 |
+
+  47 of the 60 questions got the same rank, and no search failed. The corpus
+  held 5,191 entries, not 5,187 (the name of the package among them), which
+  moves the groups of 255 of the cascade and so some choices. The package keeps
+  no ledger; by the tokens of Step 4c the run cost about $0.50, so the ledger
+  of the measurement ($6.87) understates the spend by that much.
+- [x] **Step 5.** Where it is bound: nowhere by itself (§6, D1); the document
+  of the package shows the call.
 
 ## 5. Questions for the owner
 
@@ -87,3 +106,17 @@ name `ProjecturedOpenRouter` and the names that follow from it (§3).
 3. **The default model**: `typesafe/jev-1.13`, the one id your workspace allows,
    or the alias `~typesafe/jev-latest`, which follows new versions and which the
    workspace could refuse?
+
+## 6. Decisions of the owner, 2026-09-29
+
+- **D1. Explicit use** ("should be used explicitly"): no window binds the model
+  by itself; a caller gives it to a tool set with `set_relevance_model!`.
+- **D2. The key** ("yes"): the line is `OPENROUTER_API_KEY=` in
+  `~/.config/openrouter/api.env`, mode 600; the old file is gone, and the
+  measurement scripts read the new name.
+- **D3. The default model** ("type alias"): `~typesafe/jev-latest`. The workspace
+  of the key accepts it; it resolved to `typesafe/jev-1.13-20260917`.
+
+A slip on the way: one run of the live test passed the key on the command line
+of `systemd-run` for a few seconds, where another local user could have read it
+in the process list. Every run since reads it through `EnvironmentFile=`.
