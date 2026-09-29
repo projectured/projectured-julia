@@ -35,7 +35,7 @@ _pure_snapshot(x) = x isa Document ? copy_document(ImmutableCell, x) : x
 # Total fallback for any projection without a specialized pure interpreter: run
 # the reactive printer once and snapshot its output. Slower than a real pure
 # interpreter (it builds the reactive machinery first), but it makes the pure
-# pipeline total from day one — a Sequential chain can mix template stages (fast,
+# pipeline total from day one — a ChainingProjection can mix template stages (fast,
 # pure) with hand-written stages (this fallback) transparently.
 print_document_pure(p::Projection, recursion, input, ctx) =
     _pure_snapshot(unwrap_cell(print_document(p, recursion, input, ctx).output))
@@ -118,7 +118,8 @@ function read_intent(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
     # stay in sync with `reroot_operation` (OperationModule, operation/Rerooting.jl).
     # A new path-bearing operation missing from either is silently passed through
-    # with its reference left in the wrong domain. See package/kernel/doc/operation.md.
+    # with its reference left in the wrong domain. See
+    # documentation/package/kernel/operation.md.
     if operation isa Union{KeyPress, KeyDown, MousePress, CollectIntents}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent

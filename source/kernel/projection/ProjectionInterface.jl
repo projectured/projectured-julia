@@ -73,7 +73,9 @@ arbitrary projections purely via this dispatch.
   recursive projection wrapping a type-dispatcher) instead of this
   single projection. Always recurse through the helper rather than open-coding
   the doubled argument. The 2-arg overload `print_document(p, input)` supplies
-  `nothing`.
+  `nothing` and a fresh `PrinterContext()`. So it serves a leaf projection, or a
+  pipeline that a recursive projection wraps: a node projection called through it
+  has no `recursion` to print its children with.
 - `context::PrinterContext` — downward-flowing per-invocation data: a
   `reference` path locating `input` relative to the document root, plus
   the range of each axis (`minimum_width`/`maximum_width`,
@@ -144,7 +146,7 @@ serialization) where nothing is edited and no selection is mapped back. Output
 nodes are immutable-kind, so the tree is cheap to allocate and cheap to traverse
 repeatedly (multi-page layout, serialization).
 
-Higher-order projections (Sequential / Recursive / TypeDispatching) thread it so a
+Higher-order projections (Chaining / Recursive / TypeDispatching) thread it so a
 whole *pipeline* is pure; every concrete projection falls back to a snapshot of the
 reactive output (`copy_document(ImmutableCell, print_document(...).output[])`) — slower (it builds the
 reactive machinery first, then copies), but total, so `print_pure` works end-to-end
@@ -269,14 +271,15 @@ This is the mapper `print_document` uses to wire the output selection (see
 its docstring), so getting it right gives the forward cursor mapping for free.
 
 - Express the cases with `@reference_case` (see
-  [package/kernel/doc/reference.md](../../doc/reference.md)).
+  [reference.md](../../../documentation/package/kernel/reference.md)).
 - **Recurse in lockstep with the printer.** If `print_document` recursed into
   children, so must this: peel only the steps this projection owns, look up the
   child the peeled step selects in the **stored child IoMaps**, and delegate the
   remaining tail to that child projection's own `map_reference_forward`. Do *not*
   re-walk the input document dispatching on each child's concrete type — that
   couples the projection to its children's domains and breaks composition with
-  other domains (see [package/kernel/doc/projection-system.md](../../doc/projection-system.md)).
+  other domains (see
+  [projection-system.md](../../../documentation/package/kernel/projection-system.md)).
 - **The output domain may be coordinates, not only structure.** "Output
   reference" means *whatever reference addresses this projection's output
   domain*. At the bottom of a render chain that is a **coordinate** domain, where

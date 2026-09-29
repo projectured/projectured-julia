@@ -42,8 +42,8 @@ Two things are therefore **forbidden**:
    projection needing it with one that does not breaks at that boundary. All
    descent must ride the functions everyone already implements. (This is also why
    the contract is validated *externally*, by a harness driving these four — see
-   [documentation/testing.md](../../../../documentation/testing.md) — never by adding
-   an interface method.)
+   [documentation/guide/testing-guide.md](../../../documentation/guide/testing-guide.md)
+   — never by adding an interface method.)
 2. **No self-walking / flattening by child type.** A function must not recurse over
    the input (or output) subtree itself, dispatching on each child's concrete type,
    and bake the whole subtree into its result. That hard-codes which projection
@@ -51,10 +51,10 @@ Two things are therefore **forbidden**:
    a substituted projection — the "School B" anti-pattern. Delegate through the
    child IoMap / `recursion` instead ("School A").
 
-See [package/kernel/doc/projection-system.md](../../doc/projection-system.md)
+See [projection-system.md](../../../documentation/package/kernel/projection-system.md)
 ("The recursion contract" and "Recursion across projections") for worked recipes
-and [package/kernel/doc/selection.md](../../doc/selection.md)
-for the selection mechanism.
+and [selection.md](../../../documentation/package/kernel/selection.md) for the
+selection mechanism.
 
 # The fragments
 

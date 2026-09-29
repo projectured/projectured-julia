@@ -237,7 +237,7 @@ _strip_checkpoints(x) = strip_reference_types(x)
 Build the marked output via `builder(p, doc)`, walk it to record the wiring,
 strip the markers (replacing each with its real value *through* the field's Cell),
 and return a `RuleIoMap`. The selection cell is wired at construction time: each
-node is rebuilt once via [`_with_selection`](@ref) with its final selection cell in
+node is rebuilt once via `_with_selection` with its final selection cell in
 place, reusing every other field's Cell object. No node is retargeted after
 anything else references it (prerequisite for the immutable kind-parameterized
 stem — plan/pending/cell-kind-documents.md, Phase 0).
@@ -1259,7 +1259,7 @@ end
 # recursive printer (`collection`/`project`) and the recursive operation reader
 # (`map_reference_backward` below), and reuses the same lift (`reroot_operation`)
 # the container projections use. The general
-# principle is documented in package/kernel/doc/projection-system.md.
+# principle is documented in documentation/package/kernel/projection-system.md.
 #
 # Each level reads its own `iomap.input.selection`: `set_selection!` propagates the
 # selection down the document tree, so every focused node already holds its own
