@@ -272,6 +272,31 @@ plan.
   `GridLayout` draw a `ListNode` of children lazily in their axes (§3.3), with
   the clamp at the ends. Tests with lists of ten million children in each
   direction, and a grid lazy in both.
+  - [x] **1a. The linear layouts** (`99e573f3c`). A `VerticalLayout` or a
+    `HorizontalLayout` whose `children` is a `ListNode` draws the children
+    that a viewport shows, each after its neighbour, in `LayoutList.jl`. The
+    main axis takes no weight; the cross axis takes a `Fixed` policy or the
+    offered extent. A press goes to the child under the pointer and a key to
+    the selected child, rooted at `children[k]` from the head. Every field of
+    a `@document` is a cell, so `children` holds a list with no change of the
+    document; the printer picks the list form when `children` is a list. The
+    scroll pane stops at the ends of a list in either direction
+    (`_find_list_canvas`, `_clamp_to_list_ends` with an axis, `_pane_scroll_x`).
+  - [x] **1b. The grid with lazy rows** (`4023af1ac`). A `GridLayout` whose
+    `children` is a `ListNode` of rows, each a vector of the cells of its
+    columns, in `GridList.jl`. Every column is `Fixed` or a weight of the
+    offered width; a row is `Fixed` or as tall as its cells. A press is rooted
+    at `children[k][c]`. `GridLayoutListIoMap` gives the placed rows and the
+    column edges, for the graphics of a container.
+  - [x] **1c. A layout positions and draws nothing** (`2901bd42e`), written as
+    a design decision in [layout.md](../../documentation/package/layout/layout.md).
+  - [ ] **1d. The grid with lazy columns.** Moved to just before phase 6: the
+    table of phase 2 needs lazy rows and a lazy header column, and only a very
+    wide data frame needs lazy columns. A row is then a `ListNode` of cells
+    anchored at one column, `column_policies` a `ListNode` anchored with it,
+    the rows `Fixed` (a row as tall as its cells would change while the pane
+    scrolls sideways), and the grid places a list of the column positions
+    that draws nothing, so the pane stops at the first and the last column.
 - [ ] **2. The table of layouts.** The corner, the three panes, the layouts of
   §3.2 for the eager and the lazy table alike, the rules and bands shifted by
   the one offset, the shared geometry of §3.5, and the synchronized wheel.
