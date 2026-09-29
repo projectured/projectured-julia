@@ -147,7 +147,7 @@ function _collect_references!(refs::Vector{FormulaReference}, node)
     node isa FormulaReference && (push!(refs, node); return)
     node isa Document || return
     for fname in fieldnames(typeof(node))
-        fname === :selection && continue
+        is_view_state_field(fname) && continue
         child = getfield(node, fname)[]   # read the Cell value
         _collect_child!(refs, child)
     end
@@ -224,7 +224,7 @@ function _collect_names!(names::Vector{String}, node)
     end
     node isa Document || return
     for fname in fieldnames(typeof(node))
-        fname === :selection && continue
+        is_view_state_field(fname) && continue
         node isa JuliaCall && fname === :callee &&
             getfield(node, :callee)[] isa JuliaIdentifier && continue
         node isa JuliaFieldAccess && fname === :field && continue

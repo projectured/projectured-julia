@@ -47,6 +47,10 @@ get_copy_memo(policy::CopyPolicy) = nothing
 copy_selection_cell(policy::CopyPolicy, cell) =
     copy_cell_as(cell, copy_document(policy, cell[]))
 
+# Any name, because a walk asks it of every field name, and the fields of a tuple
+# are numbers.
+is_view_state_field(name) = name === :selection || name === :mouse_target
+
 # A kind has no duplicate until it declares one.
 has_document_duplicate(document) = false
 
@@ -88,8 +92,8 @@ Default depth-limited debug rendering for documents. Prints constructor-style
 `TypeName(field, field, …)`, reading each field through `getproperty` so the
 underlying reactive `Cell`s are unwrapped. Recursion is bounded by the
 `:document_depth` IOContext key (see [`DOCUMENT_SHOW_MAX_DEPTH`]) so deeply
-nested documents do not explode. A field named `selection`, when present, is
-skipped as noise. A debug aid only: a domain that wants a *presentable* rendering
+nested documents do not explode. A view state field (`is_view_state_field`), the
+selection and the mouse target, is skipped as noise. A debug aid only: a domain that wants a *presentable* rendering
 writes a projection, not a `show` method.
 """
 function Base.show(io::IO, x::Document)
@@ -101,7 +105,7 @@ function Base.show(io::IO, x::Document)
         inner = IOContext(io, :document_depth => depth + 1)
         first = true
         for f in fieldnames(typeof(x))
-            f === :selection && continue
+            is_view_state_field(f) && continue
             first || print(io, ", ")
             show(inner, getproperty(x, f))
             first = false

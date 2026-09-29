@@ -12,7 +12,8 @@ boundary, so serializing a live document stays within the document's own data an
 never traverses `dependents` out into the projection output graph (computed cells
 and their closures). It also means documents, `CellVector`s, and the selection
 `Reference` (whose steps are themselves `Cell`-backed) are all handled
-uniformly — so the saved **selection is restored** on load.
+uniformly — so the saved **selection is restored** on load. The mouse target
+is not: a load gives none, because it was where the pointer was.
 
 Targets *structural* documents. A document that holds a live external resource
 (a database adapter, an open socket) is not serializable this way; for a

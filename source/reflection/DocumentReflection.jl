@@ -130,9 +130,11 @@ reflect_child_pairs(x) =
 #
 # The two agree everywhere a document is one: the macro appends `selection` last,
 # and an explicit one it refuses anywhere but last.
-_reflect_fieldnames(x) =
-    (f = fieldnames(typeof(x));
-     !isempty(f) && last(f) === :selection ? f[1:end-1] : f)
+function _reflect_fieldnames(x)
+    f = fieldnames(typeof(x))
+    !isempty(f) && last(f) === :mouse_target && (f = f[1:end-1])
+    !isempty(f) && last(f) === :selection ? f[1:end-1] : f
+end
 reflect_child_pairs(x::AbstractArray) = (string(i) => x[i] for i in eachindex(x))
 reflect_child_pairs(x::AbstractDict)  = (string(k) => v for (k, v) in x)
 reflect_child_pairs(x::Tuple)         = (string(i) => x[i] for i in eachindex(x))

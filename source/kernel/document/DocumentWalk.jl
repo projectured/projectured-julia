@@ -95,7 +95,7 @@ instead, scalars included.
 
 Each location is reported at most once. How often a *node* is visited is
 `walk.policy`'s business. `include_selection` includes `selection` fields in the
-walk. `maxdepth` bounds recursion for structures that are never the *same* object
+walk; a `mouse_target` field is never walked. `maxdepth` bounds recursion for structures that are never the *same* object
 — an infinite lazy list whose nodes are generated fresh on demand — which the
 visited set alone cannot stop.
 
@@ -212,7 +212,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     else
         fnames = try fieldnames(typeof(obj)) catch; () end
         for fn in fnames
-            (fn == :ref || (fn == :selection && !include_selection)) && continue
+            (fn == :ref || fn == :mouse_target || (fn == :selection && !include_selection)) && continue
             isdefined(obj, fn) || continue
             child = unwrap_cell(getfield(obj, fn))
             descend(obj, child) || continue

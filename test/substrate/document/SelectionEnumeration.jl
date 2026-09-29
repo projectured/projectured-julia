@@ -71,7 +71,7 @@ function _walk_document(node, path, on_node, on_text, seen::Set{UInt64})
     T = typeof(node)
     isstructtype(T) || return
     for fname in fieldnames(T)
-        fname === :selection && continue
+        is_view_state_field(fname) && continue
         fv = getfield(node, fname)
         v  = fv isa Cell ? fv[] : fv
         v === nothing && continue

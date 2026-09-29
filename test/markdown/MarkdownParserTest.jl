@@ -13,7 +13,7 @@ function _describe_markdown_tree(node)
     node isa MarkdownDocument || return repr(node)
     parts = String[]
     for name in fieldnames(typeof(node))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         value = getproperty(node, name)
         described = value isa CellVector ?
             "[" * join((_describe_markdown_tree(child) for child in value), ", ") * "]" :

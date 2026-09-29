@@ -9,12 +9,12 @@
 end
 
 # How many children `x` would have, when that is cheap to answer. A positional
-# collection knows its length; a record knows its field count, less the
-# `selection` field `@document` appends to every document — that one is
-# machinery, not content, and counting it would misreport the label by one.
+# collection knows its length; a record knows its field count, less the view
+# state fields `@document` appends, the selection and the mouse target — they are
+# machinery, not content, and counting them would misreport the label.
 # Anything else reports -1 rather than paying to find out.
 get_unsynced_size(x) = is_element_collection(x) ? length(x) :
-                   (x isa Document ? fieldcount(typeof(x)) - 1 : -1)
+                   (x isa Document ? count(!is_view_state_field, fieldnames(typeof(x))) : -1)
 
 """
     make_unsynced_marker(document) -> UnsyncedDocument

@@ -278,6 +278,22 @@ projection wires its own. A policy never refuses a document for its selection.
 function copy_selection_cell end
 
 """
+    is_view_state_field(name) -> Bool
+
+Whether the field `name` of a document holds where a person stands in it rather
+than what it holds, `false` for any other name, also a number that names a field
+of a tuple: `selection`, the selected part, and `mouse_target`, the path
+of the part under the pointer. A walk over the content of a document, a view of
+its fields and a file skip such a field.
+
+`@document` adds `mouse_target` to a document that the editor holds, next to
+`selection`: `Union{Nothing, Reference}`, a `Reference` inside the document or
+`nothing` when the pointer is not in it. A copy of a document starts with no mouse
+target, a load gives none, and a history does not record it.
+"""
+function is_view_state_field end
+
+"""
     has_document_duplicate(document) -> Bool
     make_document_duplicate(document) -> Document
 

@@ -109,7 +109,7 @@ function _walk(p::SearchingProjection, node, path::Reference, matches, seen)
     _object_matches(p, node) && push!(matches, (path, node))
 
     for nm in fieldnames(typeof(node))
-        nm === :selection && continue
+        is_view_state_field(nm) && continue
         raw = getfield(node, nm)
         val = unwrap_cell(raw)
         val isa Document || continue
@@ -120,7 +120,7 @@ end
 
 function _object_matches(p::SearchingProjection, node)
     for nm in fieldnames(typeof(node))
-        nm === :selection && continue
+        is_view_state_field(nm) && continue
         raw = getfield(node, nm)
         val = unwrap_cell(raw)
         p.field_match(string(nm), val) && return true

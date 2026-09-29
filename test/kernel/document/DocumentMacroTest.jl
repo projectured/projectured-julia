@@ -19,7 +19,7 @@ using Test
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.CellStructModule
 using ProjecturedKernel.DocumentModule
-using ProjecturedKernel.ReferenceModule: Reference
+using ProjecturedKernel.ReferenceModule: Reference, EmptyReference
 
 # A stand-in for base's CellVector: Rule C keys off the *name*, and the emitted
 # `CellVector(items)` call has to resolve to something. `<: Document` (not
@@ -201,11 +201,12 @@ end
 end
 
 @testset "the kind aliases and their typed ctors are emitted" begin
-    @test RCDmRuleY === DmRuleY{Cell, Cell, Cell, Cell, Cell}
+    @test RCDmRuleY === DmRuleY{Cell, Cell, Cell, Cell, Cell, Cell}
 
-    # The typed kind ctors take the *full* arity — `selection` included. They are
-    # the machinery's constructors (copy_document builds through them), not sugar,
-    # so they fill nothing in: Rule Y is emitted for the bare name only.
+    # The typed kind ctors take the *full* arity — `selection` included — or every
+    # field but the mouse target, which starts with `nothing`. They are the
+    # machinery's constructors (copy_document builds through them), not sugar, so
+    # they fill nothing else in: Rule Y is emitted for the bare name only.
     @test ICDmRuleY(1, 2, "z", true, nothing) isa ICDmRuleY
     @test MCDmRuleY(1, 2, "z", true, nothing) isa MCDmRuleY
     @test ICDmRuleY(1, 2, "z", true, nothing).a == 1
@@ -378,6 +379,30 @@ end
         selection::ImmutableCell{Nothing}
         y::Int
     end
+end
+
+@testset "a document that the editor holds has a mouse target, a native object none" begin
+    d = DmRuleY(1, 2)
+    @test d.mouse_target === nothing
+    @test fieldnames(typeof(d))[end-1:end] == (:selection, :mouse_target)
+    @test is_view_state_field(:mouse_target) && is_view_state_field(:selection)
+    @test !is_view_state_field(:a) && !is_view_state_field(1)
+    d.mouse_target = EmptyReference()
+    @test d.mouse_target == EmptyReference()
+    # The native layout and a value document, which declares its own selection,
+    # have none.
+    @test :mouse_target in fieldnames(ACDmNative)
+    @test :mouse_target ∉ fieldnames(typeof(DmNative(1)))
+    @test :mouse_target ∉ fieldnames(typeof(DmValue(1)))
+    @test isbitstype(typeof(DmValue(1)))
+    # A call that passes every field but the mouse target works, with a required
+    # field (Rule Y) and with none.
+    @test DmRuleY(1, 2, "c", false, nothing).mouse_target === nothing
+    @test DmSoleVector(CellVector([1, 2]), nothing).items == CellVector([1, 2])
+    @test ICDmRuleY(1, 2, "z", true, nothing).mouse_target === nothing
+    # A copy starts with no mouse target, and `show` leaves it out.
+    @test copy_document(PlainCopyPolicy(), d).mouse_target === nothing
+    @test !occursin("EmptyReference", sprint(show, d))
 end
 
 end

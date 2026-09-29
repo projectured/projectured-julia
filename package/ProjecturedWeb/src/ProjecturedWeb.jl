@@ -33,6 +33,7 @@ import ProjecturedStyle.StyleModule: AffineTransform, affine_identity
 import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, compute_text_extent,
                                     compute_caret_offsets, FontFileMeasure, get_fallback_font_files
 import ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
+import ProjecturedKernel.DocumentModule: is_view_state_field
 import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus,
                                WindowLeave

@@ -137,12 +137,13 @@ end
 _slot_field(steps::Tuple) = Symbol(first(steps).name)
 
 # The document children of a node, each with the steps that reach it: a field
-# holding a document is one step, an element of a collection field is two. The
-# `selection` field is state, not content, and is skipped.
+# holding a document is one step, an element of a collection field is two. A view
+# state field, the selection and the mouse target, is state, not content, and is
+# skipped.
 function _child_slots(node::Document)
     slots = Tuple{Tuple,Any}[]
     for name in fieldnames(typeof(node))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         if is_element_collection(value) || value isa AbstractVector
@@ -211,7 +212,8 @@ function _rebuild(owner, file, node, path::Reference, visited::IdDict, strict::B
     for name in fieldnames(T)
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
-        copied = (name === :selection || !is_written_in_file(file, node, name)) ? value :
+        copied = name === :mouse_target ? nothing :
+                 (name === :selection || !is_written_in_file(file, node, name)) ? value :
                  _cut_field(owner, file, name, value, path, visited, strict)
         push!(args, raw isa AbstractCell ? copy_cell_as(raw, copied) : copied)
     end

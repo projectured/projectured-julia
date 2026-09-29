@@ -250,19 +250,72 @@ One at a time, with the owner.
   pointer on the `2`, the inner array holds `.elements[1]` and is at level 0,
   and the outer array holds `.elements[2].elements[1]` and is at level 1.
 
+- ~~**Q9. Which layouts get the field, and how old calls stay safe.**~~
+  **Settled** (owner 2026-09-29): "I choose (b) and this field can default to
+  nothing, no? So no constructors need to change, no?" Only the cell layout, the
+  documents that the editor holds, gets `mouse_target`; a native layout (`M`,
+  the immutable one) has none, so the simulator's objects do not change. It
+  defaults to `nothing`, so no call site changes. Inside the macro two pieces
+  are still needed: a document whose every field has a default has no shorter
+  constructor (Rule Y needs a required field), so the macro makes the one
+  without the mouse target; and the full constructor takes only a cell or
+  `nothing` for it, so `CellVector(x, y, z)` with three documents still reaches
+  the element sugar. The ways not taken: (a) every layout, (c) a table beside
+  the documents.
+
 ## 7. Steps
 
 Each step ends with a commit, a wide sweep against the counts of the step
 before, and the omnet tests. The files of the kernel that change are unsealed
 already; the sealed selection files do not change (Q4).
 
-- [ ] 1. **The field.** `@document` adds `mouse_target`, `Union{Nothing,
+- [x] 1. **The field.** `@document` adds `mouse_target`, `Union{Nothing,
   Reference}`, default `nothing`, next to `selection`, and a value document
   declares it as `ImmutableCell{Nothing}`. The macro also makes the positional
   constructor without it, so the calls that pass every field but it still work.
   It is view state: the binary save skips it and a load gives `nothing`, a copy
   gives `nothing`, and a history does not record it. Tests: the field on a
   document, the save, the copy.
+  Built (Q9): `@document` adds the field after the native layout is written, so
+  only the cell layout has it, and only where it adds `selection` itself; a value
+  document, which declares its own selection, has none and stays isbits. The
+  full constructor types the parameter "a cell or `nothing`", and turns
+  `nothing` into a cell when every other argument is a `ReactiveCell{Any}`, so a
+  call with the old fields stays on the fast path. `_emit_mouse_target_ctor`
+  makes the constructor without it for a document with no required field, and
+  the kind constructors `ICFoo` and `MCFoo` get the same form, because
+  `CellVector.jl` calls them with the old fields. `is_view_state_field(name)` of
+  the document module is true for `selection` and `mouse_target`, and the
+  places that skipped the selection as state skip both: `show`, the walk (which
+  never enters the mouse target), reflection, focus, searching, the object views,
+  formulas, and the file formats `PredFile`, `FileCut` and `FileSplice`. A copy
+  (`copy_document_fields`, `FileCut`) and the output of `CopyingProjection`
+  start with `nothing`; step 4 wires the output. The binary save writes the whole
+  document with Julia's serializer, which can not skip a field, so
+  `load_document` clears every mouse target instead. The marker of a bounded
+  sync counts the fields that are not view state. The sweep over the examples
+  has one pass more for each output document (7138), because it tests every
+  cell and each document has one more. Tests: `test_document_macro()` (the
+  field, the native layout and the value document without it, the old calls,
+  the copy, `show`) and `test_mouse_target_field()` (three documents are three
+  elements, the walk, the save and the load).
+  More loops named only `:selection` as state: the dirty check of the SDL and
+  web backends, `show` of a widget, `child_reference_steps` of the kernel, and
+  in omnet the fields of a parameter container (`get_parameter_field_names`) and
+  the list of choices of a simulation embed. They use `is_view_state_field`, and
+  so do nine test helpers that walk the fields of a document. One of them,
+  `_node_slots` of the construct test, took the mouse target for a scalar slot
+  to type, so a number and a boolean were built as containers and lost every
+  key after the first; its feed swallows exceptions, so the test showed only
+  the wrong value. The inet header codec drops a last field named `selection`;
+  it reads a header's native struct, which has no mouse target. The inet
+  packet tests pass on the branch in a scratch environment whose packages are
+  the three worktrees (18260 passes). The census of the omnet campaign test
+  asks the predicate of the fields of a tuple, which are numbers, so it takes
+  any name. Checks: the wide sweep has the counts of the baseline in every
+  suite, with more passes in the kernel (the new checks) and the substrate (one
+  cell for each output document, and the new test); the omnet tests have their
+  results; the naming guard passes and the documentation check has its notes.
 - [ ] 2. **The operation and the chain.** `ReplaceMouseTargetOperation(path)`
   (Q7): not an edit, re-rooted as a selection is, and evaluated at the root
   of the editor. The chain write is written for a kind of path, in a new kernel

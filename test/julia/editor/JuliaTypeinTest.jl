@@ -38,7 +38,7 @@ function _jt_equal(a, b)
         return all(_jt_equal(a[i], b[i]) for i in 1:length(a))
     end
     for nm in fieldnames(typeof(a))
-        nm === :selection && continue
+        is_view_state_field(nm) && continue
         av = getfield(a, nm); av = av isa Cell ? av[] : av
         bv = getfield(b, nm); bv = bv isa Cell ? bv[] : bv
         if av isa Document || nameof(typeof(av)) === :CellVector

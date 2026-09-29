@@ -102,7 +102,7 @@ function _collect_references!(names::Vector{String}, node, visited::IdDict)
         return names
     end
     for name in fieldnames(typeof(node))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         if is_element_collection(value) || value isa AbstractVector
@@ -154,7 +154,7 @@ function _splice_walk!(project, index, node, visited::IdDict, tolerant::Bool)
     haskey(visited, node) && return
     visited[node] = true
     for name in fieldnames(typeof(node))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         # A plain vector in a cell holds references the same way a collection of

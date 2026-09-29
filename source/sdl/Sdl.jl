@@ -1883,12 +1883,12 @@ function _add_dirty_rect!(region::_DirtyRegion, r::NTuple{4,Int})
     nothing
 end
 
-# True if any of `elem`'s own visual field cells is stale. `:selection` is the
-# reader's reference (not rendered) and `:prev`/`:next` are the list spine
-# (handled separately), so they never force a repaint on their own.
+# True if any of `elem`'s own visual field cells is stale. A view state field is
+# the reader's (not rendered) and `:prev`/`:next` are the list spine (handled
+# separately), so they never force a repaint on their own.
 function _node_dirty(elem)::Bool
     for f in fieldnames(typeof(elem))
-        (f === :selection || f === :prev || f === :next) && continue
+        (is_view_state_field(f) || f === :prev || f === :next) && continue
         c = getfield(elem, f)
         c isa Cell || continue
         is_cell_up_to_date(c) || return true

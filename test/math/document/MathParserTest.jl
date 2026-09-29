@@ -21,7 +21,7 @@ function _math_equal(a, b)
     typeof(a).name === typeof(b).name || return false
     a isa Document || return a == b
     for name in fieldnames(typeof(a))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         x = getfield(a, name); y = getfield(b, name)
         x = x isa AbstractCell ? x[] : x; y = y isa AbstractCell ? y[] : y
         if x isa CellVector || y isa CellVector

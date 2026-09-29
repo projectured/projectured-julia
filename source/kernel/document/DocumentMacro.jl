@@ -159,12 +159,27 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     wrap_stmts = [:($(wrapped[i]) = $(arg_names[i]) isa $(AbstractCell) ?
                         $(arg_names[i]) : $(raw_wrap(i)))
                   for i in 1:n]
+    # The mouse target, the last field that `@document` adds, takes only a cell or
+    # `nothing`: a collection document with element sugar, `Foo(items::Document...)`,
+    # would otherwise lose a call with one element for each field to this
+    # constructor. A `nothing` becomes a cell of the field's default kind when every
+    # other argument is a `ReactiveCell{Any}`, so a call that passes the fields a
+    # document had without it stays on the fast path.
+    target = n > 0 && plan.field_names[end] === :mouse_target
+    params = Any[arg_names...]
+    target && (params[end] = :($(arg_names[end])::Union{Nothing, $(AbstractCell)}))
+    others_rc = n > 1 ? mapreduce(a -> :($a isa $(_REACTIVE_ANY)), (x, y) -> :($x && $y),
+                                  arg_names[1:(n - 1)]) : true
+    fill_target = target ?
+        :($(arg_names[n]) === nothing && $others_rc && ($(arg_names[n]) = $(raw_wrap(n)))) :
+        nothing
     # The head carries the programmer's parameters when there are any, so `new{…}`
     # can name them; a schema with none keeps exactly the constructor it had.
-    head = isempty(names) ? :($(plan.name)($(arg_names...))) :
-           Expr(:where, :($(Expr(:curly, plan.name, names...))($(arg_names...))),
+    head = isempty(names) ? :($(plan.name)($(params...))) :
+           Expr(:where, :($(Expr(:curly, plan.name, names...))($(params...))),
                 plan.parameters...)
     body = quote
+        $fill_target
         if $all_rc
             return $(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...))
         elseif !($any_cell)
@@ -182,7 +197,7 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     bound = inferrable ?
         [:($(get_cell_struct_argument_type)($(arg_names[i]))) for i in slots] : Any[]
     outer = inferrable ?
-        :($(plan.name)($(arg_names...)) =
+        :($(plan.name)($(params...)) =
               $(Expr(:curly, plan.name, bound...))($(arg_names...))) :
         nothing
     (inner, outer)
@@ -269,6 +284,16 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
                     Expr(:curly, plan.name, names...),
             [:($a isa $(AbstractCell) ? $a : $(Expr(:curly, K, Tvals[i]))($a))
              for (i, a) in enumerate(arg_names)]...))
+    # A kind constructor also takes every field but the mouse target, which it
+    # fills with `nothing`, as the bare name does: a caller that passes every
+    # field a document has besides it keeps working.
+    target = n > 0 && plan.field_names[n] === :mouse_target
+    kept = arg_names[1:(n - 1)]
+    kind_short(kname) = Expr(:(=),
+        isempty(names) ? :($(kname)($(kept...))) :
+            Expr(:where, :($(Expr(:curly, kname, names...))($(kept...))), plan.parameters...),
+        Expr(:call, isempty(names) ? kname : Expr(:curly, kname, names...), kept..., :nothing))
+    shorts = target ? Any[kind_short(i_name), kind_short(m_name)] : Any[]
 
     # The `_declared_value_types` method is added through the function object's
     # singleton type: a spliced object is not a valid method-definition *name*,
@@ -297,6 +322,7 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
      Expr(:export, plan.name, r_name, i_name, m_name, d_name),
      kind_ctor(i_name, ImmutableCell),
      kind_ctor(m_name, MutableCell),
+     shorts...,
      dvt]
 end
 
@@ -373,6 +399,31 @@ function _emit_collection_ctor_at(plan, k)
                Expr(:where, :($(named)($(params...))), plan.parameters...) :
                :($(plan.name)($(params...)))
     (Expr(:(=), head, Expr(:block, Expr(:call, named, callargs..., filled...))),)
+end
+
+"""
+    _emit_mouse_target_ctor(plan) -> Vector
+
+The constructor without the mouse target, for a document whose every field has a
+default: `Foo(a, …, selection)` fills the mouse target with `nothing`. Rule Y
+makes this arity for a document with a required field; a document with none has
+no positional constructor but the full one, and a call that passes every field it
+has besides the mouse target must work too.
+"""
+function _emit_mouse_target_ctor(plan)
+    n = length(plan.field_names)
+    (n > 0 && plan.field_names[n] === :mouse_target) || return Any[]
+    get_cell_struct_required_count(plan) == 0 || return Any[]
+    kept = plan.field_names[1:(n - 1)]
+    needs_parameters = !isempty(plan.parameters) &&
+                       find_cell_struct_parameter_slots(plan) === nothing
+    named = needs_parameters ?
+            Expr(:curly, plan.name, get_cell_struct_parameter_names(plan)...) :
+            plan.name
+    head = needs_parameters ?
+           Expr(:where, :($(named)($(kept...))), plan.parameters...) :
+           :($(plan.name)($(kept...)))
+    Any[Expr(:(=), head, Expr(:block, Expr(:call, named, kept..., :nothing)))]
 end
 
 """
@@ -472,9 +523,17 @@ last field by the macro — the programmer never writes it, and declaring it by 
 is an **error**. The field type is `Union{Nothing, Reference}`: a `Reference`
 (what is selected inside this node) or `nothing` (nothing selected). Julia has no field inheritance, so the field
 must exist on every struct; making it the macro's job is what keeps it from being
-repeated on all of them. It is appended last and always defaulted, so it falls
-inside Rule Y's trailing run and a document's own fields keep the positional arity
-they would have had without it.
+repeated on all of them. It is appended after the programmer's fields and always
+defaulted, so it falls inside Rule Y's trailing run and a document's own fields
+keep the positional arity they would have had without it.
+
+The cell layout also gets a **`mouse_target::Union{Nothing, Reference} = nothing`**
+field after `selection`: the path of the part under the pointer, view state as the
+selection is (see `is_view_state_field`). The native layout and a document that
+declares its own `selection`, a value document, have none. A call that passes
+every field but the mouse target still works, and the full constructor takes only
+a cell or `nothing` for it, so a call with one element for each field still
+reaches the element sugar of a collection document.
 
 A type that is *not* addressable content — a reference step, a clock, anything
 that is never navigated into, selected inside, or projected — should not be a
@@ -608,7 +667,8 @@ function _document_expr(args)
     # An explicit field must be declared **last** and defaults to `nothing` (added here
     # if omitted, so it does not count as a programmer default and leaves Rule Y / the
     # keyword ctors gated exactly as the injected field would).
-    if :selection in plan.field_names
+    injects_selection = :selection ∉ plan.field_names
+    if !injects_selection
         findfirst(==(:selection), plan.field_names) == length(plan.field_names) ||
             error("@document $(plan.name): an explicit `selection` field must be declared last.")
         haskey(plan.defaults, :selection) || (plan.defaults[:selection] = :nothing)
@@ -673,6 +733,23 @@ function _document_expr(args)
         push!(native_parts, Expr(:export, native))
     end
 
+    # ── Inject the mouse target field ─────────────────────────────────────────
+    # A document that the editor holds carries the path of the part under the
+    # pointer as it carries its selection: `Union{Nothing, Reference}`, a
+    # `Reference` inside the node or `nothing` when the pointer is not in it. Only
+    # the cell layout has it, so it is added after the native layout is written: no
+    # pointer stands on a native object, which the editor shows through a
+    # projection whose output documents are cell layouts. A document that declares
+    # its own `selection`, a value document, has none, because a changing field
+    # would take its value storage away. It is the last field and defaults to
+    # `nothing`, so a call that passes the fields a document had without it still
+    # works (`_emit_autowrap_ctor`, `_emit_mouse_target_ctor`).
+    if injects_selection
+        add_cell_struct_field!(plan, :mouse_target; type = :(Union{Nothing, Reference}),
+                               default = :nothing)
+        arg_names = [gensym(f) for f in plan.field_names]
+    end
+
     # What the bare name points at, once every coded name exists. `C` needs no
     # binding — the cell layout already carries the programmer's name — so it gets
     # the coded alias instead, and both names work in every schema either way.
@@ -714,6 +791,7 @@ function _document_expr(args)
              # followed by its Rule C companion; then Rule C's element-sugar tail.
              build_cell_struct_positional_ctors(plan, plan.name;
                                           each_arity = k -> _emit_collection_ctor_at(plan, k))...,
+             _emit_mouse_target_ctor(plan)...,
              _emit_collection_ctors(plan)...))
 end
 

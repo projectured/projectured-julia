@@ -98,7 +98,8 @@ print_document(p::ObjectToWidget, obj) = print_document(p, nothing, obj, nothing
 # ── Reflection: which fields to show, and how to classify a value ───────────
 
 # Field selection for a struct: explicit whitelist (root only), or every
-# renderable field. `:selection` is the document's own cursor slot, never shown.
+# renderable field. A view state field, the document's own cursor slot and its
+# mouse target, is never shown.
 function _displayable_fields(p::ObjectToWidget, obj, basepath::Reference)
     if p.fields !== nothing && basepath isa EmptyReference
         return p.fields
@@ -107,7 +108,7 @@ function _displayable_fields(p::ObjectToWidget, obj, basepath::Reference)
 end
 
 function _is_displayable_field(obj, nm::Symbol)
-    nm === :selection && return false
+    is_view_state_field(nm) && return false
     f = getfield(obj, nm)
     _value_kind(f isa Cell ? f[] : f) !== :opaque
 end

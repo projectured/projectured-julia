@@ -225,7 +225,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     # Struct: render as `TypeName { field … }` — the type name labels the
     # brace block (outside it), and the fields are indented one level inside.
     fnames = try fieldnames(T) catch; () end
-    fnames = filter(fn -> fn != :ref && (fn != :selection || p.include_selection), fnames)
+    fnames = filter(fn -> fn != :ref && fn != :mouse_target && (fn != :selection || p.include_selection), fnames)
     if p.filter !== nothing
         fnames = filter(fn -> isdefined(obj, fn) && p.filter(_unwrap_cell(getfield(obj, fn))), fnames)
     end

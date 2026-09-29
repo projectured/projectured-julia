@@ -37,7 +37,7 @@ using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
 using ProjecturedText.TextModule: TextToString
 using ProjecturedSyntax.SyntaxModule: SyntaxLeaf
 using ProjecturedDomain.DomainModule: get_nothing_document, get_domain_insertion, get_insertion_root
-using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_walk_opaque
+using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_walk_opaque, is_view_state_field
 using ProjecturedKernel.CellModule: unwrap_cell
 using ProjecturedKernel.ReferenceModule: extend_reference, FieldReferenceStep, ElementReferenceStep,
                                          try_evaluate_reference, PositionReferenceStep,
@@ -144,7 +144,7 @@ function _node_slots(node, node_path)
     slots = Any[]
     (node isa Document && !is_walk_opaque(node)) || return slots
     for fname in fieldnames(typeof(node))
-        (fname === :selection || fname === :ref || fname === :collapsed) && continue
+        (is_view_state_field(fname) || fname === :ref || fname === :collapsed) && continue
         fv = unwrap_cell(getfield(node, fname))
         fpath = extend_reference(node_path, FieldReferenceStep(string(fname)))
         if fv isa CellVector || is_element_collection(fv) || fv isa AbstractVector
@@ -166,7 +166,7 @@ end
 # momentarily empty; otherwise it is a leaf, typed as its authoring surface.
 _has_child_field(node) =
     (node isa Document && !is_walk_opaque(node)) && any(fieldnames(typeof(node))) do fname
-        (fname === :selection || fname === :ref || fname === :collapsed) && return false
+        (is_view_state_field(fname) || fname === :ref || fname === :collapsed) && return false
         fv = unwrap_cell(getfield(node, fname))
         fv isa CellVector || is_element_collection(fv) || fv isa AbstractVector || fv isa Document
     end

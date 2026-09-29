@@ -28,7 +28,7 @@ rst_ast_equal(a, b) = a == b
 function rst_ast_equal(a::RstDocument, b::RstDocument)
     typeof(a).name === typeof(b).name || return false
     for name in fieldnames(typeof(a))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         rst_ast_equal(getproperty(a, name), getproperty(b, name)) || return false
     end
     true
@@ -46,7 +46,7 @@ function rst_first_difference(a, b, path::String = "")
     a isa RstDocument && b isa RstDocument || return rst_ast_equal(a, b) ? nothing : path
     typeof(a).name === typeof(b).name || return path * " (" * string(nameof(typeof(a))) * " vs " * string(nameof(typeof(b))) * ")"
     for name in fieldnames(typeof(a))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         x, y = getproperty(a, name), getproperty(b, name)
         here = path * "." * string(name)
         if x isa CellVector && y isa CellVector

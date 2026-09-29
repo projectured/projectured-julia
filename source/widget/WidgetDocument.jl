@@ -2607,7 +2607,7 @@ function Base.show(io::IO, x::Action)
         inner = IOContext(io, :document_depth => depth + 1)
         first = true
         for f in fieldnames(typeof(x))
-            f === :selection && continue
+            is_view_state_field(f) && continue
             first || print(io, ", ")
             if f === :callback
                 print(io, getproperty(x, f) === nothing ? "nothing" : "callback")

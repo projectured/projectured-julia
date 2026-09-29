@@ -146,6 +146,7 @@ end
 
 # ── the tests of the packages that came out of base ─────────────────────────
 include("../../../test/substrate/document/CollectionDocumentTest.jl")
+include("../../../test/substrate/document/MouseTargetFieldTest.jl")
 include("../../../test/substrate/document/DocumentWalkTest.jl")
 include("../../../test/substrate/document/BoundedSyncTest.jl")
 include("../../../test/substrate/document/DocumentReflectionTest.jl")

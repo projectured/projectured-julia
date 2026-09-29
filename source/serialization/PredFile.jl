@@ -97,7 +97,7 @@ of them produced it.
 function pred_arguments(document)
     keywords = Pair{Symbol,Any}[]
     for name in fieldnames(typeof(document))
-        name === :selection && continue
+        is_view_state_field(name) && continue
         raw = getfield(document, name)
         value = raw isa AbstractCell ? raw[] : raw
         # A collection of cells is written as the list of what the cells hold.

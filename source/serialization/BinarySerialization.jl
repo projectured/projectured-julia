@@ -56,6 +56,7 @@ function load_document(path::AbstractString)
         doc = deserialize(io)
         doc isa Document ||
             error("load_document: payload is not a Document (got $(typeof(doc)))")
+        _clear_mouse_targets!(doc)
         doc
     end
 end
@@ -100,4 +101,13 @@ LoadDocumentOperation(path::AbstractString) = LoadDocumentOperation(String(path)
 function evaluate_operation(editor, op::LoadDocumentOperation)
     editor.document = load_document(op.path)
     editor.iomap = nothing
+end
+
+# A load gives no mouse target: the saved one is where the pointer was when the
+# document was saved, which says nothing about where it is now.
+function _clear_mouse_targets!(document)
+    for node in search_documents(document, node -> hasproperty(node, :mouse_target))
+        cell = getfield(node, :mouse_target)
+        cell isa AbstractCell && cell[] !== nothing && (cell[] = nothing)
+    end
 end

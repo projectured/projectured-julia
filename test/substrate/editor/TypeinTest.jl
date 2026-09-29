@@ -115,7 +115,7 @@ function _walk_strings!(node, path, visited, refs)
 
     isstructtype(typeof(node)) || return
     for fname in fieldnames(typeof(node))
-        fname === :selection && continue
+        is_view_state_field(fname) && continue
         # open/close/sep on a SyntaxLeaf/SyntaxNode are projection-rendered
         # delimiters (chrome derived from the node), not editable document
         # content: editing the open/close span is explicitly deferred at the

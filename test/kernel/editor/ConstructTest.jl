@@ -107,7 +107,7 @@ function _compare!(errs, a, b, path)
         end
     else
         for fn in fieldnames(typeof(b))
-            (fn === :ref || fn === :selection) && continue
+            (fn === :ref || is_view_state_field(fn)) && continue
             isdefined(b, fn) || continue
             _compare!(errs, unwrap_cell(getfield(a, fn)),
                             unwrap_cell(getfield(b, fn)), "$path.$fn")

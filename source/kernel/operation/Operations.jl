@@ -376,7 +376,7 @@ end
 function child_reference_steps(node)
     pairs = Tuple{Any, Any}[]
     for nm in fieldnames(typeof(node))
-        nm === :selection && continue
+        is_view_state_field(nm) && continue
         val = unwrap_cell(getfield(node, nm))
         val isa Document || continue
         push!(pairs, (FieldReferenceStep(string(nm)), val))

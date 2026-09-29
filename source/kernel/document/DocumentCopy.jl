@@ -100,6 +100,8 @@ function copy_document_fields(policy::CopyPolicy, document::Document; replacemen
                              _make_replacement_field(raw, replacements[name]) :
                          name === :selection && raw isa AbstractCell ?
                              copy_selection_cell(policy, raw) :
+                         name === :mouse_target && raw isa AbstractCell ?
+                             copy_cell_as(raw, nothing) :
                              copy_document(policy, raw))
     end
     result = base(arguments...)
