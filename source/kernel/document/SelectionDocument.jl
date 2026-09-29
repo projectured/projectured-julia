@@ -10,12 +10,10 @@
 # "which selection is this" then reads that node alone: no walk from the root, no
 # answer threaded down the printer context.
 #
-# **Why it lives here, next to the macro.** `@document` emits the injected field's
-# type as an *expression*, resolved in the caller's module, and 64 modules import
-# the reference layer by name (`import ..ReferenceModule: Reference`) rather than
-# wholesale. A type declared above this layer would therefore not be in scope where
-# the expansion lands. Declared here, in the macro's own module, it is spliced as a
-# type **object** and needs no import anywhere.
+# **Why it lives here, next to the macro.** `@document` splices the type of the
+# injected field into its expansion as a type **object**, so the module of the
+# caller needs no import for it. The macro can splice only a type that is defined
+# at or below this layer.
 #
 # `primary` is `Any` for the same layering reason in the other direction: this
 # layer sits below the reference layer and cannot name `Reference`.

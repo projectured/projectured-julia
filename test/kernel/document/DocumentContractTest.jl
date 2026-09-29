@@ -92,6 +92,21 @@ ProjecturedKernel.DocumentModule.copy_document(::Type{<:AbstractCell}, ::Contrac
                                                policy, depth::Int) =
     ContractOwnCopy(label = "own copy at depth $depth")
 
+# A wrapper with the vector protocol of its field, and one with the map protocol.
+@document struct ContractList
+    items::Vector{Any} = Any[]
+end
+@forward_vector_protocol on ContractList to items
+
+@document struct ContractEntry
+    key::String
+    value::Any
+end
+@document struct ContractMap
+    entries::Vector{Any} = Any[]
+end
+@adapt_map_protocol on ContractMap to entries with ContractEntry(key, value)
+
 function test_document_contract()
 @testset "DocumentContract" begin
 
@@ -182,6 +197,21 @@ function test_document_contract()
         box = copy_document(ReactiveCell, ToyBox(own, nothing))
         @test box.content.label == "own copy at depth 1"
         @test startswith(only(copy_document(ReactiveCell, [own])).label, "own copy")
+    end
+
+    @testset "a forwarded mutator returns the wrapper, and a map has a length" begin
+        list = ContractList(items = Any[])
+        @test push!(list, 1) === list
+        @test insert!(list, 1, 0) === list
+        @test setindex!(list, 5, 2) === list
+        @test deleteat!(list, 1) === list
+        @test collect(list) == [5]
+        @test pop!(list) == 5
+        table = ContractMap(entries = Any[])
+        table["a"] = 1
+        table["b"] = 2
+        @test length(table) == 2
+        @test collect(table) == [("a", 1), ("b", 2)]
     end
 
     @testset "the hidden elements of a bounded walk check their bounds" begin

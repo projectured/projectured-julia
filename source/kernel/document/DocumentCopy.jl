@@ -27,9 +27,9 @@
 """
     DocumentCopyException(value, reason)
 
-A copy refused `value`, for `reason`: a sentence that says what `value` holds
-that the copy can not own. A hook throws it, and the walk lets it through at
-any depth.
+Thrown when a copy can not own `value`. `reason` is a sentence that says what
+`value` holds that the copy can not own. A hook throws it, and the walk does not
+catch it at any depth.
 """
 struct DocumentCopyException <: Exception
     value::Any
@@ -153,14 +153,17 @@ _get_refused_value_word(value) = String(nameof(typeof(value)))
 The policy of [`make_document_duplicate`](@ref). Made for one duplicate, because
 it records every document it copies.
 
-- It descends into a document whose kind declares a duplicate, and shares every
-  other document: what the duplicate does not own, it reads.
-- It refuses a cell that computes, because a copy of its value looks live and is
-  not. A selection is not refused: it is view state, and the duplicate takes the
-  selection as it is now (see [`copy_selection_cell`](@ref)).
-- It refuses a function, a `Ref` and a `Task`, because the walk can not know
+- The walk descends into a document whose kind declares a duplicate, and shares
+  every other document: what the duplicate does not own, it reads.
+- A cell that computes stops the copy, because a copy of its value looks live
+  and is not. A selection does not stop it: it is view state, and the duplicate
+  takes the selection as it is now (see [`copy_selection_cell`](@ref)).
+- A function, a `Ref` and a `Task` stop the copy, because the walk can not read
   what they capture, and an action that captures the original acts on it.
-- It refuses a document that holds itself, unless the kind makes its own copy.
+- A document that holds itself stops the copy, unless the kind makes its own
+  copy.
+
+The copy stops with a [`DocumentCopyException`](@ref).
 """
 struct DuplicatePolicy <: CopyPolicy
     copies::IdDict{Any,Any}

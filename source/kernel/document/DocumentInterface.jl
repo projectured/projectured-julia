@@ -10,7 +10,9 @@
     Document
 
 What the editor edits: data with a shape, which a projection can show and a
-person can change.
+person can change. It is the abstract type of every document. The
+[`@document`](@ref) macro declares most documents, and a hand-written struct can
+also subtype `Document`.
 
 Use it as the type of anything that is content rather than presentation: a
 table of results, a chart, a page of a study, a pane tree, a line of text. A
@@ -27,12 +29,6 @@ which is how it reaches a screen.
 
 See also `@document`, which declares most of them, `Projection`, which shows
 one, and the guide `design/concepts`.
-
-Abstract base type for all document types. Most concrete documents are
-declared with the [`@document`](@ref) macro (in the sibling
-[`DocumentMacro.jl`](DocumentMacro.jl) fragment), which wraps fields in
-reactive `Cell`s and generates the shared value protocol; a hand-written struct
-may also subtype `Document` directly.
 """
 abstract type Document end
 
@@ -102,8 +98,9 @@ variant of one schema answers it, so it is the name to show a reader.
 
 `nameof` cannot do this job. A coded name is a type's real name and the bare name
 is a `const` alias, so `nameof` of a schema that bound its bare name elsewhere
-answers the coded one: `nameof(ChainModel)` is `:MChainModel`. A label built that
-way reads as the layout rather than the thing.
+answers the coded one: when the bare name `Model` binds the native layout,
+`nameof(Model)` is `:MModel`. A label built that way reads as the layout rather
+than the thing.
 
 Defaults to `nameof(T)`, which is right for a hand-written document and for any
 schema that left its bare name where it was.
@@ -164,7 +161,7 @@ layout, when the reactive representation of a value differs from the plain one.
 `nothing`, the default, means the declared type is used unchanged.
 
 **This is what lets a declaration state the PLAIN type.** A field written
-`params::Vector{NedParam}` is exactly that in the native layout — no cells — while
+`items::Vector{Item}` is exactly that in the native layout — no cells — while
 the cell layout substitutes the reactive collection, so an editor still gets one
 cell per element. Before it, a declaration had to name `CellVector` to get the
 editor what it needs, and the plain layout then carried cells it had no use for.
@@ -210,15 +207,15 @@ steers it in two ways:
   one step of the walk and keeps the others, because dispatch selects the most
   specific method. Such a method can rebuild the node with
   [`copy_document_fields`](@ref).
-- **The stop hooks.** At each child document the walk asks
-  [`is_descendable_for_copy`](@ref), and where it stops,
-  [`make_copy_placeholder`](@ref) gives what stands there.
+- **The stop hooks.** At each child document the walk calls
+  [`is_descendable_for_copy`](@ref). Where it returns `false`, the walk puts
+  the value of [`make_copy_placeholder`](@ref) in the slot.
   [`copy_computed_cell`](@ref) copies a cell that computes,
   [`copy_selection_cell`](@ref) copies a document's selection, and
   [`get_copy_memo`](@ref) gives the table that makes a document met twice one
   copy.
 
-A hook refuses the whole copy with a [`DocumentCopyException`](@ref).
+A hook that throws a [`DocumentCopyException`](@ref) stops the whole copy.
 
 The policy comes first, and a cell type never is a policy, so no method of one
 form is ambiguous with a method of the other.
@@ -255,10 +252,10 @@ function copy_document_fields end
     is_descendable_for_copy(policy, document) -> Bool
     make_copy_placeholder(policy, document) -> value
 
-The **stop control** of [`copy_document`](@ref) under a policy. The walk asks the
-first at each child document, and where the answer is `false` the slot takes
-what the second gives: a marker, or `document` itself, which the copy then
-shares with the source.
+The **stop control** of [`copy_document`](@ref) under a policy. The walk calls the
+first at each child document. Where it returns `false`, the slot takes the value
+of the second: a marker, or `document` itself, which the copy then shares with
+the source.
 
 Unlike [`is_descendable_for_sync`](@ref), the question receives the child, so a
 policy can stop at a kind. The defaults descend everywhere, and the second
@@ -284,7 +281,7 @@ The copy of a document's `selection` cell. A selection is view state, and a
 projection can wire it to a computation that follows the selection of the
 document it prints. So the default is a cell of the same kind that stores the
 selection the cell has now, whether it computes or not, and the copy's own
-projection wires its own. A policy never refuses a document for its selection.
+projection wires its own. The selection of a document never stops a copy.
 """
 function copy_selection_cell end
 
@@ -296,9 +293,9 @@ A **duplicate** is the copy a person gets when they duplicate a pane: a new
 document of the same kind that they control on its own. It owns what the person
 controls in it, shares what it reads, and copies no process.
 
-`has_document_duplicate` says whether the kind of `document` has one. A strip
-asks it each time it prints a tab, so a method answers from the type and never
-walks the tree. The default is `false`.
+`has_document_duplicate` says whether the kind of `document` has one. A printer
+can call it each time it shows a document, so a method answers from the type
+and does not walk the tree. The default is `false`.
 
 `make_document_duplicate` makes the duplicate with
 `copy_document(DuplicatePolicy(), document)`. It throws a
@@ -354,8 +351,8 @@ and never reaches the third, so an un-policed walk is the whole walk.
 
 A policy that answers otherwise makes the walk stop, and
 `make_unsynced_placeholder` supplies what stands where it stopped — a marker the
-policy's owner understands. That keeps the marker's *type* out of this layer:
-the walk knows only that something goes in the slot.
+policy's owner understands. So this layer does not name the type of the marker:
+the walk puts the value in the slot and does not read it.
 
 `depth` is the child's depth (1 for a root's children). `slot` is what occupies
 it now — including a placeholder the policy itself put there, which is how a
@@ -392,7 +389,7 @@ for: the file holds the document, not the history of it.
 
 # Example
 
-    write_document_file(get_wrapped_document(tab.content), tab.filename)
+    document = get_wrapped_document(node)   # what a save writes to the file
 
 See also `copy_document` and `replace_wrapped_document!`.
 """
@@ -411,7 +408,7 @@ about the old one, and answers itself.
 
 # Example
 
-    tab.content = replace_wrapped_document!(tab.content, read_document_file(tab.filename))
+    node = replace_wrapped_document!(node, document)   # document: the file read again
 
 See also `get_wrapped_document`.
 """
@@ -426,7 +423,8 @@ The field of `node` that holds the document a person edits in it, or `nothing` w
 A layer that holds a document for a person to edit answers the name of its field:
 a tab holds what it shows, a file holds the document read from it, a history holds
 the document it keeps the steps of. The default answers `nothing`, so a layer adds
-one method. `get_edited_document` follows these fields down to what a person edits.
+one method. A walk that follows these fields from a node reaches what a person
+edits.
 
 # Example
 

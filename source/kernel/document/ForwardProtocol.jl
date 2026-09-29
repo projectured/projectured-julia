@@ -10,13 +10,24 @@
 _check_kw(got, want::Symbol, mac) =
     got === want || error("$mac: expected `$want`, got `$got`")
 
+# The mutators whose forwarded method returns the wrapper `x`, as Base returns the
+# collection that the caller gives.
+const _WRAPPER_RETURNING_MUTATORS = (:push!, :insert!, :deleteat!, :setindex!)
+
+# The bare name of a function expression: `push!` for `Base.push!` and for `push!`.
+_get_function_name(f::Expr) =
+    f.head === :. && f.args[2] isa QuoteNode ? f.args[2].value : nothing
+_get_function_name(f) = f
+
 # Build one delegating method per function: `f(x::T, args...) =
-# f(getproperty(x, :field), args...)`. Shared by the two forwarding macros.
+# f(getproperty(x, :field), args...)`, and `x` as the result of a mutator of
+# `_WRAPPER_RETURNING_MUTATORS`. Shared by the two forwarding macros.
 function _forward_defs(T, field, fns)
     fieldsym = QuoteNode(field)
     defs = map(fns) do f
-        :($(esc(f))(x::$(esc(T)), args...; kw...) =
-              $(esc(f))(Base.getproperty(x, $fieldsym), args...; kw...))
+        call = :($(esc(f))(Base.getproperty(x, $fieldsym), args...; kw...))
+        body = _get_function_name(f) in _WRAPPER_RETURNING_MUTATORS ? :($call; x) : call
+        :($(esc(f))(x::$(esc(T)), args...; kw...) = $body)
     end
     Expr(:block, defs...)
 end
@@ -35,7 +46,8 @@ emits
     Base.getindex(x::Wrapper, args...; kw...)  = Base.getindex(x.items, args...; kw...)
 
 so a wrapper exposes its field's protocol without one hand-written method per
-function. `on` / `to` are literal keywords.
+function. A forwarded `push!`, `insert!`, `deleteat!` or `setindex!` returns the
+wrapper, not the field. `on` / `to` are literal keywords.
 """
 macro forward_protocol(fns, on_kw, T, to_kw, field)
     _check_kw(on_kw, :on, "@forward_protocol")
@@ -71,10 +83,10 @@ end
 
 Give `T` the ordered-map protocol over `field` — an integer-indexed sequence of
 entry documents. Generates `getindex`/`setindex!`/`haskey`/`keys`/`values`/`get`/
-`delete!` and a pair-`iterate`, all by linear scan over `field`. The `with` clause
-names the adapter: `EntryCtor(keyfield, valfield)` is the entry type, its key/value
-fields (read via `getproperty`), and how a fresh entry is built on insert
-(`EntryCtor(key, val)`).
+`delete!` and a pair-`iterate`, all by linear scan over `field`, and the `length`
+of `field`, so `collect` gives the pairs. The `with` clause names the adapter:
+`EntryCtor(keyfield, valfield)` is the entry type, its key/value fields (read via
+`getproperty`), and how a fresh entry is built on insert (`EntryCtor(key, val)`).
 
 Unlike `@forward_vector_protocol` this is not delegation: the backing sequence is
 integer-indexed and iterates *values*, so the keyed methods translate between a key
@@ -96,6 +108,7 @@ macro adapt_map_protocol(on_kw, T, to_kw, field, with_kw, entry)
             any(e -> Base.getproperty(e, $k) == key, Base.getproperty(j, $f))
         Base.keys(j::$Te)   = [Base.getproperty(e, $k) for e in Base.getproperty(j, $f)]
         Base.values(j::$Te) = [Base.getproperty(e, $v) for e in Base.getproperty(j, $f)]
+        Base.length(j::$Te) = length(Base.getproperty(j, $f))
 
         function Base.getindex(j::$Te, key::AbstractString)
             for e in Base.getproperty(j, $f)
