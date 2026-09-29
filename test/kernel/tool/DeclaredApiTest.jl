@@ -2,7 +2,7 @@
 The declared API — what a model may write, and what it may find.
 
 A `ToolSet` that names modules gets those and nothing else, in both directions:
-`execute_julia_code` resolves their names and no others, and the documentation
+`execute_julia_code!` resolves their names and no others, and the documentation
 tools offer their names and no others. The two are one list, because a model that
 finds a function it cannot call wastes a round.
 """
@@ -108,7 +108,7 @@ function test_declared_api()
         set = ToolSet()
         @test isempty(set.api)
         # `Cell` is a kernel name, so it resolves through the default gathering.
-        @test _is_cell_name_answer(execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code!(set, nothing, "string(Cell)"))
     end
 
     @testset "a call with no code answers that, rather than answering nothing" begin
@@ -117,12 +117,12 @@ function test_declared_api()
         # as its own mistake, and then it stops writing code at all.
         set = ToolSet()
         for blank in ("", "\n", "   \n  ")
-            answer = execute_julia_code(set, nothing, blank)
+            answer = execute_julia_code!(set, nothing, blank)
             @test occursin("No code was given", answer)
             @test occursin("`code`", answer)
         end
         # And a real call still runs.
-        @test strip(execute_julia_code(set, nothing, "1 + 1")) == "2"
+        @test strip(execute_julia_code!(set, nothing, "1 + 1")) == "2"
         # A tool call that leaves out the argument gets the same answer.
         register_default_tools!(set)
         answer = call_tool(set, "execute_julia_code"; args = Dict{String,Any}(),
@@ -226,8 +226,8 @@ function test_declared_api()
 
     @testset "a declared module is what resolves" begin
         set = ToolSet(; api = Module[ToyApi])
-        @test execute_julia_code(set, nothing, "toy_verb()") |> strip == "\"toy\""
-        @test strip(execute_julia_code(set, nothing, "toy_count([1, 2, 3])")) == "3"
+        @test execute_julia_code!(set, nothing, "toy_verb()") |> strip == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_count([1, 2, 3])")) == "3"
     end
 
     # ── A declaration of names ───────────────────────────────────────────────
@@ -238,11 +238,11 @@ function test_declared_api()
     # with no module re-exporting a name it does not own.
     @testset "a pair gives the names it lists, and no others" begin
         set = ToolSet(; api = [ToyApi => (:toy_verb,)])
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
 
         # `toy_count` is exported by the same module, and the declaration left it
         # out, so it is not a name this model may write.
-        answer = execute_julia_code(set, nothing, "toy_count([1, 2])")
+        answer = execute_julia_code!(set, nothing, "toy_count([1, 2])")
         @test occursin("UndefVarError", answer)
         @test occursin("toy_count", answer)
     end
@@ -252,14 +252,14 @@ function test_declared_api()
     # found, and what they list is what the code can call.
     @testset "a declared module can be listed, and lists what it gives" begin
         set = ToolSet(; api = [ToyApi => (:toy_verb,)])
-        functions = execute_julia_code(set, nothing, "list_functions(\"ToyApi\")")
+        functions = execute_julia_code!(set, nothing, "list_functions(\"ToyApi\")")
         @test !occursin("not found", functions)
         @test occursin("toy_verb", functions)
         @test !occursin("toy_count", functions)
-        @test !occursin("not found", execute_julia_code(set, nothing, "list_types(\"ToyApi\")"))
-        @test occursin("ToyApi", execute_julia_code(set, nothing, "list_modules()"))
+        @test !occursin("not found", execute_julia_code!(set, nothing, "list_types(\"ToyApi\")"))
+        @test occursin("ToyApi", execute_julia_code!(set, nothing, "list_modules()"))
         # A module the declaration does not name is not found, as its names do not resolve.
-        @test occursin("not found", execute_julia_code(set, nothing, "list_functions(\"ToolModule\")"))
+        @test occursin("not found", execute_julia_code!(set, nothing, "list_functions(\"ToolModule\")"))
     end
 
     # The module's own name stays bound, and that is deliberate. The harm a wide
@@ -269,7 +269,7 @@ function test_declared_api()
     # and not a security boundary, which is what `ToolSet` already says of itself.
     @testset "a narrowed module keeps its own name" begin
         set = ToolSet(; api = [ToyApi => (:toy_verb,)])
-        @test strip(execute_julia_code(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
+        @test strip(execute_julia_code!(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
     end
 
     # Two packages own the same common word often enough that a surface would
@@ -279,11 +279,11 @@ function test_declared_api()
         set = ToolSet(; api = [ToyApi => (:toy_verb => :say_toy, :toy_count)])
 
         # The model writes the name it was given.
-        @test strip(execute_julia_code(set, nothing, "say_toy()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "say_toy()")) == "\"toy\""
         # And the one that was not renamed is itself.
-        @test strip(execute_julia_code(set, nothing, "toy_count([1, 2])")) == "2"
+        @test strip(execute_julia_code!(set, nothing, "toy_count([1, 2])")) == "2"
         # The module's own word is not what this model writes.
-        @test occursin("UndefVarError", execute_julia_code(set, nothing, "toy_verb()"))
+        @test occursin("UndefVarError", execute_julia_code!(set, nothing, "toy_verb()"))
 
         # It is findable and readable under the new name, and its documentation
         # is still its own.
@@ -351,7 +351,7 @@ function test_declared_api()
         @test !any(resource -> occursin("ToyBox", resource.uri) &&
                                !endswith(resource.uri, "/ToyBox"), list_resources(set))
         @test occursin("ToyStorage.ToyBox",
-                       execute_julia_code(set, nothing, "string(DCToyBox)"))
+                       execute_julia_code!(set, nothing, "string(DCToyBox)"))
     end
 
     @testset "the module catalogue names each module once, with its declared types" begin
@@ -372,8 +372,8 @@ function test_declared_api()
         # One binding is one hit, although two modules give the word.
         @test count(entry -> endswith(entry.qualname, ".toy_verb"), entries) == 1
         @test count(entry -> endswith(entry.qualname, ".toy_echo"), entries) == 1
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
-        @test strip(execute_julia_code(set, nothing, "toy_echo()")) == "\"toytoy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_echo()")) == "\"toytoy\""
     end
 
     @testset "two entries that give one name are refused" begin
@@ -450,7 +450,7 @@ function test_declared_api()
 
     @testset "a name outside the declaration fails in the round that used it" begin
         set = ToolSet(; api = Module[ToyApi])
-        answer = execute_julia_code(set, nothing, "Cell(1)")
+        answer = execute_julia_code!(set, nothing, "Cell(1)")
         @test occursin("UndefVarError", answer)
         @test occursin("Cell", answer)
     end
@@ -464,26 +464,26 @@ function test_declared_api()
     @testset "the declaration decides, in both directions" begin
         wide = ToolSet()
         narrow = ToolSet(; api = Module[ToyApi])
-        @test _is_cell_name_answer(execute_julia_code(wide, nothing, "string(Cell)"))
-        @test occursin("UndefVarError", execute_julia_code(narrow, nothing, "string(Cell)"))
-        @test strip(execute_julia_code(narrow, nothing, "toy_verb()")) == "\"toy\""
+        @test _is_cell_name_answer(execute_julia_code!(wide, nothing, "string(Cell)"))
+        @test occursin("UndefVarError", execute_julia_code!(narrow, nothing, "string(Cell)"))
+        @test strip(execute_julia_code!(narrow, nothing, "toy_verb()")) == "\"toy\""
     end
 
     @testset "two declared modules both arrive" begin
         set = ToolSet(; api = Module[ToyApi, ToyExtra])
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
-        @test strip(execute_julia_code(set, nothing, "string(toy_extra())")) == "\"7\""
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "string(toy_extra())")) == "\"7\""
     end
 
     @testset "state still survives between calls" begin
         set = ToolSet(; api = Module[ToyApi])
-        execute_julia_code(set, nothing, "kept = toy_count([1, 2])")
-        @test strip(execute_julia_code(set, nothing, "string(kept)")) == "\"2\""
+        execute_julia_code!(set, nothing, "kept = toy_count([1, 2])")
+        @test strip(execute_julia_code!(set, nothing, "string(kept)")) == "\"2\""
     end
 
     @testset "the target is still bound as editor" begin
         set = ToolSet(; api = Module[ToyApi])
-        @test strip(execute_julia_code(set, (name = "a",), "editor.name")) == "\"a\""
+        @test strip(execute_julia_code!(set, (name = "a",), "editor.name")) == "\"a\""
     end
 
     # Both directions of the invariant. Every name the tools offer resolves, and
@@ -499,7 +499,7 @@ function test_declared_api()
         # And every name that IS offered resolves in the scratch module.
         for verb in ("toy_verb", "toy_count")
             @test !occursin("UndefVarError",
-                            execute_julia_code(set, nothing, "string(" * verb * ")"))
+                            execute_julia_code!(set, nothing, "string(" * verb * ")"))
         end
     end
 
@@ -512,7 +512,7 @@ function test_declared_api()
         @test occursin("How many toys a box holds.", hits)
         @test occursin("bound a count", read_resource(set, "resource://value/ToyApi/toy_limit"))
         @test startswith(read_resource(set, "resource://value/ToyApi/nothing_here"), "Value 'nothing_here' is not")
-        @test strip(execute_julia_code(set, nothing, "toy_limit + 1")) == "4"
+        @test strip(execute_julia_code!(set, nothing, "toy_limit + 1")) == "4"
     end
 
     @testset "a name read under the wrong module is pointed to its own" begin
@@ -593,24 +593,24 @@ function test_declared_api()
     # effect, so it drops the namespace.
     @testset "declaring after the first evaluation still takes effect" begin
         set = ToolSet()
-        @test _is_cell_name_answer(execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code!(set, nothing, "string(Cell)"))
         declare_api!(set, Module[ToyApi])
-        @test occursin("UndefVarError", execute_julia_code(set, nothing, "string(Cell)"))
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
+        @test occursin("UndefVarError", execute_julia_code!(set, nothing, "string(Cell)"))
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
         declare_api!(set, Module[])
-        @test _is_cell_name_answer(execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code!(set, nothing, "string(Cell)"))
     end
 
     # How to look is always in scope, and it looks only at what was declared.
     @testset "the model can look things up from the code it writes" begin
         set = ToolSet(; api = Module[ToyApi])
-        found = execute_julia_code(set, nothing, "search_api(\"toy\")")
+        found = execute_julia_code!(set, nothing, "search_api(\"toy\")")
         @test occursin("toy_verb", found)
-        doc = execute_julia_code(set, nothing,
-                                 "read_function_documentation(\"ToyApi\", \"toy_verb\")")
+        doc = execute_julia_code!(set, nothing,
+                                  "read_function_documentation(\"ToyApi\", \"toy_verb\")")
         @test occursin("Answer the word", doc)
         # It cannot widen its own view: the declaration is applied for it.
-        @test occursin("No API matches", execute_julia_code(set, nothing, "search_api(\"Cell\")"))
+        @test occursin("No API matches", execute_julia_code!(set, nothing, "search_api(\"Cell\")"))
     end
 
     @testset "a docstring is the interface, and it is readable" begin

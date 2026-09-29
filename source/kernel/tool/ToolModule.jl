@@ -8,8 +8,9 @@ be asked to read. Seven fragments share this namespace:
   `MeaningModel` a search by description ranks with, and the `ToolSet` that holds
   them.
 - [`ToolSet.jl`](ToolSet.jl) — registering, listing, finding, and calling them.
-- [`CodeExecution.jl`](CodeExecution.jl) — the `execute_julia_code` tool and its
-  persistent scratch namespace.
+- [`CodeExecution.jl`](CodeExecution.jl) — `execute_julia_code!` and
+  `execute_julia_expression!`, which run the code of the `execute_julia_code` tool,
+  and their persistent scratch namespace.
 - [`SearchQuery.jl`](SearchQuery.jl) — what a search query says: keywords with
   their classes, a regular expression, or a description.
 - [`Documentation.jl`](Documentation.jl) — the guide / module / type / function
@@ -36,13 +37,13 @@ module ToolModule
 
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        get_api_entry_names,
-       api_entry_bindings, api_source_name, describe_api, register_guide_root!,
+       get_api_entry_bindings, get_api_source_name, describe_api, register_guide_root!,
        register_tool!, list_tools, find_tool, call_tool, declare_api!,
        register_resource!, list_resources, find_resource,
        read_resource, describe_resources,
        register_default_tools!,
        observe_evaluations!,
-       execute_julia_code, execute_julia_expression, get_last_evaluated_value,
+       execute_julia_code!, execute_julia_expression!, get_last_evaluated_value,
        describe_value_for_person,
        list_guides, read_guide, read_guide_section,
        list_modules, list_types, list_functions,

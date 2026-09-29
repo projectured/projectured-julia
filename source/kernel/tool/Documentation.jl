@@ -612,7 +612,7 @@ function read_function_documentation(module_name, function_signature, type_name 
     _is_declared(api, mod, sym) ||
         return _say_not_declared("Function", func_name, module_name, api, "function")
     # A declaration may have renamed it, and the module knows it by its own name.
-    sym = api_source_name(api, mod, sym)
+    sym = get_api_source_name(api, mod, sym)
     isdefined(mod, sym) ||
         return "Function '$function_signature' not found in module '$module_name'."
     doc = _doc_string(getfield(mod, sym))
@@ -632,7 +632,7 @@ function read_value_documentation(module_name, name; api = ApiEntry[])
     sym = Symbol(name)
     _is_declared(api, mod, sym) ||
         return _say_not_declared("Value", String(name), module_name, api, "value")
-    sym = api_source_name(api, mod, sym)
+    sym = get_api_source_name(api, mod, sym)
     isdefined(mod, sym) || return "Value '$name' not found in module '$module_name'."
     doc = _binding_doc(mod, sym)
     isempty(doc) && return "No documentation available for '$name'."
@@ -767,7 +767,7 @@ function describe_api(api; signatures::Bool = true)
     for entry in entries
         mod = entry.module_
         own = String[]
-        for (source, name) in api_entry_bindings(entry)
+        for (source, name) in get_api_entry_bindings(entry)
             name === nameof(mod) && continue
             isdefined(mod, source) || continue
             text = String(name)
@@ -844,7 +844,7 @@ function _index_declared(api)
         # Indexed under the name the MODEL writes, and read from the module by
         # the name the module knows: a renamed entry is found by the word the
         # model would type, and its documentation is still its own.
-        for (source, sym) in api_entry_bindings(declared)
+        for (source, sym) in get_api_entry_bindings(declared)
             sym === nameof(mod) && continue
             isdefined(mod, source) || continue
             _is_private_name(sym) && continue

@@ -391,7 +391,7 @@ includes them in:
 17 projection  the four interface functions, @projection, ProjectionTemplate,
                ProjectionReferenceStep
 18 tool        the editor's capability surface: Tool / Resource / ToolSet,
-               execute_julia_code, doc/API search, register_default_tools!
+               execute_julia_code!, doc/API search, register_default_tools!
 19 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
 20 agent       the AI control surface: AgentModule (inbound, the MCP

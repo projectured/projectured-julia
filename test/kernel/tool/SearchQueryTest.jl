@@ -179,9 +179,9 @@ function test_search_query()
     @testset "the code a model writes can not widen the declared search" begin
         set = ToolSet(; api = Module[SearchToy])
         @test occursin("No API matches",
-                       execute_julia_code(set, nothing, "search_api(\"CellVector\"; api = [])"))
+                       execute_julia_code!(set, nothing, "search_api(\"CellVector\"; api = [])"))
         @test occursin("count_rows",
-                       execute_julia_code(set, nothing, "search_api(\"rows\"; mode = \"keywords\")"))
+                       execute_julia_code!(set, nothing, "search_api(\"rows\"; mode = \"keywords\")"))
     end
 
     @testset "register_default_tools! carries its own documentation" begin

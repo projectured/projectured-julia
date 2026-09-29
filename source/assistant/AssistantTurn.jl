@@ -211,7 +211,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     set = editor.tools
     register_default_tools!(set)
     output = try
-        execute_julia_code(set, editor, code; describe_value = describe_value_for_person)
+        execute_julia_code!(set, editor, code; describe_value = describe_value_for_person)
     catch e
         sprint(showerror, e, catch_backtrace())
     end

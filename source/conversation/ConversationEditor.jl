@@ -378,7 +378,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     isempty(strip(src)) && return nothing
     set = editor.tools
     output = try
-        execute_julia_code(set, editor, src; describe_value = describe_value_for_person)
+        execute_julia_code!(set, editor, src; describe_value = describe_value_for_person)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
@@ -389,7 +389,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     form = something(_parse_source(c), PrimitiveString(src))
     # A Document return value (e.g. a live GraphicsCircle / SimulationTaskDocument)
     # is kept as the result so it renders live; otherwise the text repr.
-    # `execute_julia_code` `println`s the result repr, so the captured output ends
+    # `execute_julia_code!` `println`s the result repr, so the captured output ends
     # in a newline — strip it so the result text doesn't render a trailing tofu box.
     val = get_last_evaluated_value(set)
     result = val isa Document ? val : make_evaluator_result_text(rstrip(output))

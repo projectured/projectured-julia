@@ -29,7 +29,7 @@ on both.
 ```
 Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
 ToolSet.jl        register / list / find / call — all on a ToolSet
-CodeExecution.jl  execute_julia_code and execute_julia_expression, and their persistent scratch namespace
+CodeExecution.jl  execute_julia_code! and execute_julia_expression!, and their persistent scratch namespace
 SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
 Documentation.jl  guide / module / type / function docs, and search over them
 MeaningSearch.jl  the rank of a description by its meaning, and the stores of vectors
@@ -52,7 +52,7 @@ because an MCP text content has no media type.
 
 **One `ToolSet` per editor** ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
 `Editor` owns one. Nothing here is process-global: not the tool list, not the
-resource list, not the scratch module `execute_julia_code` evaluates into, not its
+resource list, not the scratch module `execute_julia_code!` evaluates into, not its
 last result. Two editors in one process therefore cannot see each other's tools or
 evaluate code into each other's namespace.
 
@@ -140,7 +140,7 @@ re-exports, such as `Point2D` given through `WidgetModule`, is read by the same
 shape, `resource://type/<module>/<type>`. `list_resources` answers the kinds,
 each with its count and its shape, in six lines.
 
-**`execute_julia_code` answers what the code printed, whole, then the value of
+**`execute_julia_code!` answers what the code printed, whole, then the value of
 the last statement on its own.** What the code prints is what the model asked
 for, so it is never cut. The value comes unasked — a `DataFrame` of thousands
 of rows, the `Text` a side-effect verb answers — so a `describe_value` function
@@ -153,15 +153,15 @@ declared names: a call to `plot_results` returns `make_result_plot`, the search
 that starts from a guess, done where the guess fails.
 
 **A person reads the value as the Julia REPL shows it, with no note.** The
-evaluator and the chat composer call `execute_julia_code` with `describe_value
+evaluator and the chat composer call `execute_julia_code!` with `describe_value
 = describe_value_for_person`, so what a person reads is `show` with
 `MIME"text/plain"()`, exactly as a terminal displays it — quotes on a string, `⋮`
 on a collection the display cuts short. The model's tool call, and an MCP
 client, keep the default.
 
-`execute_julia_expression(set, target, expression)` runs code that is already an
+`execute_julia_expression!(set, target, expression)` runs code that is already an
 `Expr`, as `make_julia_expression` gives it, and shares everything with
-`execute_julia_code` except the parse: the scratch module, the `editor` binding,
+`execute_julia_code!` except the parse: the scratch module, the `editor` binding,
 the answer and the notice to the observers. An object that the expression holds
 in a `QuoteNode` is used as that very object.
 

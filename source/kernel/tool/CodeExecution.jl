@@ -1,5 +1,6 @@
-# Fragment of `ToolModule` — the `execute_julia_code` tool and the persistent
-# namespace it evaluates into.
+# Fragment of `ToolModule` — `execute_julia_code!` and `execute_julia_expression!`,
+# which run the code of the `execute_julia_code` tool, and the persistent namespace
+# they evaluate into.
 
 # The packages of the whole surface. The umbrella `Projectured` package (loaded,
 # but not a dependency of the kernel — that would be circular) re-exports every
@@ -74,7 +75,7 @@ function _flat_reexport!(m::Module, source::Module, sources)
 end
 
 # The scratch module for one `ToolSet`, built on first use. Each top-level
-# statement of an `execute_julia_code` call is evaluated here, so an assignment
+# statement of an `execute_julia_code!` call is evaluated here, so an assignment
 # (`paths = …`) becomes a module global that survives into the next call — an
 # agent can build state up incrementally instead of cramming everything into one
 # block, which is a major source of wasted rounds.
@@ -106,7 +107,7 @@ function _scratch_module(set::ToolSet)
         # exports more — which is what makes the list a decision a person writes
         # down, rather than a consequence of what it happens to import.
         for entry in srcs
-            bindings = api_entry_bindings(entry)
+            bindings = get_api_entry_bindings(entry)
             isempty(bindings) && continue
             # `using M: name` for a plain one, `using M: name as alias` for a
             # renamed one — which is `Expr(:as, Expr(:., name), alias)`, the same
@@ -154,7 +155,7 @@ end
 """
     get_last_evaluated_value(set) -> Any
 
-The value the most recent `execute_julia_code` call on `set` produced (`nothing`
+The value the most recent `execute_julia_code!` call on `set` produced (`nothing`
 if it errored or returned `nothing`). A caller uses this to embed a returned
 `Document` as a *live* result — rendering it in place — instead of settling for
 its text repr.
@@ -162,7 +163,7 @@ its text repr.
 get_last_evaluated_value(set::ToolSet) = set.last_value
 
 """
-    execute_julia_code(set, target, code; describe_value = _describe_value_for_model) -> String
+    execute_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> String
 
 Evaluate `code` in the editor process, with `target` bound as `editor` and the
 Projectured names in scope. Statements run at the top level of `set`'s persistent
@@ -201,35 +202,35 @@ back, said "the tool seems to not be returning the output", and spent every
 remaining round searching instead of running anything. The one line back is what
 lets it correct itself.
 """
-function execute_julia_code(set::ToolSet, target, code;
+function execute_julia_code!(set::ToolSet, target, code;
                              describe_value::Function = _describe_value_for_model)
-    @info "[tool] execute_julia_code call" code
+    @info "[tool] execute_julia_code! call" code
     set.last_value = nothing
     if code === nothing || isempty(strip(String(code)))
         answer = "No code was given. Put the Julia source in the `code` argument."
-        @info "[tool] execute_julia_code result" answer
+        @info "[tool] execute_julia_code! result" answer
         return answer
     end
     # parseall handles code of several lines
     output = _run_expression(set, target, () -> Meta.parseall(code); describe_value)
-    @info "[tool] execute_julia_code result" output
+    @info "[tool] execute_julia_code! result" output
     output
 end
 
 """
-    execute_julia_expression(set, target, expression; describe_value = _describe_value_for_model) -> String
+    execute_julia_expression!(set, target, expression; describe_value = _describe_value_for_model) -> String
 
-[`execute_julia_code`](@ref) for code that is already an `Expr`, such as
+[`execute_julia_code!`](@ref) for code that is already an `Expr`, such as
 `Meta.parseall` or `make_julia_expression` gives: the same scratch module, the
 same `editor` binding, the same answer, and the same notice to the observers. An
 object that the expression holds in a `QuoteNode` is used as that very object.
 """
-function execute_julia_expression(set::ToolSet, target, expression;
+function execute_julia_expression!(set::ToolSet, target, expression;
                                    describe_value::Function = _describe_value_for_model)
-    @info "[tool] execute_julia_expression call" expression
+    @info "[tool] execute_julia_expression! call" expression
     set.last_value = nothing
     output = _run_expression(set, target, () -> expression; describe_value)
-    @info "[tool] execute_julia_expression result" output
+    @info "[tool] execute_julia_expression! result" output
     output
 end
 
@@ -312,7 +313,7 @@ with `MIME"text/plain"()`, `:limit => true`, and the size of a default terminal
 (24 rows × 80 columns) — a string keeps its quotes, and a long collection keeps
 the REPL's own `⋮`. `nothing` describes as nothing, the REPL's own answer to it.
 
-Passed as `describe_value` to [`execute_julia_code`](@ref) wherever the answer
+Passed as `describe_value` to [`execute_julia_code!`](@ref) wherever the answer
 goes to a person rather than to a model: the evaluator and the chat composer.
 """
 function describe_value_for_person(value)

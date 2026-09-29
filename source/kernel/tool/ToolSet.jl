@@ -98,7 +98,7 @@ function _refuse_declared_twice(entries::Vector{ApiEntry})
     # that writes the word reaches one function either way. A declaration of
     # twenty-five modules holds a dozen of those, so refusing them would refuse
     # every wide declaration.
-    for entry in entries, (name, alias) in api_entry_bindings(entry)
+    for entry in entries, (name, alias) in get_api_entry_bindings(entry)
         value = isdefined(entry.module_, name) ? getfield(entry.module_, name) : nothing
         first_one = get(seen, alias, nothing)
         if first_one === nothing

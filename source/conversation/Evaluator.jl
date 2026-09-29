@@ -417,9 +417,9 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     set = _get_evaluator_tool_set(editor)
     output = try
         by_expression ?
-            execute_julia_expression(set, editor, make_natural_expression(:jl, code);
+            execute_julia_expression!(set, editor, make_natural_expression(:jl, code);
                                       describe_value = describe_value) :
-            execute_julia_code(set, editor, text; describe_value = describe_value)
+            execute_julia_code!(set, editor, text; describe_value = describe_value)
     catch e
         sprint(showerror, e, catch_backtrace())
     end

@@ -294,7 +294,7 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 # A persistent scratch module used to evaluate formula bodies, mirroring the
-# `execute_julia_code` sandbox-eval pattern in editor/Mcp.jl. Dependency values
+# `execute_julia_code!` sandbox-eval pattern in editor/Mcp.jl. Dependency values
 # are bound as locals in a generated `let` so they never leak into globals.
 const _FORMULA_SCRATCH = Ref{Module}()
 

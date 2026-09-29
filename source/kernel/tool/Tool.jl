@@ -95,15 +95,15 @@ Base.hash(entry::ApiEntry, h::UInt) = hash(entry.names, hash(objectid(entry.modu
 The names one entry gives, whether it named them or took the module's exports.
 """
 get_api_entry_names(entry::ApiEntry) =
-    Symbol[last(pair) for pair in api_entry_bindings(entry)]
+    Symbol[last(pair) for pair in get_api_entry_bindings(entry)]
 
 """
-    api_entry_bindings(entry) -> Vector{Pair{Symbol,Symbol}}
+    get_api_entry_bindings(entry) -> Vector{Pair{Symbol,Symbol}}
 
 The name each binding has in its own module, and the name the model writes. They
 differ only where a declaration renamed one.
 """
-api_entry_bindings(entry::ApiEntry) =
+get_api_entry_bindings(entry::ApiEntry) =
     entry.names === nothing ?
         Pair{Symbol,Symbol}[n => n for n in names(entry.module_)
                             if n !== nameof(entry.module_) && isdefined(entry.module_, n)] :
@@ -120,16 +120,16 @@ _api_entry(other) = error("A declared API is a module or a `module => names` pai
                           repr(other) * " is neither.")
 
 """
-    api_source_name(api, module, name) -> Symbol
+    get_api_source_name(api, module, name) -> Symbol
 
 The name `module` knows a model-facing `name` by. They are the same word unless a
 declaration renamed it, and a caller that looks a value up in the module needs
 this one rather than the word the model wrote.
 """
-function api_source_name(api, mod::Module, name::Symbol)
+function get_api_source_name(api, mod::Module, name::Symbol)
     for entry in api
         entry.module_ === mod || continue
-        for (source, model) in api_entry_bindings(entry)
+        for (source, model) in get_api_entry_bindings(entry)
             model === name && return source
         end
     end
@@ -166,7 +166,7 @@ The tools and resources one editor exposes, plus the state its built-in tools
 need to keep between calls.
 
 Per editor, never process-global: `scratch` is the module
-`execute_julia_code` evaluates into — so a top-level assignment in one call is
+`execute_julia_code!` evaluates into — so a top-level assignment in one call is
 still bound in the next — and `last_value` is that call's actual return value,
 which lets a caller embed a returned `Document` live instead of stringifying it.
 Two editors in one process each get their own, so neither can see the other's
@@ -215,7 +215,7 @@ ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing
 """
     observe_evaluations!(f, set) -> f
 
-Be told what each `execute_julia_code` call produced. `f(value)` is called with
+Be told what each `execute_julia_code!` call produced. `f(value)` is called with
 the value the code evaluated to — `nothing` when it errored or answered nothing.
 
 A host registers one when a value MEANS something to it beyond being a result.

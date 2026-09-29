@@ -7,7 +7,7 @@
 using Test
 using ProjecturedKernel.ToolModule: ToolSet
 
-# `execute_julia_code` reads the `tools` field of an editor.
+# `execute_julia_code!` reads the `tools` field of an editor.
 mutable struct _EvaluatorToplevelMockEditor; document::Any; tools::ToolSet; end
 
 # Flatten a result document (a `TextBlock`, or another document's own printed
@@ -166,7 +166,7 @@ circles(node, depth = 0) =
     # The host still hears what an evaluation of the evaluator made.
     @test length(seen) == 1 && only(seen) isa GraphicsCircle
     # The code of the assistant runs in the tools of the editor, with its API.
-    @test occursin("UndefVarError", execute_julia_code(tools, ed, "GraphicsCircle(10, 10, 10)"))
+    @test occursin("UndefVarError", execute_julia_code!(tools, ed, "GraphicsCircle(10, 10, 10)"))
 end
 
 @testset "a graphics value draws as itself, not as a tree of its fields" begin

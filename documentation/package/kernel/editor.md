@@ -37,7 +37,7 @@ end
 - `tools` — what this editor exposes to an agent: the `ToolSet` an agent loop
   drives and an MCP server publishes, empty until
   `register_default_tools!(editor.tools)` fills it. Per editor, so two editors
-  in one process share neither a tool list nor an `execute_julia_code`
+  in one process share neither a tool list nor an `execute_julia_code!`
   namespace — see [agent.md](agent.md)
 - `inbox` — what was posted from outside the editor's own task; see
   [The inbox](#the-inbox)
@@ -442,7 +442,7 @@ preloaded), plus resource listings for guides, modules, classes, and
 function documentation. The intent is that an AI assistant can inspect and
 manipulate `editor.document` and `editor.projection` live.
 
-`execute_julia_code` runs each top-level statement in a **persistent scratch
+`execute_julia_code!` runs each top-level statement in a **persistent scratch
 module**, so a variable assigned in one call (`paths = search_references(…)`)
 stays bound for the next — the caller can build up state incrementally instead
 of resending one large block. It returns what the code printed, then the value

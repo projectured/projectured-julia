@@ -135,7 +135,7 @@ const _DOCUMENTATION_MIME_TYPE = "text/markdown"
 # ── The tools ───────────────────────────────────────────────────────────────
 
 # The tool that runs Julia code in the scratch module of `set`. A call with no
-# `code` argument gets the answer of `execute_julia_code` for no code.
+# `code` argument gets the answer of `execute_julia_code!` for no code.
 function _register_code_tool!(set::ToolSet)
     register_tool!(set, Tool(
         "execute_julia_code",
@@ -144,7 +144,7 @@ function _register_code_tool!(set::ToolSet)
             (name = "code", type = "string",
              description = "Julia source code to evaluate", required = true),
         ],
-        (target, args) -> execute_julia_code(set, target, get(args, "code", nothing)),
+        (target, args) -> execute_julia_code!(set, target, get(args, "code", nothing)),
     ))
 end
 

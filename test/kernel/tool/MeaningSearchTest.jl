@@ -281,13 +281,13 @@ function test_meaning_search()
     @testset "a bound backend ranks the tools and the code a model writes" begin
         set = register_default_tools!(ToolSet(; api = Module[MeaningToy]))
         # The scratch module is built before the model is bound.
-        @test occursin("measure_utilization", execute_julia_code(set, nothing, "measure_utilization"))
+        @test occursin("measure_utilization", execute_julia_code!(set, nothing, "measure_utilization"))
         set_meaning_model!(set, toy)
         search = only(t for t in list_tools(set) if t.name == "search_api")
         found = search.handler(nothing, Dict("query" => "how busy was it", "mode" => "description"))
         @test _get_first_hit(found) == "measure_utilization"
-        code = execute_julia_code(set, nothing,
-                                  "search_api(\"how busy was it\"; mode = \"description\")")
+        code = execute_julia_code!(set, nothing,
+                                   "search_api(\"how busy was it\"; mode = \"description\")")
         @test occursin("measure_utilization", code)
         @test !occursin("No meaning model", code)
     end

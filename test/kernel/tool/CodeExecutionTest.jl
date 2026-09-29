@@ -1,5 +1,5 @@
 """
-What `execute_julia_code` answers: what the code printed, whole and also before
+What `execute_julia_code!` answers: what the code printed, whole and also before
 an error, the value of the last expression shown or described, "Done." for
 nothing, and the nearest declared names for a name nobody defined. It also
 verifies that each observer hears the value of each evaluation, and that an
@@ -23,7 +23,7 @@ end
 function test_code_execution()
 @testset "Code execution" begin
     set = ToolSet(; api = Module[NearToy])
-    run = code -> execute_julia_code(set, nothing, code)
+    run = code -> execute_julia_code!(set, nothing, code)
 
     @testset "a short value is shown, a long one is described" begin
         @test run("1 + 1") == "2\n"
@@ -71,16 +71,16 @@ function test_code_execution()
     @testset "an Expr runs as its text does" begin
         # A second tool set, so the two ways run from the same empty state.
         other = ToolSet(; api = Module[NearToy])
-        @test execute_julia_expression(other, nothing, Meta.parseall("z = 40 + 2")) ==
+        @test execute_julia_expression!(other, nothing, Meta.parseall("z = 40 + 2")) ==
               run("z = 40 + 2") == "42\n"
         # The binding stays in the scratch module, as a binding from text does.
-        @test execute_julia_expression(other, nothing, :(z + 1)) == "43\n"
+        @test execute_julia_expression!(other, nothing, :(z + 1)) == "43\n"
         # An object in a QuoteNode is that very object.
         object = Ref(7)
-        execute_julia_expression(other, nothing, Expr(:toplevel, QuoteNode(object)))
+        execute_julia_expression!(other, nothing, Expr(:toplevel, QuoteNode(object)))
         @test get_last_evaluated_value(other) === object
         # A failure is answered, not thrown.
-        @test occursin("UndefVarError", execute_julia_expression(other, nothing, :(no_such_name_q)))
+        @test occursin("UndefVarError", execute_julia_expression!(other, nothing, :(no_such_name_q)))
     end
 
     @testset "nothing is Done., unless the code printed" begin
@@ -146,10 +146,10 @@ function test_code_execution()
         seen = Any[]
         observe_evaluations!(value -> push!(seen, (:first, value)), watched)
         observe_evaluations!(value -> push!(seen, (:second, value)), watched)
-        execute_julia_code(watched, nothing, "1 + 1")
-        execute_julia_expression(watched, nothing, :(3 * 3))
+        execute_julia_code!(watched, nothing, "1 + 1")
+        execute_julia_expression!(watched, nothing, :(3 * 3))
         # An evaluation that throws has no value.
-        execute_julia_code(watched, nothing, "error(\"no value\")")
+        execute_julia_code!(watched, nothing, "error(\"no value\")")
         @test seen == [(:first, 2), (:second, 2), (:first, 9), (:second, 9),
                        (:first, nothing), (:second, nothing)]
     end
@@ -160,7 +160,7 @@ function test_code_execution()
         observe_evaluations!(value -> error("the observer fails"), watched)
         observe_evaluations!(value -> push!(seen, value), watched)
         answer = @test_logs (:warn, r"observer failed") match_mode = :any begin
-            execute_julia_code(watched, nothing, "40 + 2")
+            execute_julia_code!(watched, nothing, "40 + 2")
         end
         @test answer == "42\n"
         @test seen == [42]

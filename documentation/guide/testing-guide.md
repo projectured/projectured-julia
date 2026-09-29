@@ -126,7 +126,7 @@ gives what each of them costs.
 
 `test_kernel()` also runs the tool, llm and agent suites under
 [test/kernel/tool/](../../test/kernel/tool/DeclaredApiTest.jl) (the declared API a model
-may call, search by name/pattern/description, and `execute_julia_code`),
+may call, search by name/pattern/description, and `execute_julia_code!`),
 [test/kernel/llm/LlmDefaultsTest.jl](../../test/kernel/llm/LlmDefaultsTest.jl) (the
 fallbacks of the provider contract) and
 [test/kernel/agent/AgentDefaultsTest.jl](../../test/kernel/agent/AgentDefaultsTest.jl) (the
