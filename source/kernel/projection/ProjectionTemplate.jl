@@ -91,21 +91,22 @@ _project_child_cell(recursion, doc, ctx, prj::Project) =
 # output field is projection-introduced, so the backward mapper proj-wraps a
 # cursor on it without the engine needing to know the output domain's text type.
 struct AtomicWiring
-    intype::Any
-    outtype::Any
+    intype::Type
+    outtype::Type
     bound_field::Union{Symbol,Nothing}   # nothing ⇒ opaque (all-introduced) leaf
-    bound_type::Any
+    bound_type::Union{Type,Nothing}
     value_field::Union{Symbol,Nothing}   # output field carrying the bound value
-    value_checkpoint::Any                # output field's element type (from the marker's render)
-    retype::Any
+    # The element type of the output field, from the render of the marker.
+    value_checkpoint::Union{Type,Nothing}
+    retype::Union{Type,Nothing}
 end
 
 # What the walk recovers for a node: which input field is the recursive
 # collection and which output field holds the projected children. Per-child
 # correspondence lives in the stored `child_iomaps` (School A).
 struct NodeWiring
-    intype::Any
-    outtype::Any
+    intype::Type
+    outtype::Type
     coll_input_field::Symbol             # input collection field, e.g. :elements
     children_field::Symbol               # output field holding the children, e.g. :children
 end
@@ -116,7 +117,12 @@ end
 # per element, and delegated to by the enclosing collection mapper.
 # A child that is a leaf: whole key ↔ whole child, char of `in_field` ↔ char of the
 # leaf's `value_field`.
-struct KeySlot;     in_field::Symbol; value_field::Symbol; in_type::Any; checkpoint::Any; end
+struct KeySlot
+    in_field::Symbol
+    value_field::Symbol
+    in_type::Type
+    checkpoint::Type
+end
 struct ProjectSlot; in_field::Symbol; end                                 # child delegated (iomap in the store)
 struct IntroSlot end                                                      # introduced child (keyword/delimiter)
 # A child that is itself a marker-bearing output node (a header/bracket grouping
@@ -126,8 +132,8 @@ struct IntroSlot end                                                      # intr
 struct SubNodeSlot; iomap::Any; end
 
 struct FixedNodeWiring
-    intype::Any
-    outtype::Any
+    intype::Type
+    outtype::Type
     children_field::Symbol               # output field holding the fixed children
     slots::Vector{Any}                   # KeySlot|ProjectSlot|IntroSlot|SubNodeSlot per child index
 end
@@ -137,8 +143,8 @@ end
 # field toggling appears/disappears a slot). Like `FixedNodeWiring` but the slots +
 # project store live in a Cell (`child_iomaps`), read fresh by the mappers.
 struct ConditionalNodeWiring
-    intype::Any
-    outtype::Any
+    intype::Type
+    outtype::Type
     children_field::Symbol
 end
 
@@ -147,8 +153,8 @@ end
 # siblings (e.g. a section heading leaf + its entries). `child_iomaps` is a
 # NamedTuple `(prefix=Dict{Symbol,iomap}, coll=Cell{Vector{iomap}})`.
 struct MixedNodeWiring
-    intype::Any
-    outtype::Any
+    intype::Type
+    outtype::Type
     children_field::Symbol
     prefix_slots::Vector{Any}            # KeySlot|ProjectSlot|IntroSlot, children[1..prefix_len]
     coll_field::Symbol                   # input collection field spliced after the prefix
@@ -158,14 +164,14 @@ end
 # (recomputed reactively); exactly one token is a `bound` leaf at a stable index,
 # the rest are decorative (no input pre-image → flat-offset fallback).
 struct InlineWiring
-    intype::Any
-    outtype::Any
+    intype::Type
+    outtype::Type
     children_field::Symbol
     bound_index::Int                     # 1-based index of the bound token leaf
     bound_field::Symbol                  # input field it edits
     value_field::Symbol                  # field of the token leaf that holds the value
-    bound_type::Any
-    value_checkpoint::Any
+    bound_type::Union{Type,Nothing}
+    value_checkpoint::Union{Type,Nothing}
 end
 
 # A node grouping several per-field sub-collections under labelled wrapper nodes,
@@ -173,16 +179,18 @@ end
 # a Vector of `(field=Symbol, entries=Vector{iomap})` for the non-empty sections in
 # render order. `.field[i].tail ↔ .children[sec].children[i].tail`.
 struct SectionsWiring
-    intype::Any
-    outtype::Any
+    intype::Type
+    outtype::Type
     children_field::Symbol
 end
 
+# The projection, the input, the output and the wiring never change after the print,
+# so they are immutable cells, which a computation that reads them does not track.
 @iomap struct RuleIoMap
-    projection::Any
-    input::Any
-    output::Any
-    wiring::Any
+    projection::ImmutableCell{Any}
+    input::ImmutableCell{Any}
+    output::ImmutableCell{Any}
+    wiring::ImmutableCell{Any}
     child_iomaps::Any                    # Cell or nothing (nodes; WIP)
 end
 
@@ -731,17 +739,10 @@ end
 _typed_generic(::Nothing, _doc) = nothing
 _typed_generic(r, doc) = is_fully_typed_reference(r) ? r : annotate_reference_types(doc, r)
 
+# Each wiring maps a reference by a method of `_map_forward` and `_map_backward`.
 function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
-    w = iomap.wiring
-    r = w isa AtomicWiring    ? _atomic_forward(p, w, reference) :
-        w isa NodeWiring      ? _node_forward(p, w, iomap, reference) :
-        w isa FixedNodeWiring ? _fixed_forward(p, w, iomap, reference) :
-        w isa ConditionalNodeWiring ? _conditional_forward(p, w, iomap, reference) :
-        w isa MixedNodeWiring ? _mixed_forward(p, w, iomap, reference) :
-        w isa InlineWiring    ? _inline_forward(p, w, reference) :
-        w isa SectionsWiring  ? _sections_forward(p, w, iomap, reference) :
-        nothing
-    _typed_generic(r, iomap.output)
+    mapped = _map_forward(iomap.wiring, iomap, reference; projection = p)
+    _typed_generic(mapped, iomap.output)
 end
 
 # A node wiring prints parts of its own (delimiters, separators, layout), which a
@@ -760,25 +761,17 @@ function _map_child_backward(child, reference)
 end
 
 function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
-    w = iomap.wiring
-    r = w isa AtomicWiring    ? _atomic_backward(p, w, reference) :
-        w isa NodeWiring      ? _node_backward(p, w, iomap, reference) :
-        w isa FixedNodeWiring ? _fixed_backward(p, w, iomap, reference) :
-        w isa ConditionalNodeWiring ? _conditional_backward(p, w, iomap, reference) :
-        w isa MixedNodeWiring ? _mixed_backward(p, w, iomap, reference) :
-        w isa InlineWiring    ? _inline_backward(p, w, reference) :
-        w isa SectionsWiring  ? _sections_backward(p, w, iomap, reference) :
-        nothing
-    _typed_generic(r, iomap.input)
+    mapped = _map_backward(iomap.wiring, iomap, reference; projection = p)
+    _typed_generic(mapped, iomap.input)
 end
 
 # ── atomic (leaf) ─────────────────────────────────────────────────────────────
 
-function _atomic_forward(p, w, reference)
+function _map_forward(w::AtomicWiring, iomap, reference; projection)
     reference === nothing && return nothing
     core = reference
     # unwrap this projection's own introduced step (both opaque & transparent)
-    if is_introduced_reference(core, p)
+    if is_introduced_reference(core, projection)
         return core.head.output_path
     end
     if w.bound_field === nothing
@@ -798,13 +791,13 @@ function _atomic_forward(p, w, reference)
     return nothing
 end
 
-function _atomic_backward(p, w, reference)
+function _map_backward(w::AtomicWiring, iomap, reference; projection)
     reference === nothing && return nothing
     if w.bound_field === nothing
         # opaque ⇒ mirror the default mapper exactly (typed empty so the
         # strict-typing invariant holds on the whole-node case)
         reference isa EmptyReference && return _typed(w.intype)
-        return make_introduced_reference(p, w.intype, reference)
+        return make_introduced_reference(projection, w.intype, reference)
     end
     core = reference
     core isa EmptyReference && return _typed(w.intype)                  # whole ⇒ ::In
@@ -819,7 +812,7 @@ function _atomic_backward(p, w, reference)
             return nothing
         end
         # any other output field is projection-introduced ⇒ wrap in our own step
-        return make_introduced_reference(p, w.intype, reference)
+        return make_introduced_reference(projection, w.intype, reference)
     end
     return nothing
 end
@@ -831,11 +824,11 @@ end
 # `proj(^(p), …)` head is this projection's own introduced output (a delimiter /
 # structural position) — kept wrapped forward, produced by the reader fallback.
 
-function _node_forward(p, w, iomap, reference)
+function _map_forward(w::NodeWiring, iomap, reference; projection)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.outtype)                 # whole ⇒ ::Out
-    if is_introduced_reference(core, p)
+    if is_introduced_reference(core, projection)
         return reference                                                   # keep wrapped
     end
     if core isa ConcreteReference && core.head isa FieldReferenceStep && core.head.name == String(w.coll_input_field)
@@ -854,7 +847,7 @@ function _node_forward(p, w, iomap, reference)
     return nothing
 end
 
-function _node_backward(p, w, iomap, reference)
+function _map_backward(w::NodeWiring, iomap, reference; projection)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.intype)                  # whole ⇒ ::In
@@ -962,21 +955,21 @@ end
 
 # A `ProjectionReferenceStep(^(p), …)` head is this projection's own introduced output
 # (a delimiter / structural position with no input pre-image) — keep it wrapped
-# forward, mirroring `_node_forward` / `_mixed_forward` / `_inline_forward`. Without
+# forward, as the `_map_forward` of a node, a mixed and an inline wiring does. Without
 # this the cursor on an introduced token of a fixed/conditional node fails to
 # forward-project (selection → nothing), so no caret renders and relative navigation
 # and typein die (a keyword node's leading/operator tokens are all such positions).
-_fixed_forward(p, w, iomap, reference) =
-    is_introduced_reference(reference, p) ? reference :
+_map_forward(w::FixedNodeWiring, iomap, reference; projection) =
+    is_introduced_reference(reference, projection) ? reference :
     _slots_forward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.outtype, reference)
-_fixed_backward(p, w, iomap, reference) =
+_map_backward(w::FixedNodeWiring, iomap, reference; projection) =
     _slots_backward(w.slots, fn -> iomap.child_iomaps[fn][], w.children_field, w.intype, reference)
 
 # Conditional node: read the current (slots, store) from the reactive state cell.
-_conditional_forward(p, w, iomap, reference) =
-    is_introduced_reference(reference, p) ? reference :
+_map_forward(w::ConditionalNodeWiring, iomap, reference; projection) =
+    is_introduced_reference(reference, projection) ? reference :
     (st = iomap.child_iomaps; _slots_forward(st[1], fn -> st[2][fn][], w.children_field, w.outtype, reference))
-_conditional_backward(p, w, iomap, reference) =
+_map_backward(w::ConditionalNodeWiring, iomap, reference; projection) =
     (st = iomap.child_iomaps; _slots_backward(st[1], fn -> st[2][fn][], w.children_field, w.intype, reference))
 
 # ── mixed node (fixed prefix + spliced collection) ─────────────────────────────
@@ -987,11 +980,11 @@ _conditional_backward(p, w, iomap, reference) =
 # `.children[prefix_len+i].tail` (delegated). Paths are plain (checkpoint-free),
 # matching the surrounding node mappers.
 
-function _mixed_forward(p, w, iomap, reference)
+function _map_forward(w::MixedNodeWiring, iomap, reference; projection)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.outtype)
-    if is_introduced_reference(core, p)
+    if is_introduced_reference(core, projection)
         return reference
     end
     (core isa ConcreteReference && core.head isa FieldReferenceStep) || return nothing
@@ -1027,7 +1020,7 @@ function _mixed_forward(p, w, iomap, reference)
     return nothing
 end
 
-function _mixed_backward(p, w, iomap, reference)
+function _map_backward(w::MixedNodeWiring, iomap, reference; projection)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.intype)
@@ -1075,11 +1068,11 @@ end
 # no input pre-image, so a cursor on one is left to the consumer's flat-offset
 # reader (returns nothing here).
 
-function _inline_forward(p, w, reference)
+function _map_forward(w::InlineWiring, iomap, reference; projection)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.outtype)
-    if is_introduced_reference(core, p)
+    if is_introduced_reference(core, projection)
         return reference
     end
     if core isa ConcreteReference && core.head isa FieldReferenceStep && Symbol(core.head.name) === w.bound_field
@@ -1092,7 +1085,7 @@ function _inline_forward(p, w, reference)
     return nothing
 end
 
-function _inline_backward(p, w, reference)
+function _map_backward(w::InlineWiring, iomap, reference; projection)
     reference === nothing && return nothing
     core = reference
     core isa EmptyReference && return _typed(w.intype)
@@ -1119,12 +1112,12 @@ end
 # section `.field ↔ .children[sec]`, whole node ∅ ↔ ∅. The wrapper's children field
 # is the same as the outer node's (both are the same output node type).
 
-function _sections_forward(p, w, iomap, reference)
+function _map_forward(w::SectionsWiring, iomap, reference; projection)
     reference === nothing && return nothing
     secs = iomap.child_iomaps
     core = reference
     core isa EmptyReference && return _typed(w.outtype)
-    if is_introduced_reference(core, p)
+    if is_introduced_reference(core, projection)
         return reference
     end
     (core isa ConcreteReference && core.head isa FieldReferenceStep) || return nothing
@@ -1146,7 +1139,7 @@ function _sections_forward(p, w, iomap, reference)
     return _prepend(inner, FieldReferenceStep(cf), ElementReferenceStep(sec_i), FieldReferenceStep(cf), ElementReferenceStep(entry_i))
 end
 
-function _sections_backward(p, w, iomap, reference)
+function _map_backward(w::SectionsWiring, iomap, reference; projection)
     reference === nothing && return nothing
     secs = iomap.child_iomaps
     cf = String(w.children_field)
