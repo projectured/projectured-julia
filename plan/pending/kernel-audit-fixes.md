@@ -248,12 +248,14 @@ Use the run of the report as the regression test: `x = 1:2:5`, then `step = noth
 
 Use the run of the report as the regression test: a print of 200 000 bytes returns.
 
-- [ ] **L18-2** (High, Correctness)
+- [x] **L18-2** (High, Correctness)
   Before the evaluation, start one task for each pipe that reads it into an IOBuffer. After redirect_stdio returns, close the write ends and wait for the two tasks. This keeps the design: the process-wide redirect stays.
   *Test:* test_code_execution(): a call that prints 200 000 bytes answers all of them; run the call in a task with a bounded wait, so that a regression fails and does not hang.
-- [ ] **L18-5** (Medium, Correctness) — after L18-2
+  *Done:* lane B, 80b7c6c4. One reader task for each pipe starts inside `redirect_stdio`, where the pipes open; a `finally` closes the write ends and fetches the readers. The regression test fails on the old code after its 60 s bound.
+- [x] **L18-5** (Medium, Correctness) — after L18-2
   Close the write ends, read the pipes and close the read ends in a finally block. Put the printed text before the error text in the answer.
   *Test:* test_code_execution(): a call that prints 1 and then throws answers the 1 before the error text; a call with a syntax error on its last line shows what its first lines printed.
+  *Done:* lane B, 80b7c6c4. The run on the old code confirmed that the lines before a syntax error on the last line do run.
 
 ### Step 1.6: The Anthropic adapter
 
@@ -276,9 +278,10 @@ The docstring half (L06-1) is in step 3.6, because `KeyboardEvent.jl` is sealed.
 
 This step changes what the tools answer; see "Changes that a person or a caller sees".
 
-- [ ] **L18-1** (High, Correctness)
+- [x] **L18-1** (High, Correctness)
   Make one function that answers the modules of the whole surface (what _scratch_sources gathers), and use it in place of _projectured() in _index_api, list_modules, _find_module, _api_modules, _get_writable_names and the resources. On the whole surface, index only exported names, because _flat_reexport! binds only those.
   *Test:* test_mcp_tools() (it loads packages outside the kernel): with ToolSet(), search_api("CellVector") finds it, read_function_documentation of a PaneModule function answers, and the hint offers names outside the kernel. test_declared_api() keeps its kernel-only answers.
+  *Done:* lane B, cee09d74. The index grows from 533 entries (23 modules) to 2851 (77 modules); the first build takes about 1 s before and after. `_API_INDEX` still caches the index at the first use, so a package that loads later is not in it. Without the umbrella, a name that two modules export is indexed twice but bound once. The catalogues still list names that no module exports (L18-8, L18-23). test_mcp_tools: 158 (+6).
 
 ## Phase 2 — The other fixes in files that are not sealed
 
