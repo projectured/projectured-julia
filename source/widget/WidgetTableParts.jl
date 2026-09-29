@@ -535,12 +535,85 @@ function _read_table_parts_hover(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     _write_view_state(w, "hovered", reference)
 end
 
-# A turn of the wheel over either part goes to the pane of the cells.
+# A turn of the wheel over either part goes to the pane of the cells. The table
+# adds the row at the top to what the pane answers, and moves the head of the
+# list to that row when it is far from the head.
 function _read_table_parts_wheel(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  evt::MouseScroll)
     content_x, content_y = _content_offset(p, iomap.input)
-    _read_cells_wheel(iomap.output, iomap.state.cells_pane, content_x,
-                      content_y + Int(iomap.state.header_height[]), evt)
+    scroll = _read_cells_wheel(iomap.output, iomap.state.cells_pane, content_x,
+                               content_y + Int(iomap.state.header_height[]), evt)
+    _add_top_row(iomap, scroll)
+end
+
+# How far from the head the row at the top may be before the table moves the
+# head to it. A small number builds the visible rows again often; a large one
+# keeps more rows reachable from the head.
+const _TABLE_RELOCATION_DISTANCE = 200
+
+# The offset that a scroll writes, or `nothing` for any other answer.
+function _find_written_offset(op)
+    op isa ReplaceViewStateOperation || return nothing
+    inner = get_wrapped_operation(op)
+    (inner isa ReplaceReferencedValueOperation && inner.value isa Point2D &&
+     inner.reference isa ConcreteReference && inner.reference.head isa FieldReferenceStep &&
+     inner.reference.head.name == "scroll_position") || return nothing
+    inner.value::Point2D
+end
+
+# A scroll of the cells, and the write of the row at the top of the offset it
+# writes when that row changes. When the row is more than
+# `_TABLE_RELOCATION_DISTANCE` rows from the head, the answer moves the head of
+# `rows` to it instead, and moves the offset by the place of that row, so the
+# same row stays at the same place on the screen; a selection or a hover of a
+# row moves with it. A projection that owns the rows turns the write of `rows`
+# into an edit of its own.
+function _add_top_row(iomap::WidgetTableListIoMap, op)
+    w = iomap.input
+    offset = _find_written_offset(op)
+    offset === nothing && return op
+    st = iomap.state
+    x, y = Int(offset.x[]), Int(offset.y[])
+    k = _find_table_row_at(st, y + st.pad_y + st.bw)
+    k === nothing && return op
+    if abs(k - 1) <= _TABLE_RELOCATION_DISTANCE
+        k == w.top_row && return op
+        return CompoundOperation(Any[op, _write_view_state(w, "top_row", k)])
+    end
+    head = _find_list_node(w.rows, k)
+    found = find_grid_list_row(st.cells_pane.content_iomap, k)
+    (head === nothing || found === nothing) && return op
+    moved = Any[_write_view_state(w, "rows", head),
+                _write_view_state(w, "scroll_position", Point2D(x, y - Int(found[1].y))),
+                _write_view_state(w, "top_row", 1)]
+    hovered = _shift_row_reference(w.hovered, k - 1)
+    hovered === w.hovered || push!(moved, _write_view_state(w, "hovered", hovered))
+    selection = _shift_row_reference(w.selection, k - 1)
+    selection === w.selection || push!(moved, ReplaceSelectionOperation(selection))
+    CompoundOperation(moved)
+end
+
+# Node `k` of a list, counted from `head`, or `nothing` past an end.
+function _find_list_node(head, k::Int)
+    head isa ListNode || return nothing
+    node = head
+    for _ in 1:abs(k - 1)
+        node = k > 1 ? node.next : node.prev
+        node === nothing && return nothing
+    end
+    node
+end
+
+# `rows[r]…` with `r` counted from a head `distance` rows further on; any other
+# reference, the same object.
+function _shift_row_reference(reference, distance::Int)
+    (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+     reference.head.name == "rows") || return reference
+    tail = reference.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
+    step = tail.head
+    ConcreteReference(reference.head,
+        ConcreteReference(RangeReferenceStep(step.start - distance, step.stop - distance), tail.tail))
 end
 
 # The keys of the table: Ctrl+Alt+Home selects the table; the arrows move a

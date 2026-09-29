@@ -118,7 +118,7 @@ cells_viewport(io) = only(e for e in io.state.cells_pane.output.elements if e is
 # The top and the bottom of the viewport of the cells, in the table.
 body_top(io) = Int(cells_region(io).y) + Int(cells_viewport(io).y)
 body_bottom(io) = body_top(io) + Int(cells_viewport(io).h)
-label_y(io, label) = only(t[2] for t in texts(io.output) if t[3] == label)
+label_y(io, label; limit = 50) = only(t[2] for t in texts(io.output; limit) if t[3] == label)
 # Where the cell in row `k` and column `c` begins, in the table.
 cell_reference(k, c) = ConcreteReference(FieldReferenceStep("rows"),
     ConcreteReference(RangeReferenceStep(k - 1, k),
@@ -128,7 +128,17 @@ function place(io, k, c)
     (Int(image.x[]), Int(image.y[]))
 end
 wheel(io, dy) = read(io, MouseScroll(0, dy, 100, 150; time = 0.0))
-apply!(table, op) = (getfield(table, :scroll_position)[] = get_wrapped_operation(op).value)
+# A scroll is view state that names the table, so it applies with no editor. A
+# selection that a scroll moves is set on the table here, as an editor would.
+function apply!(table, op)
+    if op isa CompoundOperation
+        foreach(inner -> apply!(table, inner), op.operations)
+    elseif op isa ReplaceSelectionOperation
+        getfield(table, :selection)[] = op.path
+    else
+        evaluate_operation(nothing, op)
+    end
+end
 
 @testset "a list of 100,000 rows builds a handful" begin
     built = Ref(0)
@@ -404,6 +414,53 @@ end
     @test label_y(io, "row 1") == body_top(io)
     @test wheel(io, -1) === nothing
     @test wheel(io, 1) === nothing
+end
+
+@testset "the table writes the row at the top as it scrolls" begin
+    table, io = print_table(make_indexed_list(1000, texts_of))
+    step = Int(head_of(io).value.h) + gap_of(io)
+    @test table.top_row == 1
+    getfield(table, :scroll_position)[] = Point2D(0, 5 * step)
+    apply!(table, wheel(io, -1))
+    @test table.top_row == 6
+    # The top row is the row under the top edge of the cells.
+    @test label_y(io, "row 6") <= body_top(io) < label_y(io, "row 7")
+end
+
+@testset "far from the head, the table moves the head to the row at the top" begin
+    built = Ref(0)
+    table, io = print_table(make_indexed_list(10_000_000, texts_of; built))
+    step = Int(head_of(io).value.h) + gap_of(io)
+    # A turn near the head moves the rows by one step of the wheel.
+    near = label_y(io, "row 2")
+    apply!(table, wheel(io, -1))
+    turn = near - label_y(io, "row 2")
+    @test turn > 0
+    # Three hundred rows down, a turn moves the head to the row at the top and
+    # the offset by the place of that row: every row moves by one turn, as it
+    # would with no move of the head.
+    getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
+    selection = cell_reference(305, 1)
+    getfield(table, :selection)[] = selection
+    before = label_y(io, "row 305"; limit = 400)    # 304 rows from the head
+    op = wheel(io, -1)
+    @test op isa CompoundOperation
+    moved = [get_wrapped_operation(o) for o in op.operations if o isa ReplaceViewStateOperation]
+    @test any(o -> o.reference.head.name == "rows", moved)
+    # The selection moves with its row: it names the same row from the new head.
+    rebased = only(o for o in op.operations if o isa ReplaceSelectionOperation)
+    @test row_of(rebased.path) == 305 - 300
+    apply!(table, op)
+    @test table.rows.value[1].content == "row 301"
+    @test table.top_row == 1
+    @test 0 <= Int(table.scroll_position.y[]) < step
+    @test label_y(io, "row 305") == before - turn
+    @test built[] < 1000
+    # Up past the head as far, the head moves back.
+    getfield(table, :scroll_position)[] = Point2D(0, -250 * step)
+    apply!(table, wheel(io, 1))
+    @test table.rows.value[1].content == "row 50"
+    @test table.top_row == 1
 end
 
 @testset "the bands of the hover and of the selection follow the rows" begin

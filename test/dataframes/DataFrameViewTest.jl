@@ -49,7 +49,7 @@ function _data_frame_body(io)
     only(e for e in pane.elements if e isa GraphicsViewport)
 end
 
-_data_frame_texts_in_body(io) = _data_frame_texts(_data_frame_body(io))
+_data_frame_texts_in_body(io; limit = 50) = _data_frame_texts(_data_frame_body(io); limit)
 
 function _read_data_frame_key(projection, io, key::Symbol)
     change = read_intent(projection, nothing,
@@ -128,6 +128,30 @@ function test_data_frame_view()
             evaluate_operation(nothing, first_op)
             @test view.anchor == 1
             @test only(t[2] for t in _data_frame_texts_in_body(io) if t[3] == "1") == first_row_y
+        end
+
+        @testset "a scroll far from the anchor moves the anchor, and the rows stay in place" begin
+            reads = Ref(0)
+            view = DataFrameView(DataFrame(id = _CountingColumn(10_000_000, reads); copycols = false))
+            io = print_document(projection, nothing, view, context())
+            y_of(text; limit = 50) = only(t[2] for t in _data_frame_texts_in_body(io; limit) if t[3] == text)
+            wheel(dy) = read_intent(projection, nothing,
+                                    Intent(MouseScroll(0, dy, 100, 150; time = 0.0), nothing), io).operation
+            step = y_of("2") - y_of("1")
+            # A turn near the anchor moves the rows by one step of the wheel.
+            near = y_of("2")
+            evaluate_operation(nothing, wheel(-1))
+            turn = near - y_of("2")
+            @test turn > 0
+            @test view.anchor == 1
+            # Three hundred rows down, a turn moves the anchor to the row at the
+            # top, and every row moves by one turn as before.
+            getfield(view, :scroll_position)[] = Point2D(0, 300 * step)
+            before = y_of("305"; limit = 400)       # 304 rows from the anchor
+            evaluate_operation(nothing, wheel(-1))
+            @test view.anchor == 301
+            @test y_of("305") == before - turn
+            @test reads[] < 1000
         end
 
         @testset "a frame with no rows draws its header" begin

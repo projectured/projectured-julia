@@ -2177,8 +2177,9 @@ The single table abstraction. A grid of **document cells** (each cell is a
 `JsonString`, an `XmlElement`, text, even a nested `WidgetTable`) decorated with
 borders / hairline rules, optional header strips, and selection bands. Its
 renderer ([`WidgetTableToGraphicsCanvas`](@ref)) delegates *all positioning* to
-a `GridLayout` and overlays decorations from the grid geometry it reads off the
-layout iomap ("layout is just layout").
+the `GridLayout`s of its parts — the header row, the header column and the
+cells, each in a pane of its own — and draws its decorations at the places
+that the grids report ("layout is just layout").
 
 # Fields
 
@@ -2211,6 +2212,9 @@ layout iomap ("layout is just layout").
   zero width). Distinct from `border_width` and the cell padding above.
 - `style` — `nothing`, a `WidgetStyle`, or a `WidgetTableStyle`; overrides one
   color of the projection.
+- `hovered`, `scroll_position`, `top_row` — view state: the row or the column
+  under the pointer, the one offset of the scrolled parts, and the row at the
+  top of a list of rows, counted from its head.
 
 The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
@@ -2238,6 +2242,7 @@ See also `make_result_table` and `WidgetList` for one column.
     style::Any
     hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
     scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
+    top_row::Int                 # view state: the row at the top of a list of rows, counted from its head
     tooltip::Any
 end
 
@@ -2288,6 +2293,10 @@ documents. Every column must be given a width — `Fixed`, or a weight — and t
 rows are `Fixed` or `Content`; a list draws no row headers. Such a table fills
 the height that it is offered and scrolls its own parts there: the header row
 holds still above the rows, and `scroll_position` is the offset of both.
+`top_row` is the row at the top of the cells, counted from the head of the
+list, which the table writes as it scrolls. When that row is far from the head,
+the table moves the head of `rows` to it, so the rows that it builds stay near
+the head.
 
 **A body column and a body row take a `SizePolicy`**, the way a `GridLayout`'s
 do: `column_policy` / `row_policy` say what every one is and the two vectors name
@@ -2331,7 +2340,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
                 Cell(collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(nothing), Cell(scroll_position), Cell(tooltip))
+                Cell(nothing), Cell(scroll_position), Cell(1), Cell(tooltip))
 end
 
 """

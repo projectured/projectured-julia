@@ -40,15 +40,15 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     # column_headers, row_headers, rows, column_count, border_width,
     # column_policy, row_policy, column_policies, row_policies, cell_policy,
     # column_cell_policies, column_align, visible, margin, border, padding,
-    # style, hovered, scroll_position, tooltip. The table scrolls its own
-    # parts, and its offset is the cell of the view.
+    # style, hovered, scroll_position, top_row, tooltip. The table scrolls its
+    # own parts, and its offset is the cell of the view.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), rows,
                         Cell(@computation ncol(view.frame)), Cell(1),
                         Cell(_COLUMN_POLICY), Cell(Content), Cell(Any[]), Cell(Any[]),
                         Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), Cell(nothing), getfield(view, :scroll_position),
-                        Cell(nothing))
+                        Cell(1), Cell(nothing))
     DataFrameViewToWidgetIoMap(p, view, table)
 end
 
@@ -93,7 +93,39 @@ read_intent(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, ::ReplaceSele
 
 # A scroll of the table writes the cell that the view shares with it, and
 # every other operation of the widgets carries its own subject: both pass on.
-read_intent(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, operation::Operation) =
-    operation
+# A table that moves the head of its rows far from the anchor writes its
+# `rows`; the view moves its anchor instead, and builds a new list from it.
+read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::Operation) =
+    _convert_rows_write(iomap, operation)
+
+# `operation` with a write of the rows of the table turned into a write of the
+# anchor of the view.
+function _convert_rows_write(iomap::DataFrameViewToWidgetIoMap, operation)
+    operation isa CompoundOperation &&
+        return CompoundOperation(Any[_convert_rows_write(iomap, o) for o in operation.operations])
+    write = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
+    (write isa ReplaceReferencedValueOperation && write.document === iomap.output &&
+     write.reference isa ConcreteReference && write.reference.head isa FieldReferenceStep &&
+     write.reference.head.name == "rows") || return operation
+    k = _find_row_index(iomap.output.rows, write.value)
+    k === nothing && return operation
+    view = iomap.input
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", view.anchor + k - 1))
+end
+
+# The index of `node` in the list of `head`, counted from the head, or
+# `nothing` when it is not within the walk of a relocation.
+function _find_row_index(head, node; limit::Int = 10_000)
+    head isa ListNode || return nothing
+    forward, backward = head, head
+    for k in 0:limit
+        forward === node && return 1 + k
+        backward === node && return 1 - k
+        forward = forward === nothing ? nothing : forward.next
+        backward = backward === nothing ? nothing : backward.prev
+        forward === nothing && backward === nothing && return nothing
+    end
+    nothing
+end
 
 read_intent(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, event) = nothing

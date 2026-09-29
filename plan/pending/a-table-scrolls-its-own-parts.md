@@ -366,7 +366,7 @@ plan.
     - The data frame view draws the table with no pane and shares its
       `scroll_position` with the table. The test is
       `WidgetTablePartsTest.jl`.
-  - [x] **2b. The eager table** (this commit), on the same parts, with a
+  - [x] **2b. The eager table** (`cebf44cf4`), on the same parts, with a
     header column, and `row_offers` on `GridLayout` (P9). Facts and decisions:
     - **The readers keep the geometry of the whole table**, `WTGeometry`, as
       if it were not scrolled: the widths from the grid of the cells (of the
@@ -415,6 +415,25 @@ plan.
       right, because a pane clamps `x` only as it scrolls.
 - [ ] **3. Relocation** in both directions (§3.6), and the row at the top
   (§3.7).
+  - [x] **3a. The rows** (this commit). Facts and decisions:
+    - `WidgetTable` has the field `top_row`, view state (P5): the row at the
+      top of the cells, counted from the head of the list. The list table
+      writes it with the answer to a turn of the wheel when it changes. The
+      row at the top is the row whose box holds the top edge of the cells.
+    - When that row is more than 200 rows from the head (P4), the answer is
+      one compound of view state: `rows` written to the node of that row,
+      the offset less the place of that row, `top_row` 1, and a selection or
+      a hover of a row moved by the same number of rows, so it names the
+      same row. The same row stays at the same place on the screen.
+    - The data frame view turns the write of `rows` into a write of its
+      `anchor`: it finds the index of the new head by a walk from the head
+      of its list, by identity, at most 10,000 rows each way, and builds a
+      new list from the frame. A plain list keeps its old nodes, reachable
+      through `prev`.
+    - The eager table writes no `top_row`: all its rows are built.
+    - The data frame view does not share `top_row` yet; its scroll bar
+      (step 2.4 of the data frame plan) will.
+  - [ ] **3b. The columns**, with the lazy columns of 1d.
 - [ ] **4. Selection, keys and bands across the parts.** `test_table_selection`,
   `test_table_navigation`, `test_table_cell_editing`, `test_widget_table`,
   `test_widget_table_list`. The eager table has them since 2b. Left for the
