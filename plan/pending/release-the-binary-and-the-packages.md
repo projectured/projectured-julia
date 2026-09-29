@@ -918,8 +918,12 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 - [x] `README.md` and `CONTRIBUTING.md`: the licence is MPL-2.0, and a pull
       request offers its change under MPL-2.0. The overview presentation in
       `documentation/presentation/` too.
-- [ ] The web site (`projectured.github.io`, another repository) changes its
-      licence sentence. The owner asked for it on 2026-09-29.
+- [x] The web site (`projectured.github.io`, another repository) changes its
+      licence sentence. The owner asked for it on 2026-09-29. Done on its
+      branch `licence-mpl` (commit `0f4bd8c`, not merged, not pushed): the
+      status section names MPL-2.0 and links `LICENSE` on `main` of this
+      repository, so it goes live only with the licence change. The install
+      section of the site still says "clone the repository" until Step B6.
 - [x] `documentation-rewrite.md` D1a (a clause for `LICENCE-PD`) is moot; it
       says so there.
 
