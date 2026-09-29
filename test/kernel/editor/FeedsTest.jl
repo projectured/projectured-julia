@@ -101,7 +101,8 @@ function test_editor_feeds()
 
     @testset "a drain that throws is recorded, and the next feed still drains" begin
         log = Any[]
-        editor = _feed_editor(Feed[DrainFailingFeed(), ProbeFeed(log, :after; pending = 2)])
+        editor = _feed_editor(Feed[DrainFailingFeed(),
+                                   ProbeFeed(log, :after; pending = 2)])
         editor.fault_policy = _quiet_feed_policy()
         @test drain_feeds!(editor) == 2            # the failed drain counts as no item
         @test [tag for (tag, _) in log] == [:after]

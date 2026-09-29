@@ -71,7 +71,8 @@ function test_editor_document_edits()
         # The place `branch.leaf` is tried first, and no reader carries an edit
         # from it; the place `branch` is tried next.
         @test relatives == [Reference(FieldReferenceStep("value")),
-                            Reference(FieldReferenceStep("leaf"), FieldReferenceStep("value"))]
+                            Reference(FieldReferenceStep("leaf"),
+                                      FieldReferenceStep("value"))]
         @test rooted isa ReplaceReferencedValueOperation
         @test strip_reference_types(operation_reference(rooted)) == target
         @test rooted.value == 5

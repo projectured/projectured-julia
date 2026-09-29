@@ -47,7 +47,8 @@ function test_event_module()
         key = KeyDown(:a, ModifierKeys(ctrl = true, alt = true); time = 0.0)
         @test has_ctrl_modifier_key(key) && has_alt_modifier_key(key)
         @test !has_shift_modifier_key(key) && !has_meta_modifier_key(key)
-        click = MousePress(:left, 1, 2, ModifierKeys(shift = true, meta = true); time = 0.0)
+        click = MousePress(:left, 1, 2, ModifierKeys(shift = true, meta = true);
+                           time = 0.0)
         @test has_shift_modifier_key(click) && has_meta_modifier_key(click)
         @test !has_ctrl_modifier_key(click) && !has_alt_modifier_key(click)
     end

@@ -85,7 +85,8 @@ end
         generic = getfield(Projectured.ProjectionModule, name)
         method = which(generic, Tuple{GraphicsCanvasToImageFile, Any, Any})
         @test method.module === ProjecturedSdl
-        @test !isdefined(ProjecturedSdl, name) || getfield(ProjecturedSdl, name) === generic
+        @test !isdefined(ProjecturedSdl, name) ||
+              getfield(ProjecturedSdl, name) === generic
     end
 end
 

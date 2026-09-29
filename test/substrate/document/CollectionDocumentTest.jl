@@ -411,7 +411,8 @@ end # @testset "ReactiveCollection"
         v = CellVector(["a", "b"])
         slot = get_cell_at(v, 2)
         editor = (document = nothing,)
-        write = ReplaceReferencedValueOperation(v, Reference(RangeReferenceStep(1, 2)), "z")
+        reference = Reference(RangeReferenceStep(1, 2))
+        write = ReplaceReferencedValueOperation(v, reference, "z")
         inverse = operation_module.evaluate_invertible_operation!(editor, write)
         @test collect(v) == ["a", "z"]
         operation_module.evaluate_operation(editor, inverse)

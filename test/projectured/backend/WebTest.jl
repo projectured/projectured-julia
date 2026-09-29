@@ -84,7 +84,7 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]).event.button === :right
     end
 
-    @testset "the letters, the buttons and the wheel have the names of the event layer" begin
+    @testset "letters, buttons and the wheel have the names of the event layer" begin
         backend = WebBackend(port = 0)
         # Each letter key has the name of its lower-case letter, with or without Shift.
         for letter in 'a':'z', key in (string(letter), uppercase(string(letter)))

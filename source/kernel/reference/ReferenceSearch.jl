@@ -27,7 +27,8 @@ function _make_location_reference(location)
     path = EmptyReference()
     while location isa Pair
         step = location.second
-        head = step isa Int ? ElementReferenceStep(step) : FieldReferenceStep(string(step))
+        head = step isa Int ? ElementReferenceStep(step) :
+                              FieldReferenceStep(string(step))
         path = ConcreteReference(head, path)
         location = location.first
     end

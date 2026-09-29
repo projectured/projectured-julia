@@ -19,7 +19,8 @@ import ProjecturedKernel.FeedModule: compute_wake_deadline
 import ProjecturedKernel.EditorModule: Editor, post_operation!, wake_editor!,
                                        compute_wait_timeout, FRAME_INTERVAL,
                                        run_editor!, make_editor
-import ProjecturedKernel.FaultModule: make_strict_fault_policy, FaultPolicy, get_fault_records
+import ProjecturedKernel.FaultModule: make_strict_fault_policy, FaultPolicy,
+                                      get_fault_records
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation,
                                           QuitEditorOperation
 using ProjecturedKernelExample
@@ -81,7 +82,8 @@ FeedModule.compute_wake_deadline(feed::DeadlineFeed, editor) = feed.deadline
 # A feed whose deadline throws, as a feed whose clock fails does.
 struct DeadlineFailingFeed <: Feed end
 FeedModule.drain_changes!(::DeadlineFailingFeed, editor::Editor) = 0
-FeedModule.compute_wake_deadline(::DeadlineFailingFeed, editor) = error("the deadline failed")
+FeedModule.compute_wake_deadline(::DeadlineFailingFeed, editor) =
+    error("the deadline failed")
 
 # Wakes the editor in every frame, so the loop never waits. It posts a quit once
 # another task set `is_done`, or after 100 frames.

@@ -333,7 +333,8 @@ end
 function test_projection_template_value_field()
     @testset "ProjectionTemplate maps a bound leaf through the field that holds it" begin
         P = _ValueFieldProbe
-        projection = RecursiveProjection(TypeDispatchingProjection(P.Named => P.NamedToNode()))
+        projection = RecursiveProjection(
+            TypeDispatchingProjection(P.Named => P.NamedToNode()))
         named = P.Named("hello")
         iomap = print_document(projection, named)
         caret = @reference(named, x{1})

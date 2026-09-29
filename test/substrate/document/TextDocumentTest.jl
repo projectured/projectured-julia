@@ -171,7 +171,8 @@ end # @testset "TextLine: line-structured blocks"
 end # @testset "Shift and a motion key select a range"
 
 @testset "a text step hashes as it compares" begin
-    for make_step in (TextRangeReferenceStep, TextSpanReferenceStep, TextColumnReferenceStep)
+    for make_step in (TextRangeReferenceStep, TextSpanReferenceStep,
+                      TextColumnReferenceStep)
         first_path = Reference(FieldReferenceStep("content"), make_step(2, 4))
         second_path = Reference(FieldReferenceStep("content"), make_step(2, 4))
         @test first_path == second_path

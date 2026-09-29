@@ -66,7 +66,7 @@ function _synced_child(cur, sv, K, policy, depth)
     end
     cur isa Document && _is_same_document_type(cur, sv) &&
         (sync_document!(cur, sv, policy, depth); return nothing)      # recurse in place
-    _copy_shadow_element(K, sv, policy, depth)                         # rebuild in shadow's kind
+    _copy_shadow_element(K, sv, policy, depth)    # rebuild in shadow's kind
 end
 
 # Record sync: match children by field name. A child document is synced in place

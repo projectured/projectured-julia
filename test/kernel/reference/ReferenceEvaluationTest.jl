@@ -401,8 +401,10 @@ function test_reference_evaluation()
 
     @testset "a projection step hashes as it compares" begin
         projection = Ref(0)
-        first_step = ProjectionReferenceStep(projection, Reference(FieldReferenceStep("x")))
-        second_step = ProjectionReferenceStep(projection, Reference(FieldReferenceStep("x")))
+        first_step = ProjectionReferenceStep(projection,
+                                             Reference(FieldReferenceStep("x")))
+        second_step = ProjectionReferenceStep(projection,
+                                              Reference(FieldReferenceStep("x")))
         @test first_step == second_step
         @test hash(first_step) == hash(second_step)
         @test length(Set([Reference(first_step), Reference(second_step)])) == 1
