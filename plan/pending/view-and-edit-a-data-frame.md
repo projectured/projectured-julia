@@ -284,6 +284,27 @@ The triggers that can run a sync:
 
 Decision D3 asks which triggers to build.
 
+**In the normal Julia REPL.** The users work there (§5.1), so B is the main
+trigger. The hook wraps each input, so it knows when an input starts and when
+it ends. After the end, it posts a sync with `post_operation!`. It also sees a
+change by a function that the input calls. It does not work in IJulia or in a
+script. Phase 0 checks the REPL of VS Code.
+
+The REPL task runs the code of the user, and the editor runs in a background
+task (D4). Phase 0 finds out which case is possible:
+
+- **The same thread (`@async`).** The editor runs only while the REPL waits
+  for input, so no race is possible. The window does not paint or scroll
+  during a long input.
+- **Another thread (`Threads.@spawn`).** The window stays live. A read of the
+  view during a write of the REPL is a data race. So the hook keeps a **busy
+  flag** from the start of an input to its end. While the flag is set, the
+  view does not read or write the frame, it shows a mark, and it takes no
+  edit.
+
+C is for a writer that is not the REPL, such as a task that appends rows. It
+is safe only when nothing writes the frame at the same time.
+
 - **Proposed:** a view can follow a global binding, for example `Main.df`, so
   `df = filter(...)` in the REPL moves the view to the new frame.
 
@@ -297,8 +318,9 @@ Decision D3 asks which triggers to build.
 - An expression filter: a Julia expression over the column names, for example
   `:age > 30 && startswith(:city, "B")`. The Julia domain edits it.
 - Hide, show, move and freeze columns.
-- After an edit, a sorted or filtered view keeps the row where it is and marks
-  the order as out of date. Decision D6 asks for this.
+- While the text of a cell is pending, the row stays where it is. The commit
+  writes the frame, and the view sorts and filters again at once (D6). D10
+  says where the selection and the view go.
 - **Proposed:** "copy as code" gives the query as DataFrames code (`subset`,
   `sort`, `select`, `groupby`, `combine`), so a person moves a view into a
   script.
@@ -415,9 +437,13 @@ Decision D3 asks which triggers to build.
 - **D5 is (a)** (the owner, 2026-09-29). The text of a cell is pending until
   Enter, Tab or a move out of the cell. Then the view parses it and writes the
   value, as one undo step.
-- **D6 is (a), with an automatic refresh** (the owner, 2026-09-29): "(a), the
-  refresh is automatic". The row stays where it is after an edit. When the
-  view sorts again is open (§5.2).
+- **Only an explicit `display(df)` opens the window** (the owner,
+  2026-09-29): "only on explicit display(df)". A result at the prompt, such as
+  `df`, prints text as before. How to tell the two calls apart is open (D9).
+- **D6: the view sorts and filters again when the edit is committed to the
+  data frame** (the owner, 2026-09-29): "when the change is committed back in
+  the data frame". While the text of a cell is pending, the row stays where it
+  is. Where the selection and the view go after the commit is open (D10).
 - **D7 is (a)** (the owner, 2026-09-29). The package is
   `ProjecturedDataFrames`, and the types take the prefix `DataFrame`.
 - **D8 is deferred** (the owner, 2026-09-29): "(a) but let's defer this for a
@@ -426,9 +452,8 @@ Decision D3 asks which triggers to build.
 
 ### 5.2 Open
 
-D3 and the time of the refresh in D6 are open. The other decisions below keep
-their options for the record. Each recommendation is the view of the writer
-of this draft.
+D3, D9 and D10 are open. The other decisions below keep their options for the
+record. Each recommendation is the view of the writer of this draft.
 
 **D1. The first delivery. Made: (b), see §5.1.** The recommendation was phases
 1 to 6.
@@ -447,8 +472,8 @@ Recommendation: (b). It holds for every list, and a list still has no extent.
 
 **D3. The refresh triggers.** A, B, C and D of §4.3. B is a new mechanism: a
 hook in the Julia REPL (`Base.active_repl_backend.ast_transforms`). C uses the
-inbox, which already names a timer as a producer. Recommendation: A, B and D
-first, and C as a keyword that is off by default.
+inbox, which already names a timer as a producer. Recommendation: A, B with
+the busy flag of §4.3, and D. C is a keyword that is off by default.
 
 **D4. How a data frame reaches the screen. Made: (b), see §5.1.**
 - `run_data_frame_viewer(df)`, like `run_value_viewer`. No kernel change.
@@ -479,6 +504,35 @@ third-party package as `ProjecturedOdbc` and `ProjecturedTulip` are. The slice
 is `dataframes`. The types take the prefix `DataFrame` (`DataFrameView`,
 `DataFrameQuery`, `DataFramePivot`), because `Frame` names a render frame here.
 None of these names is exported by DataFrames.
+
+**D9. Only an explicit `display(df)`.** The REPL shows the result of an input
+with `display(val)` (`__repl_entry_display` in the `REPL` stdlib of Julia
+1.13). An explicit `display(df)` is the same call. So a `ProjecturedDisplay`
+on the display stack gets both, and it can not tell them apart.
+- (a) Push no display. The explicit call names the display:
+  `display(ProjecturedDisplay(), df)`, or a short function of the package
+  that makes this call.
+- (b) Push the display, and set `specialdisplay` of the `LineEditREPL`, a
+  field of the `REPL` stdlib. The REPL then shows a result through that
+  display and not through the stack. It walks the display stack as `display`
+  does, and it skips the `ProjecturedDisplay`. A plot at the prompt still goes
+  to the display of Plots. The risk: the field is internal to the `REPL`
+  stdlib, and the display of every result goes through the new code.
+- (c) Push the display, and look at the stack trace for
+  `__repl_entry_display`. It depends on a private name of the REPL, so it is
+  not an option.
+
+Recommendation: (b), if phase 0 shows that a plot of Plots and a figure of
+Makie at the prompt behave as before. If not, (a).
+
+**D10. The selection and the view after a commit.** The commit sorts and
+filters again (D6), so the edited row can move far away or disappear.
+Proposal: the view keeps the row of the selection at its place on the screen.
+- Enter selects the row that was below the edited row before the sort. That
+  row stays near its place, so a person corrects a column row by row.
+- Tab selects the next cell of the edited row. The view moves the head to the
+  new position of the row, and the rows around it change.
+- If the filter now hides the edited row, Tab acts as Enter.
 
 **D8. Group and pivot. Deferred, see §5.1.** One query model and two layouts: a grouped table with
 header rows (§4.6), and a cross table (§4.7). Or the grouped table as a pivot
