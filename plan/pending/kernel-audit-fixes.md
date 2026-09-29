@@ -1244,50 +1244,62 @@ Each item corrects a fact about the code. No item changes what a rule requires.
 
 ### Step 6.3: The docstrings and comments of files that are not sealed
 
-- [ ] **L10-12** (Medium, Documentation)
+- [x] **L10-12** (Medium, Documentation)
   Correct the six statements: the injected field is `Union{Nothing, Reference, SelectionDocument}`, and an explicit `selection` field is accepted when it is last; the kind constructors are `ICFoo`/`MCFoo`; the bare constructor builds `DCFoo`; the layout codes include `I`; the file has eight emitters; the comment at line 593 gives the current union.
   *Test:* test_documentation(); no behaviour change.
-- [ ] **L10-24** (Low, Documentation)
+  *Done:* 9c2aa9bab, with the IC and MC prefixes in macros.md. The file has 11 `_emit_` functions, so its header names them with no count.
+- [x] **L10-24** (Low, Documentation)
   Delete each history phrase. Keep a constraint that the code can not show in one sentence in the present tense.
   *Test:* test_documentation(); no code change.
-- [ ] **L15-13** (Low, Documentation)
+  *Done:* 9c2aa9bab.
+- [x] **L15-13** (Low, Documentation)
   Correct 'below' at GestureBindingInterface.jl:20; add override to the signature at GestureBinding.jl:16; name the three fragments, get_instance_gesture_bindings, fire_named_gesture_binding and CollectIntents in the module docstring; remove the consumer names, 'layer' for a pipeline stage, and the idioms; delete the repeat of the grammar at Gestures.jl:6-28; wrap the ten lines over 90 characters.
   *Test:* test_documentation().
+  *Done:* d533e5eb6. The `@gestures` docstring still says that `event` is in scope of a rule body; that waits for L15-4.
 - [x] **L16-2** (Medium, Documentation)
   Rewrite the compound printer example: child_iomaps = reconcile_child_iomaps(...); the mappers read iomap.child_iomaps (no []); build the reference with @reference.
   *Test:* test_documentation().
   *Done:* c0f3bd1f9. The example uses typed `@reference` literals, because an untyped one throws "under-typed" when it runs.
-- [ ] **L16-4** (Low, Correctness)
+- [x] **L16-4** (Low, Correctness)
   State in both docstrings that the IoMap that make_iomap returns must hold the element (as its input), because the cache key is objectid, a number, and not a reference to the element. This is the smaller option and answers PAR-MODULE-DOCSTRING; the other option keeps the element in the cache entry and compares it with ===.
   *Test:* test_documentation().
-- [ ] **L17-23** (Low, Documentation) — after L17-6, L17-10, L17-13, L17-16
+  *Done:* 48d8971df.
+- [x] **L17-23** (Low, Documentation) — after L17-6, L17-10, L17-13, L17-16
   Correct each false statement: the fragment table; 'every structural projection uses the engine' (four *ToSyntax files hold hand-written printers); ':terminal' to :structural; drop '(nodes; WIP)'; correct line 794 and lines 466-469; correct the export claim of the pure printer.
   *Test:* test_documentation().
-- [ ] **L17-24** (Low, Documentation)
+  *Done:* 5c9270493. `ChildrenContainer.jl` stays (L17-16 is a decision); its header says that it holds no code.
+- [x] **L17-24** (Low, Documentation)
   Delete the history at ProjectionTemplate.jl:265-275 and keep its constraint in the present tense. Name F1, F2 and F3 in words (a nested sub-node, a reactive child list, an as= override). Delete 'from day one' and the plan-phase citations at ProjectionTemplate.jl:228 and ProjectionInterface.jl:150-153.
   *Test:* test_documentation().
-- [ ] **L17-25** (Low, Documentation)
+  *Done:* 5c9270493.
+- [x] **L17-25** (Low, Documentation)
   Describe the contract only: remove the names of higher packages and consumers (PointReferenceStep, map_operation_position, the render stage, PaneToWidget, FocusingProjection, Clipboard, the editor loop), write 'stage' where the text calls a pipeline stage a layer, and delete the second copy of the comment at ProjectionTemplate.jl:1374-1380.
   *Test:* test_documentation().
-- [ ] **L17-26** (Low, Documentation)
+  *Done:* 5c9270493.
+- [x] **L17-26** (Low, Documentation)
   Show the 4-argument read_intent in the Example, with a gesture that needs geometry. Say that a 4-argument reader returns an Intent, and correct 'Leaf projections therefore keep their 3-arg methods'. Give map_reference_backward, print_child, PrinterContext, make_child_context and read_routed_intent a 'Use it to' paragraph, an Example and 'See also'. Move the older paragraph of the Projection docstring above 'See also'.
   *Test:* test_documentation().
-- [ ] **L18-28** (Low, Documentation)
+  *Done:* 5c9270493.
+- [x] **L18-28** (Low, Documentation)
   Delete the history comments (DefaultTools.jl:285-288 and :228-229; DeclaredApiTest.jl:110, :160 and :513-518) and rename the testset in SearchQueryTest.jl:157. Drop the two PAR-PER-EDITOR-STATE citations. State the contracts of Tool.jl:229-232, the ApiEntry docstring and the declare_api! example in the terms of this layer. Remove the personification at DefaultTools.jl:169 and ToolModule.jl:25.
   *Test:* test_documentation(), test_declared_api() and test_search_query().
-- [ ] **L19-8** (Low, Documentation)
+  *Done:* 3563bad0d. The private names of omnet-julia (`run_simulations_in_conversation`, `stop_simulations`, `CampaignVerbsModule`) left Documentation.jl too, as the finding asks; the `declare_api!` example uses kernel modules only.
+- [x] **L19-8** (Low, Documentation)
   Name the kind of value in place of a provider or a higher layer (a provider-specific tool list, a caller that runs tools), say what the code does (a `Tool` holds no wire format), and wrap LlmMessage.jl:110 under 90 characters.
   *Test:* None; the change is text only.
-- [ ] **L20-12** (Low, Documentation)
+  *Done:* 9ca69096e.
+- [x] **L20-12** (Low, Documentation)
   Describe the contract without the layer above, keep one statement of the two halves (in the module docstring), write 'the loop streams, runs the tools, and stops when the model asks for no tool', add a Throws line to `run_turn!` (it throws what `stream_turn`, `messages` and `on_event` throw), and wrap AgentLoop.jl:45 and :87.
   *Test:* None; the change is text only.
+  *Done:* 5875f6bdf.
 - [x] **L22-29** (Low, Documentation)
   Update the sections: all 17 fields of `Editor`; the recognizer makes a `MousePress` after its `MouseUp` and recognizes no chord today; the three backends with `WebBackend`; the nine files of the layer; the full list of downward edges; the tests with WaitTest.jl, the feed test and the safe-mode test.
   *Test:* None; the change is text only.
   *Done:* 6257fc7c2. test_kernel 3901 and 2 broken, test_mcp_tools 158, test_search_scale 45; the documentation and naming guards find nothing.
-- [ ] **L22-30** (Low, Documentation)
+- [x] **L22-30** (Low, Documentation)
   Remove the consumer names and the rule citation, repair the `print!` sentence, name all five keywords in the header of the `run_editor!` docstring, describe the barrier and the repairs in the `evaluate!` docstring, say that `insert_elements!` runs on the editor task, make each fragment header one line under 90 characters, and wrap the long lines.
   *Test:* None; the change is text only.
+  *Done:* 35c200dbb. The export line of EditorModule.jl:54 (101 characters) stays for export-block-rule.md.
 
 ## Items that wait for a decision
 
@@ -1336,11 +1348,12 @@ The classifiers and the implementers found faults that the audit does not hold:
   `read!` stays the decision of L22-13.
   *Test:* `test_playback()`: its `@test_broken` for this call becomes a `@test` and passes.
   *Done:* lane A, eb1c4ece9. test_kernel 3260 pass and 2 broken (644 checks of the corpus on M paths); test_substrate 86866 and the 7 known failures; test_mcp_tools 152; test_julia 407; test_json 194; test_xml 73.
-- [ ] **N-8** (Medium, Correctness) — found in step 6.1
+- [x] **N-8** (Medium, Correctness) — found in step 6.1
   The SDL backend names `\` as `:backslash`, but `convert_web_key_to_symbol` answers `:char`, so
   Ctrl+\ can never fire in the browser. Name it `:backslash` in the web backend, as SDL does, and
   correct the comment and the docstring of Web.jl that say the two tables mirror each other.
   *Test:* `test_web_backend()`: the key `\` gives `:backslash`.
+  *Done:* 4fae78eab, with PAR-BACKEND-SEAM, which named the difference. test_web_backend 101; test_kernel 3901 and 2 broken; test_mcp_tools 158; test_search_scale 45; the guards find nothing. Also corrected: fault.md, architecture-rules.md, the index row of PAR-STORE-THEN-DRAIN (0ee7362a0) and a history comment of WidgetToGraphics.jl (fd12c4dc0). **Still stale, outside the items:** division-terminology.md:78 names "base/visual" packages; architecture-rules.md:110-120 gives old paths and "twenty-eight" (package-rules.md says 29); CodeExecution.jl:102 names `PaneSplit`; the `@document_preset` docstring holds a history paragraph.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
