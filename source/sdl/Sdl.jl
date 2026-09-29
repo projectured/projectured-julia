@@ -164,6 +164,11 @@ They live on the backend rather than at module level, so two backends in one
 process never hand each other an event or a delay. `partial_render` and
 `debug_dirty` are read for each window of this backend alone.
 
+`modifiers` holds the modifier keys of the last key event that the poll read. A
+mouse event and a text event take their modifiers from it, so they hold the
+modifiers at their place in the queue, not at the time of the poll.
+`initialize_backend!` seeds it from `SDL_GetModState`.
+
 `display` is the `Display` that the backend draws on. Its device pixel ratio
 sizes the windows, rasterizes the text and converts the input coordinates. A new
 backend has a `Display()` of its own, and `initialize_backend!` gives it the
@@ -188,6 +193,8 @@ mutable struct SdlBackend <: Backend
     pending_input::Union{WindowInput, Nothing}
     pending_motion::Union{WindowInput, Nothing}
     last_hover_motion::Float64
+    # The modifier keys of the last key event in the order of the queue.
+    modifiers::ModifierKeys
     # The SDL user-event type `wake_backend!` pushes to end a wait in
     # progress. Zero until `initialize_backend!` registers one; a wake on an
     # uninitialized backend is a no-op.
@@ -207,7 +214,7 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               nothing, nothing, 0.0, UInt32(0), Display())
+               nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display())
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -407,14 +414,16 @@ function sdl_to_keyup(keysym::Int32, mod::UInt16; time::Real)::KeyUp
 end
 
 """
-    sdl_to_keypress(evt; time) -> Union{KeyPress, Nothing}
+    sdl_to_keypress(evt; modifiers, time) -> Union{KeyPress, Nothing}
 
-Build a `KeyPress` at the time `time` from an `SDL_TEXTINPUT` event. Returns `nothing` if
-the event carries no printable text (e.g. empty or invalid UTF-8).
+Build a `KeyPress` with `modifiers` at the time `time` from an `SDL_TEXTINPUT`
+event. Returns `nothing` if the event carries no printable text (e.g. empty or
+invalid UTF-8).
 `SDL_TEXTINPUT` provides a null-terminated UTF-8 string in `evt.text.text`
 (a `NTuple{32,UInt8}`).
 """
-function sdl_to_keypress(evt; time::Real)::Union{KeyPress,Nothing}
+function sdl_to_keypress(evt; modifiers::ModifierKeys,
+                         time::Real)::Union{KeyPress,Nothing}
     text_bytes = evt.text.text  # NTuple{32,UInt8}
     len = 0
     for b in text_bytes
@@ -429,8 +438,7 @@ function sdl_to_keypress(evt; time::Real)::Union{KeyPress,Nothing}
     end
     isempty(text) && return nothing
     ch = first(text)
-    mods = _current_modifiers()
-    KeyPress(ch, text, mods; time)
+    KeyPress(ch, text, modifiers; time)
 end
 
 # The time of an SDL event on the clock of `time()`. SDL stamps each event with
@@ -448,7 +456,7 @@ end
 # Map SDL button byte → Symbol.
 _sdl_button_sym(b::UInt8) = b == 0x01 ? :left : b == 0x02 ? :middle : :right
 
-# The buttons that the mask of `SDL_GetMouseState` holds.
+# The buttons that an SDL button mask holds: the `state` of a motion event.
 _get_held_mouse_buttons(bstate::UInt32) =
     MouseButtons((bstate & UInt32(0x01)) != UInt32(0),
                  (bstate & UInt32(0x02)) != UInt32(0),
@@ -3383,6 +3391,7 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     # with an event left over from its last life.
     backend.pending_input = nothing
     backend.pending_motion = nothing
+    backend.modifiers = _current_modifiers()
     # The wake event, registered once per SDL life. `SDL_RegisterEvents`
     # answers `(Cuint)-1` when the pool is exhausted; the wait then degrades
     # to its timeout slices and nothing else is lost.
@@ -3658,25 +3667,27 @@ function _poll_window_input(backend::SdlBackend)
             # the insertion, the command palette and every other reader that binds
             # it. The editor loop quits on an Escape that nothing handled.
             is_repeat = evt.key.repeat != 0
+            backend.modifiers = sdl_modifiers(evt.key.keysym.mod)
             keydown = sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat;
                                      time = event_time)
             return (WindowInput(wid, keydown), nothing)
 
         elseif t == 0x00000301  # SDL_KEYUP
             wid = _lookup_window_id(backend, evt.key.windowID)
+            backend.modifiers = sdl_modifiers(evt.key.keysym.mod)
             keyup = sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod;
                                  time = event_time)
             return (WindowInput(wid, keyup), nothing)
 
         elseif t == 0x00000303  # SDL_TEXTINPUT
-            kp = sdl_to_keypress(evt; time = event_time)
+            kp = sdl_to_keypress(evt; modifiers = backend.modifiers, time = event_time)
             kp === nothing && continue
             wid = _lookup_window_id(backend, evt.text.windowID)
             return (WindowInput(wid, kp), nothing)
 
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
-            mods = _current_modifiers()
+            mods = backend.modifiers
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
             return (WindowInput(wid, MouseDown(button, x, y, mods; time = event_time)),
@@ -3684,17 +3695,15 @@ function _poll_window_input(backend::SdlBackend)
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
-            mods = _current_modifiers()
+            mods = backend.modifiers
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
             return (WindowInput(wid, MouseUp(button, x, y, mods; time = event_time)),
                     nothing)
 
         elseif t == 0x00000400  # SDL_MOUSEMOTION
-            mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
-            bstate = UInt32(SDL_GetMouseState(mx_ref, my_ref))
-            buttons = _get_held_mouse_buttons(bstate)
-            mods = _current_modifiers()
+            buttons = _get_held_mouse_buttons(evt.motion.state)
+            mods = backend.modifiers
             wid = _lookup_window_id(backend, evt.motion.windowID)
             # The motion slot of the pair. The caller keeps only the newest of a
             # run of these, and applies the rate limit to what it keeps.
@@ -3706,7 +3715,7 @@ function _poll_window_input(backend::SdlBackend)
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
             SDL_GetMouseState(mx_ref, my_ref)
-            mods = _current_modifiers()
+            mods = backend.modifiers
             wid = _lookup_window_id(backend, evt.wheel.windowID)
             dx, dy = Int(evt.wheel.x), Int(evt.wheel.y)
             if mods.shift && dx == 0

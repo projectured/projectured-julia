@@ -16,14 +16,9 @@ module ProjecturedSdl
 
 using ProjecturedCollection
 using ProjecturedGraphics
-using ProjecturedCollection
-using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedScreen
 using ProjecturedStyle
-using ProjecturedScreen
-using ProjecturedStyle
-
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
@@ -33,42 +28,45 @@ using SimpleDirectMediaLayer.LibSDL2
 # DeviceModule supplies the `Device` type used in the render signatures.
 using ProjecturedKernel.BackendModule
 using ProjecturedKernel.DeviceModule
-import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
-                         GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
-                         GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
+using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect,
+                         GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
+                         GraphicsSpline, GraphicsViewport, GraphicsImage, GraphicsFence,
+                         LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _bounds_elem!, _bounds_extend!,
                          compute_first_visible_index, has_declared_extent,
                          tessellate_spline, build_polyline_arrowhead
-import ProjecturedCollection.CollectionModule: ListNode, CellVector
-import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
-import ProjecturedStyle.StyleModule: StyleColor
-import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, font_device_size,
+using ProjecturedCollection.CollectionModule: ListNode, CellVector
+using ProjecturedStyle.StyleModule: AffineTransform, affine_identity,
+                         is_affine_axis_aligned
+using ProjecturedStyle.StyleModule: StyleColor
+using ProjecturedStyle.StyleModule: StyleFont, font_logical_size, font_device_size,
                          step_zoom, adjust_font_zoom!
 # `_get_font` resolves a font's name through this rather than opening
 # `font.filename` directly, so a bundle copied to another machine finds its
 # fonts where they are now. The metrics reader resolves the same way, which is
 # what keeps SDL and it opening one file.
-import ProjecturedStyle.StyleModule: font_file
+using ProjecturedStyle.StyleModule: font_file
 # A character the font lacks draws in the font the style package names, and each
 # glyph draws where the layout measures it (`compute_placed_glyphs`).
-import ProjecturedStyle.StyleModule: compute_text_extent, compute_placed_glyphs, PlacedGlyph,
-                         FontFileMeasure
-import ProjecturedKernel.EventModule: WindowQuit
-import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
-import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
-import ProjecturedKernel.EventModule: ModifierKeys
-import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
-import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MousePress, MouseMove,
-    MouseScroll
-import ProjecturedStyle.StyleModule: ImageFile
-import ProjecturedKernel.ProjectionModule: print_document, read_intent, Projection
-import ProjecturedKernel.OperationModule: Operation, evaluate_operation
-import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
-import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
-import ProjecturedKernel.ProjectionModule: PrinterContext
-import ProjecturedKernel.CellModule: AbstractCell, Cell, Computation, ImmutableCell, is_cell_up_to_date
-import ProjecturedKernel.ReferenceModule: EmptyReference
-import ProjecturedKernel.IoMapModule: SimpleIoMap
+using ProjecturedStyle.StyleModule: compute_text_extent, compute_placed_glyphs,
+                         PlacedGlyph, FontFileMeasure
+using ProjecturedKernel.EventModule: WindowQuit
+using ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
+using ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
+using ProjecturedKernel.EventModule: ModifierKeys
+using ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
+using ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove,
+                         MouseScroll
+using ProjecturedStyle.StyleModule: ImageFile
+using ProjecturedKernel.ProjectionModule: Projection, PrinterContext
+using ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
+using ProjecturedKernel.CellModule: AbstractCell, Cell, ImmutableCell, is_cell_up_to_date
+using ProjecturedKernel.ReferenceModule: EmptyReference
+using ProjecturedKernel.IoMapModule: SimpleIoMap
+
+# Imported to extend: this package adds a method to each of these.
+import ProjecturedKernel.ProjectionModule: print_document
+import ProjecturedKernel.OperationModule: evaluate_operation
 
 include("../../../source/sdl/Sdl.jl")
 

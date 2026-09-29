@@ -6,10 +6,15 @@
 # depends on `ProjecturedSdl`, not on SDL itself.
 const _SDL = ProjecturedSdl.SimpleDirectMediaLayer.LibSDL2
 
+const _SDL_KEYDOWN         = 0x00000300
+const _SDL_KEYUP           = 0x00000301
 const _SDL_MOUSEMOTION     = 0x00000400
 const _SDL_MOUSEBUTTONDOWN = 0x00000401
 const _SDL_MOUSEBUTTONUP   = 0x00000402
 const _SDL_BUTTON_LEFT     = 0x01
+const _SDL_BUTTON_LMASK    = 0x00000001   # the left button in the `state` of a motion
+const _SDLK_LCTRL          = Int32(1073742048)
+const _KMOD_LCTRL          = 0x0040
 
 # Write one event of type `T` into an `SDL_Event` blob and push it on the queue.
 function _push_sdl_event!(payload::T) where {T}
@@ -21,9 +26,9 @@ function _push_sdl_event!(payload::T) where {T}
     end
 end
 
-_push_motion!(x, y) =
+_push_motion!(x, y; buttons::UInt32 = UInt32(0)) =
     _push_sdl_event!(_SDL.SDL_MouseMotionEvent(_SDL_MOUSEMOTION, UInt32(0), UInt32(0),
-                                               UInt32(0), UInt32(0),
+                                               UInt32(0), buttons,
                                                Int32(x), Int32(y), Int32(0), Int32(0)))
 
 _push_button_down!(x, y) =
@@ -35,6 +40,15 @@ _push_button_up!(x, y) =
     _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONUP, UInt32(0), UInt32(0),
                                                UInt32(0), _SDL_BUTTON_LEFT, UInt8(0),
                                                UInt8(1), UInt8(0), Int32(x), Int32(y)))
+
+# A key event of the left Ctrl key, with the modifier mask `mod` that SDL gives it.
+_push_ctrl_key!(type, mod) =
+    _push_sdl_event!(_SDL.SDL_KeyboardEvent(type, UInt32(0), UInt32(0),
+                                            type == _SDL_KEYDOWN ? UInt8(1) : UInt8(0),
+                                            UInt8(0), UInt8(0), UInt8(0),
+                                            _SDL.SDL_Keysym(_SDL.SDL_SCANCODE_LCTRL,
+                                                            _SDLK_LCTRL, UInt16(mod),
+                                                            UInt32(0))))
 
 # Start from an empty queue and an expired rate limit, so each case sees only
 # what it pushed.
@@ -102,6 +116,36 @@ function test_input_coalescing()
             @test (held.event.x, held.event.y) == (_logical(60), _logical(70))
         end
         _reset_input!(backend)
+    end
+
+    @testset "a motion holds the buttons of its own place in the queue" begin
+        # The release waits behind the motion, so the motion is the last sample of
+        # a drag and holds the left button, not the buttons at the time of the poll.
+        _reset_input!(backend)
+        _push_motion!(20, 30; buttons = _SDL_BUTTON_LMASK)
+        _push_button_up!(20, 30)
+        motion = read_from_devices(backend, Device[])
+        @test motion.event isa MouseMove
+        @test motion.event.buttons == MouseButtons(:left)
+        @test read_from_devices(backend, Device[]).event isa MouseUp
+        @test read_from_devices(backend, Device[]) === nothing
+    end
+
+    @testset "a click holds the modifiers of its own place in the queue" begin
+        # Ctrl goes down, the button goes down, and Ctrl goes up, all before the
+        # poll. The click holds Ctrl, because Ctrl was down when it happened.
+        _reset_input!(backend)
+        _push_ctrl_key!(_SDL_KEYDOWN, _KMOD_LCTRL)
+        _push_button_down!(10, 10)
+        _push_ctrl_key!(_SDL_KEYUP, 0x0000)
+        @test read_from_devices(backend, Device[]).event isa KeyDown
+        down = read_from_devices(backend, Device[]).event
+        @test down isa MouseDown
+        @test down.modifiers.ctrl
+        up = read_from_devices(backend, Device[]).event
+        @test up isa KeyUp
+        @test !up.modifiers.ctrl
+        @test read_from_devices(backend, Device[]) === nothing
     end
 
     @testset "a click keeps the times that SDL stamps on its events" begin

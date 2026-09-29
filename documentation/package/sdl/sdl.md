@@ -62,6 +62,8 @@ The offscreen renderer paints the same way for `VideoBackend(...; partial_render
 
 Escape is an ordinary `KeyDown`. The backend makes no `MousePress`: the `GestureRecognizer` of the editor builds a click from a down and an up. A run of motion events gives only its newest sample. An event that ends the run waits in `pending_input` for the next call, so a click never comes before the motion that led to it. Motion with no button held gives at most one sample in 30 ms, and a held sample is kept, so the last position of a pointer that stops arrives. `pending_input` and `pending_motion` are fields of the backend, so two backends in one process never share an event.
 
+The held buttons and the modifiers of an event are those at its place in the queue, not at the time of the poll. A motion takes its held buttons from its own `state` mask. The backend keeps the modifiers of the last key event that it read, which `initialize_backend!` seeds from `SDL_GetModState`, and a mouse event and a text event take their modifiers from it. So a Ctrl key that goes up after a click leaves Ctrl on the click, and the last motion of a drag holds its button when the release waits behind it in the queue.
+
 ### Wait and wake
 
 `wait_for_input` blocks in `SDL_WaitEventTimeout` with a null event pointer, the form that removes nothing from the queue. It blocks in slices that let the garbage collector run: 10 ms with one thread, 100 ms with more. A `yield` between the slices gives the MCP server and the assistant on the same thread their turn. `wake_backend!` pushes a user event that `initialize_backend!` registered, through `SDL_PushEvent`, which SDL documents as safe from any thread. `read_from_devices` skips that event.

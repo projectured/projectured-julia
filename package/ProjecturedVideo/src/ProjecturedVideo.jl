@@ -20,37 +20,37 @@ Usage: `using Projectured, ProjecturedSdl, ProjecturedVideo; record_video(doc, p
 module ProjecturedVideo
 
 using ProjecturedGraphics
-using ProjecturedGraphics
-using ProjecturedGraphics
 using ProjecturedKernel
-using ProjecturedSdl
-using ProjecturedSdl
 using ProjecturedSdl
 import FFMPEG
 
-import ProjecturedKernel.BackendModule: Backend, record_video,
-       initialize_backend!, quit_backend!, write_to_devices,
-       read_from_devices, wait_for_input, get_pointer_position, get_display_size
-import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon,
+using ProjecturedKernel.BackendModule: Backend
+using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon,
        GraphicsRect, GraphicsText
-import ProjecturedGraphics.StyleModule: StyleColor, color_black, color_white, color_transparent,
-       color_solarized_orange, color_solarized_red, font_dejavu_monospace_bold_16
-import ProjecturedKernel.ProjectionModule: print_document, read_intent
-import ProjecturedKernel.OperationModule: evaluate_operation
-import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
-import ProjecturedKernel.ProjectionModule: PrinterContext
-import ProjecturedKernel.CellModule: Cell, Computation
-import ProjecturedKernel.ClockModule: Clock, set_clock_time!
-import ProjecturedKernel.EditorModule: get_frame_clock_time
-import ProjecturedKernel.ReferenceModule: EmptyReference
-import ProjecturedKernel.EventModule: WindowInput, WindowQuit,
+using ProjecturedGraphics.StyleModule: StyleColor, color_black, color_white,
+       color_transparent, color_solarized_orange, color_solarized_red,
+       font_dejavu_monospace_bold_16
+using ProjecturedKernel.ProjectionModule: print_document, read_intent
+using ProjecturedKernel.OperationModule: evaluate_operation
+using ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
+using ProjecturedKernel.ProjectionModule: PrinterContext
+using ProjecturedKernel.CellModule: Cell
+using ProjecturedKernel.ClockModule: Clock, set_clock_time!
+using ProjecturedKernel.ReferenceModule: EmptyReference
+using ProjecturedKernel.EventModule: WindowInput, WindowQuit,
        MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
-import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
+using ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
                        _make_offscreen_paint_state, _render_canvas_offscreen_partial!,
                        _emit_frame_with_overlay!, _save_picture_with_overlay!
 # `SdlBackend` itself is already in scope via the bare `using ProjecturedSdl` above.
+
+# Imported to extend: this package adds a method to each of these.
+import ProjecturedKernel.BackendModule: record_video, initialize_backend!, quit_backend!,
+       write_to_devices, read_from_devices, wait_for_input, get_pointer_position,
+       get_display_size
+import ProjecturedKernel.EditorModule: get_frame_clock_time
 
 include("../../../source/video/Video.jl")
 include("../../../source/video/VideoBackend.jl")
