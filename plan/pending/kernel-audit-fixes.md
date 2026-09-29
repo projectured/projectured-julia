@@ -153,8 +153,42 @@ When all items are done, move this plan to `plan/done/`.
 
 ## Phase 0 — The worktree and the baseline
 
-- [ ] Make the worktree and the branch.
-- [ ] Run the baseline of "How to work", item 2, and write the counts here.
+- [x] Make the worktree and the branch.
+  The work runs in two lanes, each in its own worktree, from the base `a1e0b8a5`, so that a
+  half-done edit of one lane does not break a test run of the other:
+  - Lane A: `projectured-julia-kernel-fixes`, branch `kernel-audit-fixes`. Layers 1 to 16 and
+    the backends: steps 1.1, 1.2, 1.3, 1.7, 2.1, 2.2, 2.3, 2.5, 2.6, all of Phase 3, and the
+    tests of these layers. Only this worktree edits this plan.
+  - Lane B: `projectured-julia-kernel-fixes-b`, branch `kernel-audit-fixes-b`. Layers 13, 14 and
+    17 to 23: steps 1.4, 1.5, 1.6, 1.8, 2.4, 2.7 to 2.10, and the tests of these layers.
+  - Lane B merges into lane A before Phase 5. Phases 5 and 6 run on the merged branch.
+- [x] Run the baseline of "How to work", item 2, and write the counts here.
+  On `a1e0b8a5`, in the worktree of lane A, each suite in its own process (2026-09-29):
+
+  | Suite | Pass | Fail | Error | Broken |
+  | --- | ---: | ---: | ---: | ---: |
+  | `test_kernel()` | 2412 | 3 | 3 | 0 |
+  | `test_substrate()` | 86830 | 3 | 4 | 1 |
+  | `test_sdl()` | 774 | 0 | 0 | 0 |
+  | `test_video()` | 41 | 0 | 0 | 0 |
+  | `test_web_backend()` | 38 | 0 | 0 | 0 |
+  | `test_console_backend()` | 84 | 0 | 0 | 0 |
+  | `test_mcp_tools()` | 152 | 0 | 0 | 0 |
+  | `test_fault()` | 73 | 0 | 0 | 0 |
+  | `test_julia()` | 407 | 0 | 0 | 0 |
+  | `test_math()` | 173 | 0 | 0 | 0 |
+  | `test_fsm()` | 154 | 0 | 0 | 0 |
+  | `test_process()` | 304 | 0 | 0 | 0 |
+  | `test_formula()` | 116 | 0 | 0 | 0 |
+  | `test_arguments()` | 0 | 6 | 0 | 0 |
+  | `test_exports()` | 0 | 3 | 0 | 0 |
+  | `test_naming()` | 1 | 0 | 0 | 0 |
+  | `test_documentation()` | 1 | 0 | 0 | 0 |
+
+  The failures are known. The kernel has the five Rule C cases of `DocumentMacroTest.jl` and
+  `MEvalBranch` of `ReferenceEvalTest.jl` (step 1.1). The substrate has two failures of
+  `AnchorPointTest.jl` and five of `SplitPaneDragTest.jl`. The argument guard reports its five
+  violations and its summary check. omnet-julia and inet-julia get their baseline in Phase 5.
 
 ## Phase 1 — The failures on main and the High faults in files that are not sealed
 
