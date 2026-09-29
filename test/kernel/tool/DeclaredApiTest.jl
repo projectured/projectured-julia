@@ -96,6 +96,11 @@ export toy_verb
 toy_verb(x) = x
 end
 
+# The answer of `string(Cell)` where `Cell` resolves. The text of an
+# `UndefVarError` for `Cell` also holds the name, so the answer must hold no error.
+_is_cell_name_answer(answer) =
+    occursin("Cell", answer) && !occursin("UndefVarError", answer)
+
 function test_declared_api()
 @testset "Declared API" begin
 
@@ -103,7 +108,7 @@ function test_declared_api()
         set = ToolSet()
         @test isempty(set.api)
         # `Cell` is a kernel name, so it resolves through the default gathering.
-        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code(set, nothing, "string(Cell)"))
     end
 
     @testset "a call with no code answers that, rather than answering nothing" begin
@@ -459,7 +464,7 @@ function test_declared_api()
     @testset "the declaration decides, in both directions" begin
         wide = ToolSet()
         narrow = ToolSet(; api = Module[ToyApi])
-        @test occursin("Cell", execute_julia_code(wide, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code(wide, nothing, "string(Cell)"))
         @test occursin("UndefVarError", execute_julia_code(narrow, nothing, "string(Cell)"))
         @test strip(execute_julia_code(narrow, nothing, "toy_verb()")) == "\"toy\""
     end
@@ -588,12 +593,12 @@ function test_declared_api()
     # effect, so it drops the namespace.
     @testset "declaring after the first evaluation still takes effect" begin
         set = ToolSet()
-        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code(set, nothing, "string(Cell)"))
         declare_api!(set, Module[ToyApi])
         @test occursin("UndefVarError", execute_julia_code(set, nothing, "string(Cell)"))
         @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
         declare_api!(set, Module[])
-        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code(set, nothing, "string(Cell)"))
     end
 
     # How to look is always in scope, and it looks only at what was declared.
@@ -612,6 +617,26 @@ function test_declared_api()
         set = ToolSet(; api = Module[ToyApi])
         doc = read_function_documentation("ToyApi", "toy_verb"; api = set.api)
         @test occursin("Answer the word", doc)
+    end
+
+    # A tool of the same name replaces the one that is there, so a registration
+    # that runs again refreshes the tool and does not add a second one.
+    @testset "a tool registered under a name that is there replaces it" begin
+        set = ToolSet()
+        register_tool!(set, Tool("toy_tool", "the first", NamedTuple[],
+                                 (target, arguments) -> "first"))
+        register_tool!(set, Tool("toy_tool", "the second", NamedTuple[],
+                                 (target, arguments) -> "second"))
+        @test count(tool -> tool.name == "toy_tool", list_tools(set)) == 1
+        @test find_tool(set, "toy_tool").description == "the second"
+        @test call_tool(set, "toy_tool"; args = Dict{String,Any}(), target = nothing) ==
+              "second"
+    end
+
+    @testset "a call of a name that no tool has throws a KeyError" begin
+        set = ToolSet()
+        @test_throws KeyError call_tool(set, "toy_missing_tool";
+                                        args = Dict{String,Any}(), target = nothing)
     end
 
 end
