@@ -741,9 +741,10 @@ Sealed files: `CellStruct.jl`, `CellStructPlan.jl`.
   In `make_cell_struct_plan`, skip only a `LineNumberNode` and a `String`, and throw an `ArgumentError` that names any other expression of the body, as `_reject_inner_constructor` does.
   *Test:* test_cell_struct_plan: a body with `const a::Int` throws ArgumentError, and a field docstring still parses; then test_document_macro() and test_kernel().
   *Done:* lane A, 1006a6759. No body of `@document`, `@cell_struct`, `@iomap` or `@projection` in the three repositories is rejected.
-- [ ] **L04-9** (Low, Documentation) — 🔒 `CellStructPlan.jl`, `CellStruct.jl`; after L04-7, L04-8
+- [x] **L04-9** (Low, Documentation) — 🔒 `CellStructPlan.jl`, `CellStruct.jl`; after L04-7, L04-8
   Add a 'Use it to' paragraph and an example, with the goal of a macro writer, to the fifteen names that have neither.
   *Test:* test_documentation().
+  *Done:* 7fc5cbfd5. 14 names, not 15, because L04-7 made one private; each example gives the value that its comment states.
 
 ### Step 3.5: The clock layer
 
@@ -1103,27 +1104,34 @@ Each rename changes a public name. Run the tool with `--report` first, and read 
 
 ### Step 5.1: The renames, with `workspace/bin/julia-rename.jl`
 
-- [ ] **L01-14** (Low, Naming) — 🔒 `FaultBarrier.jl`, `FaultModule.jl`, `FaultCascade.jl`, `FaultStore.jl`, `FaultPolicy.jl`, `FaultInterface.jl`
+- [x] **L01-14** (Low, Naming) — 🔒 `FaultBarrier.jl`, `FaultModule.jl`, `FaultCascade.jl`, `FaultStore.jl`, `FaultPolicy.jl`, `FaultInterface.jl`
   Rename `run_fault_barrier` to `run_fault_barrier!` with workspace/bin/julia-rename.jl, then correct the prose in the docstrings, fault.md and system-anatomy.md.
   *Test:* test_fault_barrier(); test_naming(); a grep finds no `run_fault_barrier(` without `!`.
-- [ ] **L04-7** (Low, Shape) — 🔒 `CellStructPlan.jl`, `CellStructModule.jl`
+  *Done:* fc5bb7a69. projectured-julia asset/precompile/PrecompileStatements.jl keeps two `run_fault_barrier` entries: that file says "Do not edit", and replay skips a stale entry.
+- [x] **L04-7** (Low, Shape) — 🔒 `CellStructPlan.jl`, `CellStructModule.jl`
   Remove `get_cell_struct_trailing_default_count` from the export block, rename it to `_get_cell_struct_trailing_default_count` with workspace/bin/julia-rename.jl, test it through `get_cell_struct_required_count`, and remove it from the public list in cell.md.
   *Test:* test_cell_struct_plan: get_cell_struct_required_count is right for no, one and all trailing defaults; test_exports(); test_naming().
-- [ ] **L04-8** (Low, Naming) — 🔒 `CellStruct.jl`, `CellStructModule.jl`
+  *Done:* c84269d5a. Its test goes through `get_cell_struct_required_count`.
+- [x] **L04-8** (Low, Naming) — 🔒 `CellStruct.jl`, `CellStructModule.jl`
   Rename `build_cell_struct_positional_ctors` to `build_cell_struct_positional_constructors` with workspace/bin/julia-rename.jl, and make `parameters` of `build_cell_struct_keyword_constructor` a keyword.
   *Test:* test_cell_struct(); test_cell_struct_plan(); test_document_macro(); test_arguments().
-- [ ] **L10-23** (Low, Naming)
+  *Done:* 372505784.
+- [x] **L10-23** (Low, Naming)
   Rename `sync_element_limit` to `compute_sync_element_limit` with workspace/bin/julia-rename.jl, and give the private helpers `is_same_document_type`, `copy_shadow_element` and `is_walk_leaf` a leading underscore. Update the prose that names them and the protocol list in test/suite/arguments.jl.
   *Test:* test_naming(), test_arguments(), test_bounded_sync(), test_document_reflection().
-- [ ] **L11-24** (part) (Low, Naming)
+  *Done:* 708b6b50b. `copy_shadow_element` left the protocol list of test/suite/arguments.jl, because that guard skips private helpers. omnet-julia 0f4a2ee1 and inet-julia 06ead56 rename `is_walk_leaf` in their precompile asset files.
+- [x] **L11-24** (part) (Low, Naming)
   Rename `ReferenceEvalTest.jl` to `ReferenceEvaluationTest.jl` and its testset "ReferenceEval" to "ReferenceEvaluation". The name of `ref"…"` waits for its decision.
   *Test:* `test_kernel()` runs the file under its new name.
-- [ ] **L18-25** (Low, Naming)
+  *Done:* c8cc9e453.
+- [x] **L18-25** (Low, Naming)
   Rename with workspace/bin/julia-rename.jl: api_entry_bindings to get_api_entry_bindings, api_source_name to get_api_source_name, execute_julia_code to execute_julia_code!, execute_julia_expression to execute_julia_expression!. Keep the MCP tool name "execute_julia_code", a wire string.
   *Test:* test_naming(), test_code_execution() and test_declared_api(); then Pkg.precompile and the assistant tests in omnet-julia.
-- [ ] **L19-6** (Low, Naming) — after L19-3
+  *Done:* 986e50931; omnet-julia 446f8359 (7 files). Prose that names the MCP tool keeps `"execute_julia_code"`; prose that names the Julia function takes the `!`. The answer in SearchScaleCorpus.jl is `execute_julia_code!`.
+- [x] **L19-6** (Low, Naming) — after L19-3
   Rename `default_llm_model` to `get_default_llm_model` with workspace/bin/julia-rename.jl (a value at a known place takes `get_`). Then correct the prose in agent.md and llm.md.
   *Test:* test_anthropic_model() and test_ollama_backend() with the new name; the naming guard.
+  *Done:* fad43d423; omnet-julia d76c2b4c (a corpus answer).
 
 ## Phase 6 — The text
 
@@ -1187,9 +1195,10 @@ Each item corrects a fact about the code. No item changes what a rule requires.
 - [ ] **L18-29** (Low, Documentation)
   Show the api keyword in the docstring signatures of list_modules, read_module_documentation, read_type_documentation and read_function_documentation. Drop 'tips and tricks' (also in DefaultTools.jl:291). Move each comment above the function that it describes. Say in _is_interface_name that the prefix I means immutable. Name ApiEntry and observe_evaluations! in the ToolModule docstring and agent.md:30.
   *Test:* test_documentation().
-- [ ] **L19-3** (Low, Shape)
+- [x] **L19-3** (Low, Shape)
   Keep the generic and correct its docstring: it answers the model that the backend falls back to, and a backend can choose another model for an empty name (the Anthropic adapter asks the Models API first). Correct agent.md:287 to match.
   *Test:* None; the change is text only.
+  *Done:* ed36607bc (on the merged branch).
 - [ ] **L19-7** (Low, Documentation)
   List the five fragments in the LlmModule docstring (the seams in LlmInterface.jl, the fallbacks in LlmDefaults.jl). Correct agent.md:213-217 and :282 (`get_llm_backend_names` is in Llm.jl). Write ProjecturedAnthropic and ProjecturedOllama for the package `Llm`/`llm` in the three rule and design documents.
   *Test:* None; the change is text only.
@@ -1264,11 +1273,12 @@ Do each one after its decision, if it still applies.
 
 The classifiers and the implementers found faults that the audit does not hold:
 
-- [ ] **N-1** (Medium, Correctness) — omnet-julia and inet-julia
+- [x] **N-1** (Medium, Correctness) — omnet-julia and inet-julia
   `KeyDown(:enter)` names a key that no backend reports: the name of the key is `:return`. Write
   `:return` in omnet-julia `source/tool/record_precompile.jl:111` and in inet-julia
   `source/tool/repl/record/driver.jl:56`.
   *Test:* the two record scripts run, and the recorded trace holds the key.
+  *Done:* omnet-julia c66d24a6, inet-julia bed5ad6. The record scripts were not run. The two statements that name `MSelectionDocument` are removed from the omnet-julia asset files (ecfbb8a2); inet-julia has none. test_kernel 3901 and 2 broken, test_substrate 86907 and the 8 known, test_mcp_tools 158, test_assistant_mvp 127 and 4 known, test_anthropic 38 and 1 broken, test_ollama 101, test_search_scale 45.
 - [x] **N-4** (Medium, Correctness) — found in step 2.1
   `Sdl.jl` defines `map_reference_forward` and `map_reference_backward` for
   `GraphicsCanvasToImageFile` with no import, so they are new functions of ProjecturedSdl and
@@ -1433,6 +1443,7 @@ findings is already an item above, marked "(part)".
 | L23-5 | Medium | Does playback stay in the kernel with its own loop, or become a source of input around `run_editor!`, as `VideoBackend` does, and in which package? |
 | L10-13 (part) | Medium | Does PAR-NO-NESTED-CELL keep its `MethodError` for a nested cell, so that the code changes, or does the rule text say that a cell of any type passes through as the cell of the field? |
 | L10-21, L17-19, L18-23 (parts) | Low | May `DocumentMacro.jl`, `ProjectionTemplate.jl` and `Documentation.jl` split into new fragment files, and under which names (decide with L06-10)? |
+| N-7 | Low | omnet-julia example/ide/SearchUntunedCorpus.jl:76-77 asks a question whose answer is now the private `_get_cell_struct_trailing_default_count` (L04-7), which a search can never find: does the question go, or get another answer? Either changes the corpus of 60 questions. |
 | N-2 | Medium | Does the key vocabulary get `:comma`, so that Ctrl+, can fire, or does the binding take another key? |
 
 ## Not in this plan: the findings that other plans hold
