@@ -59,11 +59,13 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
 
     ReactiveCell{T}(value) where {T} =
         new{T}(value, nothing, true, nothing, nothing)
-    # With a `Computation`, `value` stays undefined, because a typed field can not
-    # hold a placeholder. `valid = false` makes `_recompute!` assign it before any
-    # read returns.
+    # With a `Computation`, `value` holds `nothing` when `T` admits it, as after
+    # `set_cell_computation!`. For another `T`, `value` stays undefined, because the
+    # field can not hold a placeholder. `valid = false` makes `_recompute!` assign
+    # it before any read returns.
     function ReactiveCell{T}(marker::Computation) where {T}
         c = new{T}()
+        nothing isa T && (c.value = nothing)
         c.computation = marker.computation
         c.valid = false
         c.dependencies = nothing
@@ -167,6 +169,7 @@ function _recompute!(c::ReactiveCell)
     end
     _detach_upstream!(c)
     stack = _get_computing_stack()
+    @count_performance :computes
     push!(stack, c)
     try
         c.value = _run_computation(c.computation)
@@ -174,7 +177,6 @@ function _recompute!(c::ReactiveCell)
         pop!(stack)
     end
     c.valid = true
-    @count_performance :computes
 end
 
 # ── invalidation ─────────────────────────────────────────────────────────────
@@ -203,13 +205,15 @@ end
     c[] = value
 
 Make `c` hold `value`, and invalidate every cell that reads `c`, and the cells
-that read those. If `c` held a computation, it holds `value` in its place.
+that read those. If `c` held a computation, it holds `value` in its place. A value
+that does not convert to the value type of `c` throws, and `c` stays as it was.
 """
-function Base.setindex!(c::ReactiveCell, value)
+function Base.setindex!(c::ReactiveCell{T}, value) where {T}
+    converted = convert(T, value)
     @count_performance :writes
     _detach_upstream!(c)
     c.computation = nothing
-    c.value = value
+    c.value = converted
     c.valid = true
     _invalidate_dependents!(c)
     return value

@@ -33,5 +33,6 @@ _reject_computation(kind) =
 
 MutableCell(::Computation)                = _reject_computation("MutableCell")
 MutableCell{T}(::Computation)   where {T} = _reject_computation("MutableCell")
+Base.setindex!(c::MutableCell, ::Computation) = _reject_computation("MutableCell")
 ImmutableCell(::Computation)              = _reject_computation("ImmutableCell")
 ImmutableCell{T}(::Computation) where {T} = _reject_computation("ImmutableCell")

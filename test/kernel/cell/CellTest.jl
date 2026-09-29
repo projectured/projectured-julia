@@ -128,6 +128,42 @@ end
     @test tc[] == 20
 end
 
+@testset "a write that does not convert leaves a typed computed cell as it was" begin
+    t = ReactiveCell{Int}(1)
+    tc = ReactiveCell{Int}(@computation t[] + 1)
+    @test tc[] == 2
+    @test_throws InexactError tc[] = 2.5
+    @test is_computed_cell(tc)
+    t[] = 5
+    @test !is_cell_up_to_date(tc)          # the cell still reads `t`
+    @test tc[] == 6
+
+    # A cell that nothing read keeps its computation too.
+    unread = ReactiveCell{Int}(@computation t[] * 3)
+    @test_throws InexactError unread[] = 2.5
+    @test is_computed_cell(unread)
+    @test unread[] == 15
+end
+
+@testset "a new computed cell holds nothing until its first read" begin
+    # The stored value is what persistence reads, so it must be defined.
+    fresh = Cell(@computation 1)
+    @test getfield(fresh, :value) === nothing
+    @test fresh[] == 1
+    wide = ReactiveCell{Union{Nothing,Int}}(@computation 2)
+    @test getfield(wide, :value) === nothing
+    @test wide[] == 2
+end
+
+@testset "a MutableCell rejects a written Computation" begin
+    m = MutableCell{Any}(0)
+    @test_throws ArgumentError m[] = @computation 1
+    @test m[] === 0
+    typed = MutableCell{Int}(0)
+    @test_throws ArgumentError typed[] = Computation(() -> 1)
+    @test typed[] === 0
+end
+
 @testset "MutableCell" begin
     m = MutableCell(1)
     @test m isa AbstractCell{Int}
