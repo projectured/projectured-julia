@@ -284,7 +284,7 @@ Three functions carry the whole selection, and all three live in `llm/LlmInterfa
 | function | what it answers |
 | --- | --- |
 | `make_llm(kind; model, api_key, context)` | build the backend registered under `kind` |
-| `default_llm_model(kind)` | the model this backend talks to when nobody names one |
+| `default_llm_model(kind)` | the model this backend falls back to; for an empty name a backend can choose another |
 | `get_llm_backend_names()` | which backends can be built right now |
 
 `make_llm` dispatches on `Val`, and each adapter package adds one method. **The

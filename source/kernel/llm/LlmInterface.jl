@@ -108,8 +108,13 @@ function make_llm end
 """
     default_llm_model(kind::Symbol) -> String
 
-The model this backend talks to when nobody names one. It belongs to the backend,
-not to a caller: a Claude model id means nothing to a local server, so a caller
-that holds one model name for every provider holds the wrong name for all but one.
+The model that the backend registered under `kind` falls back to. It belongs to the
+backend, not to a caller: a Claude model id means nothing to a local server, so a
+caller that holds one model name for every provider holds the wrong name for all but
+one.
+
+A backend can choose another model when `make_llm` gets an empty `model`. The
+Anthropic adapter first asks the Models API for the newest model, and it uses this
+model only when it has no key or when that request fails.
 """
 function default_llm_model end
