@@ -321,11 +321,10 @@ Checkpoints are created programmatically, not by hand:
   terminal after it records `Position`.
 - `strip_reference_types(path)` blanks the node types again, recovering the
   plain navigation skeleton. The two are inverses on an unchanged document.
-- `fold_reference_types(path)` converts a path that still carries transitional
-  `TypeReferenceStep` *steps* (e.g. the ones `@reference ::T` builds, or those the
-  generic `ProjectionTemplate` helpers prepend) into the folded node-type form.
-  It is applied at construction so no stored or consumed path ever holds a
-  checkpoint step.
+- `fold_reference_types(path)` folds each `TypeReferenceStep` of a path into the
+  type of the node that follows it. `@reference ::T` and the generic
+  `ProjectionTemplate` helpers write that step as a build-time token, and the fold
+  runs at construction, so no stored or consumed path holds one.
 
 ### A type in a pattern narrows the match
 
@@ -372,8 +371,8 @@ and in projected output alike:
 - **Mappers and structure-creating printers emit the folded form.** Each printer
   that builds output structure types the output path it constructs; the generic
   `ProjectionTemplate` helpers (`_typed`, `_path`, `_prepend`) fold the type
-  checkpoints they assemble. Consumers read `head`/`tail` directly — no path
-  they see carries an interleaved checkpoint step.
+  checkpoints they assemble. Consumers read `head`/`tail` directly: no path they
+  see holds a `TypeReferenceStep`, and no function of the layer steps over one.
 
 The replay/validation primitives still apply when you hold a reference across an
 edit:
@@ -568,7 +567,7 @@ for the result expression:
     items[i]            => ("item at", i)         # element access (1-based)
     items[1]            => "first item"           # literal element
     when(items[i], i>0) => ("later item", i)      # guarded pattern
-    _                   => "default"              # wildcard
+    __                  => "default"              # any path
 end
 ```
 

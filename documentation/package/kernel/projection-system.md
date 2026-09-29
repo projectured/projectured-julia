@@ -597,14 +597,14 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     sel = Cell(@computation(begin
         path = node.selection
         @reference_case path begin
-            children[i] + rest => begin
+            children[i].rest... => begin
                 iomaps = child_iomaps[]
                 i > length(iomaps) && return nothing
                 child_sel = iomaps[i].output.selection
                 child_sel === nothing && return nothing
                 ConcreteReference(ElementReferenceStep(Cell(i)), child_sel)
             end
-            _ => nothing
+            __ => nothing
         end
     end))
 
@@ -616,7 +616,7 @@ end
 
 function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children[i] + rest => begin
+        children[i].rest... => begin
             iomaps = iomap.child_iomaps[]
             i > length(iomaps) && return nothing
             child_iomap = iomaps[i]
@@ -629,7 +629,7 @@ end
 
 function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        [i] + rest => begin
+        [i].rest... => begin
             iomaps = iomap.child_iomaps[]
             i > length(iomaps) && return nothing
             child_iomap = iomaps[i]
