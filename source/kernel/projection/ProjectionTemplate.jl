@@ -114,7 +114,9 @@ end
 # a fixed list, each wired individually rather than a homogeneous collection.
 # Such a node is produced by a `collection(:f) do x … end` element builder, walked
 # per element, and delegated to by the enclosing collection mapper.
-struct KeySlot;     in_field::Symbol; in_type::Any; checkpoint::Any; end  # child is a leaf: whole↔child, char↔child.value
+# A child that is a leaf: whole key ↔ whole child, char of `in_field` ↔ char of the
+# leaf's `value_field`.
+struct KeySlot;     in_field::Symbol; value_field::Symbol; in_type::Any; checkpoint::Any; end
 struct ProjectSlot; in_field::Symbol; end                                 # child delegated (iomap in the store)
 struct IntroSlot end                                                      # introduced child (keyword/delimiter)
 # A child that is itself a marker-bearing output node (a header/bracket grouping
@@ -161,6 +163,7 @@ struct InlineWiring
     children_field::Symbol
     bound_index::Int                     # 1-based index of the bound token leaf
     bound_field::Symbol                  # input field it edits
+    value_field::Symbol                  # field of the token leaf that holds the value
     bound_type::Any
     value_checkpoint::Any
 end
@@ -352,15 +355,15 @@ function _find_sections(out)
 end
 
 # Selection cell for a bound child leaf of a fixed node: lens `doc.<in_field>{k}`
-# onto the leaf's own `.value{k}` span (the only shape `_leaf_cursor` understands);
-# pass a proj-wrapped structural cursor through unchanged.
-function _key_leaf_sel(doc, in_field::Symbol)
+# onto the leaf's own `.<value_field>{k}` span; pass a proj-wrapped structural cursor
+# through unchanged.
+function _key_leaf_sel(doc, in_field::Symbol, value_field::Symbol)
     fname = String(in_field)
     Cell(@computation(map_selection_forward(doc, sel -> begin
         is_introduced_reference(sel) && return sel
         core = sel
         if core isa ConcreteReference && core.head isa FieldReferenceStep && core.head.name == fname
-            return ConcreteReference(FieldReferenceStep("value"), core.tail)
+            return ConcreteReference(FieldReferenceStep(String(value_field)), core.tail)
         end
         return nothing
     end)))
@@ -401,12 +404,10 @@ function _atomic_print(p, doc, out)
     #   opaque (no bound field) ⇒ forward-map (∅↔∅, else unmapped). The generic
     #                             mapper tolerates the `nothing` iomap (a ∅ stays
     #                             untyped, an unmapped path returns as-is).
-    #   bound on :value         ⇒ share doc's cell raw — the leaf's value span is
-    #                             literally `.value`, so the input cursor already
-    #                             reads as a leaf cursor (leaf fast path).
-    #   bound on another field  ⇒ value-lens: forward-map `.field{k}` to the leaf's
-    #                             `.value{k}` so the render stage's leaf-cursor logic
-    #                             (which only knows `.value`/`.open`/`.close`) renders it.
+    #   output field named as   ⇒ share doc's cell raw — the input cursor `.field{k}`
+    #   the input field           already names the leaf's value span (leaf fast path).
+    #   another output field    ⇒ value-lens: forward-map `.field{k}` to the leaf's
+    #                             `.<value_field>{k}`.
     iomap_cell = Cell(nothing)
     # `map_selection_forward`, not a plain read of `doc.selection`: the property
     # answers `nothing` for a dormant selection, so a plain read would drop the
@@ -418,7 +419,7 @@ function _atomic_print(p, doc, out)
     sel = wiring.bound_field === nothing ?
               Cell(@computation(map_selection_forward(doc, path -> map_reference_forward(p, nothing, path);
                                                       map_missing = true))) :
-          wiring.bound_field === :value  ? getfield(doc, :selection) :
+          wiring.value_field === wiring.bound_field ? getfield(doc, :selection) :
                                            Cell(@computation begin
                                                im = iomap_cell[]
                                                im === nothing && return nothing
@@ -532,11 +533,11 @@ function _walk_markers(p, recursion, doc, ctx, markers)
                 push!(slots, IntroSlot())
             else
                 # A bound child leaf renders its own cursor from its own selection
-                # cell, which `_leaf_cursor` reads as `.value{k}`. Lens the element's
-                # `.<bound_field>{k}` onto the leaf's `.value{k}` generically, so the
-                # builder needn't hand-wire it.
-                child = _with_selection(child, _key_leaf_sel(doc, w.bound_field))
-                push!(slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
+                # cell. Lens the element's `.<bound_field>{k}` onto the leaf's
+                # `.<value_field>{k}` generically, so the builder needn't hand-wire it.
+                child = _with_selection(child, _key_leaf_sel(doc, w.bound_field, w.value_field))
+                push!(slots, KeySlot(w.bound_field, w.value_field, w.bound_type,
+                                     w.value_checkpoint))
             end
             push!(output_cells, Cell(child))
         end
@@ -617,8 +618,9 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
             if w.bound_field === nothing
                 push!(prefix_slots, IntroSlot())
             else
-                child = _with_selection(child, _key_leaf_sel(doc, w.bound_field))
-                push!(prefix_slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
+                child = _with_selection(child, _key_leaf_sel(doc, w.bound_field, w.value_field))
+                push!(prefix_slots, KeySlot(w.bound_field, w.value_field, w.bound_type,
+                                            w.value_checkpoint))
             end
             push!(prefix_sources, child)
         end
@@ -648,13 +650,14 @@ end
 # trip via the consumer's flat-offset reader.
 function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
     sample = thunk()
-    bound_index = 0; bound_field = :_; bound_type = nothing; value_checkpoint = nothing
+    bound_index = 0; bound_field = :_; value_field = :_
+    bound_type = nothing; value_checkpoint = nothing
     for (i, leaf) in enumerate(sample)
         for fname in fieldnames(typeof(leaf))
             v = getfield(leaf, fname)[]
             if v isa Bound
-                bound_index = i; bound_field = v.input; bound_type = v.type
-                value_checkpoint = typeof(v.render)
+                bound_index = i; bound_field = v.input; value_field = fname
+                bound_type = v.type; value_checkpoint = typeof(v.render)
                 break
             end
         end
@@ -668,7 +671,7 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
                 v = getfield(leaf, fname)[]
                 if v isa Bound
                     setproperty!(leaf, fname, v.render)
-                    leaf = _with_selection(leaf, _key_leaf_sel(doc, v.input))
+                    leaf = _with_selection(leaf, _key_leaf_sel(doc, v.input, fname))
                     break
                 end
             end
@@ -682,7 +685,7 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
         map_selection_forward(doc, path -> map_reference_forward(p, im, path))
     end))
     wiring = InlineWiring(_dtype(doc), _dtype(out), children_field, bound_index,
-                          bound_field, bound_type, value_checkpoint)
+                          bound_field, value_field, bound_type, value_checkpoint)
     iomap = RuleIoMap(p, doc, out, wiring, nothing)
     iomap_cell[] = iomap
     return iomap
@@ -877,7 +880,7 @@ end
 # References here are relative to the element (input = the entry, output = the pair
 # node). The enclosing collection mapper prepends `.children[i]`. A KeySlot's child
 # is a leaf whose value carries the bound field: a whole-key reference maps to the
-# whole child leaf, a char reference to `.children[k].value`. A ProjectSlot's child
+# whole child leaf, a char reference to `.children[k].<value_field>`. A ProjectSlot's child
 # is delegated through the per-slot stored iomap.
 
 # Shared slot-vector mappers. `project_child(fname)` returns the current child iomap
@@ -895,7 +898,7 @@ function _slots_forward(slots, project_child, children_field, outtype, reference
                 inner isa EmptyReference &&
                     return _path(FieldReferenceStep(String(children_field)), ElementReferenceStep(k))
                 return _prepend(inner, FieldReferenceStep(String(children_field)),
-                                ElementReferenceStep(k), FieldReferenceStep("value"))
+                                ElementReferenceStep(k), FieldReferenceStep(String(slot.value_field)))
             elseif slot isa ProjectSlot && slot.in_field === fname
                 child = project_child(fname)
                 inner = map_reference_forward(child.projection, child, core.tail)
@@ -928,8 +931,9 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 leaf_path isa EmptyReference &&
                     return _path(FieldReferenceStep(String(slot.in_field)))     # whole key leaf ⇒ .key
                 lp = leaf_path
-                if lp isa ConcreteReference && lp.head isa FieldReferenceStep && lp.head.name == "value"
-                    return _prepend(lp.tail, FieldReferenceStep(String(slot.in_field)))   # .value char ⇒ .key char
+                if lp isa ConcreteReference && lp.head isa FieldReferenceStep &&
+                   lp.head.name == String(slot.value_field)
+                    return _prepend(lp.tail, FieldReferenceStep(String(slot.in_field)))   # leaf char ⇒ .key char
                 end
                 return nothing
             elseif slot isa ProjectSlot
@@ -979,7 +983,7 @@ _conditional_backward(p, w, iomap, reference) =
 #
 # Combines the fixed-children KeySlot/ProjectSlot handling (prefix children) with
 # the node collection delegation (trailing children), offset by the prefix length.
-# `.prefix_field{k}` ↔ `.children[slot].value{k}`; `.coll_field[i].tail` ↔
+# `.prefix_field{k}` ↔ `.children[slot].<value_field>{k}`; `.coll_field[i].tail` ↔
 # `.children[prefix_len+i].tail` (delegated). Paths are plain (checkpoint-free),
 # matching the surrounding node mappers.
 
@@ -997,7 +1001,8 @@ function _mixed_forward(p, w, iomap, reference)
             inner = core.tail
             inner isa EmptyReference &&
                 return _path(FieldReferenceStep(String(w.children_field)), ElementReferenceStep(k))
-            return _prepend(inner, FieldReferenceStep(String(w.children_field)), ElementReferenceStep(k), FieldReferenceStep("value"))
+            return _prepend(inner, FieldReferenceStep(String(w.children_field)), ElementReferenceStep(k),
+                            FieldReferenceStep(String(slot.value_field)))
         elseif slot isa ProjectSlot && slot.in_field === fname
             child = iomap.child_iomaps.prefix[fname][]
             inner = map_reference_forward(child.projection, child, core.tail)
@@ -1039,7 +1044,8 @@ function _mixed_backward(p, w, iomap, reference)
             leaf_path isa EmptyReference &&
                 return _path(FieldReferenceStep(String(slot.in_field)))
             lp = leaf_path
-            if lp isa ConcreteReference && lp.head isa FieldReferenceStep && lp.head.name == "value"
+            if lp isa ConcreteReference && lp.head isa FieldReferenceStep &&
+               lp.head.name == String(slot.value_field)
                 return _prepend(lp.tail, FieldReferenceStep(String(slot.in_field)))
             end
             return nothing
@@ -1065,7 +1071,7 @@ end
 # ── inline node (computed token leaves; one bound token, rest decorative) ───────
 #
 # Only the bound token is addressable: `.bound_field{k} ↔ .children[bound_index].
-# value{k}`, whole `.bound_field ↔ .children[bound_index]`. Decorative tokens have
+# <value_field>{k}`, whole `.bound_field ↔ .children[bound_index]`. Decorative tokens have
 # no input pre-image, so a cursor on one is left to the consumer's flat-offset
 # reader (returns nothing here).
 
@@ -1080,7 +1086,8 @@ function _inline_forward(p, w, reference)
         inner = core.tail
         inner isa EmptyReference &&
             return _path(FieldReferenceStep(String(w.children_field)), ElementReferenceStep(w.bound_index))
-        return _prepend(inner, FieldReferenceStep(String(w.children_field)), ElementReferenceStep(w.bound_index), FieldReferenceStep("value"))
+        return _prepend(inner, FieldReferenceStep(String(w.children_field)),
+                        ElementReferenceStep(w.bound_index), FieldReferenceStep(String(w.value_field)))
     end
     return nothing
 end
@@ -1098,7 +1105,8 @@ function _inline_backward(p, w, reference)
     leaf_path isa EmptyReference &&
         return _path(FieldReferenceStep(String(w.bound_field)))
     lp = leaf_path
-    if lp isa ConcreteReference && lp.head isa FieldReferenceStep && lp.head.name == "value"
+    if lp isa ConcreteReference && lp.head isa FieldReferenceStep &&
+       lp.head.name == String(w.value_field)
         return _prepend(lp.tail, FieldReferenceStep(String(w.bound_field)))
     end
     return nothing

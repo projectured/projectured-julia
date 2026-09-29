@@ -297,3 +297,56 @@ function test_projection_template_reconciled_children()
         @test occursin("r3", render(iomap.output))
     end
 end
+
+# A template leaf whose bound value is in a field that is not named `value`: the
+# output leaf holds its text in `label`.
+module _ValueFieldProbe
+    import ProjecturedKernel.DocumentModule: Document, var"@document"
+    import ProjecturedKernel.CellModule: Cell, Computation
+    import ProjecturedKernel.ReferenceModule: Reference
+    import ProjecturedKernel.ProjectionModule: Projection, print_document
+    import ProjecturedKernel.ProjectionModule: var"@projection"
+    import ProjecturedKernel.ProjectionModule: var"@projection_template"
+    import ProjecturedSyntax.SyntaxModule: SyntaxNode
+    import ProjecturedText.TextModule: TextString
+    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedStyle.StyleModule: color_default
+
+    @document struct Named <: Document
+        x::String
+    end
+    Named(x::AbstractString) = Named(Cell(String(x)), Cell(nothing))
+
+    @document struct Badge <: Document
+        label::Any
+    end
+
+    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+
+    @projection struct NamedToNode <: Projection end
+    @projection_template NamedToNode Named (p, doc) ->
+        SyntaxNode(nothing, nothing, nothing,
+                   Any[ Badge(bound(:x, String, _text(() -> doc.x)), nothing) ],
+                   0, false, nothing)
+end
+
+function test_projection_template_value_field()
+    @testset "ProjectionTemplate maps a bound leaf through the field that holds it" begin
+        P = _ValueFieldProbe
+        projection = RecursiveProjection(TypeDispatchingProjection(P.Named => P.NamedToNode()))
+        named = P.Named("hello")
+        iomap = print_document(projection, named)
+        caret = @reference(named, x{1})
+        shown = map_reference_forward(iomap.projection, iomap, caret)
+        @test strip_reference_types(shown) ==
+              Reference(FieldReferenceStep("children"), ElementReferenceStep(1),
+                        FieldReferenceStep("label"), PositionReferenceStep(1))
+        back = map_reference_backward(iomap.projection, iomap, shown)
+        @test strip_reference_types(back) == strip_reference_types(caret)
+        # The leaf shows the caret of its input in the same field.
+        set_selection!(named, caret)
+        badge = iomap.output.children[1]
+        @test strip_reference_types(get_stored_selection(badge)) ==
+              Reference(FieldReferenceStep("label"), PositionReferenceStep(1))
+    end
+end
