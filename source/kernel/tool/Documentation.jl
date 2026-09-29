@@ -31,10 +31,15 @@ read only the first has been handed a library about the wrong subject.
 """
 function register_guide_root!(directory::AbstractString; prefix::AbstractString = "")
     entry = (String(directory), String(prefix))
-    entry in _EXTRA_GUIDE_ROOTS && return nothing
-    push!(_EXTRA_GUIDE_ROOTS, entry)
-    # The index is built once and cached; a root added after that must be seen.
-    _GUIDE_INDEX[] = nothing
+    # The meaning vectors build the guide index on a task of their own, under this
+    # lock. A root added during that build waits for its end, so the reset below
+    # comes after the build and the next read sees the new root.
+    lock(_INDEX_LOCK) do
+        entry in _EXTRA_GUIDE_ROOTS && return
+        push!(_EXTRA_GUIDE_ROOTS, entry)
+        # The index is built once and cached; a root added after that must be seen.
+        _GUIDE_INDEX[] = nothing
+    end
     nothing
 end
 
@@ -67,8 +72,10 @@ keeps bare names (`concepts`, `getting-started`, …); each slice's folder under
 `documentation/package/` is namespaced by slice (`kernel/reference`,
 `widget/widget`, …) so two slices may both have a guide of one name.
 
-The bare walk skips `documentation/package/`, which its own roots cover. Without
-that, every slice guide would be listed twice under two names.
+The bare walk skips the folders under `documentation/package/`, which their own
+roots cover. Without that, every slice guide would be listed twice under two
+names. A file that sits directly in `documentation/package/` is in no slice, so
+the bare walk names it `package/<name>`.
 """
 function _guide_roots()
     documentation = _get_documentation_directory()
@@ -91,13 +98,15 @@ Every guide as `(guide_name, filepath)`, across every root in `_guide_roots()`.
 """
 function _all_guides()
     guides = Tuple{String,String}[]
+    slices = joinpath("documentation", "package", "")
     for (root, prefix) in _guide_roots()
         isdir(root) || continue
         for (dir, _, files) in walkdir(root)
-            # The per-slice roots below cover documentation/package/, and they
-            # give a guide the namespaced name every citation uses. Walking it
-            # here as well would list each of those guides twice.
-            (prefix == "" && occursin(joinpath("documentation", "package"), dir)) && continue
+            # The per-slice roots below cover the folders of documentation/package/,
+            # and they give a guide the namespaced name every citation uses. Walking
+            # them here as well would list each of those guides twice. The files
+            # directly in documentation/package/ are walked here, as package/<name>.
+            (prefix == "" && occursin(slices, dir)) && continue
             for file in sort(files)
                 endswith(file, ".md") || continue
                 filepath = joinpath(dir, file)
@@ -660,8 +669,12 @@ function _index_guide_sections()
         content = read(filepath, String)
         heading = ""
         buf = String[]
+        # A line that starts with `#` inside a code fence is a line of the code,
+        # and no heading.
+        fenced = false
         for line in split(content, '\n')
-            if startswith(strip(line), "#")
+            startswith(strip(line), "```") && (fenced = !fenced)
+            if !fenced && startswith(strip(line), "#")
                 body = strip(join(buf, "\n"))
                 (isempty(body) && isempty(heading)) ||
                     push!(sections, _GuideSection(guide_name, heading, body))
