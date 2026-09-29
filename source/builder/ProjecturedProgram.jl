@@ -213,7 +213,7 @@ end
     build_projectured_package_release!(output; context, kwargs...) -> Vector
 
 Write the release copy of the packages of this repository into `output`, the
-working tree of the release repository. The packages are served by `registry`,
+folder that holds the repository of each package, `<Name>.jl`. The packages are served by `registry`,
 the General registry, and every version of the last release must be in it. The
 other keywords go to [`build_package_release!`](@ref).
 """
@@ -224,8 +224,21 @@ function build_projectured_package_release!(output::AbstractString;
     build_package_release!(context; packages = collect_projectured_release_packages(context),
                            output = output, assets = PROJECTURED_PACKAGE_ASSETS,
                            licences = PROJECTURED_LICENCES,
+                           readme = _format_projectured_package_readme,
                            julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry, kwargs...)
 end
+
+# The README of the repository of one released package, which is also its page
+# on GitHub.
+_format_projectured_package_readme(name) = """
+    # $name
+
+    A package of [ProjecturEd](https://github.com/projectured/projectured-julia), a
+    projectional editor. The release of ProjecturEd writes this repository: the
+    source of `$name` is `package/$name` there, and a change belongs there.
+
+    The licence files are beside this file.
+    """
 
 const _CHECK_WEB = "http://127.0.0.1:8080"
 const _CHECK_MCP = "http://127.0.0.1:9876/mcp"

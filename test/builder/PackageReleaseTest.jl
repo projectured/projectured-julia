@@ -113,10 +113,12 @@ function test_package_release()
         release(; into = output) =
             build_package_release!(context; packages = ["FakeTop", "FakeBase"], output = into,
                                    assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
-                                   licences = ["LICENCE-PD"], manifest)
-        read_project(name) = ProjecturedBuilder.TOML.parsefile(joinpath(output, name, "Project.toml"))
+                                   licences = ["LICENCE-PD"], readme = name -> "# $name\n", manifest)
+        read_project(name) = ProjecturedBuilder.TOML.parsefile(joinpath(output, "$name.jl", "Project.toml"))
+        commit(repository) = run(`git -C $repository -c user.name=test
+                                  -c user.email=test@example.org commit -q -m release`)
 
-        @testset "the first release copies every package into a folder of its own" begin
+        @testset "the first release copies every package into a repository of its own" begin
             results = release()
             @test [result.name for result in results] == ["FakeBase", "FakeTop"]
             @test all(result -> result.status === :new && result.version == v"0.1.0", results)
@@ -126,13 +128,17 @@ function test_package_release()
             # `[compat]` entry can not name; no bound on a standard library.
             @test top["compat"] == Dict("FakeBase" => "0.1.0", "Registered" => "1.2.3",
                                         "julia" => "1.11")
+            # `<Name>.jl` with the package at its root: the name that a
+            # registry expects of the repository of a package.
+            @test sort(readdir(output)) == ["FakeBase.jl", "FakeTop.jl"]
             @test occursin("include(\"../source/faketop/FakeTopCode.jl\")",
-                           read(joinpath(output, "FakeTop", "src", "FakeTop.jl"), String))
-            @test isfile(joinpath(output, "FakeTop", "source", "faketop", "FakeTopCode.jl"))
-            @test isfile(joinpath(output, "FakeBase", "asset", "thing", "data.txt"))
-            @test !isdir(joinpath(output, "FakeTop", "asset"))
-            for folder in (joinpath(output, "FakeBase"), joinpath(output, "FakeTop"), output)
-                @test read(joinpath(folder, "LICENCE-PD"), String) == "the licence\n"
+                           read(joinpath(output, "FakeTop.jl", "src", "FakeTop.jl"), String))
+            @test isfile(joinpath(output, "FakeTop.jl", "source", "faketop", "FakeTopCode.jl"))
+            @test isfile(joinpath(output, "FakeBase.jl", "asset", "thing", "data.txt"))
+            @test !isdir(joinpath(output, "FakeTop.jl", "asset"))
+            for name in ("FakeBase", "FakeTop")
+                @test read(joinpath(output, "$name.jl", "LICENCE-PD"), String) == "the licence\n"
+                @test read(joinpath(output, "$name.jl", "README.md"), String) == "# $name\n"
             end
         end
 
@@ -217,14 +223,28 @@ function test_package_release()
             @test occursin("FakeBase reads outside its folder", message)
         end
 
-        @testset "a release copy with uncommitted changes is refused" begin
-            committed = joinpath(mktempdir(), "Release.jl")
+        @testset "a release keeps the git history of each repository, and refuses a change that is not committed" begin
+            committed = joinpath(mktempdir(), "Release")
             release(; into = committed)
-            run(`git -C $committed init -q`)
-            run(`git -C $committed add -A`)
-            run(`git -C $committed -c user.name=test -c user.email=test@example.org commit -q -m release`)
+            for name in ("FakeBase", "FakeTop")
+                repository = joinpath(committed, "$name.jl")
+                run(`git -C $repository init -q`)
+                run(`git -C $repository add -A`)
+                commit(repository)
+            end
             @test all(result -> result.status === :unchanged, release(; into = committed))
-            write(joinpath(committed, "FakeTop", "src", "FakeTop.jl"), "module FakeTop end\n")
+
+            # A change replaces the files of the repository and keeps its `.git`,
+            # so git shows what the release changed.
+            write(joinpath(root, "source", "faketop", "FakeTopCode.jl"), "top() = 4\n")
+            results = Dict(result.name => result for result in release(; into = committed))
+            @test results["FakeTop"].status === :changed
+            changes = read(`git -C $(joinpath(committed, "FakeTop.jl")) status --porcelain`, String)
+            @test occursin("source/faketop/FakeTopCode.jl", changes)
+            @test occursin("Project.toml", changes)
+            @test isempty(read(`git -C $(joinpath(committed, "FakeBase.jl")) status --porcelain`, String))
+
+            # Until that change is committed, the next release is refused.
             @test occursin("changes that are not committed",
                            _read_release_error(() -> release(; into = committed)))
         end
@@ -235,7 +255,7 @@ function test_package_release()
             release(; into = first_release)
             again(registry) = build_package_release!(context; packages = ["FakeTop", "FakeBase"],
                 output = first_release, assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
-                licences = ["LICENCE-PD"], manifest, registry)
+                licences = ["LICENCE-PD"], readme = name -> "# $name\n", manifest, registry)
             partial = _write_release_fixture_registry(mktempdir(), ["FakeBase" => ["0.1.0"]])
             message = _read_release_error(() -> again(partial))
             @test occursin("Register them first", message)

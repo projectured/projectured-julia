@@ -143,42 +143,44 @@ target machine still needs.
 
 ## Release the packages
 
-The packages reach a Julia programmer through the General registry, which
-serves a release copy in `projectured/Projectured.jl`. In the copy each package
-folder holds everything it reads, because Pkg installs only the folder of a
-package. [builder.md](../package/builder/builder.md) says how the copy is made.
+The packages reach a Julia programmer through the General registry. Each one
+has a release repository of its own, `projectured/<Name>.jl`, with the package
+at its root, because General expects that name. In it the package holds
+everything it reads, because Pkg installs only the package.
+[builder.md](../package/builder/builder.md) says how the copy is made.
 
-**Warning: do not rewrite the history of the release repository.** The
-registry names each version by the git tree of its folder, and Pkg must find
-that tree in the repository for as long as the version exists.
+**Warning: do not rewrite the history of a release repository.** The registry
+names each version by the git tree of the repository, and Pkg must find that
+tree for as long as the version exists.
 
-1. Clone the release repository beside this checkout. Make sure that it has no
-   uncommitted change; the build refuses one.
-2. Write the release copy into it:
+1. Keep one folder beside this checkout that holds a clone of each release
+   repository, `<Name>.jl`. Make sure that none has an uncommitted change; the
+   build refuses one.
+2. Write the release into it:
 
    ```julia
    using ProjecturedBuilder                    # julia --project=environment/build
-   results = build_projectured_package_release!("../Projectured.jl")
+   results = build_projectured_package_release!("../release")
    ```
 
    The build stops when a version of the last release is not in General yet:
    General refuses a version that skips the one before it. A package whose
-   content did not change keeps its folder and its version. A changed package
-   gets the next patch version. `results` lists each package with its status
-   and its version, dependencies first.
-3. Commit the release repository, tag the commit, and push it.
-4. Register each package of `results` that is new or changed, in that order,
-   with a comment on the release commit:
+   content did not change keeps its repository as it is. A changed package gets
+   the next patch version. A new package gets a folder, which needs `git init`
+   and a repository `projectured/<Name>.jl` on GitHub. `results` lists each
+   package with its status and its version, dependencies first.
+3. In each repository of a new or changed package: commit, and push.
+4. Register them in the order of `results`, with a comment on the commit in
+   each repository:
 
    ```
-   @JuliaRegistrator register subdir=ProjecturedKernel
+   @JuliaRegistrator register
    ```
 
    A package goes into General only after the packages it depends on, because
    General installs each new version to test it. A new version of a package
-   that General already holds merges after 15 minutes. The first version of a
-   new package waits 3 days, and, except for `Projectured`, needs a maintainer,
-   because its repository is not called `<Name>.jl`.
+   that General already holds merges after 15 minutes; the first version of a
+   new package waits 3 days.
 
 ## Add a binary
 ## Add a binary

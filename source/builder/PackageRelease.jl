@@ -9,15 +9,17 @@
 # slice, the folders it reads while it runs, and the licence files. The
 # repository keeps its own layout.
 #
-# One release copy lives in a git repository, and a registry names each package
-# of it by the tree of its folder. A package whose content did not change keeps
-# its folder byte for byte, so it keeps its tree and gets no new version.
+# Each package of the release copy lives in a git repository of its own,
+# `<Name>.jl`, with the package at its root: that is the name a registry
+# expects, and it names each version by the tree of that repository. A package
+# whose content did not change keeps its repository as it is, so it keeps its
+# tree and gets no new version.
 
 """
-    build_package_release!(context; packages, output, assets, licences,
+    build_package_release!(context; packages, output, assets, licences, readme,
                            manifest, julia_compat, registry) -> Vector
 
-Write the release copy of `packages` into `output`, one folder per package, and
+Write the release copy of `packages` into `output`, one repository per package, and
 answer one `(name, status, version)` for each package, dependencies first. That
 is the order in which a registry must take them. `status` is `:new`,
 `:changed` or `:unchanged`.
@@ -25,14 +27,16 @@ is the order in which a registry must take them. `status` is `:new`,
 - `packages` — the names of the packages to release. Every package of
   `context` that one of them depends on must be among them, or the copy could
   not resolve; a missing one stops the build.
-- `output` — the working tree of the release repository. A package folder that
-  is already there is the last release of that package. When `output` is a git
-  repository, it must have no uncommitted change: the last release is what its
-  last commit holds.
+- `output` — the folder that holds the working tree of the repository of each
+  package, `<output>/<Name>.jl`, with the package at its root. A repository that
+  is already there holds the last release of its package, and one that is a git
+  repository must have no uncommitted change: the last release is what its last
+  commit holds. The build changes every file of a repository but `.git`.
 - `assets` — `"<package>" => ["<folder of the repository>" => "<folder in the package>", …]`,
   the folders that a package reads while it runs.
-- `licences` — files of `context.root` that go into every package folder and
-  into `output` itself.
+- `licences` — files of `context.root` that go into every package.
+- `readme` — `nothing`, or a function `readme(name)` whose text goes into the
+  `README.md` of each package.
 - `manifest` — the manifest whose versions give the `[compat]` bounds of the
   packages from other registries.
 - `julia_compat` — the `[compat]` bound of Julia, for a package that names none.
@@ -50,8 +54,9 @@ ignores, such as a coverage file, never reaches a user.
 `Project.toml`. A package whose content changed gets the next patch version of
 its released one, and caret bounds on its sibling packages from their versions
 in this release. A package whose content did not change keeps its released
-folder as it is, `[compat]` included. The content is every file of the folder,
-and the `Project.toml` without `version`, `[compat]` and `[sources]`.
+repository as it is, `[compat]` included. The content is every file of the
+repository but `.git`, and the `Project.toml` without `version`, `[compat]` and
+`[sources]`.
 
 **The check.** Every path that a package reads, in the forms that
 [`collect_outside_paths`](@ref) follows, must stay inside its package folder,
@@ -63,6 +68,7 @@ function build_package_release!(context::BuildContext; packages,
                                   output::AbstractString,
                                   assets = Dict{String,Vector{Pair{String,String}}}(),
                                   licences = String[],
+                                  readme = nothing,
                                   manifest::AbstractString = joinpath(context.root, "environment",
                                                                       "all", "Manifest.toml"),
                                   julia_compat::AbstractString = "1.11",
@@ -81,7 +87,7 @@ function build_package_release!(context::BuildContext; packages,
     registered = _read_registered_versions(manifest)
     output = abspath(String(output))
     mkpath(output)
-    _check_release_is_committed(output)
+    foreach(name -> _check_release_is_committed(_get_release_repository(output, name)), names)
     registry === nothing || _check_release_is_registered(output, names, registry)
     order = _compute_dependency_order(projects)
     staging = mktempdir(get_staging_root())
@@ -91,6 +97,7 @@ function build_package_release!(context::BuildContext; packages,
             staged = joinpath(staging, name)
             _write_package_content(context, name, staged;
                                    assets = get(assets, name, Pair{String,String}[]), licences)
+            readme === nothing || write(joinpath(staged, "README.md"), readme(name))
             outside = collect_outside_paths(staged)
             isempty(outside) ||
                 error("build_package_release!: $name reads outside its folder, which an installed " *
@@ -100,7 +107,7 @@ function build_package_release!(context::BuildContext; packages,
         end
         versions = Dict{String,VersionNumber}()
         for name in order
-            staged, released = joinpath(staging, name), joinpath(output, name)
+            staged, released = joinpath(staging, name), _get_release_repository(output, name)
             status, version = _compute_release_version(staged, released, projects[name])
             versions[name] = version
             status === :unchanged ||
@@ -109,16 +116,12 @@ function build_package_release!(context::BuildContext; packages,
             push!(results, (name = name, status = status, version = version))
         end
         for result in results
-            result.status === :unchanged && continue
-            released = joinpath(output, result.name)
-            rm(released; recursive = true, force = true)
-            cp(joinpath(staging, result.name), released)
+            result.status === :unchanged ||
+                _replace_release_content!(_get_release_repository(output, result.name),
+                                          joinpath(staging, result.name))
         end
     finally
         rm(staging; recursive = true, force = true)
-    end
-    for licence in licences
-        cp(joinpath(context.root, licence), joinpath(output, basename(licence)); force = true)
     end
     counts = Dict(status => count(result -> result.status === status, results)
                   for status in (:new, :changed, :unchanged))
@@ -238,25 +241,41 @@ function _check_release_is_closed(context::BuildContext, projects)
               "leaves out:\n  " * join(sort!(missing_packages), "\n  "))
 end
 
+# The repository of one package: `<Name>.jl`, the name that a registry expects.
+_get_release_repository(output, name) = joinpath(output, name * ".jl")
+
 # A release repository with an uncommitted change holds a release that no commit
-# records, so a registry could never name its trees.
-function _check_release_is_committed(output)
-    isdir(joinpath(output, ".git")) || return nothing
-    changes = read(`git -C $output status --porcelain`, String)
+# records, so a registry could never name its tree.
+function _check_release_is_committed(repository)
+    isdir(joinpath(repository, ".git")) || return nothing
+    changes = read(`git -C $repository status --porcelain`, String)
     isempty(changes) ||
-        error("build_package_release!: $output has changes that are not committed. Commit " *
-              "them, and register the versions they hold, before the next release:\n" * changes)
+        error("build_package_release!: $repository has changes that are not committed. " *
+              "Commit them, and register the version they hold, before the next release:\n" *
+              changes)
     nothing
+end
+
+# Every file of `repository` but its `.git` becomes what `staged` holds.
+function _replace_release_content!(repository, staged)
+    mkpath(repository)
+    for entry in readdir(repository)
+        entry == ".git" || rm(joinpath(repository, entry); recursive = true)
+    end
+    for entry in readdir(staged)
+        cp(joinpath(staged, entry), joinpath(repository, entry))
+    end
 end
 
 # Every package that the last release holds has its version in `registry`.
 function _check_release_is_registered(output, names, registry::AbstractString)
-    released = filter(name -> isfile(joinpath(output, name, "Project.toml")), names)
+    released = filter(name -> isfile(joinpath(_get_release_repository(output, name), "Project.toml")),
+                      names)
     isempty(released) && return nothing
     instance = _find_registry(registry)
     missing_versions = String[]
     for name in released
-        project = TOML.parsefile(joinpath(output, name, "Project.toml"))
+        project = TOML.parsefile(joinpath(_get_release_repository(output, name), "Project.toml"))
         entry = get(instance.pkgs, Base.UUID(project["uuid"]), nothing)
         version = VersionNumber(project["version"])
         (entry !== nothing && version in _collect_registered_versions(instance, entry)) ||
@@ -355,14 +374,16 @@ function _write_package_content(context::BuildContext, name, destination; assets
     cp(joinpath(context.root, package, "Project.toml"), joinpath(destination, "Project.toml"))
 end
 
-# A digest of what a user of the package gets: every file, each with its length,
-# and the `Project.toml` without `version`, `[compat]` and `[sources]`.
+# A digest of what a user of the package gets: every file but those of `.git`,
+# each with its length, and the `Project.toml` without `version`, `[compat]` and
+# `[sources]`.
 function _compute_content_digest(folder, project)
     content = IOBuffer()
     for (directory, _, files) in walkdir(folder), file in sort(files)
         path = joinpath(directory, file)
         relative = relpath(path, folder)
-        relative == "Project.toml" && continue
+        (relative == "Project.toml" || startswith(relative, ".git" * Base.Filesystem.path_separator)) &&
+            continue
         bytes = read(path)
         write(content, relative, "\n", string(length(bytes)), "\n", bytes)
     end
