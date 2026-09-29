@@ -24,9 +24,9 @@ The screen is data like any other document. To open a window, a program adds a `
 
 It keeps the IO map of each window by identity (`reconcile_child_iomaps`). So a window that opens or closes does not rebuild the other windows, and a new content in a window with the same id replaces the old content in place.
 
-Its reference map is where a window position becomes a screen position. A structural path gets the prefix `windows[i].content`. A `PointReferenceStep`, a pixel position inside the content, also gets the `x` and `y` of the window added.
+Its reference map gives a path of the content the prefix `windows[i].content`, in both directions. A point reaches the content only after `windows[i].content`, in the frame of the window: the window takes off the place of the root canvas of its content, because a widget reads a point in the frame of its own canvas. A bare point, with no window, names no part and maps to `nothing`.
 
-Its reader routes a `WindowInput` event by the window id, not by the position in the list. It then adds the prefix `windows[i]` to the operation that comes back. When that operation is an `OpenPopupOperation` inside `ReplaceViewStateOperation`, it adds the window's own screen origin to the popup and turns it into an `OpenWindowOperation` with `style = :popup` and a `maximum_size` of the width and the height of the popup, and drops the mark. So the window takes the extent of what the popup draws, up to that bound, which is `(640, 800)` by default. The mark keeps a popup out of a history only above the window; below the window manager, a popup opens exactly as any other window does.
+Its reader routes a `WindowInput` event by the window id, not by the position in the list. The window moves a pointer event into the frame of the root canvas of its content with `shift_event_position`, and moves a position in the answer back. It then adds the prefix `windows[i]` to the operation that comes back. When that operation is an `OpenPopupOperation` inside `ReplaceViewStateOperation`, it adds the window's own screen origin to the popup and turns it into an `OpenWindowOperation` with `style = :popup` and a `maximum_size` of the width and the height of the popup, and drops the mark. So the window takes the extent of what the popup draws, up to that bound, which is `(640, 800)` by default. The mark keeps a popup out of a history only above the window; below the window manager, a popup opens exactly as any other window does.
 
 ### WindowManagingProjection
 
@@ -42,6 +42,10 @@ Its reader routes a `WindowInput` event by the window id, not by the position in
 The projection changes only the input screen. `ScreenToScreen` then updates the output.
 
 **A window operation that reaches the editor opens the window too.** A wrapper outside the screen projection, such as the one that keeps the tooltip window, and a verb, such as `open_file_dialog!`, answer an `OpenWindowOperation` or a `CloseWindowOperation` that passes no window manager. `evaluate_operation` applies it to the screen that the editor's document wraps (`get_wrapped_document`), with the same code as the window manager.
+
+### The place of a part
+
+`find_part_place(projection, iomap, source)` answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../kernel/reference.md), "The place of a part"). The tooltip window opens a tooltip that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
 
 ### One window on one document
 

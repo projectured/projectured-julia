@@ -477,6 +477,46 @@ of the node that draws the part, not a point. A caller that needs the place of a
 part on the screen reads the places of the printed nodes that the output
 reference reaches; a reference that reaches no printed node has no place.
 
+### The place of a part
+
+The forward map answers **the most specific output reference** of a part:
+
+- In graphics, the node that draws the part: a widget maps to its canvas, and a
+  child of a container to the child's canvas inside the container's canvas.
+- A part of a text maps to the text node of the segment that draws it, followed
+  by the characters, `text{a:b}`; a caret is a range of no width. A range across
+  segments maps to the smallest node that holds all of it, followed by a
+  `RegionReferenceStep(x, y, width, height)`: a box in the frame of that node,
+  as `PointReferenceStep` is a point there.
+- A part that the projection does not display has no image and maps to
+  `nothing`, such as the content of a tab that is not open or a node under a
+  closed tree node. A part that a lazy printer did not print yet has its
+  reference, such as element 40 of a lazy list, whose index counts from the
+  head of the list.
+
+**The backward map of a point answers the most specific part that is drawn at
+the point.** A projection reads the point in the frame of its own output node,
+as a pointer event reaches it: each container takes the place of the child off,
+and at the root the window takes off the place of the root canvas. Where
+children overlap, the topmost one, the one drawn last, answers. A part that
+holds the drawn part, such as a row of a table around its row header, a column,
+or a group around a leaf, is not reached by the point: navigation reaches it,
+such as Alt and an arrow key. This holds in every domain and across nested
+domains.
+
+**How a caller finds the place of a part.** It maps the part forward with the
+type of each node on its reference, as the selection does
+(`annotate_reference_types`), and reads the box of the node that the answer
+reaches in the printed output with `find_reference_box` of the graphics package:
+`(x, y, width, height)` in the frame of the output. `visible = true` cuts the
+box to what the viewports on the way show, and a box that none shows is
+`nothing`. `find_part_place` of the screen package does both from a wrapper at
+the screen and answers the bottom left corner of the box, where a window that a
+command opens, such as a tooltip with no pointer, stands. The round trip test of
+the widget examples, `test_widget_round_trip()`, ties the two maps together:
+each displayed part maps forward, and a point where its node draws something
+maps back to the part or to a part inside it.
+
 A `ProjectionReferenceStep(P, output_path)` *step* embeds an output reference inside
 an input reference, meaning: from this position, jump through projection `P`,
 then continue with `output_path` in `P`'s output. This lets an input reference

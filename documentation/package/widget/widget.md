@@ -57,9 +57,11 @@ An icon is a `Symbol`, not an image. `register_icon!(:name, renderer)` stores a 
 
 ### A press goes by coordinate
 
-A container keeps an entry `(x, y, child_iomap)` for each child. For a pointer event, `_route_to_children` translates the point into the frame of each child and tests it with `hit_element_at` on the canvas of the child. The first child that is hit gets the event. It calls `read_child_event` of the layout package, which applies the Alt+press rule below. The container then roots the answer under its own field, for example `elements[i]`.
+A container keeps an entry `(x, y, child_iomap)` for each child. For a pointer event, `_route_to_children` translates the point into the frame of each child and tests it with `hit_element_at` on the canvas of the child. The topmost child that is hit gets the event first: the one drawn last. It calls `read_child_event` of the layout package, which applies the Alt+press rule below. The container then roots the answer under its own field, for example `elements[i]`, and moves a position in the answer back into its own frame with `shift_operation_position`.
 
-Each widget also compares the point with its own canvas in `_outside_widget`. A container clips before it routes, but a widget can have no container above it. Without this test, a button at the root answers a press 800 pixels to its right.
+**A widget reads a point in the frame of its own canvas.** The container takes off the offset at which it placed the child and the place of the child's canvas, and `shift_event_position` of the graphics package moves the event. At the root, the window of the screen takes off the place of the root canvas of its content. A widget never takes its own place off a point. The backward map of a point follows the same frame and the same order, so a point maps to the child that a press there reaches.
+
+Each widget also compares the point with its own canvas in `_outside_widget`: the point must lie from 0 to the width and from 0 to the height. A container clips before it routes, but a widget can have no container above it. Without this test, a button at the root answers a press 800 pixels to its right.
 
 **A drag is not hit-tested.** `WidgetComposite` and `WidgetSplitPane` give `MouseDown`, `MouseMove` and `MouseUp` to the hit child first, and to each child in order when no child is hit. `WidgetShell` does the same with `MouseDown` and `MouseUp`, in the frame of each band. `WidgetTabbedPane` gives them to the tab that it shows. Two cases need this. A slot is drawn only where its content draws, so a splitter dragged past the text loses its release. The divider of a nested split is in the gap between two panes, and a hit test of the parent finds no element there.
 
@@ -68,6 +70,18 @@ A container routes a `MouseMove` only to the child under the pointer, so a widge
 - `WidgetButton`, `WidgetMenuItem` and `WidgetToolbarItem` set `hovered` on an enter and clear it on a leave. A menu item holds child IO maps, so it has a 4-arg reader that reads a crossing at its own place.
 - `WidgetList`, `WidgetTable` (both IO maps) and `WidgetTree` light a row. A point on a row maps to the row, for example `items[2]`, which is no document, so the list is the deepest part. The route of the `MouseHover` is the whole target, and the reader reads the row from it. A `MouseLeave` whose route ends at the widget itself, or names the lit row, turns the light off: a view that shows a part of its input as a row sends the leave of that part to the row. A leave of another row does not. A bare `MouseMove` lights nothing.
 - A light never changes the layout: the hover draws a layer over the surface or the row.
+
+### A part maps forward to the node that draws it
+
+`map_reference_forward` of a widget answers the reference of the printed node that draws a part ([reference.md](../kernel/reference.md), "The place of a part"). The empty reference is the canvas of the widget itself.
+
+- A container finds the child whose input the reference reaches by identity (`_map_child_forward`), lets the child map the rest, and finds the child's canvas in its own canvas by identity with `find_node_reference`, at most six nodes deep. A container puts parts of its own before its children, such as the parts of its box, so an index would not name the child's canvas.
+- `WidgetScrollPane` and `WidgetTransformPane` draw the elements of their content again in a viewport of their own, so `content` maps into that viewport (`_map_viewport_content_forward`). A content with a frozen prefix, such as a table with frozen headers, is drawn in four regions over the same elements, and a part maps into the region that shows it: the region held on an axis when all of the part lies in the prefix there. A part scrolled out of view has an image too; its box lies outside the view.
+- The rows of `WidgetList` and the headers of `WidgetAccordion` are canvases of their own, and an item maps to its canvas. `WidgetTree` maps a node by its index in the open tree to its row, and a node under a closed one to `nothing`.
+- `WidgetTabbedPane` maps the open page to its own canvas and a page that is not open to `nothing`. Each tab header is a canvas of its own in the tab strip, and the `selector` of any page maps to its header; the `element` of the open page maps to the content. A point on a header maps back to its `selector`, and a point in the page reaches only the content of the open page.
+- `WidgetTable` maps a cell and a header by index, also in the list form, where a row that the walk did not build yet has its reference too.
+
+A part that the widgets do not display has no image: the content of a tab that is not open, a menu or a submenu that is closed, the dialog of a button. `test_widget_round_trip()` checks every widget example: each displayed part maps forward, and a point where its node draws something maps back to the part or to a part inside it.
 
 ### A key goes by selection
 

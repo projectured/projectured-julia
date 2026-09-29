@@ -63,6 +63,10 @@ Every layout reader goes through one router:
 
 The router roots the operation of a child under `children[i]` and adds the type checkpoints of the path, so a container above can use the reference.
 
+### References
+
+A layout maps a part forward by index (`descend_reference_forward`): `children[i]` maps to the node of the child's slot, `make_slot_reference`, which is `elements[slot].elements[1]`, one `content` step deeper when a viewport clips the slot, followed by what the child's own map answers. The empty reference is the layout itself, and its image is its own canvas. A child that is not drawn has no image. The backward map of a point is the mirror: the child's slot at the point, in the child's frame, and on into the child.
+
 `CellVectorToVerticalLayout` turns a plain `CellVector` into a `VerticalLayout` of the same cells. The general renderer uses it, so each element of a list of mixed domains draws in its own domain.
 
 ## How it fits

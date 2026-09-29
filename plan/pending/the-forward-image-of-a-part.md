@@ -395,12 +395,26 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   examples, which meets a canvas per tab header) and one more broken marker
   (Q12); the omnet tests have their results; the naming guard passes and the
   documentation check has its notes.
-- [ ] 7. **The documents:** the widget, layout, screen and text documents say
+- [x] 7. **The documents:** the widget, layout, screen and text documents say
   which projections map forward, and how a caller finds the place of a part.
   The feature "the place of a part" gets its design and user interface
   documents as step 11 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
   them.
+  Done: reference.md has a section "The place of a part": what the forward map
+  answers (the node that draws a part, the characters of a text, a region, and
+  `nothing` for a part that is not displayed), the frame of a point and the
+  rule of Q12, and how a caller finds the place (`annotate_reference_types`,
+  `find_reference_box`, `find_part_place`). widget.md says how the widgets map
+  forward and that a widget reads a point in the frame of its own canvas;
+  layout.md how a layout maps by slot; screen.md the frame of a point in a
+  window, the bare point, and `find_part_place`, and it no longer says that the
+  map adds the place of the window to a point; text.md the forward map of a
+  text and of a lazy list; graphics.md `RegionReferenceStep`,
+  `shift_event_position`, `find_reference_box` and `find_node_reference`;
+  collection.md `find_list_node`. The user interface document of the feature is
+  the tooltip guide of step 11 of the pointer plan: a window that a command
+  opens stands below the part.
 
 ## 5. Open questions
 

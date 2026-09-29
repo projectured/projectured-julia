@@ -51,6 +51,16 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 `PointReferenceStep(x, y)` names a pixel inside an element, written `.point(x, y)` in `@reference`. The reader of `GraphicsCanvasToGraphicsImage`, below, makes a click into `ElementReferenceStep(i)` followed by a `PointReferenceStep`, and `TextToGraphics` in [text.md](../text/text.md) turns that into a character offset. The kernel reference layer never names the step.
 
+`RegionReferenceStep(x, y, width, height)` names a box in the frame of the node before it, which no node of its own draws. A forward map answers it after the smallest node that holds all of the image of a part, when that image is no node and no range of one text, such as a text range across segments ([reference.md](../kernel/reference.md), "The place of a part").
+
+`shift_event_position(event, dx, dy)` moves a pointer event or gesture into the frame of a child, and `shift_operation_position` moves the answer of the child back. A widget reads a point in the frame of its own canvas, so a container moves the event by the place of the child before it hands it down.
+
+### The box of a part
+
+`find_reference_box(document, reference; measure, visible)` reads the box `(x, y, width, height)` of the node that a reference reaches in a printed document, in the frame of the document's place. Each node on the way moves the frame by its place, and a viewport moves its content by its transform too. A text has the box of what it draws, measured with `measure`, and `text{a:b}` the box of those characters. A `RegionReferenceStep` is its box. A canvas with no size of its own on an axis has the bounds of what it draws there (`get_canvas_content_bounds`), except over a lazy list, which can have no end. With `visible = true`, each viewport on the way cuts the box to its own, and a box that no viewport shows is `nothing`.
+
+`find_node_reference(document, node; depth)` finds a printed node by identity, level by level through the elements of canvases and the contents of viewports, and answers the reference to it. A container that puts parts of its own before its children uses it in its forward map.
+
 `GraphicsCaching(; render)` is a dispatching projection over canvases. A finite canvas that holds no canvas and no viewport goes to `GraphicsCanvasToGraphicsImage`. The other canvases, the viewports and the collections are copied, so the recursion reaches their children. **`GraphicsCanvasToGraphicsImage` does not rasterize, although its name says so.** It returns a canvas, not a `GraphicsImage`. It puts a pale checkerboard behind the elements, so each cached region shows in a different colour. Its reader resolves a click to a `GraphicsRect` that contains the point. If no box contains it, the reader takes the `GraphicsText` on the same line with the largest `x` at or left of the point. `run_example(...; caching = true)` adds it to a chain.
 
 `GraphicsToGraphics()` is the natural projection of a graphics document: its output is its input. `NaturalToGraphics` uses it, so a shape that a person makes, for example in the evaluator, draws as the shape and not as a tree of its fields. Its reader forwards an operation and declines a gesture, because a shape answers no key and no press.
