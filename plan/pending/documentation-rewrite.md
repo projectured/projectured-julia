@@ -1265,8 +1265,13 @@ picture of the application until that is fixed.
       allowed, and `LICENCE-COMMERCIAL` needs no change. The text follows the
       pattern of the known non-commercial share-alike licences, and no lawyer
       read it.
-- [ ] D22: attach the archive of `application-and-build.md` Step 5 to a GitHub
+- [x] D22: attach the archive of `application-and-build.md` Step 5 to a GitHub
       release. The owner approves the release.
+
+      **Moved to [release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md)
+      on 2026-09-29.** The owner lifted the deferral below, and that plan now
+      builds, tests and publishes the archive (its R1 and R2). This item is
+      closed here so that only one plan holds it.
 
       **Deferred by the owner on 2026-09-20: there is no binary release.** The
       owner looked at the application and found the window too rough to ship.

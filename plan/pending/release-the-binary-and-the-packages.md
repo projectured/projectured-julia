@@ -115,6 +115,31 @@ A scan on 2026-09-29:
 | `Projectured` | 56 | none |
 | the full application | 83 | also `HTTP`, `JSON3`, `ModelContextProtocol` |
 
+### 2.4 For the packages: the set of R12
+
+A scan on 2026-09-29. The rule of R12 (no example package, no test package)
+gives 69 packages. It holds seven packages that the application does not need:
+`ProjecturedTulip`, `ProjecturedOdbc`, `ProjecturedVideo`,
+`ProjecturedAdaptagrams`, `ProjecturedBench`, `ProjecturedBuilder` and
+`ProjecturedRepl`. Four of them can not go in as they are:
+
+| Package | Why not |
+| --- | --- |
+| `ProjecturedBench` | It depends on `ProjecturedExample`, which R12 leaves out. Its entry file includes files from `_BENCH_DIR`, outside its slice. |
+| `ProjecturedRepl` | It depends on `ProjecturedExample` and `ProjecturedTest`, which R12 leaves out. `Repl.jl:78` includes `../../asset/precompile/`. |
+| `ProjecturedBuilder` | `Executable.jl:415` reads `../../asset/font`, and `BuildContext` looks for the root of a checkout. It is a tool of this repository. |
+| `ProjecturedAdaptagrams` | `deps/build.jl` compiles a C++ shim on the machine of the user, and `Adaptagrams.jl:14` reads `package/ProjecturedAdaptagrams/deps`. It needs a JLL first. |
+
+The rule also leaves out `ProjecturedExample`, which depends on the 22
+per-domain example packages. So the registry gives no application, no gallery
+and no `run_value_viewer`.
+[own-project-guide.md](../../documentation/guide/own-project-guide.md) names
+`run_value_viewer` now.
+
+`ProjecturedTulip`, `ProjecturedOdbc` and `ProjecturedVideo` have no path that
+leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
+`DBInterface` and `Tables`, and `FFMPEG` from General.
+
 ## 3. Facts that the release must handle
 
 ### 3.1 Both routes
@@ -173,16 +198,9 @@ A scan on 2026-09-29:
 
 | # | Question | Recommendation (mine, not decided) |
 | --- | --- | --- |
-| R2 | Which plan owns the release: this one, or documentation-rewrite.md Step 11? | This plan. Step 11 then says "see release-the-binary-and-the-packages.md", so only one place has the item. |
-| R4 | Version and tag: `0.1.0` and `v0.1.0`? | Yes. It is the version the code already holds. |
-| R6 | Fix the three open faults of §3.2 before the release, or ship with them? | Fix the `SIGTERM` backtrace and `WM_NAME`, because a user sees both. The `--build-info` time can wait. |
 | R9 | Where does the release copy live? | A separate repository, `projectured/projectured-julia-release`. It keeps generated commits out of the history of this repository, and its history must never be rewritten (§3.3). An orphan branch in this repository also works. |
 | R10 | The name and place of the registry? | `projectured/ProjecturedRegistry`, made with `LocalRegistry.jl`. |
-| R11 | One version for all packages, or one per package? | One version for all 83, equal to the version of the binary. Each release registers all 83. It is simple, and a user never mixes packages of two releases. |
-| R12 | Which packages go in the registry? | The 83 of §2.3. The rest can follow when a user asks. |
-| R13 | The `[compat]` bounds? | The siblings: the version of the release. Every other package: a caret bound from its version in `environment/all/Manifest.toml`. Julia: the oldest version that passes B4. |
-| R14 | A `projectured` command through the Pkg apps of Julia 1.12 (`[apps]`, `pkg> app add`)? | Later. The feature is experimental, and the binary already gives the command. |
-| R15 | The name `LICENCE-PD` and the title "Public Dedication" can make a reader think of public domain. Rename them? | The owner decides. The README already says "free for non-commercial use", which is correct. |
+| R16 | Four packages of the R12 set can not go in as they are, and the rule of R12 leaves the application out (§2.4). What to do with them? | Leave out `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`: 65 packages. Keep `ProjecturedExample` out too; the binary gives the application. Then [own-project-guide.md](../../documentation/guide/own-project-guide.md) must not send a registry user to `run_value_viewer`. |
 
 ### 4.2 Decided
 
@@ -196,6 +214,41 @@ The owner decided these on 2026-09-29.
 | R5 | Is the repository public? | Yes: <https://github.com/projectured/projectured-julia>. A GitHub release there reaches every user. |
 | R7 | Build from the main checkout, or from a worktree? | A worktree at the release commit. Then the archive matches the tag, and no uncommitted change of another session goes in. The cost is one full compile of the cache for that worktree. |
 | R8 | How does a Julia programmer install the packages? | Through a generated release copy and a registry of our own (Part B). Not `pkg> develop`: the owner does not want it. Not a move of `source/` into the packages: that changes the structure. |
+| R2 | Which plan owns the release? | This plan. documentation-rewrite.md Step 11 points here. |
+| R4 | Version and tag? | `0.1.0` and `v0.1.0`. The first registration gives every package `0.1.0`. |
+| R6 | Which open faults of §3.2 to fix before the release? | The `SIGTERM` backtrace and `WM_NAME`. The `--build-info` time can wait. |
+| R11 | One version for all packages, or one per package? | One per package. A package that did not change gets no new version, so a user does not download it again. The rules of R11 below say how. |
+| R12 | Which packages go in the registry? | Every package that is not an example package and not a test package: 69. R16 holds the exceptions that this rule meets. |
+| R13 | The `[compat]` bounds? | The siblings: a caret bound from the version of the sibling in the release that changed the package (R11, rule 3). Every other package: a caret bound from its version in `environment/all/Manifest.toml`. Julia: the oldest version that passes Step B4. |
+| R14 | A `projectured` command through Pkg apps? | Later. |
+| R15 | Rename `LICENCE-PD`? | No. It stays as it is. |
+
+**The rules of R11.** The owner chose one version per package. These rules
+are the design of the agent (2026-09-29), for Step B2:
+
+1. A package gets a new version only when its content changed: its slice of
+   `source/`, a folder that the generator copies into it, or the list of its
+   dependencies. The generator compares the new tree with the tree of the last
+   registered version.
+2. A package that did not change keeps its last registered `Project.toml` as
+   it is, `[compat]` included. Without this rule, a change in the kernel gives
+   a new `[compat]`, and so a new version, to every package above it.
+3. A package that changed gets a patch step (`0.1.0` → `0.1.1`). Its bounds on
+   the siblings become caret bounds from their versions in this release.
+4. The versions live in the release copy and in the registry only. The
+   `Project.toml` files of this repository keep `0.1.0`, so a release changes
+   nothing in this repository.
+
+What follows from the rules:
+
+- The newest version of every package is always the set that the release
+  tested, so `pkg> up` always gives a tested set.
+- A user who holds one package back can get a combination that no release
+  tested. The guides tell the user to update all Projectured packages
+  together.
+- No new version means no new download. But Julia compiles a package again
+  when one of its dependencies changed. The kernel is below every package, so
+  a change in the kernel still compiles almost everything again.
 
 ## 5. Steps
 
@@ -234,6 +287,8 @@ check) also decides the licence texts that Part B copies.
 
 ### Step A3: the faults the owner wants fixed (R6)
 
+- [ ] `SIGTERM` stops the application with no backtrace.
+- [ ] The window has a `WM_NAME` (and `_NET_WM_NAME`) of `ProjecturEd`.
 - [ ] One commit per fault, each with the narrowest test.
 
 ### Step A4: the distribution build
@@ -303,7 +358,7 @@ gh release create v0.1.0 \
 
 ### Step B1: prove the mechanism on a small scale
 
-Before the generator covers 83 packages, prove each part of the mechanism by hand,
+Before the generator covers every package of R12, prove each part of the mechanism by hand,
 under `/var/tmp`, with a memory cap and a timeout:
 
 - [ ] Copy `ProjecturedKernel` to a release layout: `Project.toml` without
@@ -331,7 +386,10 @@ the name is final. For each package of R12, the function:
 - [ ] copies the folders of the table in §2.3 to their places;
 - [ ] copies `LICENCE-PD`, `LICENCE-COMMERCIAL`, and the texts that Step A2
       names, into the package folder;
-- [ ] removes `[sources]`, sets `version`, and writes `[compat]` (R13);
+- [ ] removes `[sources]`, and sets `version` and `[compat]` by the rules of
+      R11 and by R13;
+- [ ] keeps the last registered `Project.toml` of a package whose content did
+      not change, and registers no new version of it (R11, rules 1 and 2);
 - [ ] scans the copy for an `include`, an `@__DIR__` path or a `joinpath` with
       `..` that leaves the package folder, and stops with the file and the line
       when it finds one.
@@ -339,7 +397,8 @@ the name is final. For each package of R12, the function:
 - [ ] A test in `test/builder/BuilderTest.jl` that compiles nothing: generate
       two small packages, check the layout, the rewritten include, the
       `[compat]`, the licence files, and that the scan stops on a path that
-      leaves a package.
+      leaves a package. Then change one of the two and generate again: only
+      that one gets a new version, and the other keeps its tree.
 
 ### Step B3: the meaning folder of an installed package
 
@@ -355,17 +414,20 @@ the name is final. For each package of R12, the function:
 Warning: give each Julia process a memory cap of 8 GB and a timeout, and read
 `free -g` first. The first `using` of the application compiles for minutes.
 
-- [ ] Generate the 83 packages under `/var/tmp`, commit them to a local git
-      repository, and register them in a local registry.
+- [ ] Generate the packages of R12 under `/var/tmp`, commit them to a local
+      git repository, and register them in a local registry.
 - [ ] In an empty depot: add General and the local registry.
 - [ ] `add ProjecturedJson ProjecturedSdl`, then `using`, and open one window
       with a JSON document. The fonts must come from
       `ProjecturedStyle/asset/font`.
-- [ ] `add` the full application set in a new environment, and start the web
-      backend. The web client must come from `ProjecturedWeb/asset/web`.
-- [ ] Ask the assistant for a guide, with the MCP tool `read_resource` and
-      `resource://guides`. The guides must come from
-      `ProjecturedKernel/documentation`.
+- [ ] In a new environment, `add Projectured ProjecturedWeb ProjecturedMcp`,
+      and open a document with `run_window_editor(…; backend = WebBackend(),
+      mcp = true)`. The web client must come from `ProjecturedWeb/asset/web`.
+      The MCP tool `read_resource` with `resource://guides` must list the
+      guides from `ProjecturedKernel/documentation`.
+- [ ] A second release: change one file in one slice, generate again, and
+      register. Only that package gets a new version. `pkg> up` in the test
+      depot takes it and downloads nothing else.
 - [ ] Repeat the `add` and the `using` of `ProjecturedJson` on Julia 1.11 and
       1.12 through `juliaup`. The oldest version that passes sets the Julia
       bound of R13.
@@ -392,12 +454,13 @@ stops.
 - [ ] Make the two GitHub repositories of R9 and R10.
 - [ ] Generate the release copy for `v0.1.0`, commit it to the release
       repository with the tag `v0.1.0`, and push.
-- [ ] `register` the 83 packages in `ProjecturedRegistry`, with the URL of the
-      release repository, and push the registry.
+- [ ] `register` the packages of R12 in `ProjecturedRegistry`, with the URL of
+      the release repository, and push the registry.
 - [ ] In an empty depot, run the install line of Step B5 against GitHub, and
       `using ProjecturedJson, ProjecturedSdl`.
 
 ## Step C: close
 
-- [ ] Update documentation-rewrite.md Step 11 (R2).
+- [x] Update documentation-rewrite.md Step 11 (R2). Done on 2026-09-29: its
+      D22 item points here.
 - [ ] Move this plan to `plan/done/`.
