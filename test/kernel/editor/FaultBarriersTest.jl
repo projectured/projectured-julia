@@ -134,13 +134,14 @@ evaluate_operation(::Editor, operation::ThrowBarrierOperation) =
 struct FailingBarrierFeed <: Feed end
 FeedModule.drain_changes!(::FailingBarrierFeed, editor::Editor) = error("the feed failed")
 
-# Counts its drains, and posts a quit in the second.
+# Counts its drains, and posts a quit in the drain `quit_drain`.
 mutable struct QuittingBarrierFeed <: Feed
     drains::Int
+    quit_drain::Int
 end
 function FeedModule.drain_changes!(feed::QuittingBarrierFeed, editor::Editor)
     feed.drains += 1
-    feed.drains == 2 && post_operation!(editor, QuitEditorOperation())
+    feed.drains == feed.quit_drain && post_operation!(editor, QuitEditorOperation())
     0
 end
 
@@ -247,9 +248,12 @@ function test_editor_fault_barriers()
     end
 
     @testset "a feed that throws in each frame stops neither the loop nor a feed" begin
-        quitting = QuittingBarrierFeed(0)
+        # The first feed ends the loop in its tenth drain, so a failing feed that
+        # stops the feeds after it fails the test and does not hang it.
+        bound = QuittingBarrierFeed(0, 10)
+        quitting = QuittingBarrierFeed(0, 2)
         editor, backend, log =
-            _barrier_editor(feeds = Feed[FailingBarrierFeed(), quitting])
+            _barrier_editor(feeds = Feed[bound, FailingBarrierFeed(), quitting])
         run_editor!(editor)
         @test quitting.drains == 2
         record = only(get_fault_records(editor.faults))
