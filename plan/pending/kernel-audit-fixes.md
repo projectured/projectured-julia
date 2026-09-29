@@ -227,6 +227,10 @@ When all items are done, move this plan to `plan/done/`.
     the main checkout, whose untracked folder `mm1k/` adds one NED file (one more error of
     `NedAgreement`) and one INI file (one more pass of `IniAgreement`), and whose untracked
     manifests fail "every folder holds one kind of thing". Every other test set has the same counts.
+  - **Main merged in** on 2026-09-30 as `f3b8ff42b` (main at `ee5783d42`, 39 commits later, with the
+    relevance model of the search). The conflicts were in the tool layer; the new tests of main
+    call `execute_julia_code!`. On the result: `test_kernel()` 3967 pass and 2 broken, every other
+    suite at its count, and omnet-julia and inet-julia as before.
 - [x] Run the baseline of "How to work", item 2, and write the counts here.
   On `a1e0b8a5`, in the worktree of lane A, each suite in its own process (2026-09-29):
 
