@@ -1,7 +1,8 @@
 # View and edit a data frame
 
-> **Kind:** plan · **Status:** draft for discussion, 2026-09-29. §5.1 lists the
-> decisions that are made, and §5.2 the open ones. Nothing is implemented. ·
+> **Kind:** plan · **Status:** pending, 2026-09-29. Every decision of §5 is
+> made, except group and pivot, which wait for a design of their own (D8).
+> Nothing is implemented. ·
 > **Stands on:** [concepts.md](../../documentation/design/concepts.md),
 > [domain-anatomy.md](../../documentation/design/domain-anatomy.md),
 > [package-rules.md](../../documentation/rule/package-rules.md),
@@ -437,23 +438,34 @@ is safe only when nothing writes the frame at the same time.
 - **D5 is (a)** (the owner, 2026-09-29). The text of a cell is pending until
   Enter, Tab or a move out of the cell. Then the view parses it and writes the
   value, as one undo step.
-- **Only an explicit `display(df)` opens the window** (the owner,
-  2026-09-29): "only on explicit display(df)". A result at the prompt, such as
-  `df`, prints text as before. How to tell the two calls apart is open (D9).
+- **Only an explicit call opens the window** (the owner, 2026-09-29): "only
+  on explicit display(df)". A result at the prompt, such as `df`, prints text
+  as before.
+- **D9 is (a)** (the owner, 2026-09-29). The package pushes no display. The
+  explicit call names the display: `display(ProjecturedDisplay(), df)`, or a
+  short function of the package that makes this call. Phase 2 names the
+  function by the naming rules.
+- **D3 is A, B with the busy flag, and D; C is a keyword that is off by
+  default** (the owner, 2026-09-29: "agreed").
+- **D10 is the proposal of §5.2** (the owner, 2026-09-29). The view keeps the
+  row of the selection at its place on the screen. Enter selects the row that
+  was below the edited row before the sort. Tab selects the next cell of the
+  edited row, and the view follows the row. If the filter hides the edited
+  row, Tab acts as Enter.
 - **D6: the view sorts and filters again when the edit is committed to the
   data frame** (the owner, 2026-09-29): "when the change is committed back in
   the data frame". While the text of a cell is pending, the row stays where it
-  is. Where the selection and the view go after the commit is open (D10).
+  is. D10 says where the selection and the view go after the commit.
 - **D7 is (a)** (the owner, 2026-09-29). The package is
   `ProjecturedDataFrames`, and the types take the prefix `DataFrame`.
 - **D8 is deferred** (the owner, 2026-09-29): "(a) but let's defer this for a
   better design". The direction is one query model with two layouts. Group and
   pivot (§4.6, §4.7, phases 7 and 8) wait for a design of their own.
 
-### 5.2 Open
+### 5.2 The options, for the record
 
-D3, D9 and D10 are open. The other decisions below keep their options for the
-record. Each recommendation is the view of the writer of this draft.
+Every decision below is made or deferred (§5.1). Each keeps its options and
+the recommendation of the writer of this draft, so the reason stays readable.
 
 **D1. The first delivery. Made: (b), see §5.1.** The recommendation was phases
 1 to 6.
@@ -470,7 +482,7 @@ the first and the last row now (§2).
 
 Recommendation: (b). It holds for every list, and a list still has no extent.
 
-**D3. The refresh triggers.** A, B, C and D of §4.3. B is a new mechanism: a
+**D3. The refresh triggers. Made, see §5.1.** A, B, C and D of §4.3. B is a new mechanism: a
 hook in the Julia REPL (`Base.active_repl_backend.ast_transforms`). C uses the
 inbox, which already names a timer as a producer. Recommendation: A, B with
 the busy flag of §4.3, and D. C is a keyword that is off by default.
@@ -505,7 +517,7 @@ is `dataframes`. The types take the prefix `DataFrame` (`DataFrameView`,
 `DataFrameQuery`, `DataFramePivot`), because `Frame` names a render frame here.
 None of these names is exported by DataFrames.
 
-**D9. Only an explicit `display(df)`.** The REPL shows the result of an input
+**D9. Only an explicit `display(df)`. Made: (a), see §5.1.** The REPL shows the result of an input
 with `display(val)` (`__repl_entry_display` in the `REPL` stdlib of Julia
 1.13). An explicit `display(df)` is the same call. So a `ProjecturedDisplay`
 on the display stack gets both, and it can not tell them apart.
@@ -525,7 +537,8 @@ on the display stack gets both, and it can not tell them apart.
 Recommendation: (b), if phase 0 shows that a plot of Plots and a figure of
 Makie at the prompt behave as before. If not, (a).
 
-**D10. The selection and the view after a commit.** The commit sorts and
+**D10. The selection and the view after a commit. Made: the proposal, see
+§5.1.** The commit sorts and
 filters again (D6), so the edited row can move far away or disappear.
 Proposal: the view keeps the row of the selection at its place on the screen.
 - Enter selects the row that was below the edited row before the sort. That
@@ -559,15 +572,19 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   test packages, `DataFrameView`, the anchored row list with its jumps, its
   re-anchor and its scroll bar (§3.5), the visible shadow,
   `DataFrameViewToWidget`, cells by element type, the natural row, the
-  `ProjecturedDisplay` with the editor in a background task (D4), and a row in
-  the third-party table of package-rules.md.
-- [ ] **3. Refresh.** The three levels of §4.3 and the triggers of D3.
+  `ProjecturedDisplay` and its short function (D9) with the editor in a
+  background task (D4), and a row in the third-party table of
+  package-rules.md.
+- [ ] **3. Refresh.** The three levels of §4.3. The triggers A, B with the
+  busy flag, and D. C is a keyword that is off by default (D3).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
-  form.
+  form. If phase 0 puts the editor on another thread, the busy flag of §4.3
+  comes with this phase, because an edit writes the frame.
 - [ ] **5. Sort and filter.** The query document, the header gestures, the
-  quick filters, the expression filter, column hide and move. Column freeze
-  needs frozen columns on a list in the widget substrate (§3.5).
+  quick filters, the expression filter, column hide and move. The sort and
+  the filter again on a commit (D6), and the selection after it (D10). Column
+  freeze needs frozen columns on a list in the widget substrate (§3.5).
 - [ ] **6. Find.** §4.5, without replace.
 - [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
   their own (D8).
