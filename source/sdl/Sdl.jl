@@ -315,7 +315,7 @@ function sdl_modifiers(mod::UInt16)::ModifierKeys
     shift = (mod & UInt16(0x0003)) != UInt16(0)  # KMOD_LSHIFT | KMOD_RSHIFT
     alt   = (mod & UInt16(0x0300)) != UInt16(0)  # KMOD_LALT | KMOD_RALT
     meta  = (mod & UInt16(0x0C00)) != UInt16(0)  # KMOD_LGUI | KMOD_RGUI
-    ModifierKeys(ctrl, shift, alt, meta)
+    ModifierKeys(; ctrl, shift, alt, meta)
 end
 
 # Convenience overload: extract modifiers from the current SDL state.
@@ -401,7 +401,7 @@ end
 Build a `KeyDown` from SDL key-down event fields, at the time `time`.
 """
 function sdl_to_keydown(keysym::Int32, mod::UInt16, is_repeat::Bool; time::Real)::KeyDown
-    KeyDown(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod), is_repeat; time)
+    KeyDown(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod); repeat = is_repeat, time)
 end
 
 """
@@ -453,14 +453,16 @@ end
 # Mouse helpers
 # ════════════════════════════════════════════════════════════════════════
 
-# Map SDL button byte → Symbol.
-_sdl_button_sym(b::UInt8) = b == 0x01 ? :left : b == 0x02 ? :middle : :right
+# The name of an SDL button: 1 is the left, 2 the middle and 3 the right button. A
+# side button, 4 or more, has no name in the event layer, and the answer is `nothing`.
+_sdl_button_sym(b::UInt8) =
+    b == 0x01 ? :left : b == 0x02 ? :middle : b == 0x03 ? :right : nothing
 
 # The buttons that an SDL button mask holds: the `state` of a motion event.
 _get_held_mouse_buttons(bstate::UInt32) =
-    MouseButtons((bstate & UInt32(0x01)) != UInt32(0),
-                 (bstate & UInt32(0x02)) != UInt32(0),
-                 (bstate & UInt32(0x04)) != UInt32(0))
+    MouseButtons(left = (bstate & UInt32(0x01)) != UInt32(0),
+                 middle = (bstate & UInt32(0x02)) != UInt32(0),
+                 right = (bstate & UInt32(0x04)) != UInt32(0))
 
 # ════════════════════════════════════════════════════════════════════════
 # Native window lifecycle (internal helpers; driven by the reconciler in
@@ -3615,8 +3617,8 @@ end
 Pop SDL events until one of them surfaces as a `WindowInput`, and answer a pair
 in which exactly one member is non-`nothing`: `motion` for a `MouseMove`,
 `other` for every other input. An SDL event the backend does not surface (a
-window event it ignores, a text input that maps to no key) is skipped here, so
-`(nothing, nothing)` means the queue is empty and nothing else.
+window event it ignores, a text input that maps to no key, a button with no name)
+is skipped here, so `(nothing, nothing)` means the queue is empty and nothing else.
 
 `read_from_devices` runs it in a loop and keeps only the newest motion.
 """
@@ -3687,6 +3689,7 @@ function _poll_window_input(backend::SdlBackend)
 
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
+            button === nothing && continue    # a button with no name makes no event
             mods = backend.modifiers
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
@@ -3695,6 +3698,7 @@ function _poll_window_input(backend::SdlBackend)
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
+            button === nothing && continue    # a button with no name makes no event
             mods = backend.modifiers
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)

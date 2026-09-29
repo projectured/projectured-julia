@@ -1,6 +1,8 @@
 # Fragment of `EventModule` — the event contract: the abstract event types and the
 # two generics that every event answers. The concrete events subtype these types and
-# add their own `get_modifier_keys` methods, in the fragments after this one.
+# add their own `get_modifier_keys` methods, in the fragments after this one. The
+# fallback of `get_modifier_keys` and the body of `get_event_time` are in
+# `EventDefaults.jl`.
 
 """
     Event

@@ -33,7 +33,9 @@ modifiers, a guard and a label.
 - `fields` is a `NamedTuple` of the fields that must be equal to a value. A field
   that is not in it matches any value.
 - `modifiers` is `nothing`, which matches any modifiers, or a `Vector{Symbol}` that
-  must match exactly: every listed flag held, and every other flag not held.
+  must match exactly: every listed flag held, and every other flag not held. A flag
+  is `:ctrl`, `:shift`, `:alt` or `:meta`, and the constructor throws an
+  `ArgumentError` for another name.
 - `guard` is `nothing` or a function `event -> Bool` for a condition that the
   fields can not state.
 - `label` is `nothing` or the text that `describe_event_pattern` returns. A guard has
@@ -57,6 +59,14 @@ struct EventPattern{E<:Event}
     modifiers::Union{Vector{Symbol},Nothing}
     guard::Union{Function,Nothing}
     label::Union{String,Nothing}
+    function EventPattern{E}(fields, modifiers, guard, label) where {E<:Event}
+        for flag in (modifiers === nothing ? () : modifiers)
+            flag in _MODIFIER_FLAGS || throw(ArgumentError(
+                "event pattern: unknown modifier `$flag`; " *
+                "expected one of $(_MODIFIER_FLAGS)"))
+        end
+        new{E}(fields, modifiers, guard, label)
+    end
 end
 EventPattern{E}(fields, modifiers, guard) where {E<:Event} =
     EventPattern{E}(fields, modifiers, guard, nothing)
@@ -188,6 +198,10 @@ _get_button_label(button::Symbol) =
     button === :right  ? "Right click" :
     button === :middle ? "Middle click" : "$(button) click"
 
+# The name of the button of a `MouseDown` or a `MouseUp`: "Left button", or "button".
+_get_button_name(::Nothing) = "button"
+_get_button_name(button::Symbol) = uppercasefirst(string(button)) * " button"
+
 # The words of a type name: `WindowResize` gives "window resize".
 _get_type_words(type::Type) =
     lowercase(replace(string(nameof(type)), r"(?<=[a-z0-9])(?=[A-Z])" => " "))
@@ -210,8 +224,10 @@ function _describe(::Type{KeyPress}, pattern)
 end
 _describe(::Type{KeyChord}, pattern) = "key chord"
 _describe(::Type{MousePress}, pattern) = _describe_button(pattern)
-_describe(::Type{MouseDown}, pattern) = "press " * _describe_button(pattern)
-_describe(::Type{MouseUp}, pattern) = "release " * _describe_button(pattern)
+_describe(::Type{MouseDown}, pattern) =
+    _prefix_modifiers(pattern, _get_button_name(_get_field(pattern, :button)) * " down")
+_describe(::Type{MouseUp}, pattern) =
+    _prefix_modifiers(pattern, _get_button_name(_get_field(pattern, :button)) * " up")
 _describe(::Type{MouseMove}, pattern) = _prefix_modifiers(pattern, "move pointer")
 _describe(::Type{MouseEnter}, pattern) = _prefix_modifiers(pattern, "pointer enters")
 _describe(::Type{MouseLeave}, pattern) = _prefix_modifiers(pattern, "pointer leaves")
@@ -387,6 +403,7 @@ Use it in a macro on the pattern syntax, around the code of a rule. The result i
 See also `parse_event_pattern_rule`.
 """
 function build_event_field_bindings(rule::EventPatternRule, event_symbol, body)
+    rule.type === nothing && return body
     declared = _get_positional_event_fields(rule.type)
     for i in length(rule.fields):-1:1
         field = rule.fields[i]
@@ -411,11 +428,12 @@ _build_field_match(accessor, field::ExpressionField, success) =
     :($accessor == $(esc(field.expr)) ? $success : _nomatch)
 
 # The exact modifier test: each of the four flags must equal its membership in
-# `modifiers`.
+# `modifiers`. The test reads the modifiers through `get_modifier_keys`, which is in
+# the expression as a value, so the expression resolves in any module.
 function _build_modifier_test(event, modifiers::Vector{Symbol})
-    tests = Any[:($event.modifiers.$flag === $(flag in modifiers))
-                for flag in _MODIFIER_FLAGS]
-    foldr((a, b) -> :($a && $b), tests)
+    held = gensym(:modifiers)
+    tests = Any[:($held.$flag === $(flag in modifiers)) for flag in _MODIFIER_FLAGS]
+    :(let $held = $get_modifier_keys($event); $(foldr((a, b) -> :($a && $b), tests)) end)
 end
 
 function _build_rule(event, rule::EventPatternRule)

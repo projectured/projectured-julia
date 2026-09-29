@@ -36,7 +36,7 @@ proj = make_widget_projection_example()
 @testset "Esc dismisses the dialog" begin
     dlg = WidgetMessageBox("Title", "A message")
     iomap = print_document(proj, dlg)
-    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(), false; time = 0.0))
+    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(); time = 0.0))
     @test op isa CloseWindowOperation
     @test op.id === :widget_dialog
 end
@@ -69,7 +69,7 @@ end
 @testset "a custom popup_id is the id that closes" begin
     dlg = WidgetMessageBox("T", "m"; popup_id = :my_dialog)
     iomap = print_document(proj, dlg)
-    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(), false; time = 0.0))
+    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(); time = 0.0))
     @test op isa CloseWindowOperation
     @test op.id === :my_dialog
 end
@@ -95,7 +95,7 @@ end
     @test length(screen.windows) == nbefore
 
     # Esc routed to the modal window itself IS processed → it closes.
-    window_input2 = WindowInput(:widget_dialog, KeyDown(:escape, ModifierKeys(), false; time = 0.0))
+    window_input2 = WindowInput(:widget_dialog, KeyDown(:escape, ModifierKeys(); time = 0.0))
     read_intent(sproj, nothing, Intent(window_input2, nothing), iomap)
     @test !any(w -> w isa WindowDocument && w.id === :widget_dialog, screen.windows)
 end

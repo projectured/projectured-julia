@@ -61,6 +61,18 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]).event.key === :z
     end
 
+    @testset "a button with no name in the event layer makes no event" begin
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mousedown","window":"main","button":"back","x":5,"y":6}""")
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mouseup","window":"main","button":"back","x":5,"y":6}""")
+        @test read_from_devices(backend, Device[]) === nothing
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mousedown","window":"main","button":"right","x":5,"y":6}""")
+        @test read_from_devices(backend, Device[]).event.button === :right
+    end
+
     @testset "a motion holds every button that the mask of the browser holds" begin
         backend = WebBackend(port = 0)
         # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.

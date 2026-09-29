@@ -26,7 +26,7 @@ _gr_up(button, x, y, t; window = :win) =
 
 # A key of a chord at the time `t`, with Ctrl held unless `modifiers` says else.
 _gr_key(name, t; modifiers = _GR_CTRL, repeat = false) =
-    WindowInput(:win, KeyDown(name, modifiers, repeat; time = t))
+    WindowInput(:win, KeyDown(name, modifiers; repeat, time = t))
 
 # One click through `rec`: a press 0.02 s before `t_up` and a release at `t_up`,
 # both at `(x, y)`. Answers the count of the `MousePress` that follows, or 0 when

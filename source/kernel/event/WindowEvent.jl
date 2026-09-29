@@ -32,7 +32,7 @@ WindowClose(; time::Real) = WindowClose(Float64(time))
     WindowResize(width, height, time)
 
 The user changed the size of a window. `width` and `height` are the new size of its
-content area, in pixels.
+content area, in logical pixels.
 """
 struct WindowResize <: DeviceEvent
     width::Int

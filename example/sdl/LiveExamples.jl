@@ -156,8 +156,8 @@ end
 const json_typein_live = LiveExample("json_typein", json_example,
     vcat(
         make_typein_gestures(" world"),
-        [timed_event(KeyDown(:left, ModifierKeys(), false; time = time()); hold=0.4),
-         timed_event(KeyDown(:left, ModifierKeys(), false; time = time()); hold=0.6)],
+        [timed_event(KeyDown(:left, ModifierKeys(); time = time()); hold=0.4),
+         timed_event(KeyDown(:left, ModifierKeys(); time = time()); hold=0.6)],
     );
     initial_selection = @reference(make_json_document_example(), entries[1].value.value{5}))
 

@@ -6,7 +6,6 @@
 # and `MouseEnter` and `MouseLeave` come from motion across the edge of a region.
 
 """
-    MouseButtons(left, middle, right)
     MouseButtons(; left = false, middle = false, right = false)
     MouseButtons(names::Symbol...)
 
@@ -20,7 +19,8 @@ Use it to state or test which buttons a pointer event holds.
     MouseButtons()                  # no button
     MouseButtons(:left)             # the left button
     MouseButtons(:left, :right)     # the left and the right button
-    MouseMove(10, 20, MouseButtons(:left), ModifierKeys(); time).buttons.left   # true
+    move = MouseMove(10, 20, MouseButtons(:left), ModifierKeys(); time = 0.0)
+    move.buttons.left               # true
 
 See also `MouseMove`, `MouseEnter` and `MouseLeave`, which hold one.
 """
@@ -46,8 +46,11 @@ end
     MouseDown(button, x, y, modifiers, time)
 
 A mouse button went down. `button` is `:left`, `:middle` or `:right`, `x` and `y`
-are the pixel coordinates in the window, and `time` is the time of the input (see
-`Event`).
+are the coordinates in the window in logical pixels, and `time` is the time of the
+input (see `Event`).
+
+A backend reports no `MouseDown` and no `MouseUp` for a button that has no name here,
+such as a side button of the mouse.
 """
 struct MouseDown <: DeviceEvent
     button::Symbol
@@ -119,8 +122,8 @@ MousePress(button::Symbol, x::Int, y::Int, count::Int, modifiers::ModifierKeys;
     MouseMove(x, y[, buttons, modifiers]; time)
     MouseMove(x, y, buttons, modifiers, time)
 
-The pointer moved. `x` and `y` are the pixel coordinates in the window, `buttons`
-is the `MouseButtons` that are held, and `time` is the time of the input.
+The pointer moved. `x` and `y` are the coordinates in the window in logical pixels,
+`buttons` is the `MouseButtons` that are held, and `time` is the time of the input.
 """
 struct MouseMove <: DeviceEvent
     x::Int
@@ -183,9 +186,10 @@ MouseLeave(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time:
     MouseScroll(dx, dy, x, y[, modifiers]; time)
     MouseScroll(dx, dy, x, y, modifiers, time)
 
-The mouse wheel turned. `dx` and `dy` are the amounts, positive to the right and
-down, `x` and `y` are the position of the pointer, and `time` is the time of the
-input.
+The mouse wheel turned. `dx` and `dy` are the amounts of the turn. A positive `dy` is
+a turn of the wheel away from the user, which scrolls up, and a positive `dx` is a
+scroll to the right, as SDL and the web page send them. `x` and `y` are the position
+of the pointer, and `time` is the time of the input.
 """
 struct MouseScroll <: DeviceEvent
     dx::Int

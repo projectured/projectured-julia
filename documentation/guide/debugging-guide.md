@@ -435,9 +435,9 @@ rendering takes.
 ```julia
 julia> using Projectured, ProjecturedExample
 julia> gestures = [
-           (event = KeyPress('h'; time = time()),                       hold = 0.3),
-           (event = KeyPress('i'; time = time()),                       hold = 0.3),
-           (event = KeyDown(:right, ModifierKeys(), false; time = time()), hold = 0.5),
+           (event = KeyPress('h'; time = time()),                   hold = 0.3),
+           (event = KeyPress('i'; time = time()),                   hold = 0.3),
+           (event = KeyDown(:right, ModifierKeys(); time = time()), hold = 0.5),
        ]
 julia> record_example_video("json", gestures, "/tmp/demo.mp4"; fps=30)
 ```

@@ -12,6 +12,7 @@ const _SDL_MOUSEMOTION     = 0x00000400
 const _SDL_MOUSEBUTTONDOWN = 0x00000401
 const _SDL_MOUSEBUTTONUP   = 0x00000402
 const _SDL_BUTTON_LEFT     = 0x01
+const _SDL_BUTTON_X1       = 0x04         # a side button: the event layer has no name
 const _SDL_BUTTON_LMASK    = 0x00000001   # the left button in the `state` of a motion
 const _SDLK_LCTRL          = Int32(1073742048)
 const _KMOD_LCTRL          = 0x0040
@@ -31,14 +32,14 @@ _push_motion!(x, y; buttons::UInt32 = UInt32(0)) =
                                                UInt32(0), buttons,
                                                Int32(x), Int32(y), Int32(0), Int32(0)))
 
-_push_button_down!(x, y) =
+_push_button_down!(x, y; button::UInt8 = _SDL_BUTTON_LEFT) =
     _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONDOWN, UInt32(0), UInt32(0),
-                                               UInt32(0), _SDL_BUTTON_LEFT, UInt8(1),
+                                               UInt32(0), button, UInt8(1),
                                                UInt8(1), UInt8(0), Int32(x), Int32(y)))
 
-_push_button_up!(x, y) =
+_push_button_up!(x, y; button::UInt8 = _SDL_BUTTON_LEFT) =
     _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONUP, UInt32(0), UInt32(0),
-                                               UInt32(0), _SDL_BUTTON_LEFT, UInt8(0),
+                                               UInt32(0), button, UInt8(0),
                                                UInt8(1), UInt8(0), Int32(x), Int32(y)))
 
 # A key event of the left Ctrl key, with the modifier mask `mod` that SDL gives it.
@@ -128,6 +129,15 @@ function test_input_coalescing()
         @test motion.event isa MouseMove
         @test motion.event.buttons == MouseButtons(:left)
         @test read_from_devices(backend, Device[]).event isa MouseUp
+        @test read_from_devices(backend, Device[]) === nothing
+    end
+
+    @testset "a side button makes no mouse event" begin
+        # The event layer names the left, the middle and the right button. A side
+        # button is none of them, so SDL reports no press and no release for it.
+        _reset_input!(backend)
+        _push_button_down!(10, 10; button = _SDL_BUTTON_X1)
+        _push_button_up!(10, 10; button = _SDL_BUTTON_X1)
         @test read_from_devices(backend, Device[]) === nothing
     end
 

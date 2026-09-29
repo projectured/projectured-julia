@@ -38,7 +38,7 @@ proj = make_widget_projection_example()
                         menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
-    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0))
+    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
     @test sop isa InvokeActionOperation
     @test sop.action === save
 
@@ -66,12 +66,12 @@ end
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
     # The disabled action's shortcut does not fire; the key falls through instead.
-    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0))
+    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
     @test !(sop isa InvokeActionOperation)
 
     # Re-enabling makes the shortcut fire again (reactive `enabled` cell).
     save.enabled = true
-    sop2 = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0))
+    sop2 = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
     @test sop2 isa InvokeActionOperation
 end
 
@@ -84,11 +84,11 @@ end
     sio = print_document(proj, shell)
 
     # The matching chord is consumed (returns the action op).
-    @test read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)) isa InvokeActionOperation
     # A non-matching chord is not claimed as a shortcut (it falls through).
-    @test !(read_intent(proj, sio, KeyDown(:x, ModifierKeys(ctrl = true), false; time = 0.0)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:x, ModifierKeys(ctrl = true); time = 0.0)) isa InvokeActionOperation)
     # Exact-modifier matching: bare `s` (no Ctrl) is not the Ctrl+S shortcut.
-    @test !(read_intent(proj, sio, KeyDown(:s, ModifierKeys(), false; time = 0.0)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:s, ModifierKeys(); time = 0.0)) isa InvokeActionOperation)
 end
 
 @testset "InvokeActionOperation respects enabled at evaluate time" begin

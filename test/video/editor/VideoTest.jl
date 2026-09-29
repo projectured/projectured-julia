@@ -27,9 +27,9 @@ function test_record_video()
 @testset "record_video" begin
     @testset "encodes an mp4" begin
         gestures = [
-            (event = KeyPress('h'; time = 0.0),                        hold = 0.3),
-            (event = KeyPress('i'; time = 0.0),                        hold = 0.3),
-            (event = KeyDown(:right, ModifierKeys(), false; time = 0.0),  hold = 0.4),
+            (event = KeyPress('h'; time = 0.0),                    hold = 0.3),
+            (event = KeyPress('i'; time = 0.0),                    hold = 0.3),
+            (event = KeyDown(:right, ModifierKeys(); time = 0.0),  hold = 0.4),
         ]
         filename = tempname() * ".mp4"
         ok = try

@@ -27,7 +27,7 @@ function test_event_module()
 @testset "EventModule" begin
 
     @testset "WindowInput carries the window an event came from" begin
-        window_input = WindowInput(:default, KeyDown(:period, ModifierKeys(), false; time = 0.0))
+        window_input = WindowInput(:default, KeyDown(:period, ModifierKeys(); time = 0.0))
         @test window_input isa WindowInput
         @test window_input.window_id === :default
         @test window_input.event isa KeyDown
@@ -35,6 +35,7 @@ function test_event_module()
 
     @testset "the short forms of the constructors" begin
         @test KeyDown(:a, ModifierKeys(); time = 0.0).repeat === false
+        @test KeyDown(:a, ModifierKeys(); repeat = true, time = 0.0).repeat === true
         @test KeyPress('a'; time = 0.0).text == "a"
         @test MousePress(:left, 1, 2; time = 0.0).count == 1
         @test MousePress(:left, 1, 2, ModifierKeys(ctrl = true); time = 0.0).count == 1
@@ -43,7 +44,7 @@ function test_event_module()
     end
 
     @testset "MouseButtons holds every held button" begin
-        @test MouseButtons() == MouseButtons(false, false, false)
+        @test MouseButtons() == MouseButtons(left = false, middle = false, right = false)
         @test MouseButtons(:left) == MouseButtons(left = true)
         both = MouseButtons(:left, :right)
         @test both.left && both.right && !both.middle
@@ -54,7 +55,7 @@ function test_event_module()
     end
 
     @testset "@event_case dispatches on event type" begin
-        event = KeyDown(:period, ModifierKeys(ctrl=true), false; time = 0.0)
+        event = KeyDown(:period, ModifierKeys(ctrl=true); time = 0.0)
         r = @event_case event begin
             KeyDown(:period; ctrl) => :dot_ctrl
             _                      => :fallback
@@ -84,7 +85,7 @@ function test_event_module()
 
     @testset "EventPattern matches and describes" begin
         p = KeyDownPattern(:period; modifiers = [:ctrl])
-        event = KeyDown(:period, ModifierKeys(ctrl=true), false; time = 0.0)
+        event = KeyDown(:period, ModifierKeys(ctrl=true); time = 0.0)
         @test matches_event_pattern(p, event)
         @test (@inferred matches_event_pattern(p, event)) === true
         @test describe_event_pattern(p) == "Ctrl+."
@@ -95,6 +96,11 @@ function test_event_module()
         @test describe_event_pattern(KeyPressPattern('a'; modifiers = [:ctrl])) == "Ctrl+a"
         @test describe_event_pattern(KeyPressPattern(nothing)) == "character"
         @test describe_event_pattern(MousePressPattern(:left)) == "Left click"
+        # A button that goes down or up is no click.
+        @test describe_event_pattern(MouseDownPattern(:left)) == "Left button down"
+        @test describe_event_pattern(MouseUpPattern(:right; modifiers = [:ctrl])) ==
+              "Ctrl+Right button up"
+        @test describe_event_pattern(MouseDownPattern(nothing)) == "button down"
         @test describe_event_pattern(MouseMovePattern(; modifiers = [:shift])) ==
               "Shift+move pointer"
         @test describe_event_pattern(EventPattern{WindowResize}(NamedTuple(), nothing,
@@ -114,6 +120,12 @@ function test_event_module()
         @test !matches_event_pattern(shifted, MouseScroll(0, 1, 2, 3; time = 0.0))
     end
 
+    @testset "a reified pattern rejects a modifier with no name" begin
+        @test_throws ArgumentError KeyDownPattern(:s; modifiers = [:control])
+        @test_throws ArgumentError EventPattern{KeyDown}(NamedTuple(), [:ctrl, :hyper],
+                                                         nothing)
+    end
+
     @testset "the parser builds a pattern and the field bindings" begin
         rule = parse_event_pattern_rule(:(KeyDown(:home; ctrl) => :home))
         @test rule.type === KeyDown
@@ -126,8 +138,11 @@ function test_event_module()
         @test @em_test_bind_fields(KeyPress(c) => c, KeyPress('q'; time = 0.0)) === 'q'
         @test @em_test_bind_fields(MousePress(b, x, y) => (b, x, y),
                                    MousePress(:right, 5, 6; time = 0.0)) == (:right, 5, 6)
-        # A rule that binds no field leaves the body as it is.
+        # A rule that binds no field leaves the body as it is, the catch-all too.
         @test build_event_field_bindings(rule, :event, :body) === :body
+        catch_all = parse_event_pattern_rule(:(_ => 1))
+        @test build_event_field_bindings(catch_all, :event, :body) === :body
+        @test @em_test_bind_fields(_ => 1, KeyPress('q'; time = 0.0)) == 1
     end
 
     @testset "the parser names what is wrong" begin

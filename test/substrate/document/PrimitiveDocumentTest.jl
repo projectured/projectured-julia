@@ -247,7 +247,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x', "x", ModifierKeys(true, false, false, false); time = 0.0)
+    evt = KeyPress('x', "x", ModifierKeys(ctrl = true); time = 0.0)
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"

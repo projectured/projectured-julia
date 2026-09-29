@@ -428,7 +428,10 @@ function _decode_escape_sequence(buf::Vector{UInt8}, time::Real)
           final == UInt8('Z') ? :tab :
           get(_FINAL_BYTE_KEYS, final, nothing)
     key === nothing && return (nothing, index)
-    final == UInt8('Z') && (modifiers = ModifierKeys(modifiers.ctrl, true, modifiers.alt, modifiers.meta))
+    if final == UInt8('Z')
+        modifiers = ModifierKeys(ctrl = modifiers.ctrl, shift = true, alt = modifiers.alt,
+                                 meta = modifiers.meta)
+    end
     return (_make_key_event(key, modifiers, time), index)
 end
 
@@ -445,10 +448,13 @@ _make_key_event(key::Symbol, modifiers::ModifierKeys, time::Real) =
                                                    KeyDown(key, modifiers; time)
 
 _with_alt_modifier(event::KeyDown) =
-    KeyDown(event.key, _with_alt_modifier(event.modifiers), event.repeat; time = event.time)
+    KeyDown(event.key, _with_alt_modifier(event.modifiers); repeat = event.repeat,
+            time = event.time)
 _with_alt_modifier(event::KeyPress) =
     KeyPress(event.char, event.text, _with_alt_modifier(event.modifiers); time = event.time)
-_with_alt_modifier(modifiers::ModifierKeys) = ModifierKeys(modifiers.ctrl, modifiers.shift, true, modifiers.meta)
+_with_alt_modifier(modifiers::ModifierKeys) =
+    ModifierKeys(ctrl = modifiers.ctrl, shift = modifiers.shift, alt = true,
+                 meta = modifiers.meta)
 _with_alt_modifier(event) = event
 
 # The terminal Home key maps to the reader's "select the root node" chord
