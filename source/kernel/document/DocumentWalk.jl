@@ -213,9 +213,8 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
                             here, seen, include_selection, depth - 1, raw, descend)
         end
     else
-        fnames = try fieldnames(typeof(obj)) catch; () end
-        for fn in fnames
-            (fn == :ref || (fn == :selection && !include_selection)) && continue
+        for fn in fieldnames(typeof(obj))
+            fn == :selection && !include_selection && continue
             isdefined(obj, fn) || continue
             child = unwrap_cell(getfield(obj, fn))
             descend(obj, child) || continue

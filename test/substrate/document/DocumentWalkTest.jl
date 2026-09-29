@@ -111,6 +111,14 @@ end
     @test length(search_references(sevens, v -> v == 7; raw = true)) == 2
 end
 
+# ── A field named `ref` is a field like any other ─────────────────────────
+@testset "a match under a field named ref is found" begin
+    alice = PrimitiveString("Alice")
+    holder = (ref = alice,)
+    @test search_documents(holder, is_alice) == [alice]
+    @test length(search_references(holder, is_alice)) == 1
+end
+
 # ── The strategies agree on everything else ───────────────────────────────
 @testset "strategies agree on what matches" begin
     nested = CellVector([PrimitiveString("Alice"), PrimitiveNumber(7)])
