@@ -639,6 +639,38 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   that the REPL posts goes through a closure that calls `invokelatest`
   (§6.1). The three packages go into `environment/all`, and the umbrella suite
   loads them (D12).
+  - [x] **2.1 The packages** (`303cb9ed2`). `ProjecturedDataFrames`,
+    `ProjecturedDataFramesExample` with `make_data_frame_example`, and
+    `ProjecturedDataFramesTest` with `test_dataframes()`. The module is
+    `DataFramesModule`. The package root binds the modules of the packages
+    below it, as a domain package does, and it exports the names of the
+    module, as `ProjecturedOdbc` does, because a person loads it by name. The
+    layering guard needs `extra_aliases` for the bound modules, as the chart
+    guard has.
+  - [x] **2.2 The read-only view** (`7652621aa`). `DataFrameView` holds the
+    frame, `anchor` and `scroll_position`; the pane shares the cell of
+    `scroll_position`. `DataFrameViewToWidget` draws a `WidgetTable` of a
+    `ListNode` in a `WidgetScrollPane`. A header reads `price :: Float64`,
+    and `discount :: Float64?` for a column that allows `missing`, as a
+    data frame prints in the REPL. A column has a weight and no minimum,
+    so the table gives it the width of its header at least; `Fill` has a
+    minimum of 0 and would not. A number aligns right. A cell is a
+    `WidgetLabel` of the compact print, cut at 200 characters. Ctrl+Home
+    and Ctrl+End are `@gestures` of the view, and `jump_to_row` writes the
+    anchor and the offset as view state. The natural row is a chain of the
+    view projection and the scroll pane printer, because a type dispatch
+    does not print an output again, so a row must end in graphics.
+  - [x] **2.2a A widget fix** (`71c55b297`). Found in a picture of the
+    view at its last row: the rows before the head, at a negative offset,
+    showed through the frozen header, and the header showed in the body.
+    `get_frozen_elements` lets a content say what the held strip draws; the
+    list table answers its header.
+  - [x] **2.3 The horizontal clamp** (`1cafec743`), found in phase 1.
+  - [ ] **2.4 The scroll bar and the re-anchor.** They need the height of a
+    row in pixels, which only the table projection knows. The owner decides
+    how the view learns it.
+  - [ ] **2.5 The display.** It needs the choice of how the editor task is
+    pinned to one thread.
 - [ ] **3. Refresh.** The three levels of §4.3. The triggers A, B with the
   busy flag, and D. C is a keyword that is off by default (D3).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
