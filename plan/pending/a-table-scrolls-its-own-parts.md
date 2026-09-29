@@ -363,6 +363,19 @@ data frame plan need it.
 Recommendation: yes, and a check that `omnet-julia` builds and its tests of
 tables pass.
 
+**P9. Details of the shared geometry, accepted by the owner (2026-09-30:
+"Continue").**
+- The cells grid is the master of the shared geometry. The header row is a
+  `GridLayout` of one row with the column widths of the cells grid as `Fixed`
+  widths, and the header column a `GridLayout` of one column with its row
+  heights. Each header sets a minimum on its column or row. A header cell
+  clips, so its natural size does not depend on what it is given.
+- `GridLayout` gets `row_offers`, as it has `column_offers`: a row told its
+  height does not pass it to its cells, so a `Content` row can be measured.
+- A lazy table with a header column has `Fixed` rows: the header column and
+  the rows are two lazy lists, and only a `Fixed` row keeps them the same
+  height. This changes P3 for a lazy table.
+
 ## 6. Risks
 
 - **The selection across regions** is the largest part: the readers of the
