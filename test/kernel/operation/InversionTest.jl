@@ -10,12 +10,13 @@ It also verifies the splice helpers that the text edits use. The lists are a
 test-local collection that keeps each element in a cell of its own, so a splice
 must give each item as it is and let the collection wrap it. A second test-local
 collection writes a value into the slot cell that is there, so the way back of an
-overwrite must hold the old value and not the slot.
+overwrite must hold the old value and not the slot. It replaces the slot for a cell,
+so the way back of a cell must hold the old slot.
 """
 
 using Test
 using ProjecturedKernel
-using ProjecturedKernel.CellModule: AbstractCell, MutableCell, unwrap_cell
+using ProjecturedKernel.CellModule: AbstractCell, Cell, MutableCell, unwrap_cell
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.DocumentModule: @document, Document
 using ProjecturedKernel.ReferenceModule
@@ -159,6 +160,16 @@ function test_inversion()
         evaluate_operation(editor, inverse)
         @test [slots[1], slots[2]] == ["a", "b"]
         @test slots.cells[2] === slot
+        # A cell replaces the slot, so the way back puts the old slot back and
+        # leaves the new cell as it is.
+        c = Cell("z")
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(slots, reference, c))
+        @test slots.cells[2] === c
+        evaluate_operation(editor, inverse)
+        @test slots.cells[2] === slot
+        @test [slots[1], slots[2]] == ["a", "b"]
+        @test c[] == "z"
     end
 
     # One rule covers insert, delete and replace, because all three are a splice

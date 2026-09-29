@@ -105,14 +105,16 @@ _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
                                         getproperty(parent, Symbol(step.name))) :
         nothing
 
-# An element overwrite: put back the value that is there now, not the slot. A
-# collection can write one value into the slot that is there, and then a kept
-# slot holds the new value when the way back runs.
+# An element overwrite. A collection can write a value into the slot that is
+# there, and then a kept slot holds the new value when the way back runs, so the
+# way back holds the value that is there now. A cell replaces the slot, so the
+# way back of a cell holds the slot that is there now.
 function _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
                             step::RangeReferenceStep, value)
     index = step.start + 1
     (index < 1 || index > length(parent)) && return nothing
-    ReplaceReferencedValueOperation(parent, Reference(step), parent[index])
+    old = value isa AbstractCell ? get_slot_at(parent, index) : parent[index]
+    ReplaceReferencedValueOperation(parent, Reference(step), old)
 end
 
 # A splice: the write replaces `[start, stop)` with `n` items, so the way back
