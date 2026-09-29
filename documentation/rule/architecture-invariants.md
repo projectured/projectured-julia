@@ -65,6 +65,7 @@ requirement; the rule is its own lead sentence.
 | --- | --- |
 | [PAR-PURE-THUNK](#par-pure-thunk) | Every reactive computation must be a pure function of the cells it reads |
 | [PAR-NO-WRITE-IN-THUNK](#par-no-write-in-thunk) | A computation must never write another cell or mutate shared document state |
+| [PAR-STORE-THEN-DRAIN](#par-store-then-drain) | Data enters a running editor through a store and a drain, never through a direct write |
 | [PAR-ACYCLIC-CELLS](#par-acyclic-cells) | The cell dependency graph must stay acyclic |
 | [PAR-MONOTONE-INVALIDATION](#par-monotone-invalidation) | Never hand-set `valid` and never partially invalidate |
 | [PAR-WRITE-DRIVEN-PROPAGATION](#par-write-driven-propagation) | Treat propagation as write-driven, not value-driven |

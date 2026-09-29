@@ -70,12 +70,12 @@ The editor reports a fault at the first tier that works. A tier that fails falls
 
 ### Why a printer needs two catches
 
-A printer does not throw when `print_document` runs. It builds a graph of computations and returns. It throws later, inside a thunk, while the renderer pulls the output, one frame later or a hundred. So a `try` around `print_document` catches almost nothing.
+A printer does not throw when `print_document` runs. It builds a graph of computations and returns. It throws later, inside a computation, while the renderer pulls the output, one frame later or a hundred. So a `try` around `print_document` catches almost nothing.
 
 `FaultCatchingProjection` catches in both places: around `print_document` of the inner projection, and inside the computed cell that reads the inner output. Its catch returns a value, the mark, and not an exception. The reactive engine then does three things with no more code:
 
 - **The repeat stops.** The engine caches the mark, so the computation does not run and throw again on every frame.
-- **The node heals.** The mark has the dependencies that the real value had. When the input that caused the fault changes, the thunk runs again and the real output comes back.
+- **The node heals.** The mark has the dependencies that the real value had. When the input that caused the fault changes, the computation runs again and the real output comes back.
 - **The fault stays local.** The exception never leaves the cell, so no other read stops and the rest of the graph stays valid.
 
 The reader and the two reference mappers catch too. A reader that throws returns `Intent(gesture, nothing)`, so the layer above gets its turn. A mapper that throws returns `nothing`, the normal answer for a node with no image, so no edit can address a node whose value nobody could draw.
@@ -86,14 +86,14 @@ The reader and the two reference mappers catch too. A reader that throws returns
 
 ### Why the store is not made of cells
 
-`PAR-NO-WRITE-IN-THUNK` forbids a computation to write a cell: a write in the middle of a computation invalidates its consumers half way through. The log is a document made of cells. So the catch writes a `FaultStore`, a plain object outside the reactive graph. The store is safe to write from a thunk: it has no dependents, and a write keyed by the fault leaves one entry for a thunk that runs ten times. The editor frame then calls `report_frame_faults!` once, on its own task and outside every thunk, and that call writes the log through `append_fault!`.
+`PAR-NO-WRITE-IN-THUNK` forbids a computation to write a cell: a write in the middle of a computation invalidates its consumers half way through. The log is a document made of cells. So the catch writes a `FaultStore`, a plain object outside the reactive graph. The store is safe to write from a computation: it has no dependents, and a write keyed by the fault leaves one entry for a computation that runs ten times. The editor frame then calls `report_frame_faults!` once, on its own task and outside every computation, and that call writes the log through `append_fault!`.
 
 ### Why a substitute is not optional
 
 With no substitute the mark is a bare `FaultReport`, and the fault spreads two ways:
 
 - **Down the chain.** The next step has no method for `FaultReport`, throws, and its own barrier fires. Four steps make four records for one cause.
-- **Out to the siblings.** A parent printer often reads the output of a child: it measures a width or counts a length. A parent that gets a `FaultReport` throws in its own thunk, so one mark then replaces the whole parent subtree.
+- **Out to the siblings.** A parent printer often reads the output of a child: it measures a width or counts a length. A parent that gets a `FaultReport` throws in its own computation, so one mark then replaces the whole parent subtree.
 
 A substitute prints the report as a document of the right domain: a red `SyntaxLeaf`, a red `TextBlock`, a destructive `WidgetAlert` or a `GraphicsCanvas` with one red line. The parent can measure it, so the fault stays at the one node. A step whose type dispatch ends in an `Any` entry does not throw on a `FaultReport`; it prints something wrong, with no report.
 

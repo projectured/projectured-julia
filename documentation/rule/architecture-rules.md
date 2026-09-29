@@ -38,7 +38,7 @@ imply an API boundary the module doesn't enforce.)
 A **slice** is a *vertical* split of a single layer: where layers stack code by
 dependency height, slices split one layer side by side by feature (a document with
 its parser, projections, tests). Slice when the instances are the features
-and grow in number (domain, visual); keep by-concept layers where the kind is itself
+and grow in number (the domains); keep by-concept layers where the kind is itself
 the feature (the kernel). General form: **organize by the axis along which the code
 grows and changes; keep the other axis as a naming convention** (`*Parser.jl`,
 `*ToSyntax.jl` make "all parsers" a glob, not a folder).
@@ -54,7 +54,7 @@ give each its own.
 ## The package chain and what belongs to each
 
 ```
-kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web odbc video tulip anthropic ollama mcp
+kernel  →  substrate  →  domain  →  (umbrella)     opt-in: sdl web odbc video tulip anthropic ollama mcp
 ```
 
 - **kernel** — machinery and interfaces only: cells, the document/reference/operation
@@ -62,28 +62,35 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   document-free structural combinators, agent seams, the editor loop. **Zero concrete
   documents.** Membership tests: "does the editor loop itself need it?"; a projection
   is kernel-side iff it imports no concrete document.
-- **base** — the domain-independent vocabulary and frameworks: the engine's documents
-  (Collection, Primitive, the insertion document), the document-shaped generic
-  projections, and the persistence frameworks (binary/natural serialization, document
-  files). Membership test: **frameworks sink to the lowest package where their types
-  make sense; only per-domain methods stay above** (the seam pattern below).
-- **visual** — everything about how documents become visible: style atoms, the
-  screen/window model, the render-target documents (Graphics, Layout, Text, Widget,
-  Syntax) with their projections, and the dependency-free backends (Console, Pdf).
+- **substrate** — the packages between the kernel and the domains, one concept
+  each, in an acyclic graph; [package-rules.md](package-rules.md) has their table.
+  The lower ones hold the domain-independent vocabulary and frameworks: the engine's
+  documents (`ProjecturedCollection`, `ProjecturedPrimitive`, the insertion document
+  of `ProjecturedDomain`), the document-shaped generic projections
+  (`ProjecturedProjection`), and the persistence frameworks
+  (`ProjecturedSerialization`, `ProjecturedFileFormat`). Membership test:
+  **frameworks sink to the lowest package where their types make sense; only
+  per-domain methods stay above** (the seam pattern below).
+  The upper ones hold everything about how documents become visible: the style atoms
+  (`ProjecturedStyle`), the screen/window model (`ProjecturedScreen`), the
+  render-target documents with their projections (`ProjecturedGraphics`,
+  `ProjecturedLayout`, `ProjecturedText`, `ProjecturedWidget`, `ProjecturedSyntax`),
+  and the dependency-free backends (`ProjecturedConsole`, `ProjecturedPdf`).
   Membership test: "is this about presenting/arranging/drawing?" Anything
-  screen-, window-, or graphics-related lives here — with one deliberate exception:
+  screen-, window-, or graphics-related lives there — with one deliberate exception:
   the Display *device* and display-size seam stay in the kernel, because they are the
   interface the editor writes to, not the graphics themselves.
 - **domain** — pure feature slices (json, sql, graph, …: each a document + parser +
   projections + tests) plus the application slices (assistant, conversation) in the
   layer above. No shared layers between them: anything two slices need is a
-  framework and belongs in base (or visual, if it renders).
+  framework and belongs in the substrate.
 - **opt-in packages** — exactly one per external dependency or transport (sdl=SDL2,
   web=HTTP, odbc=ODBC, tulip=linear-programming solver, anthropic/ollama=HTTP clients
   of a model provider, mcp=the MCP server). They implement
   seams owned below (the render/image/record backend generics, database adapters)
-  and bind to the narrowest package that has what they render (sdl/web → visual,
-  odbc → domain's sql surface).
+  and bind to the narrowest package that has what they render (sdl/web →
+  `ProjecturedStyle`, `ProjecturedGraphics` and `ProjecturedScreen`; odbc → the sql,
+  database and dbcatalog domains).
 
 ## The triad — every main package has its code, its tests, and its examples
 
@@ -151,12 +158,13 @@ clarifications that decide most disputes:
   `Backend` subtype by type-name reflection), creates no dependency — the opt-in
   package registers/provides the method when loaded. Only a `using` / `import` of
   a package, or naming its types/functions directly, anchors code to a package.
-  This is why the example gallery can live in the visual package while rendering
+  This is why the example gallery can live in `ProjecturedExample` while rendering
   through SDL at runtime — it never names `SdlBackend`, it calls `default_backend`.
 - **The fixture decides, not the machinery.** A test (or example) that exercises
   a lower package's machinery *through* a higher package's fixture belongs to the
   fixture's package: a Pdf-backend test driven by a JSON pipeline is a domain test,
-  even though the Pdf backend is visual. Classification tables in plans are guesses; the
+  even though the Pdf backend is in the substrate. Classification tables in plans are
+  guesses; the
   vocabulary check at move time is the authority.
 
 The generic drivers follow the same rule from the other side: a driver written
@@ -168,18 +176,19 @@ Open generics declared low and extended high (`_text_leaf_length`) bridge the
 packages without inverting the DAG. Where a driver needs package-specific behavior
 wholesale — the navigation gesture sets and their ground-truth enumerators — it
 takes them as arguments instead: the generic `explore_selections` /
-`test_navigation` driver sits in the kernel test package, its presets
-(`test_position_navigation`, `test_tree_navigation`) in the visual test package
-whose readers own those gesture vocabularies, and the enumerators
-(`collect_position_selections`, `collect_tree_selections`) in the base test
-package whose document walk can express them.
+`test_navigation` driver sits in the kernel test package, and its presets
+(`test_position_navigation`, `test_tree_navigation`) and the enumerators
+(`collect_position_selections`, `collect_tree_selections`) sit in the substrate
+test package, whose readers own those gesture vocabularies and whose document walk
+can express them.
 
 ## Placement rules for individual pieces
 
 - **Projection placement invariant** (machine-checked by the guards):
   `home(projection) ≥ max(package(input), package(output), package(every other import))`.
   Canonical home = the more-specific side: `JsonToSyntax` → json slice,
-  `SyntaxToText` → visual, `ObjectToSyntax` → visual (generic input, visual output).
+  `SyntaxToText` → `ProjecturedSyntax`, `ObjectToSyntax` → `ProjecturedSyntax`
+  (generic input, syntax output).
   It works because pipelines flow *specific → generic*; a reverse-direction
   projection (WorkspaceToFileSystem) still obeys it via its input side.
 - **Documents own no cross-domain edges.** A document imports only its own slice and
@@ -231,8 +240,8 @@ package whose document walk can express them.
 Every main package has a static guard that parses the real `import ..Module`
 headers and asserts: the include list is a valid topological order, every file
 belongs to a declared layer/slice, every edge points to the same or a lower layer,
-and slice→slice edges are acyclic. Where enabled (the kernel today;
-base/visual/domain as they come clean), it also asserts that **imports name only
+and slice→slice edges are acyclic. Where enabled (the kernel today; the
+substrate and the domains as they come clean), it also asserts that **imports name only
 exported symbols** — a non-exported name is a module-internal detail, so share a
 private helper via same-module fragments (the `@event_case` / `@gestures` parser
 precedent) or sink the seam below both users as exported API (the `@cell_struct`
@@ -246,7 +255,7 @@ today. The guard is implemented **once** — the shared
 `check_layering` in
 [package/kernel/test/layering/CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl)
 — and each test package applies it to its main package
-(`test_kernel_layering()`, `test_base_layering()`, `test_visual_layering()`,
-`test_domain_layering()`), running inside `test_<package>()`. It runs without loading
+(`test_kernel_layering()`, `test_substrate_layering()`, and one for each domain
+such as `test_json_layering()`), running inside `test_<package>()`. It runs without loading
 the package (~1s) and is the reason the rules stay true after the refactors that
 established them.
