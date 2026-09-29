@@ -257,7 +257,7 @@ function print_document(projection::JsonToSyntax, recursion, document, ctx)
 | --- | --- |
 | A method of a protocol | The arity is the contract: `print_document`, `read_intent`, `match_reference_step`, `splice_value!`, a method of Base. New information goes into the context that the protocol already carries, and never into a new argument. |
 | A conventional tuple | `x, y, w, h` of a rectangle, `MousePress(button, x, y, modifiers)`, `Inset(top, right, bottom, left)`. One order, everywhere in the repository, and a wrong order fails at once. |
-| A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. `source/graph/cpp/` is the whole of this case today. |
+| A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. No file of this repository is a port today. |
 | The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/sdl/` and `source/pdf/`. The family is read as a whole. |
 
 **A marker excuses the count, and nothing else.** The definition under it keeps

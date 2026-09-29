@@ -10,14 +10,6 @@
 #
 # This module sits above the engines rather than beside the interface, because
 # choosing between them means naming them.
-"""
-The vertex count at which the choice turns from the advanced layouter to the
-fast one. It is `LIMIT` in `ModuleLayouter::getSubmodulePositions`, and the
-comment there says why it is 20: at thirty or forty modules the advanced
-layouter is already very slow.
-"""
-const ADVANCED_LAYOUT_LIMIT = 20
-
 # The engine `make_deferred_layout_engine` hands out. A package with a better one
 # registers a factory here from its `__init__` — a mutation, not a second
 # method: replacing a method during precompilation is fatal, and this seam

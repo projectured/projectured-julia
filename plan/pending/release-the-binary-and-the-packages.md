@@ -808,15 +808,44 @@ package registered an engine for (R26).
 
 ### Steps
 
-- [ ] G1. `FruchtermanReingoldLayout` and its tests: every vertex placed, no
+- [x] G1. `FruchtermanReingoldLayout` and its tests: every vertex placed, no
       two boxes overlap, an edge is shorter than the mean distance of two
       vertices without one, pins hold exactly, a cluster keeps its offsets, the
       same input gives the same output, an extent bounds it, and a constraint
-      it does not know is refused.
-- [ ] G2. The default: `make_pure_julia_layout_engine` answers the new engine;
-      the tests that asked for the ported ones by default ask for it.
-- [ ] G3. The move, here: the ten files, their exports, their tests and the
-      benchmark leave; the guides describe the new engine.
+      it does not know is refused. Done (commit `071225f08`): 99 assertions in
+      `test/graph/projection/FruchtermanReingoldLayoutTest.jl`, all passing on
+      the first run.
+- [x] G2. The default: `make_pure_julia_layout_engine` answers the new engine;
+      the tests that asked for the ported ones by default ask for it. Done in
+      the same commit. `test_graph()` passed with 464.
+
+Facts of G1 and G2 (2026-09-29):
+
+- **The vertex count stays in the interface.** `ProjecturedAdaptagrams` extends
+  `resolve_layout_engine(engine, vertex_count)`, and `GraphToGraphLayout`
+  passes the count to name the engine that ran. An engine that decides by size,
+  such as the one downstream, needs it too. Only the answer changed.
+- **The offsets of a cluster are centre offsets**, as in the port: a member's
+  centre is the body plus its offset, and a pin wins over a cluster.
+- **Cost**, one run with other load on the machine, on the network graph of
+  the benchmark (a chain plus a link every seventh vertex, 40 by 20 boxes):
+  0.006 s at 10 vertices, 0.005 s at 60 and 0.13 s at 300, with no overlap. The
+  document said 41 s at 300 for the ported force-directed engine.
+- **The example `graph`**, rendered to an image with the new default: three
+  cards, no overlap, straight edges between the nearest sides.
+- [x] G3. The move, here: the ten files, their exports, their tests and the
+      benchmark leave; the guides describe the new engine. Done on 2026-09-29:
+      `source/graph/cpp/` and `test/graph/reference/` (the C++ programs that
+      made the reference positions) are deleted, with 142 exports and
+      `ADVANCED_LAYOUT_LIMIT`; the benchmark compares the grid with the new
+      engine; `graph-layout.md`, `graph.md`, `process.md` and
+      `code-quality-rules.md` describe what is here now. The comments that said
+      "the original" now say OMNeT++. `test_graph()` 368 (464 less the 96 of
+      the port), `test_process()` 304, `test_fsm()` 154, `test_package_graph()`
+      675, and the naming and tree guards pass. **It lands on `main` only after
+      G4**, or the downstream repository loses its layouts until G4 lands. The
+      generated `asset/precompile/PrecompileStatements.jl` still names the two
+      types; it skips an entry that no longer resolves.
 - [ ] G4. The move, downstream, in a worktree of that repository: the files,
       the choosing engine, the registration and the tests. It lands before G3,
       because it works with both the old and the new `ProjecturedGraph`.
@@ -828,7 +857,9 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 ### Step L1: what must be settled first
 
 - [ ] R19: the port in `source/graph/cpp/` leaves this repository (Part G), and
-      the MIT function in `source/domain/Domain.jl` gets its notice.
+      the MIT function in `source/domain/Domain.jl` gets its notice. The notice
+      is done (commit `fa12685a9`): the MIT text of Julia, beside the two
+      functions that come from `InteractiveUtils.subtypes`.
 - [x] R24: the two other authors agree to MPL-2.0 for their commits (the owner,
       2026-09-29).
 
