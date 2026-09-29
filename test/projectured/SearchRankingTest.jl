@@ -8,6 +8,10 @@ the test reads no model and no server.
 
 using Test
 
+# The module of the harness, reached through a public name of it: the checks of
+# two private helpers call them there.
+const _RankingHarness = parentmodule(SearchRanker)
+
 _make_ranking_entry(qualname, summary = "") =
     ToolModule._ApiEntry("function", qualname, last(split(qualname, '.')) * "()", summary,
                          summary, summary)
@@ -44,10 +48,10 @@ function test_search_ranking()
         @test endswith(with_code, "code:\nfunction open_pane!(e, d)\n    push!(e, d)")
         # A choice shows the first line of the code of an entry with no first sentence.
         bare = _make_ranking_entry("Panes.close_all!")
-        @test _make_choice_line(bare) == "Panes.close_all!"
-        @test _make_choice_line(bare, "function close_all!(editor)\n    empty!(editor)") ==
+        @test _RankingHarness._make_choice_line(bare) == "Panes.close_all!"
+        @test _RankingHarness._make_choice_line(bare, "function close_all!(editor)\n    empty!(editor)") ==
               "Panes.close_all!: function close_all!(editor)"
-        @test _make_choice_line(entries[1], "function open_pane!(e, d)") ==
+        @test _RankingHarness._make_choice_line(entries[1], "function open_pane!(e, d)") ==
               "Panes.open_pane!: Put a document in a new tab."
     end
 
@@ -89,10 +93,10 @@ function test_search_ranking()
         ranked = paragraphs[[4, 1, 2, 3]]
         by_section = SearchQuestion(("q", "", ["g1#B"], :guide, :guide))
         by_guide = SearchQuestion(("q", "", ["g1"], :guide, :guide))
-        @test _get_expected_ranks(by_section, ranked) == [3]
-        @test _get_expected_ranks(by_guide, ranked) == [2]
+        @test _RankingHarness._get_expected_ranks(by_section, ranked) == [3]
+        @test _RankingHarness._get_expected_ranks(by_guide, ranked) == [2]
         # Parts of whole guides answer a section question by its guide.
-        @test _get_expected_ranks(by_section, guides[[2, 1]]) == [2]
+        @test _RankingHarness._get_expected_ranks(by_section, guides[[2, 1]]) == [2]
         words, _ = make_word_ranker().rank(SearchQuestion(("selection", "", ["g1#B"], :guide, :guide)),
                                            make_guide_units(:section; sections = sections))
         @test first(words).heading == "B"

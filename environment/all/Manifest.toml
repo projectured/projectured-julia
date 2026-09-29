@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "65eb1604f4d79e2bcc535d6971b3e0bd3d6adf9a"
+project_hash = "8212c40e4a5fb72c9f8776472de1018539877d0a"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -1285,6 +1285,18 @@ version = "0.1.0"
 deps = ["HTTP", "JSON3", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedOllama", "Test"]
 path = "../../package/ProjecturedOllamaTest"
 uuid = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
+version = "0.1.0"
+
+[[deps.ProjecturedOpenRouter]]
+deps = ["HTTP", "JSON3", "ProjecturedKernel"]
+path = "../../package/ProjecturedOpenRouter"
+uuid = "52a43d73-2617-4b68-a734-0e5186e9ad8a"
+version = "0.1.0"
+
+[[deps.ProjecturedOpenRouterTest]]
+deps = ["JSON3", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedOpenRouter", "Test"]
+path = "../../package/ProjecturedOpenRouterTest"
+uuid = "dc1d00c5-94ff-4244-b58f-31c92e267a9e"
 version = "0.1.0"
 
 [[deps.ProjecturedPane]]
