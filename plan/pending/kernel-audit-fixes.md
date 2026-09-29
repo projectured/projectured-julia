@@ -728,72 +728,89 @@ L09-2 changes `Sdl.jl` and `client.js` too; do its code part in the same commit.
 
 Sealed files: `EventInterface.jl`, `EventPattern.jl`, `KeyboardEvent.jl`, `ModifierKeys.jl`, `MouseEvent.jl`, `WindowEvent.jl`.
 
-- [ ] **L06-1** (Medium, Shape) — 🔒 `KeyboardEvent.jl`; same fault as L09-1
+- [x] **L06-1** (Medium, Shape) — 🔒 `KeyboardEvent.jl`; same fault as L09-1
   Restore the documented vocabulary. The KeyDown docstring states that each letter key has the name of its lower-case letter, :a to :z, and every backend follows it (L09-1). No new table, function or type goes into the event layer.
   *Test:* No test for the docstring. The backend tests of L09-1 assert :a to :z on SDL, the web and the console.
-- [ ] **L06-2** (Medium, Documentation) — 🔒 `MouseEvent.jl`
+  *Done:* lane A, 793648547.
+- [x] **L06-2** (Medium, Documentation) — 🔒 `MouseEvent.jl`
   The MouseScroll docstring states that a positive dy is a turn of the wheel away from the user, which scrolls up, and that a positive dx is a scroll to the right, as SDL and the web page send them.
   *Test:* No test for the docstring. L09-18 adds a test that SDL and the web give dy > 0 for a turn away from the user.
-- [ ] **L06-3** (Low, Correctness) — 🔒 `EventPattern.jl`
+  *Done:* lane A, 793648547.
+- [x] **L06-3** (Low, Correctness) — 🔒 `EventPattern.jl`
   _build_modifier_test reads the modifiers through get_modifier_keys, with the function put into the expression as a value, so that the expansion resolves in any module.
   *Test:* test_event_case(): the rule WindowResize(; ctrl) on a WindowResize event gives no error and no match.
-- [ ] **L06-4** (Low, Correctness) — 🔒 `EventPattern.jl`
+  *Done:* lane A, 793648547.
+- [x] **L06-4** (Low, Correctness) — 🔒 `EventPattern.jl`
   build_event_field_bindings returns body at once when rule.type === nothing, as its docstring promises.
   *Test:* test_event_module(): through a small test macro, the rule _ => 1 gives the body back and no MethodError.
-- [ ] **L06-5** (Low, Correctness) — 🔒 `EventPattern.jl`
+  *Done:* lane A, 793648547.
+- [x] **L06-5** (Low, Correctness) — 🔒 `EventPattern.jl`
   The first option of the report: an inner constructor of EventPattern checks that each modifier flag is :ctrl, :shift, :alt or :meta, and throws an ArgumentError that names the flag, as the macro path does. The field type stays Vector{Symbol}, as the docstring states.
   *Test:* test_event_module(): KeyDownPattern(:s; modifiers = [:control]) throws an ArgumentError.
-- [ ] **L06-6** (Low, Correctness) — 🔒 `EventPattern.jl`
+  *Done:* lane A, 793648547.
+- [x] **L06-6** (Low, Correctness) — 🔒 `EventPattern.jl`
   _describe of MouseDown and MouseUp gives 'Left button down' and 'Left button up' (and 'button down', 'button up' with no button), after the prefix of the modifiers.
   *Test:* test_event_module(): describe_event_pattern(MouseDownPattern(:left)) is 'Left button down', and MouseUpPattern(:right; modifiers = [:ctrl]) gives 'Ctrl+Right button up'.
-- [ ] **L06-9** (Low, Shape) — 🔒 `KeyboardEvent.jl`, `ModifierKeys.jl`, `MouseEvent.jl`
+  *Done:* lane A, 793648547.
+- [x] **L06-9** (Low, Shape) — 🔒 `KeyboardEvent.jl`, `ModifierKeys.jl`, `MouseEvent.jl`
   Apply the rule 'A Bool is never positional': the short KeyDown form takes repeat as a keyword, KeyDown(key, modifiers; repeat = false, time). The docstrings of ModifierKeys and MouseButtons show only the keyword and name forms. The callers in source/ (Sdl.jl:403, Web.jl:597, Console.jl _with_alt_modifier, Web.jl:539, Console.jl:429, sdl_modifiers) and the tests use keywords.
   *Test:* test_event_module(): KeyDown(:a, ModifierKeys(); repeat = true, time = 0.0).repeat is true; then test_sdl_keysym(), test_web_backend(), test_console_backend() and test_gesture_recognizer() pass.
-- [ ] **L06-13** (Low, Documentation) — 🔒 `MouseEvent.jl`, `WindowEvent.jl`, `EventInterface.jl`
+  *Done:* lane A, 793648547. omnet-julia and inet-julia have no `KeyDown` call with a positional `repeat`, and no positional `ModifierKeys` or `MouseButtons` call. `sdl_to_keydown(keysym, mod, is_repeat::Bool; time)` still takes a positional Bool; it was not in the list of this item.
+- [x] **L06-13** (Low, Documentation) — 🔒 `MouseEvent.jl`, `WindowEvent.jl`, `EventInterface.jl`
   The MouseButtons example uses time = 0.0. MouseDown, MouseMove and WindowResize say 'logical pixels'. The header of EventInterface.jl says that the body of get_event_time is in EventDefaults.jl.
   *Test:* No test (docstring text). The corrected example gives true in a session.
+  *Done:* lane A, 793648547.
 
 ### Step 3.7: The device layer
 
 Sealed files: `Display.jl`, `ProjecturedKernel.jl`.
 
-- [ ] **L07-3** (Low, Correctness) — 🔒 `Display.jl`
+- [x] **L07-3** (Low, Correctness) — 🔒 `Display.jl`
   An inner constructor of Display requires scale > 0 and zoom > 0 and throws an ArgumentError for any other value (NaN too). The docstring states the limit.
   *Test:* test_device_module(): Display(scale = 0) and Display(zoom = -1.0) throw an ArgumentError (with L07-5).
-- [ ] **L07-4** (Low, Documentation) — 🔒 `Display.jl`, `ProjecturedKernel.jl`
+  *Done:* lane A, 6a8b4076a, with a `# @positional:` marker on the new inner constructor (e8b5ab4d4). A direct write such as `display.scale = 0` still bypasses the check.
+- [x] **L07-4** (Low, Documentation) — 🔒 `Display.jl`, `ProjecturedKernel.jl`
   The Display docstring says that the SDL backend draws each logical pixel as get_device_pixel_ratio(display) device pixels, and that the web, console and video backends do not read the Display. The layer diagram says 'layer 7 - the devices and their physical properties'.
   *Test:* No test (docstring text).
+  *Done:* lane A, 6a8b4076a.
 
 ### Step 3.8: The gesture layer
 
 Sealed files: `GestureRecognizer.jl`.
 
-- [ ] **L08-3** (Low, Documentation) — 🔒 `GestureRecognizer.jl`
+- [x] **L08-3** (Low, Documentation) — 🔒 `GestureRecognizer.jl`
   In pop_gesture!, replace the sentences that name the editor and the tests with 'source answers the next input, or nothing'. The recognizer calls get_event_time(event) in place of event.time (lines 97, 101, 158), as its docstring says. editor.md:48-50, :206-210 and :499-501 say that the chord table of an editor is empty, and the list of events that a reader gets adds WindowClose, WindowResize and WindowDefocus.
   *Test:* test_gesture_recognizer() passes with the same count.
+  *Done:* lane A, ccb1e4aae.
 
 ### Step 3.9: The backend layer
 
 Sealed files: `BackendDefaults.jl`, `BackendInterface.jl`, `BackendModule.jl`, `MouseEvent.jl`, `ProjecturedKernel.jl`.
 
-- [ ] **L09-2** (High, Correctness) — 🔒 `MouseEvent.jl`
+- [x] **L09-2** (High, Correctness) — 🔒 `MouseEvent.jl`
   The first option of the report: a backend drops a button that the vocabulary does not name. SDL: _sdl_button_sym gives :right only for 3 and nothing for 4 and more, and the poll makes no MouseDown or MouseUp for it. Web: buttonSym in client.js gives left only for 0 and null for 3 and more, and the page sends nothing; Web.jl drops a button name other than left, middle and right. The MouseDown docstring states the rule.
   *Test:* test_input_coalescing(): an SDL button 4 makes no mouse event; test_web_backend(): a mousedown message with an unknown button makes no event.
-- [ ] **L09-6** (Medium, Architecture) — 🔒 `BackendInterface.jl`, `BackendDefaults.jl`
+  *Done:* lane A, 793648547. The web test checks only that the server passes `dy` through; no test covers the sign in client.js.
+- [x] **L09-6** (Medium, Architecture) — 🔒 `BackendInterface.jl`, `BackendDefaults.jl`
   Remove the keyword display of get_display_size, which no caller outside a test passes: the interface, the default, SDL (always display 0, now Sdl.jl:4183), VideoBackend.jl:217 and FaultExamples.jl:144. The docstring says 'the usable size in logical pixels'.
   *Test:* test_headless_backend(): get_display_size(b) is (1280, 800); remove the line with display = 2.
-- [ ] **L09-13** (Low, Shape) — 🔒 `BackendInterface.jl`
+  *Done:* lane A, 29568ee3e.
+- [x] **L09-13** (Low, Shape) — 🔒 `BackendInterface.jl`
   The Backend docstring states the order initialize_backend!, configure_devices!, open_native_windows!, as make_editor calls them, and what configure_devices! promises (it fills the devices of the editor in place; a backend that draws with a device keeps that device). initialize_backend! stops saying that it creates windows. play_live! calls configure_devices!(backend, devices) before open_native_windows!.
   *Test:* A playback test with a small backend that records its calls: play_live! calls initialize_backend!, configure_devices! and open_native_windows! in that order.
-- [ ] **L09-14** (Low, Shape) — 🔒 `BackendModule.jl`
+  *Done:* lane A, 29568ee3e. Its test is in test/kernel/playback/PlaybackTest.jl, the file that L23-6 plans.
+- [x] **L09-14** (Low, Shape) — 🔒 `BackendModule.jl`
   Remove the two comments on the include lines, which repeat the docstring (PAR-TIGHT-COMMENTS).
   *Test:* No test; the export guard for the planned part.
-- [ ] **L09-16** (Low, Documentation) — 🔒 `BackendModule.jl`, `BackendInterface.jl`
+  *Done:* lane A, 29568ee3e.
+- [x] **L09-16** (Low, Documentation) — 🔒 `BackendModule.jl`, `BackendInterface.jl`
   BackendModule: remove 'measure text', write 'is not' and 'initialize', and say where the backends are (opt-in packages, the console in the substrate, the headless double in an example package). BackendInterface.jl: remove 'may' for a possibility, 'e.g.', 'HiDPI', the objects that act as persons, and the names of callers (the editor loop, a feed flush, the follower window); state timeout_seconds > 0 for wait_for_input.
   *Test:* No test (docstring text); the documentation and naming guards pass.
-- [ ] **L09-17** (Low, Documentation) — 🔒 `ProjecturedKernel.jl`; after L09-1
+  *Done:* lane A, 29568ee3e.
+- [x] **L09-17** (Low, Documentation) — 🔒 `ProjecturedKernel.jl`; after L09-1
   Write the backend part of devices-and-backends.md again from the table in the Shape section of 09-backend.md (four backends and the headless double, open_native_windows!, wait_for_input and wake_backend!, no tooltip in the browser, read! in ReadEvaluatePrint.jl). Correct editor.md:404-407, system-anatomy.md:320-322, :374 and :495-498, the record_video example in ProjecturedVideo.jl:18, the _emit_frames! sentence in ProjecturedSdl.jl:12, and the layer 9 text in ProjecturedKernel.jl:36.
   *Test:* test_documentation() passes.
+  *Done:* lane A, 0202a0bb7. PAR-BACKEND-SEAM in architecture-invariants.md still says that `convert_web_key_to_symbol` mirrors `sdl_keysym_to_symbol` (Phase 6).
 
 ### Step 3.10: The sealed files of the document layer
 
@@ -906,27 +923,31 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 ### Step 4.6: Tests of the event layer
 
-- [ ] **L06-15** (Low, Tests) — after L06-3, L06-4, L06-5, L06-6
+- [x] **L06-15** (Low, Tests) — after L06-3, L06-4, L06-5, L06-6
   Add the missing cases: the four has_*_modifier_key functions, get_modifier_keys of a KeyChord and of a window event, get_event_time of an event type of another module, the text of KeyUp, MouseDown, MouseUp and KeyChord patterns, and the cases of L06-3 to L06-5. The tests of the eight unused names wait for L06-7, and the rename of EventCaseTest.jl waits for L06-10.
   *Test:* test_event_module() and test_event_case() pass with the new cases.
+  *Done:* lane A, 14197cb96.
 
 ### Step 4.7: Tests of the device layer
 
-- [ ] **L07-5** (Low, Tests) — after L07-3
+- [x] **L07-5** (Low, Tests) — after L07-3
   Add a test of the values that L07-3 rejects, and rename the test 'a backend writes the properties in place' to 'each device is mutable'.
   *Test:* test_device_module() passes with the new test.
+  *Done:* lane A, 4f7277a35.
 
 ### Step 4.8: Tests of the gesture layer
 
-- [ ] **L08-4** (Low, Tests)
+- [x] **L08-4** (Low, Tests)
   Add a double click whose second click is in another window (count 1), and the limits of the click windows (a release at 5 px or after 0.3 s is no click, because the test is a strict <). Remove sleep(0.35) and keep the two event times. The two chord cases (another event between the keys, keys of two windows) go with L08-1.
   *Test:* test_gesture_recognizer(): the new cases pass, and the run is 0.35 s shorter.
+  *Done:* lane A, da6e4b620.
 
 ### Step 4.9: Tests of the backend layer
 
-- [ ] **L09-18** (Low, Tests) — after L09-1, L09-2
+- [x] **L09-18** (Low, Tests) — after L09-1, L09-2
   Put one table of inputs into each of the three existing backend tests: the letters a to z (L09-1), the three buttons and a side button (L09-2), and a wheel turn away from the user, dy > 0 (L06-2); through sdl_to_keydown and the SDL poll, _decode_and_enqueue! of the web backend, and _next_event! of the console. Add kernel tests of the defaults of get_pointer_position and open_native_windows!. Correct the docstring of HeadlessBackendTest.jl (no measure).
   *Test:* test_sdl_keysym(), test_input_coalescing(), test_web_backend(), test_console_backend() and test_headless_backend() pass with the new cases.
+  *Done:* lane A, d5afaed21. test_kernel 2593 pass and 3 broken; test_sdl 840; test_web_backend 99; test_console_backend 133; test_video 41; test_substrate 86852 and the 7 known failures. "the server wakes the editor" failed once at 5.56 s against its 5 s bound under a machine load of 18, and passed again.
 
 ### Step 4.10: Tests of the document layer
 
@@ -1181,12 +1202,13 @@ The classifiers and the implementers found faults that the audit does not hold:
   `:return` in omnet-julia `source/tool/record_precompile.jl:111` and in inet-julia
   `source/tool/repl/record/driver.jl:56`.
   *Test:* the two record scripts run, and the recorded trace holds the key.
-- [ ] **N-4** (Medium, Correctness) — found in step 2.1
+- [x] **N-4** (Medium, Correctness) — found in step 2.1
   `Sdl.jl` defines `map_reference_forward` and `map_reference_backward` for
   `GraphicsCanvasToImageFile` with no import, so they are new functions of ProjecturedSdl and
   do not extend the functions of the projection layer. Qualify them
   (`ProjectionModule.map_reference_forward(...) = ...`), as PAR-QUALIFIED-EXTENSION asks.
   *Test:* `ProjecturedSdl` has no own `map_reference_forward`, and `test_sdl()` passes.
+  *Done:* lane A, c75569085. ProjecturedSdl binds no name `ProjectionModule`, so the methods name `ProjecturedKernel.ProjectionModule.map_reference_*`.
 - [ ] **N-5** (Medium, Correctness, Suspected) — found in step 2.4
   The undo of an element overwrite on a reactive `CellVector` can put back the new value:
   `get_slot_at` answers the slot cell, and `setindex!` writes the new value into that same cell,
@@ -1194,6 +1216,12 @@ The classifiers and the implementers found faults that the audit does not hold:
   overwrite of one element of a reactive `CellVector`, then its inverse). If it holds, make the
   inverse keep the old value, not the cell, as `make_inverse_operation` promises.
   *Test:* `test_inversion()`: the inverse of an overwrite puts back the old value.
+- [ ] **N-6** (High, Correctness) — found in step 3.9
+  `play_live!` throws `UndefVarError` for `read!` on every call on Julia 1.13, because
+  `EditorModule` and `Base` both export `read!` (L22-13 proved). So every live example of
+  playback fails. Call `EditorModule.read!` by its qualified name in Playback.jl. The name of
+  `read!` stays the decision of L22-13.
+  *Test:* `test_playback()`: its `@test_broken` for this call becomes a `@test` and passes.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
