@@ -1154,73 +1154,93 @@ Text only. The documentation guards must pass after each step.
 
 Each item corrects a fact about the code. No item changes what a rule requires.
 
-- [ ] **L01-5** (part) (Medium, Documentation)
+- [x] **L01-5** (part) (Medium, Documentation)
   Say in fault.md, the `Editor` docstring and the header of FaultBarriers.jl that `make_editor` turns the barriers on and that `run_editor!` keeps the policy of its editor (decision 3 of plan/done/an-editor-is-made-before-its-loop-runs.md). The policy of the tests waits for its decision.
   *Test:* Documentation only; the documentation guards pass.
-- [ ] **L01-17** (part) (Low, Documentation)
+  *Done:* ba53c6c94.
+- [x] **L01-17** (part) (Low, Documentation)
   Move the section PAR-REPORT-NEVER-THROWS under the title that the index gives it, and add a `fault/` row to the folder table of architecture.md. The wording of the carve-out waits for its decision.
   *Test:* Documentation only; the documentation guards pass.
-- [ ] **L02-6** (Low, Documentation)
+  *Done:* e871a9730. The section PAR-REPORT-NEVER-THROWS stands under "Editor, devices, and backends".
+- [x] **L02-6** (Low, Documentation)
   Say that the counters live in the scope of one frame of one editor, remove the history sentence, say that `perf!` logs only with the switch on and an applied operation, point the link of `run_editor!` to EditorLoop.jl, name the frame measurement store in the folder row, and call PerformanceModule a layer.
   *Test:* test_documentation().
-- [ ] **L05-3** (Low, Documentation)
+  *Done:* e871a9730 and the guide commits of Phase 6.
+- [x] **L05-3** (Low, Documentation)
   Add one sentence to PAR-STORE-THEN-DRAIN: the heartbeat of a wall clock is the accepted exception, on the thread of the task that reads the clock.
   *Test:* test_documentation().
-- [ ] **L06-14** (Low, Documentation)
+  *Done:* e871a9730 and the guide commits of Phase 6.
+- [x] **L06-14** (Low, Documentation)
   Write the event part of devices-and-backends.md again from the EventModule docstring: nine fragments, EventPattern.jl, get_event_time, the current names (matches_event_pattern, describe_event_pattern, parse_event_pattern_rule, build_event_pattern_expr, build_event_field_bindings), a type resolves in the module of the pattern, and WindowQuit is a request to quit. Correct system-anatomy.md:369-371 and architecture.md:107 and :167.
   *Test:* test_documentation() passes.
-- [ ] **L10-13** (Medium, Documentation) — after L10-1
+  *Done:* ba53c6c94. EventModule has eight fragments, as its docstring says.
+- [x] **L10-13** (Medium, Documentation) — after L10-1
   Rewrite the file tree, the selection paragraph and the contract surface of document.md, and replace the example of a private program. Correct the selection union in macros.md. In architecture-invariants.md correct the stale fact of PAR-DOCUMENT-IDENTITY: the cell layout is an immutable struct. The text of PAR-NO-NESTED-CELL waits for its decision (L10-13, decision part).
   *Test:* test_documentation(); no code change.
-- [ ] **L17-27** (Low, Documentation)
+  *Done:* e871a9730, e0289d67f. The text of PAR-NO-NESTED-CELL waits for its decision.
+- [x] **L17-27** (Low, Documentation)
   Correct each statement: projection-system.md (the editor calls the 4-argument print; Intent has five fields, and route is one; no pipeline uses the pure pair), macros.md (18 files use @projection_template, and hand-written printers remain), naming-rules.md:384-385 (the marker words are not exported), architecture.md:111 (ProjectionModule is layer 17).
   *Test:* test_documentation().
-- [ ] **L22-28** (Low, Documentation) — same fault as L01-5
+  *Done:* e871a9730 and the guide commits of Phase 6.
+- [x] **L22-28** (Low, Documentation) — same fault as L01-5
   Say that `make_editor` turns the barriers on and `run_editor!` keeps the policy of its editor, and drop the stale claim that no test calls `run_editor!`.
   *Test:* None; the change is text only.
+  *Done:* e871a9730. One sentence of the second half of PAR-REPORT-NEVER-THROWS says now that `make_editor` turns the barriers on and `run_editor!` keeps the policy of its editor; the requirement sentence did not change. So the law shows the conflict of L01-5 for the decision.
 
 ### Step 6.2: The design documents and guides
 
-- [ ] **L11-15** (Medium, Documentation)
+- [x] **L11-15** (Medium, Documentation)
   Write `__ =>` in the three examples, and `children[i].rest...` in the example of projection-system.md.
   *Test:* test_documentation(); each corrected snippet expands with no LoadError.
-- [ ] **L13-10** (Medium, Documentation)
+  *Done:* ecbf64638. Each corrected example expands with no error; a bare `_` arm still raises.
+- [x] **L13-10** (Medium, Documentation)
   Rewrite the comment above the catch-all: a reader that declines returns nothing; the catch-all accepts any value that is not an Operation, so a stray value does no harm. Correct operation.md:298 the same way.
   *Test:* test_documentation().
-- [ ] **L13-16** (Low, Documentation)
+  *Done:* 30b8284fa.
+- [x] **L13-16** (Low, Documentation)
   Module docstring: six fragments, OperationInterface.jl, four open seams, and describe_reference. Correct the headers of Operations.jl and OperationInterface.jl. Point AdjustZoomOperation to OperationDefaults.jl. Replace StringReplaceRangeOperation at Description.jl:43 with a real name. Correct the Operation example and the insert_elements signature. Give QuitEditorException a docstring. Drop 'the collection package' and 'the editor loop'. Rewrite the layer section of operation.md from the six files.
   *Test:* test_documentation().
-- [ ] **L14-8** (Low, Documentation)
+  *Done:* 30b8284fa. The headers of Operations.jl and OperationInterface.jl were correct; the paths of the table of distinct operations in operation.md are corrected.
+- [x] **L14-8** (Low, Documentation)
   IntentModule.jl: say that the types sit in layer 14, above the operation layer, and drop 'the binding layer above'. ClaimedGesture: describe it by concepts; drop JSON, XML, fire_gesture_bindings, 'the generic reader bridge', ProjectionModule and '(now)'. CollectIntents: delete 'ClaimedGesture is the precedent'. Intent: show five fields in the signature line, and say that WindowInput is an event of the event layer. projection-system.md: link Intent.jl and show five fields.
   *Test:* test_documentation().
-- [ ] **L15-5** (Medium, Documentation)
+  *Done:* 30b8284fa.
+- [x] **L15-5** (Medium, Documentation)
   Correct the signatures of fire_gesture_bindings (565) and fire_named_gesture_binding (598). Add GestureBindingInterface.jl with read_gesture to the tree (552-557). Correct the downward edges (630-633): EventModule once, add IntentModule, drop DocumentModule: Document. Write move_to_field(doc; from, to) at 606 and engineer-tour.md:191. Put the command palette in the gesturehelp package (625).
   *Test:* test_documentation().
-- [ ] **L17-14** (Low, Correctness)
+  *Done:* c4cfab7fd.
+- [x] **L17-14** (Low, Correctness)
   Say in the docstring of print_document(projection, input) that the form is for a leaf or a wrapped pipeline, because it passes recursion = nothing. Correct projection-system.md:110-112: the editor calls the 4-argument form.
   *Test:* test_documentation().
-- [ ] **L17-22** (Low, Documentation)
+  *Done:* c75ec8a44.
+- [x] **L17-22** (Low, Documentation)
   Correct each path and name: documentation/testing.md to the testing guide, package/kernel/doc/... to documentation/package/kernel/..., 'Sequential' to ChainingProjection, and `[_with_selection](@ref)` to plain text. Delete the citations of plan/pending/cell-kind-documents.md with L17-24.
   *Test:* test_documentation().
-- [ ] **L18-26** (Low, Documentation) — after L18-1
+  *Done:* c75ec8a44.
+- [x] **L18-26** (Low, Documentation) — after L18-1
   Name each process-global value of the layer, and why it is there, in the ToolModule docstring and agent.md:59. Correct the empty-API sentences (Tool.jl:189, Documentation.jl:1262, agent.md:362, mcp-guide.md:50) after L18-1. Delete the remark about the wall clock at Documentation.jl:876.
   *Test:* test_documentation().
-- [ ] **L18-29** (Low, Documentation)
+  *Done:* 205fb718e. mcp-guide.md says that `search_api` reads the declared API, or every loaded package when none is declared.
+- [x] **L18-29** (Low, Documentation)
   Show the api keyword in the docstring signatures of list_modules, read_module_documentation, read_type_documentation and read_function_documentation. Drop 'tips and tricks' (also in DefaultTools.jl:291). Move each comment above the function that it describes. Say in _is_interface_name that the prefix I means immutable. Name ApiEntry and observe_evaluations! in the ToolModule docstring and agent.md:30.
   *Test:* test_documentation().
+  *Done:* 205fb718e.
 - [x] **L19-3** (Low, Shape)
   Keep the generic and correct its docstring: it answers the model that the backend falls back to, and a backend can choose another model for an empty name (the Anthropic adapter asks the Models API first). Correct agent.md:287 to match.
   *Test:* None; the change is text only.
   *Done:* ed36607bc (on the merged branch).
-- [ ] **L19-7** (Low, Documentation)
+- [x] **L19-7** (Low, Documentation)
   List the five fragments in the LlmModule docstring (the seams in LlmInterface.jl, the fallbacks in LlmDefaults.jl). Correct agent.md:213-217 and :282 (`get_llm_backend_names` is in Llm.jl). Write ProjecturedAnthropic and ProjecturedOllama for the package `Llm`/`llm` in the three rule and design documents.
   *Test:* None; the change is text only.
-- [ ] **L20-11** (Low, Documentation)
+  *Done:* ea5c06ef7.
+- [x] **L20-11** (Low, Documentation)
   Say in the module docstring that the module holds both halves. Name AgentInterface.jl as the file of the seam and add AgentDefaults.jl in system-anatomy.md and agent.md; write one AgentModule in place of the two.
   *Test:* None; the change is text only.
-- [ ] **L21-6** (Low, Documentation)
+  *Done:* ea5c06ef7.
+- [x] **L21-6** (Low, Documentation)
   Name kinds in place of consumers (a feed that holds a queue of operations, the read step of a frame); write 'the default does nothing, for a feed whose producers never wake the editor'; add `TooltipFeed` to the table of editor.md and drop 'so far'; state the fault store and the tick cadence in the present tense.
   *Test:* None; the change is text only.
+  *Done:* db435e0eb.
 
 ### Step 6.3: The docstrings and comments of files that are not sealed
 
@@ -1233,9 +1253,10 @@ Each item corrects a fact about the code. No item changes what a rule requires.
 - [ ] **L15-13** (Low, Documentation)
   Correct 'below' at GestureBindingInterface.jl:20; add override to the signature at GestureBinding.jl:16; name the three fragments, get_instance_gesture_bindings, fire_named_gesture_binding and CollectIntents in the module docstring; remove the consumer names, 'layer' for a pipeline stage, and the idioms; delete the repeat of the grammar at Gestures.jl:6-28; wrap the ten lines over 90 characters.
   *Test:* test_documentation().
-- [ ] **L16-2** (Medium, Documentation)
+- [x] **L16-2** (Medium, Documentation)
   Rewrite the compound printer example: child_iomaps = reconcile_child_iomaps(...); the mappers read iomap.child_iomaps (no []); build the reference with @reference.
   *Test:* test_documentation().
+  *Done:* c0f3bd1f9. The example uses typed `@reference` literals, because an untyped one throws "under-typed" when it runs.
 - [ ] **L16-4** (Low, Correctness)
   State in both docstrings that the IoMap that make_iomap returns must hold the element (as its input), because the cache key is objectid, a number, and not a reference to the element. This is the smaller option and answers PAR-MODULE-DOCSTRING; the other option keeps the element in the cache entry and compares it with ===.
   *Test:* test_documentation().
@@ -1260,9 +1281,10 @@ Each item corrects a fact about the code. No item changes what a rule requires.
 - [ ] **L20-12** (Low, Documentation)
   Describe the contract without the layer above, keep one statement of the two halves (in the module docstring), write 'the loop streams, runs the tools, and stops when the model asks for no tool', add a Throws line to `run_turn!` (it throws what `stream_turn`, `messages` and `on_event` throw), and wrap AgentLoop.jl:45 and :87.
   *Test:* None; the change is text only.
-- [ ] **L22-29** (Low, Documentation)
+- [x] **L22-29** (Low, Documentation)
   Update the sections: all 17 fields of `Editor`; the recognizer makes a `MousePress` after its `MouseUp` and recognizes no chord today; the three backends with `WebBackend`; the nine files of the layer; the full list of downward edges; the tests with WaitTest.jl, the feed test and the safe-mode test.
   *Test:* None; the change is text only.
+  *Done:* 6257fc7c2. test_kernel 3901 and 2 broken, test_mcp_tools 158, test_search_scale 45; the documentation and naming guards find nothing.
 - [ ] **L22-30** (Low, Documentation)
   Remove the consumer names and the rule citation, repair the `print!` sentence, name all five keywords in the header of the `run_editor!` docstring, describe the barrier and the repairs in the `evaluate!` docstring, say that `insert_elements!` runs on the editor task, make each fragment header one line under 90 characters, and wrap the long lines.
   *Test:* None; the change is text only.
@@ -1314,6 +1336,11 @@ The classifiers and the implementers found faults that the audit does not hold:
   `read!` stays the decision of L22-13.
   *Test:* `test_playback()`: its `@test_broken` for this call becomes a `@test` and passes.
   *Done:* lane A, eb1c4ece9. test_kernel 3260 pass and 2 broken (644 checks of the corpus on M paths); test_substrate 86866 and the 7 known failures; test_mcp_tools 152; test_julia 407; test_json 194; test_xml 73.
+- [ ] **N-8** (Medium, Correctness) — found in step 6.1
+  The SDL backend names `\` as `:backslash`, but `convert_web_key_to_symbol` answers `:char`, so
+  Ctrl+\ can never fire in the browser. Name it `:backslash` in the web backend, as SDL does, and
+  correct the comment and the docstring of Web.jl that say the two tables mirror each other.
+  *Test:* `test_web_backend()`: the key `\` gives `:backslash`.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
   `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
