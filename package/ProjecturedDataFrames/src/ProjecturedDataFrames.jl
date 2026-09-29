@@ -18,13 +18,17 @@ using ProjecturedCollection
 using ProjecturedKernel
 using ProjecturedLayout
 using ProjecturedNatural
+using ProjecturedPane
 using ProjecturedPrimitive
 using ProjecturedProjection
+using ProjecturedScreen
+using ProjecturedSdl
 using ProjecturedStyle
 using ProjecturedWidget
 
 for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural,
-             ProjecturedPrimitive, ProjecturedProjection, ProjecturedStyle, ProjecturedWidget)
+             ProjecturedPane, ProjecturedPrimitive, ProjecturedProjection, ProjecturedScreen,
+             ProjecturedStyle, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
@@ -39,9 +43,11 @@ include("../../../source/dataframes/DataFramesModule.jl")
 
 # A person loads this package by name, so its names are exported here.
 using .DataFramesModule: DataFrameView, jump_to_row, make_data_frame_cell,
-                         DataFrameViewToWidget, make_data_frame_view_projection
+                         DataFrameViewToWidget, make_data_frame_view_projection,
+                         ProjecturedDisplay, display_in_editor, close_data_frame_editor!
 
 export DataFrameView, jump_to_row, make_data_frame_cell,
-       DataFrameViewToWidget, make_data_frame_view_projection
+       DataFrameViewToWidget, make_data_frame_view_projection,
+       ProjecturedDisplay, display_in_editor, close_data_frame_editor!
 
 end # module ProjecturedDataFrames

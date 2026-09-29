@@ -16,6 +16,7 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
 ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
+ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -29,6 +30,7 @@ ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedLayout = {path = "../ProjecturedLayout"}
 ProjecturedNatural = {path = "../ProjecturedNatural"}
+ProjecturedPane = {path = "../ProjecturedPane"}
 ProjecturedStyle = {path = "../ProjecturedStyle"}
 ProjecturedWidget = {path = "../ProjecturedWidget"}
 

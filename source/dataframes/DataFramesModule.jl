@@ -13,19 +13,24 @@ costs the rows that the pane shows.
 module DataFramesModule
 
 using DataFrames
+using ProjecturedSdl: SdlBackend
 
+using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
 using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
 using ..OperationModule
+using ..PaneModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..ScreenModule
 using ..StyleModule
 using ..WidgetModule
 
@@ -34,9 +39,11 @@ import ..ProjectionModule: print_document, read_intent
 
 export DataFrameView, jump_to_row, make_data_frame_cell
 export DataFrameViewToWidget, make_data_frame_view_projection
+export ProjecturedDisplay, display_in_editor, close_data_frame_editor!
 
 include("DataFrameView.jl")
 include("DataFrameViewToWidget.jl")
+include("DataFrameDisplay.jl")
 
 function __init__()
     register_natural_graphics!(:dataframes,

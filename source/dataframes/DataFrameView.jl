@@ -59,8 +59,10 @@ that a data frame prints in the REPL, cut at 200 characters.
 make_data_frame_cell(::Missing) = WidgetLabel("missing")
 make_data_frame_cell(value) = WidgetLabel(_get_cell_text(value))
 
+# The loop of an editor keeps the world of its start, and a value can have a type
+# of a package that was loaded later, so the print runs in the newest world.
 function _get_cell_text(value)
-    text = sprint(print, value; context = (:compact => true, :limit => true))
+    text = Base.invokelatest(sprint, print, value; context = (:compact => true, :limit => true))
     length(text) <= _CELL_TEXT_LIMIT ? text : first(text, _CELL_TEXT_LIMIT - 1) * "…"
 end
 

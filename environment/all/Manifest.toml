@@ -1039,7 +1039,7 @@ uuid = "475e7e6a-a374-4244-9dfc-8229b9ae86be"
 version = "0.1.0"
 
 [[deps.ProjecturedDataFrames]]
-deps = ["DataFrames", "ProjecturedCollection", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedWidget"]
+deps = ["DataFrames", "ProjecturedCollection", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedSdl", "ProjecturedStyle", "ProjecturedWidget"]
 path = "../../package/ProjecturedDataFrames"
 uuid = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 version = "0.1.0"
@@ -1051,7 +1051,7 @@ uuid = "61ad9eff-ea91-43c8-867c-8ad08b1239de"
 version = "0.1.0"
 
 [[deps.ProjecturedDataFramesTest]]
-deps = ["DataFrames", "ProjecturedCollection", "ProjecturedDataFrames", "ProjecturedDataFramesExample", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedStyle", "ProjecturedWidget", "Test"]
+deps = ["DataFrames", "ProjecturedCollection", "ProjecturedDataFrames", "ProjecturedDataFramesExample", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedStyle", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedDataFramesTest"
 uuid = "b1aceadc-a635-48bd-837b-c4a6ec3ad7cd"
 version = "0.1.0"
