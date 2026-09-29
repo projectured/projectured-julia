@@ -233,9 +233,7 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
 | R3a | Step A2 found that the sound chain makes the archive one that nobody may give to others (Step A2 results). Which way removes it? | A stub `alsa_plugins_jll` in the generated environment of the binary: the same name and uuid, no dependencies, an empty `artifact_dir`. It removes 58 of the 99 JLLs, 462 of the 577 MB of artifacts, and every item that is a problem. It changes the builder, not the structure of the repository. SDL sound can then never work in the binary; the application uses none (`SDL_INIT_VIDEO` only). Part B is not touched. |
 | R17 | Liberation 1.07.3 is GPL-2 with a font exception. Ship its source or a written offer, or switch to Liberation 2.x (OFL-1.1, the same metrics)? | Switch to Liberation 2.x. The OFL needs only its text, in both routes. Compare a render of each family first, because the glyph shapes can differ. |
 | R18 | After the cut, the binary still holds LGPL and GPL parts: `alsa`, GMP, MPFR, libquadmath, the GCC runtime, libgit2, 7-Zip, and a part of libjulia (`dl-cache.h`). Each needs its source, or a written offer. In which form? | A source archive of those parts in the same GitHub release as the binary. That is the simplest form that puts the source "in the same place". |
-| R23 | Ask the maintainers of General before the first registration? | Yes. 65 packages from one repository, 64 manual merges and 13 levels are a large request. An issue in `JuliaRegistries/General` that describes the plan, before the first pull request, lets them say how they want it. |
 | R23 | One release repository with 65 subdirectories, or one repository for each package? | Open: the owner asked whether one repository for each package makes the registration automatic. It makes the URL rule pass, so the first version of about 61 packages merges with no maintainer. But the name rule still stops 4 or more of them, the first registration still goes one dependency level at a time with 3 days of waiting for each new package (13 levels), and 65 repositories must then be kept and pushed at each release. My view: one repository, and a word first in `#pkg-registration` on the Julia Slack, which the README of General names for a review by a person. |
-| R26 | Without the port, which engine does `ProjecturedGraph` use when none is registered? Today `make_pure_julia_layout_engine` picks `SpringEmbedderLayout` (20 vertices or more) or `ForceDirectedLayout`, both from the port. The private repository can register its engines through the `register_layout_engine!` that exists, as `ProjecturedAdaptagrams` does. | Open. Options: `GridEmbedding` only, which exists and draws a plain grid; an engine from `NetworkLayout.jl` (MIT, in General), which lays out by springs and stress but ignores node sizes; or a new force-directed engine written from the textbook algorithm, not from the port. |
 | R20 | The guides live in `ProjecturedKernel` (§2.3), so each change to a guide gives the kernel a new version, and Julia compiles every package above it again after `pkg> up`. A change to a licence text gives all 65 a new version. Accept that, or give the guides a package of their own later? | Accept it now. The kernel changes in most releases anyway, and a package of its own for the guides is a change of structure. |
 
 ### 4.2 Decided
@@ -258,12 +256,14 @@ The owner decided these on 2026-09-29.
 | R13 | The `[compat]` bounds? | The siblings: a caret bound from the version of the sibling in the release that changed the package (R11, rule 3). Every other package: a caret bound from its version in `environment/all/Manifest.toml`. Julia: the oldest version that passes Step B4. |
 | R14 | A `projectured` command through Pkg apps? | Later. |
 | R15 | Rename `LICENCE-PD`? | No. It stays as it is. Moot since R21: the file goes. |
-| R9 | Where does the release copy live? | In `projectured/Projectured.jl`, the usual Julia name (free on 2026-09-29: `404`). Not `projectured/projectured`: that name is the redirect to the Lisp original (§3.3). |
+| R9 | Where does the release copy live? | In one repository per package, `projectured/<Name>.jl` (R23). Not `projectured/projectured`: that name is the redirect to the Lisp original (§3.3). The umbrella's own repository is then `projectured/Projectured.jl`. |
 | R10 | The name and place of the registry? | The General registry (changed on 2026-09-29 by R21). Before that: `projectured/ProjecturedRegistry`, made with `LocalRegistry.jl`, which Step B4 still uses as a local stand-in for General. |
 | R21 | The licence of the repository and of the packages? | **MPL-2.0** (the owner, 2026-09-29). Other people may build and sell products on ProjecturEd with packages of their own; their changes to the files of ProjecturEd stay MPL and public when they distribute them; the owner can use those changes in his own closed products with no contributor licence agreement. It is OSI-approved, so the packages can go into General. It replaces `LICENCE-PD` and `LICENCE-COMMERCIAL`, and it makes R15 moot. Part L does the change. |
 | R22 | Seven pairs of our names fail the name rule of General. Rename, or ask for manual merges? | Manual merges (the owner, 2026-09-29). |
 | R24 | Do the other two authors agree to MPL-2.0 for their commits? | Yes (the owner, 2026-09-29: "I know them well and they agreed"). Keep their agreement in writing with the release records. |
 | R25 | Guard against a version that skips one? | Yes (the owner, 2026-09-29). Done: `build_package_release!` takes `registry`, and `build_projectured_package_release!` checks General (commit after `507ef1c06`). |
+| R23 | One release repository with 65 subdirectories, or one repository for each package? | One repository for each package, `projectured/<Name>.jl` (the owner, 2026-09-29). Then the URL rule of General passes for every package; the name rule still needs a manual merge for at least 4 (R22); the first registration still goes one level at a time, with 3 days of waiting for each new package. Done in the generator (commit `92b4fa717`). |
+| R26 | Without the port, which engine does `ProjecturedGraph` use when none is registered? | A new force-directed engine, written from the textbook algorithm and not from the port (the owner, 2026-09-29: option 3). Part G. |
 | R19 | The ten files in `source/graph/cpp/` port the layout engine of OMNeT++, whose headers name OpenSim Ltd. and Andras Varga and the Academic Public License. | Move them out of this repository, into the private downstream repository that uses them (the owner, 2026-09-29). R26 holds what `ProjecturedGraph` uses in their place. The MIT function in `source/domain/Domain.jl` keeps its notice in one comment. |
 | R16 | What to do with the four packages of §2.4 that can not go in as they are? | Skip them: `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`. `ProjecturedExample` and the other example packages stay out by R12, so the registry gives no application; the binary gives it. The registry set is 65 packages. |
 
@@ -744,15 +744,82 @@ The commands, to run after the owner approves. The agent states them and
 stops.
 
 - [ ] Part L is done, and R23 has an answer from the maintainers of General.
-- [ ] Make the GitHub repository of R9, `projectured/Projectured.jl`.
-- [ ] Generate the release copy for `v0.1.0`, commit it to the release
-      repository with the tag `v0.1.0`, and push.
-- [ ] Register in General, one dependency level at a time (§3.3): for each
-      package of the level, a comment `@JuliaRegistrator register subdir=<Name>`
-      on the release commit, or the web form of Registrator. The next level
-      starts when General has merged the level below it.
+- [ ] Make the 65 GitHub repositories of R9, `projectured/<Name>.jl`, and
+      install the Registrator app of JuliaRegistries for them.
+- [ ] Generate the release for `v0.1.0` into a folder that holds a clone of
+      each (`build_projectured_package_release!`), commit each, and push.
+- [ ] Register in General, one dependency level at a time (§3.3): a comment
+      `@JuliaRegistrator register` on the release commit of each package of the
+      level. The next level starts when General has merged the level below it.
 - [ ] In an empty depot, run the install line of Step B5, and
       `using Projectured, ProjecturedSdl`.
+
+## Part G: a layout engine of our own, and the move of the port (R19, R26)
+
+The ten files in `source/graph/cpp/` port the layout engine of OMNeT++. They
+leave this repository for the private downstream repository that uses them
+(R19). `ProjecturedGraph` then needs an engine of its own for a graph that no
+package registered an engine for (R26).
+
+### What exists (2026-09-29)
+
+- **The interface** (`GraphLayoutEngine.jl`): `layout_graph(engine, graph,
+  sizes, constraints; extent, border) -> (positions, routes)`, with shared
+  helpers: `layout_vertices` (the order that makes a layout deterministic),
+  `get_vertex_sizes`, `get_constraint_pins`, `get_constraint_clusters`,
+  `get_straight_routes` and `get_extent_transform`. An engine places centres;
+  the helpers do the rest.
+- **The engines**: `GridEmbedding` (`:pin`, `:fixed_size`), and from the port
+  `SpringEmbedderLayout` and `ForceDirectedLayout` (`:pin`, `:fixed_size`,
+  `:cluster`). `make_pure_julia_layout_engine` picks one of the two ported ones
+  by the vertex count (20).
+- **The seam**: `register_layout_engine!(factory)`, which
+  `ProjecturedAdaptagrams` already uses from its `__init__`.
+- **Who uses the port**: here, `GraphLayoutChoice.jl`, the tests in
+  `test/graph/projection/GraphProjectionTest.jl` (the sets up to line 420),
+  `test/bench/graphlayoutbench.jl`, and `graph-layout.md` and `graph.md`. The
+  downstream repository uses only `DeferredLayout`, so it keeps its pictures
+  when it registers the port.
+
+### The design
+
+- **`FruchtermanReingoldLayout`**, in `source/graph/FruchtermanReingoldLayout.jl`:
+  the force-directed algorithm of Fruchterman and Reingold (1991), written from
+  its description. Edges attract with `d²/k`, every pair of vertices repels
+  with `k²/d`, and a temperature that falls each round limits each step. `k`
+  comes from the sizes of the boxes, so large cards get room.
+- **Deterministic without a random generator**: the start places the vertices
+  in the order of `layout_vertices` on a sunflower spiral (the golden angle),
+  which breaks the symmetry that a grid start keeps.
+- **Parts that are not connected** stay near each other by a weak pull to the
+  centre, so no part flies off.
+- **Boxes do not overlap**: after the simulation, a pass pushes each pair of
+  overlapping boxes apart along the axis of the smaller overlap, until no pair
+  overlaps or a bound of passes is reached.
+- **Constraints**: `:pin` (the vertex does not move), `:fixed_size` (through
+  `get_vertex_sizes`) and `:cluster` (a family moves as one body, each member
+  at its own offset), the same kinds as the port.
+- **`extent` and routes** through the shared helpers, as the other engines do.
+- **`make_pure_julia_layout_engine`** answers `FruchtermanReingoldLayout()`
+  for every size. The rule of 20 vertices belongs to the port and moves with it.
+- **The downstream repository** gets the ten files, an engine that chooses
+  between its two ported engines by the vertex count, and a
+  `register_layout_engine!` call in its `__init__`, with the tests of the port.
+
+### Steps
+
+- [ ] G1. `FruchtermanReingoldLayout` and its tests: every vertex placed, no
+      two boxes overlap, an edge is shorter than the mean distance of two
+      vertices without one, pins hold exactly, a cluster keeps its offsets, the
+      same input gives the same output, an extent bounds it, and a constraint
+      it does not know is refused.
+- [ ] G2. The default: `make_pure_julia_layout_engine` answers the new engine;
+      the tests that asked for the ported ones by default ask for it.
+- [ ] G3. The move, here: the ten files, their exports, their tests and the
+      benchmark leave; the guides describe the new engine.
+- [ ] G4. The move, downstream, in a worktree of that repository: the files,
+      the choosing engine, the registration and the tests. It lands before G3,
+      because it works with both the old and the new `ProjecturedGraph`.
 
 ## Part L: the licence (R21)
 
@@ -760,7 +827,7 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 
 ### Step L1: what must be settled first
 
-- [ ] R19: the port in `source/graph/cpp/` leaves this repository (R26 first), and
+- [ ] R19: the port in `source/graph/cpp/` leaves this repository (Part G), and
       the MIT function in `source/domain/Domain.jl` gets its notice.
 - [x] R24: the two other authors agree to MPL-2.0 for their commits (the owner,
       2026-09-29).
