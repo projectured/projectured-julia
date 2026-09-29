@@ -2,12 +2,17 @@
 `ClockModule` — the animation clock as a per-instance `@cell_struct`.
 
 Confirms:
-- the sample/subscribe split: `get_clock_time` reads without registering a
-  dependency, `get_reactive_clock_time` registers and re-runs when the
-  clock's time is set;
-- clock independence: writing one clock does not invalidate subscribers of
-  another (the property that lets many editors run in one process without
-  their animation clocks cross-invalidating).
+- the two reads: `get_clock_time` records no dependency, and
+  `get_reactive_clock_time` records one, so a write of the time invalidates the
+  computation that reads it;
+- the independence of two clocks: a write to one clock does not invalidate a
+  reader of another, so many editors can run in one process;
+- the write `set_clock_time!`, the conversion of a real time to `Float64`, a
+  time that is not a real number, and `show`;
+- the heartbeat of `start_wall_clock!`: a start and a stop, a second start and a
+  second stop, a start that continues the time, a restart, the end of the
+  heartbeat of a freed clock, and the thread of the heartbeat;
+- a heartbeat write that reaches a computation that reads the clock.
 """
 
 using Test
@@ -149,6 +154,20 @@ function test_clock()
         @test clock.heartbeat !== first
         @test !istaskdone(clock.heartbeat)
         stop_wall_clock!(clock)
+    end
+
+    @testset "a heartbeat write reaches a computation that reads the clock" begin
+        clock = Clock()
+        seen = Cell(@computation get_reactive_clock_time(clock))
+        before = seen[]
+        start_wall_clock!(clock)
+        try
+            # The wait has a bound, so a heartbeat that stops fails the test.
+            @test _wait_for_clock_condition(() -> !is_cell_up_to_date(seen))
+            @test seen[] > before
+        finally
+            stop_wall_clock!(clock)
+        end
     end
 
     @testset "a heartbeat ends when its unstopped clock is freed" begin
