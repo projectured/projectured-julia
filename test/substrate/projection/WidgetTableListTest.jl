@@ -236,12 +236,118 @@ end
     @test_throws ErrorException print_document(rec, nothing, weighted, context())
 end
 
-@testset "a pane over a list clamps nothing, and holds the header still" begin
+@testset "a table over a list holds its header still" begin
     io = print_document(rec, nothing, make_table(make_list(1000, texts_of)), context())
     @test is_infinite_canvas(io.output)
     frozen = get_frozen_extent(io)[]
     @test frozen[2] == Int(io.state.header_height[])
     @test frozen[2] > 0
+end
+
+# A list of `count` rows that reaches both ways from row `at`. A node is built
+# from its index alone, so the list starts at its last row as cheaply as at its
+# first.
+function make_indexed_list(count::Int, cell; at::Int = 1, built = Ref(0))
+    function make_node(i, before, after)
+        built[] += 1
+        node = ListNode(make_widget_table_row(Any[cell(i, c) for c in 1:2]))
+        if after === nothing
+            set_cell_computation!(getfield(node, :next),
+                                  () -> i < count ? make_node(i + 1, node, nothing) : nothing)
+        else
+            set_cell_value!(getfield(node, :next), after)
+        end
+        if before === nothing
+            set_cell_computation!(getfield(node, :prev),
+                                  () -> i > 1 ? make_node(i - 1, nothing, node) : nothing)
+        else
+            set_cell_value!(getfield(node, :prev), before)
+        end
+        node
+    end
+    make_node(at, nothing, nothing)
+end
+
+# A pane over a table of such a list, printed, with what a test reads of it:
+# the body region, which is the first of the four viewports of a frozen
+# header; the list state; and the screen y of the text of a row.
+function print_pane(rows; scroll_y = 0)
+    pane = WidgetScrollPane(make_table(rows); size = Point2D(600, 300),
+                            scroll_position = Point2D(0, scroll_y))
+    io = print_document(rec, nothing, pane, context())
+    (; pane, io, state = io.content_iomap.state,
+       body = first(e for e in io.output.elements if e isa GraphicsViewport))
+end
+label_y(printed, label) = only(t[2] for t in texts(printed.body) if t[3] == label)
+# The text of a row starts under the border and the padding of its cell.
+text_inset(printed) = printed.state.bw + printed.state.pad_y
+row_height(printed) = Int(body_of(printed.io.content_iomap).elements.value.h)
+body_top(printed) = Int(printed.body.y)
+body_bottom(printed) = Int(printed.body.y) + Int(printed.body.h)
+wheel(printed, dy) = read(printed.io, MouseScroll(0, dy, 100, 150; time = 0.0))
+apply!(printed, op) = (getfield(printed.pane, :scroll_position)[] = get_wrapped_operation(op).value)
+
+@testset "a pane over a list stops at its first row" begin
+    built = Ref(0)
+    printed = print_pane(make_indexed_list(10_000_000, texts_of; built))
+    first_row = body_top(printed) + text_inset(printed)
+    @test label_y(printed, "row 1") == first_row
+    # Up at the first row moves nothing, and answers nothing.
+    @test wheel(printed, 1) === nothing
+    down = wheel(printed, -1)
+    @test down !== nothing
+    apply!(printed, down)
+    step = first_row - label_y(printed, "row 1")
+    @test step > 0
+    back = wheel(printed, 1)
+    apply!(printed, back)
+    @test label_y(printed, "row 1") == first_row
+    @test wheel(printed, 1) === nothing
+    @test built[] < 200
+end
+
+@testset "a pane over a list stops at its last row" begin
+    built = Ref(0)
+    count = 10_000_000
+    # The head is the last row, and the stored offset puts it at the top: the
+    # pane draws it at the bottom instead, with the rows before it above it.
+    printed = print_pane(make_indexed_list(count, texts_of; at = count, built))
+    # The offset walks up from the last row as far as the viewport reaches,
+    # which is a screenful of rows. (`texts` below walks fifty more.)
+    Int(printed.body.content.y)
+    @test built[] < 30
+    last_bottom() = label_y(printed, "row $count") - text_inset(printed) + row_height(printed)
+    @test last_bottom() == body_bottom(printed)
+    @test label_y(printed, "row $(count - 1)") == label_y(printed, "row $count") - row_height(printed)
+    # Down at the last row moves nothing; up moves at once.
+    @test wheel(printed, -1) === nothing
+    up = wheel(printed, 1)
+    @test up !== nothing
+    apply!(printed, up)
+    @test last_bottom() > body_bottom(printed)
+    @test built[] < 200
+end
+
+@testset "a stored offset past an end draws the end, and the wheel turns back at once" begin
+    # The head is row 5 of 10, and the offset is far above row 1.
+    printed = print_pane(make_indexed_list(10, texts_of; at = 5); scroll_y = -10_000)
+    first_row = body_top(printed) + text_inset(printed)
+    @test label_y(printed, "row 1") == first_row
+    # The first turn moves one whole step, as the second does: no part of it
+    # goes to the offset past the end.
+    apply!(printed, wheel(printed, -1))
+    after_one = label_y(printed, "row 1")
+    apply!(printed, wheel(printed, -1))
+    after_two = label_y(printed, "row 1")
+    @test first_row - after_one > 0
+    @test first_row - after_one == after_one - after_two
+end
+
+@testset "a list shorter than the pane starts at its top" begin
+    printed = print_pane(make_indexed_list(3, texts_of); scroll_y = 400)
+    @test label_y(printed, "row 1") == body_top(printed) + text_inset(printed)
+    @test wheel(printed, -1) === nothing
+    @test wheel(printed, 1) === nothing
 end
 
 end

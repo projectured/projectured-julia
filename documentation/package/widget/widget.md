@@ -181,7 +181,7 @@ Three projections turn objects of a domain into widgets:
 
 ### The table as a list
 
-The `rows` of a `WidgetTable` can be a `ListNode`. `WidgetTableList.jl` then walks the list from its `head` in both directions and builds only the rows that the viewport shows. Each column must have a `Fixed` width or a weight, because a column that is as wide as its content would read rows that were never built. The list places its cells itself, and `column_align` moves each one inside its column as the grid does. The table reports a width and no height, so it goes inside a `WidgetScrollPane`.
+The `rows` of a `WidgetTable` can be a `ListNode`. `WidgetTableList.jl` then walks the list from its `head` in both directions and builds only the rows that the viewport shows. Each column must have a `Fixed` width or a weight, because a column that is as wide as its content would read rows that were never built. The list places its cells itself, and `column_align` moves each one inside its column as the grid does. The table reports a width and no height, so it goes inside a `WidgetScrollPane`. The pane measures its offset from the head, and it stops at the first row and at the last row of a list that ends: a walk from the head, as far as the viewport reaches, finds them. The first row stops under the frozen header strip, and a list shorter than the viewport starts at its top.
 
 ### The transform pane
 

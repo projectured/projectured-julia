@@ -597,9 +597,37 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   values (§4.3, level 3)? What does `using DataFrames` cost in load time and
   invalidation, and must the test environment keep it out of
   `environment/all`? **Done 2026-09-29; §6.1 has the answers.**
-- [ ] **1. The ends of a finite list.** The clamp of D2 in the widget
+- [x] **1. The ends of a finite list.** The clamp of D2 in the widget
   substrate. The test uses a list of ten million rows that ends at both sides,
-  with no DataFrames.
+  with no DataFrames. **Done 2026-09-29.**
+  - The clamp is in the scroll pane
+    ([WidgetToGraphics.jl](../../source/widget/WidgetToGraphics.jl)).
+    `_clamp_to_list_ends` walks from the head down to the bottom of the
+    viewport and up to the frozen strip, and it stops where `next` or `prev`
+    is `nothing`. The last row stops at the bottom of the viewport, and the
+    first row stops under the frozen header. The first row wins, so a list
+    shorter than the viewport starts at its top.
+  - The pane clamps in two places. `_pane_scroll_y` clamps the offset that the
+    printer and the reader of a press use. `_scroll_list_by` starts a wheel
+    turn from that drawn offset, so a turn past an end answers `nothing`, and a
+    turn back moves at once. A stored offset past an end stays stored, and the
+    pane draws the end.
+  - The tests are in
+    [WidgetTableListTest.jl](../../test/substrate/projection/WidgetTableListTest.jl):
+    a list of ten million rows with its head at the first row and at the last
+    row, a stored offset far past an end, and a list shorter than the pane.
+    Against the code before this phase, the four new test sets fail with 11
+    failures.
+  - The checks: the list and scroll pane tests pass, 119 of 119. The whole
+    substrate suite gave 86850 pass, 3 fail, 4 error and 1 broken. All seven
+    failures and errors are on `main` too: the split pane drag has 3 fail and 2
+    error, and `test_anchor_point()` has 2 errors with the code before this
+    phase. The suite ran before a cleanup that moved the frozen height into
+    one helper; the list and scroll pane tests ran after it. The naming guard
+    passes, and the argument guard reports the same 6 lines as on `main`.
+  - Found and left for phase 2: over a list, `_scroll_room` answers `nothing`
+    for both axes, so a horizontal wheel turn is not clamped either. A wide
+    data frame needs that clamp.
 - [ ] **2. The package and a read-only view.** The stem with its example and
   test packages, `DataFrameView`, the anchored row list with its jumps, its
   re-anchor and its scroll bar (§3.5), the visible shadow,

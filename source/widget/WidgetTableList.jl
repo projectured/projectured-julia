@@ -28,7 +28,8 @@
 #
 # **What the table reports.** Its width, and no height: a list has no extent,
 # and a table whose rows are a list belongs in a `WidgetScrollPane`, which
-# measures its offset from the head and clamps nothing.
+# measures its offset from the head. The pane stops at the first row and at the
+# last row of a list that ends, once its walk from the head reaches them.
 #
 # **The empty list is an empty vector.** A `ListNode` holds a row, so a list
 # of no rows cannot be one; a table drawn as a list whose `rows` cell later
