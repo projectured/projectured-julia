@@ -910,6 +910,8 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
+    hit_count = _get_hit_count(level, limit)
+    hit_count >= 1 || return _say_limit_below_one(limit)
     sections = _guide_index()
     ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
     note = nothing
@@ -925,7 +927,7 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     io = IOBuffer()
     note === nothing || println(io, note, "\n")
     println(io, "# Documentation matches for $(repr(query))\n")
-    shown = first(ranked, min(_get_hit_count(level, limit), length(ranked)))
+    shown = first(ranked, min(hit_count, length(ranked)))
     for section in shown
         head = isempty(section.heading) ? "" : " — $(section.heading)"
         if level == "names"
@@ -940,6 +942,7 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
         end
     end
     body = String(take!(io))
+    isempty(shown) && return body
     body * _make_footer(_get_section_uri(first(shown)), length(body); what = "a section")
 end
 
@@ -1085,7 +1088,16 @@ function _read_search_detail(detail)
     "Unknown search detail " * repr(name) * ". The details are \"names\", \"summary\" and \"full\"."
 end
 
-_get_hit_count(detail::String, limit) = limit === nothing ? _DETAIL_LIMITS[detail] : Int(limit)
+# The number of hits a search shows: the count of the detail level, or the limit
+# a caller gave, rounded to a whole number.
+_get_hit_count(detail::String, limit) =
+    limit === nothing ? _DETAIL_LIMITS[detail] : round(Int, limit)
+
+# What a search answers for a limit that rounds to less than one hit. A search
+# answers text and never throws, so a model reads this and corrects its call.
+_say_limit_below_one(limit) =
+    "A limit of " * repr(limit) * " shows no hit. " *
+    "Give a limit of 1 or more, or leave it out."
 
 # ── What to do next ─────────────────────────────────────────────────────────
 #
@@ -1240,37 +1252,20 @@ default, a pattern with `"regex"` or a `Regex`, and a sentence with
 `"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
 for a written word only: a pattern ranks by where it matches.
 """
-function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detail = "summary",
-                    kind = nothing, limit = nothing, api = ApiEntry[], meaning_model = nothing)
+function search_api(query::Union{AbstractString,Regex}; mode = "keywords",
+                    detail = "summary", kind = nothing, limit = nothing, api = ApiEntry[],
+                    meaning_model = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
     haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
-    limit = _get_hit_count(level, limit)
+    hit_count = _get_hit_count(level, limit)
+    hit_count >= 1 || return _say_limit_below_one(limit)
     entries = _ApiEntry[entry for entry in _api_index(api)
                         if kind === nothing || entry.kind == kind]
-    scored = _rank_api_entries(read, entries)
-    ranked = _ApiEntry[entry for (_, entry) in scored]
-    note = nothing
-    if read isa _DescriptionQuery
-        # **The meaning decides, and the words only stand in for it.** Merged,
-        # the two ranks were worse than the meaning alone: a sentence's words
-        # are "value", "runs" and "time", and they match a name that means
-        # something else. Measured on the 88 verbs of a downstream IDE, 2026-09-16: of
-        # the five weightings of a rank fusion that were tried, none put a verb
-        # above where the meaning alone put it, and each put three or four of
-        # eight test sentences' verbs below it.
-        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
-        by_meaning === nothing || (ranked = by_meaning)
-        # A sentence names no verb, so only a single hit is a clear answer.
-        alone = length(ranked) == 1
-    else
-        # One hit, or one whose NAME is exactly what was asked while no other's is.
-        alone = length(scored) == 1 ||
-                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
-    end
+    ranked, alone, note = _rank_api_hits(read, entries, meaning_model)
     # **A miss answers what there IS.** A search that says only "no match" costs a
     # round and teaches nothing, and the round after it is a guess. The names of
     # the declaration are short, and they are the answer to "then what may I
@@ -1280,8 +1275,8 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         suffix = kind === nothing ? "" : " (kind=$kind)"
         names = isempty(api) ? "" : describe_api(api; signatures = false)
         return _prefix_note(note, "No API matches $(repr(query))$suffix. " *
-                                  "A guide may say it: `search_guides` with the same words." *
-                                  (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
+            "A guide may say it: `search_guides` with the same words." *
+            (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
     end
 
     # **One clear answer is answered in full.** A hit shows its signature and a
@@ -1297,19 +1292,46 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         println(io, "# `", last(split(best.qualname, '.')),
                     "` — the one API match for ", repr(query), "\n")
         println(io, best.full)
-        rest = [entry.qualname for entry in ranked[2:min(limit, length(ranked))]]
+        rest = [entry.qualname for entry in ranked[2:min(hit_count, length(ranked))]]
         isempty(rest) ||
             println(io, "\nAlso matched, by name: " * join(rest, ", ") * ".")
         return String(take!(io))
     end
 
     println(io, "# API matches for $(repr(query))\n")
-    shown = first(ranked, min(limit, length(ranked)))
+    shown = first(ranked, min(hit_count, length(ranked)))
     for entry in shown
         println(io, _format_api_hit(entry, level))
     end
     body = String(take!(io))
+    isempty(shown) && return body
     body * _make_footer(_get_entry_uri(first(shown)), length(body); what = "one")
+end
+
+# The entries a query finds, best first; whether the first is the one clear
+# answer; and the note of a description that no meaning model ranked.
+function _rank_api_hits(read, entries::Vector{_ApiEntry}, meaning_model)
+    scored = _rank_api_entries(read, entries)
+    ranked = _ApiEntry[entry for (_, entry) in scored]
+    note = nothing
+    if read isa _DescriptionQuery
+        # **The meaning decides, and the words only stand in for it.** Merged,
+        # the two ranks were worse than the meaning alone: a sentence's words
+        # are "value", "runs" and "time", and they match a name that means
+        # something else. Measured on the 88 verbs of a downstream IDE, 2026-09-16:
+        # of the five weightings of a rank fusion that were tried, none put a verb
+        # above where the meaning alone put it, and each put three or four of
+        # eight test sentences' verbs below it.
+        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
+        by_meaning === nothing || (ranked = by_meaning)
+        # A sentence names no verb, so only a single hit is a clear answer.
+        alone = length(ranked) == 1
+    else
+        # One hit, or one whose NAME is exactly what was asked while no other's is.
+        alone = length(scored) == 1 ||
+                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
+    end
+    (ranked, alone, note)
 end
 
 # A hit is two lines: what a caller writes, and what it does.
