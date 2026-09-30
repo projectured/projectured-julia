@@ -154,6 +154,35 @@ function test_data_frame_view()
             @test reads[] < 1000
         end
 
+        @testset "a frame of many columns draws them as a list, and a far turn moves the column anchor" begin
+            # Three rows, and a value in each cell that no other cell has.
+            frame = DataFrame([Symbol("c", j) => collect(1:3) .+ 1000 * j for j in 1:1000])
+            view = DataFrameView(frame)
+            io = print_document(projection, nothing, view, context())
+            texts(; limit = 50) = _data_frame_texts(io.output; limit)
+            x_of(text; limit = 50) = only(t[1] for t in texts(; limit) if t[3] == text)
+            side(dx) = read_intent(projection, nothing,
+                                   Intent(MouseScroll(dx, 0, 100, 150; time = 0.0), nothing), io).operation
+            found = Set(t[3] for t in texts())
+            @test "c1 :: Int64" in found
+            @test "c2 :: Int64" in found
+            @test "c1000 :: Int64" ∉ found
+            # A header sits over its column, and a number at the right of it.
+            @test x_of("c2 :: Int64") < x_of("2001")
+            # Three hundred columns to the side, a turn moves the column anchor
+            # to the column at the left edge, and every column moves by the
+            # turn, as it would with no move.
+            step = x_of("c2 :: Int64") - x_of("c1 :: Int64")
+            getfield(view, :scroll_position)[] = Point2D(300 * step, 0)
+            before = x_of("c305 :: Int64"; limit = 400)
+            near = side(-1)
+            evaluate_operation(nothing, near)
+            @test view.column_anchor == 301
+            @test view.anchor == 1
+            after = x_of("c305 :: Int64")
+            @test 0 < before - after < step
+        end
+
         @testset "a frame with no rows draws its header" begin
             view = DataFrameView(DataFrame(id = Int[], name = String[]))
             io = print_document(projection, nothing, view, context())

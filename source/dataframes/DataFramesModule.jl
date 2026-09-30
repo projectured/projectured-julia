@@ -6,9 +6,10 @@ Opt-in package: views and edits of the native structures of DataFrames.jl —
 editor. The data stays in the data frame; the view reads the visible rows.
 
 A [`DataFrameView`](@ref) holds the frame and the state of the view, and
-[`DataFrameViewToWidget`](@ref) draws it as a table in a scroll pane. The rows
-of the table are a list anchored at any row of the frame, so a jump to any row
-costs the rows that the pane shows.
+[`DataFrameViewToWidget`](@ref) draws it as a table that scrolls its own parts.
+The rows of the table are a list anchored at any row of the frame, and the
+columns of a wide frame a list anchored at any column, so a jump to any row
+costs the rows that the table shows.
 """
 module DataFramesModule
 

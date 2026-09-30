@@ -486,7 +486,7 @@ plan.
     - The eager table writes no `top_row`: all its rows are built.
     - The data frame view does not share `top_row` yet; its scroll bar
       (step 2.4 of the data frame plan) will.
-  - [x] **3b. The columns** (this commit). When the column at the left edge
+  - [x] **3b. The columns** (`9ee1fd3c4`). When the column at the left edge
     of the offset is more than 200 columns from the head column, the answer
     to a turn of the wheel writes `column_headers` and a list `column_align`
     to their nodes of that column, `rows` to a list that mirrors the rows
@@ -531,6 +531,24 @@ plan.
 - [ ] **6. The callers.** The data frame view drops its pane, shares the offset
   of the table, and gets lazy columns. `omnet-julia` builds, and
   `WatchExampleTest` and `IdeSelectAndPasteTest` pass there (P7).
+  - [x] **6a. The data frame view** (this commit). It dropped its pane and
+    shares its offset in 2a. A frame of more than 64 columns now draws its
+    columns as a list from the column `column_anchor`, a new field of the view:
+    each column is 120 pixels wide and at least as wide as its header, and each
+    row is as tall as a line of the font of the table, from
+    `compute_line_box`, which `make_data_frame_view_projection` measures. A
+    narrower frame keeps the columns that share the width of the table. When
+    the table moves its head column, the view moves `column_anchor` and builds
+    the headers, the alignments and the rows again from its anchors, so it
+    drops the writes of `rows` and `column_align` that come with it.
+  - A cell that a grid of a list builds gets a context whose path is typed by
+    a walk of `children[k][c]` from the heads, so a cell costs as many steps
+    as it is far from the head: at most about 200 in each direction, because
+    the table moves its heads there. A test that walks 400 columns of 100 rows
+    took six minutes; the test of the wide frame has three rows.
+  - [ ] **6b. `omnet-julia`.** Its four tables in a `WidgetScrollPane` work
+    as they are: the pane gives the table its size, and the table fills it
+    and scrolls. The check of its build and tests runs.
 
 The substrate suite must stay at its baseline: 3 fail and 2 error in the split
 pane drag, and 2 errors in `test_anchor_point()`, as on `main`.
