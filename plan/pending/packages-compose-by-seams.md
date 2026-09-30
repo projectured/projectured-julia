@@ -91,6 +91,20 @@ The owner, 2026-09-30:
     a value takes that value first (`run_editor!(editor)`,
     `show_document!(editor, ...)`). A seam takes its dispatch key first
     (`wrap_editor(::Val{k}, ...)`).
+- **C14. The default projection comes from Natural (P7).** The owner: "Yes",
+  to the proposal that drops a new `DocumentToGraphics` in Widget, because
+  it would repeat a part of `NaturalToGraphics`. So:
+  - The kernel declares `make_document_projection(document)` with no method.
+    Natural adds the one method, for `Document`, which makes
+    `NaturalToGraphics`. This is a method of a foreign function for a foreign
+    type in the strict sense, but both packages are in this repository, and
+    only Natural adds it.
+  - When Natural is loaded, `run_editor!(document)` works with no projection
+    named. When it is not loaded, the caller names the projection, for
+    example `make_data_frame_view_projection()`.
+  - `make_graphics_projection` answers a different question: it gives the
+    projection of the nodes of one type, and the natural renderer asks it
+    for each type that it meets.
 
 ## 3. What exists now
 
@@ -153,6 +167,7 @@ Two call sites in inet-julia do not compile against the API now:
 | `get_excluded_wrappers(::Val{k})` | kernel, editor layer, with a method for `Val` that gives `()` | the wrappers that exclude another |
 | `is_wrapper_default(::Val{k})` | kernel, editor layer, with a method for `Val` that gives `false` | Screen for `window`, Pane for `tabs` |
 | `show_document!(editor, content, document; title)` | Screen, with the method for `Any` that opens a new window | Pane: opens a tab in a `PaneTree`, or focuses the tab that shows `document` |
+| `make_document_projection(document)` | kernel, editor layer | Natural: one method for `Document`, which makes `NaturalToGraphics` (C14) |
 | `make_value_document(value)` | Widget | DataFrames: a `DataFrameView` |
 | `make_graphics_projection(document; measure)` | Widget | DataFrames, for `DataFrameView`. Reflection, for `AReflectedNode`. |
 | `refresh_document!(document)` | Widget | DataFrames, for `DataFrameView` (phase 3 of the data frame plan) |
@@ -193,8 +208,9 @@ Editor(document, projection; backend, devices, clock, tools, faults, fault_polic
 required keyword. It initializes the backend, opens the native windows and
 prints once, as the kernel's `make_editor` does now. `build_editor` does the
 steps below and then calls `make_editor`. `run_editor!(document, ...)` is
-`build_editor` and then the loop. A projection of `nothing` is the default
-projection of the document (P7).
+`build_editor` and then the loop. A projection of `nothing` is
+`make_document_projection(document)` (C14). If no package added a method,
+the error says to name a projection or to load `ProjecturedNatural`.
 
 The steps of `build_editor`:
 
@@ -292,15 +308,11 @@ Pane, DataFrames or a backend.
   for each shown document that has a method.
 - `run_value_viewer` moves here from `ProjecturedExample`.
 
-The projection of a shown document is `DocumentToGraphics(; measure)`, a new
-projection in Widget:
-- a widget or a layout draws through `WidgetToGraphics` and
-  `LayoutToGraphics`;
-- any other document draws through the projection that
-  `make_graphics_projection` makes for its type. The projection is made once
-  for each type.
-
-The natural renderer asks the same seam before its tables (C7).
+The display draws with `NaturalToGraphics`, as the data frame display does
+now. The natural renderer asks `make_graphics_projection` for the type of a
+document before it reads its tables (C7), so a `DataFrameView` draws with the
+projection of the data frame package, and a reflected tree with the
+projection of the reflection package.
 
 ### 4.4 The data frame package after the move
 
@@ -340,31 +352,17 @@ that pair.
 ## 5. Points that wait for the owner
 
 P1, P2 and P3 are made (C10, C11 and C12).
-- **P4.** `make_value_document`, `make_graphics_projection`,
-  `refresh_document!` and `DocumentToGraphics` go in Widget. Widget is the
-  lowest package that both the data frame package and the display load. My
-  recommendation: Widget.
+- **P4.** `make_value_document`, `make_graphics_projection` and
+  `refresh_document!` go in Widget. Widget is the lowest package that both
+  the data frame package and the display load. My recommendation: Widget.
 - **P5.** The name `ProjecturedDisplay` for the package, and `EditorDisplay`
   for the `AbstractDisplay`. My recommendation: these names.
 - **P6.** omnet-julia and inet-julia. My recommendation: move the callers in
   omnet-julia in a worktree of its own, and test that worktree against this
   branch in a scratch environment. Move the callers in inet-julia that
   compile now. List the two broken ones for the owner, and do not fix them.
-- **P7. The default projection.** C13 makes the projection optional in
-  `build_editor` and `run_editor!`. The kernel can not name
-  `DocumentToGraphics`, which is in Widget. The options:
-  - (a) The kernel declares `make_document_projection(document)` with no
-    method, and Widget adds the one method for `Document`, which makes
-    `DocumentToGraphics`. This is a method of a foreign function for a
-    foreign type in the strict sense, but both packages are in this
-    repository, and only Widget adds it.
-  - (b) The projection stays required. Each caller names
-    `DocumentToGraphics`, and the order of C13 has one reason less.
 
-  My recommendation: (a). `make_graphics_projection` answers a different
-  question: it gives the projection of one node of a type, and
-  `DocumentToGraphics` asks it for each type that it meets. The new seam
-  gives the projection of a whole editor.
+P7 is made (C14).
 
 ## 6. Steps
 
@@ -385,9 +383,10 @@ Each step ends with its narrowest test and a commit.
   `run_editor!`: Application, ApplicationVideo, the tests, and the data frame
   display for now.
 - [ ] **4. The widget seams.** Add `make_value_document`,
-  `make_graphics_projection`, `refresh_document!` and `DocumentToGraphics`.
-  The natural renderer asks `make_graphics_projection` before its tables.
-  Reflection adds its method.
+  `make_graphics_projection` and `refresh_document!`. The natural renderer
+  asks `make_graphics_projection` before its tables, and Natural adds the
+  method of `make_document_projection` (C14). Reflection adds its method of
+  `make_graphics_projection`.
 - [ ] **5. The tabs and `show_document!`.** The screen method opens a
   window. The pane method opens or focuses a tab. Add the `tabs` wrapper.
 - [ ] **6. `ProjecturedDisplay`.** Add `display_in_editor`, `EditorDisplay`,
