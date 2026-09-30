@@ -1,12 +1,12 @@
 # Higher-Order Projections
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
 
 Higher-order projections compose other projections. Each one lives in its own
 module under its package's projection folder: the eight domain-independent
-combinators in `source/projection/higherorder/`, and four decorators beside the
-domain each one touches — `source/screen/`, `source/tooltip/`,
-`source/dragging/`, `source/widget/`. Each implements
+combinators in `source/platform/projection/higherorder/`, and four decorators beside the
+domain each one touches — `source/platform/screen/`, `source/platform/tooltip/`,
+`source/platform/dragging/`, `source/platform/widget/`. Each implements
 `print_document`, `read_intent`, and the two reference-mapping
 functions. Most never touch any specific domain — their argument is always
 some other projection.
@@ -140,9 +140,9 @@ projection is precisely to keep each projection **single-level and composable**:
 a projection renders one level and delegates children, so any subtree can be
 swapped for, or composed with, another projection. A projection that recurses
 over its own subtree instead would foreclose that. `recursion` is the printer's
-half of [the recursion contract](../kernel/projection-system.md#the-recursion-contract):
+half of [the recursion contract](../../kernel/projection-system.md#the-recursion-contract):
 descent rides the four core functions and never a fifth one (see also the recursion
-principle in [projection-system.md](../kernel/projection-system.md#recursion-across-projections)).
+principle in [projection-system.md](../../kernel/projection-system.md#recursion-across-projections)).
 
 ## SwitchingProjection
 
@@ -213,7 +213,7 @@ outside `Dragging.jl`** and works for any domain whose graphics reader already
 hit-tests `MouseClick`.
 
 **The move.** A completed drag emits a `MoveRangeOperation` (see
-[operation.md](../kernel/operation.md)). The reader resolves each reference to a
+[operation.md](../../kernel/operation.md)). The reader resolves each reference to a
 `(CellVector, index)` pair (splitting the path at its last element
 `RangeReferenceStep`; the prefix resolves to the owning collection) and stores the
 `CellVector`s **directly** in the operation, the way the split-pane operations
@@ -224,7 +224,7 @@ identity.
 
 ## Compound combinators
 
-[projection/HigherOrderCompound.jl](../../../source/projection/compound/HigherOrderCompound.jl)
+[projection/HigherOrderCompound.jl](../../../../source/platform/projection/compound/HigherOrderCompound.jl)
 defines `ApplyAtProjection`, the most useful combinator built on top:
 
 ```julia

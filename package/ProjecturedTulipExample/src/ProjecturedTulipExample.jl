@@ -18,9 +18,9 @@ import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,
                            make_constraint_layout_document_example, make_constraint_layout_projection_example
 
-# The bodies live in `example/tulip`, not beside this file:
+# The bodies live in `example/adapter/tulip`, not beside this file:
 # a package is a name and an include list.
-const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/tulip"))
+const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/adapter/tulip"))
 
 include(joinpath(_PKG_DIR, "LayoutProjectionExample.jl"))
 include(joinpath(_PKG_DIR, "TulipExamples.jl"))

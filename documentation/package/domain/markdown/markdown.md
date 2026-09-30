@@ -1,8 +1,8 @@
 # Markdown domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [natural.md](../natural/natural.md), [serialization.md](../serialization/serialization.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md), [serialization.md](../../platform/serialization/serialization.md)
 
-The Markdown domain, `ProjecturedMarkdown`, holds a Markdown page as a tree of blocks and inlines. It has two presentations of one page, source and rendered, and it can hold a file of another domain as a block of the page. This document says where it differs from the [shape of every domain](../../design/domain-anatomy.md).
+The Markdown domain, `ProjecturedMarkdown`, holds a Markdown page as a tree of blocks and inlines. It has two presentations of one page, source and rendered, and it can hold a file of another domain as a block of the page. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md).
 
 <img width="396" alt="Markdown example" src="../../../asset/image/example/markdown-rendered.png">
 
@@ -49,8 +49,8 @@ So a file written by ProjecturEd is Markdown source, and a page in a tab is the 
 
 ## Design decisions
 
-- **The presentation is a parameter of the projection.** The source and the rendered view are two projections of the same document, as the block and flow styles of YAML are. See [plan/done/markdown-rendered-projection.md](../../../plan/done/markdown-rendered-projection.md).
-- **A page is a stack of blocks, not only a syntax tree.** A block of another domain, or a live widget, then keeps its own projection and its own reader. The reason is in the header of `source/markdown/MarkdownToLayout.jl`.
+- **The presentation is a parameter of the projection.** The source and the rendered view are two projections of the same document, as the block and flow styles of YAML are. See [plan/done/markdown-rendered-projection.md](../../../../plan/done/markdown-rendered-projection.md).
+- **A page is a stack of blocks, not only a syntax tree.** A block of another domain, or a live widget, then keeps its own projection and its own reader. The reason is in the header of `source/domain/markdown/MarkdownToLayout.jl`.
 - **A section is addressed by the words of its heading.** A section keeps its address when it moves, and a rename makes the address fail with an error instead of pointing at the wrong section.
 - **The reference marker is a fence.** XML uses an element and JSON a string for the same reason: each format spells a reference with its own opaque unit.
 

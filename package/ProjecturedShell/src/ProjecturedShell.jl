@@ -62,6 +62,6 @@ const FrameStatisticsModule = ProjecturedStatistics.FrameStatisticsModule
 const InspectorModule = ProjecturedInspector.InspectorModule
 const MessageLogModule = ProjecturedLog.MessageLogModule
 
-include("../../../source/shell/ShellModule.jl")
+include("../../../source/platform/shell/ShellModule.jl")
 
 end # module ProjecturedShell

@@ -1,6 +1,6 @@
 # Domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [macros.md](../kernel/macros.md), [domain-anatomy.md](../../design/domain-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [macros.md](../../kernel/macros.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 `ProjecturedDomain` holds what makes a set of document types a domain: the `@domain` and `@insertion` macros, the empty placeholder and the insertion buffer that every domain shares, the completion of a typed type name, and the verbs that the structural gestures of a domain call. It is not a domain itself. This document says how these parts work and why they work by reflection and not by registration.
 
@@ -18,7 +18,7 @@
 
 ### The macros
 
-`@domain Json` makes the root `JsonDocument`, `JsonNothing`, `JsonInsertion`, the Insert-key gesture and the traits of the domain. An option adopts a type that exists instead of making one, for example `nothing = JuliaNothing`. `@insertion T = expr` declares what a committed insertion of `T` becomes. [macros.md](../kernel/macros.md#domain) lists what each macro makes.
+`@domain Json` makes the root `JsonDocument`, `JsonNothing`, `JsonInsertion`, the Insert-key gesture and the traits of the domain. An option adopts a type that exists instead of making one, for example `nothing = JuliaNothing`. `@insertion T = expr` declares what a committed insertion of `T` becomes. [macros.md](../../kernel/macros.md#domain) lists what each macro makes.
 
 `@domain` does not write the two printer rules for the placeholder and the buffer. This package is below the projection packages, so it can not name a projection.
 
@@ -51,7 +51,7 @@ The `@gestures` tables of the domains call three functions of this package. Each
 ## Design decisions
 
 - **Completion reads the type tree. No list of names exists.** A new document type needs no registration to be a candidate.
-- **The package finds subtypes without `InteractiveUtils`.** `InteractiveUtils` needs the `Markdown` standard library, and this package is in the dependency closure of every downstream program. The own walk also reads all module names once, not once for each abstract type; the comment at `source/domain/Domain.jl:26` gives the numbers.
+- **The package finds subtypes without `InteractiveUtils`.** `InteractiveUtils` needs the `Markdown` standard library, and this package is in the dependency closure of every downstream program. The own walk also reads all module names once, not once for each abstract type; the comment at `source/platform/domain/Domain.jl:26` gives the numbers.
 - **Behaviour dispatches on traits.** A name is used only to show a type, never to decide what it does.
 - **One appender for all domains.** `append_insertion_operation` takes the caret from the `@insertion` of the type, so the domains do not each derive it.
 

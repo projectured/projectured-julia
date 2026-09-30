@@ -53,7 +53,7 @@ end
 - `operation` — the most recent operation; used by `evaluate!` and the
   per-frame log
 - `faults` — the `FaultStore` of this editor: every barrier writes to it, and
-  each frame drains it; see [fault.md](../fault/fault.md)
+  each frame drains it; see [fault.md](../platform/fault/fault.md)
 - `fault_policy` — what the barriers do with a fault. `Editor(…)` starts with
   `make_strict_fault_policy()`, `make_editor` turns the barriers on, and
   `run_editor!` keeps the policy of its editor
@@ -260,7 +260,7 @@ for a `WindowInput` wrapping a backend-agnostic event: `KeyDown`, `KeyUp`,
 `WindowClose`, `WindowResize`, `WindowDefocus` or `WindowLeave`. The editor
 recognizes no gesture: a projection runs the recognitions of the gesture layer,
 such as the gesture tracking projection that the screen package puts around the
-screen; see [gesturetracking.md](../gesturetracking/gesturetracking.md).
+screen; see [gesturetracking.md](../platform/gesturetracking/gesturetracking.md).
 
 The window input is wrapped in an `Intent` and passed through
 `read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)`
@@ -326,7 +326,7 @@ the path from the current reader's input to `place`. A reader that passes the
 route forward through the earlier stages, as the printer maps a reference. A
 gesture with a route goes on into a stage that shows the place as something
 else, as far as the forward maps answer, and the deepest stage reads it first
-([higher-order-projections.md](../projection/higher-order-projections.md)).
+([higher-order-projections.md](../platform/projection/higher-order-projections.md)).
 Where the route that remains for a child is empty, that child is the place:
 the parent does not call it, and takes `change.operation` as the child's
 answer instead (`read_routed_intent` in
@@ -355,7 +355,7 @@ it.
 The pane package's verbs (`focus_pane!`, `open_pane!`, `close_pane!`,
 `duplicate_pane!`, `move_pane!`) use `read_rooted_operation` to carry their
 edit from a pane tree to the root; see
-[pane.md](../pane/pane.md#the-verbs-of-a-program).
+[pane.md](../platform/pane/pane.md#the-verbs-of-a-program).
 
 ## Running an editor
 
@@ -687,4 +687,4 @@ frame measurements (`FeedsTest.jl`), the fault barriers of the loop
 and the `run_frame!` multi-operation-per-frame batching (`FrameDrainTest.jl`).
 The safe mode needs the fault view, so its test is in the suite of
 `ProjecturedFault`, in
-[test/fault/FaultSafeModeTest.jl](../../../test/fault/FaultSafeModeTest.jl).
+[test/platform/fault/FaultSafeModeTest.jl](../../../test/platform/fault/FaultSafeModeTest.jl).

@@ -520,7 +520,7 @@ layer answers it for an `Editor` whose loop runs on another task;
 
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
-| `make_agent_server(:mcp, …)` | `agent/AgentInterface.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
+| `make_agent_server(:mcp, …)` | `agent/AgentInterface.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/adapter/mcp/`) |
 | `run_on_editor_task!` | `agent/AgentInterface.jl` | the editor layer (`editor/Inbox.jl`) for an `Editor`; the default in `agent/AgentDefaults.jl` runs every other target at once |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/LlmInterface.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

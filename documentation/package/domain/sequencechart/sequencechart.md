@@ -1,6 +1,6 @@
 # Sequence chart domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [chart.md](../chart/chart.md), [plot.md](../plot/plot.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [chart.md](../chart/chart.md), [plot.md](../../platform/plot/plot.md)
 
 `ProjecturedSequenceChart` draws what happened where, in which order, and what caused what: lanes of occurrences with arrows between them, for any source with participants and messages. This document says how time becomes distance before it becomes pixels, why the window is anchored to an occurrence, how the cost stays bounded, and what the domain leaves to the domains that print into it.
 
@@ -85,7 +85,7 @@ A click selects the most specific thing under the pointer: an event before an ar
 
 ### Cost
 
-The amount of output depends on the size of the chart, not on the length of the trace. `SequenceChartGeometry.jl` holds the arithmetic, with `AxisScale` and the ticks of [plot.md](../plot/plot.md):
+The amount of output depends on the size of the chart, not on the length of the trace. `SequenceChartGeometry.jl` holds the arithmetic, with `AxisScale` and the ticks of [plot.md](../../platform/plot/plot.md):
 
 - `decimate_events` keeps one mark for each lane, kind and mark radius, because events closer than the width of a mark paint pixels that are already painted.
 - `deduplicate_arrow_coverage` keeps an arrow on a pixel column only while it adds cross-axis pixels that the column does not have.
@@ -101,8 +101,8 @@ It has no `__init__` and registers nothing. A caller builds the chain, or adds `
 
 ## Design decisions
 
-- **A strict boundary with the domains upstream.** The chart holds lanes, events, arrows, bands, kinds and a timeline. A feature that needs to know what a trace means goes upstream and must be expressible without a change to this domain. See [plan/done/sequence-chart-domain.md](../../../plan/done/sequence-chart-domain.md).
-- **The timeline mapping is a choice.** A proportional axis can not show a microsecond and ten seconds on one screen. See [plan/done/sequence-chart-domain.md](../../../plan/done/sequence-chart-domain.md).
+- **A strict boundary with the domains upstream.** The chart holds lanes, events, arrows, bands, kinds and a timeline. A feature that needs to know what a trace means goes upstream and must be expressible without a change to this domain. See [plan/done/sequence-chart-domain.md](../../../../plan/done/sequence-chart-domain.md).
+- **The timeline mapping is a choice.** A proportional axis can not show a microsecond and ten seconds on one screen. See [plan/done/sequence-chart-domain.md](../../../../plan/done/sequence-chart-domain.md).
 - **The window names an occurrence, not a time.** Inside a zero-time burst, a pair of times can not name a sub-window.
 - **Columnar tables.** A hundred thousand occurrences do not become a hundred thousand cells. A row is a reference step, not a child.
 - **Identity order and display order are separate.** A reorder of the lanes writes `axis_order` and leaves the event table alone.
@@ -128,11 +128,11 @@ projection = ChainingProjection(SequenceChartToSequenceChartPlot(),
                                 SequenceChartPlotToGraphicsCanvas(measure = FontFileMeasure()))
 ```
 
-- Examples: `sequencechart`, a request through four tiers with a retry timer, an elided chain and a state band; `sequencechart_vertical`, the same trace as a UML diagram; `sequencechart_linear`, the same trace on a proportional axis, which shows why `:nonlinear` exists; `sequencechart_pair` and `sequencechart_inspector`. All are in `example/sequencechart/`. The atomic catalog has `sequencechart/plot`.
+- Examples: `sequencechart`, a request through four tiers with a retry timer, an elided chain and a state band; `sequencechart_vertical`, the same trace as a UML diagram; `sequencechart_linear`, the same trace on a proportional axis, which shows why `:nonlinear` exists; `sequencechart_pair` and `sequencechart_inspector`. All are in `example/domain/sequencechart/`. The atomic catalog has `sequencechart/plot`.
 - Test: `test_sequencechart()` runs the layering guard, `test_sequencechart_geometry()`, `test_sequencechart_projection()`, `test_sequencechart_scale()` and `test_sequencechart_selection()`.
 
 ## Limits
 
-- Not built: call and return brackets with activation regions, transmission-duration parallelograms, a legend of the kinds, labels that avoid each other, and a rubber-band zoom. The brackets and the parallelograms need more anchor columns on the arrow table. [plan/done/sequence-chart-domain.md](../../../plan/done/sequence-chart-domain.md) lists them as deferred.
+- Not built: call and return brackets with activation regions, transmission-duration parallelograms, a legend of the kinds, labels that avoid each other, and a rubber-band zoom. The brackets and the parallelograms need more anchor columns on the arrow table. [plan/done/sequence-chart-domain.md](../../../../plan/done/sequence-chart-domain.md) lists them as deferred.
 - `SequenceChartPlot.drag_anchor` and `drag_rect` are fields that no reader writes.
 - An arrow drawn as two stubs shows no angle, and a long arrow label can cover another one.

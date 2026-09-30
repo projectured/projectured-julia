@@ -14,7 +14,7 @@
 #     build_projectured_executable(compile = false)     # the package only
 #     build_projectured_distribution()                  # build/projectured-*.tar.gz
 #
-# `source/builder/build_binary.jl` gives the same builds from a shell.
+# `source/tool/builder/build_binary.jl` gives the same builds from a shell.
 #
 # `PackageRelease.jl` writes the other form a user can install: a copy of the
 # packages in which each package folder holds everything it reads, for a
@@ -30,16 +30,16 @@ import TOML
 using SHA: sha256
 using Preferences: set_preferences!
 
-include("../../../source/builder/BuildContext.jl")
-include("../../../source/builder/Preference.jl")
-include("../../../source/builder/Usage.jl")
-include("../../../source/builder/AppPackage.jl")
-include("../../../source/builder/Executable.jl")
-include("../../../source/builder/Distribution.jl")
-include("../../../source/builder/LicenceTexts.jl")
-include("../../../source/builder/SourceArchive.jl")
-include("../../../source/builder/PackageRelease.jl")
-include("../../../source/builder/ProjecturedProgram.jl")
+include("../../../source/tool/builder/BuildContext.jl")
+include("../../../source/tool/builder/Preference.jl")
+include("../../../source/tool/builder/Usage.jl")
+include("../../../source/tool/builder/AppPackage.jl")
+include("../../../source/tool/builder/Executable.jl")
+include("../../../source/tool/builder/Distribution.jl")
+include("../../../source/tool/builder/LicenceTexts.jl")
+include("../../../source/tool/builder/SourceArchive.jl")
+include("../../../source/tool/builder/PackageRelease.jl")
+include("../../../source/tool/builder/ProjecturedProgram.jl")
 
 export BuildContext, get_package_directory, get_package_uuid, make_projectured_build_context
 export has_package_directory, collect_missing_sources

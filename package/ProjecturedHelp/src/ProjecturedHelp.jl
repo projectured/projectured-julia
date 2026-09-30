@@ -29,6 +29,6 @@ const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 
-include("../../../source/help/HelpModule.jl")
+include("../../../source/platform/help/HelpModule.jl")
 
 end # module ProjecturedHelp

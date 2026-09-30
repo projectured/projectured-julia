@@ -39,6 +39,6 @@ for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedKernel, Pr
     end
 end
 
-include("../../../source/rst/RstModule.jl")
+include("../../../source/domain/rst/RstModule.jl")
 
 end # module ProjecturedRst

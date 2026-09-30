@@ -67,9 +67,9 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/conversation/projection/ConversationEditorTest.jl")
-include("../../../test/conversation/projection/ConversationTranscriptTest.jl")
+include("../../../test/platform/conversation/projection/ConversationEditorTest.jl")
+include("../../../test/platform/conversation/projection/ConversationTranscriptTest.jl")
 
-include("../../../test/conversation/ConversationSuite.jl")
+include("../../../test/platform/conversation/ConversationSuite.jl")
 
 end # module ProjecturedConversationTest

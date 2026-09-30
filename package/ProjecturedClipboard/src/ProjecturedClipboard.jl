@@ -34,6 +34,6 @@ const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventModule = ProjecturedKernel.EventModule
 
 const GestureModule = ProjecturedKernel.GestureModule
-include("../../../source/clipboard/ClipboardModule.jl")
+include("../../../source/platform/clipboard/ClipboardModule.jl")
 
 end # module ProjecturedClipboard

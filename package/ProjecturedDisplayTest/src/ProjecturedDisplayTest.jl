@@ -22,7 +22,7 @@ using ProjecturedWidget.WidgetModule
 
 import ProjecturedKernelTest: check_layering, get_package_source_root
 
-include("../../../test/display/EditorDisplayTest.jl")
-include("../../../test/display/DisplaySuite.jl")
+include("../../../test/platform/display/EditorDisplayTest.jl")
+include("../../../test/platform/display/DisplaySuite.jl")
 
 end # module ProjecturedDisplayTest

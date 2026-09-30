@@ -1,6 +1,6 @@
 # Display
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../kernel/editor.md), [screen.md](../screen/screen.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [screen.md](../screen/screen.md), [natural.md](../natural/natural.md)
 
 `ProjecturedDisplay` shows a value from the REPL in an editor that runs beside the REPL. It shows any value that a loaded package gives a document, and it depends on no such package, on no backend and on no container of documents. This document says how a value becomes a document, where the editor runs, and what the display leaves to other packages.
 
@@ -26,7 +26,7 @@ The loop keeps the world of its start, so every call that the display posts to t
 
 ## Design decisions
 
-- **The package that owns a type gives its document.** A seam, not a registry, so a method in a package's precompile cache is enough and no `__init__` registers anything. See [plan/pending/packages-compose-by-seams.md](../../../plan/pending/packages-compose-by-seams.md), C1 and C4.
+- **The package that owns a type gives its document.** A seam, not a registry, so a method in a package's precompile cache is enough and no `__init__` registers anything. See [plan/pending/packages-compose-by-seams.md](../../../../plan/pending/packages-compose-by-seams.md), C1 and C4.
 - **No fallback for a value without a document.** A reflected tree of any value is a later plan of its own: a package that keeps documents in step with the values they show (C15).
 - **The loop takes input during a REPL input.** There is no pause: a refresh after the input reads the value again (C6).
 

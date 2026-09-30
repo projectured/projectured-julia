@@ -57,7 +57,7 @@ struct ArgumentDefinition
 end
 
 # The folders of a port: code that keeps the signature of the program it mirrors.
-const PORT_FOLDERS = ["source/graph/cpp/"]
+const PORT_FOLDERS = ["source/domain/graph/cpp/"]
 
 get_positional_count(d::ArgumentDefinition) = d.required + d.optional
 is_port_definition(d::ArgumentDefinition) = any(folder -> startswith(d.file, folder), PORT_FOLDERS)

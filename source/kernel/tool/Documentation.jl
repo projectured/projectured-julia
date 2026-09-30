@@ -102,7 +102,7 @@ function _all_guides()
     for (root, prefix) in _guide_roots()
         isdir(root) || continue
         for (dir, _, files) in walkdir(root)
-            # The per-slice roots below cover the folders of documentation/package/,
+            # The roots below, one for each group folder of documentation/package/,
             # and they give a guide the namespaced name every citation uses. Walking
             # them here as well would list each of those guides twice. The files
             # directly in documentation/package/ are walked here, as package/<name>.

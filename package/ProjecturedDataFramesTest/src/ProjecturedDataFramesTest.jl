@@ -34,9 +34,9 @@ using ProjecturedWidget.WidgetModule
 
 import ProjecturedKernelTest: check_layering, get_package_source_root
 
-include("../../../test/dataframes/DataFrameExampleTest.jl")
-include("../../../test/dataframes/DataFrameViewTest.jl")
-include("../../../test/dataframes/DataFrameDisplayTest.jl")
-include("../../../test/dataframes/DataFramesSuite.jl")
+include("../../../test/adapter/dataframes/DataFrameExampleTest.jl")
+include("../../../test/adapter/dataframes/DataFrameViewTest.jl")
+include("../../../test/adapter/dataframes/DataFrameDisplayTest.jl")
+include("../../../test/adapter/dataframes/DataFramesSuite.jl")
 
 end # module ProjecturedDataFramesTest

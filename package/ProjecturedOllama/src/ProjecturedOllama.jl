@@ -36,6 +36,6 @@ import ProjecturedKernel.LlmModule:
     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
     LlmTurnEnd, LlmFailure
 
-include("../../../source/ollama/Ollama.jl")
+include("../../../source/adapter/ollama/Ollama.jl")
 
 end # module ProjecturedOllama

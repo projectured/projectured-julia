@@ -10,25 +10,25 @@ Each domain has one design document in the folder of its slice. Read [domain-ana
 
 | Domain | Document |
 | --- | --- |
-| JSON | [json.md](../package/json/json.md) |
-| YAML | [yaml.md](../package/yaml/yaml.md) |
-| XML | [xml.md](../package/xml/xml.md) |
-| Markdown | [markdown.md](../package/markdown/markdown.md) |
-| reStructuredText | [rst.md](../package/rst/rst.md) |
-| Book | [book.md](../package/book/book.md) |
-| Math notation | [math.md](../package/math/math.md) |
-| Julia code | [julia.md](../package/julia/julia.md) |
-| Formula | [formula.md](../package/formula/formula.md) |
-| SQL | [sql.md](../package/sql/sql.md) |
-| Database and catalog | [database.md](../package/database/database.md), for `ProjecturedDatabase`, `ProjecturedDbCatalog` and the opt-in `ProjecturedOdbc` |
-| File system | [filesystem.md](../package/filesystem/filesystem.md) |
-| Graph | [graph.md](../package/graph/graph.md), with [graph-layout.md](../package/graph/graph-layout.md) for the layout engines |
-| Chart | [chart.md](../package/chart/chart.md) |
-| Sequence chart | [sequencechart.md](../package/sequencechart/sequencechart.md) |
-| State machine | [fsm.md](../package/fsm/fsm.md) |
-| Process | [process.md](../package/process/process.md) |
-| Conversation | [conversation.md](../package/conversation/conversation.md), with [transcript.md](../package/conversation/transcript.md) for the widget view |
-| Assistant | [assistant.md](../package/assistant/assistant.md) |
+| JSON | [json.md](../package/domain/json/json.md) |
+| YAML | [yaml.md](../package/domain/yaml/yaml.md) |
+| XML | [xml.md](../package/domain/xml/xml.md) |
+| Markdown | [markdown.md](../package/domain/markdown/markdown.md) |
+| reStructuredText | [rst.md](../package/domain/rst/rst.md) |
+| Book | [book.md](../package/domain/book/book.md) |
+| Math notation | [math.md](../package/domain/math/math.md) |
+| Julia code | [julia.md](../package/domain/julia/julia.md) |
+| Formula | [formula.md](../package/domain/formula/formula.md) |
+| SQL | [sql.md](../package/domain/sql/sql.md) |
+| Database and catalog | [database.md](../package/domain/database/database.md), for `ProjecturedDatabase`, `ProjecturedDbCatalog` and the opt-in `ProjecturedOdbc` |
+| File system | [filesystem.md](../package/platform/filesystem/filesystem.md) |
+| Graph | [graph.md](../package/domain/graph/graph.md), with [graph-layout.md](../package/domain/graph/graph-layout.md) for the layout engines |
+| Chart | [chart.md](../package/domain/chart/chart.md) |
+| Sequence chart | [sequencechart.md](../package/domain/sequencechart/sequencechart.md) |
+| State machine | [fsm.md](../package/domain/fsm/fsm.md) |
+| Process | [process.md](../package/domain/process/process.md) |
+| Conversation | [conversation.md](../package/platform/conversation/conversation.md), with [transcript.md](../package/platform/conversation/transcript.md) for the widget view |
+| Assistant | [assistant.md](../package/platform/assistant/assistant.md) |
 
 ## What a domain package is
 
@@ -47,26 +47,26 @@ Fifteen domains depend on no other domain. Four build on one layer of domains, a
 
 | Package | Code | Depends on |
 | --- | --- | --- |
-| `ProjecturedJson` | `source/json/` | — |
-| `ProjecturedYaml` | `source/yaml/` | — |
-| `ProjecturedXml` | `source/xml/` | — |
-| `ProjecturedMarkdown` | `source/markdown/` | — |
-| `ProjecturedRst` | `source/rst/` | — |
-| `ProjecturedBook` | `source/book/` | — |
-| `ProjecturedMath` | `source/math/` | — |
-| `ProjecturedJulia` | `source/julia/` | — |
-| `ProjecturedSql` | `source/sql/` | — |
-| `ProjecturedDatabase` | `source/database/` | — |
-| `ProjecturedFileSystem` | `source/filesystem/` | — |
-| `ProjecturedGraph` | `source/graph/` | — |
-| `ProjecturedChart` | `source/chart/` | — |
-| `ProjecturedSequenceChart` | `source/sequencechart/` | — |
-| `ProjecturedConversation` | `source/conversation/` | — |
-| `ProjecturedDbCatalog` | `source/dbcatalog/` | Sql |
-| `ProjecturedFormula` | `source/formula/` | Julia, Math |
-| `ProjecturedFsm` | `source/fsm/` | Julia, Graph |
-| `ProjecturedProcess` | `source/process/` | Julia, Graph |
-| `ProjecturedAssistant` | `source/assistant/` | Conversation |
+| `ProjecturedJson` | `source/domain/json/` | — |
+| `ProjecturedYaml` | `source/domain/yaml/` | — |
+| `ProjecturedXml` | `source/domain/xml/` | — |
+| `ProjecturedMarkdown` | `source/domain/markdown/` | — |
+| `ProjecturedRst` | `source/domain/rst/` | — |
+| `ProjecturedBook` | `source/domain/book/` | — |
+| `ProjecturedMath` | `source/domain/math/` | — |
+| `ProjecturedJulia` | `source/domain/julia/` | — |
+| `ProjecturedSql` | `source/domain/sql/` | — |
+| `ProjecturedDatabase` | `source/domain/database/` | — |
+| `ProjecturedFileSystem` | `source/platform/filesystem/` | — |
+| `ProjecturedGraph` | `source/domain/graph/` | — |
+| `ProjecturedChart` | `source/domain/chart/` | — |
+| `ProjecturedSequenceChart` | `source/domain/sequencechart/` | — |
+| `ProjecturedConversation` | `source/platform/conversation/` | — |
+| `ProjecturedDbCatalog` | `source/domain/dbcatalog/` | Sql |
+| `ProjecturedFormula` | `source/domain/formula/` | Julia, Math |
+| `ProjecturedFsm` | `source/domain/fsm/` | Julia, Graph |
+| `ProjecturedProcess` | `source/domain/process/` | Julia, Graph |
+| `ProjecturedAssistant` | `source/platform/assistant/` | Conversation |
 
 Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. A conversation part parses to JSON, Julia or XML through the natural registry, so the conversation package needs no dependency on those domains.
 
@@ -76,7 +76,7 @@ Three kinds of thing look like a domain and are not. Each lives in a substrate p
 
 - **A framework several domains share.** The insert-by-typing leaf and the `*Nothing` placeholder (`ProjecturedSyntax`), the plot arithmetic and the colour and marker cycles (`ProjecturedPlot`). Two domains needing the same thing is what makes it a framework.
 - **A domain-neutral editor feature.** The gesture help map and the command palette (`ProjecturedGestureHelp`), the gesture log (`ProjecturedGestureLog`), the fault barrier and its log panel (`ProjecturedFault`). They render a *projection*, not a content kind.
-- **The render-anything projection.** `NaturalToGraphics` (`ProjecturedNatural`) draws any document, so it can not name any domain. Each domain registers its own row; see [natural.md](../package/natural/natural.md).
+- **The render-anything projection.** `NaturalToGraphics` (`ProjecturedNatural`) draws any document, so it can not name any domain. Each domain registers its own row; see [natural.md](../package/platform/natural/natural.md).
 
 ## The root module
 
@@ -100,7 +100,7 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/fsm/FsmModule.jl")
+include("../../../source/domain/fsm/FsmModule.jl")
 …
 end
 ```

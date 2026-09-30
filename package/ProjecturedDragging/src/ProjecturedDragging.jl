@@ -26,6 +26,6 @@ const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 
 const GestureModule = ProjecturedKernel.GestureModule
-include("../../../source/dragging/DraggingModule.jl")
+include("../../../source/platform/dragging/DraggingModule.jl")
 
 end # module ProjecturedDragging

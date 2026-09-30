@@ -3,7 +3,7 @@
 
 The Fault tier of the example-package DAG: one runnable example per fault
 category, so a person can watch each barrier work from the REPL. See
-[FaultExamples.jl](../../../example/fault/FaultExamples.jl) for the list.
+[FaultExamples.jl](../../../example/platform/fault/FaultExamples.jl) for the list.
 """
 module ProjecturedFaultExample
 
@@ -16,7 +16,7 @@ import ProjecturedExample: Example, run_example, make_example_editor, default_ba
 import ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,
                                  make_scripted_say
 
-include("../../../example/fault/FaultExamples.jl")
+include("../../../example/platform/fault/FaultExamples.jl")
 
 export BROKEN_VALUE,
        make_fault_demo_document_example, make_fault_demo_projection_example,

@@ -1,6 +1,6 @@
 # Text domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [reference.md](../kernel/reference.md), [projection-system.md](../kernel/projection-system.md), [style.md](../style/style.md), [graphics.md](../graphics/graphics.md)
+> **Kind:** design · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [projection-system.md](../../kernel/projection-system.md), [style.md](../style/style.md), [graphics.md](../graphics/graphics.md)
 
 `ProjecturedText` holds styled text as a flat sequence of spans, and the projections that lay it out as graphics or change it on the way. Nearly every view reaches the screen through it, because `SyntaxToText` prints to it. This document says how the caret is addressed, how a key becomes an edit, and why the text decorators can map a caret in both directions.
 
@@ -45,7 +45,7 @@ The kernel reference layer names none of them. This package registers each one a
 
 The reader has two halves.
 
-**The geometry-free half** is the `@gestures TextBlock` table in `source/text/TextDocument.jl`. It reads only `elements` and `selection`:
+**The geometry-free half** is the `@gestures TextBlock` table in `source/platform/text/TextDocument.jl`. It reads only `elements` and `selection`:
 
 | Key | Edit |
 | --- | --- |
@@ -126,14 +126,14 @@ It registers no file type and no natural row. `@domain Text` makes the placehold
 
 ## Design decisions
 
-- **The caret is a flat offset.** A caret anchored to a span has two names at a span boundary, one for each direction of travel; a flat offset has one. See [plan/done/text-range-reference-flat-cursor.md](../../../plan/done/text-range-reference-flat-cursor.md).
-- **An inline image is one caret position,** as a word processor gives a picture set in line with text one character. Every reader of the caret space counts it 1, so a caret stands before and after it and a key can reach and delete it. See [plan/done/an-inline-image-is-one-caret-position.md](../../../plan/done/an-inline-image-is-one-caret-position.md).
+- **The caret is a flat offset.** A caret anchored to a span has two names at a span boundary, one for each direction of travel; a flat offset has one. See [plan/done/text-range-reference-flat-cursor.md](../../../../plan/done/text-range-reference-flat-cursor.md).
+- **An inline image is one caret position,** as a word processor gives a picture set in line with text one character. Every reader of the caret space counts it 1, so a caret stands before and after it and a key can reach and delete it. See [plan/done/an-inline-image-is-one-caret-position.md](../../../../plan/done/an-inline-image-is-one-caret-position.md).
 - **A box selection and a caret are two step types.** They hold the same data, but a motion key moves a caret and does not move a box. One type for both would make a selected element act as an editable caret.
-- **The reader is split by what it reads.** What needs only the spans is a `@gestures` table on `TextBlock`, and the gesture help lists that same table. What needs pixels stays in `TextToGraphics`. See [projection-system.md](../kernel/projection-system.md).
+- **The reader is split by what it reads.** What needs only the spans is a `@gestures` table on `TextBlock`, and the gesture help lists that same table. What needs pixels stays in `TextToGraphics`. See [projection-system.md](../../kernel/projection-system.md).
 - **A key without a rule goes on.** The gesture table matches modifiers exactly, so a key that it does not bind gets `nothing` with no extra rule that returns it.
-- **A line is a document, not a span with a `'\n'`.** A block of lines has no empty last line, and no caret lands in the indentation. `SyntaxToText` does not make lines yet; see [plan/pending/text-domain-kit.md](../../../plan/pending/text-domain-kit.md).
+- **A line is a document, not a span with a `'\n'`.** A block of lines has no empty last line, and no caret lands in the indentation. `SyntaxToText` does not make lines yet; see [plan/pending/text-domain-kit.md](../../../../plan/pending/text-domain-kit.md).
 - **Wrapping is a separate stage.** `TextToGraphics` only places spans, and `WordWrapping` before it changes the spans. A view without wrapping leaves the stage out.
-- **Text has its own package.** It is not in one package with graphics and the backends. See [plan/done/extract-graphics-text-packages.md](../../../plan/done/extract-graphics-text-packages.md).
+- **Text has its own package.** It is not in one package with graphics and the backends. See [plan/done/extract-graphics-text-packages.md](../../../../plan/done/extract-graphics-text-packages.md).
 
 ## Usage
 
@@ -150,8 +150,8 @@ projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
                                 TextToGraphics(measure = FontFileMeasure()))
 ```
 
-- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_filtering_example` and `text_highlighting_example` in `example/substrate/`. The atomic catalog has one document for each span type and for `TextLine`.
-- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/substrate/`, and `test_text_range_selection()` in the umbrella suite.
+- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_filtering_example` and `text_highlighting_example` in `example/platform/`. The atomic catalog has one document for each span type and for `TextLine`.
+- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/platform/`, and `test_text_range_selection()` in the umbrella suite.
 
 ## Limits
 
@@ -162,5 +162,5 @@ projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
 - At the end of a text, the block caret of `SelectionInverting` adds an inverted space, and Right there maps past the end.
 - `TextColumnReferenceStep` has no gesture that makes it.
 - No code in `source/` or `example/` uses `TextFirstLine`.
-- In `text` and `text_with_image`, a walk with Left does not reach the start of the text. It also takes a different number of steps than a walk with Right. `formula` and `markdown_rendered` have the same fault. `NAV_LEFT_WALK_STALLS` in `test/projectured/editor/ExampleSweeps.jl` marks the four as broken; see [plan/pending/left-motion-stalls-on-introduced-text.md](../../../plan/pending/left-motion-stalls-on-introduced-text.md).
-- `run_example` with `text_filtering = true` or `text_highlighting = true` replaces the whole projection of the example. See [plan/pending/fix-text-configuring-run-example.md](../../../plan/pending/fix-text-configuring-run-example.md) and [plan/pending/text-projection-config-into-document.md](../../../plan/pending/text-projection-config-into-document.md).
+- In `text` and `text_with_image`, a walk with Left does not reach the start of the text. It also takes a different number of steps than a walk with Right. `formula` and `markdown_rendered` have the same fault. `NAV_LEFT_WALK_STALLS` in `test/projectured/editor/ExampleSweeps.jl` marks the four as broken; see [plan/pending/left-motion-stalls-on-introduced-text.md](../../../../plan/pending/left-motion-stalls-on-introduced-text.md).
+- `run_example` with `text_filtering = true` or `text_highlighting = true` replaces the whole projection of the example. See [plan/pending/fix-text-configuring-run-example.md](../../../../plan/pending/fix-text-configuring-run-example.md) and [plan/pending/text-projection-config-into-document.md](../../../../plan/pending/text-projection-config-into-document.md).

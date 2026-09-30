@@ -276,7 +276,7 @@ generically; compound projections that introduce structure (e.g.
 that has no domain counterpart) wire the selection cells explicitly in
 `print_document`.
 
-A leaf printer illustrates the reactive wiring (`source/syntax/SyntaxToText.jl`,
+A leaf printer illustrates the reactive wiring (`source/platform/syntax/SyntaxToText.jl`,
 the projection from a `SyntaxLeaf` to a `TextBlock`):
 
 ```julia

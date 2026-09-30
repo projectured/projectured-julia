@@ -23,6 +23,6 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 
-include("../../../source/gesturetracking/GestureTrackingModule.jl")
+include("../../../source/platform/gesturetracking/GestureTrackingModule.jl")
 
 end # module ProjecturedGestureTracking

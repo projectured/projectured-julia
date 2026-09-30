@@ -21,7 +21,7 @@ repository's own `package/`, so `get_package_directory` has something real to
 resolve.
 """
 function _test_context()
-    real_root = normpath(joinpath(@__DIR__, "..", ".."))
+    real_root = normpath(joinpath(@__DIR__, "..", "..", ".."))
     BuildContext(mktempdir(); package_roots = [joinpath(real_root, "package")])
 end
 
@@ -810,7 +810,7 @@ function test_builder()
                 rm(bundle; recursive = true, force = true)
             end
             @test occursin("JULIA_PROBE_LIBSTDCXX=0",
-                           read(joinpath(dirname(dirname(@__DIR__)), "bin",
+                           read(joinpath(dirname(dirname(dirname(@__DIR__))), "bin",
                                         "build_projectured"), String))
         end
 
@@ -844,9 +844,9 @@ function test_builder()
             # The application declares its licence, and the file is in the tree.
             @test PROJECTURED_LICENCES == ["LICENSE"]
             @test startswith(
-                read(joinpath(dirname(dirname(@__DIR__)), "LICENSE"), String),
+                read(joinpath(dirname(dirname(dirname(@__DIR__))), "LICENSE"), String),
                 "Mozilla Public License Version 2.0")
-            @test all(licence -> isfile(joinpath(dirname(dirname(@__DIR__)), licence)),
+            @test all(licence -> isfile(joinpath(dirname(dirname(dirname(@__DIR__))), licence)),
                       PROJECTURED_LICENCES)
         end
 
@@ -886,7 +886,7 @@ function test_builder()
             context = _test_context()
             hidden = get_hidden_directories(context)
             @test context.root in hidden
-            @test dirname(dirname(@__DIR__)) in hidden    # the repository
+            @test dirname(dirname(dirname(@__DIR__))) in hidden    # the repository
             @test all(isdir, hidden)
             @test make_hidden_command(`true`, String[]) == `true`
             if Sys.which("bwrap") !== nothing
@@ -948,8 +948,8 @@ function test_builder()
 
         @testset "the shell front end" begin
             front_end = Module(:BuildBinaryFrontEnd)
-            Base.include(front_end, joinpath(@__DIR__, "..", "..", "source", "builder",
-                                             "build_binary.jl"))
+            Base.include(front_end, joinpath(@__DIR__, "..", "..", "..", "source", "tool",
+                                             "builder", "build_binary.jl"))
             # Through `invokelatest`, because the file defined its names after
             # this code was compiled. The read of the name is inside it too, or
             # Julia warns that the binding is younger than this code.

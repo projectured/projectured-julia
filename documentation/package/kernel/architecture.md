@@ -161,7 +161,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 
 | Folder | Holds |
 | --- | --- |
-| `fault/` | `FaultModule` — the fault record, the store, the policy, the barrier and the report (see [fault.md](../fault/fault.md)) |
+| `fault/` | `FaultModule` — the fault record, the store, the policy, the barrier and the report (see [fault.md](../platform/fault/fault.md)) |
 | `performance/` | `PerformanceModule` — the per-frame performance counters and the frame measurement store of an editor, `FrameMeasurementStore` (see [cell.md](cell.md)) |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
 | `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |

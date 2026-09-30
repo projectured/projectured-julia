@@ -1,8 +1,8 @@
 # Math domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [natural.md](../../platform/natural/natural.md)
 
-The math domain, `ProjecturedMath`, holds a formula as a tree of documents: its structure, not its picture and not its value. Two projections read the tree: `MathToSyntax` prints one line of text, and `MathToGraphics` sets real two-dimensional boxes. This document says where the domain differs from the [shape of every domain](../../design/domain-anatomy.md): the vocabulary, the reader of the linear form, the box protocol of the two-dimensional form, and the keys that edit it.
+The math domain, `ProjecturedMath`, holds a formula as a tree of documents: its structure, not its picture and not its value. Two projections read the tree: `MathToSyntax` prints one line of text, and `MathToGraphics` sets real two-dimensional boxes. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md): the vocabulary, the reader of the linear form, the box protocol of the two-dimensional form, and the keys that edit it.
 
 <img width="396" alt="Math example" src="../../../asset/image/example/math.png">
 
@@ -39,7 +39,7 @@ A number is a `PrimitiveNumber`, and the math rules set it upright. Three rules 
 2. `MathAssignment` is the root of an equation. A relation inside an expression is a `MathBinaryOperation`.
 3. A slot that can be absent holds `nothing` when it is absent and a `MathInsertion` when it is present and empty. `nothing` prints nothing, and an insertion prints a placeholder that a mouse can hit.
 
-`MathSubscript(base, index)` and `MathSuperscript(base, exponent)` build a `MathScript` with one script. The table `_MATH_OPERATORS` in `source/math/MathDocument.jl` has three columns for each operator: the text of the linear form, the glyph of the page, and the class, `:binary`, `:relation` or `:punctuation`, that sets the space around it.
+`MathSubscript(base, index)` and `MathSuperscript(base, exponent)` build a `MathScript` with one script. The table `_MATH_OPERATORS` in `source/domain/math/MathDocument.jl` has three columns for each operator: the text of the linear form, the glyph of the page, and the class, `:binary`, `:relation` or `:punctuation`, that sets the space around it.
 
 ### The linear form
 
@@ -121,8 +121,8 @@ Its `__init__` makes four calls:
 ## Design decisions
 
 - **The tree is the structure only.** One tree serves a text line to save and a typeset picture, and neither projection owns the model.
-- **The printer is the grammar of the reader.** `test_math_parser()` checks that every formula of the corpus prints, reads and prints the same line. See [plan/pending/math-linear-form-reader.md](../../../plan/pending/math-linear-form-reader.md).
-- **The domain sets its own boxes.** An IO map that publishes a baseline is the one thing a formula needs that the generic layouts do not have. See [plan/done/math-formula-layout.md](../../../plan/done/math-formula-layout.md).
+- **The printer is the grammar of the reader.** `test_math_parser()` checks that every formula of the corpus prints, reads and prints the same line. See [plan/pending/math-linear-form-reader.md](../../../../plan/pending/math-linear-form-reader.md).
+- **The domain sets its own boxes.** An IO map that publishes a baseline is the one thing a formula needs that the generic layouts do not have. See [plan/done/math-formula-layout.md](../../../../plan/done/math-formula-layout.md).
 - **A selection in two dimensions is a whole node.** A caret has no position in a fraction, so the keys move between nodes and build around the selected node.
 - **A delimiter is tiled, not scaled.** The radical has no extension pieces in DejaVu, so its sign stops at 2.2 times the base size. A real math font is the fix, not a wider glyph.
 
@@ -137,11 +137,11 @@ flat = MathToSyntax()
 boxes = MathToGraphics(measure = FontFileMeasure())
 ```
 
-- Examples: `math_example` shows the linear form. `math_table_example` puts numbers and formulas in the cells of a `WidgetTable`. `math_display_example` stacks every formula of `example/math/MathDocumentExample.jl` in two dimensions. The atomic catalog has one document for each type.
+- Examples: `math_example` shows the linear form. `math_table_example` puts numbers and formulas in the cells of a `WidgetTable`. `math_display_example` stacks every formula of `example/domain/math/MathDocumentExample.jl` in two dimensions. The atomic catalog has one document for each type.
 - Test: `test_math()` runs the layering guard, `test_math_to_graphics()` and `test_math_parser()`. `test_math_to_graphics()` asserts coordinates: where a fraction rule lands, how far a script baseline moves, and which size a nested script has. It also walks `math_display_example` through the printer, the REPL loop and the arrow keys.
 
 ## Limits
 
 - **`math_display_example` is not in the `examples` registry.** `test_typein` types a character at every rendered caret, and a two-dimensional formula has none, so every position would report a failure. Run it with `run_example(math_display_example)`.
-- **No key types a symbol.** `\lambda` needs a text buffer that lives across keystrokes, which is an insertion type of its own. Step 5 of [plan/pending/math-linear-form-reader.md](../../../plan/pending/math-linear-form-reader.md), type-in of the linear form, is open.
+- **No key types a symbol.** `\lambda` needs a text buffer that lives across keystrokes, which is an insertion type of its own. Step 5 of [plan/pending/math-linear-form-reader.md](../../../../plan/pending/math-linear-form-reader.md), type-in of the linear form, is open.
 - **The radical sign stops growing at 2.2 times the base size.** Past that, the bar continues above a sign that does not follow it.

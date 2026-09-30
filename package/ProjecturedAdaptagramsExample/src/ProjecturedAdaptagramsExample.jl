@@ -22,9 +22,9 @@ import ProjecturedExample: Example, run_example, run_console_example,
                            make_table_projection_example, make_mixed_projection_example
 import ProjecturedOdbcExample: make_dvdrental_relationship_graph_document_example
 
-# The bodies live in `example/adaptagrams`, not beside this file:
+# The bodies live in `example/adapter/adaptagrams`, not beside this file:
 # a package is a name and an include list.
-const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/adaptagrams"))
+const _PKG_DIR = normpath(joinpath(@__DIR__, "../../../example/adapter/adaptagrams"))
 
 include(joinpath(_PKG_DIR, "GraphProjectionExample.jl"))
 include(joinpath(_PKG_DIR, "AdaptagramsExamples.jl"))

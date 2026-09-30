@@ -144,7 +144,7 @@ See [division-terminology.md](../rule/division-terminology.md) for the definitio
 [architecture-rules.md](../rule/architecture-rules.md) for the durable division
 rules.
 
-Each slice's reference guides live under `documentation/package/<slice>/`, one
+Each slice's reference guides live under `documentation/package/<group>/<slice>/`, one
 folder per slice. The kernel set
 ([cell](../package/kernel/cell.md),
 [macros](../package/kernel/macros.md),
@@ -154,15 +154,15 @@ folder per slice. The kernel set
 [finding-and-selecting](../package/kernel/finding-and-selecting.md),
 [operation](../package/kernel/operation.md),
 [projection-system](../package/kernel/projection-system.md),
-[higher-order-projections](../package/projection/higher-order-projections.md),
-[generic-projections](../package/projection/generic-projections.md),
+[higher-order-projections](../package/platform/projection/higher-order-projections.md),
+[generic-projections](../package/platform/projection/generic-projections.md),
 [devices-and-backends](../package/kernel/devices-and-backends.md),
 [agent](../package/kernel/agent.md),
 [editor](../package/kernel/editor.md),
 [naming](../rule/naming-rules.md)) is the largest; the per-domain guides sit
 next to it, one folder per domain —
-[widget](../package/widget/widget.md), [text](../package/text/text.md),
-[collection](../package/collection/collection.md) and the rest.
+[widget](../package/platform/widget/widget.md), [text](../package/platform/text/text.md),
+[collection](../package/platform/collection/collection.md) and the rest.
 
 Optional engines plug into **factory seams** owned by the kernel
 (`make_agent_server(kind, …)`) or the domain (`make_database_adapter(kind)`):
@@ -179,9 +179,9 @@ the HTTP clients of the model providers are in the opt-in `ProjecturedMcp`,
 `ProjecturedAnthropic` and `ProjecturedOllama`.
 
 > The inventory below cites a file by name. Every one of them lives in
-> `source/<slice>/`, one folder per slice, and the package that includes it is
+> `source/<group>/<slice>/`, one folder per slice in the folder of its group, and the package that includes it is
 > `Projectured<Slice>`. A slice's document file is `<Slice>Document.jl`, so the
-> JSON documents are in `source/json/JsonDocument.jl` and the package is
+> JSON documents are in `source/domain/json/JsonDocument.jl` and the package is
 > `ProjecturedJson`. [naming-rules.md](../rule/naming-rules.md) states the
 > derivation and `test/suite/naming.jl` checks it.
 

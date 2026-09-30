@@ -39,6 +39,6 @@ for _src in (ProjecturedCollection, ProjecturedFileFormat, ProjecturedGraphics, 
     end
 end
 
-include("../../../source/markdown/MarkdownModule.jl")
+include("../../../source/domain/markdown/MarkdownModule.jl")
 
 end # module ProjecturedMarkdown

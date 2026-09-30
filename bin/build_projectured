@@ -9,7 +9,7 @@
 # The bundle goes to `build/projectured/`, and the executable to
 # `build/projectured/bin/projectured`.
 #
-# It is `source/builder/build_binary.jl projectured` under a name of its own, so
+# It is `source/tool/builder/build_binary.jl projectured` under a name of its own, so
 # a build is reached the way the program is.
 #
 # **One script for both forms.** `--distribution` is a flag of the build. The
@@ -31,4 +31,4 @@ PROJECTURED_BUILD_WHAT="projectured"
 PROJECTURED_BUILD_COMMAND="bin/build_projectured"
 export PROJECTURED_BUILD_WHAT PROJECTURED_BUILD_COMMAND
 exec julia --project="$root/environment/build" \
-     "$root/source/builder/build_binary.jl" "$@"
+     "$root/source/tool/builder/build_binary.jl" "$@"

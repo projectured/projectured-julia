@@ -66,7 +66,7 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/dbcatalog/DbCatalogDocumentExample.jl")
+include("../../../example/domain/dbcatalog/DbCatalogDocumentExample.jl")
 
 export make_db_catalog_column_document_example, make_db_catalog_table_document_example, make_db_catalog_schema_document_example
 export make_db_catalog_database_document_example, make_db_catalog_rdbms_document_example

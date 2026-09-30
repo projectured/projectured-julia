@@ -1,6 +1,6 @@
 # Gesture tracking
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../kernel/devices-and-backends.md), [operation.md](../kernel/operation.md)
+> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [operation.md](../../kernel/operation.md)
 
 `ProjecturedGestureTracking` runs the recognitions of gestures over the inputs of the devices. It is a projection with a wrapper document, and a host puts it around the document that the editor shows. The recognitions themselves are in the gesture layer of the kernel, so a package can add one. The editor recognizes nothing, so an editor whose projection has no gesture tracker gets events and no gestures.
 

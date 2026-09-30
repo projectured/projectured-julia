@@ -1,8 +1,8 @@
 # Julia domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [serialization.md](../serialization/serialization.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [serialization.md](../../platform/serialization/serialization.md)
 
-The Julia domain, `ProjecturedJulia`, holds Julia source code as a tree of reactive documents. Other domains embed its expressions: a state machine guard, a process action and a formula are Julia code. This document says where it differs from the [shape of every domain](../../design/domain-anatomy.md).
+The Julia domain, `ProjecturedJulia`, holds Julia source code as a tree of reactive documents. Other domains embed its expressions: a state machine guard, a process action and a formula are Julia code. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md).
 
 <img width="396" alt="Julia example" src="../../../asset/image/example/julia.png">
 
@@ -50,7 +50,7 @@ A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring
 
 ### The duplicate
 
-`has_document_duplicate` is `true` for every `JuliaDocument`, because Julia code is what a person typed. A duplicated pane copies the code into nodes of its own, and an edit in one pane does not change the other. The code of an evaluator form is a Julia document, so a duplicated evaluator does not type into the original. See [document.md](../kernel/document.md#the-duplicate).
+`has_document_duplicate` is `true` for every `JuliaDocument`, because Julia code is what a person typed. A duplicated pane copies the code into nodes of its own, and an edit in one pane does not change the other. The code of an evaluator form is a Julia document, so a duplicated evaluator does not type into the original. See [document.md](../../kernel/document.md#the-duplicate).
 
 ## How it fits
 
@@ -60,10 +60,10 @@ Its `__init__` registers the natural notation (format `:jl`, extension `.jl`, pa
 
 ## Design decisions
 
-- **The parser of Julia itself.** A hand-written grammar would drift from the language. `Meta.parseall` is in Base, so it adds no dependency. See [plan/done/julia-parser.md](../../../plan/done/julia-parser.md).
-- **One document type for one `Expr` shape.** The document can not keep a difference that the `Expr` tree does not keep. See [plan/done/julia-basic-language-support.md](../../../plan/done/julia-basic-language-support.md).
-- **Type-in is a gesture table on the document.** The insertion leaf has no reader of its own, as `@gestures PrimitiveString` does for a string. See [plan/done/julia-typein-operations.md](../../../plan/done/julia-typein-operations.md).
-- **Every rule is a template.** A set of hand-written reference maps was tried, and it left the structural tokens without a caret. The template rules give every token a caret. See [plan/pending/julia-syntax-navigation.md](../../../plan/pending/julia-syntax-navigation.md).
+- **The parser of Julia itself.** A hand-written grammar would drift from the language. `Meta.parseall` is in Base, so it adds no dependency. See [plan/done/julia-parser.md](../../../../plan/done/julia-parser.md).
+- **One document type for one `Expr` shape.** The document can not keep a difference that the `Expr` tree does not keep. See [plan/done/julia-basic-language-support.md](../../../../plan/done/julia-basic-language-support.md).
+- **Type-in is a gesture table on the document.** The insertion leaf has no reader of its own, as `@gestures PrimitiveString` does for a string. See [plan/done/julia-typein-operations.md](../../../../plan/done/julia-typein-operations.md).
+- **Every rule is a template.** A set of hand-written reference maps was tried, and it left the structural tokens without a caret. The template rules give every token a caret. See [plan/pending/julia-syntax-navigation.md](../../../../plan/pending/julia-syntax-navigation.md).
 
 ## Usage
 
@@ -81,5 +81,5 @@ run_example("julia")
 
 ## Limits
 
-- A caret does not go into the characters of a leaf. `test_position_navigation(julia_example; check_reaches_all = true)` has 28 failures for this reason. [plan/pending/julia-syntax-navigation.md](../../../plan/pending/julia-syntax-navigation.md) tracks it.
+- A caret does not go into the characters of a leaf. `test_position_navigation(julia_example; check_reaches_all = true)` has 28 failures for this reason. [plan/pending/julia-syntax-navigation.md](../../../../plan/pending/julia-syntax-navigation.md) tracks it.
 - A formula evaluates only a subset of the Julia types; see [formula.md](../formula/formula.md).

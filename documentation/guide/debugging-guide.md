@@ -114,7 +114,7 @@ Two things stay outside the panel:
 
 The panel is not interactive. A click goes through it to the content below.
 
-The slice is [source/gesturelog/](../../source/gesturelog):
+The slice is [source/platform/gesturelog/](../../source/platform/gesturelog):
 `GestureLogDocument.jl` (the buffer and the rendering of a gesture and an
 operation), `GestureLogToSyntax.jl` (one line per entry),
 `GestureLogRecording.jl` (the decorator that records) and
@@ -139,7 +139,7 @@ julia> print_example(syntax_example)
 ```
 
 Implementation is at
-[example/substrate/Harness.jl](../../example/substrate/Harness.jl). It calls
+[example/platform/Harness.jl](../../example/platform/Harness.jl). It calls
 `print_document`, takes `iomap.output`, forces the outer cell if needed,
 and uses `print_object` to render the tree with brace delimiters.
 

@@ -57,6 +57,6 @@ const LayoutModule = ProjecturedLayout.LayoutModule
 const TextModule = ProjecturedText.TextModule
 const TooltipModule = ProjecturedTooltip.TooltipModule
 
-include("../../../source/widget/WidgetModule.jl")
+include("../../../source/platform/widget/WidgetModule.jl")
 
 end # module ProjecturedWidget

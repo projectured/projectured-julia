@@ -51,7 +51,7 @@ A designed view is a projection: a printer that makes the view, and a reader tha
    end
    ```
 
-2. **Write the projection.** The [widget guide](../package/widget/widget.md) lists the parts: labels, fields, tables, cards, buttons, tabs and split panes. [new-domain-guide.md](new-domain-guide.md) is the long form, from the document types to the key bindings.
+2. **Write the projection.** The [widget guide](../package/platform/widget/widget.md) lists the parts: labels, fields, tables, cards, buttons, tabs and split panes. [new-domain-guide.md](new-domain-guide.md) is the long form, from the document types to the key bindings.
 
 3. **Open it.** `run_example` takes the document and the projection you built:
 
@@ -67,7 +67,7 @@ A designed view and a view on demand live in the same window: open your model in
 
 ## A chart of your numbers
 
-A chart is a document, so it goes on the screen the same way, and a data point can be selected like any other part. [chart.md](../package/chart/chart.md) says which chart kinds exist and how a series is built.
+A chart is a document, so it goes on the screen the same way, and a data point can be selected like any other part. [chart.md](../package/domain/chart/chart.md) says which chart kinds exist and how a series is built.
 
 ## Where to go next
 

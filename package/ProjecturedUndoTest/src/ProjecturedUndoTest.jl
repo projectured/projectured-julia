@@ -27,7 +27,7 @@ using ProjecturedKernel.ToolModule
 using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedUndo.UndoModule
 
-include("../../../test/undo/UndoBufferTest.jl")
-include("../../../test/undo/UndoSuite.jl")
+include("../../../test/platform/undo/UndoBufferTest.jl")
+include("../../../test/platform/undo/UndoSuite.jl")
 
 end # module ProjecturedUndoTest

@@ -1,6 +1,6 @@
 # Fault
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../kernel/editor.md), [projection-system.md](../kernel/projection-system.md), [gesturelog.md](../gesturelog/gesturelog.md)
+> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [projection-system.md](../../kernel/projection-system.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
 A fault in a printer, a reader, an operation, a backend or a tool does not stop the editor, which contains, reports and repairs it. The kernel layer `fault` holds what a fault is, and `ProjecturedFault` holds what a fault looks like. This document says how the two catch, report and repair, and why a printer needs two catches.
 
@@ -18,11 +18,11 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 | `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier!`, the catch of the editor loop |
 | `source/kernel/fault/FaultCascade.jl` | `report_fault!` and its tiers |
 | `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `make_safe_mode_projection`, `is_passthrough_exception` |
-| `source/fault/FaultDocument.jl` | `FaultReport`, `FaultLog`, `FaultLogEntry` |
-| `source/fault/Catching.jl` | `FaultCatchingProjection`, the barrier inside a chain |
-| `source/fault/FaultToSyntax.jl` and its three neighbours | one mark for each output domain |
-| `source/fault/FaultLogOverlay.jl` | the log as a panel over a window |
-| `source/fault/FaultSafeMode.jl` | what the editor shows when nothing else prints |
+| `source/platform/fault/FaultDocument.jl` | `FaultReport`, `FaultLog`, `FaultLogEntry` |
+| `source/platform/fault/Catching.jl` | `FaultCatchingProjection`, the barrier inside a chain |
+| `source/platform/fault/FaultToSyntax.jl` and its three neighbours | one mark for each output domain |
+| `source/platform/fault/FaultLogOverlay.jl` | the log as a panel over a window |
+| `source/platform/fault/FaultSafeMode.jl` | what the editor shows when nothing else prints |
 
 The package has [the shared shape](../gesturelog/gesturelog.md#the-shared-shape) of the tool decorators: `FaultLog` is the document, `FaultCatchingProjection` is the decorator that catches, and `FaultLogOverlayProjection` is the panel. Unlike the gesture log panel, this panel is not there while the log is empty, so a program that works shows no extra pixel. Its default corner is the bottom left, which the gesture log panel does not use.
 
@@ -123,7 +123,7 @@ The package registers the natural row `:fault` for `FaultLog`, the title `Faults
 
 ## Design decisions
 
-- **The name is fault, not error.** `Error` and `Exception` are words of Julia itself, and `Fault` composes into `FaultRecord` and `FaultStore` with no collision. See [plan/done/the-editor-survives-a-fault.md](../../../plan/done/the-editor-survives-a-fault.md).
+- **The name is fault, not error.** `Error` and `Exception` are words of Julia itself, and `Fault` composes into `FaultRecord` and `FaultStore` with no collision. See [plan/done/the-editor-survives-a-fault.md](../../../../plan/done/the-editor-survives-a-fault.md).
 - **The kernel records and the package shows.** The kernel names no document or projection, so the view of a fault must live above it.
 - **The catch returns a value.** The reactive engine then caches, heals and contains the fault; a catch that only logs would throw again on every frame.
 - **The store is outside the reactive graph.** A computation may write it, and the frame drains it into the log.
@@ -142,7 +142,7 @@ run_fault_device_example()           # the backend breaks while it runs; the edi
 run_fault_tool_example()             # a tool throws; the same panel reports it
 ```
 
-- Examples: `example/fault/FaultExamples.jl`. The four `Example` constants are not in the example registry, because each one throws on purpose and a sweep over every example would stop there.
+- Examples: `example/platform/fault/FaultExamples.jl`. The four `Example` constants are not in the example registry, because each one throws on purpose and a sweep over every example would stop there.
 - Test: `test_fault()` in `ProjecturedFaultTest` runs the layering guard, the store, the report ladder, the barrier in a chain, the safe mode against a real editor, and `make_fault_tolerant_projection`. The most important test raises the fault inside the output cell and not in `print_document`, because a real printer fails there.
 
 ## Limits

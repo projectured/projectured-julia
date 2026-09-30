@@ -1,6 +1,6 @@
 # Serialization
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../kernel/cell.md), [document.md](../kernel/document.md), [domain-anatomy.md](../../design/domain-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 `ProjecturedSerialization` writes documents to disk in two ways: as an exact binary snapshot of one document, and as a set of text files with references between them. It also holds the contract that each file type implements and the `.pred` format, which writes any document as its own constructor call. This document says how each way works, what a file type must give, and why a marker never runs code.
 
@@ -20,7 +20,7 @@ The format depends on the layout of the structs in memory. It is for one version
 
 A document graph can also be saved as text files that a version control system compares line by line. A **file document** has a `filename` and a `content`. It is a subtype of `FileDocument`, or a type with another supertype that returns `true` from `is_file_document`.
 
-`get_file_content(file)` answers the value of the `content` field: the parsed tree, for most formats. An application that keeps a history of each file holds that history in the field instead, so `get_file_content` then answers the history and not the tree; [`get_edited_document`](../kernel/reference.md#a-document-together-with-its-reference) reaches the document itself, through the history and every other such layer. `get_edited_field` of a `FileDocument` answers `:content`, unless the file's own node is its content, where it answers `nothing`. `get_file_content` also takes a `ReferencedDocument` in place of the file.
+`get_file_content(file)` answers the value of the `content` field: the parsed tree, for most formats. An application that keeps a history of each file holds that history in the field instead, so `get_file_content` then answers the history and not the tree; [`get_edited_document`](../../kernel/reference.md#a-document-together-with-its-reference) reaches the document itself, through the history and every other such layer. `get_edited_field` of a `FileDocument` answers `:content`, unless the file's own node is its content, where it answers `nothing`. `get_file_content` also takes a `ReferencedDocument` in place of the file.
 
 `FileProject(base_dir, files)` holds the files, because a reference from one file into another needs the other file.
 
@@ -105,7 +105,7 @@ It is the marker language at the scale of a file, read by the same interpreter. 
 
 ## How it fits
 
-`ProjecturedSerialization` depends only on the kernel and the `Serialization` standard library, and on no domain. `ProjecturedFileFormat` uses it for the binary half of `write_document_file` and `read_document_file`. Each domain with a file type depends on it; [domain-anatomy.md](../../design/domain-anatomy.md) shows where the file type sits in a domain.
+`ProjecturedSerialization` depends only on the kernel and the `Serialization` standard library, and on no domain. `ProjecturedFileFormat` uses it for the binary half of `write_document_file` and `read_document_file`. Each domain with a file type depends on it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows where the file type sits in a domain.
 
 Its `__init__` registers the `section` marker, `TextFile` for a path with no extension and for `.txt`, and `PredFile` for `.pred`. The domains register `.json`, `.xml`, `.md`, `.markdown`, `.rst`, `.yaml`, `.yml`, `.math`, `.sql` and `.jl`. `ProjecturedJulia` also registers the marker `definition`.
 
@@ -113,7 +113,7 @@ Its `__init__` registers the `section` marker, `TextFile` for a path with no ext
 
 - **A cell saves only its value.** The reactive graph is state of the session, and a save that follows it reaches the whole output of every projection. The module docstring of `SerializationModule` states the rule.
 - **The binary format is not an exchange format.** It is exact because it follows the structs in memory, so a change of the format must change `_VERSION`.
-- **A reference is written only where the save cuts.** The document holds no storage node, so a projection, an edit and a copy see the real graph. The reason is at the head of `source/serialization/FileCut.jl`.
+- **A reference is written only where the save cuts.** The document holds no storage node, so a projection, an edit and a copy see the real graph. The reason is at the head of `source/platform/serialization/FileCut.jl`.
 - **A marker is data, not code.** The restricted interpreter keeps a project from running code when it opens.
 - **Any loaded document type can be built, and a type that its package calls data.** A file names data: a subtype of `Document`, or a type for which `is_pred_constructible` is `true`, never a function. The owner chose this over a list of offered types (plan/pending/packages-compose-by-seams.md, C16), so no package lists its types and a file can hold any document of the session.
 - **The first registration of a marker name wins.** A silent overwrite would let the load order choose the function, and the loser would fail only when a file loads.
@@ -133,10 +133,10 @@ project = load_project("data", ["a.json"]; follow = true)
 text    = print_pred_text(document)
 ```
 
-- Tests: `test_marker_language()` and `test_text_file()` in `test/substrate/serialization/`; `test_file_project()`, `test_marker_vocabulary()` and `test_serialization()` in `test/projectured/serializer/`. The fixtures of `FileProjectTest.jl` show a project across several formats.
+- Tests: `test_marker_language()` and `test_text_file()` in `test/platform/serialization/`; `test_file_project()`, `test_marker_vocabulary()` and `test_serialization()` in `test/projectured/serializer/`. The fixtures of `FileProjectTest.jl` show a project across several formats.
 
 ## Limits
 
-- `get_file_document_type` raises an error for an extension that no format registered. `TextFile` covers only a path with no extension and `.txt`, although the comment in `source/serialization/TextFile.jl` calls it the fallback for any extension.
+- `get_file_document_type` raises an error for an extension that no format registered. `TextFile` covers only a path with no extension and `.txt`, although the comment in `source/platform/serialization/TextFile.jl` calls it the fallback for any extension.
 - A file written by an older `_VERSION` does not load. No migration exists.
 - A save that can not cut the graph writes no file of the project, and `save_project!` only logs the reason.

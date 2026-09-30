@@ -715,7 +715,7 @@ end
 """
     get_package_source_root(pkg) -> String
 
-The folder a package's source lives in: `source/<slice>/` at the repository
+The folder a package's source lives in: `source/<group>/<slice>/` at the repository
 root. A package is a name and an include list; the two do not share a directory
 (`plan/done/repository-tree.md`), so the root file `pathof` returns is the
 **top file** and this is the `src_root` beside it.

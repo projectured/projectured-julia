@@ -17,7 +17,7 @@
 # writes and reads back.
 const _DOCUMENT_FOLDERS = ("documentation", "test", "tool", "example", "asset",
                            "source", "package", "bin")
-const _SKIPPED_FOLDERS = (joinpath("example", "filesystem", "fixture"), "build", ".git")
+const _SKIPPED_FOLDERS = (joinpath("example", "platform", "filesystem", "fixture"), "build", ".git")
 
 """
     collect_documents(root) -> Vector{String}
@@ -113,7 +113,7 @@ end
 Every `resource://guide/<name>` that names no guide. The name of a guide comes
 from its path, as `_all_guides()` in `source/kernel/tool/Documentation.jl`
 derives it: `documentation/guide/x.md` is `guide/x`,
-`documentation/package/<slice>/x.md` is `<slice>/x`, and
+`documentation/package/<group>/<slice>/x.md` is `<group>/<slice>/x`, and
 `documentation/package/x.md` is `package/x`.
 
 **A guide name is part of the interface of the assistant.** A model asks for a
@@ -251,9 +251,9 @@ function private_name_violations(root::AbstractString)
 end
 
 # A path that no longer exists, in any shape a document writes it.
-const _DEAD_PATHS = [r"package/[a-z]+/main\b" => "source/<slice>/",
+const _DEAD_PATHS = [r"package/[a-z]+/main\b" => "source/<group>/<slice>/",
                      r"(?<![\w/])visual/" => "the real folder under source/",
-                     r"package/[a-z]+/doc\b" => "documentation/package/<slice>/"]
+                     r"package/[a-z]+/doc\b" => "documentation/package/<group>/<slice>/"]
 
 """
     dead_path_violations(root) -> Vector{String}

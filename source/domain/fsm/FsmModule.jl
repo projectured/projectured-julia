@@ -13,7 +13,7 @@ The domain includes:
   cursor positioning
 
 Execution semantics (what a transition list *means*) are specified in
-`documentation/package/fsm/fsm.md` — the contract both the code generator and
+`documentation/package/domain/fsm/fsm.md` — the contract both the code generator and
 the runtime support module implement. Embedded code (guards, actions, entry,
 variable types/defaults, helpers) are `JuliaDocument` subtrees; this file only
 holds them as opaque `Document` values, so the slice has no julia edge at the

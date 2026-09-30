@@ -1,8 +1,8 @@
 # Screen
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../kernel/devices-and-backends.md), [graphics.md](../graphics/graphics.md)
+> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [graphics.md](../graphics/graphics.md)
 
-`ProjecturedScreen` holds the window model: a screen document with a list of windows, the projection that maps it, and the projection that opens, closes and resizes windows. A backend shows the output screen as native windows. [devices-and-backends.md](../kernel/devices-and-backends.md) describes the backend side; this document describes the document side.
+`ProjecturedScreen` holds the window model: a screen document with a list of windows, the projection that maps it, and the projection that opens, closes and resizes windows. A backend shows the output screen as native windows. [devices-and-backends.md](../../kernel/devices-and-backends.md) describes the backend side; this document describes the document side.
 
 ## How it works
 
@@ -20,7 +20,7 @@ The screen is data like any other document. To open a window, a program adds a `
 
 ### ScreenToScreen
 
-`ScreenToScreen` maps the input screen to the output screen. It copies the metadata of each window and sends `content` through the projection of the caller. It sets the `width` and `height` of the window as the size available to the content, so a split pane or a scroll pane fills the window. **A window that fits is offered its `maximum_size` instead, always.** The backend gives such a window the extent of the canvas it printed, so an offer that followed that size would chase it: a text wraps at the maximum width, and the window ends as wide as the text needed. [sdl.md](../sdl/sdl.md) describes the backend half.
+`ScreenToScreen` maps the input screen to the output screen. It copies the metadata of each window and sends `content` through the projection of the caller. It sets the `width` and `height` of the window as the size available to the content, so a split pane or a scroll pane fills the window. **A window that fits is offered its `maximum_size` instead, always.** The backend gives such a window the extent of the canvas it printed, so an offer that followed that size would chase it: a text wraps at the maximum width, and the window ends as wide as the text needed. [sdl.md](../../backend/sdl/sdl.md) describes the backend half.
 
 It keeps the IO map of each window by identity (`reconcile_child_iomaps`). So a window that opens or closes does not rebuild the other windows, and a new content in a window with the same id replaces the old content in place.
 
@@ -47,7 +47,7 @@ The projection changes only the input screen. `ScreenToScreen` then updates the 
 
 ### The place of a part
 
-`find_part_place(projection, iomap, source)` answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../kernel/reference.md), "The place of a part"). The tooltip window opens a tooltip that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
+`find_part_place(projection, iomap, source)` answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../../kernel/reference.md), "The place of a part"). The tooltip window opens a tooltip that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
 
 ### One window on one document
 
@@ -63,10 +63,10 @@ The wrapper `window` of `build_editor` builds both. It is on by default, and it 
 
 ## Design decisions
 
-- **A window is a document.** The generic projections work on the window list, and only the window-specific parts are written by hand. See [plan/done/multiple-windows.md](../../../plan/done/multiple-windows.md).
-- **The window model is not in the kernel.** The kernel keeps the screen device, which is an input and output channel. The document of windows is drawing, so it is a package above graphics. See [plan/done/kernel-layered-architecture.md](../../../plan/done/kernel-layered-architecture.md).
-- **A resize writes cells.** The size cells are the available size of the content, so the write is the layout. See [plan/done/window-resize-relayout.md](../../../plan/done/window-resize-relayout.md).
-- **A popup is a real window, not a layer inside a window.** An overlay layer was the first design and was dropped. See [plan/done/widget-popup-overlay.md](../../../plan/done/widget-popup-overlay.md).
+- **A window is a document.** The generic projections work on the window list, and only the window-specific parts are written by hand. See [plan/done/multiple-windows.md](../../../../plan/done/multiple-windows.md).
+- **The window model is not in the kernel.** The kernel keeps the screen device, which is an input and output channel. The document of windows is drawing, so it is a package above graphics. See [plan/done/kernel-layered-architecture.md](../../../../plan/done/kernel-layered-architecture.md).
+- **A resize writes cells.** The size cells are the available size of the content, so the write is the layout. See [plan/done/window-resize-relayout.md](../../../../plan/done/window-resize-relayout.md).
+- **A popup is a real window, not a layer inside a window.** An overlay layer was the first design and was dropped. See [plan/done/widget-popup-overlay.md](../../../../plan/done/widget-popup-overlay.md).
 - **Modality is routing.** A modal window stops input by the window id, so no widget needs a modal check.
 
 ## Usage
@@ -81,5 +81,5 @@ run_editor!(document, projection; backend = SdlBackend(), window = (; title = "D
 
 ## Limits
 
-- `_prefix_op` in `source/screen/ScreenToScreen.jl` lists the operation types that carry a path. A new operation type with a path must be added to that list, or its path stays relative to the window and is applied to the screen.
+- `_prefix_op` in `source/platform/screen/ScreenToScreen.jl` lists the operation types that carry a path. A new operation type with a path must be added to that list, or its path stays relative to the window and is applied to the screen.
 - The code expects at most one modal window at a time and does not check it.

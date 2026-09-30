@@ -43,6 +43,6 @@ using ProjecturedTest
 #
 # A name exported by two of them with different bindings would be ambiguous —
 # `test_export_collisions` is the guard that keeps that from happening.
-include("../../../source/repl/Repl.jl")
+include("../../../source/tool/repl/Repl.jl")
 
 end # module ProjecturedRepl

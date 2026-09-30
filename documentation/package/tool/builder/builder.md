@@ -1,8 +1,8 @@
 # Builder
 
-> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md), [build-guide.md](../../guide/build-guide.md)
+> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md), [build-guide.md](../../../guide/build-guide.md)
 
-`ProjecturedBuilder` makes a native binary of a program: it writes a package for the binary, compiles it with PackageCompiler, and can test a copy and pack it as a distribution. It also writes the release copy of the packages that a registry serves. This document describes the architecture: the app package under `build/app/`, the preferences, the distribution, the workload that runs `warm_application()`, and the release copy. [build-guide.md](../../guide/build-guide.md) holds the steps and the options.
+`ProjecturedBuilder` makes a native binary of a program: it writes a package for the binary, compiles it with PackageCompiler, and can test a copy and pack it as a distribution. It also writes the release copy of the packages that a registry serves. This document describes the architecture: the app package under `build/app/`, the preferences, the distribution, the workload that runs `warm_application()`, and the release copy. [build-guide.md](../../../guide/build-guide.md) holds the steps and the options.
 
 ## How it works
 
@@ -25,7 +25,7 @@ The package depends on `Dates`, `Pkg`, `Preferences`, `SHA` and `TOML`, and on n
 
 ### The workload
 
-Nothing depends on the app package, so it is a leaf in the sense of [package-rules.md](../../rule/package-rules.md#why-the-leaf-matters). Its `@compile_workload` runs the expression `workload`, and the compiled code stays in the image. It is the second leaf beside `ProjecturedRepl`; see [repl.md](../repl/repl.md).
+Nothing depends on the app package, so it is a leaf in the sense of [package-rules.md](../../../rule/package-rules.md#why-the-leaf-matters). Its `@compile_workload` runs the expression `workload`, and the compiled code stays in the image. It is the second leaf beside `ProjecturedRepl`; see [repl.md](../repl/repl.md).
 
 For `projectured` the workload is `ProjecturedExample.warm_application()`. It builds the application window over a temporary folder with files of several formats, on a `ConsoleBackend` with no display. Then it sends a key, a click in the navigator, Enter on a file and a save. Last, it makes a new tab with Ctrl+T and Insert, and types its name key by key. The first key in the name buffer compiles a method for every document type that the buffer can make. A failure of the warm-up is logged, and the build goes on.
 
@@ -53,7 +53,7 @@ A build is incremental by default: it compiles on top of the image of the runnin
 
 ### The release copy
 
-Pkg installs only the folder of a package, and a package of this repository includes its code from `source/<slice>/`, outside that folder. `build_package_release!(context; packages, output, …)` writes a copy in which each package is a repository of its own, `<Name>.jl`, that holds everything the package reads. A registry expects that name, and it can serve the copy while this repository keeps its layout:
+Pkg installs only the folder of a package, and a package of this repository includes its code from `source/<group>/<slice>/`, outside that folder. `build_package_release!(context; packages, output, …)` writes a copy in which each package is a repository of its own, `<Name>.jl`, that holds everything the package reads. A registry expects that name, and it can serve the copy while this repository keeps its layout:
 
 1. It checks that the set is closed: every package of the repository that a released package depends on is released too.
 2. For each package, in dependency order, it writes into a staging folder: the `Project.toml`, the entry file with the include prefix `../../../source/` changed to `../source/`, the slice, the folders that the package reads while it runs (`assets`), and the licence files. It copies only what git tracks.
@@ -61,15 +61,15 @@ Pkg installs only the folder of a package, and a package of this repository incl
 4. Each package gets its version. A package whose content did not change keeps its repository byte for byte, so its tree and its version stay. A changed package gets the next patch version and caret `[compat]` bounds on its siblings from their versions in this release; a package of another registry gets a caret bound from `environment/all/Manifest.toml`.
 5. Only when every package passed does it replace the files of the changed repositories in `output`, the folder that holds them. It keeps the `.git` of each, so git shows what a release changed.
 
-The last release is what the last commit of each repository holds: an uncommitted change stops the build. With `registry`, every version of the last release must be in that registry too, because a registry refuses a version that skips one; `build_projectured_package_release!` checks General. The registration is a separate step, in the order that the build answers; [build-guide.md](../../guide/build-guide.md) holds it.
+The last release is what the last commit of each repository holds: an uncommitted change stops the build. With `registry`, every version of the last release must be in that registry too, because a registry refuses a version that skips one; `build_projectured_package_release!` checks General. The registration is a separate step, in the order that the build answers; [build-guide.md](../../../guide/build-guide.md) holds it.
 
 ## How it fits
 
-`ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. `source/builder/build_binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `ProjecturedExample`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../guide/static-compilation-guide.md).
+`ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. `source/tool/builder/build_binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `ProjecturedExample`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../../guide/static-compilation-guide.md).
 
 ## Design decisions
 
-- **The core names no program.** A downstream program reuses it with a `BuildContext` and a build function of its own. See [plan/done/application-and-build.md](../../../plan/done/application-and-build.md).
+- **The core names no program.** A downstream program reuses it with a `BuildContext` and a build function of its own. See [plan/done/application-and-build.md](../../../../plan/done/application-and-build.md).
 - **The app package is written, not committed.** What a binary holds is a choice of the build, and a `Project.toml` written once can not hold a choice.
 - **`main` is an expression.** A syntax error stops the build function at once, not a compile of several minutes.
 - **A build value is a preference.** A change then compiles again, and a stale image can not keep an old value.
@@ -90,12 +90,12 @@ build_projectured_distribution()             # build/projectured-<version>-linux
 build_projectured_package_release!("../Projectured.jl")   # the release copy of the packages
 ```
 
-- Test: `test_builder()` in `test/builder/BuilderTest.jl`. The tests compile nothing: they check what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
-- Test: `test_package_release()` in `test/builder/PackageReleaseTest.jl`, also with no compile: the layout of the copy, the versions, the bounds, the scan, and a release copy of this repository.
+- Test: `test_builder()` in `test/tool/builder/BuilderTest.jl`. The tests compile nothing: they check what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
+- Test: `test_package_release()` in `test/tool/builder/PackageReleaseTest.jl`, also with no compile: the layout of the copy, the versions, the bounds, the scan, and a release copy of this repository.
 
 ## Limits
 
 - A distribution needs `bwrap`, and the test of `projectured` also needs `curl` and the ports 8080 and 9876.
 - A file that the program reads at run time needs two changes: a name in `assets`, and a reader that looks in the bundle first. Nothing checks the second.
-- A build takes minutes and much memory; [build-guide.md](../../guide/build-guide.md) gives the numbers.
+- A build takes minutes and much memory; [build-guide.md](../../../guide/build-guide.md) gives the numbers.
 - The guides live in the copy of `ProjecturedKernel`, so a change to a guide gives the kernel a new version, and Julia compiles every package above it again after an update.

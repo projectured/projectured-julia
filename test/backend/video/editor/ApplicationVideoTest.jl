@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════════════════════════
-# test/video/editor/ApplicationVideoTest.jl
+# test/backend/video/editor/ApplicationVideoTest.jl
 #
 # Smoke test for `record_application_video`: a short clip of the application
 # window with no file — the navigator, an empty tab, no assistant — typing

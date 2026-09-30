@@ -1,8 +1,8 @@
 # File system domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [fileformat.md](../fileformat/fileformat.md), [pane.md](../pane/pane.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [fileformat.md](../fileformat/fileformat.md), [pane.md](../pane/pane.md)
 
-The file system domain, `ProjecturedFileSystem`, shows folders and files of the disk as a tree, and it holds the workspace: the Explorer view that lists the folders you work in. It shows the names of files, not their contents. This document says how the tree is read, how a file opens, and where the domain differs from the [shape of every domain](../../design/domain-anatomy.md).
+The file system domain, `ProjecturedFileSystem`, shows folders and files of the disk as a tree, and it holds the workspace: the Explorer view that lists the folders you work in. It shows the names of files, not their contents. This document says how the tree is read, how a file opens, and where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md).
 
 <img width="396" alt="File system widget example" src="../../../asset/image/example/filesystem-widget.png">
 
@@ -41,7 +41,7 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 
 ### Duplicate the Explorer
 
-`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate is a copy of the folders; see [document.md](../kernel/document.md#the-duplicate). The selected row and the open folders are not in the workspace. The reader writes the row selection on the computed `FileSystemDirectory`, and the open folders are a cell of the `WidgetTree` (`expanded`). So a duplicate opens with no row selected and only the first level open.
+`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate is a copy of the folders; see [document.md](../../kernel/document.md#the-duplicate). The selected row and the open folders are not in the workspace. The reader writes the row selection on the computed `FileSystemDirectory`, and the open folders are a cell of the `WidgetTree` (`expanded`). So a duplicate opens with no row selected and only the first level open.
 
 ## How it fits
 
@@ -60,23 +60,23 @@ Its `__init__` registers:
 - **An open names the file, not the place.** The file system package has no reference to tabs or panes. The pane tree chooses the place of a file.
 - **A chooser only chooses.** The dialog document holds a path. The shell acts on it.
 - **A row is a place the projection introduces.** The tree is computed from a path, so a row has no document of its own in the workspace. The row goes into the root path as a `ProjectionReferenceStep` on the folder, as a catalog row does on a `DatabaseInstance`. A second selection on the computed directory would split the window's selection in two.
-- **A folder is read once, and nothing watches it.** The first read happens when the Explorer draws the row of the folder or opens it. A live view of the disk needs a synchronizer outside the cells. [plan/tentative/filesystem-file-content-projection.md](../../../plan/tentative/filesystem-file-content-projection.md) discusses one.
+- **A folder is read once, and nothing watches it.** The first read happens when the Explorer draws the row of the folder or opens it. A live view of the disk needs a synchronizer outside the cells. [plan/tentative/filesystem-file-content-projection.md](../../../../plan/tentative/filesystem-file-content-projection.md) discusses one.
 - **The screen decides what is read.** The renderer draws only the rows in the viewport, and a row is computed only when it is drawn, so the Explorer reads the folders on the screen and no others.
 
 ## Usage
 
 ```julia
-tree = make_filesystem_pathname("example/filesystem/fixture/project")
-explorer = Workspace([WorkspaceFolder("project", abspath("example/filesystem/fixture/project"))])
+tree = make_filesystem_pathname("example/platform/filesystem/fixture/project")
+explorer = Workspace([WorkspaceFolder("project", abspath("example/platform/filesystem/fixture/project"))])
 run_example("navigator")                 # the Explorer view of the fixture project
 ```
 
-- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `navigator_example` (the workspace). They read the fixture under `example/filesystem/fixture/project/`, so they do not change when the repository changes.
+- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `navigator_example` (the workspace). They read the fixture under `example/platform/filesystem/fixture/project/`, so they do not change when the repository changes.
 - Test: `test_filesystem()` runs the layering guard, the two projection tests, `test_filesystem_document()`, which checks the reads of a folder, and `test_workspace_to_filesystem()`, which maps a row through the workspace and back. The SDL suite has `test_tree_render()`, which renders a folder of 1,000 entries in a small pane and checks that only the drawn rows read their entries.
 
 ## Limits
 
-- A workspace with more than one folder shows only the first folder. The comment in `source/filesystem/WorkspaceToFileSystem.jl` says so.
+- A workspace with more than one folder shows only the first folder. The comment in `source/platform/filesystem/WorkspaceToFileSystem.jl` says so.
 - A change on the disk does not show until something assigns the folder path again.
 - A key that moves the selection to a row below the edge of the pane does not scroll the row into view.
 - A selected row other than the root row names no document, so a copy of it copies nothing.

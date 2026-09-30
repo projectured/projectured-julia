@@ -64,10 +64,10 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/sql/document/SqlDocumentTest.jl")
-include("../../../test/sql/document/SqlParserTest.jl")
-include("../../../test/sql/projection/SqlToSyntaxTest.jl")
+include("../../../test/domain/sql/document/SqlDocumentTest.jl")
+include("../../../test/domain/sql/document/SqlParserTest.jl")
+include("../../../test/domain/sql/projection/SqlToSyntaxTest.jl")
 
-include("../../../test/sql/SqlSuite.jl")
+include("../../../test/domain/sql/SqlSuite.jl")
 
 end # module ProjecturedSqlTest

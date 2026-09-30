@@ -8,7 +8,7 @@ const ASSISTANT_TITLE = "Assistant"
 
 The system prompt an `Assistant` starts with: its `system` field, unless a
 caller names another. `McpServer` has its own, domain-free instructions
-(`DEFAULT_MCP_INSTRUCTIONS` in `source/mcp/Mcp.jl`), so the MCP module keeps
+(`DEFAULT_MCP_INSTRUCTIONS` in `source/adapter/mcp/Mcp.jl`), so the MCP module keeps
 no dependency on the assistant.
 """
 const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd editor — a projectional editor built in Julia.\n\n" *

@@ -45,8 +45,8 @@ tool/           → scripts that are not part of the system
 
 **A package and its code do not share a directory.**
 `package/ProjecturedJson/` holds a name and an include list; the code it
-includes is `source/json/`, its suite is `test/json/` and its documents are
-`example/json/`. The [README](README.md#repository-layout) has the same table
+includes is `source/domain/json/`, its suite is `test/domain/json/` and its documents are
+`example/domain/json/`. The [README](README.md#repository-layout) has the same table
 with a link on every row.
 
 A stem has up to five packages, and the suffix says which kind each one is:
@@ -169,7 +169,7 @@ review harder.
 3. Run the narrowest test that covers the change. See
    [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md).
    Confirm that it passes.
-4. If you added a domain or a projection, add a test file under `test/<slice>/`
+4. If you added a domain or a projection, add a test file under `test/<group>/<slice>/`
    and register it in the test package of the lowest tier that can express it.
    `Projectured<Name>Test` takes a fixture that is that domain's document;
    `ProjecturedTest` takes one that names several domains.

@@ -1,8 +1,8 @@
 # The assistant
 
-> **Kind:** design · **Status:** current · **Stands on:** [conversation.md](../conversation/conversation.md), [agent.md](../kernel/agent.md), [llm.md](../llm/llm.md)
+> **Kind:** design · **Status:** current · **Stands on:** [conversation.md](../conversation/conversation.md), [agent.md](../../kernel/agent.md), [llm.md](../../kernel/llm/llm.md)
 
-`ProjecturedAssistant` puts a chat with a model beside the panes of a window: the `Assistant` document, the turn that streams a reply and runs tools, and the pane that shows the transcript over the composer. This document says how a turn uses the `tool`, `llm` and `agent` layers of the kernel, how a conversation becomes the messages of a request, and what does not work yet. [assistant-guide.md](../../guide/assistant-guide.md) says how to run it.
+`ProjecturedAssistant` puts a chat with a model beside the panes of a window: the `Assistant` document, the turn that streams a reply and runs tools, and the pane that shows the transcript over the composer. This document says how a turn uses the `tool`, `llm` and `agent` layers of the kernel, how a conversation becomes the messages of a request, and what does not work yet. [assistant-guide.md](../../../guide/assistant-guide.md) says how to run it.
 
 <img width="396" alt="Assistant example" src="../../../asset/image/example/assistant.png">
 
@@ -33,15 +33,15 @@ Return in the composer makes `SubmitDraftTurnOperation(assistant)`. While a turn
 4. `messages` builds the messages with `build_messages(assistant.conversation)` at the start of every round. The tool results of a round are parts of the conversation, so the next round sends them with no second list.
 5. `on_event` turns each event into a part, so the reply draws while it streams. A text block becomes a text part, and `parse_markdown_blocks` reads it again when it ends. A fenced block becomes a document of its domain through the natural-format seam. Prose becomes a Markdown document when the Markdown parser is loaded. A thinking block becomes a thinking part. An `AgentToolResult` becomes an `EvaluatorForm` part that keeps the id, the name, the source and the input of the call, and the text of the tool in `output`. Its result is a document of the media type that the tool declares (`result_mime_type`): a `"text/markdown"` answer, such as a guide or a list of search hits, is a Markdown document when the Markdown parser is loaded, and the pane draws it as a page of rendered Markdown, as it draws the prose of the model. A table on the page is a grid whose columns share the width of the part. Any other answer, an error, and a text that the parser refuses are text. A `Document` that `execute_julia_code` returns is the result itself, drawn live.
 
-At the end, the turn gets its stop reason, and an assistant turn with no parts is removed. When the task throws, `status` becomes `:error`, `record_fault!` writes the fault into the store of the editor, and an assistant turn shows the text of the error. So a failure shows in the chat and in the fault log. The loop itself, with its round limit and its tool dispatch, is the kernel's; [agent.md](../kernel/agent.md) describes it.
+At the end, the turn gets its stop reason, and an assistant turn with no parts is removed. When the task throws, `status` becomes `:error`, `record_fault!` writes the fault into the store of the editor, and an assistant turn shows the text of the error. So a failure shows in the chat and in the fault log. The loop itself, with its round limit and its tool dispatch, is the kernel's; [agent.md](../../kernel/agent.md) describes it.
 
-The task of the turn writes the assistant only through `run_on_editor_task!`, because a frame of the editor reads and paints the assistant on the editor task. The empty assistant turn, each part, the stop reason and each change of `status` are posted, and the drain of the next frame applies them in the order they were posted. Many parts of a stream are applied in one frame. `messages` waits for its answer, so it reads the conversation after every part that came before it. When no loop runs, as in a test that calls `_run_agent_loop!`, each write happens at once. [editor.md](../kernel/editor.md) describes the door.
+The task of the turn writes the assistant only through `run_on_editor_task!`, because a frame of the editor reads and paints the assistant on the editor task. The empty assistant turn, each part, the stop reason and each change of `status` are posted, and the drain of the next frame applies them in the order they were posted. Many parts of a stream are applied in one frame. `messages` waits for its answer, so it reads the conversation after every part that came before it. When no loop runs, as in a test that calls `_run_agent_loop!`, each write happens at once. [editor.md](../../kernel/editor.md) describes the door.
 
 Alt+Return on a Julia part makes `EvaluateDraftTurnOperation`. While a turn streams, it does nothing and the draft keeps its text, because a user turn in the middle of a streamed turn can come between a tool call and its result. Otherwise it runs the evaluation of the composer in place, and then pushes the whole draft as one user turn. No model runs. The next submit sends the evaluation to the model as part of the history.
 
 ### The tools
 
-The model gets `list_tools(editor.tools)`, the tool set of the editor. The assistant keeps no registry of its own, and `run_turn!` registers the default tools. An MCP client gets the same set; see [mcp.md](../mcp/mcp.md). A tool changes the document with `evaluate_operation(editor, operation)`, the same call that a key press makes. `run_turn!` runs each tool call on the editor task, as the MCP server does for a client, so a tool behaves the same for both.
+The model gets `list_tools(editor.tools)`, the tool set of the editor. The assistant keeps no registry of its own, and `run_turn!` registers the default tools. An MCP client gets the same set; see [mcp.md](../../adapter/mcp/mcp.md). A tool changes the document with `evaluate_operation(editor, operation)`, the same call that a key press makes. `run_turn!` runs each tool call on the editor task, as the MCP server does for a client, so a tool behaves the same for both.
 
 ### From the conversation to the messages
 
@@ -73,7 +73,7 @@ A copy of an assistant is a fork: it has the conversation so far and a draft of 
 
 ## How it fits
 
-`ProjecturedAssistant` depends on `ProjecturedConversation`, `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedLayout`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedSerialization`, `ProjecturedStyle`, `ProjecturedText`, `ProjecturedWidget` and the kernel. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, and [llm.md](../llm/llm.md) describes both.
+`ProjecturedAssistant` depends on `ProjecturedConversation`, `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedLayout`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedSerialization`, `ProjecturedStyle`, `ProjecturedText`, `ProjecturedWidget` and the kernel. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, and [llm.md](../../kernel/llm/llm.md) describes both.
 
 `ProjecturedShell` puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). `example/projectured/Application.jl` puts the explorer, the files and the assistant in one pane tree.
 
@@ -81,13 +81,13 @@ The package registers the natural row `:assistant`, `Assistant => AssistantToWid
 
 ## Design decisions
 
-- **A person names the backend, and a local model is the default.** Nothing guesses a backend, because a guess is right only while one backend exists. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
+- **A person names the backend, and a local model is the default.** Nothing guesses a backend, because a guess is right only while one backend exists. See [plan/done/ollama-backend.md](../../../../plan/done/ollama-backend.md).
 - **The backend is built at each turn.** A document is built into a constant during precompilation, when no key exists, and a cached backend would keep the first model after a person changed `model`. The reasons are in the docstring of `Assistant` and in the comment on `_build_llm`.
-- **The conversation is the one source of the prompt.** `messages` is a function, and not a list that the loop keeps, so the prompt can not differ from the transcript. See [plan/done/kernel-agent-stack.md](../../../plan/done/kernel-agent-stack.md).
+- **The conversation is the one source of the prompt.** `messages` is a function, and not a list that the loop keeps, so the prompt can not differ from the transcript. See [plan/done/kernel-agent-stack.md](../../../../plan/done/kernel-agent-stack.md).
 - **An evaluation that a person ran goes to the model as text.** A `tool_use` block would put a call into the history that the model did not make.
-- **A tool gets the editor through `evaluate_operation(editor, operation)`.** The rejected options were an `editor` field on the assistant, an ambient `Ref`, task-local storage and a late-bound handler. See [plan/done/assistant-editor-reference.md](../../../plan/done/assistant-editor-reference.md).
-- **The pane draws a result, and the model reads the text.** A Markdown page printed back is not the text it was read from, so the form keeps the text in `output`, as it keeps the call in `source`. The tool declares its media type, so the assistant keeps no list of tool names. See [plan/done/documentation-tool-results-as-markdown.md](../../../plan/done/documentation-tool-results-as-markdown.md).
-- **A resource read starts folded, and an evaluation starts open.** A read is lookup work of the model and less important than the answer. See [plan/done/assistant-collapse-layout.md](../../../plan/done/assistant-collapse-layout.md).
+- **A tool gets the editor through `evaluate_operation(editor, operation)`.** The rejected options were an `editor` field on the assistant, an ambient `Ref`, task-local storage and a late-bound handler. See [plan/done/assistant-editor-reference.md](../../../../plan/done/assistant-editor-reference.md).
+- **The pane draws a result, and the model reads the text.** A Markdown page printed back is not the text it was read from, so the form keeps the text in `output`, as it keeps the call in `source`. The tool declares its media type, so the assistant keeps no list of tool names. See [plan/done/documentation-tool-results-as-markdown.md](../../../../plan/done/documentation-tool-results-as-markdown.md).
+- **A resource read starts folded, and an evaluation starts open.** A read is lookup work of the model and less important than the answer. See [plan/done/assistant-collapse-layout.md](../../../../plan/done/assistant-collapse-layout.md).
 
 ## Usage
 
@@ -98,7 +98,7 @@ assistant = Assistant(; llm = FakeLlm())                     # a canned reply, f
 run_assistant_example(; backend = :ollama)                   # the example with a real model
 ```
 
-- Example: `assistant_example` shows a canned transcript with one part of every kind and answers from a `FakeLlm`, so it needs no server and no key. The factories are `make_assistant_document_example` and `make_assistant_projection_example` in `example/conversation/`.
+- Example: `assistant_example` shows a canned transcript with one part of every kind and answers from a `FakeLlm`, so it needs no server and no key. The factories are `make_assistant_document_example` and `make_assistant_projection_example` in `example/platform/conversation/`.
 - Tests, in `test/projectured/editor/`: `test_assistant_mvp()` drives a whole turn with a scripted model, checks that Return, Alt+Return and `SubmitProseOperation` while a turn streams do nothing, and checks that the writes of a turn and its tool call wait for the drain of the editor. `test_assistant_duplicate()` covers the fork, and `test_assistant_composer_panel()` covers the composer in the pane. `test_assistant_editor_reference()` and `test_assistant_turn_binds_meaning_model()` are in `McpTest.jl`, and `test_conversation_serialization()` covers `build_messages`.
 
 ## Limits
@@ -108,6 +108,6 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 - No view draws `status`. A person sees a running turn only by the parts that arrive.
 - `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them. `SubmitProseOperation` does nothing while a turn streams, as Return does.
 - The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` in `example/projectured/Application.jl` does.
-- The draft has no frame, no focus ring and no hint line. Stage 4 of [plan/pending/conversation-flat-transcript.md](../../../plan/pending/conversation-flat-transcript.md) puts them on this pane, and they are not done.
-- `DEFAULT_ASSISTANT_SYSTEM` is written for Claude and is long. A small local model can follow it less well, and [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md) keeps this as an open question.
+- The draft has no frame, no focus ring and no hint line. Stage 4 of [plan/pending/conversation-flat-transcript.md](../../../../plan/pending/conversation-flat-transcript.md) puts them on this pane, and they are not done.
+- `DEFAULT_ASSISTANT_SYSTEM` is written for Claude and is long. A small local model can follow it less well, and [plan/done/ollama-backend.md](../../../../plan/done/ollama-backend.md) keeps this as an open question.
 - No test is marked `@test_broken`.

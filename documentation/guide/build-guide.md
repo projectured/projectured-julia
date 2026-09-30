@@ -42,15 +42,15 @@ bin/build_projectured
 
 The bundle goes to `build/projectured/`, and the executable is
 `build/projectured/bin/projectured`. The script is
-`source/builder/build_binary.jl` under a name of its own; that front end reads
+`source/tool/builder/build_binary.jl` under a name of its own; that front end reads
 the command line and calls a build function, and every decision about a build is
 in the function.
 
 Without the script:
 
 ```bash
-julia --project=environment/build source/builder/build_binary.jl --help
-julia --project=environment/build source/builder/build_binary.jl projectured
+julia --project=environment/build source/tool/builder/build_binary.jl --help
+julia --project=environment/build source/tool/builder/build_binary.jl projectured
 ```
 
 The options of the front end:
@@ -147,7 +147,7 @@ The packages reach a Julia programmer through the General registry. Each one
 has a release repository of its own, `projectured/<Name>.jl`, with the package
 at its root, because General expects that name. In it the package holds
 everything it reads, because Pkg installs only the package.
-[builder.md](../package/builder/builder.md) says how the copy is made.
+[builder.md](../package/tool/builder/builder.md) says how the copy is made.
 
 **Warning: do not rewrite the history of a release repository.** The registry
 names each version by the git tree of the repository, and Pkg must find that
@@ -185,7 +185,7 @@ tree for as long as the version exists.
 ## Add a binary
 ## Add a binary
 
-A binary is a function. `source/builder/ProjecturedProgram.jl` holds the ones of
+A binary is a function. `source/tool/builder/ProjecturedProgram.jl` holds the ones of
 this repository; write the new one beside them, give the front end a row in its
 `BINARIES` table, and add the two scripts in `bin/`: one that runs the program
 from the checkout, and one that builds it.
@@ -197,7 +197,7 @@ The function calls `build_executable(context; …)` with:
 - `main` — an expression whose value is the exit code, the body of `julia_main`.
 - `workload` — an expression that runs while the image compiles, so the first
   frames of a real start need no compilation.
-- `usage` — a [`Usage`](../../source/builder/Usage.jl): what the binary does,
+- `usage` — a [`Usage`](../../source/tool/builder/Usage.jl): what the binary does,
   and the options it takes. **The options of the program live here**, and a test
   compares them with what the program parses.
 - `fonts` and `assets` — what the bundle carries beside the code.
@@ -210,14 +210,14 @@ package. That is what lets another repository use the same builder.
 
 | Path | What |
 | --- | --- |
-| [source/builder/](../../source/builder/) | the builder: context, preferences, usage, app package, executable, distribution, release copy |
-| [source/builder/ProjecturedProgram.jl](../../source/builder/ProjecturedProgram.jl) | the binaries of this repository, and what its release copy holds |
-| [source/builder/build_binary.jl](../../source/builder/build_binary.jl) | the shell front end |
+| [source/tool/builder/](../../source/tool/builder/) | the builder: context, preferences, usage, app package, executable, distribution, release copy |
+| [source/tool/builder/ProjecturedProgram.jl](../../source/tool/builder/ProjecturedProgram.jl) | the binaries of this repository, and what its release copy holds |
+| [source/tool/builder/build_binary.jl](../../source/tool/builder/build_binary.jl) | the shell front end |
 | [bin/](../../bin/) | one script to run a program, one to build it |
 | [package/ProjecturedBuilder/](../../package/ProjecturedBuilder/) | the package that holds them |
 | [environment/build/](../../environment/build/) | the environment of a build: the builder and PackageCompiler |
-| [test/builder/BuilderTest.jl](../../test/builder/BuilderTest.jl) | `test_builder()`: what a build writes, and which inputs stop it |
-| [test/builder/PackageReleaseTest.jl](../../test/builder/PackageReleaseTest.jl) | `test_package_release()`: the release copy, its versions and its scan |
+| [test/tool/builder/BuilderTest.jl](../../test/tool/builder/BuilderTest.jl) | `test_builder()`: what a build writes, and which inputs stop it |
+| [test/tool/builder/PackageReleaseTest.jl](../../test/tool/builder/PackageReleaseTest.jl) | `test_package_release()`: the release copy, its versions and its scan |
 
 The tests compile nothing. Run them with the rest of the suite, or alone:
 

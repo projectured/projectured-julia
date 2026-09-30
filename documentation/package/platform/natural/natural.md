@@ -1,6 +1,6 @@
 # The natural notation
 
-> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../design/concepts.md), [domain-anatomy.md](../../design/domain-anatomy.md), [projection-system.md](../kernel/projection-system.md)
+> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md)
 
 `ProjecturedNatural` is the registry through which a domain says what its text looks like, which file extension it owns, and how a document of any domain reaches the screen with no projection written for the caller. It holds two tables: the rung table, which `print_natural_text` and `parse_natural_text` read, and the renderer table, which `NaturalToGraphics` reads. This document says what each table holds, how the second takes the rows of the first, and in which order the renderer tries its rows.
 
@@ -23,7 +23,7 @@ This package registers the steps `text → graphics` and `text → string` in it
 
 ### The rung table
 
-A domain fills the rung table when its package loads. The JSON domain, in `source/json/JsonModule.jl`:
+A domain fills the rung table when its package loads. The JSON domain, in `source/domain/json/JsonModule.jl`:
 
 ```julia
 function __init__()
@@ -54,7 +54,7 @@ The parser is keyed by the format and not by a type, so a package can register a
 
 ### The renderer table
 
-`NaturalToGraphics(; measure, font, wrap, extra)` returns a `RecursiveProjection` over one `TypeDispatchingProjection` that draws almost any document to a `GraphicsCanvas`. The first row whose type matches the document wins, and each child of a matched row enters the same dispatcher again. So a JSON value inside a page and a widget inside a diagram each draw in their own domain. The dispatcher adds no printer, reader or reference map of its own; see [plan/done/natural-projection.md](../../../plan/done/natural-projection.md).
+`NaturalToGraphics(; measure, font, wrap, extra)` returns a `RecursiveProjection` over one `TypeDispatchingProjection` that draws almost any document to a `GraphicsCanvas`. The first row whose type matches the document wins, and each child of a matched row enters the same dispatcher again. So a JSON value inside a page and a widget inside a diagram each draw in their own domain. The dispatcher adds no printer, reader or reference map of its own; see [plan/done/natural-projection.md](../../../../plan/done/natural-projection.md).
 
 A list of ready-made rows and three keyed factory lists fill the table. The key of a factory is a `Symbol` that names the domain and makes a second call do nothing. A factory runs on each table build, so each renderer gets its own projection instances.
 
@@ -98,7 +98,7 @@ The file format package reads and writes files with `print_natural_text` and `pa
 
 ## Design decisions
 
-- **The renderer table names no domain.** A table that named each domain would put the renderer above all of them. Each domain registers its own row in a file that it already has, so the renderer sits below every domain. See [plan/done/natural-projection.md](../../../plan/done/natural-projection.md).
+- **The renderer table names no domain.** A table that named each domain would put the renderer above all of them. Each domain registers its own row in a file that it already has, so the renderer sits below every domain. See [plan/done/natural-projection.md](../../../../plan/done/natural-projection.md).
 - **What is not loaded is not supported.** The syntax step and the reflection tail come from `ProjecturedSyntax`. A program that draws only a form and a table then does not carry the syntax domain.
 - **Two tables serve two questions.** The rung table answers "this document, up to this target", where the rung of the document must win. The renderer table answers "any document, in any nesting, to pixels", where a caller or a domain can override a row.
 - **A row is a factory when it holds state.** A factory gives each renderer its own projection instances, so two windows do not share reactive state.

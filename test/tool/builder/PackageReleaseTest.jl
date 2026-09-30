@@ -325,7 +325,7 @@ function test_package_release()
     end
 
     @testset "the release copy of this repository" begin
-        context = BuildContext(normpath(joinpath(@__DIR__, "..", "..")))
+        context = BuildContext(normpath(joinpath(@__DIR__, "..", "..", "..")))
         names = collect_projectured_release_packages(context)
         @test "ProjecturedKernel" in names && "Projectured" in names
         @test !any(name -> endswith(name, "Test") || endswith(name, "Example"), names)

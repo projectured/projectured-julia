@@ -64,9 +64,9 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/xml/document/XmlParserTest.jl")
-include("../../../test/xml/projection/XmlToSyntaxTest.jl")
+include("../../../test/domain/xml/document/XmlParserTest.jl")
+include("../../../test/domain/xml/projection/XmlToSyntaxTest.jl")
 
-include("../../../test/xml/XmlSuite.jl")
+include("../../../test/domain/xml/XmlSuite.jl")
 
 end # module ProjecturedXmlTest

@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/math/MathDocumentExample.jl")
-include("../../../example/math/MathProjectionExample.jl")
+include("../../../example/domain/math/MathDocumentExample.jl")
+include("../../../example/domain/math/MathProjectionExample.jl")
 
 export make_math_variable_document_example, make_math_insertion_document_example, make_math_symbol_document_example
 export make_math_text_document_example, make_math_space_document_example, make_math_binary_operation_document_example

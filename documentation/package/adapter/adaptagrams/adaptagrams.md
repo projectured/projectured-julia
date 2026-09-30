@@ -1,6 +1,6 @@
 # Adaptagrams layout engine
 
-> **Kind:** design · **Status:** current · **Stands on:** [graph.md](../graph/graph.md), [graph-layout.md](../graph/graph-layout.md), [package-rules.md](../../rule/package-rules.md)
+> **Kind:** design · **Status:** current · **Stands on:** [graph.md](../../domain/graph/graph.md), [graph-layout.md](../../domain/graph/graph-layout.md), [package-rules.md](../../../rule/package-rules.md)
 
 `ProjecturedAdaptagrams` is an opt-in package with one graph layout engine, `AdaptagramsLayout`. It places vertices with libcola and routes edges with libavoid, two C++ libraries of [Adaptagrams](https://github.com/mjwybrow/adaptagrams), through a small C shim. This document says how the shim is built and found, what happens when it is missing, and how the package becomes the engine of every deferred layout.
 
@@ -18,7 +18,7 @@ AdaptagramsLayout(; ideal_length = 60.0, avoid_overlaps = true, orthogonal = fal
 - `orthogonal = true` makes libavoid route right-angled lines instead of polylines.
 - `node_margin` is the minimum gap on each side of each box. With `nothing`, the engine computes it as 20 percent of the mean half extent, and at least 16 pixels.
 
-`layout_graph` returns the same positions and routes as every engine of [graph-layout.md](../graph/graph-layout.md):
+`layout_graph` returns the same positions and routes as every engine of [graph-layout.md](../../domain/graph/graph-layout.md):
 
 1. It calls `check_constraints`. The engine implements `:pin` and `:fixed_size`.
 2. It copies the sizes and the edges into C arrays, calls `adaptagrams_layout`, and gets a handle.
@@ -56,18 +56,18 @@ The build never throws. If it finds no Adaptagrams, or the compile fails, it wri
 
 `ProjecturedAdaptagrams` depends on `ProjecturedGraph` and on the standard library `Libdl`. No package of the editor depends on it.
 
-Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayout(orthogonal = orthogonal))`. From then on, each `DeferredLayout` resolves to this engine; see [graph.md](../graph/graph.md#the-deferred-choice-of-an-engine). A projection that names another engine does not change. In this repository the process flowchart is the one example that names a deferred engine. The graph example, the fsm diagram and the natural row of `GraphGraph` name `GridEmbedding`.
+Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayout(orthogonal = orthogonal))`. From then on, each `DeferredLayout` resolves to this engine; see [graph.md](../../domain/graph/graph.md#the-deferred-choice-of-an-engine). A projection that names another engine does not change. In this repository the process flowchart is the one example that names a deferred engine. The graph example, the fsm diagram and the natural row of `GraphGraph` name `GridEmbedding`.
 
 `ProjecturedAdaptagramsExample` holds the examples that name `AdaptagramsLayout` directly, so the other example packages do not depend on the native library.
 
 ## Design decisions
 
-- **A separate package for the native dependency.** No other package needs Adaptagrams to load or to draw a graph. See [plan/done/graph-domain.md](../../../plan/done/graph-domain.md).
+- **A separate package for the native dependency.** No other package needs Adaptagrams to load or to draw a graph. See [plan/done/graph-domain.md](../../../../plan/done/graph-domain.md).
 - **A fixed shim path and a check at each call.** A generated `deps.jl` would put a stale path into the precompile image.
 - **A missing shim gives the pure-Julia engine and a warning.** A fresh checkout has no shim, and an error on each layout would stop every drawing of a graph. The layout records the engine that ran, so the substitution is visible.
 - **The edge length and the margin grow with the box size.** A fixed length puts large card nodes almost on top of each other and hides the edges between them.
 - **A pin is applied after the native run.** Pins in libcola need a wider C interface.
-- **The registration writes a factory from `__init__`.** A second method of the choice function would be a fatal overwrite during precompilation. See [plan/done/graph-layout-engines.md](../../../plan/done/graph-layout-engines.md).
+- **The registration writes a factory from `__init__`.** A second method of the choice function would be a fatal overwrite during precompilation. See [plan/done/graph-layout-engines.md](../../../../plan/done/graph-layout-engines.md).
 
 ## Usage
 
@@ -78,11 +78,11 @@ projection = make_graph_projection_example(engine = AdaptagramsLayout(orthogonal
 run_example("process_diagram")        # its deferred engine now resolves to AdaptagramsLayout
 ```
 
-- Examples: `graph_adaptagrams_example` in `example/adaptagrams/`. `make_dvdrental_relationship_example()` draws the tables of a live dvdrental database, so no sweep runs it; call it at the prompt.
+- Examples: `graph_adaptagrams_example` in `example/adapter/adaptagrams/`. `make_dvdrental_relationship_example()` draws the tables of a live dvdrental database, so no sweep runs it; call it at the prompt.
 - Test: none. No test folder exists for this package.
 
 ## Limits
 
 - No test covers the engine. On a checkout without the shim, `graph_adaptagrams_example` draws with a pure-Julia engine.
-- The `ccall` signatures in `source/adaptagrams/Adaptagrams.jl` must match `adaptagrams_shim.h` by hand. A mismatch fails at the call, not at compile time.
+- The `ccall` signatures in `source/adapter/adaptagrams/Adaptagrams.jl` must match `adaptagrams_shim.h` by hand. A mismatch fails at the call, not at compile time.
 - The engine implements only `:pin` and `:fixed_size`, and the neighbours of a pinned vertex are placed as if it were free.

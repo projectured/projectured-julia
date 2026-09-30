@@ -151,8 +151,8 @@ number field, with the text of the system clipboard, and the kernel applies it a
 it applies a typed character. `Ctrl+C`, `Ctrl+N` and `Ctrl+X` of a range store
 its characters in the slice and on the system clipboard. The branch runs before
 the rules for a whole document; `accepts_pasted_text` returns whether a document
-accepts the paste and the cut. It is in [clipboard/Clipboard.jl](../../../source/clipboard/Clipboard.jl)
-and [clipboard/ClipboardSliceToAny.jl](../../../source/clipboard/ClipboardSliceToAny.jl).
+accepts the paste and the cut. It is in [clipboard/Clipboard.jl](../../../source/platform/clipboard/Clipboard.jl)
+and [clipboard/ClipboardSliceToAny.jl](../../../source/platform/clipboard/ClipboardSliceToAny.jl).
 A field that holds a span of the text domain is not a text target yet.
 
 Operation modules are the right place to look when wiring a new gesture: the

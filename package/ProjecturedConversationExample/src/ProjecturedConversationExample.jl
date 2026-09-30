@@ -76,10 +76,10 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/conversation/ConversationDocumentExample.jl")
-include("../../../example/conversation/ConversationProjectionExample.jl")
-include("../../../example/conversation/AssistantDocumentExample.jl")
-include("../../../example/conversation/AssistantProjectionExample.jl")
+include("../../../example/platform/conversation/ConversationDocumentExample.jl")
+include("../../../example/platform/conversation/ConversationProjectionExample.jl")
+include("../../../example/platform/conversation/AssistantDocumentExample.jl")
+include("../../../example/platform/conversation/AssistantProjectionExample.jl")
 
 export _conversation_widget_graphics
 export make_conversation_document_example, make_conversation_editor_document_example, make_conversation_part_document_example

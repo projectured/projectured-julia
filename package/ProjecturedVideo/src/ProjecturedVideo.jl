@@ -54,7 +54,7 @@ import ProjecturedKernel.BackendModule: record_video, initialize_backend!, quit_
        get_display_size
 import ProjecturedKernel.EditorModule: get_frame_clock_time
 
-include("../../../source/video/Video.jl")
-include("../../../source/video/VideoBackend.jl")
+include("../../../source/backend/video/Video.jl")
+include("../../../source/backend/video/VideoBackend.jl")
 
 end # module ProjecturedVideo

@@ -64,13 +64,13 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/json/document/JsonParserTest.jl")
-include("../../../test/json/document/JsonDocumentTest.jl")
-include("../../../test/json/editor/JsonContentClicksTest.jl")
-include("../../../test/json/editor/JsonPlaceholderNavTest.jl")
-include("../../../test/json/editor/JsonMouseTargetTest.jl")
-include("../../../test/json/projection/JsonToSyntaxTest.jl")
+include("../../../test/domain/json/document/JsonParserTest.jl")
+include("../../../test/domain/json/document/JsonDocumentTest.jl")
+include("../../../test/domain/json/editor/JsonContentClicksTest.jl")
+include("../../../test/domain/json/editor/JsonPlaceholderNavTest.jl")
+include("../../../test/domain/json/editor/JsonMouseTargetTest.jl")
+include("../../../test/domain/json/projection/JsonToSyntaxTest.jl")
 
-include("../../../test/json/JsonSuite.jl")
+include("../../../test/domain/json/JsonSuite.jl")
 
 end # module ProjecturedJsonTest

@@ -1,6 +1,6 @@
 # Graphics domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [style.md](../style/style.md), [devices-and-backends.md](../kernel/devices-and-backends.md), [text.md](../text/text.md)
+> **Kind:** design · **Status:** current · **Stands on:** [style.md](../style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../text/text.md)
 
 `ProjecturedGraphics` holds the drawing primitives that every chain of projections ends in: text, boxes, lines, curves, canvases and viewports, each a reactive document. A backend paints them, and a hit test finds the primitive under the pointer. This document says how a canvas is built and tested, how a click leaves the graphics stage, and how a canvas is saved to a file.
 
@@ -51,7 +51,7 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 `PointReferenceStep(x, y)` names a pixel inside an element, written `.point(x, y)` in `@reference`. The reader of `GraphicsCanvasToGraphicsImage`, below, makes a click into `ElementReferenceStep(i)` followed by a `PointReferenceStep`, and `TextToGraphics` in [text.md](../text/text.md) turns that into a character offset. The kernel reference layer never names the step.
 
-`RegionReferenceStep(x, y, width, height)` names a box in the frame of the node before it, which no node of its own draws. A forward map answers it after the smallest node that holds all of the image of a part, when that image is no node and no range of one text, such as a text range across segments ([reference.md](../kernel/reference.md), "The place of a part").
+`RegionReferenceStep(x, y, width, height)` names a box in the frame of the node before it, which no node of its own draws. A forward map answers it after the smallest node that holds all of the image of a part, when that image is no node and no range of one text, such as a text range across segments ([reference.md](../../kernel/reference.md), "The place of a part").
 
 `shift_event_position(event, dx, dy)` moves a pointer event or gesture into the frame of a child, and `shift_operation_position` moves the answer of the child back. A widget reads a point in the frame of its own canvas, so a container moves the event by the place of the child before it hands it down.
 
@@ -103,17 +103,17 @@ write_pdf(document, proj, "book.pdf"; paginate = true, width = 612, height = 792
 - `write_pdf` is in `ProjecturedPdf` and needs no SDL. It writes each primitive as a PDF path or text operator and embeds the fonts as Type0 fonts, so the text is selectable. With `paginate = true`, `height` is the page height, and the content is cut into bands of that height across pages. It draws from the font files, so it takes no `measure` keyword and sizes its pages by the boxes of the font files; the projection that makes the canvas keeps its own `measure`.
 - `GraphicsCanvasToImageFile` and `GraphicsCanvasToPdfFile` are the same steps as the last stage of a chain. Their output is an `ImageFile`, and they have no reader.
 
-[devices-and-backends.md](../kernel/devices-and-backends.md) describes the backends that paint a canvas on a screen.
+[devices-and-backends.md](../../kernel/devices-and-backends.md) describes the backends that paint a canvas on a screen.
 
 ## How it fits
 
-The code is in `source/graphics/`. `ProjecturedGraphics` depends on the kernel, `ProjecturedCollection`, `ProjecturedProjection` and `ProjecturedStyle`. `TextToGraphics` produces most canvases. Layouts, widgets, graphs, charts and sequence charts produce shapes directly. [screen.md](../screen/screen.md) holds the window documents whose content is a canvas. The SDL backend, the web backend and the PDF writer paint canvases.
+The code is in `source/platform/graphics/`. `ProjecturedGraphics` depends on the kernel, `ProjecturedCollection`, `ProjecturedProjection` and `ProjecturedStyle`. `TextToGraphics` produces most canvases. Layouts, widgets, graphs, charts and sequence charts produce shapes directly. [screen.md](../screen/screen.md) holds the window documents whose content is a canvas. The SDL backend, the web backend and the PDF writer paint canvases.
 
 It registers nothing and has no `__init__`.
 
 ## Design decisions
 
-- **A colour is a `StyleColor`, not four bytes.** SDL, PDF and the web backend each need a different device encoding, so each backend converts at draw time. A converted cache in the document would fit only one of them. See [plan/done/graphics-stylecolor-and-coordinate-normalization.md](../../../plan/done/graphics-stylecolor-and-coordinate-normalization.md).
+- **A colour is a `StyleColor`, not four bytes.** SDL, PDF and the web backend each need a different device encoding, so each backend converts at draw time. A converted cache in the document would fit only one of them. See [plan/done/graphics-stylecolor-and-coordinate-normalization.md](../../../../plan/done/graphics-stylecolor-and-coordinate-normalization.md).
 - **Every coordinate is `Int32`.** The canvas uses the same type as the primitives. The same plan holds the change.
 - **The measure is an argument.** The package and `TextToGraphics` above it then need neither SDL nor a PDF library, and a test measures with a `FixedMeasure`.
 - **A fence is an element, not a flag.** No primitive needs an extra field, and the renderer and the hit test skip it with one `isa` check.
@@ -133,7 +133,7 @@ hit_element_at(canvas, 60, 25)        # the offset of the element, or nothing
 ```
 
 - Example: `graphics_image_example` draws a JSON document through the text chain; `make_graphics_image_projection_example()` builds the chain.
-- Tests: `test_graphics()` in `test/substrate/document/GraphicsDocumentTest.jl`. `GraphicsLayoutTest.jl` beside it covers the layout projections.
+- Tests: `test_graphics()` in `test/platform/document/GraphicsDocumentTest.jl`. `GraphicsLayoutTest.jl` beside it covers the layout projections.
 
 ## Limits
 

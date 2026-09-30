@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/json/JsonDocumentExample.jl")
-include("../../../example/json/JsonProjectionExample.jl")
+include("../../../example/domain/json/JsonDocumentExample.jl")
+include("../../../example/domain/json/JsonProjectionExample.jl")
 
 export make_json_document_example, make_json_null_document_example, make_json_bool_document_example
 export make_json_number_document_example, make_json_insertion_document_example, make_json_string_document_example

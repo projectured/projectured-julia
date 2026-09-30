@@ -1,16 +1,16 @@
 # The two model backends
 
-> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../kernel/agent.md), [assistant.md](../assistant/assistant.md)
+> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../agent.md), [assistant.md](../../platform/assistant/assistant.md)
 
 `ProjecturedAnthropic` and `ProjecturedOllama` are the two `Llm` backends: one runs a Claude model over the Anthropic API, and the other runs a model on this machine through a local Ollama server. Both are opt-in packages that implement the `llm` layer of the kernel. This document says how each adapter translates its wire format into the events of the kernel, how a backend registers itself, and what each one does not do.
 
 ## How it works
 
-The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.md](../kernel/agent.md) describes it: `stream_turn(llm, request; on_event)`, `render_tool_schema(llm, tools)`, `make_llm(kind; api_key, model, context)`, `get_default_llm_model(kind)`, and the three optional functions of a meaning model. An adapter translates its own protocol into the `LlmMessage` and `LlmEvent` types of the kernel, so no caller reads a wire format. The table in [agent.md](../kernel/agent.md#what-each-adapter-must-answer-for-itself) compares what each adapter does below the seam.
+The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.md](../agent.md) describes it: `stream_turn(llm, request; on_event)`, `render_tool_schema(llm, tools)`, `make_llm(kind; api_key, model, context)`, `get_default_llm_model(kind)`, and the three optional functions of a meaning model. An adapter translates its own protocol into the `LlmMessage` and `LlmEvent` types of the kernel, so no caller reads a wire format. The table in [agent.md](../agent.md#what-each-adapter-must-answer-for-itself) compares what each adapter does below the seam.
 
 | | `ProjecturedAnthropic` | `ProjecturedOllama` |
 | --- | --- | --- |
-| Source | `source/anthropic/Anthropic.jl` | `source/ollama/Ollama.jl` |
+| Source | `source/adapter/anthropic/Anthropic.jl` | `source/adapter/ollama/Ollama.jl` |
 | Backend type | `AnthropicLlm` | `OllamaLlm` |
 | `make_llm` key | `:anthropic` | `:ollama` |
 | Where the model runs | the servers of Anthropic | this machine, at `http://localhost:11434` by default |
@@ -50,17 +50,17 @@ Ollama sends one JSON object for each line, with no block framing. `_line_handle
 
 ## How it fits
 
-Each package depends on the kernel, `HTTP` and `JSON3`. The third-party dependencies are the reason that both are opt-in packages; see [package-rules.md](../../rule/package-rules.md). Neither depends on the other, and `ProjecturedAssistant` depends on neither.
+Each package depends on the kernel, `HTTP` and `JSON3`. The third-party dependencies are the reason that both are opt-in packages; see [package-rules.md](../../../rule/package-rules.md). Neither depends on the other, and `ProjecturedAssistant` depends on neither.
 
-`Assistant.backend` names a backend by its key, and the assistant builds it with `make_llm` at each turn; see [assistant.md](../assistant/assistant.md). `bind_meaning_model!` gives the meaning model of a backend to a tool set, which the assistant does at each turn. The test doubles `FakeLlm` and `ScriptedLlm` are in `ProjecturedKernelExample`, and never in a package of the main stack.
+`Assistant.backend` names a backend by its key, and the assistant builds it with `make_llm` at each turn; see [assistant.md](../../platform/assistant/assistant.md). `bind_meaning_model!` gives the meaning model of a backend to a tool set, which the assistant does at each turn. The test doubles `FakeLlm` and `ScriptedLlm` are in `ProjecturedKernelExample`, and never in a package of the main stack.
 
 ## Design decisions
 
-- **A backend registers by a method of `make_llm`.** No dictionary must stay in step, and nothing runs at load time. `make_agent_server` for the MCP server has the same shape. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
-- **The provider name marks the adapter.** The kernel keeps the neutral names `Llm` and `LlmModule`, and each adapter package carries the name of its provider. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
+- **A backend registers by a method of `make_llm`.** No dictionary must stay in step, and nothing runs at load time. `make_agent_server` for the MCP server has the same shape. See [plan/done/ollama-backend.md](../../../../plan/done/ollama-backend.md).
+- **The provider name marks the adapter.** The kernel keeps the neutral names `Llm` and `LlmModule`, and each adapter package carries the name of its provider. See [plan/done/ollama-backend.md](../../../../plan/done/ollama-backend.md).
 - **A backend takes the three keywords and uses the ones that apply to it.** A caller can then build a backend with no provider in mind. Each adapter says in its docstring which keyword it ignores.
-- **The Ollama adapter reads the capabilities of the model, and the Anthropic adapter uses the model name.** Ollama answers HTTP 400 to the whole request when a model that can not reason gets a request to reason. So a guess from the name could stop the turn. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
-- **The meaning model is a keyword of `OllamaLlm`, and not a fourth keyword of the seam.** It belongs to one provider. See [plan/done/three-kinds-of-search.md](../../../plan/done/three-kinds-of-search.md).
+- **The Ollama adapter reads the capabilities of the model, and the Anthropic adapter uses the model name.** Ollama answers HTTP 400 to the whole request when a model that can not reason gets a request to reason. So a guess from the name could stop the turn. See [plan/done/ollama-backend.md](../../../../plan/done/ollama-backend.md).
+- **The meaning model is a keyword of `OllamaLlm`, and not a fourth keyword of the seam.** It belongs to one provider. See [plan/done/three-kinds-of-search.md](../../../../plan/done/three-kinds-of-search.md).
 - **The Anthropic default model is read once in a process for each key and models URL.** The list changes when Anthropic releases a model, not during a session, so a request for each turn gives nothing.
 
 ## Usage

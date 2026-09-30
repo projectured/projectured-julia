@@ -1,6 +1,6 @@
 # Inspector
 
-> **Kind:** design · **Status:** current · **Stands on:** [reference.md](../kernel/reference.md), [screen.md](../screen/screen.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [screen.md](../screen/screen.md), [natural.md](../natural/natural.md)
 
 `ProjecturedInspector` shows a reference in a form that a person can read: the compact path and a sentence that says what it names. It has two documents, `ReferenceInspector` for one reference and `SelectionInspector` for a selection, and a probe that opens a reference inspector for what a click under the pointer would select. This document says how the three parts work, how they share one rendering, and what the probe does wrong.
 
@@ -13,7 +13,7 @@
 1. **Compact**: the reference printed as Julia on one colored line, by `ReferenceToText`.
 2. **Human-readable**: the steps in reverse order as English, by `ReferenceToHumanReadableText`.
 
-Before it prints, the projection adds a `TypeReferenceStep` for each step with `annotate_reference_types(target, reference)`. So the compact form shows the `::Type` of each step, and the sentence names the parent type of each step. [reference.md](../kernel/reference.md) describes both renderings. The text is a computed cell that reads `reference` and `target`, so it follows a change of either.
+Before it prints, the projection adds a `TypeReferenceStep` for each step with `annotate_reference_types(target, reference)`. So the compact form shows the `::Type` of each step, and the sentence names the parent type of each step. [reference.md](../../kernel/reference.md) describes both renderings. The text is a computed cell that reads `reference` and `target`, so it follows a change of either.
 
 Both maps of the projection return `nothing`. A click in the panel names a place in the text and not a place in the inspected document, so it makes no operation.
 
@@ -47,7 +47,7 @@ The press has no Alt key, so the probe shows the reference that a click makes: a
 
 ## How it fits
 
-The code is in `source/inspector/`, one file for each document and each projection, and `HoverProbe.jl` for the probe. `ProjecturedInspector` depends on the kernel and on `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedSerialization`, `ProjecturedStyle` and `ProjecturedText`. It names no domain: it reads a `Reference` and a `Document` of any kind.
+The code is in `source/platform/inspector/`, one file for each document and each projection, and `HoverProbe.jl` for the probe. `ProjecturedInspector` depends on the kernel and on `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedSerialization`, `ProjecturedStyle` and `ProjecturedText`. It names no domain: it reads a `Reference` and a `Document` of any kind.
 
 Its `__init__` registers the rows of the renderer kind `:inspector` with `register_natural_graphics!`. Each of the two documents draws through its text projection, `WordWrapping` and `TextToGraphics`. It also registers both documents as `.pred` types. `pred_arguments` of both writes nothing: what a reference inspector holds is a moment of the pointer, and a function source can not be written as notation. So a loaded inspector starts empty, and a loaded selection inspector follows the editor.
 
@@ -55,7 +55,7 @@ Both documents have a title, "Reference" and "Selection", and an insertion name,
 
 ## Design decisions
 
-- **The panel shows what a click would select, not the selection.** A person sees the reference before the click, and the probe does not change the document or its selection. See [plan/done/hover-click-reference-inspector.md](../../../plan/done/hover-click-reference-inspector.md).
+- **The panel shows what a click would select, not the selection.** A person sees the reference before the click, and the probe does not change the document or its selection. See [plan/done/hover-click-reference-inspector.md](../../../../plan/done/hover-click-reference-inspector.md).
 - **Two forms, one rendering.** `ReferenceInspectorToText` prints both forms, and `SelectionInspectorToText` only chooses the reference. So a change of the words of a step is made in one place.
 - **A source can be a function.** The view then follows any selection with no cell of its own. The cost is that the function is not saved; a view that must follow a document after a load takes the document form.
 - **The probe is a window.** The panel can extend past the window that it describes, as a tooltip does. See [tooltip.md](../tooltip/tooltip.md).

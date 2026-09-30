@@ -155,7 +155,7 @@ default of `BackendDefaults.jl`. A generic with no default and no method raises 
 ### SdlBackend
 
 `SdlBackend` (in [package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) implements
-all of the above with SDL2 + SDL_ttf; [sdl.md](../sdl/sdl.md) is its design document. Highlights:
+all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its design document. Highlights:
 
 - A font measurement cache shared across all windows.
 - `sdl_to_keydown` maps an SDL keysym and the modifier bits to a `KeyDown`, and
@@ -174,7 +174,7 @@ all of the above with SDL2 + SDL_ttf; [sdl.md](../sdl/sdl.md) is its design docu
 
 ### ConsoleBackend
 
-`ConsoleBackend` (in [source/console/Console.jl](../../../source/console/Console.jl))
+`ConsoleBackend` (in [source/backend/console/Console.jl](../../../source/backend/console/Console.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextBlock` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
@@ -199,14 +199,14 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   `IOBuffer` input has no watcher and degrades to the default poll slice.
 - Because the console has no screen/window layer, the pipeline supplies its own
   window-input-unwrapping seam — `WindowInputUnwrappingProjection`
-  ([projection/higherorder/WindowInputUnwrapping.jl](../../../source/projection/higherorder/WindowInputUnwrapping.jl))
+  ([projection/higherorder/WindowInputUnwrapping.jl](../../../source/platform/projection/higherorder/WindowInputUnwrapping.jl))
   — that strips the `WindowInput` off the gesture before the readers run. (In
   the SDL pipeline `ScreenToScreen` does this.)
 - The console has no `TextToGraphics`, so it has only the geometry-free
   gestures: the `@gestures` table of `TextBlock` (character insert,
   Backspace, Delete, left and right), the tree navigation and the
   `Ctrl+Space` mode toggle. Visual up and down, and a mouse click, need the
-  geometry and do not work. [console.md](../console/console.md) is its design document.
+  geometry and do not work. [console.md](../backend/console/console.md) is its design document.
 
 Run it with `run_console_example()` (one-shot) or
 `run_console_example(interactive=true)` (read-eval-print loop).
@@ -246,7 +246,7 @@ without an activation. A gesture refills the reserve. A window is a window here
 as it is on SDL, which is
 [PAR-MANY-WINDOWS](../../rule/architecture-invariants.md#par-many-windows). The
 page sends pointer motion only while a button is held, so a hover effect and a
-tooltip do not happen in the browser ([web.md](../web/web.md) states the limit).
+tooltip do not happen in the browser ([web.md](../backend/web/web.md) states the limit).
 Selecting the web backend is just passing
 `backend=WebBackend(...)` to `run_example`, which otherwise takes the same
 arguments; `WebBackend`'s constructor defaults `host`/`port`.
@@ -268,7 +268,7 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
   JSON events into the backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …)
   wrapped in `WindowInput`s on a `Channel`; the editor drains it each frame.
   The backend makes no `MouseClick`: a gesture tracking projection makes
-  it from a `MouseDown` and a `MouseUp`, as for SDL. [web.md](../web/web.md) is
+  it from a `MouseDown` and a `MouseUp`, as for SDL. [web.md](../backend/web/web.md) is
   its design document.
 - **`wait_for_input`** blocks on an autoreset gate until the receive task puts
   an event into the channel, `wake_backend!` is called, or the timeout ends. A
@@ -344,7 +344,7 @@ subtype `Backend`: it has no devices and no events, and it turns a
 
 - **`write_image`** ([package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
-- **`write_pdf`** ([source/pdf/Pdf.jl](../../../source/pdf/Pdf.jl)) walks the same
+- **`write_pdf`** ([source/backend/pdf/Pdf.jl](../../../source/backend/pdf/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the font files, with a `FontFileMeasure()`.
@@ -356,7 +356,7 @@ subtype `Backend`: it has no devices and no events, and it turns a
   The same package holds `VideoBackend`, a `Backend` over the same renderer,
   which plays a scripted timeline through the `run_editor!` loop.
 
-See [the graphics guide](../graphics/graphics.md) for the image and PDF APIs.
+See [the graphics guide](../platform/graphics/graphics.md) for the image and PDF APIs.
 
 ## Projections that measure text
 
@@ -469,7 +469,7 @@ request to close one window. `WindowClose`, `WindowResize`, and `WindowDefocus`
 live here, not with the concrete `ScreenDocument` of the screen package: a window
 event is report-only input vocabulary, not a document type. The window
 *document* and its operations (`OpenWindowOperation`, `CloseWindowOperation`, …)
-stay in `source/screen/`.
+stay in `source/platform/screen/`.
 
 ### WindowInput
 
@@ -567,7 +567,7 @@ and whether it holds the input from the recognitions after it.
 `make_standard_recognitions()` lists the three standard recognitions in order:
 `ChordRecognition`, `ClickRecognition`, `DwellRecognition`. A package adds a
 gesture with a gesture type and a recognition; see
-[gesturetracking.md](../gesturetracking/gesturetracking.md) for the full
+[gesturetracking.md](../platform/gesturetracking/gesturetracking.md) for the full
 protocol.
 
 `read!` gives the projection each input of the backend: a `WindowInput` with
@@ -733,7 +733,7 @@ gesture rendering (`"Ctrl+K"`), which is not a command name.
 
 This is what puts an operation in front of a user without spending a key on it.
 The command palette of the `gesturehelp` package of the substrate lists these by
-name; see [CommandPalette.jl](../../../source/gesturehelp/CommandPalette.jl).
+name; see [CommandPalette.jl](../../../source/platform/gesturehelp/CommandPalette.jl).
 
 ### Downward edges
 

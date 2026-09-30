@@ -1,6 +1,6 @@
 # Frame statistics
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../kernel/editor.md), [log.md](../log/log.md), [chart.md](../chart/chart.md)
+> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [log.md](../log/log.md), [chart.md](../../domain/chart/chart.md)
 
 `ProjecturedStatistics` shows what the editor loop measures about itself, such as the time of a frame, as a table and as a plot in a tab. This document says how the two documents get their numbers without a cost when no view is open, and how a person gets the frames out of the program.
 

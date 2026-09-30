@@ -95,7 +95,7 @@ its own.
 
 The assistant reads the guides by name, and the name comes from the path:
 `documentation/guide/x.md` is `guide/x`, and
-`documentation/package/<slice>/x.md` is `<slice>/x`. A new name or a move
+`documentation/package/<group>/<slice>/x.md` is `<group>/<slice>/x`. A new name or a move
 changes `resource://guide/<name>`, so every such string in `source/` and in
 `documentation/` must name a guide that exists. `test_documentation()` checks
 that.

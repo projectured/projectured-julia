@@ -1,6 +1,6 @@
 # State machine domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [graph.md](../graph/graph.md), [julia.md](../julia/julia.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [graph.md](../graph/graph.md), [julia.md](../julia/julia.md)
 
 `ProjecturedFsm` holds extended state machines: named states with entry code, transitions on events, timers or conditions, and variables, with all code as embedded Julia documents. A component prints as a notation, draws as a live diagram, and generates a complete Julia module. This document says how the three work, which contract the generated code keeps with a runtime that the embedder supplies, and what the domain leaves out.
 
@@ -56,7 +56,7 @@ A transition line is `[on EVENT | on timeout(TIMER)] [when GUARD] (-> TARGET | s
 
 The trigger, the target and the initial state print as a leaf that reads the name of the referent. The rule never recurses into the referent, because a target printed in full would contain its own transitions, and a self-loop would not end. These names and the keywords are text that the projection adds. The template names a caret on them by the rule's own introduced step, which holds the path of the part in the rule's output, and the forward map gives that path back.
 
-`,` on a machine inserts a state, and `,` on a state inserts a transition. The Insert key and the insertion buffer come from `@domain Fsm`; see [domain-anatomy.md](../../design/domain-anatomy.md#the-placeholder-and-the-insertion).
+`,` on a machine inserts a state, and `,` on a state inserts a transition. The Insert key and the insertion buffer come from `@domain Fsm`; see [domain-anatomy.md](../../../design/domain-anatomy.md#the-placeholder-and-the-insertion).
 
 ### The diagram
 
@@ -82,7 +82,7 @@ The labels use compact rules: `FsmStateToSyntaxLabel` prints the name of a state
 - one expiry function for each timer, `expire_<timer>!(ctx, m)`;
 - the `helpers`, unchanged.
 
-The generated code and the actions in it call names that the domain does not define: `Fsm`, `TimerHandle`, `FSM_CASCADE_LIMIT`, `fsm_state`, `fsm_enter!`, `fsm_leave!`, `fsm_goto!`, `fsm_defer!`, `fsm_drain!`, `fsm_cascade_error` and `fsm_unhandled_error`. The embedder supplies a runtime module that defines them. `test/fsm/projection/FsmToJuliaCodeTest.jl` holds a small stand-in, `ProbeRuntime`, and runs generated code against it.
+The generated code and the actions in it call names that the domain does not define: `Fsm`, `TimerHandle`, `FSM_CASCADE_LIMIT`, `fsm_state`, `fsm_enter!`, `fsm_leave!`, `fsm_goto!`, `fsm_defer!`, `fsm_drain!`, `fsm_cascade_error` and `fsm_unhandled_error`. The embedder supplies a runtime module that defines them. `test/domain/fsm/projection/FsmToJuliaCodeTest.jl` holds a small stand-in, `ProbeRuntime`, and runs generated code against it.
 
 ### The execution contract
 
@@ -107,9 +107,9 @@ It has no `__init__` and registers nothing: no natural row, no file type, no par
 
 ## Design decisions
 
-- **The code is Julia documents, not strings.** What the author sees in the notation is exactly what runs, with no parse and no rewrite between them. See [plan/done/state-machine-domain.md](../../../plan/done/state-machine-domain.md).
+- **The code is Julia documents, not strings.** What the author sees in the notation is exactly what runs, with no parse and no rewrite between them. See [plan/done/state-machine-domain.md](../../../../plan/done/state-machine-domain.md).
 - **The generator is a function, not a projection.** The component is the source and the `.jl` file is output; a hand-edited file does not go back into the machine. The output is a document, so the editor can show it through the Julia chain.
-- **The diagram reuses the graph domain.** The domain adds a stage that builds a `GraphGraph` and two label rules, and no code that draws. See [plan/done/state-machine-domain.md](../../../plan/done/state-machine-domain.md).
+- **The diagram reuses the graph domain.** The domain adds a stage that builds a `GraphGraph` and two label rules, and no code that draws. See [plan/done/state-machine-domain.md](../../../../plan/done/state-machine-domain.md).
 - **The live position is on the diagram, and it bypasses the layout.** A running machine is not part of the machine, and a layout for each transition would cost too much.
 - **The deferred queue drains a copy.** A live drain of one shared queue lets a nested dispatch take the pending call of a sibling, as PLCA `COMMIT_TO` shows. This follows `executeDelayedActions` of `FSMA`.
 - **A stay is followed by re-evaluation, as a transition is.** This is simpler than the partial fall-through of `FSMA`, and no reference machine mixes stays with condition-only transitions in one state.
@@ -128,7 +128,7 @@ component = FsmComponent("Toggle";
 print(generate_component_text(component))
 ```
 
-- Examples: `fsm`, the TCP connection machine; `fsm_toggle`; and `fsm_diagram`, the toggle machine as a diagram, in `example/fsm/`. `make_fsm_diagram_projection_example(; engine)` builds the diagram chain. The atomic catalog has an entry for each of the seven content types.
+- Examples: `fsm`, the TCP connection machine; `fsm_toggle`; and `fsm_diagram`, the toggle machine as a diagram, in `example/domain/fsm/`. `make_fsm_diagram_projection_example(; engine)` builds the diagram chain. The atomic catalog has an entry for each of the seven content types.
 - Test: `test_fsm()` runs the layering guard, `test_fsm_document()`, `test_fsm_diagram()`, `test_fsm_to_julia_code()` and `test_fsm_to_syntax()`.
 
 ## Limits

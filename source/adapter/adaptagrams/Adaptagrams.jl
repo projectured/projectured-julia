@@ -11,7 +11,7 @@ export AdaptagramsLayout
 # been built is a *runtime* check (`isavailable`). Building the .so is then picked
 # up with no stale cache and without a restart.
 const libadaptagrams_shim =
-    joinpath(@__DIR__, "..", "..", "package", "ProjecturedAdaptagrams", "deps",
+    joinpath(@__DIR__, "..", "..", "..", "package", "ProjecturedAdaptagrams", "deps",
              "libadaptagrams_shim." * Libdl.dlext)
 
 "`true` when the native shim is built and actually loadable (the shim and its
@@ -36,7 +36,7 @@ function _warn_unavailable_once()
         using Pkg; Pkg.build("ProjecturedAdaptagrams")
     after installing or building Adaptagrams (set ADAPTAGRAMS_DIR to its cola/
     directory, or put its .pc files on PKG_CONFIG_PATH).
-    See documentation/package/adaptagrams/adaptagrams.md."""
+    See documentation/package/adapter/adaptagrams/adaptagrams.md."""
     nothing
 end
 

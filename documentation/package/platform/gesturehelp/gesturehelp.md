@@ -1,6 +1,6 @@
 # Gesture help and command palette
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../kernel/devices-and-backends.md), [screen.md](../screen/screen.md), [gesturelog.md](../gesturelog/gesturelog.md)
+> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../screen/screen.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
 `ProjecturedGestureHelp` holds two lists that a person opens while working: F1 shows the gestures that work where the selection is, and Ctrl+Shift+P runs a command by its name. Both read the live projection chain, not a table written by hand. This document says how the rows are collected, why the help is a window and the palette is an overlay, and how the palette matches a query.
 
@@ -10,7 +10,7 @@ Both tools have [the shared shape](../gesturelog/gesturelog.md#the-shared-shape)
 
 ### One list of rows
 
-A key press goes to the view under the selection, and each view has its own gestures. So the true list of keys depends on where the selection is. Both decorators call the inner reader with `Intent(CollectIntents())`, the route that a keystroke takes. Every gesture table on that route returns one `Intent` for each rule, with the operation that the rule builds now, inside a `CollectedIntentsOperation`. Every stage on the way back roots these operations, so each one applies at the input of the decorator. [devices-and-backends.md](../kernel/devices-and-backends.md#asking-what-is-available) describes the collection.
+A key press goes to the view under the selection, and each view has its own gestures. So the true list of keys depends on where the selection is. Both decorators call the inner reader with `Intent(CollectIntents())`, the route that a keystroke takes. Every gesture table on that route returns one `Intent` for each rule, with the operation that the rule builds now, inside a `CollectedIntentsOperation`. Every stage on the way back roots these operations, so each one applies at the input of the decorator. [devices-and-backends.md](../../kernel/devices-and-backends.md#asking-what-is-available) describes the collection.
 
 `collect_gesture_rows` makes one `GestureRow` for each intent: the gesture text, the description, the domain and the operation. The order is the order of the chain, the innermost document first, and a pair of domain and description appears once. A row whose `operation` is `nothing` can not run now: its precondition failed, or it needs the key that carries its argument. No other test of applicability exists.
 
@@ -58,9 +58,9 @@ The package registers nothing: no natural row, no `.pred` type and no insertion 
 
 ## Design decisions
 
-- **The lists are projections over the live chain.** A list written by hand goes stale when a projection changes. The rows come from the same gesture tables that fire, so what a list shows is what a key does. See [plan/done/reified-gesture-bindings.md](../../../plan/done/reified-gesture-bindings.md).
+- **The lists are projections over the live chain.** A list written by hand goes stale when a projection changes. The rows come from the same gesture tables that fire, so what a list shows is what a key does. See [plan/done/reified-gesture-bindings.md](../../../../plan/done/reified-gesture-bindings.md).
 - **Applicability is the built operation.** A row runs when its rule built an operation. No predicate exists that could disagree with the rule.
-- **The palette is an overlay in the chain of the window, not a window.** `ScreenToScreen` roots every operation that leaves a window under `windows[i].content`. An operation from a palette window would carry the path of the palette window and apply in the wrong place. See [plan/done/command-palette.md](../../../plan/done/command-palette.md).
+- **The palette is an overlay in the chain of the window, not a window.** `ScreenToScreen` roots every operation that leaves a window under `windows[i].content`. An operation from a palette window would carry the path of the palette window and apply in the wrong place. See [plan/done/command-palette.md](../../../../plan/done/command-palette.md).
 - **The help map is a snapshot.** The rows are built once, when F1 is pressed. A map that follows the selection was left for later; press F1 twice to see the list of a new place.
 - **A query matches words, not letters.** A match of the query as a subsequence of letters was tried first. It listed almost every row: the letters of `sort` appear in order in `Select the root node`. The ranking put the right row first, but the list did not get shorter.
 - **The state is outside the projection.** A pipeline can build the decorator again for each dispatch, and only an object that the caller holds keeps the open flag.
@@ -78,7 +78,7 @@ run_example("json"; gesture_help = true, command_palette = true)
 - Example: `make_gesture_map_document_example()`, the `GestureMap` of the atomic catalog. The package has no example of its own; the gallery keywords above show both tools.
 - Tests: `test_gesture_help()`, `test_gesture_map()`, `test_command_palette()` and `test_command_palette_decorator()` in `test/projectured/projection/`. The package has no test suite of its own.
 
-[keyboard-and-mouse-guide.md](../../guide/keyboard-and-mouse-guide.md) describes the same tools for a user of the editor.
+[keyboard-and-mouse-guide.md](../../../guide/keyboard-and-mouse-guide.md) describes the same tools for a user of the editor.
 
 ## Limits
 

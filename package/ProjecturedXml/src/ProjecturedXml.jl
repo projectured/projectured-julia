@@ -35,6 +35,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/xml/XmlModule.jl")
+include("../../../source/domain/xml/XmlModule.jl")
 
 end # module ProjecturedXml

@@ -1,6 +1,6 @@
 # REPL
 
-> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md)
+> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md)
 
 `ProjecturedRepl` is the leaf that a person loads to work: one `using` gives the editor, the examples, the SDL backend and the tests, with their code compiled ahead of time. It holds the one `@compile_workload` of the source tree. This document says how the workload level is chosen, how the recording is made and replayed, and where the traps are.
 
@@ -8,7 +8,7 @@
 
 ### The leaf
 
-A package image keeps its compiled code only when nothing depends on the package and nothing loads after it. [package-rules.md](../../rule/package-rules.md#why-the-leaf-matters) explains why, with the measurement. So the workload is here, and in no package below.
+A package image keeps its compiled code only when nothing depends on the package and nothing loads after it. [package-rules.md](../../../rule/package-rules.md#why-the-leaf-matters) explains why, with the measurement. So the workload is here, and in no package below.
 
 `ProjecturedRepl` depends on `Projectured`, `ProjecturedExample`, `ProjecturedSdl` and `ProjecturedTest`, and on `PrecompileTools` and `Preferences` for the workload. A loop over `names(module)` exports again every name that the four export, so no list of names needs care. `test_export_collisions()` checks that two of the four do not export one name with two bindings, which would make the name ambiguous. `Revise` is not a dependency: it must load before the packages that it tracks, so the session alias loads it first.
 
@@ -28,7 +28,7 @@ A package image keeps its compiled code only when nothing depends on the package
 
 ### The recording
 
-`record_precompile_statements()` runs `source/repl/record/driver.jl` in a new Julia process under `--trace-compile`, because that is a flag of the command line. `ProjecturedExample` then drops every statement that names `Main` or does not parse, sorts the rest, and writes `asset/precompile/PrecompileStatements.jl`. That file is generated; do not edit it.
+`record_precompile_statements()` runs `source/tool/repl/record/driver.jl` in a new Julia process under `--trace-compile`, because that is a flag of the command line. `ProjecturedExample` then drops every statement that names `Main` or does not parse, sorts the rest, and writes `asset/precompile/PrecompileStatements.jl`. That file is generated; do not edit it.
 
 The driver runs three things:
 
@@ -48,7 +48,7 @@ Nothing depends on `ProjecturedRepl`, and nothing may load after it. The session
 
 ## Design decisions
 
-- **The level is a preference.** A change then builds the image again. See [plan/done/recorded-precompile-workload.md](../../../plan/done/recorded-precompile-workload.md).
+- **The level is a preference.** A change then builds the image again. See [plan/done/recorded-precompile-workload.md](../../../../plan/done/recorded-precompile-workload.md).
 - **The default replays a recording.** A workload compiles only what somebody wrote down to run, and nobody wrote a read. A recording compiles what an editor that is driven had to compile.
 - **A statement resolves in a module of this package.** `StatementScope` holds the bindings. A binding in the module of a dependency would be one build that writes into the image of another package.
 - **A stale statement is skipped, not an error.** The list stays usable while the code moves, and the skip count is the signal to record again.
@@ -66,10 +66,10 @@ record_precompile_statements()        # record the list again; needs a display
 ```
 
 - Examples: none of its own. The recording drives every registered example.
-- Test: `test_export_collisions()` in `test/projectured/ExportCollisionTest.jl`. No `test/repl/` exists, and no test runs the driver. `test_sdl_keysym()` in `test/sdl/backend/KeysymTest.jl` reads the driver and checks that SDL reports each key that it presses.
+- Test: `test_export_collisions()` in `test/projectured/ExportCollisionTest.jl`. No `test/repl/` exists, and no test runs the driver. `test_sdl_keysym()` in `test/backend/sdl/backend/KeysymTest.jl` reads the driver and checks that SDL reports each key that it presses.
 
 ## Limits
 
-- Record at `:none` only. A `:recorded` image already holds the old list, so those methods never compile, never reach the trace and drop out of the new list. [package-rules.md](../../rule/package-rules.md#the-session) gives the steps and the check of a new list.
+- Record at `:none` only. A `:recorded` image already holds the old list, so those methods never compile, never reach the trace and drop out of the new list. [package-rules.md](../../../rule/package-rules.md#the-session) gives the steps and the check of a new list.
 - A recording replaces the list and does not merge with it.
 - The driver needs a display, so no automatic run checks that it still works.

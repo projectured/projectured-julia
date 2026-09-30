@@ -15,8 +15,8 @@ using ProjecturedExample
 using ProjecturedTulip
 using ProjecturedKernelTest
 
-include("../../../test/tulip/document/ConstraintSolverTest.jl")
+include("../../../test/adapter/tulip/document/ConstraintSolverTest.jl")
 
-include("../../../test/tulip/TulipSuite.jl")
+include("../../../test/adapter/tulip/TulipSuite.jl")
 
 end # module ProjecturedTulipTest

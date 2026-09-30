@@ -1,10 +1,10 @@
 # The transcript
 
-> **Kind:** reference · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [concepts.md](../../design/concepts.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [concepts.md](../../../design/concepts.md)
 
 The transcript is the widget presentation of a `ConversationConversation`: the
 chat a person reads in the assistant pane. It is printed by
-[`ConversationToWidget.jl`](../../../source/conversation/ConversationToWidget.jl)
+[`ConversationToWidget.jl`](../../../../source/platform/conversation/ConversationToWidget.jl)
 and it is read, not written. A click names the part it landed in, an Alt+click
 names the object under the pointer, and an edit that reaches it is declined. In
 a window that wraps its content in a clipboard, `Ctrl+C` and `Ctrl+N` copy and

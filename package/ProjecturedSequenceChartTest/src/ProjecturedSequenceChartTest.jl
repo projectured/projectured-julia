@@ -64,9 +64,9 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/sequencechart/projection/SequenceChartGeometryTest.jl")
-include("../../../test/sequencechart/projection/SequenceChartProjectionTest.jl")
+include("../../../test/domain/sequencechart/projection/SequenceChartGeometryTest.jl")
+include("../../../test/domain/sequencechart/projection/SequenceChartProjectionTest.jl")
 
-include("../../../test/sequencechart/SequenceChartSuite.jl")
+include("../../../test/domain/sequencechart/SequenceChartSuite.jl")
 
 end # module ProjecturedSequenceChartTest

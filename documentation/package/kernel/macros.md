@@ -379,7 +379,7 @@ or field access of the same name is left alone — a builder does not need to
 import any of the five names itself.
 
 A minimal worked example, the null-and-bool leaves of the JSON domain
-(`source/json/JsonToSyntax.jl`):
+(`source/domain/json/JsonToSyntax.jl`):
 
 ```julia
 @projection struct JsonBoolToSyntaxLeaf
@@ -417,7 +417,7 @@ walks the markers again each time a cell that the thunk reads changes. The outpu
 node gets its children in a cell of its own, so the children cell keeps its
 computation. A slot therefore appears when an optional field gets a value, and
 goes when the field becomes `nothing`. The range of the Julia domain
-(`source/julia/JuliaToSyntax.jl`) has a slot for its step only when the step is
+(`source/domain/julia/JuliaToSyntax.jl`) has a slot for its step only when the step is
 not `nothing`:
 
 ```julia

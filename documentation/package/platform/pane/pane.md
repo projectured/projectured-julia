@@ -1,6 +1,6 @@
 # Pane
 
-> **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [reference.md](../kernel/reference.md), [selection.md](../kernel/selection.md)
+> **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md)
 
 `ProjecturedPane` holds the pane tree: tab groups, the splits between them, and the edits that rearrange them. It draws the tree with the split panes and tabbed panes of the widget package, and it gives a program, such as a language model, a set of verbs over the tree. This document says how the focus, the edits, the drags and the verbs work, and how the whole editor saves to one file.
 
@@ -137,7 +137,7 @@ A duplicate of a tab is a second pane that the person controls alone. `make_docu
 2. The duplicate shares what the pane reads: the project, the result files, the model backend.
 3. The duplicate does not copy a process. A run or a stream stays with the original, and the duplicate starts idle.
 
-A tab whose content has no duplicate shows no `+`, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its title gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". [document.md](../kernel/document.md#the-duplicate) describes the copy.
+A tab whose content has no duplicate shows no `+`, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its title gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". [document.md](../../kernel/document.md#the-duplicate) describes the copy.
 
 A duplicate is not a mirror. Each node stores its own `selection`, so two panes that hold one document share one caret.
 
@@ -156,7 +156,7 @@ A duplicate is not a mirror. Each node stores its own `selection`, so two panes 
 | `close_pane!(editor, reference)` | closes a tab | the new layout |
 | `move_pane!(editor, reference, target; side)` | moves a tab to a group, before a tab, or beside a group in a new split | the new layout |
 
-Each verb makes its edit at the pane tree and carries it to the root through the readers of the editor (`read_rooted_operation`; see [editor.md](../kernel/editor.md#an-operation-from-a-place-not-a-gesture)), then evaluates it at once, so every document on the path of the selection holds its part of the new state. Each verb but `replace_referenced_value!` has a `make_…_operation` companion — `make_open_pane_operation`, `make_focus_pane_operation`, `make_close_pane_operation`, `make_duplicate_pane_operation`, `make_move_pane_operation` — that reads the same edit and evaluates nothing, for a caller that already runs inside another evaluation and posts the result with `post_pane_operation!(editor, operation)`. The menu and toolbar actions, and `OpenFileOperation`, post this way. `post_pane_operation!` applies the operation at once instead when `editor` is not a running `Editor`, such as a test that holds the tree.
+Each verb makes its edit at the pane tree and carries it to the root through the readers of the editor (`read_rooted_operation`; see [editor.md](../../kernel/editor.md#an-operation-from-a-place-not-a-gesture)), then evaluates it at once, so every document on the path of the selection holds its part of the new state. Each verb but `replace_referenced_value!` has a `make_…_operation` companion — `make_open_pane_operation`, `make_focus_pane_operation`, `make_close_pane_operation`, `make_duplicate_pane_operation`, `make_move_pane_operation` — that reads the same edit and evaluates nothing, for a caller that already runs inside another evaluation and posts the result with `post_pane_operation!(editor, operation)`. The menu and toolbar actions, and `OpenFileOperation`, post this way. `post_pane_operation!` applies the operation at once instead when `editor` is not a running `Editor`, such as a test that holds the tree.
 
 `find_pane_reference(editor, title)` answers the complete reference of the pane whose title is `title`, in any window, and `nothing` when no pane has it; when two panes have it, an `ArgumentError` names both. It descends only into the documents that can hold a pane (`is_pane_search_step`, the default of its `descend` keyword). `find_pane_tree_reference(editor)` answers the complete reference of the pane tree that holds the focus — the nearest tree on the path of the root's selection, else the one tree of the window, else `nothing`.
 
@@ -220,13 +220,13 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 ## Design decisions
 
-- **No node stores the focus.** The selection names the focused tab, and a dormant selection keeps the tab of each group. A second field would have to agree with the selection after every edit. See [plan/done/pane-layout.md](../../../plan/done/pane-layout.md).
-- **The surgery returns generic operations.** A pane tree then works inside any other document, and no projection above it needs a pane operation type. See [plan/done/pane-layout.md](../../../plan/done/pane-layout.md).
+- **No node stores the focus.** The selection names the focused tab, and a dormant selection keeps the tab of each group. A second field would have to agree with the selection after every edit. See [plan/done/pane-layout.md](../../../../plan/done/pane-layout.md).
+- **The surgery returns generic operations.** A pane tree then works inside any other document, and no projection above it needs a pane operation type. See [plan/done/pane-layout.md](../../../../plan/done/pane-layout.md).
 - **The widget layer reports; the pane makes the edit.** A tab strip holds no data about what a close means for the document behind it. Any other owner of tabs can answer the same reports.
-- **A program writes values at references.** A layout is a document, and a reference names any part of it, so one write verb covers every level. `source/pane/PaneProgram.jl` states the rule in its header.
-- **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See [plan/done/declared-api-is-a-list-of-names.md](../../../plan/done/declared-api-is-a-list-of-names.md).
-- **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See [plan/done/duplicate-a-pane.md](../../../plan/done/duplicate-a-pane.md).
-- **A new tab is filled by a paste.** The placeholder is selected as a whole, so the paste of the clipboard package fills it. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
+- **A program writes values at references.** A layout is a document, and a reference names any part of it, so one write verb covers every level. `source/platform/pane/PaneProgram.jl` states the rule in its header.
+- **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See [plan/done/declared-api-is-a-list-of-names.md](../../../../plan/done/declared-api-is-a-list-of-names.md).
+- **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See [plan/done/duplicate-a-pane.md](../../../../plan/done/duplicate-a-pane.md).
+- **A new tab is filled by a paste.** The placeholder is selected as a whole, so the paste of the clipboard package fills it. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
 
 ## Usage
 
@@ -247,11 +247,11 @@ save_user_interface(editor, "session.pred")
 
 `editor` is a running editor whose document holds a pane tree.
 
-- Examples: `pane_example` and `empty_pane_example`, built by `make_pane_projection_example` in `example/substrate/PaneProjectionExample.jl`.
-- Tests: `test_pane_surgery()`, `test_pane_geometry()`, `test_pane_to_widget()`, `test_pane_reader()`, `test_pane_gestures()`, `test_pane_drag()`, `test_split_pane_drag()`, `test_pane_rename()` and `test_pane_construct()` under `test/substrate/`, and `test_user_interface_file()` in `test/projectured/editor/`. The package has no suite of its own.
+- Examples: `pane_example` and `empty_pane_example`, built by `make_pane_projection_example` in `example/platform/PaneProjectionExample.jl`.
+- Tests: `test_pane_surgery()`, `test_pane_geometry()`, `test_pane_to_widget()`, `test_pane_reader()`, `test_pane_gestures()`, `test_pane_drag()`, `test_split_pane_drag()`, `test_pane_rename()` and `test_pane_construct()` under `test/platform/`, and `test_user_interface_file()` in `test/projectured/editor/`. The package has no suite of its own.
 
 ## Limits
 
 - The strip prints a title as a label, so the name changes as a person types it, but the strip draws no caret.
-- An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md) holds the item.
+- An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md) holds the item.
 - The geometry is proportional. It is not a model of the pixels of the drawing.

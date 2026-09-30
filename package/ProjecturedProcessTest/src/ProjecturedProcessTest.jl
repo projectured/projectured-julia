@@ -66,12 +66,12 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/process/document/ProcessDocumentTest.jl")
-include("../../../test/process/projection/ProcessDebugTest.jl")
-include("../../../test/process/projection/ProcessDiagramTest.jl")
-include("../../../test/process/projection/ProcessToJuliaCodeTest.jl")
-include("../../../test/process/projection/ProcessToSyntaxTest.jl")
+include("../../../test/domain/process/document/ProcessDocumentTest.jl")
+include("../../../test/domain/process/projection/ProcessDebugTest.jl")
+include("../../../test/domain/process/projection/ProcessDiagramTest.jl")
+include("../../../test/domain/process/projection/ProcessToJuliaCodeTest.jl")
+include("../../../test/domain/process/projection/ProcessToSyntaxTest.jl")
 
-include("../../../test/process/ProcessSuite.jl")
+include("../../../test/domain/process/ProcessSuite.jl")
 
 end # module ProjecturedProcessTest

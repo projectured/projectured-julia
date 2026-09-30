@@ -64,16 +64,16 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/shell/WindowWrapTest.jl")
-include("../../../test/shell/WidgetTooltipTest.jl")
-include("../../../test/shell/JuliaTooltipTest.jl")
-include("../../../test/shell/TooltipWindowTest.jl")
-include("../../../test/shell/ContextMenuProbeTest.jl")
-include("../../../test/shell/WindowShellTest.jl")
-include("../../../test/shell/FileDialogTest.jl")
-include("../../../test/shell/TrackingScreenTest.jl")
-include("../../../test/shell/PointerLightTest.jl")
+include("../../../test/platform/shell/WindowWrapTest.jl")
+include("../../../test/platform/shell/WidgetTooltipTest.jl")
+include("../../../test/platform/shell/JuliaTooltipTest.jl")
+include("../../../test/platform/shell/TooltipWindowTest.jl")
+include("../../../test/platform/shell/ContextMenuProbeTest.jl")
+include("../../../test/platform/shell/WindowShellTest.jl")
+include("../../../test/platform/shell/FileDialogTest.jl")
+include("../../../test/platform/shell/TrackingScreenTest.jl")
+include("../../../test/platform/shell/PointerLightTest.jl")
 
-include("../../../test/shell/ShellSuite.jl")
+include("../../../test/platform/shell/ShellSuite.jl")
 
 end # module ProjecturedShellTest

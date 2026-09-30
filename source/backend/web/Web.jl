@@ -78,7 +78,7 @@ checkout, two levels above this file.
 """
 function get_web_asset_directory(name::AbstractString, bindir::AbstractString = Sys.BINDIR)
     bundled = normpath(joinpath(bindir, "..", "share", "projectured", name))
-    isdir(bundled) ? bundled : normpath(joinpath(@__DIR__, "..", "..", "asset", name))
+    isdir(bundled) ? bundled : normpath(joinpath(@__DIR__, "..", "..", "..", "asset", name))
 end
 
 # ════════════════════════════════════════════════════════════════════════

@@ -36,6 +36,6 @@ const NaturalModule = ProjecturedNatural.NaturalModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 
-include("../../../source/inspector/InspectorModule.jl")
+include("../../../source/platform/inspector/InspectorModule.jl")
 
 end # module ProjecturedInspector

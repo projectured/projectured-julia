@@ -64,13 +64,13 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/julia/document/JuliaParserTest.jl")
-include("../../../test/julia/document/JuliaExpressionTest.jl")
-include("../../../test/julia/document/JuliaDefinitionTest.jl")
-include("../../../test/julia/document/JuliaDuplicateTest.jl")
-include("../../../test/julia/projection/JuliaToSyntaxTest.jl")
-include("../../../test/julia/editor/JuliaTypeinTest.jl")
+include("../../../test/domain/julia/document/JuliaParserTest.jl")
+include("../../../test/domain/julia/document/JuliaExpressionTest.jl")
+include("../../../test/domain/julia/document/JuliaDefinitionTest.jl")
+include("../../../test/domain/julia/document/JuliaDuplicateTest.jl")
+include("../../../test/domain/julia/projection/JuliaToSyntaxTest.jl")
+include("../../../test/domain/julia/editor/JuliaTypeinTest.jl")
 
-include("../../../test/julia/JuliaSuite.jl")
+include("../../../test/domain/julia/JuliaSuite.jl")
 
 end # module ProjecturedJuliaTest

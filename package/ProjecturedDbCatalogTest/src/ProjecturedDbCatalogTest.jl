@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/dbcatalog/external/DbCatalogSqlTest.jl")
+include("../../../test/domain/dbcatalog/external/DbCatalogSqlTest.jl")
 
-include("../../../test/dbcatalog/DbCatalogSuite.jl")
+include("../../../test/domain/dbcatalog/DbCatalogSuite.jl")
 
 end # module ProjecturedDbCatalogTest

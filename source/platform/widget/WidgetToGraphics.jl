@@ -3145,7 +3145,7 @@ end
 # NOTE: Wrap-around (Tab on the very last focusable → the first) is the one
 # non-local case and is not handled here — a container only advances or
 # declines. The single top-level rule that wraps a declined Tab lives at the
-# outer widget seam, in `FocusCyclingProjection` (`source/focus/FocusCycling.jl`).
+# outer widget seam, in `FocusCyclingProjection` (`source/platform/focus/FocusCycling.jl`).
 function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
     n = length(child_iomaps)
     reverse = evt.modifiers.shift

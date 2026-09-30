@@ -1,12 +1,12 @@
 # Message log
 
-> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../kernel/editor.md), [domain-anatomy.md](../../design/domain-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 `ProjecturedLog` shows the messages that the program logs with `@info`, `@warn` and `@error` as a document in a tab. This document says how a message from any task reaches the document without a write to a cell from that task.
 
 ## How it works
 
-A message travels through three parts. This is the feed pattern of the editor; [the feeds](../kernel/editor.md) in editor.md describe the contract.
+A message travels through three parts. This is the feed pattern of the editor; [the feeds](../../kernel/editor.md) in editor.md describe the contract.
 
 1. **`MessageLogLogger`** is an `AbstractLogger` that wraps the logger that was installed before it. It writes each message into the store, and then gives it to the previous logger, so the terminal shows what it showed before. `install_message_log_capture!()` installs it, and a second call does nothing, so no message is recorded twice. `remove_message_log_capture!(previous)` puts the previous logger back.
 2. **`MessageLogStore`** is a plain object with a lock and a ring of up to 1000 lines. Any task can write it. After a write it calls the wake function of the editor, outside the lock.
@@ -22,11 +22,11 @@ A message travels through three parts. This is the feed pattern of the editor; [
 
 `ProjecturedShell` uses it: `run_with_window_tools` installs the capture and gives the editor a `MessageLogFeed`, and the toolbar has a button that opens the log.
 
-The library of the MCP server installs a logger of its own when its server starts. `start_mcp!` puts the logger that was installed before back, so the capture stays in place when the editor runs with `--mcp`; see [mcp.md](../mcp/mcp.md).
+The library of the MCP server installs a logger of its own when its server starts. `start_mcp!` puts the logger that was installed before back, so the capture stays in place when the editor runs with `--mcp`; see [mcp.md](../../adapter/mcp/mcp.md).
 
 ## Design decisions
 
-- **No task writes a document cell except the editor task.** A write from the logging task raced the frame. The store is the only shared state, and the drain is the only writer. See [plan/done/the-editor-waits-for-events.md](../../../plan/done/the-editor-waits-for-events.md) and the invariant `PAR-STORE-THEN-DRAIN`.
+- **No task writes a document cell except the editor task.** A write from the logging task raced the frame. The store is the only shared state, and the drain is the only writer. See [plan/done/the-editor-waits-for-events.md](../../../../plan/done/the-editor-waits-for-events.md) and the invariant `PAR-STORE-THEN-DRAIN`.
 - **A lost line is reported, not hidden.** The warning entry shows that the ring was full.
 - **One log for the session.** A second log document would never fill, because the one capture writes the one store.
 

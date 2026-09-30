@@ -49,6 +49,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/json/JsonModule.jl")
+include("../../../source/domain/json/JsonModule.jl")
 
 end # module ProjecturedJson

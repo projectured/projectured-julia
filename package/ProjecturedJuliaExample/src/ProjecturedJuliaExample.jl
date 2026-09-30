@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/julia/JuliaDocumentExample.jl")
-include("../../../example/julia/JuliaProjectionExample.jl")
+include("../../../example/domain/julia/JuliaDocumentExample.jl")
+include("../../../example/domain/julia/JuliaProjectionExample.jl")
 
 export make_julia_bool_document_example, make_julia_break_document_example, make_julia_char_document_example
 export make_julia_continue_document_example, make_julia_float_document_example, make_julia_identifier_document_example

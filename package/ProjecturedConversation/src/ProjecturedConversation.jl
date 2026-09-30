@@ -42,6 +42,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFocus, Project
     end
 end
 
-include("../../../source/conversation/ConversationModule.jl")
+include("../../../source/platform/conversation/ConversationModule.jl")
 
 end # module ProjecturedConversation

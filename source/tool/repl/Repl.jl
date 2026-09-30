@@ -75,7 +75,7 @@ end
 # leaves. What belongs here is what only this repository knows: which run to
 # record, and the list that run produced.
 
-include("../../asset/precompile/PrecompileStatements.jl")
+include("../../../asset/precompile/PrecompileStatements.jl")
 
 """
     StatementScope
@@ -107,7 +107,7 @@ records is the whole stack down to SDL.
 """
 record_precompile_statements(;
         output::AbstractString =
-            joinpath(@__DIR__, "../../asset/precompile/PrecompileStatements.jl"),
+            joinpath(@__DIR__, "../../../asset/precompile/PrecompileStatements.jl"),
         driver::AbstractString = joinpath(@__DIR__, "record/driver.jl"),
         kwargs...) =
     ProjecturedExample.record_precompile_statements(driver, output; kwargs...)

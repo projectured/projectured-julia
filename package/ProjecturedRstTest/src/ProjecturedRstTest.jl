@@ -64,9 +64,9 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/rst/document/RstParserTest.jl")
-include("../../../test/rst/projection/RstEmbedCardTest.jl")
+include("../../../test/domain/rst/document/RstParserTest.jl")
+include("../../../test/domain/rst/projection/RstEmbedCardTest.jl")
 
-include("../../../test/rst/RstSuite.jl")
+include("../../../test/domain/rst/RstSuite.jl")
 
 end # module ProjecturedRstTest

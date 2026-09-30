@@ -26,7 +26,7 @@ const ScreenModule = ProjecturedScreen.ScreenModule
 const StyleModule = ProjecturedStyle.StyleModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 
-include("../../../source/display/DisplayModule.jl")
+include("../../../source/platform/display/DisplayModule.jl")
 
 using .DisplayModule
 export EditorDisplay, display_in_editor, close_display_editor!

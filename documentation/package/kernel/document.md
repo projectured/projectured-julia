@@ -145,7 +145,7 @@ whoever supplied the policy for what stands where the walk stopped.
 The same three hooks bound the walk that `ProjecturedReflection`'s
 `sync_reflection!` uses to grow a shadow of an arbitrary Julia value one level
 at a time, instead of walking the whole value up front. See
-[reflection.md](../reflection/reflection.md) for the policy and the widget view
+[reflection.md](../platform/reflection/reflection.md) for the policy and the widget view
 built on that shadow.
 
 Both use two primitives of the layers below, because the kind of a document is
@@ -199,7 +199,7 @@ of the same kind that they control on its own.
 calls it each time it prints a tab, so a method answers from the type and never
 walks the tree. A kind declares its duplicate in one line, and adds a
 `copy_document(::DuplicatePolicy, ::Kind)` method when one field needs custom
-handling. The evaluator of `source/conversation/Evaluator.jl` shares the result of
+handling. The evaluator of `source/platform/conversation/Evaluator.jl` shares the result of
 a form, because a result can be live:
 
 ```julia
@@ -267,4 +267,4 @@ exercised without the concrete documents, it is not actually a contract.
 
 The tests of the walk, the bounded sync and the duplicate use collections and
 primitives, so they are in the substrate suite: `DocumentWalkTest.jl`,
-`BoundedSyncTest.jl` and `DocumentDuplicateTest.jl` in `test/substrate/document/`.
+`BoundedSyncTest.jl` and `DocumentDuplicateTest.jl` in `test/platform/document/`.

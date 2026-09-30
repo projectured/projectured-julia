@@ -67,10 +67,10 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/formula/projection/FormulaToSyntaxTest.jl")
-include("../../../test/formula/FormulaFileTest.jl")
-include("../../../test/formula/FormulaMathTest.jl")
+include("../../../test/domain/formula/projection/FormulaToSyntaxTest.jl")
+include("../../../test/domain/formula/FormulaFileTest.jl")
+include("../../../test/domain/formula/FormulaMathTest.jl")
 
-include("../../../test/formula/FormulaSuite.jl")
+include("../../../test/domain/formula/FormulaSuite.jl")
 
 end # module ProjecturedFormulaTest

@@ -1,8 +1,8 @@
 # SQL domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [syntax.md](../syntax/syntax.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [syntax.md](../../platform/syntax/syntax.md)
 
-The SQL domain, `ProjecturedSql`, holds a SQL statement as a tree of clause and expression documents, with a hand-written parser and a projection that prints the statement as syntax. It has no connection to a database; [database.md](../database/database.md) describes the packages that run a statement. This document says where the domain differs from the [shape of every domain](../../design/domain-anatomy.md): a statement is read and printed but not edited in place, the parser reads only two kinds of statement, and the printer is mostly hand-written.
+The SQL domain, `ProjecturedSql`, holds a SQL statement as a tree of clause and expression documents, with a hand-written parser and a projection that prints the statement as syntax. It has no connection to a database; [database.md](../database/database.md) describes the packages that run a statement. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md): a statement is read and printed but not edited in place, the parser reads only two kinds of statement, and the printer is mostly hand-written.
 
 <img width="396" alt="SQL example" src="../../../asset/image/example/sql-nested-syntax.png">
 
@@ -26,7 +26,7 @@ A `SELECT` goes down through select items, from items, joins with `ON` or `USING
 
 `SqlToSyntax()` has one rule for each document type. The nine leaf rules, such as the column, table and scalar leaves, are `@projection_template` rules with no `bound` field: each prints a text computed from several fields. The `USING` condition is a `@projection_template` rule too, with the column names in a `collection`. The rules of the other clauses and statements are hand-written `print_document` methods. Each builds a `SyntaxNode` and maps the selection clause by clause through a `ChildrenIoMap`. A `SELECT` prints no `FROM` clause when it has no from item and no `WHERE` clause when it has no condition, so `SELECT 1` prints as `SELECT 1` and reads back.
 
-Every reader of the domain maps a `ReplaceSelectionOperation` and returns `nothing` for every other operation. So you can select and navigate every part of a statement, but no key edits a statement in place, and no `@gestures` table exists. A caret on the computed text of a leaf, or on a keyword that a node prints, is named by the introduced step of the projection that printed it, which holds the path of the part in that projection's output; the forward map gives that path back. See `PAR-CROSS-DOMAIN-LATE` in [architecture-invariants.md](../../rule/architecture-invariants.md).
+Every reader of the domain maps a `ReplaceSelectionOperation` and returns `nothing` for every other operation. So you can select and navigate every part of a statement, but no key edits a statement in place, and no `@gestures` table exists. A caret on the computed text of a leaf, or on a keyword that a node prints, is named by the introduced step of the projection that printed it, which holds the path of the part in that projection's output; the forward map gives that path back. See `PAR-CROSS-DOMAIN-LATE` in [architecture-invariants.md](../../../rule/architecture-invariants.md).
 
 ### The insertion parses source text
 
@@ -61,12 +61,12 @@ Its `__init__` registers the natural row with the rung `:syntax`, the format `:s
 
 ## Design decisions
 
-- **Every clause is a document type.** A selection can then name a clause, a join or one comparison, and the catalog package can build a statement from parts. See [plan/done/sql-statement.md](../../../plan/done/sql-statement.md).
-- **The parser is hand-written.** A domain has no third-party dependency, and the parser reads only the grammar that the documents model. See [plan/done/sql-parser.md](../../../plan/done/sql-parser.md).
-- **A part that the model does not have degrades.** A skipped clause, or an expression or a condition that holds raw text, lets a real query load, at the cost of that part. A part that holds raw text keeps every character of it, so the statement prints back as the text that it was read from. [plan/pending/sql-select-aggregation-support.md](../../../plan/pending/sql-select-aggregation-support.md) plans a model for the aggregate functions.
-- **The composite rules are hand-written.** Some rules need an indent for each child between separators, which only the combined `SyntaxNode` can print. The reason is in the comment above `_comma_body` in `source/sql/SqlToSyntax.jl`. The selection mapping is [plan/done/sql-to-syntax-selection-support.md](../../../plan/done/sql-to-syntax-selection-support.md).
+- **Every clause is a document type.** A selection can then name a clause, a join or one comparison, and the catalog package can build a statement from parts. See [plan/done/sql-statement.md](../../../../plan/done/sql-statement.md).
+- **The parser is hand-written.** A domain has no third-party dependency, and the parser reads only the grammar that the documents model. See [plan/done/sql-parser.md](../../../../plan/done/sql-parser.md).
+- **A part that the model does not have degrades.** A skipped clause, or an expression or a condition that holds raw text, lets a real query load, at the cost of that part. A part that holds raw text keeps every character of it, so the statement prints back as the text that it was read from. [plan/pending/sql-select-aggregation-support.md](../../../../plan/pending/sql-select-aggregation-support.md) plans a model for the aggregate functions.
+- **The composite rules are hand-written.** Some rules need an indent for each child between separators, which only the combined `SyntaxNode` can print. The reason is in the comment above `_comma_body` in `source/domain/sql/SqlToSyntax.jl`. The selection mapping is [plan/done/sql-to-syntax-selection-support.md](../../../../plan/done/sql-to-syntax-selection-support.md).
 - **A column type is a string.** The catalog stores the type as a string too. A model of types, nullability and defaults is left for later.
-- **INSERT and UPDATE are single-row statements.** No multi-row `VALUES` and no update of more than one table. See [plan/pending/sql-insert-update-support.md](../../../plan/pending/sql-insert-update-support.md).
+- **INSERT and UPDATE are single-row statements.** No multi-row `VALUES` and no update of more than one table. See [plan/pending/sql-insert-update-support.md](../../../../plan/pending/sql-insert-update-support.md).
 
 ## Usage
 
@@ -85,9 +85,9 @@ projection = SqlToSyntax()
 
 ## Limits
 
-- **The parser does not read `INSERT` or `UPDATE`.** The documents, the printer, the examples and the tests exist, but a typed `INSERT INTO …` stays red in the insertion and does not commit. This is the open step of [plan/pending/sql-insert-update-support.md](../../../plan/pending/sql-insert-update-support.md).
+- **The parser does not read `INSERT` or `UPDATE`.** The documents, the printer, the examples and the tests exist, but a typed `INSERT INTO …` stays red in the insertion and does not commit. This is the open step of [plan/pending/sql-insert-update-support.md](../../../../plan/pending/sql-insert-update-support.md).
 - **A condition that the model does not have is one text.** A `SqlRawCondition` holds the whole condition as it is written, so a selection names the condition and no part of it. A comparison of a column or a value with a column or a value is the one condition that has a document for each side.
 - **A join that the parser does not read is an error.** The joins are `JOIN`, `INNER`, `LEFT`, `RIGHT`, `FULL` and `CROSS`, so `SELECT * FROM a NATURAL JOIN b` is not a statement for the parser. A from item has no raw form to keep the text of such a join in, so the whole statement raises the error instead.
-- **A skipped clause is lost.** `GROUP BY`, `HAVING`, `ORDER BY` and `LIMIT` do not survive a round trip. [plan/pending/sql-select-aggregation-support.md](../../../plan/pending/sql-select-aggregation-support.md) plans `GROUP BY` and the aggregate functions.
+- **A skipped clause is lost.** `GROUP BY`, `HAVING`, `ORDER BY` and `LIMIT` do not survive a round trip. [plan/pending/sql-select-aggregation-support.md](../../../../plan/pending/sql-select-aggregation-support.md) plans `GROUP BY` and the aggregate functions.
 - **A table constraint reads as a column.** A `PRIMARY KEY (id)` entry in the column list becomes a column named `PRIMARY` with the type `KEY (id)`. It prints back as the same text.
-- **No `CREATE INDEX`.** [plan/pending/dbcatalog-index-support.md](../../../plan/pending/dbcatalog-index-support.md) plans the index statements.
+- **No `CREATE INDEX`.** [plan/pending/dbcatalog-index-support.md](../../../../plan/pending/dbcatalog-index-support.md) plans the index statements.

@@ -34,6 +34,6 @@ for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, Proj
     end
 end
 
-include("../../../source/book/BookModule.jl")
+include("../../../source/domain/book/BookModule.jl")
 
 end # module ProjecturedBook

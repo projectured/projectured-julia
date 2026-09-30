@@ -42,6 +42,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, Pr
     end
 end
 
-include("../../../source/process/ProcessModule.jl")
+include("../../../source/domain/process/ProcessModule.jl")
 
 end # module ProjecturedProcess

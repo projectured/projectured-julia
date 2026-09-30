@@ -1,12 +1,12 @@
 # Web backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../kernel/devices-and-backends.md), [screen.md](../screen/screen.md), [style.md](../style/style.md)
+> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../../platform/screen/screen.md), [style.md](../../platform/style/style.md)
 
-`ProjecturedWeb` holds `WebBackend`, which runs the editor in an HTTP and WebSocket server and draws it in a browser. The Julia process keeps the document, the projections, the cells and the editor loop; a small JavaScript client sends the input and paints a draw list on an HTML canvas. This document says how the backend implements the interface of [devices-and-backends.md](../kernel/devices-and-backends.md), what goes over the socket, and what it does not do yet.
+`ProjecturedWeb` holds `WebBackend`, which runs the editor in an HTTP and WebSocket server and draws it in a browser. The Julia process keeps the document, the projections, the cells and the editor loop; a small JavaScript client sends the input and paints a draw list on an HTML canvas. This document says how the backend implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), what goes over the socket, and what it does not do yet.
 
 ## How it works
 
-[The WebBackend section](../kernel/devices-and-backends.md#webbackend) of the kernel guide shows the messages of the wire protocol in both directions. This section says how the code produces and reads them.
+[The WebBackend section](../../kernel/devices-and-backends.md#webbackend) of the kernel guide shows the messages of the wire protocol in both directions. This section says how the code produces and reads them.
 
 ### The server
 
@@ -18,7 +18,7 @@ The backend holds one connection. A second WebSocket gets the message `{"type":"
 
 ### Measure
 
-A projection of the server measures text with a `FontFileMeasure()` of `ProjecturedStyle`, so the backend needs no SDL; see [style.md](../style/style.md#measurement-without-a-display). The layout measures text while it prints, before the browser gets anything, so the server must measure. It serves the same font files, and the client loads them with the `FontFace` API, so the browser draws with the metrics that the layout used. `FontFileMeasure` reads the font zoom, so Ctrl+Alt zoom lays the text out again. The uniform zoom and the pixel density of the display belong to the browser, and the server stays in logical pixels.
+A projection of the server measures text with a `FontFileMeasure()` of `ProjecturedStyle`, so the backend needs no SDL; see [style.md](../../platform/style/style.md#measurement-without-a-display). The layout measures text while it prints, before the browser gets anything, so the server must measure. It serves the same font files, and the client loads them with the `FontFace` API, so the browser draws with the metrics that the layout used. `FontFileMeasure` reads the font zoom, so Ctrl+Alt zoom lays the text out again. The uniform zoom and the pixel density of the display belong to the browser, and the server stays in logical pixels.
 
 Each drawn text sends the ascent of its box (`b`), the pen offset of each character (`o`) from `compute_caret_offsets`, and its font and its fallback fonts as a CSS font family stack (`f`). The client sets `textBaseline = "alphabetic"` and draws each character alone at its own offset from the pen position, on the baseline `y + b`, so the browser's own kerning and ligatures never move a glyph.
 
@@ -61,13 +61,13 @@ Each client message holds `t`: the time of its browser event in milliseconds sin
 
 `ProjecturedWeb` depends on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedScreen`, `ProjecturedStyle` and the kernel, and on `HTTP`, `JSON3` and `Base64`. It needs no SDL. It registers nothing.
 
-`default_backend()` in `example/projectured/DefaultBackend.jl` picks `WebBackend` when `SdlBackend` is not loaded. The builder names it as the backend `web`, and a binary with both backends takes `--backend=web`. The test of a distribution starts the copied binary with `--backend=web` and reads the client and a font through this server; see [builder.md](../builder/builder.md).
+`default_backend()` in `example/projectured/DefaultBackend.jl` picks `WebBackend` when `SdlBackend` is not loaded. The builder names it as the backend `web`, and a binary with both backends takes `--backend=web`. The test of a distribution starts the copied binary with `--backend=web` and reads the client and a font through this server; see [builder.md](../../tool/builder/builder.md).
 
 ## Design decisions
 
-- **The server keeps everything but the paint.** The backend touches no projection and no domain: it reads the same `ScreenDocument` and writes the same events as the SDL backend. See [plan/done/web-backend.md](../../../plan/done/web-backend.md).
+- **The server keeps everything but the paint.** The backend touches no projection and no domain: it reads the same `ScreenDocument` and writes the same events as the SDL backend. See [plan/done/web-backend.md](../../../../plan/done/web-backend.md).
 - **The key map is on the server.** One table maps both the SDL and the browser keys to one vocabulary, so the two can not drift.
-- **The first window is in the page.** A browser opens a window only inside a user action. A first window of its own would need a click before the editor shows anything. See [plan/done/web-main-window-in-tab.md](../../../plan/done/web-main-window-in-tab.md).
+- **The first window is in the page.** A browser opens a window only inside a user action. A first window of its own would need a click before the editor shows anything. See [plan/done/web-main-window-in-tab.md](../../../../plan/done/web-main-window-in-tab.md).
 - **A window of the editor is a window of the browser.** The client does not fold a second window into the page, as on the SDL backend.
 - **The measure is SDL-free.** The server measures with the font files that the browser draws with.
 
@@ -81,10 +81,10 @@ run_example(["json", "xml"]; backend = WebBackend())       # the first in the pa
 ```
 
 - Example: the gallery with `backend = WebBackend()`. The package has no example of its own.
-- Test: `test_web_backend()` in `test/projectured/backend/WebTest.jl` decodes client messages into the queue, reads them, and checks the wait and the wake. One of its tests starts the server on a free port of 127.0.0.1, connects a WebSocket client and reads a static file. `test/builder/BuilderTest.jl` checks that a build names the backend, and `test/projectured/editor/ApplicationTest.jl` checks the parse of `--backend=web`.
+- Test: `test_web_backend()` in `test/projectured/backend/WebTest.jl` decodes client messages into the queue, reads them, and checks the wait and the wake. One of its tests starts the server on a free port of 127.0.0.1, connects a WebSocket client and reads a static file. `test/tool/builder/BuilderTest.jl` checks that a build names the backend, and `test/projectured/editor/ApplicationTest.jl` checks the parse of `--backend=web`.
 
 ## Limits
 
 - No test covers the draw list or the patches.
 - The client sends pointer motion only while a button is held. A hover effect and a tooltip, which need motion with no button, do not happen in the browser.
-- One client for each editor, and the transport is JSON in both directions. [plan/done/web-backend.md](../../../plan/done/web-backend.md) holds both as the choices of the first version.
+- One client for each editor, and the transport is JSON in both directions. [plan/done/web-backend.md](../../../../plan/done/web-backend.md) holds both as the choices of the first version.

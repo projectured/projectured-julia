@@ -30,6 +30,6 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const EventModule = ProjecturedKernel.EventModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 
-include("../../../source/projection/ProjectionAlgebraModule.jl")
+include("../../../source/platform/projection/ProjectionAlgebraModule.jl")
 
 end # module ProjecturedProjection

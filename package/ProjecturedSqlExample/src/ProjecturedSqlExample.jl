@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/sql/SqlDocumentExample.jl")
-include("../../../example/sql/SqlProjectionExample.jl")
+include("../../../example/domain/sql/SqlDocumentExample.jl")
+include("../../../example/domain/sql/SqlProjectionExample.jl")
 
 export make_sql_document_example, make_sql_all_columns_document_example, make_sql_column_name_document_example
 export make_sql_table_name_document_example, make_sql_scalar_value_document_example, make_sql_column_reference_document_example

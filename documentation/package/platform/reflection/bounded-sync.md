@@ -1,6 +1,6 @@
 # Bounded sync — a shadow that grows only where someone looked
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
 
 `sync_document!(shadow, source)` walks the whole source. That is right for a
 small document and ruinous for a large one. A discrete-event simulation engine
@@ -163,7 +163,7 @@ for the option.
 
 Crucially the kernel never names `UnsyncedDocument` or `DepthPolicy`. It knows
 only that *something* goes in the stopped slot, and asks the policy for it; the
-marker type and the depth rule stay in `source/reflection/`. `HiddenElements` is the one
+marker type and the depth rule stay in `source/platform/reflection/`. `HiddenElements` is the one
 piece of vocabulary the contract needs — the elements a capped walk is not
 keeping, handed over without copying them, since a positional collection document
 is not `view`-able.

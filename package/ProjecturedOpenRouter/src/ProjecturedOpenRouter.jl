@@ -23,7 +23,7 @@ using JSON3
 
 import ProjecturedKernel.ToolModule: RelevanceModel
 
-include("../../../source/openrouter/OpenRouter.jl")
+include("../../../source/adapter/openrouter/OpenRouter.jl")
 
 export make_openrouter_relevance_model
 

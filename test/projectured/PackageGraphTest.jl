@@ -347,7 +347,7 @@ function test_package_graph()
             for area in ("package", "source"),
                 (root, _dirs, files) in walkdir(joinpath(_PACKAGE_ROOT, area))
                 (any(leaf -> occursin(joinpath("package", leaf), root), _LEAVES) ||
-                 occursin(joinpath("source", "repl"), root)) && continue
+                 occursin(joinpath("source", "tool", "repl"), root)) && continue
                 for file in files
                     endswith(file, ".jl") || continue
                     path = joinpath(root, file)

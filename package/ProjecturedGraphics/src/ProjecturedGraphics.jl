@@ -33,6 +33,6 @@ const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 
 const GestureModule = ProjecturedKernel.GestureModule
-include("../../../source/graphics/GraphicsModule.jl")
+include("../../../source/platform/graphics/GraphicsModule.jl")
 
 end # module ProjecturedGraphics

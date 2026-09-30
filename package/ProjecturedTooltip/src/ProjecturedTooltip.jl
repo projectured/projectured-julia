@@ -27,6 +27,6 @@ const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 
-include("../../../source/tooltip/TooltipModule.jl")
+include("../../../source/platform/tooltip/TooltipModule.jl")
 
 end # module ProjecturedTooltip

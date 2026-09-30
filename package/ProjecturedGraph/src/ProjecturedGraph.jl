@@ -36,7 +36,7 @@ for _src in (ProjecturedCollection, ProjecturedGraphics, ProjecturedKernel, Proj
     end
 end
 
-include("../../../source/graph/GraphModule.jl")
+include("../../../source/domain/graph/GraphModule.jl")
 # The two layouters the C++ original draws a network with, ported file for file
 # from its layout folder. Each keeps the C++ file's name and the order of its
 # definitions, so a later fix over there can be read across.

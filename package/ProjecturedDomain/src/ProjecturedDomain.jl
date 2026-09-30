@@ -22,6 +22,6 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 
-include("../../../source/domain/DomainModule.jl")
+include("../../../source/platform/domain/DomainModule.jl")
 
 end # module ProjecturedDomain

@@ -251,7 +251,7 @@ A projection writes a hand-rolled `print_document`/`map_reference_forward`/
 structure the template's markers cannot express: a caret on a delimiter with
 no field behind it, for instance. `XmlElementToSyntaxNode` does this for its
 `<`/`>`/`</` chrome; see
-[source/xml/XmlToSyntax.jl](../../source/xml/XmlToSyntax.jl). Reach for
+[source/domain/xml/XmlToSyntax.jl](../../source/domain/xml/XmlToSyntax.jl). Reach for
 `@projection_template` first, and drop to a hand-written pair only for the one
 piece it cannot cover — most domains, Bookmark included, never need to.
 
@@ -413,7 +413,7 @@ end
 ```
 
 Define `test_bookmark_layering()` in that same file. Copy the shape from
-[test/json/JsonSuite.jl](../../test/json/JsonSuite.jl): it calls
+[test/domain/json/JsonSuite.jl](../../test/domain/json/JsonSuite.jl): it calls
 `check_layering` on the source root of the package, and the call fails when a
 file names a module that its layer may not reach.
 

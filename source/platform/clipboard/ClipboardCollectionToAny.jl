@@ -1,7 +1,7 @@
 # Fragment of `ClipboardModule`.
 #
 # The internal-clipboard collection projection — Julia port of Lisp's
-# `clipboard/collection->t` (`source/projection/primitive/clipboard-to-t.lisp`).
+# `clipboard/collection->t` (`source/platform/projection/primitive/clipboard-to-t.lisp`).
 #
 # `ClipboardCollectionToAnyProjection` sits on a `ClipboardCollection` document
 # and shows either the wrapped `content` or the `elements` collection, toggled by

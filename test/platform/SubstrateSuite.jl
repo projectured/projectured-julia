@@ -93,8 +93,8 @@ adapter.
 """
 function test_platform_slice_edges()
     root = normpath(joinpath(@__DIR__, "..", ".."))
-    check_slice_edges(joinpath(root, "source"), _find_platform_entry_files(root),
-                      PLATFORM_SLICE_EDGES; name = "platform",
+    check_slice_edges(joinpath(root, "source", "platform"),
+                      _find_platform_entry_files(root), PLATFORM_SLICE_EDGES; name = "platform",
                       below_files = [joinpath(root, "package", "ProjecturedKernel", "src",
                                               "ProjecturedKernel.jl")])
 end
@@ -105,7 +105,7 @@ function _find_platform_entry_files(root)
     for package in readdir(joinpath(root, "package"))
         file = joinpath(root, "package", package, "src", package * ".jl")
         isfile(file) || continue
-        slice = match(r"include\(\"\.\./\.\./\.\./source/(\w+)/", read(file, String))
+        slice = match(r"include\(\"\.\./\.\./\.\./source/platform/(\w+)/", read(file, String))
         slice !== nothing && haskey(PLATFORM_SLICE_EDGES, slice.captures[1]) &&
             push!(files, file)
     end

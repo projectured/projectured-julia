@@ -5,7 +5,7 @@
 #
 # - unit tests on small strings, one construct at a time;
 # - a fixture round-trip on five real files copied from the INET
-#   documentation (`test/rst/fixture/rst/`).
+#   documentation (`test/domain/rst/fixture/rst/`).
 #
 # The round-trip criterion is **AST idempotence**, not byte equality:
 #

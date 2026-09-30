@@ -1,6 +1,6 @@
 # Primitive
 
-> **Kind:** design · **Status:** current · **Stands on:** [document.md](../kernel/document.md), [operation.md](../kernel/operation.md), [serialization.md](../serialization/serialization.md)
+> **Kind:** design · **Status:** current · **Stands on:** [document.md](../../kernel/document.md), [operation.md](../../kernel/operation.md), [serialization.md](../serialization/serialization.md)
 
 `ProjecturedPrimitive` holds the editable scalar documents, the `ObjectField` that makes one field of any object a document, and the two operations that edit a range of characters. A domain uses these where it needs a value that you edit and that has a selection of its own. This document says how a range edit finds its target, how it is undone, and why `ObjectField` has the form it has.
 
@@ -33,7 +33,7 @@ A typed key reaches the domain as one of two operations. Each holds a `reference
 
 A path with no `.<field>[range]` at its end, for example a caret on a span that a projection added, splits to `nothing`. The operation then does nothing, and its inverse is `DoNothingOperation()`.
 
-A projection reader maps a range edit back through the chain with no method of its own. Each operation has methods of `operation_reference`, `retarget_operation` and `reroot_operation`, and the default `read_intent` of the kernel uses these three. [operation.md](../kernel/operation.md) describes the rerooting.
+A projection reader maps a range edit back through the chain with no method of its own. Each operation has methods of `operation_reference`, `retarget_operation` and `reroot_operation`, and the default `read_intent` of the kernel uses these three. [operation.md](../../kernel/operation.md) describes the rerooting.
 
 `ReplaceRangeOperation` is the abstract type of a range edit with these two fields. `ReplaceStringRangeOperation` and `ReplaceTextRangeOperation` of the text package are its subtypes, so the transport methods are written once. `ReplaceNumberRangeOperation` is not a subtype, because its meaning does not depend on the value of the field.
 
@@ -53,13 +53,13 @@ A projection reader maps a range edit back through the chain with no method of i
 
 `ProjecturedPrimitive` depends on the kernel and on `ProjecturedSerialization`. Text, syntax, widgets, the projection algebra, panes and many domains depend on it. `ObjectField` is in this package because it is the lowest package that both `ProjecturedWidget` and `ProjecturedSyntax` use, and each of them holds one projection of it.
 
-Its `__init__` registers `PrimitiveString` as a `.pred` type, so a file can hold a bare string, such as the title of a tab. `make_pred_document(::Type{PrimitiveString}, …)` builds it from `PrimitiveString("hi")` or `PrimitiveString(value = "hi")`; the field has no default, so the macro gives no keyword constructor. `has_document_duplicate` is `true` for every primitive, so a duplicated pane copies the value and does not share it; see [document.md](../kernel/document.md).
+Its `__init__` registers `PrimitiveString` as a `.pred` type, so a file can hold a bare string, such as the title of a tab. `make_pred_document(::Type{PrimitiveString}, …)` builds it from `PrimitiveString("hi")` or `PrimitiveString(value = "hi")`; the field has no default, so the macro gives no keyword constructor. `has_document_duplicate` is `true` for every primitive, so a duplicated pane copies the value and does not share it; see [document.md](../../kernel/document.md).
 
 ## Design decisions
 
 - **A scalar is a document.** A value then has its own selection and identity, and a domain does not write its own boolean or string leaf.
 - **The edit dispatches on the value, not on the field name.** The field name is data. A new kind of text value needs one `splice_value!` method and no new operation.
-- **The undo writes the whole field.** A range edit back would need a path that stays valid and a value of the same kind; the whole-field write needs neither. The reason is in `source/primitive/PrimitiveDocument.jl`.
+- **The undo writes the whole field.** A range edit back would need a path that stays valid and a value of the same kind; the whole-field write needs neither. The reason is in `source/platform/primitive/PrimitiveDocument.jl`.
 - **The number edit stays outside `ReplaceRangeOperation`.** It parses the text in every case, so it does not share the dispatch of the string edit.
 - **`ObjectField` has no label.** The two projections need different labels, so a stored label would be wrong for one of them.
 
@@ -81,8 +81,8 @@ get_object_field_value(field)
 get_object_field_name(path)   # "address"
 ```
 
-- Examples: the atomic catalog has `primitive/string`, `primitive/number` and `primitive/bool`, from `example/substrate/PrimitiveDocumentExample.jl`. `collection_example` shows a vector of `PrimitiveString`.
-- Tests: `test_primitive()` in `test/substrate/document/PrimitiveDocumentTest.jl`, `test_primitive_to_text()` and `test_object_field_to_widget()` in `test/substrate/projection/`. A fault in a range edit often shows first in `test/substrate/editor/TypeinTest.jl` or in the reader test of a domain.
+- Examples: the atomic catalog has `primitive/string`, `primitive/number` and `primitive/bool`, from `example/platform/PrimitiveDocumentExample.jl`. `collection_example` shows a vector of `PrimitiveString`.
+- Tests: `test_primitive()` in `test/platform/document/PrimitiveDocumentTest.jl`, `test_primitive_to_text()` and `test_object_field_to_widget()` in `test/platform/projection/`. A fault in a range edit often shows first in `test/platform/editor/TypeinTest.jl` or in the reader test of a domain.
 
 ## Limits
 

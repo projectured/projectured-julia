@@ -64,8 +64,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/chart/projection/ChartProjectionTest.jl")
+include("../../../test/domain/chart/projection/ChartProjectionTest.jl")
 
-include("../../../test/chart/ChartSuite.jl")
+include("../../../test/domain/chart/ChartSuite.jl")
 
 end # module ProjecturedChartTest

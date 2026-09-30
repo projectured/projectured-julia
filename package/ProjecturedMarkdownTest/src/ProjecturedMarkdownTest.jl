@@ -65,11 +65,11 @@ for _src in _SOURCES
 end
 
 
-include("../../../test/markdown/MarkdownParserTest.jl")
-include("../../../test/markdown/MarkdownWrapTest.jl")
-include("../../../test/markdown/MarkdownEmbedCardTest.jl")
-include("../../../test/markdown/MarkdownTableTest.jl")
-include("../../../test/markdown/MarkdownImageLeafTest.jl")
-include("../../../test/markdown/MarkdownSuite.jl")
+include("../../../test/domain/markdown/MarkdownParserTest.jl")
+include("../../../test/domain/markdown/MarkdownWrapTest.jl")
+include("../../../test/domain/markdown/MarkdownEmbedCardTest.jl")
+include("../../../test/domain/markdown/MarkdownTableTest.jl")
+include("../../../test/domain/markdown/MarkdownImageLeafTest.jl")
+include("../../../test/domain/markdown/MarkdownSuite.jl")
 
 end # module ProjecturedMarkdownTest

@@ -1,8 +1,8 @@
 # JSON domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [reference.md](../kernel/reference.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [reference.md](../../kernel/reference.md)
 
-The JSON domain, `ProjecturedJson`, holds JSON data as a tree of reactive documents. It is the reference domain: [the shape of every domain](../../design/domain-anatomy.md) names a JSON file for each part, so this document covers only what is special to JSON. It describes the document types, the gestures and the parser subset, and it shows the reference paths into a JSON tree.
+The JSON domain, `ProjecturedJson`, holds JSON data as a tree of reactive documents. It is the reference domain: [the shape of every domain](../../../design/domain-anatomy.md) names a JSON file for each part, so this document covers only what is special to JSON. It describes the document types, the gestures and the parser subset, and it shows the reference paths into a JSON tree.
 
 <img width="396" alt="JSON example" src="../../../asset/image/example/json.png">
 
@@ -37,7 +37,7 @@ An array and an object become a `SyntaxNode` with brackets, the separator `", "`
 
 ### The gestures
 
-The `@gestures` tables of `source/json/JsonDocument.jl` hold every structural edit:
+The `@gestures` tables of `source/domain/json/JsonDocument.jl` hold every structural edit:
 
 | Key | Where | Edit |
 | --- | --- | --- |
@@ -51,7 +51,7 @@ The `@gestures` tables of `source/json/JsonDocument.jl` hold every structural ed
 | no key | in the value of an entry | move the caret to the key |
 | no key | in an object | sort the entries by key |
 
-A rule with no key has a name, and the command palette runs it by that name; see [gesturehelp.md](../gesturehelp/gesturehelp.md). The sort is stable, and an entry that is still a placeholder stays at the end.
+A rule with no key has a name, and the command palette runs it by that name; see [gesturehelp.md](../../platform/gesturehelp/gesturehelp.md). The sort is stable, and an entry that is still a placeholder stays at the end.
 
 The retype rules have the guard `_json_replaceable`. It returns `false` when the selection names a `JsonObjectEntry`, so an entry stays a key and value pair and you retype its value instead.
 
@@ -65,14 +65,14 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 
 `ProjecturedJson` depends on the kernel and on `ProjecturedDomain`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedNatural`, `ProjecturedSerialization` and `ProjecturedFileFormat`, with the small packages below them. No other domain package depends on it. The examples put JSON next to other domains, for example in `pane_json_example` and in a split pane with XML.
 
-Its `__init__` in `source/json/JsonModule.jl` registers the natural row with the rung `:syntax`, the format `:json`, the extension `.json` and the parser `parse_json`. It also registers `JsonFile` for `.json`. The [YAML domain](../yaml/yaml.md) mirrors these types one to one.
+Its `__init__` in `source/domain/json/JsonModule.jl` registers the natural row with the rung `:syntax`, the format `:json`, the extension `.json` and the parser `parse_json`. It also registers `JsonFile` for `.json`. The [YAML domain](../yaml/yaml.md) mirrors these types one to one.
 
 An application that gives a language model access to the editor declares the seven types of this domain in its own vocabulary, so a model can read the shape of a JSON file it opens: `example/projectured/Application.jl` names `JsonArray`, `JsonObject`, `JsonObjectEntry`, `JsonString`, `JsonNumber`, `JsonBool` and `JsonNull` this way, beside the pane and file verbs it also declares.
 
 ## Design decisions
 
-- **An object entry is a document of its own.** It has a projection rule, so it can be selected, printed and replaced as one unit. See [plan/pending/catalog-all-documents.md](../../../plan/pending/catalog-all-documents.md).
-- **A structural key reaches JSON through the chain.** When the text and syntax stages return no operation for a key, the chain gives the raw gesture to the JSON stage. The same happens when the JSON stage can not carry the text edit that the text stage made of the key: a `,` after the closing quote of a string or inside a number is no text edit of the document. So `,` with the caret on a delimiter or in a number inserts a sibling, and a retype key works on a placeholder, with no switch to a structural selection first. See [plan/done/json-contextual-gestures.md](../../../plan/done/json-contextual-gestures.md) and [plan/done/structural-keys-from-the-caret.md](../../../plan/done/structural-keys-from-the-caret.md).
+- **An object entry is a document of its own.** It has a projection rule, so it can be selected, printed and replaced as one unit. See [plan/pending/catalog-all-documents.md](../../../../plan/pending/catalog-all-documents.md).
+- **A structural key reaches JSON through the chain.** When the text and syntax stages return no operation for a key, the chain gives the raw gesture to the JSON stage. The same happens when the JSON stage can not carry the text edit that the text stage made of the key: a `,` after the closing quote of a string or inside a number is no text edit of the document. So `,` with the caret on a delimiter or in a number inserts a sibling, and a retype key works on a placeholder, with no switch to a structural selection first. See [plan/done/json-contextual-gestures.md](../../../../plan/done/json-contextual-gestures.md) and [plan/done/structural-keys-from-the-caret.md](../../../../plan/done/structural-keys-from-the-caret.md).
 - **A caret on a delimiter belongs to the node that printed the delimiter.** The caret after `"x"` in `{"a": {"b": "x"}}` is a projection step of the nested object, so a `,` there adds an entry to the nested object. On the closing `}` or `]` of a container, the `,` rules decline (`is_on_closing_delimiter` of the syntax slice), and the parent container adds the entry. The caret thus leaves a nested container with `Right`, past its closing delimiter.
 - **An entry is retyped through its value.** A retype of the pair would lose the key. `_json_replaceable` holds the rule.
 - **The sort and the move back to the key have no key.** Tab and the printable keys already have a meaning in an entry. The command palette reaches the two rules by name.
@@ -98,7 +98,7 @@ print_natural_text(doc)
 
 ### Reference paths
 
-A path uses `[i]` for the i-th item, from 1, and `{k}` for the caret at boundary `k`, from 0. The two are readings of the same axis; see [the boundary axis](../kernel/reference.md#the-boundary-axis). In JSON the axis is the elements of an array, the entries of an object and the characters of a string or a number. `[1]` is the first item of any of them, and `{0}` is the caret before it.
+A path uses `[i]` for the i-th item, from 1, and `{k}` for the caret at boundary `k`, from 0. The two are readings of the same axis; see [the boundary axis](../../kernel/reference.md#the-boundary-axis). In JSON the axis is the elements of an array, the entries of an object and the characters of a string or a number. `[1]` is the first item of any of them, and `{0}` is the caret before it.
 
 A path is a linked list of steps that follow the fields of the structs. `FieldReferenceStep("entries")` names a field. `ElementReferenceStep(i)` and `PositionReferenceStep(k)` make the two forms of one `RangeReferenceStep`.
 
@@ -157,7 +157,7 @@ Each document also has a `selection` field, which `@document` adds. It holds a `
 
 ## Limits
 
-- No projection reads `collapsed`. The field exists on `JsonArray`, `JsonObject` and `JsonObjectEntry`, but `JsonToSyntax` does not give it to the `SyntaxNode`, so a value set to `true` still prints expanded. [plan/pending/collapse-expand-syntax-nodes.md](../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
+- No projection reads `collapsed`. The field exists on `JsonArray`, `JsonObject` and `JsonObjectEntry`, but `JsonToSyntax` does not give it to the `SyntaxNode`, so a value set to `true` still prints expanded. [plan/pending/collapse-expand-syntax-nodes.md](../../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
 - `,` appends at the end of the container, not after the selected element.
 - The parser is not a conformance parser. An unknown escape gives the escaped character.
 - An integer that does not fit in an `Int` becomes a `Float64`. A number prints with `string`, so `1e3` prints as `1000.0`.

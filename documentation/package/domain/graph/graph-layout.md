@@ -1,6 +1,6 @@
 # Graph layout
 
-> **Kind:** reference · **Status:** current · **Stands on:** [graph.md](graph.md), [domain-inventory.md](../../design/domain-inventory.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [graph.md](graph.md), [domain-inventory.md](../../../design/domain-inventory.md)
 
 How a graph gets from a list of vertices and edges to a picture: which engines
 exist, what each one is, what a caller can ask of them, and which one runs when
@@ -118,6 +118,6 @@ cache or screenshot a drawing:
 
 ## Measuring
 
-`graphlayoutbench()`, in `test/bench/graphlayoutbench.jl` and exported by [ProjecturedBench](../../../package/ProjecturedBench/), times every engine
+`graphlayoutbench()`, in `test/bench/graphlayoutbench.jl` and exported by [ProjecturedBench](../../../../package/ProjecturedBench/), times every engine
 over 10, 60 and 300 vertices and prints the answer as characters beside the
 numbers. Run it before changing a constant, and again after.

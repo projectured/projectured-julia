@@ -1,8 +1,8 @@
 # Book domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [syntax.md](../syntax/syntax.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [syntax.md](../../platform/syntax/syntax.md)
 
-The Book domain, `ProjecturedBook`, holds structured prose: a book, its chapters, paragraphs of styled text, lists and pictures. It is a domain with no text form: you build a book as Julia values, and ProjecturEd shows it and edits its text. This document says where it differs from the [shape of every domain](../../design/domain-anatomy.md).
+The Book domain, `ProjecturedBook`, holds structured prose: a book, its chapters, paragraphs of styled text, lists and pictures. It is a domain with no text form: you build a book as Julia values, and ProjecturEd shows it and edits its text. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md).
 
 <img width="396" alt="Book example" src="../../../asset/image/example/book.png">
 

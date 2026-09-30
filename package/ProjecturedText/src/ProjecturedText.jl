@@ -42,6 +42,6 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 
-include("../../../source/text/TextModule.jl")
+include("../../../source/platform/text/TextModule.jl")
 
 end # module ProjecturedText

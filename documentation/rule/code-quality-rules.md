@@ -26,7 +26,7 @@ ends.
 
 **A module file** carries the docstring, the header, the ordered includes and
 `__init__`. It holds no other code.
-[JsonModule.jl](../../source/json/JsonModule.jl) shows a slice's and
+[JsonModule.jl](../../source/domain/json/JsonModule.jl) shows a slice's and
 `CellModule.jl` a kernel layer's.
 
 **The header is three blocks, in this order:** every `using`, sorted by module
@@ -74,7 +74,7 @@ decoration. It is the table of contents of the file. A banner that only repeats
 the name on the next line is decoration, and it goes.
 
 **A registration seam goes at the bottom of its fragment.**
-[JsonToSyntax.jl](../../source/json/JsonToSyntax.jl) ends with
+[JsonToSyntax.jl](../../source/domain/json/JsonToSyntax.jl) ends with
 `make_document_seed`, the document an empty `.json` starts from. The seam is
 last because it is the outward face of the file. The `import` it needs sits in
 the module file with the rest of the header, so one file holds every import of
@@ -191,7 +191,7 @@ dependency in the wrong direction.
 
 **A projection delegates through its child.** An object projection sends each
 entry to the entry projection rather than inline. The comment in
-[JsonToSyntax.jl:66](../../source/json/JsonToSyntax.jl#L66) says why: the child
+[JsonToSyntax.jl:66](../../source/domain/json/JsonToSyntax.jl#L66) says why: the child
 then projects on its own as well.
 
 **Use `@projection_template`, not a hand-written printer and reader.** The
@@ -258,7 +258,7 @@ function print_document(projection::JsonToSyntax, recursion, document, ctx)
 | A method of a protocol | The arity is the contract: `print_document`, `read_intent`, `match_reference_step`, `splice_value!`, a method of Base. New information goes into the context that the protocol already carries, and never into a new argument. |
 | A conventional tuple | `x, y, w, h` of a rectangle, `MouseClick(button, x, y, modifiers)`, `Inset(top, right, bottom, left)`. One order, everywhere in the repository, and a wrong order fails at once. |
 | A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. No file of this repository is a port today. |
-| The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/sdl/` and `source/pdf/`. The family is read as a whole. |
+| The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/backend/sdl/` and `source/backend/pdf/`. The family is read as a whole. |
 
 **A marker excuses the count, and nothing else.** The definition under it keeps
 every other clause of this section: its chrome takes names, a `Bool` is never

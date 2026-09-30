@@ -2,9 +2,9 @@
 # The shell front end of the builder. The first argument names a binary, and the
 # options go to its build function.
 #
-#     julia --project=environment/build source/builder/build_binary.jl --help
-#     julia --project=environment/build source/builder/build_binary.jl projectured
-#     julia --project=environment/build source/builder/build_binary.jl projectured --distribution
+#     julia --project=environment/build source/tool/builder/build_binary.jl --help
+#     julia --project=environment/build source/tool/builder/build_binary.jl projectured
+#     julia --project=environment/build source/tool/builder/build_binary.jl projectured --distribution
 #
 # A build is a Julia function, and this file only reads a command line and calls
 # that function. A decision about a build belongs in the function, where a test
@@ -39,7 +39,7 @@ using ProjecturedBuilder
 # `--help` names the command that a person typed and offers no choice of binary.
 const FIXED_BINARY = get(ENV, "PROJECTURED_BUILD_WHAT", "")
 const INVOCATION = get(ENV, "PROJECTURED_BUILD_COMMAND",
-                       "julia --project=environment/build source/builder/build_binary.jl")
+                       "julia --project=environment/build source/tool/builder/build_binary.jl")
 
 const BINARIES = ["projectured" =>
     "the application: files in a window, a file\n" *

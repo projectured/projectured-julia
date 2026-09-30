@@ -64,9 +64,9 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/math/projection/MathToGraphicsTest.jl")
-include("../../../test/math/document/MathParserTest.jl")
+include("../../../test/domain/math/projection/MathToGraphicsTest.jl")
+include("../../../test/domain/math/document/MathParserTest.jl")
 
-include("../../../test/math/MathSuite.jl")
+include("../../../test/domain/math/MathSuite.jl")
 
 end # module ProjecturedMathTest

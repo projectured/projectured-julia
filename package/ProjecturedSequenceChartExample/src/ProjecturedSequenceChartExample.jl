@@ -65,8 +65,8 @@ for _src in _SOURCES
     end
 end
 
-include("../../../example/sequencechart/SequenceChartDocumentExample.jl")
-include("../../../example/sequencechart/SequenceChartProjectionExample.jl")
+include("../../../example/domain/sequencechart/SequenceChartDocumentExample.jl")
+include("../../../example/domain/sequencechart/SequenceChartProjectionExample.jl")
 
 export make_sequencechart_document_example, make_sequencechart_vertical_document_example, make_sequencechart_linear_document_example
 export make_sequencechart_large_document_example, make_sequencechart_inspector_document_example, make_sequence_chart_plot_document_example

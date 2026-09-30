@@ -32,6 +32,6 @@ const NaturalModule = ProjecturedNatural.NaturalModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 const FeedModule = ProjecturedKernel.FeedModule
 
-include("../../../source/log/MessageLogModule.jl")
+include("../../../source/platform/log/MessageLogModule.jl")
 
 end # module ProjecturedLog

@@ -34,6 +34,6 @@ const SerializationModule = ProjecturedSerialization.SerializationModule
 const FeedModule = ProjecturedKernel.FeedModule
 const PerformanceModule = ProjecturedKernel.PerformanceModule
 
-include("../../../source/statistics/FrameStatisticsModule.jl")
+include("../../../source/platform/statistics/FrameStatisticsModule.jl")
 
 end # module ProjecturedStatistics

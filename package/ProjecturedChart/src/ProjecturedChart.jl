@@ -39,6 +39,6 @@ for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedGraphics, Proj
     end
 end
 
-include("../../../source/chart/ChartModule.jl")
+include("../../../source/domain/chart/ChartModule.jl")
 
 end # module ProjecturedChart

@@ -31,7 +31,8 @@ function test_sdl_keysym()
     @testset "every key the precompile recording presses is one SDL reports" begin
         reported = Set(ProjecturedSdl.sdl_keysym_to_symbol(Int32(keysym))
                        for keysym in Iterators.flatten((0:255, 1073741824:1073742106)))
-        driver = joinpath(@__DIR__, "..", "..", "..", "source", "repl", "record", "driver.jl")
+        driver = joinpath(@__DIR__, "..", "..", "..", "..", "source", "tool", "repl", "record",
+                          "driver.jl")
         pressed = [Symbol(m.captures[1])
                    for m in eachmatch(r"KeyDown\(:(\w+)", read(driver, String))]
         @test !isempty(pressed)

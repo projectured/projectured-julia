@@ -102,8 +102,8 @@ package. So `ProjecturedKernel`, `ProjecturedKernelTest` and
 `Projectured`, `ProjecturedTest` and `ProjecturedExample`.
 
 The code of a package is not in its directory. `package/ProjecturedJson/` holds
-a name and an include list; the code it includes is `source/json/`, its suite is
-`test/json/` and its documents are `example/json/`. An opt-in package grows a
+a name and an include list; the code it includes is `source/domain/json/`, its suite is
+`test/domain/json/` and its documents are `example/domain/json/`. An opt-in package grows a
 test or an example package the same way when it earns one.
 
 The three kinds form **parallel DAGs with identical shape** (the module names keep

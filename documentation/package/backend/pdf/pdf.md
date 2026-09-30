@@ -1,6 +1,6 @@
 # PDF export
 
-> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [style.md](../style/style.md), [devices-and-backends.md](../kernel/devices-and-backends.md)
+> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../../platform/graphics/graphics.md), [style.md](../../platform/style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md)
 
 `ProjecturedPdf` writes a `GraphicsCanvas` as a vector PDF: a shape becomes a PDF path, and a text becomes selectable text in an embedded font. It is a file export and not a `Backend`, and it needs neither SDL nor a third-party package. This document says how the writer maps a canvas to PDF, how it sizes and cuts the pages, and what it does not support.
 
@@ -14,11 +14,11 @@ A `Backend` drives devices and reads events; this package has neither. It has th
 - `write_pdf(document, projection, filename; …)` prints the projection and writes its output. The output must be a `GraphicsCanvas`, or the call raises an error.
 - `GraphicsCanvasToPdfFile(filename; …)` is a projection with a printer only, for the end of a chain. Its output is the `ImageFile`, and its reference mappers return `nothing`.
 
-[graphics.md](../graphics/graphics.md#saving-to-a-file) shows the calls with their keywords. [devices-and-backends.md](../kernel/devices-and-backends.md) lists the file exports beside the backends.
+[graphics.md](../../platform/graphics/graphics.md#saving-to-a-file) shows the calls with their keywords. [devices-and-backends.md](../../kernel/devices-and-backends.md) lists the file exports beside the backends.
 
 ### Measure
 
-The export finds the bounds of the content with `get_canvas_content_bounds`, which measures from the font files with a `FontFileMeasure()` and needs no display; see [style.md](../style/style.md#measurement-without-a-display). `write_pdf` takes no `measure` keyword: it draws from the font files, so only a `FontFileMeasure` can size its pages. The projection that makes the canvas keeps its own `measure`, and a `FontFileMeasure` there keeps the whole export free of SDL. The same font files are embedded in the PDF, so a PDF reader places each glyph with the advance that the layout measured. The painter writes a text at `font_logical_size(font)`, the size that the layout measures at, so a font zoom changes the text and its layout together. It writes the baseline at the same place the layout computed it, `y` plus the ascent of `compute_text_extent`, and the kerning between the glyphs of one run in the `TJ` array.
+The export finds the bounds of the content with `get_canvas_content_bounds`, which measures from the font files with a `FontFileMeasure()` and needs no display; see [style.md](../../platform/style/style.md#measurement-without-a-display). `write_pdf` takes no `measure` keyword: it draws from the font files, so only a `FontFileMeasure` can size its pages. The projection that makes the canvas keeps its own `measure`, and a `FontFileMeasure` there keeps the whole export free of SDL. The same font files are embedded in the PDF, so a PDF reader places each glyph with the advance that the layout measured. The painter writes a text at `font_logical_size(font)`, the size that the layout measures at, so a font zoom changes the text and its layout together. It writes the baseline at the same place the layout computed it, `y` plus the ascent of `compute_text_extent`, and the kerning between the glyphs of one run in the `TJ` array.
 
 ### The page
 
@@ -54,12 +54,12 @@ The writer itself, `PdfWriter`, is a small PDF 1.7 writer: it numbers the object
 
 ## Design decisions
 
-- **Vector, not raster.** A PDF of a document must stay sharp at any zoom, and its text must be selectable. An image of the page embedded in a PDF was left as an option and not built. See [plan/done/write-pdf.md](../../../plan/done/write-pdf.md).
+- **Vector, not raster.** A PDF of a document must stay sharp at any zoom, and its text must be selectable. An image of the page embedded in a PDF was left as an option and not built. See [plan/done/write-pdf.md](../../../../plan/done/write-pdf.md).
 - **No new dependency.** Cairo was rejected: it adds a large native library, and it selects a font by a fontconfig name, not by the file path that `StyleFont` holds. A compression library was rejected too, so the streams stay uncompressed.
 - **Composite fonts with `Identity-H`.** A simple PDF font covers only 256 characters, and the editor uses more.
 - **The whole font file is embedded.** The editor uses a few fonts, and each file is embedded once. Subsetting would make the file smaller and was left for later.
 - **The page size comes from the same bounds as `write_image`.** `get_canvas_content_bounds` is in `ProjecturedGraphics`, so both exports use one walk.
-- **Pages cut one layout into bands.** The layout runs once at the page width, and pagination does not lay out each page again. See [plan/done/pdf-pagination.md](../../../plan/done/pdf-pagination.md).
+- **Pages cut one layout into bands.** The layout runs once at the page width, and pagination does not lay out each page again. See [plan/done/pdf-pagination.md](../../../../plan/done/pdf-pagination.md).
 
 ## Usage
 

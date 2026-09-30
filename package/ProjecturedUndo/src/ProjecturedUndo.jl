@@ -35,6 +35,6 @@ const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const TextModule = ProjecturedText.TextModule
 
-include("../../../source/undo/UndoModule.jl")
+include("../../../source/platform/undo/UndoModule.jl")
 
 end # module ProjecturedUndo

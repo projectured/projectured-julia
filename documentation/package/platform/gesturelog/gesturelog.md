@@ -1,6 +1,6 @@
 # Gesture log
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../kernel/projection-system.md), [shell.md](../shell/shell.md)
+> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [shell.md](../shell/shell.md)
 
 `ProjecturedGestureLog` records what a person does in a session: each gesture, and the operation that the projection chain made from it. It shows the record as a panel over a window or in a tab. This document describes the shape that this package shares with the fault log and the gesture help, and why an entry holds text and not the live values.
 
@@ -48,12 +48,12 @@ Its `__init__` registers the natural row `:gesturelog` and the `.pred` type `Ges
 
 ## Design decisions
 
-- **A decorator, not code in the editor loop.** The editor has no reference to a log or a panel. A recorder in `Editor.evaluate!` was rejected, because it puts a view concern in the loop. A `GestureLogOperation` beside the real operation was rejected, because an operation changes the edited document and the log is not part of it. See [plan/done/gesture-log-overlay.md](../../../plan/done/gesture-log-overlay.md).
+- **A decorator, not code in the editor loop.** The editor has no reference to a log or a panel. A recorder in `Editor.evaluate!` was rejected, because it puts a view concern in the loop. A `GestureLogOperation` beside the real operation was rejected, because an operation changes the edited document and the log is not part of it. See [plan/done/gesture-log-overlay.md](../../../../plan/done/gesture-log-overlay.md).
 - **Two decorators share one log.** The complete record exists only at the root, and the panel needs a canvas, which only the chain of a window has.
 - **An entry holds text.** An operation holds a reference into the document, and the document changes when the operation runs. A live operation would print differently a moment later.
 - **The panel is an element of the window canvas.** The help window and the tooltip open a window of their own; the log stays over the content that it describes.
 - **The panel is a rectangle and a text canvas, not a `WidgetCard`.** A card stretches to the width that its parent gives.
-- **The shell records always.** A tab that opens the log must hold what happened before it opened. See [plan/done/the-gesture-log-opens-in-a-tab.md](../../../plan/done/the-gesture-log-opens-in-a-tab.md).
+- **The shell records always.** A tab that opens the log must hold what happened before it opened. See [plan/done/the-gesture-log-opens-in-a-tab.md](../../../../plan/done/the-gesture-log-opens-in-a-tab.md).
 
 ## Usage
 

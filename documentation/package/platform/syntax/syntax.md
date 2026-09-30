@@ -1,6 +1,6 @@
 # Syntax domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [text.md](../text/text.md), [projection-system.md](../kernel/projection-system.md), [domain-anatomy.md](../../design/domain-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [text.md](../text/text.md), [projection-system.md](../../kernel/projection-system.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
 `ProjecturedSyntax` holds the generic tree between a structured document and styled text: leaves and compounds with delimiters, separators, indentation and a fold state. Every domain with a text form prints to it, and `SyntaxToText` prints it to a `TextBlock`. This document says how the tree is built, how `SyntaxToText` splices the output of the children, and how the shared insertion leaf and placeholder printer work.
 
@@ -62,7 +62,7 @@ At the seam between a value and its closing delimiter, the backward map of a lea
 
 ### Tree gestures
 
-The keyboard half of the reader is two `@gestures` tables in `source/syntax/SyntaxDocument.jl`. They walk selection paths and read no pixels.
+The keyboard half of the reader is two `@gestures` tables in `source/platform/syntax/SyntaxDocument.jl`. They walk selection paths and read no pixels.
 
 | Key | On | Edit |
 | --- | --- | --- |
@@ -96,7 +96,7 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` re
 
 **A typed key on the placeholder runs the create gesture of the document type.** The text stage turns the key into an insert on the label, which arrives as a `ReplaceStringRangeOperation`. The reader gives it back to `read_gesture` on the placeholder as a `KeyPress`. So `{` on "empty json" makes a `JsonObject`, from any caret and without a whole-element selection first. A key with no create rule does nothing, and a delete does nothing. The Insert key goes through the fallback to the placeholder table and opens the insertion buffer.
 
-`SyntaxNothing` does not exist. `SyntaxInsertion` is declared, but no projection prints it and no code makes one; see [plan/pending/simplest-syntax-document.md](../../../plan/pending/simplest-syntax-document.md).
+`SyntaxNothing` does not exist. `SyntaxInsertion` is declared, but no projection prints it and no code makes one; see [plan/pending/simplest-syntax-document.md](../../../../plan/pending/simplest-syntax-document.md).
 
 ### The bridges
 
@@ -109,17 +109,17 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` re
 
 ## How it fits
 
-`ProjecturedSyntax` depends on `ProjecturedText`, `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedPrimitive`, `ProjecturedCollection`, `ProjecturedProjection`, `ProjecturedStyle` and the kernel. Every domain with a syntax chain depends on it; [domain-anatomy.md](../../design/domain-anatomy.md) shows the chain.
+`ProjecturedSyntax` depends on `ProjecturedText`, `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedPrimitive`, `ProjecturedCollection`, `ProjecturedProjection`, `ProjecturedStyle` and the kernel. Every domain with a syntax chain depends on it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows the chain.
 
 Its `__init__` calls `register_syntax_fallback!()`. That registers the reflection table as the fallback of the natural renderer and the rung from syntax to text. So a session that loads this package can draw a document of any shape, and `ProjecturedNatural` does not name this package.
 
 ## Design decisions
 
-- **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See [plan/done/syntaxtotext-delegation.md](../../../plan/done/syntaxtotext-delegation.md).
+- **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See [plan/done/syntaxtotext-delegation.md](../../../../plan/done/syntaxtotext-delegation.md).
 - **The depth adds up level by level.** An indenting ancestor widens the indentation spans that its children report, which gives the same width as `depth * indent_size`. No compound needs its absolute depth.
 - **The printer records where each span went.** With optional delimiters no position identifies the opening or the closing span, so `own_spans` holds the field of each one.
-- **The contract is five functions, not one type with five fields.** A wrapper adds one thing to any document and is a real level of the tree. `SyntaxConcatenation` and `SyntaxSeparation` can not get a delimiter by accident. See [plan/pending/simplest-syntax-document.md](../../../plan/pending/simplest-syntax-document.md), whose first two phases are done.
-- **Content is positional and chrome is a keyword.** `SyntaxLeaf(value; open, close)` and `SyntaxNode(children; open, close, sep)` put the content first. See [plan/done/syntax-constructor-keywords.md](../../../plan/done/syntax-constructor-keywords.md).
+- **The contract is five functions, not one type with five fields.** A wrapper adds one thing to any document and is a real level of the tree. `SyntaxConcatenation` and `SyntaxSeparation` can not get a delimiter by accident. See [plan/pending/simplest-syntax-document.md](../../../../plan/pending/simplest-syntax-document.md), whose first two phases are done.
+- **Content is positional and chrome is a keyword.** `SyntaxLeaf(value; open, close)` and `SyntaxNode(children; open, close, sep)` put the content first. See [plan/done/syntax-constructor-keywords.md](../../../../plan/done/syntax-constructor-keywords.md).
 - **A placeholder key is a create gesture, not a text edit.** The label is a prompt, so a typed key goes to the document table and not into the label.
 - **Completion is reflection.** No list of names exists; a new document type is a candidate as soon as Julia evaluates its `struct`.
 
@@ -138,13 +138,13 @@ chain   = RecursiveProjection(SyntaxToText(; indent_size = 2))
 
 A path into a leaf is `.open{k}`, `.value{k}` or `.close{k}`. A path into a compound is `.children[i]` or `.content` for a child, or a caret in one of its delimiters, such as `.open{k}` on a `SyntaxNode`.
 
-- Examples: `syntax_example` and `object_field_syntax_example` in `example/substrate/`. Each domain has its own syntax examples, such as `sql_syntax_example`.
-- Tests: `test_syntax()`, `test_syntax_to_text()` and `test_object_field_to_syntax()` in `test/substrate/`; `test_syntax_tree_selection()` and `test_document_insertion()` in the umbrella suite.
+- Examples: `syntax_example` and `object_field_syntax_example` in `example/platform/`. Each domain has its own syntax examples, such as `sql_syntax_example`.
+- Tests: `test_syntax()`, `test_syntax_to_text()` and `test_object_field_to_syntax()` in `test/platform/`; `test_syntax_tree_selection()` and `test_document_insertion()` in the umbrella suite.
 
 ## Limits
 
 - `SyntaxLeaf` has `indentation` and `collapsed` fields, but the compound contract is not defined for a leaf and `SyntaxLeafToText` reads neither.
 - A `@projection_template` node with a fixed list of children must use the positional seven-argument `SyntaxNode` form. The keyword form stores a `CellVector`, and the template engine then does not find the markers inside it.
-- JSON and XML do not pass `collapsed` to their nodes, so their containers do not fold. See [plan/pending/collapse-expand-syntax-nodes.md](../../../plan/pending/collapse-expand-syntax-nodes.md).
-- A selection of a range of siblings, such as `.children[2..4]`, does not exist. See [plan/pending/syntax-tree-selection.md](../../../plan/pending/syntax-tree-selection.md).
-- `SyntaxToText` makes no `TextLine` and keeps its own indentation spans. See [plan/pending/text-domain-kit.md](../../../plan/pending/text-domain-kit.md).
+- JSON and XML do not pass `collapsed` to their nodes, so their containers do not fold. See [plan/pending/collapse-expand-syntax-nodes.md](../../../../plan/pending/collapse-expand-syntax-nodes.md).
+- A selection of a range of siblings, such as `.children[2..4]`, does not exist. See [plan/pending/syntax-tree-selection.md](../../../../plan/pending/syntax-tree-selection.md).
+- `SyntaxToText` makes no `TextLine` and keeps its own indentation spans. See [plan/pending/text-domain-kit.md](../../../../plan/pending/text-domain-kit.md).

@@ -64,12 +64,12 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/filesystem/projection/FileSystemToSyntaxTest.jl")
-include("../../../test/filesystem/projection/FileSystemToWidgetTest.jl")
-include("../../../test/filesystem/document/FileSystemDocumentTest.jl")
-include("../../../test/filesystem/document/WorkspaceDuplicateTest.jl")
-include("../../../test/filesystem/projection/WorkspaceToFileSystemTest.jl")
+include("../../../test/platform/filesystem/projection/FileSystemToSyntaxTest.jl")
+include("../../../test/platform/filesystem/projection/FileSystemToWidgetTest.jl")
+include("../../../test/platform/filesystem/document/FileSystemDocumentTest.jl")
+include("../../../test/platform/filesystem/document/WorkspaceDuplicateTest.jl")
+include("../../../test/platform/filesystem/projection/WorkspaceToFileSystemTest.jl")
 
-include("../../../test/filesystem/FileSystemSuite.jl")
+include("../../../test/platform/filesystem/FileSystemSuite.jl")
 
 end # module ProjecturedFileSystemTest

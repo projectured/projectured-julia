@@ -1,6 +1,6 @@
 # Layout
 
-> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [cell.md](../kernel/cell.md), [layout-rules.md](../../rule/layout-rules.md)
+> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [cell.md](../../kernel/cell.md), [layout-rules.md](../../../rule/layout-rules.md)
 
 `ProjecturedLayout` places documents of any kind next to each other: in a row, a column, a grid, a flow, a stack, relative to an anchor, or by constraints. This document says how a layout measures and places its children with reactive cells, how the available size from a parent reaches a child, and how a press reaches the right child.
 
@@ -51,7 +51,7 @@ The `children` of a `VerticalLayout` or a `HorizontalLayout` can be a `ListNode`
 1. **Measure.** Each child prints with no offer, to get its own size. The solve cell reads these sizes, and it must never read a size that comes from its own result.
 2. **Arrange.** Only a child whose width or height a relation constrains prints again, with the solved size as its offer.
 
-`solve_constraint_layout(solver, …)` is the seam for the solver. The default, `FallbackConstraintSolver`, places every child at the origin. The real solver, `TulipConstraintSolver`, is in the opt-in package `ProjecturedTulip`; see [tulip.md](../tulip/tulip.md).
+`solve_constraint_layout(solver, …)` is the seam for the solver. The default, `FallbackConstraintSolver`, places every child at the origin. The real solver, `TulipConstraintSolver`, is in the opt-in package `ProjecturedTulip`; see [tulip.md](../../adapter/tulip/tulip.md).
 
 ### The anchored layout
 
@@ -83,11 +83,11 @@ A layout maps a part forward by index (`descend_reference_forward`): `children[i
 ## Design decisions
 
 - **A layout positions and draws nothing.** A layout places its children and reports where it placed them; it has no color, no line and no background. The appearance of a widget has many styles and states, and a layout that drew some of it would take that complexity in. A container that needs graphics around its children, such as a table with its rules and bands, draws them itself, relative to the places that the layout reports: the edges of the columns and rows of a grid, or the list of rows that a lazy grid placed.
-- **The cells are the layout cache.** A layout adds no cache of its own on top of the reactive engine. See [plan/done/layout-documents.md](../../../plan/done/layout-documents.md).
-- **The container sets the size of a child.** A `SizePolicy` states a relation between a container and a child, so it is on the layout. See [plan/done/widget-layout.md](../../../plan/done/widget-layout.md) and [layout-rules.md](../../rule/layout-rules.md).
-- **A container that bounds a child clips it.** On the axis of the offer the slot clips the child; on the other axis the child sets the size. `clip_child_to_slot` holds the rule. See [plan/done/widget-sizing-rules.md](../../../plan/done/widget-sizing-rules.md).
-- **An annotation does not move what it annotates.** The anchored layout never feeds its children back into the layout of the content. See [plan/done/anchored-layout.md](../../../plan/done/anchored-layout.md).
-- **The solver is a separate package.** Tulip through MathOptInterface solves the relations as goal programming with a slack variable for each relation, weighted by its strength. No maintained Julia binding of Cassowary exists, and Tulip is pure Julia. The core layout package keeps no solver dependency. See [plan/done/constraint-layout.md](../../../plan/done/constraint-layout.md).
+- **The cells are the layout cache.** A layout adds no cache of its own on top of the reactive engine. See [plan/done/layout-documents.md](../../../../plan/done/layout-documents.md).
+- **The container sets the size of a child.** A `SizePolicy` states a relation between a container and a child, so it is on the layout. See [plan/done/widget-layout.md](../../../../plan/done/widget-layout.md) and [layout-rules.md](../../../rule/layout-rules.md).
+- **A container that bounds a child clips it.** On the axis of the offer the slot clips the child; on the other axis the child sets the size. `clip_child_to_slot` holds the rule. See [plan/done/widget-sizing-rules.md](../../../../plan/done/widget-sizing-rules.md).
+- **An annotation does not move what it annotates.** The anchored layout never feeds its children back into the layout of the content. See [plan/done/anchored-layout.md](../../../../plan/done/anchored-layout.md).
+- **The solver is a separate package.** Tulip through MathOptInterface solves the relations as goal programming with a slack variable for each relation, weighted by its strength. No maintained Julia binding of Cassowary exists, and Tulip is pure Julia. The core layout package keeps no solver dependency. See [plan/done/constraint-layout.md](../../../../plan/done/constraint-layout.md).
 
 ## Usage
 
@@ -101,8 +101,8 @@ tied = ConstraintLayout([a, b], [
 projection = RecursiveProjection(LayoutToGraphics())
 ```
 
-- Examples: `layout_example` and `constraint_layout_example` in `example/substrate/`; `example/tulip/LayoutProjectionExample.jl` uses the Tulip solver.
-- Tests: `test_graphics_layout()`, `test_layout_allocator()`, `test_layout_closeout()`, `test_anchored_layout()` and `test_layout_list()` in `test/substrate/`.
+- Examples: `layout_example` and `constraint_layout_example` in `example/platform/`; `example/adapter/tulip/LayoutProjectionExample.jl` uses the Tulip solver.
+- Tests: `test_graphics_layout()`, `test_layout_allocator()`, `test_layout_closeout()`, `test_anchored_layout()` and `test_layout_list()` in `test/platform/`.
 
 ## Limits
 
@@ -110,4 +110,4 @@ projection = RecursiveProjection(LayoutToGraphics())
 - The anchored layout maps no reference back: its `map_reference_backward` returns `nothing`.
 - `StackLayout.active` is a field for the caller. The printer draws every child.
 - A layout of a list maps no reference back, and a grid of a list has no lazy columns yet: the cells of a row are a vector.
-- The widget and table projections still place their parts with their own arithmetic instead of these layouts. [plan/tentative/layout-extensions.md](../../../plan/tentative/layout-extensions.md) lists this.
+- The widget and table projections still place their parts with their own arithmetic instead of these layouts. [plan/tentative/layout-extensions.md](../../../../plan/tentative/layout-extensions.md) lists this.

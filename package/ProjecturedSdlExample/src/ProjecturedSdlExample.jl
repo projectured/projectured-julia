@@ -26,9 +26,9 @@ using ProjecturedExample
 using ProjecturedSdl
 using ProjecturedVideo
 
-# The bodies live in `example/sdl`, not beside this file:
+# The bodies live in `example/backend/sdl`, not beside this file:
 # a package is a name and an include list.
-const _SRC_DIR = normpath(joinpath(@__DIR__, "../../../example/sdl"))
+const _SRC_DIR = normpath(joinpath(@__DIR__, "../../../example/backend/sdl"))
 
 include(joinpath(_SRC_DIR, "LiveExamples.jl"))
 include(joinpath(_SRC_DIR, "ApplicationVideo.jl"))

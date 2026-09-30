@@ -1,7 +1,7 @@
 # Fragment of `ProjecturedBuilder` — a copy of the packages that Pkg can install
 # from a registry.
 #
-# A package of this repository includes its code from `source/<slice>/`, three
+# A package of this repository includes its code from `source/<group>/<slice>/`, three
 # folders above its entry file. Pkg installs only the folder of a package, so an
 # installed package would find no `source/`. The release copy puts each package
 # in a folder of its own that holds everything it reads: its `Project.toml`

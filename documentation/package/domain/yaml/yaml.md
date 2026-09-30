@@ -1,8 +1,8 @@
 # YAML domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [json.md](../json/json.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md)
 
-The YAML domain, `ProjecturedYaml`, holds YAML data as the same tree of scalars, sequences and mappings that the JSON domain uses. This document says where it differs from the [shape of every domain](../../design/domain-anatomy.md): the two presentations of one document, the parser subset, and the one hand-written projection.
+The YAML domain, `ProjecturedYaml`, holds YAML data as the same tree of scalars, sequences and mappings that the JSON domain uses. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the two presentations of one document, the parser subset, and the one hand-written projection.
 
 <img width="396" alt="YAML example" src="../../../asset/image/example/yaml.png">
 
@@ -46,7 +46,7 @@ The block sequence is the one hand-written projection, `YamlSequenceToBlockSynta
 - a second parser name, `register_natural_parser!(:yml, parse_yaml)`, so a Markdown fence tagged `yml` also parses;
 - `YamlFile` for both `.yaml` and `.yml`.
 
-The registration is at the end of `source/yaml/YamlToSyntax.jl`, not in the module file.
+The registration is at the end of `source/domain/yaml/YamlToSyntax.jl`, not in the module file.
 
 ## Design decisions
 
@@ -70,4 +70,4 @@ print_natural_text(doc)                 # the block form, as a String
 ## Limits
 
 - The test package covers only the parser. No test covers the projection, the reader or the gestures.
-- The parser reads an anchor (`&x`) as plain text, and it accepts a tab in the indentation. Both are `@test_broken` in `test/yaml/document/YamlParserTest.jl`.
+- The parser reads an anchor (`&x`) as plain text, and it accepts a tab in the indentation. Both are `@test_broken` in `test/domain/yaml/document/YamlParserTest.jl`.

@@ -1,12 +1,12 @@
 # Tulip constraint solver
 
-> **Kind:** design · **Status:** current · **Stands on:** [layout.md](../layout/layout.md), [package-rules.md](../../rule/package-rules.md)
+> **Kind:** design · **Status:** current · **Stands on:** [layout.md](../../platform/layout/layout.md), [package-rules.md](../../../rule/package-rules.md)
 
 `ProjecturedTulip` is an opt-in package that solves the relations of a `ConstraintLayout`. It adds one method to the solver seam of `ProjecturedLayout`, and it brings the linear programming packages `Tulip` and `MathOptInterface`. This document says how a layout problem becomes a linear program.
 
 ## How it works
 
-`TulipConstraintSolver(; optimizer = Tulip.Optimizer, contain = false)` implements `solve_constraint_layout(solver, n, intrinsic_w, intrinsic_h, relations, bounding_w, bounding_h)`. It returns the left, top, width and height of each child. The layout and its projection are in `ProjecturedLayout`; see [layout.md](../layout/layout.md).
+`TulipConstraintSolver(; optimizer = Tulip.Optimizer, contain = false)` implements `solve_constraint_layout(solver, n, intrinsic_w, intrinsic_h, relations, bounding_w, bounding_h)`. It returns the left, top, width and height of each child. The layout and its projection are in `ProjecturedLayout`; see [layout.md](../../platform/layout/layout.md).
 
 The solver builds a linear program through MathOptInterface:
 
@@ -20,11 +20,11 @@ If the solve is not optimal, has no feasible point, or raises an error, the solv
 
 ## How it fits
 
-`ProjecturedTulip` depends on `ProjecturedLayout`. No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. This is different from `ProjecturedAdaptagrams`, which registers itself as the engine of `DeferredLayout` when it loads; see [graph.md](../graph/graph.md).
+`ProjecturedTulip` depends on `ProjecturedLayout`. No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. This is different from `ProjecturedAdaptagrams`, which registers itself as the engine of `DeferredLayout` when it loads; see [graph.md](../../domain/graph/graph.md).
 
 ## Design decisions
 
-- **A linear program, not a port of Cassowary.** No maintained Julia binding of Cassowary or kiwi exists. Tulip is pure Julia, so it adds no native library, and MathOptInterface keeps the cost of each small solve low. See [plan/done/constraint-layout.md](../../../plan/done/constraint-layout.md).
+- **A linear program, not a port of Cassowary.** No maintained Julia binding of Cassowary or kiwi exists. Tulip is pure Julia, so it adds no native library, and MathOptInterface keeps the cost of each small solve low. See [plan/done/constraint-layout.md](../../../../plan/done/constraint-layout.md).
 - **One weighted solve, not a solve for each strength.** The weights are far apart, and the plan found this enough for layout.
 - **The optimizer is a field.** `optimizer = HiGHS.Optimizer` changes the solver in one line; the package does not depend on HiGHS.
 - **The solver is opt-in.** `ProjecturedLayout` keeps no dependency on a solver.
@@ -36,7 +36,7 @@ using Projectured, ProjecturedTulip
 projection = ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())
 ```
 
-- Example: `make_constraint_layout_tulip_projection_example()` in `example/tulip/`.
+- Example: `make_constraint_layout_tulip_projection_example()` in `example/adapter/tulip/`.
 - Test: `test_tulip()`, which runs `test_constraint_solver()`.
 
 ## Limits

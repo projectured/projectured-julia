@@ -11,7 +11,7 @@ rendered view, and Backspace and Delete at each caret of the rendered view.
 """
 function test_markdown_image_leaf()
 @testset "a markdown image with a real image file" begin
-    image = joinpath(@__DIR__, "..", "..", "asset", "image", "file.png")
+    image = joinpath(@__DIR__, "..", "..", "..", "asset", "image", "file.png")
     make_document() = MarkdownRoot([MarkdownParagraph([MarkdownText("see "), MarkdownImage("logo", image),
                                                        MarkdownText(" the end.")])])
     measure = FixedMeasure(10, 12, 4, 0)

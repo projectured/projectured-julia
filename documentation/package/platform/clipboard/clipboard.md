@@ -1,6 +1,6 @@
 # Clipboard
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection.md](../projection/projection.md), [document.md](../kernel/document.md), [domain.md](../domain/domain.md)
+> **Kind:** design · **Status:** current · **Stands on:** [projection.md](../projection/projection.md), [document.md](../../kernel/document.md), [domain.md](../domain/domain.md)
 
 `ProjecturedClipboard` adds copy, cut, note and paste to any document, a view of what the clipboard holds, and a bridge to the clipboard of the operating system. It works for every domain without a line of code in the domain. This document says how the wrapper stays out of the view, which rules decide where a paste can go, and why a copy is a deep copy.
 
@@ -29,7 +29,7 @@ The reader has seven gestures, in a gesture table of the projection:
 
 A key that is not in the table goes to the content, and the reader roots the operation that comes back under `content`. `ClipboardCollectionToAnyProjection` has the same shape for a list: Ctrl+= adds the selected document to the list, Ctrl+- removes the selected element, and Ctrl+* shows the list.
 
-The clipboard reads its own `selection` field only, never its content's. Every write of the live selection starts at the root, so by the time a key reaches the clipboard, its own suffix already names what was selected (`PAR-SELECTION-WRITTEN-AT-ROOT`; see [selection.md](../kernel/selection.md#writing-from-outside-a-gesture)).
+The clipboard reads its own `selection` field only, never its content's. Every write of the live selection starts at the root, so by the time a key reaches the clipboard, its own suffix already names what was selected (`PAR-SELECTION-WRITTEN-AT-ROOT`; see [selection.md](../../kernel/selection.md#writing-from-outside-a-gesture)).
 
 ### Where a paste can go
 
@@ -53,7 +53,7 @@ Ctrl+Shift+C answers `CopyReferenceOperation`, which holds the clipboard and no 
 
 ### The copy
 
-`ClipboardCopyPolicy` is the `CopyPolicy` of a copy; [document.md](../kernel/document.md) describes the copy of a document under a policy. It goes into every document that accepts a paste. A document that does not accept a paste, such as a tool, is copied as its declared duplicate (`make_document_duplicate`). One policy object copies one tree and remembers each copied node, so a node that the tree reaches twice is copied once.
+`ClipboardCopyPolicy` is the `CopyPolicy` of a copy; [document.md](../../kernel/document.md) describes the copy of a document under a policy. It goes into every document that accepts a paste. A document that does not accept a paste, such as a tool, is copied as its declared duplicate (`make_document_duplicate`). One policy object copies one tree and remembers each copied node, so a node that the tree reaches twice is copied once.
 
 ### The operating system
 
@@ -69,11 +69,11 @@ With `text = true` over a `TextBlock` content, the clipboard copies and pastes c
 
 ## Design decisions
 
-- **The wrapper is not in the view.** The view of a wrapped document is the view of the document, so a test or a later stage sees no difference. See [plan/done/clipboard-to-t.md](../../../plan/done/clipboard-to-t.md).
+- **The wrapper is not in the view.** The view of a wrapped document is the view of the document, so a test or a later stage sees no difference. See [plan/done/clipboard-to-t.md](../../../../plan/done/clipboard-to-t.md).
 - **The toggle is a cell write.** It needs no new print of the stages before it. `ProjecturedVersioning` uses the same pattern; see [versioning.md](../versioning/versioning.md).
 - **Copy and note are two gestures.** A copy can go anywhere without an alias; a note keeps the live object, for example a tool.
-- **The paste rules come from the documents.** A domain blocks a paste with a method of `ProjecturedDomain`; the clipboard has no list of types. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md), whose clipboard steps are done.
-- **The bridge calls a command.** `InteractiveUtils.clipboard` also calls a command, and a new dependency on `InteractiveUtils` would change the manifests of the whole workspace. See [plan/done/clipboard-os-bridge-and-run-example-wrapper.md](../../../plan/done/clipboard-os-bridge-and-run-example-wrapper.md).
+- **The paste rules come from the documents.** A domain blocks a paste with a method of `ProjecturedDomain`; the clipboard has no list of types. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md), whose clipboard steps are done.
+- **The bridge calls a command.** `InteractiveUtils.clipboard` also calls a command, and a new dependency on `InteractiveUtils` would change the manifests of the whole workspace. See [plan/done/clipboard-os-bridge-and-run-example-wrapper.md](../../../../plan/done/clipboard-os-bridge-and-run-example-wrapper.md).
 
 ## Usage
 

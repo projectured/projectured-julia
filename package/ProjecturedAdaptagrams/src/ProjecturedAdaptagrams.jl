@@ -43,6 +43,6 @@ import ProjecturedGraph.GraphModule: register_layout_engine!,
 import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge
 import Libdl
 
-include("../../../source/adaptagrams/Adaptagrams.jl")
+include("../../../source/adapter/adaptagrams/Adaptagrams.jl")
 
 end # module ProjecturedAdaptagrams

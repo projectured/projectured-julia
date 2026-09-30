@@ -67,9 +67,9 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/graph/projection/GraphProjectionTest.jl")
-include("../../../test/graph/projection/FruchtermanReingoldLayoutTest.jl")
+include("../../../test/domain/graph/projection/GraphProjectionTest.jl")
+include("../../../test/domain/graph/projection/FruchtermanReingoldLayoutTest.jl")
 
-include("../../../test/graph/GraphSuite.jl")
+include("../../../test/domain/graph/GraphSuite.jl")
 
 end # module ProjecturedGraphTest

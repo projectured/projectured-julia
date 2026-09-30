@@ -1,8 +1,8 @@
 # RST domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [markdown.md](../markdown/markdown.md), [natural.md](../natural/natural.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [markdown.md](../markdown/markdown.md), [natural.md](../../platform/natural/natural.md)
 
-The RST domain, `ProjecturedRst`, holds reStructuredText as a tree of about forty document types, with a parser, two presentations and a page of blocks. It has the shape of the [Markdown domain](../markdown/markdown.md), and this document says where it differs from Markdown and from the [shape of every domain](../../design/domain-anatomy.md). It covers the section tree, the written indentation, the parser rules, the reference marker and the round-trip criterion.
+The RST domain, `ProjecturedRst`, holds reStructuredText as a tree of about forty document types, with a parser, two presentations and a page of blocks. It has the shape of the [Markdown domain](../markdown/markdown.md), and this document says where it differs from Markdown and from the [shape of every domain](../../../design/domain-anatomy.md). It covers the section tree, the written indentation, the parser rules, the reference marker and the round-trip criterion.
 
 ## How it works
 
@@ -51,7 +51,7 @@ A table maps the role name to the colour of its chip, and an unknown name gets a
 
 Every compound of this domain has `indentation = 0` and writes the indent into its own `open` and `sep` text. The current column travels as an ambient `:rst_indent` in the printer context. A container that owns an indented body pushes a deeper indent, and every rule that writes a newline puts the ambient after it.
 
-The `indentation` field of a compound can not do this. It writes a newline before the first child too, and it always costs one indent level of the pipeline, so the items of a list would leave their marker column. `@projection_template` builds a printer from `(prj, doc)` alone and has no access to the context. So two macros of `source/rst/RstToSyntax.jl`, `@rst_flat` and `@rst_indented`, call `print_template_rule`, the entry point of the template macro, and give the builder the ambient column as well. A rule keeps its template body, and the reader still comes from the template.
+The `indentation` field of a compound can not do this. It writes a newline before the first child too, and it always costs one indent level of the pipeline, so the items of a list would leave their marker column. `@projection_template` builds a printer from `(prj, doc)` alone and has no access to the context. So two macros of `source/domain/rst/RstToSyntax.jl`, `@rst_flat` and `@rst_indented`, call `print_template_rule`, the entry point of the template macro, and give the builder the ambient column as well. A rule keeps its template body, and the reader still comes from the template.
 
 ### Seven opaque bodies
 
@@ -59,7 +59,7 @@ The body of a code block, a literal include, a literal block, a math block, a ra
 
 ### The page as a stack of blocks
 
-`source/rst/RstToLayout.jl` makes a `VerticalLayout` of an `RstRoot` and also of an `RstSection`. Each block then goes through its own chain, and a file of another domain in the page stands in an embed card from `make_embed_card`. Markdown needs only the root rule, because a Markdown page is flat. An RST section owns its blocks, so without the section rule each embed below the first title would stay in a syntax tree.
+`source/domain/rst/RstToLayout.jl` makes a `VerticalLayout` of an `RstRoot` and also of an `RstSection`. Each block then goes through its own chain, and a file of another domain in the page stands in an embed card from `make_embed_card`. Markdown needs only the root rule, because a Markdown page is flat. An RST section owns its blocks, so without the section rule each embed below the first title would stay in a syntax tree.
 
 The rule moves the blocks and does not change them, so the reference maps only change the head: `elements[i]` becomes `children[i]`. In a section the title takes the first slot, so the index moves by one. The title prints as one line of text in the font of its level.
 
@@ -99,7 +99,7 @@ Its `__init__` makes four calls:
 
 ## Design decisions
 
-- **The document is a tree of sections.** A section can then be moved as a unit and named by its title. The adornment stays in the document, so a save keeps the convention of the file. See [plan/done/rst-domain.md](../../../plan/done/rst-domain.md).
+- **The document is a tree of sections.** A section can then be moved as a unit and named by its title. The adornment stays in the document, so a save keeps the convention of the file. See [plan/done/rst-domain.md](../../../../plan/done/rst-domain.md).
 - **A directive is typed only where the rendered view reads its fields.** The alternative is a search of the option list by name on each read. The generic `RstDirective` holds the rest.
 - **The indent is written into the text.** The `indentation` field of a compound costs one pipeline level, and RST needs the three-space body indent that `.. ` has.
 - **An opaque body is not splice-editable.** An editable body would need offsets that account for the indent of each line; the domain keeps the offsets of `bound` exact instead.
@@ -120,12 +120,12 @@ print_natural_text(doc)                     # the RST source
 ```
 
 - Examples: `rst_example` shows the source view, and `rst_rendered_example` shows the rendered view with word wrap. The factories are `make_rst_document_example`, `make_rst_projection_example` and `make_rst_rendered_projection_example`. The atomic catalog has one document for each type.
-- Test: `test_rst()` runs the layering guard, `test_rst_parser()`, `test_rst_round_trip()` on the fixtures in `test/rst/fixture/rst/`, and `test_rst_embed_card()`. The umbrella serializer tests cover the `pred-ref` marker.
+- Test: `test_rst()` runs the layering guard, `test_rst_parser()`, `test_rst_round_trip()` on the fixtures in `test/domain/rst/fixture/rst/`, and `test_rst_embed_card()`. The umbrella serializer tests cover the `pred-ref` marker.
 - `test_rst_corpus(dir)` parses every `.rst` file under `dir`, prints it and parses it again, and returns the counts. It is not part of `test_rst()`, because the corpus is not in this repository.
 
 ### The round-trip criterion is AST idempotence
 
-`parse_rst(print_natural_text(parse_rst(text)))` must equal `parse_rst(text)`. Byte equality is not required and is not reached: a paragraph is joined onto one line, an adornment is drawn again at the width of the title, and a directive body is indented to three spaces. What must hold is that a read of a saved file gives back the document that it came from. [plan/done/rst-domain.md](../../../plan/done/rst-domain.md) records that every file of the documentation tree that the domain was built for meets this criterion.
+`parse_rst(print_natural_text(parse_rst(text)))` must equal `parse_rst(text)`. Byte equality is not required and is not reached: a paragraph is joined onto one line, an adornment is drawn again at the width of the title, and a directive body is indented to three spaces. What must hold is that a read of a saved file gives back the document that it came from. [plan/done/rst-domain.md](../../../../plan/done/rst-domain.md) records that every file of the documentation tree that the domain was built for meets this criterion.
 
 ## Limits
 

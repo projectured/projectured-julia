@@ -30,6 +30,6 @@ import ProjecturedKernel.LlmModule:
     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
     LlmTurnEnd, LlmFailure
 
-include("../../../source/anthropic/Anthropic.jl")
+include("../../../source/adapter/anthropic/Anthropic.jl")
 
 end # module ProjecturedAnthropic

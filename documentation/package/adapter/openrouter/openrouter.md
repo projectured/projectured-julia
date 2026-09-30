@@ -1,6 +1,6 @@
 # The relevance model on OpenRouter
 
-> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../kernel/agent.md)
+> **Kind:** design · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md)
 
 `ProjecturedOpenRouter` gives a `ToolSet` a `RelevanceModel` that asks a decision model through the Decisions API of OpenRouter. A decision model reads a text and typed questions about it, and answers each question with probabilities instead of words. Jev of TypeSafe is such a model, and it is the default. This document says what the package sends, what it reads back, and what it does not do.
 
@@ -13,7 +13,7 @@ using ProjecturedOpenRouter
 set_relevance_model!(editor.tools, make_openrouter_relevance_model())
 ```
 
-`make_openrouter_relevance_model` reads the key from `OPENROUTER_API_KEY`, or from its `api_key` keyword, and throws at once without one. The model is `~typesafe/jev-latest` unless the `model` keyword names another: the alias follows the new versions of Jev. [agent.md](../kernel/agent.md) says how a search uses a relevance model: which searches go to it, the flat and the cascade shapes, and what happens when it fails.
+`make_openrouter_relevance_model` reads the key from `OPENROUTER_API_KEY`, or from its `api_key` keyword, and throws at once without one. The model is `~typesafe/jev-latest` unless the `model` keyword names another: the alias follows the new versions of Jev. [agent.md](../../kernel/agent.md) says how a search uses a relevance model: which searches go to it, the flat and the cascade shapes, and what happens when it fails.
 
 ## How it works
 

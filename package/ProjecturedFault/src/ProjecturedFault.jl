@@ -45,6 +45,6 @@ const FocusModule = ProjecturedFocus.FocusModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const TooltipModule = ProjecturedTooltip.TooltipModule
 
-include("../../../source/fault/FaultViewModule.jl")
+include("../../../source/platform/fault/FaultViewModule.jl")
 
 end # module ProjecturedFault

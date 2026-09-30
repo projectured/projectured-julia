@@ -224,7 +224,7 @@ tab of notes and one of scratch space on the right.
 - `PaneGroupToWidgetTabbedPane` / `PaneSplitToWidgetSplitPane` — each pane node
   projects to its matching widget container
 - The tree's own `selection` names the focused tab; there is no separate
-  active-tab field (see [pane.md](../package/pane/pane.md))
+  active-tab field (see [pane.md](../package/platform/pane/pane.md))
 
 ---
 

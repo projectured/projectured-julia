@@ -73,6 +73,6 @@ using ProjecturedKernel.IoMapModule: SimpleIoMap
 import ProjecturedKernel.ProjectionModule: print_document
 import ProjecturedKernel.OperationModule: evaluate_operation
 
-include("../../../source/sdl/Sdl.jl")
+include("../../../source/backend/sdl/Sdl.jl")
 
 end # module Sdl

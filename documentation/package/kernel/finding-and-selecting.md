@@ -208,7 +208,7 @@ JSON section of the [reference guide](reference.md#json-domain)).
 
 A pane tree can mirror one document into two tabs at once — the tree's own
 selection tracks one caret shared between them (see
-[pane.md](../pane/pane.md#a-duplicate-is-a-pane-of-its-own)) — so a bare value
+[pane.md](../platform/pane/pane.md#a-duplicate-is-a-pane-of-its-own)) — so a bare value
 query returns **one hit per tab** and cannot tell them apart:
 
 ```julia

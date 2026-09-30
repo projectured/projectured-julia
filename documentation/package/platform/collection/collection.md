@@ -1,6 +1,6 @@
 # Collections
 
-> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../kernel/cell.md), [document.md](../kernel/document.md), [reference.md](../kernel/reference.md)
+> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [reference.md](../../kernel/reference.md)
 
 `ProjecturedCollection` holds four generic containers for the children of a document: a vector, a matrix, a table and a linked list. Each element is in a reactive cell of its own. This document says which kind of change reaches which reader, and how the kernel uses these types without naming them.
 
@@ -68,10 +68,10 @@ The kernel names no collection type. This package adds methods to kernel generic
 | `child_reference_steps(::CellVector)` | the walk that finds the next insertion reaches each element as `RangeReferenceStep(i - 1, i)` |
 | `get_slot_at(::CellVector, i)` | an inverse operation puts back the same cell |
 | `make_children_container`, `get_children_container_type` | `@projection_template` builds children as a `CellVector` |
-| `copy_document`, `has_document_duplicate` | a deep copy under a `CopyPolicy`; see [document.md](../kernel/document.md) |
+| `copy_document`, `has_document_duplicate` | a deep copy under a `CopyPolicy`; see [document.md](../../kernel/document.md) |
 | `sync_document!(::ListNode, ::ListNode)` | a list shadow syncs from the node held outward, and never through a link back |
 
-A reference addresses an element as `[i]`, from 1, and the place between two elements as `{k}`, from 0. Both are readings of one `RangeReferenceStep`; see [reference.md](../kernel/reference.md).
+A reference addresses an element as `[i]`, from 1, and the place between two elements as `{k}`, from 0. Both are readings of one `RangeReferenceStep`; see [reference.md](../../kernel/reference.md).
 
 ## How it fits
 
@@ -84,7 +84,7 @@ It registers nothing at load time. The methods in the table above are what conne
 - **A cell for each element, not one cell for the vector.** A write to one element must reach only the readers of that element.
 - **A structural change assigns the same vector again.** The container cell then fires without a copy of the vector.
 - **The storage depends on the cell kind.** A cell for each element of a vector that never changes costs memory and time. A branch on the storage at run time made the reactive read about two times slower, so each method dispatches on the kind.
-- **The collection logic is in the collection types.** A document holds its children in a collection field, and a caller indexes that field: `node.children[i]`. The collection wraps a plain value in a cell, so no document writes its own `push!` or `getindex`. See [plan/done/fold-collection-methods.md](../../../plan/done/fold-collection-methods.md). A domain can still give a node the vector methods of its field with `@forward_vector_protocol` of the kernel; JSON, YAML, Markdown and RST do.
+- **The collection logic is in the collection types.** A document holds its children in a collection field, and a caller indexes that field: `node.children[i]`. The collection wraps a plain value in a cell, so no document writes its own `push!` or `getindex`. See [plan/done/fold-collection-methods.md](../../../../plan/done/fold-collection-methods.md). A domain can still give a node the vector methods of its field with `@forward_vector_protocol` of the kernel; JSON, YAML, Markdown and RST do.
 - **The list is symmetric.** Both tails can be computed, so a reader walks either way from the held node and no end is the start.
 
 ## Usage
@@ -106,8 +106,8 @@ head = ListNode("alpha"); push!(head, "beta")
 take_first(head, 2)                       # ["alpha", "beta"]
 ```
 
-- Examples: `collection_example` and the sorting, filtering, reversing and searching examples use `make_collection_document_example()`. The atomic catalog has a vector, a table and a list node, in `example/substrate/CollectionDocumentExample.jl`.
-- Test: `test_collection()` in `test/substrate/document/CollectionDocumentTest.jl`.
+- Examples: `collection_example` and the sorting, filtering, reversing and searching examples use `make_collection_document_example()`. The atomic catalog has a vector, a table and a list node, in `example/platform/CollectionDocumentExample.jl`.
+- Test: `test_collection()` in `test/platform/document/CollectionDocumentTest.jl`.
 
 ## Limits
 

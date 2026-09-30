@@ -32,6 +32,6 @@ import ProjecturedLayout.LayoutModule: ConstraintSolver, SolverAnchor,
 import Tulip
 import MathOptInterface as MOI
 
-include("../../../source/tulip/Tulip.jl")
+include("../../../source/adapter/tulip/Tulip.jl")
 
 end # module

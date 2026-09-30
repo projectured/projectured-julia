@@ -53,7 +53,7 @@ const WidgetModule = ProjecturedWidget.WidgetModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 
-include("../../../source/fileformat/FileFormatModule.jl")
+include("../../../source/platform/fileformat/FileFormatModule.jl")
 
 
 end # module ProjecturedFileFormat

@@ -1,6 +1,6 @@
 # Video recording
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../kernel/devices-and-backends.md), [sdl.md](../sdl/sdl.md), [editor.md](../kernel/editor.md)
+> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [sdl.md](../sdl/sdl.md), [editor.md](../../kernel/editor.md)
 
 `ProjecturedVideo` records a scripted editing session as an `.mp4` file, with no window. It is a file export and not a `Backend`: it runs the session through a small copy of the editor cycle and encodes the frames with `ffmpeg`. This document says how a timeline becomes frames, why the video is the same on every run, and where the recorder differs from the editor.
 
@@ -27,7 +27,7 @@ record_video(document, projection, gestures, filename;
 | `(operation = op, hold = h)` | evaluates `op`, or `op(document)` when `op` is a function; for an action that no single event makes |
 | `(await = predicate, hold = h)` | emits one frame and yields, again and again, until `predicate(document)` returns `true` or `h` seconds of wall-clock time pass |
 
-The event goes straight to the reader, with no `WindowInput` and no gesture tracking projection. So a click is a `MouseClick` entry; a `MouseDown` and a `MouseUp` do not make one. `initial_selection` sets the selection before the first frame, and `nothing` clears it. A `KeyPress` edits only when something is selected, so a typing demo needs an `initial_selection` or a first `MouseClick`. `make_typein_gestures(text)` in `example/kernel/Harness.jl` makes the `KeyPress` entries of a text, and `timed_await(predicate)` in `example/sdl/LiveExamples.jl` makes an `await` entry.
+The event goes straight to the reader, with no `WindowInput` and no gesture tracking projection. So a click is a `MouseClick` entry; a `MouseDown` and a `MouseUp` do not make one. `initial_selection` sets the selection before the first frame, and `nothing` clears it. A `KeyPress` edits only when something is selected, so a typing demo needs an `initial_selection` or a first `MouseClick`. `make_typein_gestures(text)` in `example/kernel/Harness.jl` makes the `KeyPress` entries of a text, and `timed_await(predicate)` in `example/backend/sdl/LiveExamples.jl` makes an `await` entry.
 
 ### Video time
 
@@ -49,14 +49,14 @@ The loop over the entries does not yield, so a task that a gesture started, such
 
 `ProjecturedVideo` depends on `FFMPEG`, `ProjecturedGraphics`, `ProjecturedSdl` and the kernel. It takes the offscreen renderer from `ProjecturedSdl` and does not have one of its own. It registers nothing.
 
-`VideoBackend` is the other recorder: a `Backend` that plays a timeline through the real editor loop, so a take carries the whole application window. `record_application_video` in `example/sdl/ApplicationVideo.jl` builds the window as `run_application` does and records it with this backend. With `partial_render = true` a frame repaints only the rectangles that changed, as a window with `partial_render` does, and `debug_dirty = true` outlines them in red on the frames; see [sdl.md](../sdl/sdl.md). The outline of the last repaint stays on the frames until the next one, as a window keeps its last picture. With `debug_dirty_hold` seconds, each outline stays for that long and then goes, so a pause in the take shows no outline.
+`VideoBackend` is the other recorder: a `Backend` that plays a timeline through the real editor loop, so a take carries the whole application window. `record_application_video` in `example/backend/sdl/ApplicationVideo.jl` builds the window as `run_application` does and records it with this backend. With `partial_render = true` a frame repaints only the rectangles that changed, as a window with `partial_render` does, and `debug_dirty = true` outlines them in red on the frames; see [sdl.md](../sdl/sdl.md). The outline of the last repaint stays on the frames until the next one, as a window keeps its last picture. With `debug_dirty_hold` seconds, each outline stays for that long and then goes, so a pause in the take shows no outline.
 
-`record_assistant_conversation_video()` in `example/projectured/Gallery.jl` records a turn of the assistant with a `FakeLlm` and `wait_for`. `record_live_example` in `example/sdl/LiveExamples.jl` records the timeline of a `LiveExample`, which `play_live_example` plays in a real window.
+`record_assistant_conversation_video()` in `example/projectured/Gallery.jl` records a turn of the assistant with a `FakeLlm` and `wait_for`. `record_live_example` in `example/backend/sdl/LiveExamples.jl` records the timeline of a `LiveExample`, which `play_live_example` plays in a real window.
 
 ## Design decisions
 
-- **A package for one dependency.** `ProjecturedVideo` is the only package that loads FFMPEG, so a user of the editor and of `write_image` does not load it. See [plan/done/extract-video-package.md](../../../plan/done/extract-video-package.md).
-- **Video time, not wall-clock time.** The video is the same on every run, and the rendering can be slower or faster than real time. See [plan/done/headless-video-recording.md](../../../plan/done/headless-video-recording.md).
+- **A package for one dependency.** `ProjecturedVideo` is the only package that loads FFMPEG, so a user of the editor and of `write_image` does not load it. See [plan/done/extract-video-package.md](../../../../plan/done/extract-video-package.md).
+- **Video time, not wall-clock time.** The video is the same on every run, and the rendering can be slower or faster than real time. See [plan/done/headless-video-recording.md](../../../../plan/done/headless-video-recording.md).
 - **Print once, render each frame.** The reactive cells bring each change into the kept canvas, and no frame allocates a new tree.
 - **The offscreen renderer of SDL.** A frame looks like a screenshot from `write_image`, and no second rasterizer exists.
 - **A failure raises an error.** A caller gets an error and not a partial video.

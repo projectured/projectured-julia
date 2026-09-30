@@ -65,8 +65,8 @@ for _src in _SOURCES
 end
 
 
-include("../../../test/yaml/document/YamlParserTest.jl")
+include("../../../test/domain/yaml/document/YamlParserTest.jl")
 
-include("../../../test/yaml/YamlSuite.jl")
+include("../../../test/domain/yaml/YamlSuite.jl")
 
 end # module ProjecturedYamlTest

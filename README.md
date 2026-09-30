@@ -29,15 +29,15 @@ The AI assistant runs inside the application, with a local model through Ollama 
 
 - **Build an application for your own data.** Define the structure of your data as documents and its views as projections, in a package of its own. [new-domain-guide.md](documentation/guide/new-domain-guide.md) walks through a whole domain, and [view-your-data-guide.md](documentation/guide/view-your-data-guide.md) shows your own Julia values with no new domain.
 - **Edit files as structures.** The domains that come with ProjecturEd open, change and save their files through their own parsers, among them JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia and a math notation. See [the domain inventory](documentation/design/domain-inventory.md).
-- **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs, split panes and a pane tree come from the [widget](documentation/package/widget/widget.md) and [pane](documentation/package/pane/pane.md) packages. ProjecturEd's own window is a complete application of this kind.
+- **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs, split panes and a pane tree come from the [widget](documentation/package/platform/widget/widget.md) and [pane](documentation/package/platform/pane/pane.md) packages. ProjecturEd's own window is a complete application of this kind.
 - **Look into a running Julia program.** A reflection view shows any object as a tree that opens one level at a time.
-- **Show results.** Line, bar, histogram, scatter and strip charts, and [sequence charts](documentation/package/sequencechart/sequencechart.md), are documents. A data point can be selected like any other part.
-- **Model behaviour and run it.** A [state machine](documentation/package/fsm/fsm.md) produces runnable Julia code. A [process flowchart](documentation/package/process/process.md) runs with breakpoints and a live trace.
+- **Show results.** Line, bar, histogram, scatter and strip charts, and [sequence charts](documentation/package/domain/sequencechart/sequencechart.md), are documents. A data point can be selected like any other part.
+- **Model behaviour and run it.** A [state machine](documentation/package/domain/fsm/fsm.md) produces runnable Julia code. A [process flowchart](documentation/package/domain/process/process.md) runs with breakpoints and a live trace.
 - **Ask for a change in plain words.** The assistant searches the API, writes Julia and runs it against the live editor. It works with a local model through Ollama, or with Claude.
 - **Drive the editor from outside.** An MCP client connects to `http://127.0.0.1:9876/mcp` and gets the same tools as the assistant in the window.
 - **Put a view somewhere else.** The same view goes to a native window, a browser, a terminal, a PDF file, a PNG file or an MP4 video.
-- **Take a change back.** `Ctrl+Z` and `Ctrl+Y` work in the application, for your edits and for the assistant's. The [history](documentation/package/undo/undo.md) is a document too, so you can read it.
-- **Keep working after a fault.** A failure in a view, in an edit or in a tool [does not stop the editor](documentation/package/fault/fault.md): the editor takes the broken change back, shows what went wrong where the view would be, and goes on.
+- **Take a change back.** `Ctrl+Z` and `Ctrl+Y` work in the application, for your edits and for the assistant's. The [history](documentation/package/platform/undo/undo.md) is a document too, so you can read it.
+- **Keep working after a fault.** A failure in a view, in an edit or in a tool [does not stop the editor](documentation/package/platform/fault/fault.md): the editor takes the broken change back, shows what went wrong where the view would be, and goes on.
 - **Open a tool by its name.** Type `repl`, `log`, `gestures`, `selection`, `reference`, `explorer` or `assistant` into an empty tab, and the tab becomes that tool.
 
 ## Quick start
@@ -117,13 +117,13 @@ The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes nex
 
 ## Repository layout
 
-One dimension per level: what a file **is** decides its top folder, and which **slice** it belongs to decides the folder under that.
+One dimension per level: what a file **is** decides its top folder, the **group** of its slice the folder under that, and the **slice** the folder under the group. The groups are `kernel`, `platform`, `domain`, `backend`, `adapter` and `tool`.
 
 | Path | Contents |
 |---|---|
-| [source/](source/) | The system — one folder per slice, and `kernel/` with its layers |
-| [test/](test/) | The suites, one folder per slice, plus `suite/` for what belongs to no package |
-| [example/](example/) | Documents, galleries and workload bodies, one folder per slice |
+| [source/](source/) | The system — one folder per group, one folder per slice in it, and `kernel/` with its layers |
+| [test/](test/) | The suites, in the same groups and slices, plus `suite/` for what belongs to no package |
+| [example/](example/) | Documents, galleries and workload bodies, in the same groups and slices |
 | [package/](package/) | One directory per package: a `Project.toml` and a `src/<Name>.jl`, and nothing else |
 | [environment/](environment/) | `all/` for the whole suite, `build/` for a build. No code |
 | [documentation/](documentation/) | The guides — see [the guide index](documentation/README.md) |
@@ -132,7 +132,7 @@ One dimension per level: what a file **is** decides its top folder, and which **
 | [tool/](tool/) | Scripts that are not part of the system |
 | [plan/](plan/) | Design notes and plans |
 
-A package and its code do not share a directory. `package/ProjecturedJson/` is a name and an include list; the code it includes is `source/json/`, its suite is `test/json/` and its documents are `example/json/`.
+A package and its code do not share a directory. `package/ProjecturedJson/` is a name and an include list; the code it includes is `source/domain/json/`, its suite is `test/domain/json/` and its documents are `example/domain/json/`.
 
 ## Contributing
 

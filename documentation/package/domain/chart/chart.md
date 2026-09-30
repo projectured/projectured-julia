@@ -1,6 +1,6 @@
 # Chart domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [plot.md](../plot/plot.md), [reference.md](../kernel/reference.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [plot.md](../../platform/plot/plot.md), [reference.md](../../kernel/reference.md)
 
 `ProjecturedChart` draws line, scatter, bar, histogram and colored-strip charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
 
@@ -80,7 +80,7 @@ The `@gestures Chart` table in `ChartDocument.jl` holds the navigation and the e
 
 ### Scale
 
-The cost of a chart depends on the size of its plot rectangle, not on the length of its data. The renderer calls the functions of [plot.md](../plot/plot.md):
+The cost of a chart depends on the size of its plot rectangle, not on the length of its data. The renderer calls the functions of [plot.md](../../platform/plot/plot.md):
 
 - **Visible range.** A binary search finds the part of an ascending column inside the window.
 - **Decimation.** At most four samples for each pixel column: the first, the lowest, the highest and the last. The result is exact.
@@ -93,7 +93,7 @@ The cost of a chart depends on the size of its plot rectangle, not on the length
 
 ## How it fits
 
-`ProjecturedChart` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedNatural`, `ProjecturedPlot`, `ProjecturedProjection`, `ProjecturedStatistics` and `ProjecturedStyle`. It registers one natural row, `:frame_time_series`: `FrameTimeSeriesToChart` draws the `FrameTimeSeries` of the statistics as a chart, one line for each time measurement. The projection lives here and not in the statistics, because the statistics are a part of the platform, which depends on no domain; see [statistics.md](../statistics/statistics.md). For a chart of its own, a caller builds the chain, or adds one entry to the natural renderer to draw a chart inside another document:
+`ProjecturedChart` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedNatural`, `ProjecturedPlot`, `ProjecturedProjection`, `ProjecturedStatistics` and `ProjecturedStyle`. It registers one natural row, `:frame_time_series`: `FrameTimeSeriesToChart` draws the `FrameTimeSeries` of the statistics as a chart, one line for each time measurement. The projection lives here and not in the statistics, because the statistics are a part of the platform, which depends on no domain; see [statistics.md](../../platform/statistics/statistics.md). For a chart of its own, a caller builds the chain, or adds one entry to the natural renderer to draw a chart inside another document:
 
 ```julia
 NaturalToGraphics(measure = FontFileMeasure(),
@@ -102,13 +102,13 @@ NaturalToGraphics(measure = FontFileMeasure(),
 
 ## Design decisions
 
-- **Every visual property is a typed field.** The tool that the chart follows keeps its properties in a bag of strings. Here each one is a field of a document, so a selection and the inspector edit it. See [plan/done/chart-domain.md](../../../plan/done/chart-domain.md).
-- **The presentation state is on `ChartPlot`.** A saved chart has no view state, and two views of one chart zoom apart. The reader marks each write of it as view state, so a history records no zoom, hover or drag. `GraphLayout` makes the same split. See [plan/done/chart-domain.md](../../../plan/done/chart-domain.md).
-- **One cell for each column, not for each sample.** A cell for each of a million samples costs memory and gives no place for a caret. See [plan/done/chart-domain.md](../../../plan/done/chart-domain.md).
-- **A sample is a reference step, not a child.** The selection reaches one sample and no sample needs a cell. See [plan/done/chart-polygon-and-point-selection.md](../../../plan/done/chart-polygon-and-point-selection.md).
+- **Every visual property is a typed field.** The tool that the chart follows keeps its properties in a bag of strings. Here each one is a field of a document, so a selection and the inspector edit it. See [plan/done/chart-domain.md](../../../../plan/done/chart-domain.md).
+- **The presentation state is on `ChartPlot`.** A saved chart has no view state, and two views of one chart zoom apart. The reader marks each write of it as view state, so a history records no zoom, hover or drag. `GraphLayout` makes the same split. See [plan/done/chart-domain.md](../../../../plan/done/chart-domain.md).
+- **One cell for each column, not for each sample.** A cell for each of a million samples costs memory and gives no place for a caret. See [plan/done/chart-domain.md](../../../../plan/done/chart-domain.md).
+- **A sample is a reference step, not a child.** The selection reaches one sample and no sample needs a cell. See [plan/done/chart-polygon-and-point-selection.md](../../../../plan/done/chart-polygon-and-point-selection.md).
 - **The keyboard stops at the parts.** The navigation sweeps of the tests walk every reachable selection breadth first. Samples on the keyboard would make the state space of a chart as large as its data. A pointer reaches a sample.
-- **Strips are rows in one plot, and the y axis names them.** A `ChartCategoryAxis` on y would change the whole numeric path of the y axis for what a tick-label mode already says. See [plan/done/chart-colored-strips.md](../../../plan/done/chart-colored-strips.md).
-- **The colour cycle is indexed by the code.** The tool that the chart follows indexes its colour map by position, so a sparse enumeration such as `A=1, C=5` takes the last colour. Here a code indexes the cycle directly. See [plan/done/chart-colored-strips.md](../../../plan/done/chart-colored-strips.md).
+- **Strips are rows in one plot, and the y axis names them.** A `ChartCategoryAxis` on y would change the whole numeric path of the y axis for what a tick-label mode already says. See [plan/done/chart-colored-strips.md](../../../../plan/done/chart-colored-strips.md).
+- **The colour cycle is indexed by the code.** The tool that the chart follows indexes its colour map by position, so a sparse enumeration such as `A=1, C=5` takes the last colour. Here a code indexes the cycle directly. See [plan/done/chart-colored-strips.md](../../../../plan/done/chart-colored-strips.md).
 
 ## Usage
 
@@ -131,7 +131,7 @@ projection = ChainingProjection(ChartToChartPlot(),
                                 ChartPlotToGraphicsCanvas(measure = FontFileMeasure()))
 ```
 
-- Examples: `chart` (four charts in a `WidgetTable`), `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip` and `chart_inspector`, in `example/chart/`. The atomic catalog has `chart/plot`.
+- Examples: `chart` (four charts in a `WidgetTable`), `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip` and `chart_inspector`, in `example/domain/chart/`. The atomic catalog has `chart/plot`.
 - Test: `test_chart()` runs the layering guard, `test_chart_projection()` and `test_chart_scale()`.
 
 ## Limits

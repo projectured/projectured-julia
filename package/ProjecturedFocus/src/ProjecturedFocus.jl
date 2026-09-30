@@ -23,6 +23,6 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 
-include("../../../source/focus/FocusModule.jl")
+include("../../../source/platform/focus/FocusModule.jl")
 
 end # module ProjecturedFocus

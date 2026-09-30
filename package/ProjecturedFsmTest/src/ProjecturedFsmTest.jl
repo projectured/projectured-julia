@@ -70,11 +70,11 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/fsm/document/FsmDocumentTest.jl")
-include("../../../test/fsm/projection/FsmDiagramTest.jl")
-include("../../../test/fsm/projection/FsmToJuliaCodeTest.jl")
-include("../../../test/fsm/projection/FsmToSyntaxTest.jl")
+include("../../../test/domain/fsm/document/FsmDocumentTest.jl")
+include("../../../test/domain/fsm/projection/FsmDiagramTest.jl")
+include("../../../test/domain/fsm/projection/FsmToJuliaCodeTest.jl")
+include("../../../test/domain/fsm/projection/FsmToSyntaxTest.jl")
 
-include("../../../test/fsm/FsmSuite.jl")
+include("../../../test/domain/fsm/FsmSuite.jl")
 
 end # module ProjecturedFsmTest

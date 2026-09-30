@@ -45,7 +45,7 @@ for _src in (ProjecturedCollection, ProjecturedConversation, ProjecturedDomain,
     end
 end
 
-include("../../../source/assistant/AssistantModule.jl")
+include("../../../source/platform/assistant/AssistantModule.jl")
 
 using .AssistantModule
 

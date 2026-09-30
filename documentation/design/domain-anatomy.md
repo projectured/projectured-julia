@@ -10,21 +10,21 @@ A domain package holds the documents of one kind of content and everything that 
 
 | Part | What it is | JSON |
 | --- | --- | --- |
-| The documents | `@document` structs under one abstract root | `source/json/JsonDocument.jl` |
+| The documents | `@document` structs under one abstract root | `source/domain/json/JsonDocument.jl` |
 | The placeholder kit | `XNothing`, `XInsertion` and their traits, from `@domain` | `@domain Json` |
 | The gestures | the structural edits, as `@gestures` tables on the document types | `JsonDocument.jl` |
-| The printer | `XToSyntax`, one projection rule for each document type | `source/json/JsonToSyntax.jl` |
-| The parser | a hand-written reader of the text form | `source/json/JsonParser.jl` |
-| The file type | an `XFile <: FileDocument` for the file extension | `source/json/JsonFile.jl` |
-| The registration | the `__init__` of the module | `source/json/JsonModule.jl` |
-| The examples | a document factory and a projection factory | `example/json/` |
-| The tests | `test_json()`, with the layering guard first | `test/json/JsonSuite.jl` |
+| The printer | `XToSyntax`, one projection rule for each document type | `source/domain/json/JsonToSyntax.jl` |
+| The parser | a hand-written reader of the text form | `source/domain/json/JsonParser.jl` |
+| The file type | an `XFile <: FileDocument` for the file extension | `source/domain/json/JsonFile.jl` |
+| The registration | the `__init__` of the module | `source/domain/json/JsonModule.jl` |
+| The examples | a document factory and a projection factory | `example/domain/json/` |
+| The tests | `test_json()`, with the layering guard first | `test/domain/json/JsonSuite.jl` |
 
 A domain has no third-party dependency. A domain that needs one becomes an opt-in package, as `ProjecturedOdbc` is for live SQL queries. [package-rules.md](../rule/package-rules.md) states the rule.
 
 ## The documents
 
-`@domain Json` makes the abstract root `JsonDocument`, the empty placeholder `JsonNothing`, the typed-name buffer `JsonInsertion`, the Insert-key gesture from the placeholder to the buffer, and the traits that the completion reads. [macros.md](../package/kernel/macros.md#domain) lists what it makes. The package that holds the macro is `ProjecturedDomain`; see [domain.md](../package/domain/domain.md).
+`@domain Json` makes the abstract root `JsonDocument`, the empty placeholder `JsonNothing`, the typed-name buffer `JsonInsertion`, the Insert-key gesture from the placeholder to the buffer, and the traits that the completion reads. [macros.md](../package/kernel/macros.md#domain) lists what it makes. The package that holds the macro is `ProjecturedDomain`; see [domain.md](../package/platform/domain/domain.md).
 
 Each concrete type is an `@document` struct. The macro wraps each field in a reactive cell and adds a `selection` field. **The field names are the reference vocabulary of the domain**: a selection path such as `entries[1].value.value{3}` names them. A rename of a field breaks every stored reference to it.
 
@@ -47,7 +47,7 @@ JsonInsertion => DomainInsertionToSyntaxLeaf(JsonDocument),
 JsonNothing   => InsertionNothingToSyntaxLeaf(),
 ```
 
-A rule is written with `@projection_template` when it can be. The markers `bound(:field, …)` and `collection(:field)` say which output part holds which input field. From them the template makes the printer, both reference maps and the reader. A rule is written by hand only when the output has a part that no field produces but that must take a caret. The XML element chrome and the YAML block sequence are the two cases. [syntax.md](../package/syntax/syntax.md) and [text.md](../package/text/text.md) describe the two shared stages.
+A rule is written with `@projection_template` when it can be. The markers `bound(:field, …)` and `collection(:field)` say which output part holds which input field. From them the template makes the printer, both reference maps and the reader. A rule is written by hand only when the output has a part that no field produces but that must take a caret. The XML element chrome and the YAML block sequence are the two cases. [syntax.md](../package/platform/syntax/syntax.md) and [text.md](../package/platform/text/text.md) describe the two shared stages.
 
 Four other routes exist:
 
@@ -76,7 +76,7 @@ The Insert key replaces the placeholder with a `JsonInsertion` buffer. The candi
 
 A domain with a text form has a parser, `parse_json`. The parsers are hand-written, because a domain has no third-party dependency. Each one reads a subset of its format, and the document of the domain says which subset.
 
-The file type is an `@document struct JsonFile <: FileDocument` with a `filename` and a `content`. It implements the contract of `ProjecturedSerialization`: `get_file_domain`, `parse_file_content`, `emit_text`, `make_reference_leaf` and `find_reference_marker`. The last two spell a reference to a node in another file. The spelling depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. [serialization.md](../package/serialization/serialization.md) describes the multi-file project that uses them.
+The file type is an `@document struct JsonFile <: FileDocument` with a `filename` and a `content`. It implements the contract of `ProjecturedSerialization`: `get_file_domain`, `parse_file_content`, `emit_text`, `make_reference_leaf` and `find_reference_marker`. The last two spell a reference to a node in another file. The spelling depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. [serialization.md](../package/platform/serialization/serialization.md) describes the multi-file project that uses them.
 
 `make_document_seed(::Val{:json})` gives the document that a new, empty `.json` file starts from.
 
@@ -97,7 +97,7 @@ The first call gives the domain these, without more code:
 - a row in `NaturalToGraphics`, so that a tab draws the document when it has no designed view;
 - the text form that a tool gives to a language model.
 
-A domain calls `register_natural_syntax!` or `register_natural_graphics!` as well when the general renderer must use a different projection. Markdown draws the rendered page in a tab and prints the source form to a file. [natural.md](../package/natural/natural.md) describes the two tables.
+A domain calls `register_natural_syntax!` or `register_natural_graphics!` as well when the general renderer must use a different projection. Markdown draws the rendered page in a tab and prints the source form to a file. [natural.md](../package/platform/natural/natural.md) describes the two tables.
 
 ## One domain inside another
 

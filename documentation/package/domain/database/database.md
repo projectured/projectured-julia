@@ -1,6 +1,6 @@
 # Database, catalog and ODBC
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [sql.md](../sql/sql.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [sql.md](../sql/sql.md)
 
 Three packages carry a live database into the editor. `ProjecturedDatabase` defines the adapter interface and the connection documents, `ProjecturedDbCatalog` models the catalog of a database as a tree of documents, and `ProjecturedOdbc` is the one concrete adapter, built on `ODBC.jl`. This document says what each package holds, how the three depend on each other, and what a live query does.
 
@@ -68,18 +68,18 @@ Two projections bring a live database into a chain:
 
 ## How it fits
 
-`ProjecturedDatabase` depends only on `ProjecturedKernel`. `ProjecturedDbCatalog` depends on `ProjecturedSql`, `ProjecturedSyntax`, `ProjecturedText` and the kernel packages, and it takes the DDL document types from the SQL domain; see [sql.md](../sql/sql.md). `ProjecturedOdbc` depends on both of them. It owns a third-party dependency, so the umbrella package `Projectured` does not load it, and a program that needs it names it; see [package-rules.md](../../rule/package-rules.md).
+`ProjecturedDatabase` depends only on `ProjecturedKernel`. `ProjecturedDbCatalog` depends on `ProjecturedSql`, `ProjecturedSyntax`, `ProjecturedText` and the kernel packages, and it takes the DDL document types from the SQL domain; see [sql.md](../sql/sql.md). `ProjecturedOdbc` depends on both of them. It owns a third-party dependency, so the umbrella package `Projectured` does not load it, and a program that needs it names it; see [package-rules.md](../../../rule/package-rules.md).
 
 None of the three has an `__init__`. They register no natural row, no file type and no `.pred` type, so the general renderer has no row for them, and a caller composes their projections into a chain. The one registration is the method `make_database_adapter(::Val{:odbc})`.
 
 ## Design decisions
 
-- **The adapter is an interface in a package with no dependency.** A caller that only builds SQL or a catalog loads no database library. See [plan/done/database-backend.md](../../../plan/done/database-backend.md).
-- **The driver is ODBC.** One adapter reaches PostgreSQL, SQL Server, MySQL, Oracle and SQLite through the connection string. A PostgreSQL client library binds one database only. See [plan/done/libpq-go-to-hell.md](../../../plan/done/libpq-go-to-hell.md).
+- **The adapter is an interface in a package with no dependency.** A caller that only builds SQL or a catalog loads no database library. See [plan/done/database-backend.md](../../../../plan/done/database-backend.md).
+- **The driver is ODBC.** One adapter reaches PostgreSQL, SQL Server, MySQL, Oracle and SQLite through the connection string. A PostgreSQL client library binds one database only. See [plan/done/libpq-go-to-hell.md](../../../../plan/done/libpq-go-to-hell.md).
 - **A missing verb fails at its first call.** Each default method raises an error, so an adapter that implements a part of the interface loads and fails only when a caller uses the missing part.
-- **The catalog is a pure tree.** Each level is a vector of children with no parent pointer and no adapter in it, so each level can be built and queried alone. See [plan/done/database-instance-catalog-sql.md](../../../plan/done/database-instance-catalog-sql.md).
-- **The catalog becomes DDL through SQL documents.** DDL is a form of a database that a language model reads easily, and `SqlToSyntax` stays the one printer of SQL. See [plan/done/dbcatalog-sql-document-support.md](../../../plan/done/dbcatalog-sql-document-support.md).
-- **The pool is written in this repository.** It needs no new dependency and reuses the adapter unchanged. A query result is a `CellTable`, the table document that exists, and not a new widget. See [plan/done/database-instance-catalog-sql.md](../../../plan/done/database-instance-catalog-sql.md).
+- **The catalog is a pure tree.** Each level is a vector of children with no parent pointer and no adapter in it, so each level can be built and queried alone. See [plan/done/database-instance-catalog-sql.md](../../../../plan/done/database-instance-catalog-sql.md).
+- **The catalog becomes DDL through SQL documents.** DDL is a form of a database that a language model reads easily, and `SqlToSyntax` stays the one printer of SQL. See [plan/done/dbcatalog-sql-document-support.md](../../../../plan/done/dbcatalog-sql-document-support.md).
+- **The pool is written in this repository.** It needs no new dependency and reuses the adapter unchanged. A query result is a `CellTable`, the table document that exists, and not a new widget. See [plan/done/database-instance-catalog-sql.md](../../../../plan/done/database-instance-catalog-sql.md).
 
 ## Usage
 
@@ -101,7 +101,7 @@ catalog  = ChainingProjection(DatabaseInstanceToDbCatalog(pool),
                               TextToGraphics(measure = FontFileMeasure()))
 ```
 
-- Examples: the atomic catalog has one document for each catalog type and one `DatabaseInstance`. The live examples are in `example/odbc/`: `dbcatalog_example` and `dvdrental_catalog_example` browse a catalog, and `sql_table_example` shows the result of a query. They read the connection from the `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGHOST` and `PGPORT` environment variables.
+- Examples: the atomic catalog has one document for each catalog type and one `DatabaseInstance`. The live examples are in `example/adapter/odbc/`: `dbcatalog_example` and `dvdrental_catalog_example` browse a catalog, and `sql_table_example` shows the result of a query. They read the connection from the `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGHOST` and `PGPORT` environment variables.
 - Tests: `test_database()` and `test_dbcatalog()` need no database. `test_database()` checks the documents and that each verb of an empty adapter raises an error. `test_dbcatalog()` checks the DDL of each level and the marker predicate. `test_odbc()` needs a reachable database for its live part. `test_odbc_adapter()`, its first part, needs none: it checks the text of the catalog queries, a name with a quote in each of them, the text of the select, insert, update and delete statements with a name that holds a double quote, the connection string of a database of the catalog, and a value of the connection string with a `;` or a `}` in it.
 
 ## Limits
@@ -110,5 +110,5 @@ catalog  = ChainingProjection(DatabaseInstanceToDbCatalog(pool),
 - **The catalog queries are PostgreSQL SQL.** The `get_db_catalog_*` methods of `OdbcDatabaseAdapter` read `information_schema` with PostgreSQL filters such as `pg_%`, the list of databases reads `pg_database`, and the foreign key query reads `pg_catalog`, because the constraint views of `information_schema` show a constraint only to the owner of the table. The query, execute and change verbs write plain SQL with quoted identifiers, but `query_db` with a `limit` writes a `LIMIT` clause, which the SQL standard does not have.
 - **A connection reads the schemas of its own database only.** `get_db_catalog_databases` lists every database of the server from `pg_database`, and `get_db_catalog_schemas` lists the schemas whose `catalog_name` is its `database` argument. PostgreSQL shows a connection the `information_schema` of its own database, so the schemas of another database are an empty list. `DatabaseInstanceToDbCatalog` connects to each database for that reason. A database that the credentials of the instance can not connect to raises the error of the connection when its schemas are read.
 - **A `WHERE` fragment goes into the SQL text as it is.** Only the row values of an insert or an update are parameters, and the `WHERE` fragment of `query_db`, `update_db!` and `delete_from_db!` goes into the text as it is. A caller must not pass an untrusted one. A table name and a column name are not a limit: each goes into the text as a quoted identifier, with each double quote of the name written twice, so a name with a double quote in it stays one identifier. The catalog queries write the name of a database, a schema or a table as a string literal, with each quote of the name written twice, for the same reason.
-- **A green `test_odbc()` does not prove a live query.** When the connection fails, the live tests of `DatabaseResultTest.jl` and `DbCatalogQueryTest.jl` are skipped with a log message. Each of the three files in `test/odbc/external/` puts its live group in one `try`, and an error there becomes one `@test_broken`, so the tests after the error do not run.
-- **The catalog has no indexes, keys or constraints.** [plan/pending/dbcatalog-index-support.md](../../../plan/pending/dbcatalog-index-support.md) plans the indexes. [plan/pending/bound-sql-statement.md](../../../plan/pending/bound-sql-statement.md) plans a SQL statement bound to the live catalog, for completion and checks.
+- **A green `test_odbc()` does not prove a live query.** When the connection fails, the live tests of `DatabaseResultTest.jl` and `DbCatalogQueryTest.jl` are skipped with a log message. Each of the three files in `test/adapter/odbc/external/` puts its live group in one `try`, and an error there becomes one `@test_broken`, so the tests after the error do not run.
+- **The catalog has no indexes, keys or constraints.** [plan/pending/dbcatalog-index-support.md](../../../../plan/pending/dbcatalog-index-support.md) plans the indexes. [plan/pending/bound-sql-statement.md](../../../../plan/pending/bound-sql-statement.md) plans a SQL statement bound to the live catalog, for completion and checks.

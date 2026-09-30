@@ -29,6 +29,6 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 
-include("../../../source/reflection/ReflectionModule.jl")
+include("../../../source/platform/reflection/ReflectionModule.jl")
 
 end # module ProjecturedReflection

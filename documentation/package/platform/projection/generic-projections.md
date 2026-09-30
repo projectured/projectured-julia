@@ -1,14 +1,14 @@
 # Generic Projections
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
 
 Generic projections are **input-domain-independent**: they operate on any
 document *by structure, not by type*, copying, sorting, reversing, filtering,
 focusing, preserving, or reflecting over it without dispatching on any specific
 domain. That input-independence is the defining property of the nine projections
 below; each is a single struct subtyping `Projection`. Eight of them live in
-`source/projection/generic/`; the ninth, `ObjectToWidget`, lives in
-`source/widget/ObjectToWidget.jl`. *Most* also preserve the domain (same
+`source/platform/projection/generic/`; the ninth, `ObjectToWidget`, lives in
+`source/platform/widget/ObjectToWidget.jl`. *Most* also preserve the domain (same
 domain in and out). The
 reflection-driven `ObjectToWidget` is the one that does not preserve the
 domain. It reflects over any object, so it stays fully input-independent, but

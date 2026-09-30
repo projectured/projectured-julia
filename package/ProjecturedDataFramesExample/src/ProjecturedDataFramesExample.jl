@@ -10,7 +10,7 @@ module ProjecturedDataFramesExample
 using DataFrames
 using ProjecturedDataFrames
 
-include("../../../example/dataframes/DataFrameExample.jl")
+include("../../../example/adapter/dataframes/DataFrameExample.jl")
 
 export make_data_frame_example
 

@@ -42,8 +42,8 @@ using ProjecturedFault.OperationModule
 
 import ProjecturedKernel.EditorModule: read!
 
-include("../../../test/fault/FaultCatchingTest.jl")
-include("../../../test/fault/FaultSafeModeTest.jl")
-include("../../../test/fault/FaultSuite.jl")
+include("../../../test/platform/fault/FaultCatchingTest.jl")
+include("../../../test/platform/fault/FaultSafeModeTest.jl")
+include("../../../test/platform/fault/FaultSuite.jl")
 
 end # module ProjecturedFaultTest

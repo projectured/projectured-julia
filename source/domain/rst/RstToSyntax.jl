@@ -1156,7 +1156,7 @@ end
 #
 # The arrow is set in DejaVu explicitly: Ubuntu Mono lacks this glyph, and
 # pinning the font here keeps the marker legible without depending on the
-# per-glyph fallback `source/sdl/Sdl.jl` otherwise applies.
+# per-glyph fallback `source/backend/sdl/Sdl.jl` otherwise applies.
 
 @projection struct RstLiteralIncludeToStyledLeaf
     marker_style::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)

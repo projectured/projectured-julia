@@ -28,8 +28,8 @@ here. This asserts the suite runs what the slice defines.
 """
 function test_shell_completeness()
     @testset "the suite runs every test of this slice, once" begin
-        directory = joinpath(get_package_source_root(ProjecturedShell), "..", "..",
-                             "test", "shell")
+        directory = joinpath(get_package_source_root(ProjecturedShell), "..", "..", "..",
+                             "test", "platform", "shell")
         defined = Set{String}()
         for name in readdir(directory)
             endswith(name, ".jl") || continue

@@ -26,8 +26,8 @@ folder per package, carrying the name exactly.
 
 The slice is the lower-case name with the prefix removed, and it is the folder
 its code lives in: `ProjecturedSequenceChart` is
-`package/ProjecturedSequenceChart/`, its code is `source/sequencechart/`, its
-suite is `test/sequencechart/` and its documents are `example/sequencechart/`.
+`package/ProjecturedSequenceChart/`, its code is `source/domain/sequencechart/`, its
+suite is `test/domain/sequencechart/` and its documents are `example/domain/sequencechart/`.
 That derivation is a rule and not a coincidence —
 `ProjecturedKernelTest.get_package_source_root` computes it, and
 `test_package_graph()` walks it.
@@ -72,19 +72,19 @@ thing, and is it the real thing or an example of one. Of 690 files,
 
 | tree | shape | example |
 | --- | --- | --- |
-| `source/` | `<Slice>Module.jl` — the module head: the docstring, the header, the includes | `source/json/JsonModule.jl` |
-| | `<Slice>Document.jl` — the slice's document types | `source/json/JsonDocument.jl` |
-| | `<A>To<B>.jl` — a projection | `source/json/JsonToSyntax.jl` |
-| | `<Thing>.jl` — anything that is neither | `source/sdl/Sdl.jl` |
-| `test/` | `<Thing>Test.jl` — `<Thing>` is the file it tests | `test/json/document/JsonDocumentTest.jl` |
-| | `<Slice>Suite.jl` — the aggregator, `test_<slice>()` | `test/json/JsonSuite.jl` |
-| `example/` | `<Thing>DocumentExample.jl` | `example/json/JsonDocumentExample.jl` |
-| | `<Thing>ProjectionExample.jl` | `example/json/JsonProjectionExample.jl` |
-| | `<Slice>Examples.jl` — the registry | `example/json/JsonExamples.jl` |
+| `source/` | `<Slice>Module.jl` — the module head: the docstring, the header, the includes | `source/domain/json/JsonModule.jl` |
+| | `<Slice>Document.jl` — the slice's document types | `source/domain/json/JsonDocument.jl` |
+| | `<A>To<B>.jl` — a projection | `source/domain/json/JsonToSyntax.jl` |
+| | `<Thing>.jl` — anything that is neither | `source/backend/sdl/Sdl.jl` |
+| `test/` | `<Thing>Test.jl` — `<Thing>` is the file it tests | `test/domain/json/document/JsonDocumentTest.jl` |
+| | `<Slice>Suite.jl` — the aggregator, `test_<slice>()` | `test/domain/json/JsonSuite.jl` |
+| `example/` | `<Thing>DocumentExample.jl` | `example/domain/json/JsonDocumentExample.jl` |
+| | `<Thing>ProjectionExample.jl` | `example/domain/json/JsonProjectionExample.jl` |
+| | `<Slice>Examples.jl` — the registry | `example/domain/json/JsonExamples.jl` |
 
 **Only a document file carries `Document`.** A slice whose primary file defines
-no document keeps the bare name, which is why `source/sdl/Sdl.jl` is a backend
-and `source/json/JsonDocument.jl` is a document. The test is `@document` in the
+no document keeps the bare name, which is why `source/backend/sdl/Sdl.jl` is a backend
+and `source/domain/json/JsonDocument.jl` is a document. The test is `@document` in the
 file, and it sorts all 51 slice-named files without a judgement call.
 
 **`example/` has no role folders and `test/` keeps them.** The name says
@@ -94,11 +94,11 @@ file: 36 of `example/`'s 47 role folders held exactly one. `test/` keeps
 52 files.
 
 **A test is named for the file it tests, and the function inside settles it
-where the file name cannot.** `test/json/document/JsonDocumentTest.jl` is
+where the file name cannot.** `test/domain/json/document/JsonDocumentTest.jl` is
 named for its subject, `JsonDocument.jl`, not the bare slice name
 `JsonTest.jl`. Six of its neighbours look the same and are not: they sit in
 `projection/`, and each holds a `test_<slice>_projection`, so they are
-`<Slice>ProjectionTest.jl`. Two more in `test/odbc/external/` test a live
+`<Slice>ProjectionTest.jl`. Two more in `test/adapter/odbc/external/` test a live
 query rather than a file, and are named for what they query, such as
 `DatabaseResultTest.jl` or `DbCatalogQueryTest.jl`.
 
@@ -109,7 +109,7 @@ query rather than a file, and are named for what they query, such as
 ## Files and modules
 
 - **One module per unit of architecture.** A slice declares one module, named
-  for the slice: every file under `source/json/` is a fragment of `JsonModule`,
+  for the slice: every file under `source/domain/json/` is a fragment of `JsonModule`,
   and only one of them carries the `module` line. The kernel is layered rather
   than sliced, so there a module belongs to a layer and its file is named for
   it: `ClockModule.jl` declares `ClockModule`, `ProjectionModule.jl` declares
@@ -120,7 +120,7 @@ query rather than a file, and are named for what they query, such as
   it came from and what part of the slice it is. Its imports and its exports
   belong to the module file, because a module states what it needs and what it
   exports, in one place.
-- **One slice takes a name of its own.** `source/projection/` declares
+- **One slice takes a name of its own.** `source/platform/projection/` declares
   `ProjectionAlgebraModule`, not `ProjectionModule`, because the kernel's
   projection layer already declares that name and the kernel does not change.
   The slice holds the domain-free projection algebra, so the module says so.

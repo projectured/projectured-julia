@@ -65,8 +65,8 @@ for _src in _SOURCES
 end
 
 
-include("../../../test/book/projection/BookToSyntaxTest.jl")
+include("../../../test/domain/book/projection/BookToSyntaxTest.jl")
 
-include("../../../test/book/BookSuite.jl")
+include("../../../test/domain/book/BookSuite.jl")
 
 end # module ProjecturedBookTest

@@ -22,7 +22,7 @@ using ProjecturedOpenRouter
 import ProjecturedKernel.ToolModule: RelevanceModel, ToolSet, declare_api!, set_relevance_model!,
                                      search_api
 
-include("../../../test/openrouter/OpenRouterTest.jl")
-include("../../../test/openrouter/OpenRouterSuite.jl")
+include("../../../test/adapter/openrouter/OpenRouterTest.jl")
+include("../../../test/adapter/openrouter/OpenRouterSuite.jl")
 
 end # module ProjecturedOpenRouterTest

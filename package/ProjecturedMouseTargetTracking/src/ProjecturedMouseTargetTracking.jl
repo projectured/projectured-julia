@@ -24,6 +24,6 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 
-include("../../../source/mousetargettracking/MouseTargetTrackingModule.jl")
+include("../../../source/platform/mousetargettracking/MouseTargetTrackingModule.jl")
 
 end # module ProjecturedMouseTargetTracking

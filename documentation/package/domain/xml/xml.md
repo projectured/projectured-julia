@@ -1,8 +1,8 @@
 # XML domain
 
-> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../kernel/reference.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../../kernel/reference.md)
 
-The XML domain, `ProjecturedXml`, holds an XML document as a tree of elements, text nodes and attributes. This document says where it differs from the [shape of every domain](../../design/domain-anatomy.md): the attribute as a document, the element chrome and its reader, the gestures, and the reference marker of a file.
+The XML domain, `ProjecturedXml`, holds an XML document as a tree of elements, text nodes and attributes. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the attribute as a document, the element chrome and its reader, the gestures, and the reference marker of a file.
 
 <img width="396" alt="XML example" src="../../../asset/image/example/xml.png">
 
@@ -56,15 +56,15 @@ A letter or a digit on a placeholder is not a retype key, so it goes into the na
 
 `ProjecturedXml` depends on the kernel and on `ProjecturedDomain`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedNatural`, `ProjecturedSerialization` and `ProjecturedFileFormat`, with the small packages below them. No other domain package depends on it. Its `__init__` registers the natural row with the rung `:syntax`, the format `:xml`, the extension `.xml` and the parser `parse_xml`, and it registers `XmlFile` for `.xml`.
 
-The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/xml/` is one dispatch table with the rules of both domains, and the document is a `JsonObject` whose value is an `XmlElement`.
+The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/domain/xml/` is one dispatch table with the rules of both domains, and the document is a `JsonObject` whose value is an `XmlElement`.
 
 ## Design decisions
 
-- **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See [plan/done/xml-attribute-insertable.md](../../../plan/done/xml-attribute-insertable.md).
-- **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See [plan/done/xml-authoring-gestures.md](../../../plan/done/xml-authoring-gestures.md) and [plan/done/xml-to-syntax-template.md](../../../plan/done/xml-to-syntax-template.md).
+- **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See [plan/done/xml-attribute-insertable.md](../../../../plan/done/xml-attribute-insertable.md).
+- **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See [plan/done/xml-authoring-gestures.md](../../../../plan/done/xml-authoring-gestures.md) and [plan/done/xml-to-syntax-template.md](../../../../plan/done/xml-to-syntax-template.md).
 - **A caret on the chrome is the rule's own introduced step.** It holds the path of the delimiter in the output of the rule, so the forward map gives the same caret back.
 - **`<`, `"` and `=` override the text stage.** Neither `<` nor `"` can occur in a tag name, so the keys can mean "insert a child" with the caret in the name. `=` can not occur in an attribute name, so it moves the caret to the value.
-- **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See [plan/done/document-file-storage.md](../../../plan/done/document-file-storage.md).
+- **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See [plan/done/document-file-storage.md](../../../../plan/done/document-file-storage.md).
 
 ## Usage
 
@@ -98,7 +98,7 @@ The paths use `[i]` for the i-th item, from 1, and `{k}` for the caret at bounda
 
 ## Limits
 
-- An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of [plan/pending/xml-to-syntax-lisp-parity.md](../../../plan/pending/xml-to-syntax-lisp-parity.md).
-- No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. [plan/pending/collapse-expand-syntax-nodes.md](../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
+- An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of [plan/pending/xml-to-syntax-lisp-parity.md](../../../../plan/pending/xml-to-syntax-lisp-parity.md).
+- No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. [plan/pending/collapse-expand-syntax-nodes.md](../../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
 - An element with no children prints as `<tag></tag>`, never as `<tag/>`.
 - The parser raises an error on a CDATA section.

@@ -41,7 +41,7 @@ const FeedModule = ProjecturedKernel.FeedModule
 const GestureTrackingModule = ProjecturedGestureTracking.GestureTrackingModule
 const MouseTargetTrackingModule = ProjecturedMouseTargetTracking.MouseTargetTrackingModule
 
-include("../../../source/screen/ScreenModule.jl")
+include("../../../source/platform/screen/ScreenModule.jl")
 # One window on one document, for a program rather than for the gallery.
 
 end # module ProjecturedScreen

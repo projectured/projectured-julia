@@ -34,7 +34,7 @@ for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedLayout, Projec
     end
 end
 
-include("../../../source/dataframes/DataFramesModule.jl")
+include("../../../source/adapter/dataframes/DataFramesModule.jl")
 
 # A person loads this package by name, so its names are exported here.
 using .DataFramesModule: DataFrameView, jump_to_row, make_data_frame_cell,

@@ -65,8 +65,8 @@ for _src in _SOURCES
 end
 
 
-include("../../../test/database/document/DatabaseDocumentTest.jl")
+include("../../../test/domain/database/document/DatabaseDocumentTest.jl")
 
-include("../../../test/database/DatabaseSuite.jl")
+include("../../../test/domain/database/DatabaseSuite.jl")
 
 end # module ProjecturedDatabaseTest

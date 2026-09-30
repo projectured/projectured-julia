@@ -1,6 +1,6 @@
 # Undo
 
-> **Kind:** design · **Status:** current · **Stands on:** [operation.md](../kernel/operation.md), [projection-system.md](../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
+> **Kind:** design · **Status:** current · **Stands on:** [operation.md](../../kernel/operation.md), [projection-system.md](../../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
 
 `ProjecturedUndo` gives any document a history. An `UndoBuffer` holds a document and the steps that take it back, and a transparent projection records each operation that passes through it. This document says how a step is recorded while no reader changes anything, how two buffers on one path work together, and what is not recorded.
 
@@ -57,7 +57,7 @@ A buffer above a buffer keeps a copy of each step below. A run joins in both or 
 
 ### The reader wraps and never records
 
-`PAR-READER-IS-PURE` in [architecture-invariants.md](../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!` and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
+`PAR-READER-IS-PURE` in [architecture-invariants.md](../../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!` and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
 
 `RecordUndoOperation` is a `WrappingOperation`: `get_wrapped_operation` and `rewrap_operation` reach the operation inside it. Every seam that maps a `CompoundOperation` member by member uses these two, so the wrapper needs no special case anywhere. `UndoOperation` and `RedoOperation` hold the buffer itself, so `operation_travels_unchanged` is `true` for both and they need no rerooting.
 
@@ -112,14 +112,14 @@ It registers nothing at load time. The keys are a `get_projection_gesture_bindin
 
 ## Design decisions
 
-- **A history is a document node, not a field of the editor.** A window can then have one history and each file another. See [plan/done/undo-and-redo.md](../../../plan/done/undo-and-redo.md).
+- **A history is a document node, not a field of the editor.** A window can then have one history and each file another. See [plan/done/undo-and-redo.md](../../../../plan/done/undo-and-redo.md).
 - **The evaluation records, the reader does not.** A reader that changes state is invisible to undo, playback and scripting, so recording is an operation.
 - **The inverse is taken before the change.** It must read the state that the change starts from, and a compound is inverted member by member for the same reason.
 - **A barrier stops the history.** Stepping over a step that has no inverse would make a state that never existed.
 - **An outer buffer undoes through the inner one.** The chain of inverses from record to undo to redo lets a buffer record another buffer without a special case.
-- **The reader that reads a gesture marks view state.** A field can be view state under one projection and content under another, so no list of fields exists. See [plan/done/the-history-records-edits-and-not-view-state.md](../../../plan/done/the-history-records-edits-and-not-view-state.md).
+- **The reader that reads a gesture marks view state.** A field can be view state under one projection and content under another, so no list of fields exists. See [plan/done/the-history-records-edits-and-not-view-state.md](../../../../plan/done/the-history-records-edits-and-not-view-state.md).
 - **A run of typing is one step, in each buffer on the path.** Otherwise typing pushes every other step out, and an outer copy would no longer name exactly one inner step.
-- **The inner buffer takes the key first.** This is the reverse of the reader order of versioning, and the comment at the head of `source/undo/UndoBufferToAny.jl` says so.
+- **The inner buffer takes the key first.** This is the reverse of the reader order of versioning, and the comment at the head of `source/platform/undo/UndoBufferToAny.jl` says so.
 
 ## Usage
 
@@ -134,7 +134,7 @@ register_undo_tools!(editor.tools)
 ```
 
 - Examples: `undo_example`, a JSON document with a history behind it, and `undo_history_example`, the history drawn. The factories are in `example/projectured/UndoDocumentExample.jl` and `UndoProjectionExample.jl`. Both examples are outside the `examples` registry, because a sweep would leave a history for the next test.
-- Tests: `test_undo()` in `test/undo/UndoSuite.jl` runs the layering guard and `test_undo_buffer()`. Its documents are declared in the suite and the content projection is the identity, so no domain is needed. `test_undo_round_trip()` in `test/projectured/projection/UndoRoundTripTest.jl` edits `undo_example` at sampled carets and undoes each edit. `test_history_sweep()` in `test/projectured/editor/HistorySweepTest.jl` asserts that a gesture that changes no document adds no step, and that a run of 150 typed characters is one step in the file and in the window.
+- Tests: `test_undo()` in `test/platform/undo/UndoSuite.jl` runs the layering guard and `test_undo_buffer()`. Its documents are declared in the suite and the content projection is the identity, so no domain is needed. `test_undo_round_trip()` in `test/projectured/projection/UndoRoundTripTest.jl` edits `undo_example` at sampled carets and undoes each edit. `test_history_sweep()` in `test/projectured/editor/HistorySweepTest.jl` asserts that a gesture that changes no document adds no step, and that a run of 150 typed characters is one step in the file and in the window.
 
 ## Limits
 

@@ -46,6 +46,6 @@ const StyleModule = ProjecturedStyle.StyleModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 
-include("../../../source/gesturelog/GestureLogModule.jl")
+include("../../../source/platform/gesturelog/GestureLogModule.jl")
 
 end # module ProjecturedGestureLog

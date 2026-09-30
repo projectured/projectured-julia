@@ -625,7 +625,7 @@ much about the design as the finished parts.
   another document and the steps that take it back. The application puts one
   around each file and one around the window; a program that installs none has
   no history. The operation model is the reason this was a feature and not a
-  rewrite. See [undo.md](../package/undo/undo.md).
+  rewrite. See [undo.md](../package/platform/undo/undo.md).
 - **Character edits are not uniform.** They work end to end for the
   field-addressed domains — JSON, XML, YAML, text, prose, and the type-in path.
   The goal is every leaf in every domain.
@@ -699,7 +699,7 @@ printer and reader by hand — see [debugging-guide.md](../guide/debugging-guide
 | Set up and run something | [Getting started](../guide/setup-guide.md) |
 | Understand the incrementality | [Reactive cells](../package/kernel/cell.md) |
 | Understand the four functions in depth | [Projection system](../package/kernel/projection-system.md) |
-| Understand the combinators in depth | [Higher-order projections](../package/projection/higher-order-projections.md) · [Generic projections](../package/projection/generic-projections.md) |
+| Understand the combinators in depth | [Higher-order projections](../package/platform/projection/higher-order-projections.md) · [Generic projections](../package/platform/projection/generic-projections.md) |
 | Understand paths and the caret | [References](../package/kernel/reference.md) · [Selection](../package/kernel/selection.md) |
 | Understand the macros | [Macros](../package/kernel/macros.md) |
 | Find the code | [Architecture](system-anatomy.md) · [Terminology](../rule/division-terminology.md) · [Orientation](../guide/orientation.md) |

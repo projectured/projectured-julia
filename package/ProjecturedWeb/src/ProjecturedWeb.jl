@@ -42,6 +42,6 @@ import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll
 
-include("../../../source/web/Web.jl")
+include("../../../source/backend/web/Web.jl")
 
 end # module Web

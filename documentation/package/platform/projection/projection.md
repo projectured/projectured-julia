@@ -1,6 +1,6 @@
 # Projection algebra
 
-> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../kernel/projection-system.md), [architecture-invariants.md](../../rule/architecture-invariants.md)
+> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [architecture-invariants.md](../../../rule/architecture-invariants.md)
 
 `ProjecturedProjection` holds the projections that work on any document: the generic ones, which change the shape of a document, and the higher-order ones, which combine other projections. The kernel holds only the framework that they implement. This document says how the package divides the work with the kernel and which combinations carry the rest of the system; two guides describe each projection.
 
@@ -39,7 +39,7 @@ Four higher-order projections live in other packages, because each one needs a p
 
 ## Design decisions
 
-- **The framework is in the kernel, and the algebra is a package.** The kernel holds machinery and interfaces only, and no concrete projection. See [plan/done/projections-kernel-to-base.md](../../../plan/done/projections-kernel-to-base.md).
+- **The framework is in the kernel, and the algebra is a package.** The kernel holds machinery and interfaces only, and no concrete projection. See [plan/done/projections-kernel-to-base.md](../../../../plan/done/projections-kernel-to-base.md).
 - **Compose, do not add a combinator.** `ApplyAtProjection` is a combination of four projections, not a new type. A new need is first tried as a combination.
 
 ## Usage
@@ -53,9 +53,9 @@ chain  = ChainingProjection(RecursiveProjection(JsonToSyntax()),
 choice = SwitchingProjection([JsonToSyntax(), XmlToSyntax()], Cell(1))
 ```
 
-- Examples: `example/substrate/` has one example for sorting, filtering, reversing, searching, and the lazy list copy.
-- Tests: `test_sorting()`, `test_filtering()`, `test_reversing()`, `test_searching()`, `test_copying_projection()` and `test_switching()` in `test/substrate/projection/`.
+- Examples: `example/platform/` has one example for sorting, filtering, reversing, searching, and the lazy list copy.
+- Tests: `test_sorting()`, `test_filtering()`, `test_reversing()`, `test_searching()`, `test_copying_projection()` and `test_switching()` in `test/platform/projection/`.
 
 ## Limits
 
-- [plan/pending/parallel-projection.md](../../../plan/pending/parallel-projection.md) describes a `ParallelProjection`. It does not exist.
+- [plan/pending/parallel-projection.md](../../../../plan/pending/parallel-projection.md) describes a `ParallelProjection`. It does not exist.

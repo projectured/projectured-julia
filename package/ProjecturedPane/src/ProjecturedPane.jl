@@ -49,6 +49,6 @@ const SerializationModule = ProjecturedSerialization.SerializationModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 const StyleModule = ProjecturedStyle.StyleModule
 
-include("../../../source/pane/PaneModule.jl")
+include("../../../source/platform/pane/PaneModule.jl")
 
 end # module ProjecturedPane

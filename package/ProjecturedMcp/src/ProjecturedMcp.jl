@@ -26,6 +26,6 @@ import ProjecturedKernel.ToolModule: Tool, Resource, ToolSet,
 import ProjecturedKernel.AgentModule: make_agent_server, start_agent_server!, stop_agent_server!,
                                       run_on_editor_task!
 
-include("../../../source/mcp/Mcp.jl")
+include("../../../source/adapter/mcp/Mcp.jl")
 
 end # module Mcp

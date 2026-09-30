@@ -419,7 +419,7 @@ about the name, and this comment and that function are where they say so.
 their notice in every copy, and neither font carries it in its own tables.
 """
 function bundle_fonts!(output::AbstractString)
-    source = normpath(joinpath(@__DIR__, "..", "..", "asset", "font"))
+    source = normpath(joinpath(@__DIR__, "..", "..", "..", "asset", "font"))
     if !isdir(source)
         @warn "no fonts to bundle: the bundle will read them from wherever the \
                style package was compiled" source

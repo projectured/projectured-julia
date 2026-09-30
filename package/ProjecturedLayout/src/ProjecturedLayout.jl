@@ -33,6 +33,6 @@ const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const StyleModule = ProjecturedStyle.StyleModule
 
-include("../../../source/layout/LayoutModule.jl")
+include("../../../source/platform/layout/LayoutModule.jl")
 
 end # module ProjecturedLayout

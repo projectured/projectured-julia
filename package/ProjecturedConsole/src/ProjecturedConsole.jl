@@ -23,6 +23,6 @@ const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const TextModule = ProjecturedText.TextModule
 
-include("../../../source/console/ConsoleBackendModule.jl")
+include("../../../source/backend/console/ConsoleBackendModule.jl")
 
 end # module ProjecturedConsole

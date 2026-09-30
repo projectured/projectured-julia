@@ -1,8 +1,8 @@
 # Console backend
 
-> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../kernel/devices-and-backends.md), [text.md](../text/text.md), [style.md](../style/style.md)
+> **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../../platform/text/text.md), [style.md](../../platform/style/style.md)
 
-`ProjecturedConsole` holds `ConsoleBackend`, which draws a text document in a terminal with ANSI colour codes and reads the keys of the terminal. It needs no third-party package, so the umbrella `Projectured` holds it. This document says how the backend implements the interface of [devices-and-backends.md](../kernel/devices-and-backends.md), and what a console pipeline must look like.
+`ProjecturedConsole` holds `ConsoleBackend`, which draws a text document in a terminal with ANSI colour codes and reads the keys of the terminal. It needs no third-party package, so the umbrella `Projectured` holds it. This document says how the backend implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), and what a console pipeline must look like.
 
 ## How it works
 
@@ -63,7 +63,7 @@ The parameter `m` is 1 plus the sum of 1 for Shift, 2 for Alt, 4 for Ctrl and 8 
 
 A lone ESC is Escape, and ESC followed by a key is that key with Alt. The two differ only in the time between the bytes. A terminal writes a whole escape sequence at once, so its bytes normally arrive in one read. When the bytes end in the start of a sequence, `read_from_devices` waits at most 50 ms for more. When no byte arrives in that time, the bytes are the keys that the user typed: a lone ESC is Escape, and `ESC [` is Alt+`[`. When more bytes arrive, the parser reads the sequence that they complete.
 
-Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../kernel/devices-and-backends.md) requires, and the editor loop quits on an Escape that no reader handled.
+Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../../kernel/devices-and-backends.md) requires, and the editor loop quits on an Escape that no reader handled.
 
 Every event is wrapped as `WindowInput(:console, event)`, because the console has no window. Home selects the root because the console has no mouse to make a first selection.
 
@@ -73,7 +73,7 @@ Every event is wrapped as `WindowInput(:console, event)`, because the console ha
 
 ### What a person can do
 
-Structural navigation works: the arrows move between nodes once a whole element is selected, and Home selects the root. Ctrl+Space switches between the structural selection and the text caret. Character editing works too: insert, Backspace, Delete, left and right. These come from the `@gestures` table of `TextBlock`, which `SyntaxToText` calls when its own reader returns no operation; see [text.md](../text/text.md#from-a-key-to-an-edit). What needs the positions of glyphs stays with `TextToGraphics`: up and down by a visual line, a plain Home or End to the edge of a line, and a click.
+Structural navigation works: the arrows move between nodes once a whole element is selected, and Home selects the root. Ctrl+Space switches between the structural selection and the text caret. Character editing works too: insert, Backspace, Delete, left and right. These come from the `@gestures` table of `TextBlock`, which `SyntaxToText` calls when its own reader returns no operation; see [text.md](../../platform/text/text.md#from-a-key-to-an-edit). What needs the positions of glyphs stays with `TextToGraphics`: up and down by a visual line, a plain Home or End to the edge of a line, and a click.
 
 ## How it fits
 
@@ -83,7 +83,7 @@ Structural navigation works: the arrows move between nodes once a whole element 
 
 ## Design decisions
 
-- **The pipeline stops at the text domain.** The spans of `SyntaxToText` are already the flat sequence that a terminal needs. See [plan/done/console-backend.md](../../../plan/done/console-backend.md).
+- **The pipeline stops at the text domain.** The spans of `SyntaxToText` are already the flat sequence that a terminal needs. See [plan/done/console-backend.md](../../../../plan/done/console-backend.md).
 - **The colours are kept.** Every span carries its colours, and the backend writes them as SGR codes.
 - **The selection is in the colours.** `SelectionInverting` paints it, so the backend has no code for it.
 - **A wrong pipeline raises an error.** The error names the step to drop, so a wrong pipeline does not print a wrong picture.

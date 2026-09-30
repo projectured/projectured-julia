@@ -1,6 +1,6 @@
 # Reflection
 
-> **Kind:** design · **Status:** current · **Stands on:** [bounded-sync.md](bounded-sync.md), [document.md](../kernel/document.md), [widget.md](../widget/widget.md)
+> **Kind:** design · **Status:** current · **Stands on:** [bounded-sync.md](bounded-sync.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md)
 
 `ProjecturedReflection` shows any Julia value on the screen with no projection written for it. It keeps a bounded shadow of the value, a tree of `ReflectedNode`, and draws the tree as a `WidgetTree` whose chevrons grow the shadow one level at a time. This document says how the shadow, the view and the value viewer fit together, and how this path differs from `ObjectToWidget` and `NaturalToGraphics`; [bounded-sync.md](bounded-sync.md) describes the bounded walk in detail.
 
@@ -47,7 +47,7 @@ A request only flags a marker, so something must run the sync. `ReflectionFeed(s
 
 `NaturalToGraphics` reflects a value that no domain registered through `ObjectToSyntax`, which prints the type name and the fields. That flat view suits a small value. `ObjectToWidget` also reflects an object, but it makes a card for each nested value and a control for each field, which is a form to edit. The value of a running program needs a compact row for each node and no edit, so this package has its own tree.
 
-`make_value_viewer(value; tree, depth, elements)` in `example/projectured/ValueViewer.jl` builds the pair: `reflect_document` with a `DepthPolicy`, and `ChainingProjection(ReflectionToWidget(), WidgetToGraphics(…))`. With `tree = false`, it returns the value itself and `NaturalToGraphics`. `make_value_viewer_feeds(document, value; depth, elements)` gives the `ReflectionFeed` of the tree, and none for the flat view. `run_value_viewer(value)` opens the view in a window with its feeds. [view-your-data-guide.md](../../guide/view-your-data-guide.md) is the guide for a user.
+`make_value_viewer(value; tree, depth, elements)` in `example/projectured/ValueViewer.jl` builds the pair: `reflect_document` with a `DepthPolicy`, and `ChainingProjection(ReflectionToWidget(), WidgetToGraphics(…))`. With `tree = false`, it returns the value itself and `NaturalToGraphics`. `make_value_viewer_feeds(document, value; depth, elements)` gives the `ReflectionFeed` of the tree, and none for the flat view. `run_value_viewer(value)` opens the view in a window with its feeds. [view-your-data-guide.md](../../../guide/view-your-data-guide.md) is the guide for a user.
 
 ## How it fits
 
@@ -57,11 +57,11 @@ The package registers nothing. It adds methods to the three open functions of th
 
 ## Design decisions
 
-- **The sync is bounded, not the projection.** A lazy projection leaves the whole sync in place and then discards its result. A bounded sync costs what is on the screen. See [plan/done/bounded-document-sync.md](../../../plan/done/bounded-document-sync.md).
+- **The sync is bounded, not the projection.** A lazy projection leaves the whole sync in place and then discards its result. A bounded sync costs what is on the screen. See [plan/done/bounded-document-sync.md](../../../../plan/done/bounded-document-sync.md).
 - **One walk, in the kernel.** A second, bounded walk in this package would repeat the kernel walk line for line and would need internals of the kernel, which the module boundary forbids. See [bounded-sync.md](bounded-sync.md#where-the-walk-lives).
 - **The open state is the marker.** A side table of open nodes can disagree with the shadow; a marker can not.
 - **A collapse is immediate, and an expand is a request.** A click does not start a deep walk, and a close only drops data.
-- **A feed runs the sync.** The reader stays pure and the operation does not know the value, so the sync runs on the editor task where the feeds of the editor drain; see [editor.md](../kernel/editor.md#the-feeds).
+- **A feed runs the sync.** The reader stays pure and the operation does not know the value, so the sync runs on the editor task where the feeds of the editor drain; see [editor.md](../../kernel/editor.md#the-feeds).
 - **The children are an iterator and a count.** A vector builds what the cap withholds.
 - **A tree, not `ObjectToWidget`, for the value viewer.** Both would draw the same node tree, and a compact row per node suits a value that a person drills into. `ObjectToWidget` also edits, which is wrong for the inside of a running program.
 
@@ -77,7 +77,7 @@ run_value_viewer(Dict("a" => 1, "b" => [1, 2, 3]))   # the tree, one level at a 
 run_value_viewer(value; tree = false)                # the flat view
 ```
 
-- Tests: `test_reflection_to_widget()` in `test/substrate/projection/ReflectionToWidgetTest.jl` checks the label of a closed node, the round trip of a chevron, and a printed tree that follows a sync. `test_document_reflection()` in `test/substrate/document/DocumentReflectionTest.jl` checks the shadow, and `test_value_viewer()` in `test/projectured/editor/ValueViewerTest.jl` checks the kinds of value that the viewer must draw and a chevron that opens a node in an editor with the feeds of the viewer.
+- Tests: `test_reflection_to_widget()` in `test/platform/projection/ReflectionToWidgetTest.jl` checks the label of a closed node, the round trip of a chevron, and a printed tree that follows a sync. `test_document_reflection()` in `test/platform/document/DocumentReflectionTest.jl` checks the shadow, and `test_value_viewer()` in `test/projectured/editor/ValueViewerTest.jl` checks the kinds of value that the viewer must draw and a chevron that opens a node in an editor with the feeds of the viewer.
 
 ## Limits
 

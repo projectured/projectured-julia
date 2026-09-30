@@ -22,9 +22,9 @@ using ProjecturedSyntax.SyntaxModule: SyntaxToText
 using ProjecturedText.TextModule: TextToString
 using ProjecturedHelp.HelpModule
 
-include("../../../test/help/DocstringSummaryTest.jl")
-include("../../../test/help/HelpListToSyntaxTest.jl")
-include("../../../test/help/AboutPageToSyntaxTest.jl")
-include("../../../test/help/HelpSuite.jl")
+include("../../../test/platform/help/DocstringSummaryTest.jl")
+include("../../../test/platform/help/HelpListToSyntaxTest.jl")
+include("../../../test/platform/help/AboutPageToSyntaxTest.jl")
+include("../../../test/platform/help/HelpSuite.jl")
 
 end # module ProjecturedHelpTest
