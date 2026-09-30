@@ -715,18 +715,27 @@ end
 """
     get_package_source_root(pkg) -> String
 
-The folder a package's source lives in: `source/<group>/<slice>/` at the repository
-root. A package is a name and an include list; the two do not share a directory
+The folder a package's source lives in, such as `source/domain/json/`. A package
+is a name and an include list; the two do not share a directory
 (`plan/done/repository-tree.md`), so the root file `pathof` returns is the
 **top file** and this is the `src_root` beside it.
 
-The package root file sits three levels below the repository root, both before
-and after the flattening of `package/`, so the depth is stable. The slice folder
-is the package name without its `Projectured` prefix, in lower case.
+It is the common folder of the files that the top file includes: the folder of
+the one slice of a package that includes one, and the folder of the group for a
+package that includes the slices of a group.
 """
-get_package_source_root(pkg::Module) =
-    normpath(joinpath(dirname(pathof(pkg)), "..", "..", "..", "source",
-                      lowercase(replace(String(nameof(pkg)), "Projectured" => ""))))
+function get_package_source_root(pkg::Module)
+    top = pathof(pkg)
+    folders = [splitpath(dirname(normpath(joinpath(dirname(top), found.captures[1]))))
+               for found in eachmatch(r"^include\(\"([^\"]+)\"\)"m, read(top, String))]
+    isempty(folders) && error("get_package_source_root: $(nameof(pkg)) includes no file")
+    depth = 0
+    while all(parts -> length(parts) > depth && parts[depth + 1] == folders[1][depth + 1],
+              folders)
+        depth += 1
+    end
+    joinpath(folders[1][1:depth]...)
+end
 
 """
     check_layering(src_root, top_file; name = "package",
