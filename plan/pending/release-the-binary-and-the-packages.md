@@ -1122,7 +1122,7 @@ registration.
       integration parts, each in its own testset. Scripts and logs:
       `/var/tmp/release-plan/ci/`.
 
-      **Result on `ae3a64618` (2026-09-30).** The instantiate of a test package
+      **Result on `af91b1e13` (2026-09-30).** The instantiate of a test package
       takes seconds when the depot holds its dependencies; `environment/all`
       took 5 minutes. Five test packages name siblings that their `[sources]`
       do not list (`ProjecturedTest`, `ProjecturedSdlTest`,
@@ -1185,11 +1185,11 @@ registration.
       migrated (`export-block-rule.md` owns it); and fix the six argument
       violations in their files.
 
-      Done: the two faults of one line (`935e047f5`, `1dbf6cd7e`). `HelpModule`
+      Done: the two faults of one line (`07ac41fdb`, `15a1f5707`). `HelpModule`
       is fixed, not listed: its block exported the five types that `@document`
       and `@projection` already export, and `export-block-rule.md` does not
-      name it (`59e19afc4`). `visit` in `example/kernel/CallSite.jl` names its
-      index and caller (`5307526c0`).
+      name it (`2ad633f67`). `visit` in `example/kernel/CallSite.jl` names its
+      index and caller (`0d2b99a0a`).
 
       Open: the other five argument violations are the open questions of the
       kernel audit plan: POLICY-3 with L18-3 (`Tool`) and L22-1
@@ -1199,7 +1199,7 @@ registration.
       Until that lands, the guard job of CI fails on these five; the umbrella
       job does not run the guards.
 
-      The markers (`cb90a5eef`, `cd9b5114a`), each with a `# @broken:` reason
+      The markers (`8ab366654`, `447e82683`), each with a `# @broken:` reason
       and only on the failing examples: the anchor point and the split pane
       (citing `kernel-audit-fixes.md`); the `text` example of the complete
       navigation (449 positions); three seeds of the position navigation; ten
@@ -1213,12 +1213,12 @@ registration.
       type with no atom still fails. Checked part by part: 0 failures, 0
       errors, no unexpected pass.
 
-      **The final check (2026-09-30, `5140d33df`, a fresh clone, as CI runs
-      it):** all 33 test jobs pass. `test_integration()`: 1,059,125 pass,
+      **The final check (2026-09-30, `5140d33df`, before the second rebase onto
+      `main`, a fresh clone, as CI runs it):** all 33 test jobs pass. `test_integration()`: 1,059,125 pass,
       1,605 broken, 0 fail, 0 error, in 69 minutes after 5 minutes of
       instantiate. Substrate: 86,907 pass, 8 broken. Of the five guards, only
       the argument guard fails, on the five violations above. The umbrella now exports `test_documents`
-      and `test_projections`, which the testing guide calls (`5140d33df`).
+      and `test_projections`, which the testing guide calls (`c6227d382`).
 
 ### Step P5: the owner's steps
 
@@ -1233,6 +1233,79 @@ registration.
   to build now.
 - The policy asks for a short README. `README.md` has 145 lines; the owner
   judges whether that is short.
+
+## Part R: the answer of the maintainers of General (2026-09-30)
+
+The owner asked in `#pkg-registration`. A maintainer read the repository and
+answered in two messages. This part holds what they ask for, and the decisions
+that follow. It comes before Step B6; Step B6 waits for it.
+
+### What they ask for
+
+- **CI on the repository that the packages are registered from**, with GitHub
+  Actions, running the tests of every package, with tracked coverage. "A hard
+  requirement". The CI of Part P runs on the development repository, so it is
+  not that CI; the release repository needs its own.
+- **Generated copies are fine** as packages in the subdirectories of one
+  published repository, "but that repo has to stand on its own". This answers
+  R23: one release repository.
+- **Each registered package has** a working `test/runtests.jl`, because
+  `Pkg.test` and PkgEval run each package alone and do not find the
+  `Projectured*Test` packages; a short README; a copy of the licence; and
+  `[compat]` for Julia and for every dependency, the siblings too. (They
+  counted 59 of 70 packages with no `[compat]` in the development repository;
+  the release copy writes it.)
+- **Not registered:** the `*Test` and `*Example` packages and
+  `ProjecturedBench`. The release already leaves them out.
+- **Names:** similar pairs such as `ProjecturedSdl` and `ProjecturedSql` are no
+  problem; they override the name rule routinely. This answers R22. But they
+  want acronyms in capitals: `ProjecturedJSON`, `ProjecturedSQL`,
+  `ProjecturedSDL`, `ProjecturedXML`, `ProjecturedYAML`, `ProjecturedPDF`,
+  `ProjecturedMCP`, `ProjecturedODBC`, and so on. The written guidelines
+  (`NAMING_GUIDELINES.md`) do not say so in words: rule 9 asks for upper camel
+  case, and rule 1 asks to avoid acronyms. The capitals are the convention of
+  the ecosystem (`JSON.jl`, `YAML.jl`, `ODBC.jl`). Rule 2, "avoid using `Julia`
+  in your package name", can also touch `ProjecturedJulia`.
+- **Fewer packages.** Packages such as `ProjecturedFocus`,
+  `ProjecturedDragging`, `ProjecturedTooltip` and `ProjecturedGestureLog` look
+  like internals that no one outside the project depends on, and parallel
+  compilation is no reason for an entry in the registry. Fold them into the
+  kernel or the umbrella, and register only what a user adds: the domains, the
+  backends, and a few core packages.
+- **Documentation:** one Documenter site for the whole project is fine. It must
+  be written for people, which means much manual work.
+- **Order:** when all of this is in place and CI passes, register from the
+  bottom up, one dependency level at a time.
+- **A local registry first.** The second message: they are "not super thrilled"
+  by the registration of many packages at once, and second the advice to grow
+  the project in a local registry until it is mature. It is no rule. Each
+  package has its own cost of upkeep, and more monolithic frameworks tend to
+  work better; the wait for hundreds of CI runs is a cost too.
+- **Code made with an LLM.** "I've reviewed every line of code" is no longer
+  the measure they look for. They look for "I've iterated over this over a
+  long period of time and put considerable thought and effort into guiding the
+  design", together with the highest standards of best practice of the Julia
+  ecosystem: testing, documentation and so on.
+
+### Open decisions
+
+| # | Question | Recommendation (mine, not decided) |
+| --- | --- | --- |
+| R27 | Register in a local registry first, or go on toward General now? | The local registry first, as the maintainers advise. `LocalRegistry.jl` and the release copy do it today (Step B4 proved it), with no review and no wait. General later, when the rest of this part is done. |
+| R28 | Which packages does a user add, and where are the internals folded: in the development repository, or only in the release copy? | Decide the set first: the domains, the backends, the assistant adapters, the umbrella, and a small core. Fold in the development repository, not only in the copy, so that the packages, their tests and their documentation are the same in both. This is a design of its own, with its own plan. |
+| R29 | Acronyms in capitals, in the development repository too? | Yes, and before the first registration anywhere, the local registry too: a new name is a new package for each user. `julia-rename.jl` does the code; the folders, the documents and the downstream repositories follow. |
+| R30 | How does each package get its `test/runtests.jl`? | The release copy writes it from the suite of the package's test package, and copies the test helpers and examples that the suite needs into `test/`, because a test may use only registered packages. |
+| R31 | The CI of the release repository. | The release copy writes a workflow that runs `Pkg.test` for each package with coverage. The CI of Part P stays as the check of the development repository. |
+| R32 | The Documenter site: where it lives, and what it holds. | Open. The guides in `documentation/` are the start; the API pages come from the docstrings. |
+| R33 | Does the README statement change, after the second message? | Say what is true in their terms: the design came from long iteration and the owner's guidance, and the tests, CI and documentation follow the practice of the ecosystem. The owner writes it. |
+
+### What changes in the other parts
+
+- R22 and R23 have their answers above. The generator goes back to one release
+  repository, the form that Step B4 tested.
+- Step B6 and the install lines of Step B5 wait for R27, R28 and R29.
+- Part P stays: it is the CI of the development repository, and the release
+  tests of R30 come from its suites.
 
 ## Step C: close
 
