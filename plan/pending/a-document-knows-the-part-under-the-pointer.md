@@ -277,7 +277,30 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
-- **Q14. A view that changes under a still pointer.** Settled and built
+  Found (2026-09-30, a probe on `[1, 2, 3]` with the pointer on `2`): the chain
+  write finds the old branch by resolving the old path in the document as it is
+  now, and an edit that inserts or deletes before the part changes what that
+  path names. After an insert before `2` and the next move, `1` and `2` both hold
+  a target. After a delete of `2`, an undo and the next move, `3` keeps a target
+  for good, also after a move to `1` and the leave of the window. A copy clears
+  the target, so a paste brings none. The selection chain resolves its old path
+  the same way; not checked. With the move after a changed frame (Q14), the
+  target stays until the move after the frame of the edit, and for one frame the
+  old light can show on a part that moved (Claude's proposed answer to Q11,
+  once the chain is right). The ways to fix the chain, for the owner:
+  1. A link: each document on the chain also keeps the child that holds the
+     rest, and the write clears that child, not the one that the old path names
+     now. Exact for an insert, a delete, an undo and a part that moves; the field
+     holds a path and a child; a deleted document stays in memory until the next
+     move. (Claude's recommendation.)
+  2. A search: each level of the write looks at every child for one that holds
+     a target. No new state; a move reads every child on the path, and a part
+     that comes back off the chain is missed.
+  3. A list in the editor of the documents that the last write reached. Exact;
+     the state is outside the documents, and every caller of
+     `replace_mouse_target!` keeps it.
+- **Q14. A view that changes under a still pointer.** Settled and built, and on
+  main since 2026-10-01 (the merge `e7962bdaa`)
   (found in step 6; the owner, 2026-09-30: "not sure, let's investigate
   this further"). The
   principle is decided: D41 and D42 of
