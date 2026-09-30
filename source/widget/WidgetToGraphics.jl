@@ -4645,64 +4645,6 @@ end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
-"""
-    get_frozen_extent(iomap) -> Cell of `(fx, fy)`, or `nothing`
-
-How many pixels of a printed content do **not** scroll: a prefix on each axis
-that an enclosing `WidgetScrollPane` holds still while the rest travels.
-
-A content with no such prefix answers `nothing`, and that is every content but a
-table today — those panes keep exactly the one viewport they have always had.
-`WidgetTable` answers the extent of its header strips, which it already computes.
-
-**The pane freezes and the content declares**, rather than the other way round.
-A content that scrolled itself would need its own `size` and `scroll_position`,
-and a pane around it would scroll a thing that scrolls; every wheel and drag
-already reaches the pane. And a prefix is not about tables: a sequence chart, a
-spreadsheet and a log with a fixed first line all want one.
-"""
-get_frozen_extent(::Any) = nothing
-
-"""
-    get_frozen_elements(iomap) -> `(held, travelling)`, or `nothing`
-
-The elements of a printed content that an enclosing `WidgetScrollPane` draws in
-the strip that it holds still, and the elements that it draws in its body. A
-content that answers `nothing` has every element drawn in every region, clipped
-to the region, and that is every content but a table whose rows are a list.
-
-A list has rows before its head, at a negative offset. Drawn in every region,
-those rows show through the header strip when the pane scrolls above the head,
-and the header shows in the body. So such a table keeps its header apart.
-"""
-get_frozen_elements(::Any) = nothing
-
-# One region of a pane that holds a prefix of its content still.
-#
-# Four of them tile the viewport: the corner holds both axes, the two strips hold
-# one each, and the body holds neither. A **held** axis draws the content's own
-# prefix at the viewport edge and does not travel. A **free** axis is offset by
-# the scroll and by the prefix, so the first thing it shows is what lies just
-# past the strip.
-#
-# A region whose extent is zero — the strips of a table with only one of them —
-# draws nothing and claims no click, because a viewport clips to its own box.
-function _pane_frozen_region(cox::Int, coy::Int, vw, vh, frozen,
-                             inner_x, inner_y, elements, hold_x::Bool, hold_y::Bool)
-    fx() = max(0, Int(frozen[][1]))
-    fy() = max(0, Int(frozen[][2]))
-    x = Cell(@computation Int32(cox + (hold_x ? 0 : fx())))
-    y = Cell(@computation Int32(coy + (hold_y ? 0 : fy())))
-    vpw = Cell(@computation Int32(hold_x ? min(fx(), Int(vw[])) : max(0, Int(vw[]) - fx())))
-    vph = Cell(@computation Int32(hold_y ? min(fy(), Int(vh[])) : max(0, Int(vh[]) - fy())))
-    cx = Cell(@computation Int32(hold_x ? 0 : Int(inner_x[]) - fx()))
-    cy = Cell(@computation Int32(hold_y ? 0 : Int(inner_y[]) - fy()))
-    GraphicsViewport(x, y, vpw, vph,
-                     Cell(GraphicsCanvas(cx, cy, Int32(0), Int32(0), elements,
-                                         layout_none, true, Cell(nothing))),
-                     Cell(affine_identity), Cell(nothing))
-end
-
 # How far down a pane shows its content, in pixels. The printer draws the content
 # at this offset and the reader routes a pointer event by it, so a press lands on
 # what is drawn under it.
@@ -4713,16 +4655,14 @@ end
 # against along its axis: its offset is measured from the head of the list, in
 # either direction, and following an end it does not have means staying where it
 # is. The ends that a list does have stop it, once the walk from the head reaches
-# them (`_clamp_to_list_ends`). `frozen_h` is the top of the content that the
-# pane holds still, and the first row stops under it. A list that runs to the
-# side has its extent down, and the pane clamps to it.
-function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer,
-                        frozen_h::Integer = 0)
+# them (`_clamp_to_list_ends`). A list that runs to the side has its extent down,
+# and the pane clamps to it.
+function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer)
     y = Int((getfield(w, :scroll_position)[]::Point2D).y[])
     if is_infinite_canvas(content)
         _find_list_canvas(content, :y) === nothing &&
             return clamp(y, 0, max(0, Int(content.h) - Int(view_h)))
-        return _clamp_to_list_ends(content, y, Int(frozen_h), Int(view_h), :y)
+        return _clamp_to_list_ends(content, y, Int(view_h), :y)
     end
     room = max(0, Int(content.h) - Int(view_h))
     getfield(w, :follow_end)[] === true && return room
@@ -4735,26 +4675,23 @@ end
 function _pane_scroll_x(w::WidgetScrollPane, content::GraphicsCanvas, view_w::Integer)
     x = Int((getfield(w, :scroll_position)[]::Point2D).x[])
     (is_infinite_canvas(content) && _find_list_canvas(content, :x) !== nothing) || return x
-    _clamp_to_list_ends(content, x, 0, Int(view_w), :x)
+    _clamp_to_list_ends(content, x, Int(view_w), :x)
 end
-
-# How much of the top of a content a pane holds still: the height of the frozen
-# extent that `get_frozen_extent` answered, or 0 for a content that declared none.
-_get_frozen_height(frozen) = frozen === nothing ? 0 : max(0, Int(frozen[][2]))
 
 # The canvas whose elements are a list that runs along `axis` (`:y` down, `:x`
 # to the side), with its start on that axis in the coordinates of `content`. It
-# is `content` itself, which the pane places at its own origin, or one of its
-# element canvases, as a table draws its body under its header. `nothing` when
-# the list runs along the other axis.
+# is `content` itself, which the pane places at its own origin, or the first of
+# its element canvases whose list runs that way. `nothing` when no list runs
+# along `axis`.
 function _find_list_canvas(content::GraphicsCanvas, axis::Symbol)
     layout = axis === :y ? layout_vertical : layout_horizontal
     start(canvas) = Int(axis === :y ? canvas.y : canvas.x)
     content.elements isa ListNode &&
         return content.layout == layout ? (content, start(content)) : nothing
     for element in content.elements
-        (element isa GraphicsCanvas && element.elements isa ListNode) || continue
-        return element.layout == layout ? (element, start(element)) : nothing
+        (element isa GraphicsCanvas && element.elements isa ListNode && element.layout == layout) ||
+            continue
+        return (element, start(element))
     end
     nothing
 end
@@ -4771,12 +4708,11 @@ end
 
 # `offset` clamped to the ends of the list that `content` draws along `axis`,
 # where a walk from the head reaches them. The last child does not come short of
-# the far edge of the viewport, and the first child does not pass the frozen
-# strip. The first child wins, so a list shorter than the viewport starts at its
+# the far edge of the viewport, and the first child does not pass the near
+# edge. The first child wins, so a list shorter than the viewport starts at its
 # start. Each walk stops at an edge of the viewport, so it reads the children
 # that a renderer reads to draw them.
-function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, frozen::Int, view::Int,
-                             axis::Symbol = :y)
+function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, view::Int, axis::Symbol = :y)
     found = _find_list_canvas(content, axis)
     found === nothing && return offset
     list, start = found
@@ -4798,10 +4734,10 @@ function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, frozen::Int, 
         span = _get_list_element_span(node.value, axis)
         span === nothing && return offset
         near_edge = start + span[1]
-        near_edge <= offset + frozen && break
+        near_edge <= offset && break
         preceding = node.prev
         if preceding === nothing
-            offset = near_edge - frozen
+            offset = near_edge
             break
         end
         node = preceding
@@ -4899,36 +4835,18 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         # drawn as its canvas, so a new list in that cell reaches the viewport
         # and the pane reads no cell of its content as it prints.
         inner_elems_cv = getfield(inner_canvas, :elements)
-        # A content that holds a prefix of itself still is drawn in four regions;
-        # every other content is the one viewport it has always been, and pays
-        # nothing for a feature it does not use.
-        frozen = get_frozen_extent(content_iomap)
         # Vertical offset of the content inside the viewport. With `follow_end`
         # the pane sticks to the bottom of its content, so newly appended content
         # (a streaming chat) stays in view as the content grows.
-        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, inner_canvas, vh_cell[],
-                                                          _get_frozen_height(frozen))))
+        inner_y = Cell(@computation Int32(-_pane_scroll_y(w, inner_canvas, vh_cell[])))
         held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)])
-        if frozen === nothing
-            push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
-                                          vw_cell, vh_cell,
-                                          Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
-                                                              held,
-                                                              layout_none, true, Cell(nothing))),
-                                          Cell(affine_identity),
-                                          Cell(nothing)))
-        else
-            # The body first and the corner last, so a rounded edge never leaves
-            # the body drawn over a strip. A content that keeps its frozen
-            # elements apart has them drawn where the vertical axis is held, and
-            # the rest where it travels.
-            parts = get_frozen_elements(content_iomap)
-            for (hold_x, hold_y) in ((false, false), (false, true), (true, false), (true, true))
-                region_elements = parts === nothing ? held : (hold_y ? parts[1] : parts[2])
-                push!(elems, _pane_frozen_region(cox, coy, vw_cell, vh_cell, frozen,
-                                                 inner_x, inner_y, region_elements, hold_x, hold_y))
-            end
-        end
+        push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
+                                      vw_cell, vh_cell,
+                                      Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
+                                                          held,
+                                                          layout_none, true, Cell(nothing))),
+                                      Cell(affine_identity),
+                                      Cell(nothing)))
     end
     # Report the pane's own box as the outer canvas extent (viewport + insets)
     # rather than 0×0. A scroll pane occupies a fixed viewport, so a parent that
@@ -5050,15 +4968,14 @@ function _scroll_list_by(p, iomap, content::GraphicsCanvas, dx::Int, dy::Int)
     tx, ty = _inset_total(p, w)
     view_w = Int(iomap.output.w) - tx
     view_h = Int(iomap.output.h) - ty
-    frozen_h = _get_frozen_height(get_frozen_extent(iomap.content_iomap))
     drawn_x = _pane_scroll_x(w, content, view_w)
-    drawn_y = _pane_scroll_y(w, content, view_h, frozen_h)
+    drawn_y = _pane_scroll_y(w, content, view_h)
     x = _find_list_canvas(content, :x) === nothing ?
         clamp(drawn_x + dx, 0, max(0, Int(content.w) - view_w)) :
-        _clamp_to_list_ends(content, drawn_x + dx, 0, view_w, :x)
+        _clamp_to_list_ends(content, drawn_x + dx, view_w, :x)
     y = _find_list_canvas(content, :y) === nothing ?
         clamp(drawn_y + dy, 0, max(0, Int(content.h) - view_h)) :
-        _clamp_to_list_ends(content, drawn_y + dy, frozen_h, view_h, :y)
+        _clamp_to_list_ends(content, drawn_y + dy, view_h, :y)
     (x == drawn_x && y == drawn_y) && return nothing
     _write_view_state(w, "scroll_position", Point2D(x, y))
 end
@@ -5093,8 +5010,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         cox, coy = _content_offset(p, w)
         tx, ty = _inset_total(p, w)
         sx = _pane_scroll_x(w, content_iomap.output, Int(iomap.output.w) - tx)
-        sy = _pane_scroll_y(w, content_iomap.output, Int(iomap.output.h) - ty,
-                            _get_frozen_height(get_frozen_extent(content_iomap)))
+        sy = _pane_scroll_y(w, content_iomap.output, Int(iomap.output.h) - ty)
         (x - cox + sx, y - coy + sy)
     end
     op = @event_case evt begin

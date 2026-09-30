@@ -238,7 +238,7 @@ end
 end
 
 @testset "a graphic drawn at two places keeps each place" begin
-    # Two regions show one element list, as the regions of a frozen pane do.
+    # Two regions show one element list, as the regions of a table do.
     # Each place is its own record, so neither looks moved on an idle frame.
     inner = GraphicsCanvas(CellVector(Cell[Cell(GraphicsRect(0, 0, 50, 10))]))
     shared = CellVector(Cell[Cell(inner)])

@@ -1857,8 +1857,8 @@ end
 # A record is keyed by the PLACEMENT of a graphic, not by the graphic alone: the
 # `objectid` of the graphic mixed with the key of the container that holds it
 # (`_make_placement_key`). One graphic can be drawn at more than one place — the
-# four regions of a frozen pane share their content — and each place has its
-# own geometry.
+# regions of a table share its rules and bands — and each place has its own
+# geometry.
 
 # Mutable accumulator for a union of absolute logical bounds.
 mutable struct _DirtyAcc

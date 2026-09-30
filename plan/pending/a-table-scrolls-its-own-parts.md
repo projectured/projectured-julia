@@ -437,7 +437,7 @@ plan.
 - [x] **4. Selection, keys and bands across the parts.** `test_table_selection`,
   `test_table_navigation`, `test_table_cell_editing`, `test_widget_table`,
   `test_widget_table_list`. The eager table has them since 2b. The table of a
-  list (this commit):
+  list (`9f5e86693`):
   - A selected or hovered column, and the selected table, band the header row
     and every row; a row and a cell band their own row. The pointer over the
     header row hovers its column, as in the eager table.
@@ -448,9 +448,22 @@ plan.
   - A press of another button than the left, a button down or a button up
     goes to the cell under it, a header too, in the coordinates of the cell,
     in both tables.
-- [ ] **5. The pane loses its frozen regions.** §3.10, the frozen example,
+- [x] **5. The pane loses its frozen regions.** §3.10, the frozen example,
   `test_frozen_table_headers` becomes a test of the table,
-  `DirtyRectTest`, `WidgetColorTest`, widget.md, sdl.md.
+  `DirtyRectTest`, `WidgetColorTest`, widget.md, sdl.md. Done (this commit):
+  - `get_frozen_extent`, `get_frozen_elements`, `_pane_frozen_region` and
+    `_get_frozen_height` are gone, and so are the parameter of the frozen
+    strip of `_pane_scroll_y` and `_clamp_to_list_ends`, the export, and the
+    entry in the argument guard. `test_frozen_table_headers` became a test of
+    the table in 2b.
+  - `_find_list_canvas` looks on to the next element canvas when a list runs
+    along the other axis, where it stopped at the first list.
+  - The frozen example keeps its pane, as the container that gives the table
+    its size; the offset is on the table now. Without the pane the table
+    fills the window and has nothing to scroll. This changes P7 for the
+    example.
+  - The comments of `Sdl.jl`, `DirtyRectTest` and `is_infinite_canvas`, and
+    sdl.md, name the regions of a table where they named a frozen pane.
 - [ ] **6. The callers.** The data frame view drops its pane, shares the offset
   of the table, and gets lazy columns. `omnet-julia` builds, and
   `WatchExampleTest` and `IdeSelectAndPasteTest` pass there (P7).
