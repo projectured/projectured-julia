@@ -522,6 +522,7 @@ Each step ends with its narrowest test and a commit.
     caller's projection and needs one that draws widgets; a caller whose
     projection does not passes `tabs = false`. My recommendation: (a),
     because a wrapper that is on by default must work with any projection.
+    **Made: (a)** (the owner, 2026-09-30: "Q3: yes").
   - `show_document!` applies no wrapper of the `:document` layer to a new
     document yet: the display is its one caller, and it uses no such
     wrapper. The editor keeps no list of its wrappers until a caller needs
