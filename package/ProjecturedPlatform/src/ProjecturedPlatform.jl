@@ -64,6 +64,13 @@ include("../../../source/platform/shell/ShellModule.jl")
 include("../../../source/platform/undo/UndoModule.jl")
 include("../../../source/platform/PlatformModule.jl")
 
+# A user who loads the package by name gets every module of it and every name that
+# one of them exports.
+using .PlatformModule
+for _n in names(PlatformModule)
+    _n === :PlatformModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 # The rungs of the natural notation that the text gives, and the fallback of the
 # syntax.
 function __init__()

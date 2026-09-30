@@ -286,7 +286,7 @@ and the downstream repositories land in the same landing.
       JSON and DataFrames pass, but for the scroll bar of the baseline.
       `test_display()` fails 8 times on `main` too (`get_wrapped_document`
       not in scope of its test package): it joins the baseline.
-- [ ] **Step 3b, the aggregate modules (the owner, 2026-09-30).** `KernelModule`
+- [x] **Step 3b, the aggregate modules (the owner, 2026-09-30).** `KernelModule`
       in the kernel and `PlatformModule` in the platform, each defined after
       the slices of its package, export every public name of those slices and
       the names of the slice modules. The code above the platform (the
@@ -302,6 +302,25 @@ and the downstream repositories land in the same landing.
       guard of shadowed extensions counts every name of an aggregate, and
       PAR-QUALIFIED-EXTENSION gets a sentence on the aggregates. The
       export-collision guard already keeps the aggregate unambiguous.
+      Done: the aggregates are files of their own, `source/kernel/KernelModule.jl`
+      and `source/platform/PlatformModule.jl`, each included last. In the entry
+      file they would have made a second module in one file, which
+      `walk_includes` refuses; as a file at the root of its group, the kernel's
+      layer check leaves it alone, and it fits the naming rule of a slice
+      module. `SEALING.md` lists `KernelModule.jl`, not sealed. Each builds its
+      `using ..XxxModule` lines and its exports with a loop, so the naming
+      guard counts the exports of its group for it (the check of shadowed
+      extensions), and the edge guard skips the file at the root of the
+      platform. 26 files above the platform lost 260 `using` lines. Two entry
+      files that bind one module at a time (Console, PDF) bind the two
+      aggregates too, and the 42 loops that give a test or an example package a
+      flat namespace skip them, because an aggregate repeats what such a loop
+      binds (it failed on `LlmModule` otherwise). `CodeExecution.jl` of the
+      kernel is left as it is: its loop imports names, not modules. The rule
+      has its paragraph in PAR-QUALIFIED-EXTENSION. Tests: the kernel's and the
+      platform's layering guards, the edge table, the export collisions, the
+      package graph, JSON, FSM, SQL, Graph and DataFrames pass; `using
+      ProjecturedKernel, ProjecturedPlatform` gives a user the names.
 - [ ] **Step 4, the test and example packages (F7).** `ProjecturedPlatformTest`
       and `ProjecturedPlatformExample`; the CI matrix (28 jobs); the testing
       guide.

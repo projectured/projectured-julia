@@ -50,4 +50,11 @@ include("../../../source/kernel/editor/EditorModule.jl")             # layer 22 
 include("../../../source/kernel/playback/PlaybackModule.jl")         # layer 23 — scripted live playback
 include("../../../source/kernel/KernelModule.jl")                    # every module above, in one
 
+# A user who loads the package by name gets every module of it and every name that
+# one of them exports.
+using .KernelModule
+for _n in names(KernelModule)
+    _n === :KernelModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedKernel
