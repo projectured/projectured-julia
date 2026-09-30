@@ -66,7 +66,7 @@ The result is about 32 packages instead of 66, in about 6 dependency levels.
 | F5 | `Mcp`: an adapter of its own, or part of the umbrella? | Open: it has no dependency but the kernel, and the binary uses it. |
 | F6 | `Plot`: the core, or the chart domains? | The core: `Chart`, `SequenceChart` and `Statistics` all use it. |
 | F7 | The test packages follow the packages: one test package for each registered package. | Yes: `ProjecturedSubstrateTest` becomes the test package of the core. |
-| F8 | The order against the rename of R29 (acronyms in capitals) and the local registry of R27. | Decide this grouping first, and rename only the packages that stay, so that no package is renamed and then folded. The fold itself can come after the first release to the local registry: it changes no name that a user types. |
+| F8 | The order against the rename of R29 (acronyms in capitals; deferred by the owner) and the local registry of R27. | Decide this grouping first, and rename only the packages that stay, so that no package is renamed and then folded. The fold itself can come after the first release to the local registry: it changes no name that a user types. |
 
 ## 5. Steps
 

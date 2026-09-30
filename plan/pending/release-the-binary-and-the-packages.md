@@ -1300,13 +1300,14 @@ that follow. It comes before Step B6; Step B6 waits for it.
 | R33 | Does the README statement change, after the second message? | Say what is true in their terms: the design came from long iteration and the owner's guidance, and the tests, CI and documentation follow the practice of the ecosystem. The owner writes it. |
 
 **The owner's answers, 2026-09-30:** R27 yes, the local registry first. R29
-yes, capitals in the development repository, before the first registration
-anywhere. R28 yes, fold in the development repository; the design is its own
+yes in principle, but deferred (the owner, later the same day): the rename
+comes only if the registration needs it. R28 yes, fold in the development repository; the design is its own
 plan, [fold-the-internal-packages.md](fold-the-internal-packages.md). R33 yes:
 the statement is in the owner's words, and it names the plans behind the work
 in round numbers (more than 400 plans; a typical plan revised several times,
 the larger ones dozens of times; about half of the more than 4,000 commits
-change a plan). The draft is `README.md` on the branch; the owner reviews it.
+change a plan). The owner reviewed the draft: the Lisp version is the owner's alone, and the
+seals go beyond the kernel in time (only kernel files are sealed today).
 
 ### What changes in the other parts
 
