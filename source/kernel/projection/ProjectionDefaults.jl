@@ -68,6 +68,20 @@ function map_reference_forward(projection::Projection, iomap, reference)
 end
 
 """
+    read_move_answer(projection, iomap, answer::CompoundOperation) -> operation or nothing
+
+The answer to a move, which holds a `ReplaceMouseTargetOperation`, as `projection`
+reads it: each member alone, through the reader of `projection`, and a member with
+no image left out. A reader that passes every other operation on unchanged calls
+it for a move, so the part under the pointer still maps back:
+
+    read_intent(p::MyView, iomap, op::CompoundOperation) =
+        has_mouse_target(op) ? read_move_answer(p, iomap, op) : op
+"""
+read_move_answer(projection, iomap, answer::CompoundOperation) =
+    join_move_answers((read_intent(projection, iomap, member) for member in answer.operations)...)
+
+"""
     map_reference_backward(projection::Projection, iomap, reference)
 
 Default implementation for backward reference mapping. Wraps a reference

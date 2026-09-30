@@ -785,6 +785,10 @@ already; the sealed selection files do not change (Q4).
     the members of a move's answer one by one and leave out a member with no
     image; any other compound still goes back whole or not at all. So a part
     that one view cannot map does not drop the leave of a button with it.
+  - A view whose reader passes every other operation on unchanged maps the
+    answer to a move member by member with `read_move_answer` (new in the
+    kernel), so a compound answer, such as the cursor of a chart with the part
+    under the pointer, does not carry a widget path up.
   - projectured: the reflection view names its rows and wires its tree.
   - omnet, about 20 views (the runner, the optimization, the batch, the task,
     the result, the federation, the find view, the topology, the capture table,
@@ -808,7 +812,8 @@ already; the sealed selection files do not change (Q4).
     import (from `98706cca`); `test_pane_choices` found it.
   Checks: in a sweep of moves, the catalog list and three of the four buttons of
   the workbench light, the catalog navigator lights, and six of the eight
-  buttons of a simulation page of the catalog light. The omnet test sets have
+  buttons of a simulation page of the catalog light; `test_view_lights()` in
+  the omnet presentation tests keeps these three sweeps. The omnet test sets have
   the failures of the older wide run only, and the projectured sweeps have their
   baselines with the three new assertions of the reflection tree.
   Left: a document of the domain that a view shows inside a widget, and that a

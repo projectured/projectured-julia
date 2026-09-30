@@ -90,6 +90,7 @@ export Projection, print_document, print_child, print_document_pure, print_child
        get_child_iomaps, read_routed_child
 export @projection, print_pure
 export make_output_path_cells, set_output_path_computations!, map_mouse_target_forward
+export read_move_answer
 export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
        has_introduced_step, find_introduced_path, normalize_named_node_reference
 export PrinterContext, make_child_context, with_exact_size, with_bounded_size, with_size_range,
