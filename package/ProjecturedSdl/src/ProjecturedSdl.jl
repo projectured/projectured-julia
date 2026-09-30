@@ -65,6 +65,7 @@ import ProjecturedKernel.GestureModule: MouseClick
 import ProjecturedStyle.StyleModule: ImageFile
 import ProjecturedKernel.ProjectionModule: print_document, read_intent, Projection
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
+import ProjecturedKernel.DocumentModule: is_view_state_field
 import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
 import ProjecturedKernel.ProjectionModule: PrinterContext
