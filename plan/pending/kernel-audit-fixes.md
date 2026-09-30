@@ -1578,6 +1578,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **A:** Yes. The rule states the accepted exception: the code tool runs any code with the editor bound, so a direct write stays possible. The editor discourages it, and the tool tells the model that such a write gets no undo, no check and no transform.
 - **B:** No exception: the code tool refuses a direct write, so that the rule holds as it is written.
 - **Recommended (mine): A.** The owner accepted the direct write on 2026-09-26 (D22 of plan/pending/the-assistant-reaches-a-referenced-document.md), and the law must say what is true (PAR-HONEST-DOCS). B reverses that decision and needs a new mechanism (a guard on writes).
+- **Decided by the owner, 2026-09-30: A.** The paragraph also names the Julia function `execute_julia_code!`; the tool name stays `execute_julia_code`.
 - Cost: S. architecture-invariants.md, one paragraph. No code.
 
 ### Group 2
