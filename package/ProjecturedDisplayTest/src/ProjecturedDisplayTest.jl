@@ -14,6 +14,7 @@ using ProjecturedDisplay.DisplayModule
 using ProjecturedKernel
 using ProjecturedKernel.AgentModule
 using ProjecturedKernel.BackendModule
+using ProjecturedKernel.DocumentModule: get_wrapped_document
 using ProjecturedKernelTest
 using ProjecturedPane.PaneModule
 using ProjecturedPrimitive.PrimitiveModule

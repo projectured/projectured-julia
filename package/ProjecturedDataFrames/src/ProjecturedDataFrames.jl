@@ -38,11 +38,9 @@ include("../../../source/dataframes/DataFramesModule.jl")
 
 # A person loads this package by name, so its names are exported here.
 using .DataFramesModule: DataFrameView, jump_to_row, make_data_frame_cell,
-                         DataFrameViewToWidget, make_data_frame_view_projection,
-                         ProjecturedDisplay, display_in_editor, close_data_frame_editor!
+                         DataFrameViewToWidget, make_data_frame_view_projection
 
 export DataFrameView, jump_to_row, make_data_frame_cell,
-       DataFrameViewToWidget, make_data_frame_view_projection,
-       ProjecturedDisplay, display_in_editor, close_data_frame_editor!
+       DataFrameViewToWidget, make_data_frame_view_projection
 
 end # module ProjecturedDataFrames
