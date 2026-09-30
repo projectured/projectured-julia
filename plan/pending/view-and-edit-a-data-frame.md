@@ -297,11 +297,16 @@ task (D4). Phase 0 finds out which case is possible:
 - **The same thread (`@async`).** The editor runs only while the REPL waits
   for input, so no race is possible. The window does not paint or scroll
   during a long input.
-- **Another thread (`Threads.@spawn`).** The window stays live. A read of the
-  view during a write of the REPL is a data race. So the hook keeps a **busy
-  flag** from the start of an input to its end. While the flag is set, the
-  view does not read or write the frame, it shows a mark, and it takes no
-  edit.
+- **Another thread (a task pinned to it).** This is the case (phase 2.5).
+  The window stays live, and it takes input during a long input of the REPL.
+  The view reads the frame only when it builds rows: on a scroll, a jump, a
+  resize or a refresh. If an input changes the structure of a shown frame in
+  place (`push!`, `deleteat!`, `select!`, `sort!`) while the person scrolls
+  it, the view can show a wrong row until the next refresh, or the fault
+  barrier can catch an exception. In very rare cases the process can crash,
+  because DataFrames reads the columns with `@inbounds` after it checks the
+  first column. The display states this in its docstring. There is no busy
+  flag (D3, §5.1).
 
 C is for a writer that is not the REPL, such as a task that appends rows. It
 is safe only when nothing writes the frame at the same time.
@@ -449,7 +454,9 @@ The direction:
   registers what its keyword does, so a caller asks for tabs with a keyword
   of the run function and does not load the package that makes them.
 
-The points to settle are D13.
+The points to settle are D13. The owner made them on 2026-09-30, and then
+chose seams in place of registries (§5.1). The design is in
+[packages-compose-by-seams.md](packages-compose-by-seams.md).
 
 ## 5. Decisions
 
@@ -502,10 +509,47 @@ The points to settle are D13.
   `ProjecturedDataFrames`, and the types take the prefix `DataFrame`.
 - **D11 is (b)** (the owner, 2026-09-29). The editor runs on the default pool,
   and SDL starts on that thread. The busy flag of §4.3 is necessary, and the
-  editor task is pinned to one thread.
+  editor task is pinned to one thread. On 2026-09-30 the owner withdrew the
+  busy flag (D3 changes, below).
 - **D12 is (a)** (the owner, 2026-09-29). `ProjecturedDataFrames`, its example
   package and its test package go into `environment/all`, and the umbrella
   suite loads them, as for the other packages with a third-party dependency.
+- **D13** (the owner, 2026-09-30): "I agree with your recommendation except
+  for D13.5, that should be done (a) with a new plan but here." So: the
+  registry of the backends, the registry of the wrappers and the run function
+  are in the kernel, and the window is one more registered wrapper (13.1 b); a
+  wrapper registers its keyword with a function that wraps the document and
+  the projection, a layer for its order, and the keywords it excludes (13.2 a);
+  two backends loaded and none named is an error that names both (13.3 a);
+  the code that runs the editor beside the REPL is a keyword of the run
+  function (13.4 a); and every caller moves to the registries in the same
+  change, in a plan of its own, worked in this worktree (13.5 a).
+- **D13 with seams, and the composition** (the owner, 2026-09-30). The
+  owner: "The data frames package should not depend on panes [...] I want
+  composition, the user loads packages and gets more features which may
+  combine by default or can be combined. Data frames can be displayed with or
+  without panes." Then, on the shape with seams only: "Sounds good", "I agree
+  with your recommendations". So:
+  - The registries of D13 are seams: generic functions that a low package
+    declares, and to which the owner of a type adds a method. There is no
+    registry table and no package extension.
+  - A backend says whether it draws windows or text, and the run function
+    counts only the backends that draw its output (Q5 a).
+  - This package is the view and its projection only. A new generic package,
+    `ProjecturedDisplay`, shows a value from the REPL; the tabs come from the
+    pane package when it is loaded.
+  - The natural renderer asks the seam `make_graphics_projection` before its
+    tables. The other natural tables move to seams in a later plan.
+  - There is no busy flag (D3 changes, below).
+
+  The plan: [packages-compose-by-seams.md](packages-compose-by-seams.md).
+- **D3 changes: B has no busy flag** (the owner, 2026-09-30): "So what are we
+  trying to solve here with pause? Because it takes away the usefulness of
+  the UI a lot." The editor loop runs on its own thread during an input and
+  takes input as usual. After each input, the display asks each shown
+  document to refresh (B). The key (D) does the same for a change that a
+  background task makes. The rare race of §4.3 is stated in the docstring of
+  the display.
 - **D8 is deferred** (the owner, 2026-09-29): "(a) but let's defer this for a
   better design". The direction is one query model with two layouts. Group and
   pivot (§4.6, §4.7, phases 7 and 8) wait for a design of their own.
@@ -621,8 +665,9 @@ instances when DataFrames loads after the editor stack (§6.1).
 Recommendation: (a), because it is the rule that the other packages follow.
 A test run that is slower after the change goes back to D12.
 
-**D13. The registries of the backends and of the wrappers (§4.10).** The
-direction is the owner's. The points to settle, with my recommendations:
+**D13. The registries of the backends and of the wrappers (§4.10). Made, see
+§5.1.** The direction is the owner's. The points, with my recommendations as
+they were put:
 
 1. Where the two registries and the run function live. My recommendation:
    the backend registry beside `Backend` in the kernel (`EditorModule`), and
@@ -810,14 +855,17 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   - [ ] **2.6 As few dependencies as possible** (§4.10, the owner,
     2026-09-30). The registries and the run function of D13, then
     `ProjecturedDataFrames` without `ProjecturedSdl`, `ProjecturedScreen` and
-    `ProjecturedPane` where D13 allows it. Waits for D13.
-- [ ] **3. Refresh.** The three levels of §4.3. The triggers A, B with the
-  busy flag, and D. C is a keyword that is off by default (D3).
+    `ProjecturedPane` where D13 allows it. D13 is made; the work is the plan
+    [packages-compose-by-seams.md](packages-compose-by-seams.md).
+- [ ] **3. Refresh.** The three levels of §4.3, as the method of
+  `refresh_document!` for `DataFrameView`. The triggers A, B and D, with no
+  busy flag. C is a keyword that is off by default (D3).
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
-  form. If phase 0 puts the editor on another thread, the busy flag of §4.3
-  comes with this phase, because an edit writes the frame. D11 is (b), so the
-  busy flag and the REPL hook that sets it come with this phase.
+  form. There is no busy flag (D3 changes, §5.1). An edit writes the frame
+  from the thread of the editor. A write of one value does no harm to an
+  input that reads the frame. A row insert or delete while an input reads the
+  same frame is the rare race of §4.3 in the other direction.
   Implementation design, 2026-09-30, with points E1 to E6 for the owner;
   each recommendation is mine:
   - **E1. The path of a cell.** The view has no field for its rows or
@@ -851,21 +899,14 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     A write of a pending text is view state and no step of undo. The other
     operations of §3.6 (insert, delete, rename, move and convert rows and
     columns) need gestures that no step designs yet. Recommendation: phase 4
-    in two steps: 4a the edit of a cell with undo, the busy flag and
-    `SubDataFrame`; 4b the other operations with a context menu on the
+    in two steps: 4a the edit of a cell with undo and `SubDataFrame`; 4b the other operations with a context menu on the
     header of a column and on a row.
   - **E5. A `DataFrameRow`** is shown as a form: a table of two columns, the
     name and the value of each column, editable as a cell is.
     Recommendation: after 4a, in 4b.
-  - **E6. The busy flag.** `display_in_editor` puts a transform into
-    `Base.active_repl_backend.ast_transforms` once: it sets an atomic flag of
-    the package before an input and clears it after, and it posts to the
-    editor a write of the view state `busy` of each view. Building a row
-    reads the frame, and drawing the rows already built reads nothing, so
-    while `busy` is set the view builds no row: it answers no turn of the
-    wheel, no jump and no edit. It shows a line under the table, "The REPL
-    runs; the view waits", and a pending text waits too. Recommendation: as
-    written.
+  - **E6. The busy flag. Withdrawn** (the owner, 2026-09-30, D3 changes in
+    §5.1). The editor takes input during a REPL input. After the input, the
+    display calls `refresh_document!` on each shown view (phase 3).
   Without sort and filter (phase 5), a commit writes the value, Enter moves
   the selection to the cell below and Tab to the next cell (D10 without its
   sort).
@@ -974,7 +1015,10 @@ columns. A measurement needs an idle machine and the approval of the owner.
   it. On one thread the two tasks switch only where a task yields. With more
   threads, a read can see a `push!` that is half done. A sync that throws
   tries again on the next frame, as `ReflectionFeed` does. The editor runs on
-  another thread (D11), so the busy flag of §4.3 is necessary.
+  another thread (D11), and there is no busy flag (D3), so a scroll during an
+  input that changes the structure of the same frame can show a wrong row,
+  raise an exception that the fault barrier catches, or very rarely crash the
+  process. A refresh after the input corrects the rows.
 - **A computation without a safepoint.** A collection waits for every thread
   to reach a safepoint. A loop of the user that has none can stop the editor
   until it ends. Phase 0 did not see it, but it did not rule it out.
