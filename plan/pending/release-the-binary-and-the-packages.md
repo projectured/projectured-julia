@@ -1067,8 +1067,9 @@ builder 225, package release 45 and 490, meaning search 69, kernel layering 10,
 graph 371, process 304, fsm 154 and SDL 785 pass. The downstream move landed
 first, and its test after this. The commits that this plan cites are the ones on
 `main`; the builds of Steps A4 and A5 ran on the same commits before the rebase,
-and Step A4 builds again at the release commit (R7). Nothing is pushed: the
-site branch waits for the push of `main`.
+and Step A4 builds again at the release commit (R7). On the same day, at the
+owner's word, `main` (`4aa98d9c5`) and the site change went to GitHub together;
+GitHub shows the licence as MPL-2.0, and projectured.org names it.
 
 MPL-2.0 does not need a notice in each source file: its Exhibit A allows the
 notice in "a LICENSE file in a relevant directory", and each package folder
