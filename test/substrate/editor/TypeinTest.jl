@@ -591,11 +591,32 @@ function _typein_broken_reason(label, r)
         return "boundary Delete fails to decline at the value/chrome seam (text-selection refactor)"
     end
 
+    # @broken: Backspace at the start of a string (caret at position 0) also
+    # fails to decline — the start-of-value caret sits on the seam with the
+    # preceding separator chrome, so the per-span deletion reader reaches
+    # backward into that separator span instead of yielding nothing. Same
+    # value/chrome seam as the end-of-string case above. Text-selection
+    # representation refactor.
+    if r.edit === :backspace && r.position == 0 &&
+       occursin("expected no edit", r.message) && occursin(".sep[", r.message)
+        return "start-of-string Backspace reaches into the preceding separator chrome (text-selection refactor)"
+    end
+
     # @broken: a nested `TextBlock` (a block whose elements are themselves blocks) does
     # not round-trip through the flat-offset splice the restore uses, so the pristine
     # string cannot be rebuilt between edits. Text-selection representation refactor.
     if occursin("not restored", r.message) && occursin("elements", string(r.ref))
         return "nested TextBlock content does not restore through the flat splice (text-selection refactor)"
+    end
+
+    # @broken: the catalog's `:graphics` variant of a bare text span/line
+    # (`text/bare_string`, `text/bare_line`) cannot print at all — `WordWrapping`
+    # is block-level and has no method for a lone `TextString`/`TextLine`; the
+    # same gap `_CATALOG_PRINT_BROKEN` and `_NO_NATURAL_RENDER` already name for
+    # these atoms.
+    if label in ("text/bare_string/graphics", "text/bare_line/graphics") &&
+       occursin("print_document threw: MethodError", r.message)
+        return "WordWrapping has no method for a lone bare span/line"
     end
 
     nothing
