@@ -94,7 +94,8 @@ mouse-click / click-round-trip sweeps — see
 [test/ProjecturedTest.jl](../../package/ProjecturedTest/src/ProjecturedTest.jl)).
 
 `test_all` is just a `@testset` that calls the per-package functions in
-sequence; pick the one you actually need and skip the rest.
+sequence; pick the one you actually need and skip the rest. `test_integration()`
+runs the umbrella integration tests alone.
 [The time and the memory of each part](#the-time-and-the-memory-of-each-part)
 gives what each of them costs.
 
@@ -531,21 +532,29 @@ fail reports zero whether or not anything is wrong:
 `test_verdict_stability(names)` additionally requires that the same leaves
 measured forward, forward again and backward give identical counts.
 
-## Running tests via Pkg
+## CI
 
-The standard `Pkg` workflow also works and is what CI uses:
+[CI.yml](../../.github/workflows/CI.yml) runs on each push to `main` and on each
+pull request, except a push that changes only `plan/`:
 
-```julia
-julia> using Pkg
-julia> Pkg.test("ProjecturedKernelTest")   # or ProjecturedSubstrateTest / ProjecturedJsonTest / …
+- One job runs each static guard, `test/suite/*.jl`, alone. The guards read the
+  source as text and load no package, so the job takes seconds.
+- One job runs the suite of each test package in its own environment, for
+  example `test_json()` in `package/ProjecturedJsonTest`. A suite that uses a
+  package that its `Project.toml` does not name fails there, and passes in
+  `environment/all`. The test packages of SDL, Tulip, Video and ODBC, and the
+  umbrella, load through `environment/all`. The umbrella job runs
+  `test_integration()`.
+- Each job collects the coverage of the files of this repository and sends it
+  to Codecov. SDL draws with `SDL_VIDEODRIVER=offscreen`, because the runner
+  has no display.
+
+To run one suite as CI runs it:
+
+```bash
+julia --project=package/ProjecturedJsonTest \
+      -e 'using Pkg; Pkg.instantiate(); using ProjecturedJsonTest; test_json()'
 ```
-
-Each test package ships a one-line `test/runtests.jl` that calls its
-aggregator, so `Pkg.test` and the REPL functions cover the same ground.
-
-…but for iterative work the REPL functions are much faster because they
-keep the SDL backend initialised between runs (`__init__` in
-[projectured/test/ProjecturedTest.jl:13](../../package/ProjecturedTest/src/ProjecturedTest.jl#L13)).
 
 ## Typical workflows
 
