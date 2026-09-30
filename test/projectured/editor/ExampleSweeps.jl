@@ -371,7 +371,12 @@ function test_click_roundtrips()
                               # caret (dy exceeds the one-band slack); a click-to-
                               # position accuracy gap in the nested layout, tracked
                               # separately from the selection-map typing.
-                              "sql_nested_syntax") && continue
+                              "sql_nested_syntax",
+                              # the FSM notation prints thousands of characters,
+                              # and a click reads the whole text (about a
+                              # second), so a click per character takes hours;
+                              # its navigation sweeps cover the carets.
+                              "fsm", "fsm_toggle") && continue
             @testset "$(example.name)" begin
                 test_click_roundtrip(example.name, example.document, example.projection;
                                      broken=click_broken(example.name))

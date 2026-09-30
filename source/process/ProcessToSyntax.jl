@@ -284,17 +284,20 @@ end
 # through the same recursion (the `FsmToSyntax` precedent).
 
 function ProcessToSyntax(; session = nothing)
-    pairs = copy(JuliaToSyntax().dispatch)
-    push!(pairs, ProcessSequence  => ProcessSequenceToSyntaxNode())
-    push!(pairs, ProcessModel     => ProcessModelToSyntaxNode())
-    push!(pairs, ProcessStep      => ProcessStepToSyntaxNode(session = session))
-    push!(pairs, ProcessDecision  => ProcessDecisionToSyntaxNode(session = session))
-    push!(pairs, ProcessWhile     => ProcessWhileToSyntaxNode(session = session))
-    push!(pairs, ProcessForeach   => ProcessForeachToSyntaxNode(session = session))
-    push!(pairs, ProcessBreak     => ProcessBreakToSyntaxLeaf(session = session))
-    push!(pairs, ProcessContinue  => ProcessContinueToSyntaxLeaf(session = session))
-    push!(pairs, ProcessReturn    => ProcessReturnToSyntaxNode(session = session))
-    push!(pairs, ProcessInsertion => ProcessInsertionToSyntaxLeaf())
-    push!(pairs, ProcessNothing   => InsertionNothingToSyntaxLeaf())
+    # The domain's own pairs come first: a table is tried in order, and the Julia
+    # table ends with a `Document` fallback that would take every document here.
+    pairs = Pair{Type, Any}[
+        ProcessSequence  => ProcessSequenceToSyntaxNode(),
+        ProcessModel     => ProcessModelToSyntaxNode(),
+        ProcessStep      => ProcessStepToSyntaxNode(session = session),
+        ProcessDecision  => ProcessDecisionToSyntaxNode(session = session),
+        ProcessWhile     => ProcessWhileToSyntaxNode(session = session),
+        ProcessForeach   => ProcessForeachToSyntaxNode(session = session),
+        ProcessBreak     => ProcessBreakToSyntaxLeaf(session = session),
+        ProcessContinue  => ProcessContinueToSyntaxLeaf(session = session),
+        ProcessReturn    => ProcessReturnToSyntaxNode(session = session),
+        ProcessInsertion => ProcessInsertionToSyntaxLeaf(),
+        ProcessNothing   => InsertionNothingToSyntaxLeaf()]
+    append!(pairs, JuliaToSyntax().dispatch)
     TypeDispatchingProjection(pairs)
 end
