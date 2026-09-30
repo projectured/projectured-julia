@@ -390,6 +390,56 @@ The points as they were put:
   branch in a scratch environment. Move the callers in inet-julia that
   compile now. List the two broken ones for the owner, and do not fix them.
 
+**Found from the closure of the packages (2026-09-30).** A user who shows a
+data frame in an SDL window without tabs loads `DataFrames`,
+`ProjecturedDataFrames`, `ProjecturedDisplay` and `ProjecturedSdl`. Pkg then
+installs 15 more Projectured packages. The owner asked why two of them,
+Serialization and Reflection, are in the list: a data frame needs neither.
+
+- **Q6, for the owner. Reflection in the display.** §4.3 makes
+  `ProjecturedDisplay` depend on Reflection only for its fallback: a value
+  with no `make_value_document` method shows as the reflected tree of
+  `run_value_viewer`, with `ReflectionToWidget` and `ReflectionFeed`
+  ([ValueViewer.jl](../../example/projectured/ValueViewer.jl)). A data frame
+  never reaches this code, so the dependency is against C4.
+  - (a) The display depends on Reflection, as §4.3 says.
+  - (b) Reflection adds the fallback itself: a `make_value_document` method
+    for `Any`, and the feed of the reflected tree through a seam in Widget
+    beside `make_value_document`. The display does not depend on Reflection.
+    Without Reflection, the display of a value that has no method is an error
+    that says to load `ProjecturedReflection`, as C14 does for Natural.
+
+  My recommendation: (b). Reflection adds only itself to the closure,
+  because Collection, Kernel and Widget are there already. So the count
+  changes by one, but the display then composes as C4 says.
+- **Q7, for the owner. Serialization under the view.** Primitive, Screen and
+  Widget depend on `ProjecturedSerialization` only for the allowlist of the
+  `.pred` format:
+  - Primitive registers `PrimitiveString` and adds `make_pred_document`;
+  - Screen registers `ScreenDocument` and `WindowDocument`;
+  - Widget registers `WidgetShell` and `WidgetScrollPane` and adds
+    `pred_arguments` for both.
+
+  Each registers in its `__init__`, into the `Dict` of `register_pred_type!`
+  ([FileProject.jl](../../source/serialization/FileProject.jl)). So the view
+  alone brings Serialization, through Primitive. This is the `__init__`
+  registry that C1 rejects for the backends.
+  - (a) Keep the registry.
+  - (b) The kernel declares `pred_arguments`, `make_pred_document` and the
+    allowlist as seams. Serialization keeps the format code: `PredFile`,
+    `FileProject`, `FileCut` and `FileSplice`, about 1,600 lines. The
+    allowlist finds a type by its name, so its seam dispatches on a `Val` of
+    the name, for example `get_pred_type(::Val{:PrimitiveString})`.
+
+  My recommendation: (b), in a later plan, as C7 does for the natural tables.
+  It changes the kernel and 33 files in 15 slices, and the data frames do not
+  wait for it.
+
+With (b) for both, the install without tabs has 13 Projectured packages
+below the three that the user names, not 15. Pane uses Serialization for its
+own work, because it saves the user interface to files, so with tabs the
+count is 16, not 17.
+
 ## 6. Steps
 
 Each step ends with its narrowest test and a commit.
@@ -527,7 +577,7 @@ Each step ends with its narrowest test and a commit.
     document yet: the display is its one caller, and it uses no such
     wrapper. The editor keeps no list of its wrappers until a caller needs
     it.
-- [ ] **6. `ProjecturedDisplay`.** Add `display_in_editor`, `EditorDisplay`,
+- [ ] **6. `ProjecturedDisplay`.** Waits for Q6. Add `display_in_editor`, `EditorDisplay`,
   the REPL hook that refreshes, and `run_value_viewer`. Add the package to
   `environment/all`, to the table of package-rules.md, and to the naming
   guard. Run `test_package_graph()`.
