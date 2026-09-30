@@ -1549,6 +1549,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **A:** The module file of a module with one fragment holds the code. Merge Intent.jl, Clock.jl, GestureRecognizer.jl and Playback.jl into their module files, and change code-quality-rules.md §1.
 - **B:** system-anatomy.md drops the sentence. Every module file holds only the head and __init__, as code-quality-rules.md §1 says.
 - **Recommended (mine): B.** code-quality-rules.md §1 says that a module file 'holds no other code', and all 78 *Module.jl files under source/ keep only the head and __init__. Seven of them include one fragment, four in the kernel. No file follows the sentence of system-anatomy.md, which also counts 15 kernel head files where the kernel has 23.
+- **Decided by the owner, 2026-09-30: B.**
 - Cost: S. system-anatomy.md only. No sealed file and no change of SEALING.md. A would change four sealed files (ClockModule.jl, Clock.jl, GestureRecognizerModule.jl, GestureRecognizer.jl) and remove lines of SEALING.md (see L17-16).
 
 **L17-15** (Low): Does PAR-NO-WRITE-IN-THUNK get a carve-out for the fresh cells that a nested template walk writes inside the computation of its parent?
