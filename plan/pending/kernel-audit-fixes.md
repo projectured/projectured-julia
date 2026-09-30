@@ -1532,6 +1532,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Keep 'idempotent' and make the write idempotent: a second run of one computation must not add to the count. The store has no run identity for this, so it is a new mechanism.
 - **C:** Keep 'idempotent' for the record, and state that the count is a statistic that can count a second run of one computation.
 - **Recommended (mine): A.** The sealed FaultStore docstring already names the two properties that make the write safe: the store has no dependents, so a write invalidates nothing, and the answer of the computation does not depend on the store. The count reaches a person only through the drain, outside every computation. So the law is wrong, not the code. The key keeps the store small (the capacity counts keys); it does not keep the cache right.
+- **Decided by the owner, 2026-09-30: A.**
 - Cost: S. architecture-invariants.md, the two carve-out paragraphs. No sealed file, because the FaultStore docstring already says the same.
 
 **L11-25** (Low): Does PAR-ONE-BASED-INDEXING name the 0-based index of `ref"…"`, which reference-pattern-vocabulary.md step 9 decided, as an exception?
