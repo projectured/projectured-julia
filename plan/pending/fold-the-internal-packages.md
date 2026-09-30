@@ -120,7 +120,7 @@ docstrings, and a name that a `using` brings is checked by hand):
 - **Today's code:** one cycle, `Platform → FileSystem, Chart → Platform`
   (F9). A mention of `OdbcModule` in the docstring of `DatabaseModule` is
   prose, not a dependency.
-- **With `filesystem` in the platform (the owner's move), and change 3 of F9:**
+- **With `filesystem` in the platform (the owner's move), and the move of F9:**
   no cycle. 33 packages, 32 of them released (`ProjecturedAdaptagrams` is not),
   in 5 levels:
 
@@ -144,7 +144,7 @@ docstrings, and a name that a `using` brings is checked by hand):
 | F6 | `Plot`: the core, or the chart domains? | The core: `Chart`, `SequenceChart` and `Statistics` all use it. |
 | F7 | The test packages follow the packages: one test package for each registered package. | Yes: `ProjecturedSubstrateTest` becomes the test package of the core. |
 | F8 | The order against the rename of R29 (acronyms in capitals; deferred by the owner) and the local registry of R27. | Decide this grouping first, and rename only the packages that stay, so that no package is renamed and then folded. The fold itself can come after the first release to the local registry: it changes no name that a user types. |
-| F9 | The cycle: the platform named two domains. With `filesystem` in the platform, only Statistics is left: it uses `Chart` in `FramePlotToChart.jl` and in the line of `FrameStatisticsModule.jl` that registers it. | Open. Mine: `FramePlotToChart.jl` and its registration move to the `Chart` domain; the frame statistics then have a chart view when `Chart` is loaded, which the application always does. The other way: `chart` joins the platform too, but a chart is what a user adds. |
+| F9 | The cycle: the platform named two domains. With `filesystem` in the platform, only Statistics was left: it uses `Chart` in `FramePlotToChart.jl` and in the line of `FrameStatisticsModule.jl` that registers it. | **Decided (the owner, 2026-09-30):** the projection and its registration move to the `Chart` domain, and they get names that say what the data is. The document stays in the platform's statistics. No package extension (the owner does not want one). The renames, with `julia-rename.jl`, as part of the fold: `FramePlot` → `FrameTimeSeries`; `FramePlotToChart` → `FrameTimeSeriesToChart` (the file too); `get_session_frame_plot` → `get_session_frame_time_series`; `flush_frame_plot!` → `flush_frame_time_series!`; the title "Frame plot" → "Frame times"; the alias "frame plot" → "frame times"; the registry key `:frame_plot` → `:frame_time_series`. A session saved with a `FramePlot` does not load under the new name; the document starts empty after a load anyway. |
 | S3 | For R30 (a `test/runtests.jl` in each package of the release): the test harness of `ProjecturedKernelTest` (`test_printer`, `test_reader`, the walkers) serves the tests of every package, and a registered test can use only registered packages. Where does it go? | A package extension of the kernel on `Test`: it loads only when a test loads `Test`. The other ways: a registered package of test tools, or a copy in each package. |
 | S6 | The downstream repositories name internal packages 1,005 times in 128 files (omnet-julia 935 in 122, inet-julia 70 in 6). | One mechanical change in each, in the same landing. |
 | S7 | Do the documents of the slices follow: `documentation/package/<name>/<slice>/`? | Yes, the same shape in every folder. |
