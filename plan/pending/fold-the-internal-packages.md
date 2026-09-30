@@ -108,6 +108,26 @@ is a capability of the platform.
 `test/substrate/` and `example/substrate/` become `test/platform/` and
 `example/platform/`; `test/suite/` and `test/bench/` stay.
 
+## 3d. The check of the cycles (2026-09-30)
+
+A scan of each `Project.toml` and of each module reference in `source/`, mapped
+to the packages of 3c (`fold_graph.py` in the session scratchpad; it skips
+docstrings, and a name that a `using` brings is checked by hand):
+
+- **Today's code:** one cycle, `Platform → FileSystem, Chart → Platform`
+  (F9). A mention of `OdbcModule` in the docstring of `DatabaseModule` is
+  prose, not a dependency.
+- **With the three changes of F9:** no cycle. 34 packages, 33 of them released
+  (`ProjecturedAdaptagrams` is not), in 5 levels:
+
+| Level | Packages |
+| --- | --- |
+| 1 | Kernel |
+| 2 | Platform, Database, Anthropic, Ollama, OpenRouter, Mcp |
+| 3 | Json, Yaml, Xml, Markdown, Rst, Book, Math, Julia, Sql, FileSystem, Graph, Chart, SequenceChart, Console, Pdf, Sdl, Web, Tulip |
+| 4 | DbCatalog, Formula, Fsm, Process, Video, Adaptagrams, DataFrames |
+| 5 | Odbc, the umbrella `Projectured` |
+
 ## 4. Open questions
 
 | # | Question | Recommendation (mine, not decided) |
@@ -120,7 +140,7 @@ is a capability of the platform.
 | F6 | `Plot`: the core, or the chart domains? | The core: `Chart`, `SequenceChart` and `Statistics` all use it. |
 | F7 | The test packages follow the packages: one test package for each registered package. | Yes: `ProjecturedSubstrateTest` becomes the test package of the core. |
 | F8 | The order against the rename of R29 (acronyms in capitals; deferred by the owner) and the local registry of R27. | Decide this grouping first, and rename only the packages that stay, so that no package is renamed and then folded. The fold itself can come after the first release to the local registry: it changes no name that a user types. |
-| F9 | Shell depends on the domain `FileSystem` (the navigator), and Statistics on the domain `Chart` (the frame statistics). In the platform, below the domains, they make a cycle. | Open. The ways: (a) the two stay above the domains, in the umbrella; (b) the platform stops naming the two domains: the navigator and the statistics take their document types and projections from what the umbrella registers, so the dependency turns round; (c) `FileSystem` and `Chart` join the platform. |
+| F9 | The cycle: the platform names two domains. Shell uses `FileSystem` twice, in `FileDialog.jl` (`make_filesystem_chooser`) and in the Explorer button of `make_window_toolbar` (`Workspace`); Statistics uses `Chart` in `FramePlotToChart.jl` and in the line of `FrameStatisticsModule.jl` that registers it. | Open. Mine: three changes. `FileDialog.jl` and its test move to the `FileSystem` domain (no code calls it). `FramePlotToChart.jl` and its registration move to the `Chart` domain. The Explorer button comes from the host, as the Assistant button does today (`explorer = nothing` gives no button); only the application and the tests build the toolbar. |
 | S3 | For R30 (a `test/runtests.jl` in each package of the release): the test harness of `ProjecturedKernelTest` (`test_printer`, `test_reader`, the walkers) serves the tests of every package, and a registered test can use only registered packages. Where does it go? | A package extension of the kernel on `Test`: it loads only when a test loads `Test`. The other ways: a registered package of test tools, or a copy in each package. |
 | S6 | The downstream repositories name internal packages 1,005 times in 128 files (omnet-julia 935 in 122, inet-julia 70 in 6). | One mechanical change in each, in the same landing. |
 | S7 | Do the documents of the slices follow: `documentation/package/<name>/<slice>/`? | Yes, the same shape in every folder. |
