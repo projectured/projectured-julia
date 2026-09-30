@@ -1148,6 +1148,13 @@ registration.
       uses a second user namespace that maps the own user ID back, with the
       loopback up.
 
+      **Every failure is on `main`.** The 11 umbrella parts that fail, run
+      again on `main` (`c33824ca2`) in its own `environment/all`, with no
+      namespace and the normal SDL driver, give the same counts, part by part.
+      Plans that already hold some of them: `kernel-audit-fixes.md` (the anchor
+      point, the split pane, `insert_elements!` and `delete_elements!`) and
+      `export-block-rule.md` (`HelpModule`).
+
 ### Step P3: the workflow
 
 - [ ] `.github/workflows/CI.yml`, on a push to `main`, on a pull request, and
