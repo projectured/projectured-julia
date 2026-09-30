@@ -1503,6 +1503,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **Recommended (mine): B.** Every method of evaluate_reference_step takes an untyped document (ReferenceStep.jl, ProjectionReferenceStep.jl, and the steps of the text, graphics, chart and focus packages). So a MethodError of that function comes only from a step type with no method, which is a fault of the program and not a path that does not resolve. A stale path throws other errors (BoundsError, a field that does not exist, ReferenceTypeMismatchException), and those still give the default. The promise of the docstring is for a path that does not resolve, so B keeps the promise and corrects its words.
 - POLICY-1 (A) leaves out C: A or B remains.
 - Depends on: L01-8.
+- **Decided by the owner, 2026-09-30: B.**
 - Cost: S. ReferenceEvaluation.jl and ReferenceModule.jl (not sealed). Tests of the three walkers.
 
 **L13-8** (Medium): Does one pair (operation_reference, retarget_operation) register a new path-bearing operation, which changes the meaning of PAR-REGISTER-NEW-OPERATION?
