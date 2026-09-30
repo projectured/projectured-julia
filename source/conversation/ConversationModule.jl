@@ -44,7 +44,7 @@ using ..WidgetModule
 import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate
 import ..DomainModule: accepts_pasted_document, accepts_pasted_text,
-                       get_insertion_aliases, make_insertion_document
+                       get_insertion_aliases
 import ..FocusModule: is_selection_walk_stop
 import ..SelectionModule: has_dormant_selection
 import ..OperationModule: evaluate_operation
