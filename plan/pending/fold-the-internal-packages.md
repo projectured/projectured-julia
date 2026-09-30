@@ -223,6 +223,23 @@ and the downstream repositories land in the same landing.
       hold only moves**, so git sees each file as a rename and the open
       branches can rebase onto them; the paths in the entry files, the guards,
       `naming-rules.md` and the documents change in the commits after.
+      Done in two commits: `3a9944bea` holds only the 196 folder moves (803
+      files, each an R100 rename), `2cbee1855` the paths. A script changed the
+      paths from the repository root in one regex pass (so a new
+      `source/domain/…` is not replaced again by the rule of the old slice
+      `source/domain`), and wrote each relative link of a Markdown file again
+      from the old place of its file and its target; 244 files. By hand: the
+      nine files that count their depth with `@__DIR__` or a relative
+      `include`, a path in `ShellSuite.jl` and `PackageGraphTest.jl`, the two
+      includes of the builder tests in `ProjecturedSuite.jl`, the fixture that
+      the documentation guard skips, the edge guard (it reads
+      `source/platform/` now), and the texts that describe the shape with a
+      placeholder (`source/<group>/<slice>/`, the README layout,
+      `writing-rules.md`). **The names of the guides change** with the group:
+      `documentation/package/domain/json/json.md` is `domain/json/json` for
+      the assistant; the kernel guides keep their names, and no code or corpus
+      names a guide of a slice. The static guards pass, but for the argument
+      and export violations of `main`.
 - [ ] **Step 3, the fold.** `package/ProjecturedPlatform/`: a `Project.toml`
       with the outside dependencies of the 35 packages, and an entry file that
       includes the 35 slice modules in the order of the table of Step 0. The
