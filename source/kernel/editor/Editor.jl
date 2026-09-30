@@ -1,20 +1,21 @@
-# Fragment of `EditorModule` — the `Editor` itself: the struct, its construction, the projection invalidation hook, and the editor as the start of a reference.
+# Fragment of `EditorModule` — the `Editor`, its constructor, and the hooks it answers.
 
 """
-    Editor(backend, document, projection, devices;
-           clock = Clock(), tools = ToolSet(), feeds = Feed[])
+    Editor(document, projection; backend, devices = Device[Display(), Keyboard(), Mouse()],
+           clock = Clock(), tools = ToolSet(), faults = FaultStore(),
+           fault_policy = make_strict_fault_policy(), feeds = Feed[])
 
 Holds the state for a read-eval-print loop:
-  - `backend`    — the display/input backend (e.g. SdlBackend)
   - `document`   — the reactive document being edited
   - `projection` — the projection (or a chaining projection)
+  - `backend`    — the display/input backend
   - `devices`    — input/output devices (e.g. display, keyboard)
   - `clock`      — this editor's private animation clock (fresh `Clock()` by
                    default); `run_editor!` ticks it once per frame from OS
                    time so subscribers reanimate, independently of any other
                    editor running in the same process.
   - `tools`      — what *this* editor exposes to an agent: the `ToolSet` an agent
-                   loop drives and an MCP server publishes. Empty by default;
+                   loop drives and an agent server publishes. Empty by default;
                    `register_default_tools!(editor.tools)` fills it with the
                    built-ins on first use. Per editor, so two editors in one
                    process neither share a tool list nor evaluate code into each
@@ -28,12 +29,13 @@ Holds the state for a read-eval-print loop:
                    frame drains once. Per editor, so two editors in one process
                    never read each other's faults.
   - `fault_policy` — what this editor does with a fault. **It starts strict: a
-                   barrier catches nothing.** A programmatic editor — every one
-                   a test builds — therefore behaves exactly as it does without
+                   barrier catches nothing.** An editor that a test builds with
+                   `Editor(…)` therefore behaves exactly as it does without
                    this feature, and a broken projection fails its test rather
-                   than passing quietly. [`run_editor!`](@ref) is what turns the
+                   than passing quietly. [`make_editor`](@ref) turns the
                    barriers on, because a loop a person is sitting in front of
-                   is the thing that must survive.
+                   is the thing that must survive. [`run_editor!`](@ref) keeps
+                   the policy of its editor.
   - `replaced_projection` — the projection the safe mode put aside, or
                    `nothing` when the editor is not in the safe mode.
   - `feeds`      — the registered inflows, drained once per frame by
@@ -80,9 +82,15 @@ end
 # not build a queue of syncs that are stale by the time they are applied.
 const INBOX_CAPACITY = 64
 
-# @positional: what an editor is made of, in the order of the layers: the backend,
-# the document, the projection it draws through, and the devices it reads.
-function Editor(backend, document, projection, devices;
+# The devices of an editor when the caller names none: a display, a keyboard
+# and a mouse, made new for each editor.
+_make_default_devices() = Device[Display(), Keyboard(), Mouse()]
+
+# The document and the projection are what the editor edits and how it shows
+# it, as in `make_editor`; the backend, the devices and the services of the
+# editor take names.
+function Editor(document, projection; backend::Backend,
+                devices::Vector{Device} = _make_default_devices(),
                 clock::Clock = Clock(), tools::ToolSet = ToolSet(),
                 faults::FaultStore = FaultStore(),
                 fault_policy::FaultPolicy = make_strict_fault_policy(),
@@ -103,7 +111,7 @@ function Editor(backend, document, projection, devices;
         attach_wake_callback!(feed, wake)
     end
     # The fault store wakes the same way: a fault recorded while the editor
-    # sleeps — or during the frame, from inside a thunk — reaches the log on
+    # sleeps — or during the frame, from inside a computation — reaches the log on
     # the very next frame rather than on the next unrelated event.
     attach_fault_wake!(faults, wake)
     editor
@@ -128,3 +136,8 @@ ReferenceModule.get_parent(editor::Editor, x::Union{Reference, ReferencedDocumen
     get_parent(editor.document, x)
 ReferenceModule.find_referenced_document(locator::DocumentLocator{<:Editor}) =
     find_referenced_document(DocumentLocator(locator.start.document, locator.reference))
+
+# An editor is what keeps faults, and this is how code that holds one without
+# being able to name its type reaches them. The kernel's agent layer drives a
+# tool against a target it knows only as `Any`.
+FaultModule.get_fault_store(editor::Editor) = editor.faults

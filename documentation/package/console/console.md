@@ -56,6 +56,7 @@ The backend has no text measure: a console pipeline ends in `TextBlock` and neve
 | TAB | `KeyDown(:tab)` |
 | NUL | `KeyDown(:space)` with Ctrl |
 | Ctrl+C | `WindowQuit()` |
+| another byte of Ctrl+A to Ctrl+Z, 0x01 to 0x1A | `KeyDown` of `:a` to `:z` with Ctrl |
 | a printable byte, a UTF-8 sequence | `KeyPress(char)` |
 
 The parameter `m` is 1 plus the sum of 1 for Shift, 2 for Alt, 4 for Ctrl and 8 for Meta, as xterm sends it. So `ESC [ 1 ; 5 D` is Ctrl+Left. Home with a modifier is `KeyDown(:home)` with that modifier, and only a plain Home selects the root. The parser drops a whole control sequence that has no key in the table, such as a mouse report or the marks of a bracketed paste.

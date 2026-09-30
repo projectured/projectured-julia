@@ -21,6 +21,12 @@
 # `documentation/guide/build-guide.md` before the first one.
 #
 root=$(cd "$(dirname "$0")/.." && pwd)
+# Julia loads the libstdc++ of the machine when it is newer than its own, and the
+# build copies the library that Julia loaded. A copy of the machine's library can
+# need a newer glibc than a user has, so the build loads Julia's own. A binary
+# still loads a newer one of its user's machine when there is one.
+JULIA_PROBE_LIBSTDCXX=0
+export JULIA_PROBE_LIBSTDCXX
 PROJECTURED_BUILD_WHAT="projectured"
 PROJECTURED_BUILD_COMMAND="bin/build_projectured"
 export PROJECTURED_BUILD_WHAT PROJECTURED_BUILD_COMMAND

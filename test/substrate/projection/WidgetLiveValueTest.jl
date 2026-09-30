@@ -1,7 +1,9 @@
-# The texts that a printed widget draws, from the top of its canvas down.
+# The texts that a printed widget draws, from the top of its canvas down, and
+# through the viewports of its panes.
 function _collect_drawn_texts(element, texts = String[])
     element isa GraphicsText && push!(texts, String(element.text))
     element isa GraphicsCanvas && foreach(child -> _collect_drawn_texts(child, texts), element.elements)
+    element isa GraphicsViewport && _collect_drawn_texts(element.content, texts)
     texts
 end
 

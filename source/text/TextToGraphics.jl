@@ -293,6 +293,10 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined === nothing || return nothing
 
     styled = iomap.input
+    # A block whose elements are a list is drawn paragraph by paragraph and keeps
+    # no line geometry, so no key moves along its lines. The list can be endless,
+    # so it is not walked either.
+    styled.elements isa ListNode && return nothing
     _has_caret_span(styled) || return nothing
 
     # Shift moves one end of the selection: Home and Up the start, End and Down
@@ -1517,8 +1521,6 @@ and the space its offsets are in (see `_layout_overlay`). Recognized shapes:
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
 function _highlight_char_range(sel, coord_map::Vector{SegmentCoordinate})
-    # The selection is canonical at rest: skip its non-navigating TypeReferenceStep
-    # checkpoints before reading the box structure underneath.
     sel = sel
     if sel isa EmptyReference
         isempty(coord_map) && return nothing

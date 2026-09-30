@@ -1,7 +1,7 @@
 ---
 marp: true
 title: ProjecturEd
-description: An application to view, edit and transform structured data with an AI assistant, and a generic user interface for Julia programs.
+description: One structure, many editable views — with an AI assistant. An application to view and edit structured data, and a generic user interface for Julia programs.
 author: ProjecturEd
 paginate: true
 theme: uncover
@@ -90,8 +90,10 @@ style: |
 
 # ProjecturEd
 
-An application to view, edit and transform structured data
-with an AI assistant, and a generic user interface for any Julia program.
+One structure, many editable views — with an AI assistant.
+
+An application to view and edit structured data,
+and a generic user interface for any Julia program.
 
 <br>
 
@@ -344,7 +346,6 @@ ProjecturEd is under development. Most features work, but it is not a finished p
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
 - SDL2 and SDL_ttf must be installed for a native window.
 - The packages are not in the General registry: clone the repository and use `environment/all`.
-- Commercial use needs a licence from the author.
 
 ---
 
@@ -386,6 +387,6 @@ bin/projectured --mcp a.json                 # with an MCP server
 
 # Thank you
 
-<span class="muted">Free for non-commercial use; commercial use needs a licence from the author.</span>
+<span class="muted">Mozilla Public License 2.0.</span>
 
 <span class="muted">github.com/projectured/projectured-julia</span>

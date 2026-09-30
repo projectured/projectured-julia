@@ -31,7 +31,8 @@ function _tw_editor(document = _tw_labels(); other = nothing,
     document, projection = make_tracking_screen(scene, composed;
                                                 inner_wrappers = [wrap_tooltip_window])
     backend = HeadlessBackend()
-    editor = Editor(backend, document, projection, Device[Keyboard(), Mouse()])
+    editor = Editor(document, projection; backend = backend,
+                    devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     (editor, backend, scene)
 end

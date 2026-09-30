@@ -68,6 +68,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/graph/projection/GraphProjectionTest.jl")
+include("../../../test/graph/projection/FruchtermanReingoldLayoutTest.jl")
 
 include("../../../test/graph/GraphSuite.jl")
 

@@ -4,7 +4,8 @@
 Confirms:
 - a long message is cut by characters, not by bytes, so a multi-byte character
   at the cut does not make the formatting throw;
-- a short message is kept whole, as one line.
+- a short message is kept whole, as one line;
+- an origin that is a Union type gets a name, so the record does not throw.
 """
 
 using Test
@@ -26,6 +27,14 @@ function test_fault_record()
         record = make_fault_record(:print; origin = :test,
                                    exception = ErrorException("one\ntwo"))
         @test record.message == "one two"
+    end
+
+    @testset "an origin that is a Union type gets a name" begin
+        exception = ErrorException("x")
+        union_record = make_fault_record(:print; origin = Union{Int, String}, exception)
+        @test union_record.origin === Symbol(string(Union{Int, String}))
+        bottom_record = make_fault_record(:print; origin = Union{}, exception)
+        @test bottom_record.origin === Symbol("Union{}")
     end
 
 end

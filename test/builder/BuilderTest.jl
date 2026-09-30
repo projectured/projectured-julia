@@ -191,6 +191,158 @@ function test_builder()
                            "    _apply_log_level!() == 0 || return 1\n", source)
         end
 
+        @testset "a stand-in takes the place of a JLL that a binary must not carry" begin
+            context = _test_context()
+            uuid = "00000000-0000-0000-0000-0000000000aa"
+            keep = "00000000-0000-0000-0000-0000000000ab"
+            stand_ins = [StandIn("some_jll", uuid; keeps = ["Kept_jll" => keep])]
+            directory = write_app_package(context; name = "quiet", packages = [A_PACKAGE],
+                                          main = :(begin 0 end), stand_ins)
+            project = ProjecturedBuilder.TOML.parsefile(joinpath(directory,
+                                                                 "Project.toml"))
+            @test project["deps"]["some_jll"] == uuid
+            @test project["sources"]["some_jll"]["path"] ==
+                  joinpath("stand_in", "some_jll")
+            stand_in = joinpath(directory, "stand_in", "some_jll")
+            stand_in_project = ProjecturedBuilder.TOML.parsefile(joinpath(stand_in,
+                                                                          "Project.toml"))
+            @test stand_in_project["uuid"] == uuid
+            # It keeps a dependency of the real one, and loads it.
+            @test stand_in_project["deps"] == Dict("Kept_jll" => keep)
+            source = read(joinpath(stand_in, "src", "some_jll.jl"), String)
+            @test occursin("import Kept_jll", source)
+            # What a user of a JLL reads: an artifact folder and two lists of paths,
+            # all empty. Evaluated in a module of its own, without the import, so
+            # nothing here is changed.
+            sandbox = Module(:StandInSandbox)
+            Base.include_string(sandbox, replace(source, "import Kept_jll" => ""))
+            jll = getfield(sandbox, :some_jll)
+            @test jll.artifact_dir == ""
+            @test isempty(jll.PATH_list) && isempty(jll.LIBPATH_list)
+            @test !Base.invokelatest(jll.is_available)
+            # The build record says what the binary does not carry.
+            info = build_info(; name = "quiet", packages = [A_PACKAGE],
+                                main = :(begin 0 end),
+                                workload = nothing, preferences = [], optimization = 3,
+                                debug_info = 1, cpu_target = "", stand_ins)
+            @test occursin("stand-in: some_jll, which this binary does not carry; it " *
+                           "keeps Kept_jll", info)
+            @test only(PROJECTURED_STAND_INS).name == "alsa_plugins_jll"
+            @test only(PROJECTURED_STAND_INS).uuid ==
+                  "5ac2f6bb-493e-5871-9171-112d4c21a6e7"
+            @test Set(first.(only(PROJECTURED_STAND_INS).keeps)) ==
+                  Set(["libsamplerate_jll", "Libiconv_jll"])
+        end
+
+        @testset "an archive carries the licence texts of what it holds" begin
+            root = mktempdir()
+            # A standard-library JLL whose artifact, for this platform, is a local
+            # tarball with one licence text.
+            artifact = joinpath(root, "artifact")
+            mkpath(joinpath(artifact, "share", "licenses", "Fake"))
+            write(joinpath(artifact, "share", "licenses", "Fake", "LICENSE"),
+                  "fake licence\n")
+            tarball = joinpath(root, "Fake.tar.gz")
+            run(`tar -czf $tarball -C $artifact share`)
+            digest = bytes2hex(open(ProjecturedBuilder.sha256, tarball))
+            stdlib = joinpath(root, "stdlib")
+            mkpath(joinpath(stdlib, "Fake_jll"))
+            write_stdlib(sha) = write(joinpath(stdlib, "Fake_jll",
+                                      "StdlibArtifacts.toml"), """
+                [[Fake]]
+                arch = "$(Sys.ARCH)"
+                git-tree-sha1 = "0000000000000000000000000000000000000000"
+                libc = "glibc"
+                os = "linux"
+
+                    [[Fake.download]]
+                    sha256 = "$sha"
+                    url = "file://$tarball"
+                """)
+            write_stdlib(digest)
+            # A package from a registry, found in a depot by its slug; a standard
+            # library and a package reached by path carry no tree hash.
+            uuid = "00000000-0000-0000-0000-0000000000bb"
+            tree = "1111111111111111111111111111111111111111"
+            depot = joinpath(root, "depot")
+            package = joinpath(depot, "packages", "Foo",
+                               Base.version_slug(Base.UUID(uuid), Base.SHA1(tree)))
+            mkpath(package)
+            write(joinpath(package, "LICENSE.md"), "foo licence\n")
+            write(joinpath(package, "README.md"), "not a licence\n")
+            project = joinpath(root, "project")
+            mkpath(project)
+            write(joinpath(project, "Manifest.toml"), """
+                [[deps.Foo]]
+                git-tree-sha1 = "$tree"
+                uuid = "$uuid"
+                version = "1.2.3"
+
+                [[deps.Dates]]
+                uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+                version = "1.11.0"
+                """)
+            thirdparty = joinpath(root, "THIRDPARTY.md")
+            write(thirdparty, "third parties\n")
+            # A bundle whose one artifact carries its own texts.
+            bundle = joinpath(root, "bundle")
+            mkpath(joinpath(bundle, "share", "julia", "artifacts", "abc", "share",
+                            "licenses", "Bar"))
+            write(joinpath(bundle, "share", "julia", "artifacts", "abc", "share",
+                           "licenses", "Bar", "COPYING"),
+                  "bar\n")
+
+            readme = read(bundle_licence_texts!(bundle; project,
+                          cache = joinpath(root, "cache"),
+                          credits = ["A credit."], julia_thirdparty = thirdparty,
+                          extra_texts = ["Certs" => thirdparty],
+                          stdlib, depots = [depot]), String)
+            licenses = joinpath(bundle, "share", "licenses")
+            @test isfile(joinpath(licenses, "julia", "LICENSE.md"))
+            @test read(joinpath(licenses, "julia", "THIRDPARTY.md"), String) ==
+                  "third parties\n"
+            @test read(joinpath(licenses, "stdlib", "Fake", "LICENSE"), String) ==
+                  "fake licence\n"
+            @test isfile(joinpath(licenses, "stdlib", "Certs", "THIRDPARTY.md"))
+            @test read(joinpath(licenses, "packages", "Foo", "LICENSE.md"), String) ==
+                  "foo licence\n"
+            @test !isfile(joinpath(licenses, "packages", "Foo", "README.md"))
+            @test !isdir(joinpath(licenses, "packages", "Dates"))
+            for line in ("  Certs", "  Fake", "  Foo 1.2.3",
+                         "  Bar: share/julia/artifacts/abc/share/licenses/Bar",
+                         "  A credit.")
+                @test occursin(line, readme)
+            end
+            # An artifact whose bytes are not the ones its JLL names stops the build.
+            write_stdlib("0"^64)
+            @test_throws ErrorException bundle_licence_texts!(bundle; project,
+                cache = joinpath(root, "other-cache"), julia_thirdparty = thirdparty,
+                stdlib, depots = [depot])
+            # And the README of the archive points to the index and holds the credits.
+            text = read(write_readme(mktempdir(); name = "thing", version = "0.1.0",
+                                     requirements = String[], third_party = true,
+                                     credits = ["A credit."]), String)
+            @test occursin("share/licenses/README", text) && occursin("A credit.", text)
+            @test PROJECTURED_CREDITS[1] ==
+                  "This software is based in part on the work of the Independent JPEG " *
+                  "Group."
+            rm(root; recursive = true)
+        end
+
+        @testset "every binary ends in silence on SIGTERM" begin
+            context = _test_context()
+            source = _generated_source(context; name = "quiet", usage = nothing)
+            # Second, right after the log level, before the program starts any
+            # work that a signal could interrupt.
+            @test occursin("    _apply_log_level!() == 0 || return 1\n" *
+                           "    _end_on_terminate!()\n", source)
+            # Not called here: it would change how this test process takes the
+            # signal. What it does is checked on a real process in Step A3 of the
+            # release plan.
+            @test occursin("function _end_on_terminate!()::Nothing", source)
+            @test occursin("ccall(:pthread_sigmask", source)
+        end
+
         @testset "the build bakes the default and the flag says another" begin
             context = _test_context()
             # A build for developing ships at info; a distribution ships quiet.
@@ -520,31 +672,180 @@ function test_builder()
             rm(empty_bundle; recursive = true, force = true)
         end
 
+        @testset "a source archive holds exactly the offered sources" begin
+            root = mktempdir()
+            context = _test_context()
+            # Two upstream tarballs and a patch, served from files.
+            for (file, text) in (("lib-1.0.tar.gz", "library source"),
+                                 ("fix.patch", "a patch"))
+                write(joinpath(root, file), text)
+            end
+            digest(file) =
+                bytes2hex(open(ProjecturedBuilder.sha256, joinpath(root, file)))
+            stdlib = joinpath(root, "stdlib")
+            mkpath(joinpath(stdlib, "Lib_jll"))
+            write(joinpath(stdlib, "Lib_jll", "Project.toml"),
+                  "name = \"Lib_jll\"\nversion = \"1.0.0+1\"\n")
+            project = joinpath(root, "project")
+            mkpath(project)
+            write(joinpath(project, "Manifest.toml"), """
+                [[deps.Other_jll]]
+                git-tree-sha1 = "1111111111111111111111111111111111111111"
+                uuid = "00000000-0000-0000-0000-0000000000cc"
+                version = "2.0.0+0"
+                """)
+            offer(jll, version; sha = digest("lib-1.0.tar.gz"),
+                                name = "Lib (a library)") =
+                SourceOffer(name, "1.0"; jll, jll_version = version,
+                            url = "file://$root/lib-1.0.tar.gz", sha256 = sha,
+                            recipe = "https://example.org/recipe",
+                            patches = ["file://$root/fix.patch"], notes = "A note.")
+            build(offers) =
+                build_source_archive(context; name = "thing", version = "0.1.0", offers,
+                                     output = joinpath(root, "out"),
+                                     cache = joinpath(root, "cache"), project, stdlib)
+
+            error_text(action) =
+                try action(); "" catch exception; sprint(showerror, exception) end
+            archive = build([offer("Lib_jll", "1.0.0+1"),
+                             offer("Other_jll", "2.0.0+0"; name = "Other"),
+                             offer("julia", string(VERSION); name = "Julia")])
+            @test basename(archive) == "thing-0.1.0-sources.tar"
+            listing = split(read(`tar -tf $archive`, String))
+            @test "thing-0.1.0-sources/README" in listing
+            @test "thing-0.1.0-sources/Lib-1.0/lib-1.0.tar.gz" in listing
+            @test "thing-0.1.0-sources/Lib-1.0/patches/fix.patch" in listing
+            readme = read(`tar -xOf $archive thing-0.1.0-sources/README`, String)
+            @test "thing-0.1.0-sources/Other-1.0/lib-1.0.tar.gz" in listing
+            for line in ("Lib (a library) 1.0", "of:      Lib_jll 1.0.0+1",
+                         "of:      Other_jll 2.0.0+0",
+                         "recipe:  https://example.org/recipe", "patches: fix.patch",
+                         "  A note.")
+                @test occursin(line, readme)
+            end
+
+            # A tarball that is not the one that was checked stops the build.
+            @test occursin("must be checked again",
+                           error_text(() -> build([offer("Lib_jll", "1.0.0+1";
+                                                         sha = "0"^64)])))
+            # So does a JLL of another version than its offer, and one the binary lacks.
+            @test occursin("change the offer",
+                           error_text(() -> build([offer("Lib_jll", "1.0.0+2")])))
+            @test occursin("carries no Missing_jll",
+                           error_text(() -> build([offer("Missing_jll", "1.0.0")])))
+            # And two offers that would share one folder.
+            @test occursin("share the folder",
+                           error_text(() -> build([offer("Lib_jll", "1.0.0+1"),
+                                                   offer("julia", string(VERSION))])))
+
+            # The offers of this repository: seven parts, each with a checked SHA-256.
+            @test length(PROJECTURED_SOURCE_OFFERS) == 7
+            @test all(offer -> occursin(r"^[0-9a-f]{64}$", offer.sha256),
+                      PROJECTURED_SOURCE_OFFERS)
+            @test Set(offer.jll for offer in PROJECTURED_SOURCE_OFFERS) ==
+                  Set(["alsa_jll", "GMP_jll", "MPFR_jll", "CompilerSupportLibraries_jll",
+                       "LibGit2_jll", "p7zip_jll", "julia"])
+            rm(root; recursive = true)
+        end
+
+        @testset "a distribution carries every library it needs beyond glibc" begin
+            julia_lib = joinpath(Sys.BINDIR, "..", "lib", "julia")
+            if Sys.islinux() && Sys.which("readelf") !== nothing &&
+               isfile(joinpath(julia_lib, "libmpfr.so.6"))
+                bundle = mktempdir()
+                mkpath(joinpath(bundle, "lib"))
+                cp(joinpath(julia_lib, "libmpfr.so.6"),
+                   joinpath(bundle, "lib", "libmpfr.so.6"); follow_symlinks = true)
+                # MPFR needs GMP, and a machine that builds can have it where the test
+                # of a copy does not look.
+                @test ("libgmp.so.10" => joinpath("lib", "libmpfr.so.6")) in
+                      collect_missing_libraries(bundle)
+                cp(joinpath(julia_lib, "libgmp.so.10"),
+                   joinpath(bundle, "lib", "libgmp.so.10"); follow_symlinks = true)
+                @test isempty(collect_missing_libraries(bundle))
+                # A bundle that lacks a library stops the distribution.
+                rm(joinpath(bundle, "lib", "libgmp.so.10"))
+                mkpath(joinpath(bundle, "bin"))
+                write(joinpath(bundle, "bin", "thing"), "")
+                message = try
+                    build_distribution(_test_context(); name = "thing", bundle = bundle)
+                    ""
+                catch exception
+                    sprint(showerror, exception)
+                end
+                @test occursin("libgmp.so.10, which lib/libmpfr.so.6 needs", message)
+                rm(bundle; recursive = true)
+            end
+            @test "libc.so.6" in GLIBC_LIBRARIES
+        end
+
+        @testset "a distribution carries the libstdc++ of Julia, not of the machine" begin
+            own = joinpath(Sys.BINDIR, "..", "lib", "julia", "libstdc++.so.6")
+            if Sys.islinux() && isfile(own)
+                context = _test_context()
+                bundle = mktempdir()
+                mkpath(joinpath(bundle, "bin"))
+                write(joinpath(bundle, "bin", "thing"), "")
+                mkpath(joinpath(bundle, "lib", "julia"))
+                write(joinpath(bundle, "lib", "julia", "libstdc++.so.6"),
+                      "another library")
+                message = try
+                    build_distribution(context; name = "thing", bundle = bundle,
+                                       licences = ["NO-SUCH-LICENCE"])
+                    ""
+                catch exception
+                    sprint(showerror, exception)
+                end
+                @test occursin("JULIA_PROBE_LIBSTDCXX=0", message)
+                # Julia's own library passes, and the build stops at the next check.
+                cp(own, joinpath(bundle, "lib", "julia", "libstdc++.so.6"); force = true)
+                message = try
+                    build_distribution(context; name = "thing", bundle = bundle,
+                                       licences = ["NO-SUCH-LICENCE"])
+                    ""
+                catch exception
+                    sprint(showerror, exception)
+                end
+                @test !occursin("JULIA_PROBE_LIBSTDCXX", message)
+                rm(bundle; recursive = true, force = true)
+            end
+            @test occursin("JULIA_PROBE_LIBSTDCXX=0",
+                           read(joinpath(dirname(dirname(@__DIR__)), "bin",
+                                        "build_projectured"), String))
+        end
+
         @testset "an archive carries the licence of what is in it" begin
-            # LICENCE-PD asks for its notice in every copy, so an archive that
-            # leaves the file out breaks the licence it is distributed under.
+            # A licence that asks for its text in every copy is broken by an
+            # archive that leaves the file out.
             context = _test_context()
             bundle = mktempdir()
             mkpath(joinpath(bundle, "bin"))
             write(joinpath(bundle, "bin", "thing"), "")
             @test_throws ErrorException build_distribution(context; name = "thing",
-                                            bundle = bundle, licences = ["NO-SUCH-LICENCE"])
+                bundle = bundle, licences = ["NO-SUCH-LICENCE"])
             rm(bundle; recursive = true, force = true)
 
             # The README beside the binary names each file that travels with it.
             staged = mktempdir()
             readme = read(write_readme(staged; name = "thing", version = "0.1.0",
                                        requirements = String[],
-                                       licences = ["LICENCE-PD", "LICENCE-COMMERCIAL"]), String)
-            @test occursin("LICENCE-PD", readme)
-            @test occursin("LICENCE-COMMERCIAL", readme)
-            @test !occursin("LICENCE", read(write_readme(staged; name = "thing",
-                                                         version = "0.1.0",
-                                                         requirements = String[]), String))
+                                       licences = ["LICENSE", "NOTICE"],
+                                       source = "https://example.org/thing"), String)
+            @test occursin("LICENSE", readme)
+            @test occursin("NOTICE", readme)
+            # The source of this version, which MPL-2.0 asks a binary to name.
+            @test occursin("https://example.org/thing, tag v0.1.0", readme)
+            bare = read(write_readme(staged; name = "thing", version = "0.1.0",
+                                     requirements = String[]), String)
+            @test !occursin("LICENSE", bare)
+            @test !occursin("source code", bare)
             rm(staged; recursive = true, force = true)
 
-            # The application declares both files, and each one is in the tree.
-            @test PROJECTURED_LICENCES == ["LICENCE-PD", "LICENCE-COMMERCIAL"]
+            # The application declares its licence, and the file is in the tree.
+            @test PROJECTURED_LICENCES == ["LICENSE"]
+            @test startswith(
+                read(joinpath(dirname(dirname(@__DIR__)), "LICENSE"), String),
+                "Mozilla Public License Version 2.0")
             @test all(licence -> isfile(joinpath(dirname(dirname(@__DIR__)), licence)),
                       PROJECTURED_LICENCES)
         end
@@ -610,8 +911,12 @@ function test_builder()
             project = build_projectured_executable(; context = context, compile = false)
             @test project == joinpath(context.root, "build", "app", "projectured")
             deps = ProjecturedBuilder.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
+            # The packages of the binary, and the stand-in that keeps the sound
+            # libraries out of it.
             @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedExample",
-                                          "ProjecturedMcp", "ProjecturedSdl", "ProjecturedWeb"])
+                                          "ProjecturedMcp", "ProjecturedSdl",
+                                          "ProjecturedWeb",
+                                          "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
             @test occursin("ProjecturedExample.run_application_command(ARGS; backends = " *
                            "(sdl = ProjecturedSdl.SdlBackend, web = ProjecturedWeb.WebBackend))",

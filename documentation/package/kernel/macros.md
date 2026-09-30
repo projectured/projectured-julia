@@ -6,8 +6,9 @@
 the cell-based code in the rest of the codebase look like ordinary Julia. A
 fourth macro, [`@projection_template`](#projection_template), writes the
 `print_document`/`read_intent` pair of a structural projection from a builder
-expression instead of by hand. Seventeen files use it, among them eleven of the
-twenty-three domain-to-syntax projections; the rest are still written by hand. They are defined in
+expression instead of by hand. Thirteen files of `source/` use it, among them
+eleven of the thirty `*ToSyntax.jl` files; the other printers are written by hand.
+They are defined in
 [document/DocumentMacro.jl](../../../source/kernel/document/DocumentMacro.jl),
 [projection/ProjectionMacro.jl](../../../source/kernel/projection/ProjectionMacro.jl),
 [iomap/IoMapDefaults.jl](../../../source/kernel/iomap/IoMapDefaults.jl), and
@@ -44,7 +45,7 @@ layer's codegen kit for everything that is not document-specific:
   the parameters for a type application (`get_cell_struct_parameter_names`);
 - the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
   `build_cell_struct_keyword_constructor`), and **Rule Y**
-  (`build_cell_struct_positional_ctors`).
+  (`build_cell_struct_positional_constructors`).
 Rule Y fills a trailing run of defaults positionally; it is a rule about any
 cell struct, not about documents. `@document` is then a parse plus six emitters, each a pure
 function of the plan. Use `@cell_struct` directly for a transparent-Cell struct
@@ -82,9 +83,10 @@ end
 The macro rewrites the struct into the **kind-parameterized stem**: an
 immutable struct with one cell type-parameter per field
 (see [plan/done/cell-kind-documents.md](../../../plan/done/cell-kind-documents.md)),
-plus an injected `selection::Union{Nothing, Reference} = nothing` field appended
-as the last field — a `Reference` for what is selected inside this node, or
-`nothing` for no selection. Around the stem it emits a per-schema **family** and
+plus an injected `selection::Union{Nothing, Reference, SelectionDocument} = nothing`
+field appended as the last field — a `Reference` for what is selected inside this
+node, a `SelectionDocument` that holds a reference and says whether it is the live
+selection, or `nothing` for no selection. Around the stem it emits a per-schema **family** and
 a **native mutable layout**:
 
 ```julia
@@ -97,7 +99,7 @@ end
 
 mutable struct MJsonString <: AJsonString      # the native layout
     value::String                          # the declared type, with no cell box
-    selection::Union{Nothing, Reference}
+    selection::Union{Nothing, Reference, SelectionDocument}
 end
 ```
 
@@ -169,7 +171,7 @@ working: `@native_document ImmutableCell struct …`.
 **Declaring `selection` by hand.** You normally never write it. The one reason to
 declare it is a **value document** that must pin the field's *value* type, the
 isbits pivot: `selection::ImmutableCell{Nothing}` is isbits and not selectable (a leaf value),
-while the injected `Union{Nothing, Reference}` form is selectable. An explicit
+while the injected `Union{Nothing, Reference, SelectionDocument}` form is selectable. An explicit
 `selection` must come **last** (anywhere else is an error) and defaults to
 `nothing`, so it does not count as a programmer default and leaves Rule Y and the
 keyword constructors gated exactly as the injected field would. `StyleText` is the
@@ -350,9 +352,11 @@ fields).
 Writes `print_document(p::ProjName, recursion, doc::InType, ctx)` and the
 matching reader from one builder expression, instead of a hand-written
 `print_document`/`map_reference_forward`/`map_reference_backward`/`read_intent`
-group. Every structural projection in the codebase — every domain's `*ToSyntax`
-projection, among others — is written with it; a hand-written pair needs a
-reason (see [code-quality-rules.md](../../rule/code-quality-rules.md)).
+group. Eleven of the `*ToSyntax.jl` files and two `*DiagramToGraph.jl` files use
+it. The other `*ToSyntax.jl` files are written by hand, and nine of the thirteen
+files that use the template also hold hand-written printers. A new hand-written
+pair needs a reason (see
+[code-quality-rules.md](../../rule/code-quality-rules.md)).
 [`@projection`](#projection) still declares the projection struct itself (a
 config/style holder); `@projection_template` supplies the four projection
 functions for it. The macro is defined in
@@ -405,6 +409,25 @@ reader work with no further code: a `map_reference_forward`/`map_reference_backw
 pair and a `read_intent` method come from the template for every `bound`,
 `project` and `collection` position in the builder.
 
+**A child list that follows the document.** A node whose child list depends on
+the value of a field writes the list as a thunk: `SyntaxConcatenation(() -> [...])`.
+The constructor of the node makes the thunk the computation of its children cell.
+The template finds that cell, a computed cell that holds a vector of markers, and
+walks the markers again each time a cell that the thunk reads changes. The output
+node gets its children in a cell of its own, so the children cell keeps its
+computation. A slot therefore appears when an optional field gets a value, and
+goes when the field becomes `nothing`. The range of the Julia domain
+(`source/julia/JuliaToSyntax.jl`) has a slot for its step only when the step is
+not `nothing`:
+
+```julia
+@projection_template JuliaRangeToSyntaxNode JuliaRange (p, r) ->
+    SyntaxConcatenation(() -> r.step === nothing ?
+                            [ project(:start), SyntaxLeaf(TextString(":", p.op)), project(:stop) ] :
+                            [ project(:start), SyntaxLeaf(TextString(":", p.op)),
+                              project(:step),  SyntaxLeaf(TextString(":", p.op)), project(:stop) ])
+```
+
 A structural caret that has no input pre-image (a delimiter the builder always
 renders, never bound to a field) is the one case the template cannot map on its
 own. A domain overrides `read_intent`/`map_reference_forward` for that one
@@ -454,7 +477,7 @@ convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothin
 form.
 
 For `@document`, the keyword constructor is generated for the bare name, the
-`CI`-prefixed and `CM`-prefixed spellings, and the native `MFoo` layout. It is
+`IC`-prefixed and `MC`-prefixed spellings, and the native `MFoo` layout. It is
 generated only when **the programmer** declares at least one field default; the
 always-defaulted, macro-injected `selection` field does not itself count. A struct with no defaults of its own
 (`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free

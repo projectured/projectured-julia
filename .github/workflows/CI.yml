@@ -1,0 +1,116 @@
+# The static guards and the test suite of every test package, with coverage.
+#
+# Each test package runs in its own environment, so a suite that uses a package
+# its Project.toml does not name fails here. The five test packages of the
+# opt-in backends and the umbrella load through environment/all, the one
+# environment that names every package (documentation/guide/testing-guide.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['plan/**']
+  pull_request:
+    paths-ignore: ['plan/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  guards:
+    name: Static guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1'
+      # Each guard reads the source as text and loads no package.
+      - name: Run each guard
+        run: |
+          status=0
+          for guard in test/suite/*.jl; do
+            echo "::group::$guard"
+            julia --startup-file=no "$guard" || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
+  test:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      id-token: write          # the upload to Codecov through OIDC
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {package: ProjecturedKernelTest, run: test_kernel}
+          - {package: ProjecturedSubstrateTest, run: test_substrate}
+          - {package: ProjecturedFaultTest, run: test_fault}
+          - {package: ProjecturedJsonTest, run: test_json}
+          - {package: ProjecturedYamlTest, run: test_yaml}
+          - {package: ProjecturedXmlTest, run: test_xml}
+          - {package: ProjecturedMarkdownTest, run: test_markdown}
+          - {package: ProjecturedRstTest, run: test_rst}
+          - {package: ProjecturedBookTest, run: test_book}
+          - {package: ProjecturedMathTest, run: test_math}
+          - {package: ProjecturedJuliaTest, run: test_julia}
+          - {package: ProjecturedSqlTest, run: test_sql}
+          - {package: ProjecturedDatabaseTest, run: test_database}
+          - {package: ProjecturedDbCatalogTest, run: test_dbcatalog}
+          - {package: ProjecturedFileSystemTest, run: test_filesystem}
+          - {package: ProjecturedGraphTest, run: test_graph}
+          - {package: ProjecturedChartTest, run: test_chart}
+          - {package: ProjecturedSequenceChartTest, run: test_sequencechart}
+          - {package: ProjecturedFormulaTest, run: test_formula}
+          - {package: ProjecturedFsmTest, run: test_fsm}
+          - {package: ProjecturedProcessTest, run: test_process}
+          - {package: ProjecturedShellTest, run: test_shell}
+          - {package: ProjecturedConversationTest, run: test_conversation}
+          - {package: ProjecturedUndoTest, run: test_undo}
+          - {package: ProjecturedHelpTest, run: test_help}
+          - {package: ProjecturedAnthropicTest, run: test_anthropic}
+          - {package: ProjecturedOllamaTest, run: test_ollama}
+          - {package: ProjecturedOpenRouterTest, run: test_openrouter}
+          - {package: ProjecturedDataFramesTest, run: test_dataframes}
+          - {package: ProjecturedDisplayTest, run: test_display}
+          - {package: ProjecturedSdlTest, run: test_sdl, project: environment/all}
+          - {package: ProjecturedTulipTest, run: test_tulip, project: environment/all}
+          - {package: ProjecturedVideoTest, run: test_video, project: environment/all}
+          - {package: ProjecturedOdbcTest, run: test_odbc, project: environment/all}
+          - {package: ProjecturedTest, run: test_integration, project: environment/all}
+    env:
+      PROJECT: ${{ matrix.project || format('package/{0}', matrix.package) }}
+      SDL_VIDEODRIVER: offscreen   # SDL draws into memory; the runner has no display
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v3
+      - name: Instantiate
+        run: julia --project="$PROJECT" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+      # Coverage only for the files of this repository, so the dependencies
+      # keep their compiled images.
+      - name: Test
+        run: >-
+          julia --code-coverage=@. --project="$PROJECT"
+          -e 'using ${{ matrix.package }}; ${{ matrix.run }}()'
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: source,package,example,test
+      - uses: codecov/codecov-action@v7
+        with:
+          files: lcov.info
+          flags: ${{ matrix.package }}
+          use_oidc: true
+          fail_ci_if_error: false

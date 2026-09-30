@@ -204,8 +204,8 @@ never opens a tool that stays empty in one of them.
 # Example
 
     run_with_window_tools() do feeds, start
-        editor = make_editor(document, projection, "Title"; backend = backend,
-                             feeds = feeds)
+        editor = build_editor(document, projection; backend = backend, feeds = feeds,
+                              tabs = false, window = (; title = "Title"))
         start(editor)
         run_editor!(editor)
     end

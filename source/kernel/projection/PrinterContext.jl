@@ -24,8 +24,8 @@ Downward-flowing per-invocation context for `print_document`.
   (theme, focus, debug flags, …).
 - `clock` — the animation clock a printer subscribes to for animated
   output. The default is a new `Clock` that no code writes, so an animation
-  printed with it stays at time 0. A live editor loop gives its root context its
-  own `Clock`, which it writes once per frame.
+  printed with it stays at time 0. A caller that animates gives the root context
+  a `Clock` of its own, and writes it once per frame.
 
 `PrinterContext(reference, width, height, properties[, clock])` makes a context
 whose range is exact on each axis where a cell is given, as the root of a
@@ -33,6 +33,19 @@ window gives its size, and free where `nothing` is given.
 
 `get_exact_width(ctx)` and `get_exact_height(ctx)` read the extent of an exact
 range, and `nothing` for a bounded or a free one.
+
+Use it to give a printer what its parent knows: where the input sits in the
+document, how much room there is, the clock of animated output, and the
+properties that a parent sets for its subtree.
+
+# Example
+
+    width, height = Cell(800), Cell(600)
+    context = PrinterContext(EmptyReference(), width, height, Dict{Symbol, Any}())
+    iomap = print_document(projection, projection, document, context)
+
+See also `make_child_context`, which makes the context of a child, and
+`with_exact_size`, `with_bounded_size` and `with_property`, which change one part.
 """
 struct PrinterContext
     reference::Reference
@@ -100,6 +113,17 @@ pass-through wrappers keep the parent's range; a layout that gives its child a
 range of its own calls `with_exact_size`, `with_bounded_size` or
 `withhold_offer` explicitly.
 
+Use it to give a child its place in the document before a node printer prints
+the child.
+
+# Example
+
+    context = make_child_context(ctx, FieldReferenceStep("content"))
+    content_iomap = print_child(recursion, input.content, context)
+
+See also `print_child`, which prints the child with it, and `with_exact_size`,
+which gives the child a range of its own.
+
 !!! warning "The properties Dict is shared, not copied"
     `make_child_context` passes the parent's `properties` Dict to the child **by
     reference**. Mutating it in place (`ctx.properties[k] = v`) therefore leaks
@@ -121,7 +145,7 @@ Child context whose reference is `ctx.reference` extended by `steps`, kept
 document `ctx` currently points at, e.g. the `print_document` input) so every
 new node — and the terminal — records its type, then concatenated onto the
 already-typed parent reference. This preserves the strict-typing invariant
-across the print recursion (the reference-types-always-present plan).
+across the print recursion.
 `current_doc` is any document (not a `ReferenceStep`/`Reference`,
 which select the other methods).
 """
@@ -244,20 +268,22 @@ size, which closes a reactive cycle and overflows the stack when the cell
 evaluates.
 
 So the offer is derived from what the container is, not chosen at each site. This
-is that rule, written once — `axis` is the axis the container derives, and the
-other axis passes through untouched. The axis becomes free: no minimum and no
-maximum.
+is that rule, written once — `axis` is the axis the container derives, `:x` or
+`:y`, and the other axis passes through untouched. The axis becomes free: no
+minimum and no maximum. Any other `axis` throws an `ArgumentError`.
 """
-withhold_offer(ctx::PrinterContext, axis::Symbol) =
-    axis === :x ? with_exact_size(ctx; width = nothing) :
-                  with_exact_size(ctx; height = nothing)
+function withhold_offer(ctx::PrinterContext, axis::Symbol)
+    axis === :x && return with_exact_size(ctx; width = nothing)
+    axis === :y && return with_exact_size(ctx; height = nothing)
+    throw(ArgumentError("withhold_offer: the axis is :x or :y, not :$axis"))
+end
 
 """
     with_clock(ctx, clock) -> PrinterContext
 
-Return a copy of `ctx` bound to a different `clock`. Used by the editor loop
-to mint the root context with its own private clock so per-editor
-invalidation stays independent.
+Return a copy of `ctx` bound to a different `clock`. Use it to give the root
+context of a tree a clock of its own, so that a write to one clock invalidates
+only the cells of its own tree.
 """
 with_clock(ctx::PrinterContext, clock::Clock) =
     _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx); clock = clock)

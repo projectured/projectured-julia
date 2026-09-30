@@ -18,6 +18,9 @@ pr = PointReferenceStep(3, 7)
 @test pr.y == 7
 @test pr == PointReferenceStep(3, 7)
 @test pr != PointReferenceStep(3, 8)
+# A point step hashes as it compares, so two equal paths are one key.
+@test hash(pr) == hash(PointReferenceStep(3, 7))
+@test length(Set([Reference(pr), Reference(PointReferenceStep(3, 7))])) == 1
 
 # ── @reference_step DSL build registration ─────────────────────────────────────────
 

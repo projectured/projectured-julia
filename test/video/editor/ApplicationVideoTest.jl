@@ -189,13 +189,61 @@ end
     full = take()
     partial = take(partial_render = true)
     outlined = take(partial_render = true, debug_dirty = true)
-    if !any(isnothing, (full, partial, outlined))
+    held = take(partial_render = true, debug_dirty = true, debug_dirty_hold = 0.2)
+    if !any(isnothing, (full, partial, outlined, held))
         # The kept surface, painted again only where something changed, ends as
         # the full paint ends, beyond the noise of the encoder.
         @test count(i -> maximum(abs.(full[i] .- partial[i])) > 60, CartesianIndices(full)) == 0
         # The outline of the last repaint stays on the frame.
         is_red(p) = p[1] > 180 && p[2] < 80 && p[3] < 80
         @test count(is_red, outlined) > count(is_red, partial)
+        # With a hold, the outline goes when the hold is over: the last key is
+        # more than 0.2 s before the last frame.
+        @test count(is_red, held) < count(is_red, outlined)
+    end
+end
+
+@testset "a take whose window can not paint still ends, with the fault on its frames" begin
+    width, height, fps = 480, 360, 10
+    root = mktempdir()
+    path = joinpath(root, "items.json")
+    write(path, """[{"name": "tea", "price": 3}]""")
+    # A JSON object whose entry is not a `JsonObjectEntry` makes every paint of
+    # the file fail from the frame after the insert on, and after eight failed
+    # paints the editor stops painting.
+    break_paint = (await = editor -> begin
+                       items = get_edited_document(find_pane(editor, "items.json"))
+                       broken = JsonObject(CellVector([Cell(JsonObjectEntry("a", JsonNumber(1), false))]))
+                       insert_elements!(editor, items, 1, [broken])
+                       true
+                   end, hold = 1.0)
+    timeline = Any[
+        (event = MouseMove(300, 200, MouseButtons(), ModifierKeys(); time = 0.0), hold = 0.2),
+        break_paint,
+        (event = KeyDown(:down, ModifierKeys(); time = 0.0), hold = 1.5),
+        (event = KeyDown(:up, ModifierKeys(); time = 0.0), hold = 0.5),
+    ]
+    schedule = 0.2 + 0.2 + 1.5 + 0.5 + 0.3
+    filename = tempname() * ".mp4"
+    recording = @async record_application_video([path], timeline, filename;
+                                                width = width, height = height, fps = fps,
+                                                assistant = :none, root = root,
+                                                initial_hold = 0.2, final_hold = 0.3,
+                                                supersample = 1)
+    # A recorder that waits for a frame that never comes does not end.
+    @test timedwait(() -> istaskdone(recording), 180.0) === :ok
+    @test istaskdone(recording) && !istaskfailed(recording)
+    if istaskdone(recording) && !istaskfailed(recording)
+        duration, _ = _probe_video(filename)
+        duration === nothing || @test schedule * 0.5 <= duration
+        frame = _read_last_frame(filename, width, height)
+        if frame !== nothing
+            # The held picture carries the red band of the fault across the
+            # bottom; this row is in the band, above its text.
+            is_red(p) = p[1] > 170 && p[2] < 100 && p[3] < 100
+            @test count(is_red, frame[height - 25, :]) > 0.8 * width
+        end
+        rm(filename; force = true)
     end
 end
 end # test_application_video

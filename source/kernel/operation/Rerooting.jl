@@ -1,6 +1,20 @@
-# Fragment of `OperationModule` — the open seams that rewrite the reference
-# inside an operation: `reroot_operation` (prepend steps) and
-# `operation_reference` / `retarget_operation` (replace the whole reference).
+# Fragment of `OperationModule` — the seams that rewrite the reference of an operation.
+
+"""
+    reroot_reference(ref, steps::Tuple) -> Reference
+
+Prepend each step in `steps` (outermost first) to `ref`, producing a longer
+`ConcreteReference`. Used by container readers that need to add several steps at
+once (e.g. `elements[i].child`).
+"""
+function reroot_reference(ref::Reference, steps::Tuple)
+    result = ref
+    for step in reverse(steps)
+        result = ConcreteReference(step, result)
+    end
+    result
+end
+
 # Reference/operation *re-rooting* shared by container readers: a container that
 # routes a gesture into one of its children gets back an operation whose reference
 # is rooted in the *child's* domain; to forward it up, the container prepends the
@@ -18,22 +32,6 @@
 # `documentation/package/kernel/operation.md`. An operation that HOLDS another
 # needs no method of its own: it subtypes `WrappingOperation` and answers the two
 # generics of the contract, and the method below serves it.
-
-"""
-    reroot_reference(ref, steps::Tuple) -> Reference
-
-Prepend each step in `steps` (outermost first) to `ref`, producing a longer
-`ConcreteReference`. Used by container readers that need to add several steps at
-once (e.g. `elements[i].child`).
-"""
-function reroot_reference(ref::Reference, steps::Tuple)
-    result = ref
-    for step in reverse(steps)
-        result = ConcreteReference(step, result)
-    end
-    result
-end
-
 reroot_operation(::Nothing, steps::Tuple) = nothing
 reroot_operation(op, steps::Tuple) = op          # catch-all: unchanged
 reroot_operation(op::ReplacePathOperation, steps::Tuple) =
@@ -42,7 +40,8 @@ function reroot_operation(op::ReplaceReferencedValueOperation, steps::Tuple)
     # Self-contained (carries its own root): pass through. Document-rooted
     # (`document === nothing`): reroot the reference.
     op.document === nothing || return op
-    ReplaceReferencedValueOperation(nothing, reroot_reference(op.reference, steps), op.value)
+    ReplaceReferencedValueOperation(nothing, reroot_reference(op.reference, steps),
+                                    op.value)
 end
 reroot_operation(op::CompoundOperation, steps::Tuple) =
     CompoundOperation(Any[reroot_operation(o, steps) for o in op.operations])
@@ -53,9 +52,25 @@ reroot_operation(op::WrappingOperation, steps::Tuple) =
     rewrap_operation(op, reroot_operation(get_wrapped_operation(op), steps))
 
 operation_reference(op) = nothing
+operation_reference(op::ReplaceSelectionOperation) = op.path
+# A carried root is the place of the write, so only a document-rooted write
+# reports its reference.
+operation_reference(op::ReplaceReferencedValueOperation) =
+    op.document === nothing ? op.reference : nothing
 
 retarget_operation(op, reference) = op
+retarget_operation(::ReplaceSelectionOperation, reference::Reference) =
+    ReplaceSelectionOperation(reference)
+retarget_operation(op::ReplaceReferencedValueOperation, reference::Reference) =
+    op.document === nothing ?
+        ReplaceReferencedValueOperation(nothing, reference, op.value) : op
 
 operation_travels_unchanged(op) = false
-# A timer names its editor's timer, not a place, so every reader passes it up.
-operation_travels_unchanged(::SetTimerOperation) = true
+# These name no place in a document, so each travels up a chain as it is: the
+# no-op, the quit, the two zooms, the flip of the node that it carries, the move of
+# the selection at the root, and the timer of the editor.
+operation_travels_unchanged(::Union{DoNothingOperation, QuitEditorOperation,
+                                    AdjustZoomOperation, AdjustFontZoomOperation,
+                                    ToggleCollapseOperation,
+                                    SelectNextInsertionOperation,
+                                    SetTimerOperation}) = true

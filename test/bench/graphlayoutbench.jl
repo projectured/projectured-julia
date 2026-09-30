@@ -2,11 +2,9 @@
 # matter: a dozen boxes, a small network, a real one.
 #
 # The point is not a league table. The engines answer different questions —
-# GridEmbedding does not simulate, SpringEmbedderLayout ignores node sizes,
-# ForceDirectedLayout carries them and pays for it — and the numbers are what
-# decide where the line between them goes. `DeferredLayout` draws that line at
-# 20 vertices, which is Qtenv's own threshold; this is how to check it is still
-# the right one.
+# GridEmbedding does not simulate, FruchtermanReingoldLayout simulates forces
+# between the boxes and pays for it — and the numbers say what that costs at
+# each size. An engine that a package registers can be passed as `engines`.
 
 """
     layout_bench_graph(count) -> (graph, sizes)
@@ -98,8 +96,7 @@ function graphlayoutbench(; io::IO = stdout, counts = (10, 60, 300),
                           pictures::Bool = true, engines = nothing)
     if engines === nothing
         engines = Any[("GridEmbedding", GridEmbedding()),
-                      ("SpringEmbedderLayout", SpringEmbedderLayout()),
-                      ("ForceDirectedLayout", ForceDirectedLayout())]
+                      ("FruchtermanReingoldLayout", FruchtermanReingoldLayout())]
     end
 
     rows = NamedTuple[]

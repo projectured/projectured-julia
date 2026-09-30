@@ -410,12 +410,16 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     by_expression = !_is_text_form(code) && has_natural_expression(:jl)
     text = _holds_object(code) ? "" : _get_form_source_text(code)
     !by_expression && isempty(strip(text)) && return nothing
+    # A form that ends with `;` runs, and what its code prints shows, but its
+    # value does not, as in the Julia REPL.
+    hides_value = _ends_with_semicolon(text)
+    describe_value = hides_value ? (_ -> "") : describe_value_for_person
     set = _get_evaluator_tool_set(editor)
     output = try
         by_expression ?
-            execute_julia_expression(set, editor, make_natural_expression(:jl, code);
-                                      describe_value = describe_value_for_person) :
-            execute_julia_code(set, editor, text; describe_value = describe_value_for_person)
+            execute_julia_expression!(set, editor, make_natural_expression(:jl, code);
+                                      describe_value = describe_value) :
+            execute_julia_code!(set, editor, text; describe_value = describe_value)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
@@ -425,7 +429,8 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     # A `Document` return value is kept as the result so it renders live;
     # otherwise the printed output, exactly as the composer's own evaluate does.
     val = get_last_evaluated_value(set)
-    result = val isa Document ? val :
+    result = hides_value && !is_err ? _make_hidden_value_result(output) :
+             val isa Document ? val :
              _is_silent_nothing(val, output) ? _make_nothing_result() :
              make_evaluator_result_text(rstrip(output))
     element.result = result
@@ -452,6 +457,11 @@ end
 # notation, drawn by the Julia domain when one is loaded.
 _is_silent_nothing(value, output) = value === nothing && strip(output) == "Done."
 
+# The result of a form whose value is hidden: what its code printed, or no result
+# row at all when it printed nothing.
+_make_hidden_value_result(output) =
+    strip(output) == "Done." ? TextBlock() : make_evaluator_result_text(rstrip(output))
+
 function _make_nothing_result()
     has_natural_parser(:jl) || return make_evaluator_result_text("nothing")
     try
@@ -470,14 +480,14 @@ form, or `nothing` when the form keeps its string.
 A form becomes a Julia document when the document prints back as the same tokens
 on the same lines as the code; the spaces between them may change. Otherwise the
 form keeps its string: code with a comment, code that the print would change in
-another way (a `;` between two statements prints as a block of lines), code that
-does not parse, or code that no loaded domain reads as Julia. Use it to check
-the forms of a script before they are typed.
+another way (the juxtaposed product `2x` prints as `2 * x`), code that does not
+parse, or code that no loaded domain reads as Julia. Use it to check the forms of
+a script before they are typed.
 
 # Example
 
     find_form_document("add!(WidgetLabel(\"Go\"))")    # a JuliaCall
-    find_form_document("a; b")                          # nothing
+    find_form_document("y = 2x + 1")                    # nothing
 """
 function find_form_document(code::AbstractString)
     has_natural_parser(:jl) || return nothing
@@ -507,6 +517,13 @@ end
 _has_same_tokens(code, other) = _collect_code_tokens(code) == _collect_code_tokens(other)
 
 const _JuliaSyntax = Base.JuliaSyntax
+
+# Whether the last token of the code, apart from a comment, is `;`: the rule by
+# which the Julia REPL hides the value of a line.
+function _ends_with_semicolon(code::AbstractString)
+    tokens = filter(token -> token != "\n" && !startswith(token, "#"), _collect_code_tokens(code))
+    !isempty(tokens) && last(tokens) == ";"
+end
 
 # The tokens of Julia code with the spaces left out, and one "\n" for each line
 # break.

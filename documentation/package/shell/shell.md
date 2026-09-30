@@ -29,10 +29,10 @@
 - The **start over of Tab** (`FocusCyclingProjection`) is around the shell, so it sees the whole window: Tab at the last stop of the window goes to the first stop, and Shift+Tab goes the other way. It takes no keyword.
 - **The light under the pointer is not in the wrap.** The mouse target tracking of the screen (`make_tracking_screen`) sees every window, so it can tell that the pointer left a toolbar button for a row in a pane, or a window for a popup. [mousetargettracking.md](../mousetargettracking/mousetargettracking.md) describes it.
 - The **context menu probe** is over the walk, because it reads the document that the walk selects in. It is under the help and the palette, because it must not answer for a window that one of those opened. It passes every event on.
-- **The tooltip is not in the wrap.** A part answers a dwell from its own gesture table, and the wrapper that keeps the tooltip window sits at the screen, in `make_tracking_screen(; inner_wrappers = [wrap_tooltip_window])`. [tooltip.md](../tooltip/tooltip.md) describes it.
+- **The tooltip is not in the wrap.** A part answers a dwell from its own gesture table, and the wrapper that keeps the tooltip window sits at the screen, in `make_tracking_screen(; inner_wrappers = [wrap_tooltip_window])`. A host gives it in the `inner_wrappers` setting of the `window` wrapper of `build_editor`. [tooltip.md](../tooltip/tooltip.md) describes it.
 - The **recorder** is outermost, where it sees every operation of the window. It takes no keyword and writes into the log of the session, and **View → Gesture log** opens that log in a tab. So the tab holds what happened before it opened, and a person can open it after a fault.
 
-A wrapper that opens a window of its own needs `make_opened_window_projections()`, the value of the `opened_window_projections` keyword of `run_window_editor`. A host that turns the tooltip on passes `make_natural_tooltip_row(; measure)` in `content`, and the rows that draw its own documents, because a tooltip can hold a document of any domain. **A popup holds widgets**: the menu of a menu bar or of a context menu, and the options of a `WidgetSelect`, in a layout. So `make_opened_window_projections` ends with the rows of `WidgetToGraphics`, one for each widget and each layout, in the font and the measure the shell draws its bands with; the rows of `content` come before them, so a host decides first. A popup needs no wrapper of its own: a trigger answers its position in its own frame, each reader on the way up moves the position into its own frame, and the window opens the popup at its screen position. [widget.md](../widget/widget.md) describes the popup operation and how a reader moves it.
+A wrapper that opens a window of its own needs `make_opened_window_projections()`, the value of the `opened_window_projections` setting of the `window` wrapper of `build_editor`. A host that turns the tooltip on passes `make_natural_tooltip_row(; measure)` in `content`, and the rows that draw its own documents, because a tooltip can hold a document of any domain. **A popup holds widgets**: the menu of a menu bar or of a context menu, and the options of a `WidgetSelect`, in a layout. So `make_opened_window_projections` ends with the rows of `WidgetToGraphics`, one for each widget and each layout, in the font and the measure the shell draws its bands with; the rows of `content` come before them, so a host decides first. A popup needs no wrapper of its own: a trigger answers its position in its own frame, each reader on the way up moves the position into its own frame, and the window opens the popup at its screen position. [widget.md](../widget/widget.md) describes the popup operation and how a reader moves it.
 
 ### The chrome is a document
 
@@ -82,7 +82,8 @@ Two tools need what only the window has. `assistant` makes the assistant of the 
 
 ```julia
 run_with_window_tools() do feeds, start
-    editor = make_editor(document, projection, "Title"; backend = backend, feeds = feeds)
+    editor = build_editor(document, projection; backend = backend, feeds = feeds,
+                          window = (; title = "Title"))
     start(editor)
     run_editor!(editor)
 end
@@ -129,7 +130,8 @@ wrap = make_window_wrap(; shell = document -> (make_window_menu_bar(),
                                                make_window_status_bar(document), nothing, nothing))
 document, projection = wrap(document, projection)
 run_with_window_tools() do feeds, start
-    editor = make_editor(document, projection, "Title"; backend = SdlBackend(), feeds = feeds)
+    editor = build_editor(document, projection; backend = SdlBackend(), feeds = feeds,
+                          window = (; title = "Title"))
     start(editor)
     run_editor!(editor)
 end

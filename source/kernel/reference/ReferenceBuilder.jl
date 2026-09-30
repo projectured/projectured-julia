@@ -103,12 +103,6 @@ _splice(p::ReferenceModule.Reference) = p
 _splice(s::ReferenceModule.ReferenceStep) =
     ReferenceModule.ConcreteReference(s, ReferenceModule.EmptyReference())
 
-# The `_concat` alias lets the generated code below emit `ReferenceModule._concat`;
-# it is the canonical, type-preserving `concat_references`, so an already-folded
-# spliced sub-path keeps its node types even when it is not the last segment
-# (e.g. `^(expr).field`).
-const _concat = ReferenceModule.concat_references
-
 # Wrap a built (possibly TypeReferenceStep-bearing) path expression in the runtime
 # fold pass only when the literal carries a `::T` type step — a plain navigation
 # skeleton needs no folding (its node types stay `nothing`, filled in later when
@@ -128,7 +122,7 @@ function _gen_build_path(steps::Vector{ReferenceSyntaxStep})
         return _maybe_fold(:(ReferenceModule.Reference($(stepexprs...))), steps)
     end
 
-    # Slice the chain at every splice and emit a `_concat` chain of literal
+    # Slice the chain at every splice and emit a `concat_references` chain of literal
     # `Reference(...)` segments interleaved with `_splice(...)` of the
     # spliced runtime values. Fold afterwards so `::T` type steps in the literal
     # segments become node types, while already-folded spliced sub-paths are kept.
@@ -142,9 +136,9 @@ function _gen_concat_chain(steps::Vector{ReferenceSyntaxStep})
     if steps[1] isa ReferenceSyntaxSplice
         head = :(ReferenceModule._splice($(_gen_build_step(steps[1]))))
         tail = _gen_concat_chain(steps[2:end])
-        # _concat needs an EmptyReference base case to short-circuit when
-        # there's nothing after the splice.
-        return :(ReferenceModule._concat($head, $tail))
+        # `concat_references` needs an EmptyReference base case to short-circuit
+        # when there's nothing after the splice.
+        return :(ReferenceModule.concat_references($head, $tail))
     end
     # Gather a run of non-splice steps into a single literal Reference.
     i = findfirst(s -> s isa ReferenceSyntaxSplice, steps)
@@ -155,15 +149,14 @@ function _gen_concat_chain(steps::Vector{ReferenceSyntaxStep})
         return prefix_expr
     end
     tail = _gen_concat_chain(steps[cutoff:end])
-    return :(ReferenceModule._concat($prefix_expr, $tail))
+    return :(ReferenceModule.concat_references($prefix_expr, $tail))
 end
 
 """
     @reference(path)
     @reference(document, path)
 
-Build a `Reference` from the construction DSL. `@reference(path)` parses a
-rootless chain of steps, left = outermost:
+Build a `Reference` from the construction DSL.
 
 Use it to name a place in the window — a tab, what a pane holds, a split, the
 root — for `get_referenced_value`, `replace_referenced_value!` and
@@ -177,7 +170,7 @@ starts after it.
     plot = get_referenced_value(editor, @reference(editor.document,
         windows[1].content.content.content.content.root.elements[2].tabs[1].content))
 
-See also `show_layout`, `get_referenced_value`, `replace_referenced_value!`.
+`@reference(path)` parses a rootless chain of steps, left = outermost:
 
 - `a.b`               — `FieldReferenceStep` steps (`.a` then `.b`)
 - `xs[i]`             — 1-based `ElementReferenceStep` (a single-element range)
@@ -192,6 +185,11 @@ Inside `[]`, `{}`, `field(...)`, and extension calls the arguments are ordinary
 Julia expressions evaluated at runtime; bare symbols in *path* position are
 literal field names.
 
+A type step takes a bare type name. A name that starts with a capital letter
+after a type step reads as a qualified type name, and the parser throws an error:
+`::JsonObject.Name` throws. So a field whose name starts with a capital letter can
+not follow a type step.
+
 **Two ways to get a fully-typed path.** Either spell every node's type inline
 (`@reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::Document`),
 or hand the path a **document** and let it fill the types:
@@ -202,6 +200,8 @@ live document has at each node — no inline `::T` needed, and the types are
 correct by construction rather than by hand. Use this whenever the document is
 in scope. See `@reference_case` for the matching counterpart, which reads the
 same grammar.
+
+See also `show_layout`, `get_referenced_value`, `replace_referenced_value!`.
 """
 macro reference()
     return _gen_build_path(ReferenceSyntaxStep[])

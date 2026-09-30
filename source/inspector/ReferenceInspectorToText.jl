@@ -9,10 +9,10 @@
 #    narrative (delegated to `ReferenceToHumanReadableText`).
 #
 # Before rendering, the reference is annotated against the inspector's `target`
-# document with `TypeReferenceStep` checkpoints (`annotate_reference_types`). Both
-# sections render from that canonical reference, so the compact form shows the
-# `::Type` steps and the human-readable form names each step's parent type from
-# the embedded checkpoints.
+# document (`annotate_reference_types`), so each node records its type. Both
+# sections render from that canonical reference: the compact form shows the
+# `::Type` of each node, and the human-readable form names the parent type of each
+# step.
 #
 # The two delegate projections own all per-step rendering; this projection stacks
 # their outputs with section headers and blank lines, inside a reactive thunk so
@@ -52,14 +52,17 @@ end
 
 function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
     short_proj = ReferenceToText(font = p.font)
+    # The two renderings keep the clock and the properties of the editor, and have a
+    # free range on each axis.
+    ictx = with_exact_size(make_child_context(ctx, EmptyReference());
+                           width = nothing, height = nothing)
     out = TextBlock(() -> begin
         ref    = input.reference        # tracked: Reference or nothing
         target = input.target
-        # Annotate with TypeReferenceStep checkpoints so both forms show types.
+        # Annotate the node types, so both forms show them.
         canonical = (ref isa ConcreteReference && target !== nothing) ?
                     annotate_reference_types(target, ref) : ref
         long_proj = ReferenceToHumanReadableText(document = target, font = p.font)
-        ictx = PrinterContext()
         short = print_document(short_proj, nothing, canonical, ictx).output
         long  = print_document(long_proj,  nothing, canonical, ictx).output
 

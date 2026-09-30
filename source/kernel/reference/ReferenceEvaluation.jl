@@ -2,7 +2,7 @@
 # "types always present" invariant that walk maintains.
 #
 # The three walkers are structurally parallel and all descend through the
-# `evaluate_reference_step` / `get_reference_step_kind` seam declared in `ReferenceInterface.jl`:
+# `evaluate_reference_step` seam declared in `ReferenceInterface.jl`:
 #
 # - `evaluate_reference`        — follow the path, return the node it lands on
 # - `get_valid_reference_prefix` — follow as far as the document still allows
@@ -69,11 +69,11 @@ try_evaluate_reference(document, ::Nothing, default = nothing) = default
 
 Walk `path` against `document` and return the **longest prefix that still
 navigates cleanly**. Traversal stops — and the path is truncated — at the first
-step that fails: a [`TypeReferenceStep`](@ref) checkpoint whose recorded type no
-longer matches the node reached, or a structural step that cannot be followed
-(missing field, out-of-range index, …). The returned prefix is exactly the part
-that `evaluate_reference` can still resolve; the discarded suffix is the part
-made invalid by a structural change to `document`.
+place that fails: a node whose recorded type no longer matches the node reached,
+or a step that cannot be followed (missing field, out-of-range index, …). The
+returned prefix is exactly the part that `evaluate_reference` can still resolve;
+the discarded suffix is the part made invalid by a structural change to
+`document`.
 """
 function get_valid_reference_prefix(document, path::EmptyReference)
     # Folded terminal checkpoint: drop the recorded type if it no longer holds.
@@ -86,18 +86,9 @@ function get_valid_reference_prefix(document, path::ConcreteReference)
     path.type === nothing || document isa path.type || return EmptyReference()
     step = path.head
     rest = path.tail
-    if get_reference_step_kind(step) === :checkpoint
-        # Assert on the current node; a mismatch truncates.
-        try
-            evaluate_reference_step(step, document)
-        catch
-            return EmptyReference()
-        end
-        return get_valid_reference_prefix(document, rest)
-    end
-    # :structural — try to descend one level. `getindex` on a range step is
-    # allowed to throw (out-of-range, non-indexable container without a length
-    # method) and simply truncates.
+    # Descend one level. `getindex` on a range step is allowed to throw
+    # (out-of-range, non-indexable container without a length method) and simply
+    # truncates.
     child = try
         evaluate_reference_step(step, document)
     catch
@@ -109,8 +100,8 @@ end
 """
     is_valid_reference(document, path::Reference) -> Bool
 
-Document-aware validity: `true` iff every step of `path` — in particular every
-[`TypeReferenceStep`](@ref) checkpoint — resolves against `document`. Equivalent to
+Document-aware validity: `true` iff every step of `path` resolves against
+`document` and every node type that it records holds there. Equivalent to
 `get_valid_reference_prefix(document, path) == path`.
 """
 is_valid_reference(document, path::Reference) =
@@ -149,14 +140,13 @@ here — e.g. a whole-element selection mapped across a projection carries
 """
 get_reference_node_type(document) = get_document_cell_type(document)
 
-const _node_type = get_reference_node_type
-
 """
     annotate_reference_types(document, path::Reference) -> Reference
 
 Return `path` with each node's `type` field **filled in** against `document`: a
-`ConcreteReference` records `typeof(node)` of the document it stands on, and
-the terminal `EmptyReference` records the type of the node the path lands on.
+`ConcreteReference` records [`get_reference_node_type`](@ref) of the document it
+stands on, the cell layout of its schema, and the terminal `EmptyReference`
+records it for the node the path lands on.
 This is the *folded* canonical form — the type lives on each node, not as a
 separate interleaved `TypeReferenceStep` step. The result can be persisted and later
 re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
@@ -164,20 +154,17 @@ re-checked with [`get_valid_reference_prefix`](@ref) / the document-aware
 [`strip_reference_types`](@ref).
 
 A zero-width position (`{k}`) is a cursor *between* items — it lands on no child
-node, so the terminal after it keeps `type === nothing`.
+node. It evaluates to a `Position`, so the terminal after it records `Position`.
 """
 function annotate_reference_types(document, ::EmptyReference)
     # Whole-element / terminal node: record the type of the node it lands on.
-    EmptyReference(_node_type(document))
+    EmptyReference(get_reference_node_type(document))
 end
 
 function annotate_reference_types(document, path::ConcreteReference)
     step = path.head
     rest = path.tail
-    # Checkpoint steps get folded away — this node's type replaces the
-    # standalone assertion.
-    get_reference_step_kind(step) === :checkpoint && return annotate_reference_types(document, rest)
-    nodetype = _node_type(document)
+    nodetype = get_reference_node_type(document)
     # Descend one step to type the rest. A zero-width cursor descends to a
     # `Position` (so its terminal records `::Position`); a structural step that
     # cannot be followed throws and leaves the rest untyped.
@@ -194,17 +181,13 @@ end
     strip_reference_types(path::Reference) -> Reference
 
 Return `path` reduced to its plain navigation skeleton: every node's recorded
-`type` is blanked to `nothing` and any leftover (transitional) `TypeReferenceStep`
-*step* is dropped. Inverse of [`annotate_reference_types`](@ref) — used at
-boundaries that re-annotate a path against a fresh document.
+`type` is blanked to `nothing`. Inverse of [`annotate_reference_types`](@ref) —
+used at boundaries that re-annotate a path against a fresh document.
 """
 strip_reference_types(::EmptyReference) = EmptyReference()
 
-function strip_reference_types(path::ConcreteReference)
-    step = path.head
-    rest = strip_reference_types(path.tail)
-    step isa TypeReferenceStep ? rest : ConcreteReference(nothing, step, rest)
-end
+strip_reference_types(path::ConcreteReference) =
+    ConcreteReference(nothing, path.head, strip_reference_types(path.tail))
 
 # Permissive fallback: callers may apply this to a non-path (e.g. `nothing` when
 # there is no selection); pass it through unchanged so the structural reads
@@ -237,8 +220,10 @@ copy_reference(reference::ConcreteReference) =
 copy_reference(reference) = reference
 
 # A range step is the one step that is written in place, so it is the one that is
-# rebuilt. Every other step is answered as it is.
+# rebuilt, in its own layout. Every other step is answered as it is.
 _copy_reference_step(step::RangeReferenceStep) = RangeReferenceStep(step.start, step.stop)
+_copy_reference_step(step::MRangeReferenceStep) =
+    MRangeReferenceStep(step.start, step.stop)
 _copy_reference_step(step) = step
 
 """
@@ -257,7 +242,7 @@ _fold_reference_types(p::EmptyReference, pending) =
     EmptyReference(pending === nothing ? p.type : pending)
 
 function _fold_reference_types(p::ConcreteReference, pending)
-    if p.head isa TypeReferenceStep
+    if p.head isa ATypeReferenceStep
         # A checkpoint step types the *next* navigation node — carry it forward.
         return _fold_reference_types(p.tail, p.head.type)
     end

@@ -53,6 +53,15 @@ let chord(e) = @gesture_case e begin
     @test chord(KeyDown(:home, ModifierKeys(ctrl=true); time = 0.0)) === nothing  # missing alt
 end
 
+# a modifier flag on an event type with no `modifiers` field reads its modifiers
+# through `get_modifier_keys`: a window event holds none
+let resized(e) = @gesture_case e begin
+        WindowResize(; ctrl) => :ctrl_resize
+        WindowResize()       => :resize
+    end
+    @test resized(WindowResize(10, 20; time = 0.0)) == :resize
+end
+
 # omitting the `;` block leaves modifiers unconstrained
 let any_mod(e) = @gesture_case e begin
         KeyDown(:tab) => :tab

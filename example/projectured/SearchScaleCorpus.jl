@@ -88,7 +88,7 @@ const SCALE_SEARCH_QUESTIONS = ScaleQuestion[
      expected = "parse_pred_text", kind = :api),
     # What a model may do.
     (sentence = "run Julia code in the editor process",
-     expected = "execute_julia_code", kind = :api),
+     expected = "execute_julia_code!", kind = :api),
     (sentence = "say which names a model may write",
      expected = "declare_api!", kind = :api),
     (sentence = "find a function by what it does",

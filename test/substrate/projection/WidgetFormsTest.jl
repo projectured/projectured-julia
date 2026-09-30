@@ -66,9 +66,9 @@ end
     pick2 = read_intent(proj, io, MouseClick(:left, 5, rh + 2, ModifierKeys(); time = 0.0))           # row 2
     @test pick2 isa ReplaceSelectionOperation
     @test pick2.path == make_widget_list_selection(2)
-    @test read_intent(proj, io, KeyDown(:down, ModifierKeys(), false; time = 0.0)).path ==
+    @test read_intent(proj, io, KeyDown(:down, ModifierKeys(); time = 0.0)).path ==
           make_widget_list_selection(2)                                                         # 1 → 2
-    @test read_intent(proj, io, KeyDown(:up, ModifierKeys(), false; time = 0.0)).path ==
+    @test read_intent(proj, io, KeyDown(:up, ModifierKeys(); time = 0.0)).path ==
           make_widget_list_selection(1)                                                         # 1 → 1 (floor)
     # `selected=` sugar and `get_widget_list_selected` are inverses; 0 = none.
     @test get_widget_list_selected(l) == 1

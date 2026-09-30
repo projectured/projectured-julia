@@ -37,7 +37,7 @@ function test_gesture_module()
     end
 
     @testset "@gesture_case dispatches on event type" begin
-        event = KeyDown(:period, ModifierKeys(ctrl=true), false; time = 0.0)
+        event = KeyDown(:period, ModifierKeys(ctrl=true); time = 0.0)
         r = @gesture_case event begin
             KeyDown(:period; ctrl) => :dot_ctrl
             _                      => :fallback
@@ -67,7 +67,7 @@ function test_gesture_module()
 
     @testset "GesturePattern matches and describes" begin
         p = KeyDownPattern(:period; modifiers = [:ctrl])
-        event = KeyDown(:period, ModifierKeys(ctrl=true), false; time = 0.0)
+        event = KeyDown(:period, ModifierKeys(ctrl=true); time = 0.0)
         @test matches_gesture_pattern(p, event)
         @test (@inferred matches_gesture_pattern(p, event)) === true
         @test describe_gesture_pattern(p) == "Ctrl+."
@@ -77,7 +77,20 @@ function test_gesture_module()
         @test describe_gesture_pattern(KeyPressPattern('a')) == "a"
         @test describe_gesture_pattern(KeyPressPattern('a'; modifiers = [:ctrl])) == "Ctrl+a"
         @test describe_gesture_pattern(KeyPressPattern(nothing)) == "character"
+        @test describe_gesture_pattern(KeyDownPattern(:tab)) == "Tab"
+        @test describe_gesture_pattern(KeyDownPattern(:home; modifiers = [:ctrl, :alt])) ==
+              "Ctrl+Alt+Home"
         @test describe_gesture_pattern(MouseClickPattern(:left)) == "Left click"
+        # A button that goes down or up is no click.
+        @test describe_gesture_pattern(MouseDownPattern(:left)) == "Left button down"
+        @test describe_gesture_pattern(MouseUpPattern(:right; modifiers = [:ctrl])) ==
+              "Ctrl+Right button up"
+        @test describe_gesture_pattern(MouseDownPattern(nothing)) == "button down"
+        @test describe_gesture_pattern(KeyUpPattern(:home)) == "release Home"
+        @test describe_gesture_pattern(KeyUpPattern(:a; modifiers = [:ctrl])) ==
+              "release Ctrl+A"
+        @test describe_gesture_pattern(GesturePattern{KeyChord}(NamedTuple(), nothing,
+                                                            nothing)) == "key chord"
         @test describe_gesture_pattern(MouseMovePattern(; modifiers = [:shift])) ==
               "Shift+move pointer"
         @test describe_gesture_pattern(GesturePattern{WindowResize}(NamedTuple(), nothing,
@@ -92,6 +105,27 @@ function test_gesture_module()
         @test matches_gesture_pattern(MouseDwellPattern(), MouseDwell(3, 4; time = 0.0))
     end
 
+    @testset "a pattern checks the event, the key, the button and the modifiers" begin
+        # A pattern that names no modifiers takes any; one that names them takes
+        # exactly those.
+        press = KeyPressPattern('n')
+        @test matches_gesture_pattern(press, KeyPress('n', ModifierKeys(shift = true);
+                                                       time = 0.0))
+        @test !matches_gesture_pattern(press, KeyPress('x'; time = 0.0))
+        @test !matches_gesture_pattern(press, KeyDown(:n, ModifierKeys(); time = 0.0))
+        down = KeyDownPattern(:period; modifiers = [:ctrl])
+        @test !matches_gesture_pattern(down, KeyDown(:period,
+                                                      ModifierKeys(ctrl = true, alt = true);
+                                                      time = 0.0))
+        @test !matches_gesture_pattern(down, KeyDown(:home, ModifierKeys(ctrl = true);
+                                                      time = 0.0))
+        # A click pattern reads the button and not the position.
+        click = MouseClickPattern(:left)
+        @test matches_gesture_pattern(click, MouseClick(:left, 10, 20; time = 0.0))
+        @test matches_gesture_pattern(click, MouseClick(:left, 99, 5; time = 0.0))
+        @test !matches_gesture_pattern(click, MouseClick(:right, 10, 20; time = 0.0))
+    end
+
     @testset "the pattern constructors take their options as keywords" begin
         digit = KeyPressPattern(nothing; guard = e -> isdigit(e.char))
         @test matches_gesture_pattern(digit, KeyPress('5'; time = 0.0))
@@ -99,6 +133,12 @@ function test_gesture_module()
         shifted = MouseScrollPattern(; modifiers = [:shift])
         @test matches_gesture_pattern(shifted, MouseScroll(0, 1, 2, 3, ModifierKeys(shift = true); time = 0.0))
         @test !matches_gesture_pattern(shifted, MouseScroll(0, 1, 2, 3; time = 0.0))
+    end
+
+    @testset "a reified pattern rejects a modifier with no name" begin
+        @test_throws ArgumentError KeyDownPattern(:s; modifiers = [:control])
+        @test_throws ArgumentError GesturePattern{KeyDown}(NamedTuple(), [:ctrl, :hyper],
+                                                            nothing)
     end
 
     @testset "the parser builds a pattern and the field bindings" begin
@@ -113,8 +153,11 @@ function test_gesture_module()
         @test @gm_test_bind_fields(KeyPress(c) => c, KeyPress('q'; time = 0.0)) === 'q'
         @test @gm_test_bind_fields(MouseClick(b, x, y) => (b, x, y),
                                    MouseClick(:right, 5, 6; time = 0.0)) == (:right, 5, 6)
-        # A rule that binds no field leaves the body as it is.
+        # A rule that binds no field leaves the body as it is, the catch-all too.
         @test build_gesture_field_bindings(rule, :event, :body) === :body
+        catch_all = parse_gesture_pattern_rule(:(_ => 1))
+        @test build_gesture_field_bindings(catch_all, :event, :body) === :body
+        @test @gm_test_bind_fields(_ => 1, KeyPress('q'; time = 0.0)) == 1
     end
 
     @testset "the parser names what is wrong" begin

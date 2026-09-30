@@ -47,7 +47,7 @@ function ReferenceModule.match_reference_step(::Val{:rulestoy}, hex, argpats, re
         if $hex isa $RulesToyStep
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1
@@ -64,8 +64,7 @@ _el(i) = ElementReferenceStep(i)
 _pos(k) = PositionReferenceStep(k)
 
 # Every path the corpus is applied to. Deliberately mixed: plain skeletons, folded node
-# types, an unfolded `TypeReferenceStep`, element/position/range steps, an extension
-# step, and both empty forms.
+# types, element/position/range steps, an extension step, and both empty forms.
 function _corpus_paths()
     Reference[
         EmptyReference(),
@@ -90,19 +89,35 @@ function _corpus_paths()
             ConcreteReference(RulesB, _fld("b"), EmptyReference(RulesC))),
         ConcreteReference(RulesOther, _fld("a"),
             ConcreteReference(RulesOther, _fld("b"), EmptyReference(RulesOther))),
-        # an unfolded checkpoint step, the transitional build-time shape
-        Reference(TypeReferenceStep(RulesA), _fld("a"), _fld("b")),
     ]
 end
 
+# A compiled `@reference_case` of two arms, for the allocation count of one call.
+_rules_compiled_case(path) = @reference_case path begin
+    a.b => :hit
+    __  => :miss
+end
+
+# The same path built of the plain `M` steps, with the same node types.
+_make_value_step(step::AFieldReferenceStep) = MFieldReferenceStep(step.name)
+_make_value_step(step::ARangeReferenceStep) = MRangeReferenceStep(step.start, step.stop)
+_make_value_step(step) = step
+_make_value_path(path::EmptyReference) = path
+_make_value_path(path::ConcreteReference) =
+    ConcreteReference(path.type, _make_value_step(path.head), _make_value_path(path.tail))
+
 # Assert a `@reference_case` block and a `ReferenceRules` object answer identically
 # across the whole corpus. `case` is the compiled matcher as a one-argument function.
+# Each path of the corpus also gives the same answer when it is built of `M` steps.
 function _conforms(name, case, rules, paths = _corpus_paths())
     @testset "$name" begin
         for path in paths
             expected = case(path)
             actual = apply_reference_rules(rules, path)
             @test actual == expected
+            value_path = _make_value_path(path)
+            @test (case(value_path), apply_reference_rules(rules, value_path)) ==
+                  (expected, expected)
         end
     end
 end
@@ -381,7 +396,6 @@ function test_reference_rules()
         typed = ConcreteReference(RulesA, _fld("a"),
                     ConcreteReference(RulesB, _fld("b"), EmptyReference(RulesC)))
         untyped = Reference(_fld("a"), _fld("b"))
-        unfolded = Reference(TypeReferenceStep(RulesA), _fld("a"), _fld("b"))
 
         at_rules = @reference_rules begin
             ::RulesOther.a.b => :other
@@ -390,7 +404,6 @@ function test_reference_rules()
         end
         @test apply_reference_rules(at_rules, typed) === :a          # narrowed to the right arm
         @test apply_reference_rules(at_rules, untyped) === :other    # no type recorded, first arm takes it
-        @test apply_reference_rules(at_rules, unfolded) === :a       # the unfolded step narrows too
 
         # Every mode reads the type step through the same predicate. (Parenthesized
         # macro calls: the `begin … end` block form would swallow the commas.)
@@ -918,6 +931,9 @@ function test_reference_rules()
         end
         @test glob_matches("a\\*b", "a*b")
         @test !glob_matches("a\\*b", "axb")
+        # Each state of a match is tried once, so many `*` on a long name answer at
+        # once. A search of every split takes seconds here.
+        @test @elapsed(glob_matches("*a"^10 * "*b", "a"^36)) < 1.0
 
         # All three print as they were written.
         printed = sprint(show, @reference_rules begin
@@ -1070,8 +1086,8 @@ function test_reference_rules()
         @test !compiled(:(@reference_case r begin any(a, b).c => 1; __ => 2 end))
 
         # And the compiled reading answers what the interpreted one does, including for
-        # a bound gap and for a path carrying an unfolded checkpoint — the one place the
-        # two count steps differently if either gets it wrong.
+        # a bound gap — the one place the two count steps differently if either gets it
+        # wrong.
         _conforms("computed gap, bound",
             p -> (@reference_case p begin
                 __(owner).b => owner
@@ -1154,6 +1170,12 @@ function test_reference_rules()
         @test guarded(Reference(_fld("a"), _fld("buckets"), _el(3))) === :big
         @test guarded(Reference(_fld("a"), _fld("buckets"), _el(1))) === :small
         @test guarded(Reference(_fld("a"))) === :miss
+    end
+
+    @testset "a call of compiled arms allocates nothing" begin
+        path = Reference(_fld("a"), _fld("b"))
+        @test _rules_compiled_case(path) === :hit
+        @test (@allocated _rules_compiled_case(path)) == 0
     end
 
 end

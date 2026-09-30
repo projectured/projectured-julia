@@ -11,7 +11,8 @@
 
 """
     build_distribution(context; name, bundle, requirements, expect, version,
-                         output, staging) -> String
+                         output, staging, source, licence_texts, project,
+                         licence_cache, credits, extra_texts, source_archive) -> String
 
 Check that the bundle of the binary called `name` travels, and write it as an
 archive. Answers the path of the archive.
@@ -36,6 +37,18 @@ archive. Answers the path of the archive.
   called as `check(executable, directory, hidden)` with the copied executable,
   a folder it can write into, and `hidden`, after the start test and before
   the archive.
+- `source` — where the source code of the program is, which the README names
+  with the tag of `version`; `nothing` names none.
+- `licence_texts` — whether the archive carries the licence texts of what the
+  bundle holds besides the program: [`bundle_licence_texts!`](@ref) writes them,
+  from `project`, the app package of the build, with the downloads it needs kept
+  in `licence_cache`. `credits` are sentences that a licence asks to appear in
+  the documentation; the README of the archive and the index hold them.
+  `extra_texts`, `"<name>" => "<file of context.root>"`, adds the text of a
+  library whose JLL names no artifact to take it from.
+- `source_archive` — the file name of the archive of the sources that the
+  licences of some libraries ask for ([`build_source_archive`](@ref)), which the
+  README names; `nothing` names none.
 
 The archive unpacks into `<name>-<version>/` and never into the directory it was
 unpacked in.
@@ -49,7 +62,16 @@ function build_distribution(context::BuildContext; name::AbstractString,
                               output::AbstractString = joinpath(context.root, "build"),
                               staging::Union{AbstractString,Nothing} = nothing,
                               hidden = get_hidden_directories(context),
-                              check = nothing)
+                              check = nothing,
+                              source::Union{AbstractString,Nothing} = nothing,
+                              licence_texts::Bool = true,
+                              project::AbstractString = joinpath(context.root, "build",
+                                  "app", String(name)),
+                              licence_cache::AbstractString = joinpath(context.root,
+                                  "build", "licence-cache"),
+                              credits = String[],
+                              extra_texts = Pair{String,String}[],
+                              source_archive::Union{AbstractString,Nothing} = nothing)
     bundle = abspath(bundle)
     isdir(bundle) ||
         error("build_distribution: no bundle at $bundle — build the executable first")
@@ -64,6 +86,16 @@ function build_distribution(context::BuildContext; name::AbstractString,
                   "and $full is missing or empty")
     end
     isempty(expect) || @info "The bundle holds what the build declared" count = length(expect)
+    _check_julia_libstdcxx(bundle)
+    if Sys.islinux()
+        missing_libraries = collect_missing_libraries(bundle)
+        isempty(missing_libraries) ||
+            error("build_distribution: the bundle needs libraries that it does not " *
+                  "carry, and that a machine other than this one may not have:\n" *
+                  join(["  $library, which $file needs"
+                        for (library, file) in missing_libraries],
+                       "\n"))
+    end
 
     directory = "$(name)-$(version)"
     root = staging === nothing ? mktempdir(get_staging_root()) : abspath(String(staging))
@@ -90,7 +122,12 @@ function build_distribution(context::BuildContext; name::AbstractString,
                   "its licence may not be distributed")
         cp(source, joinpath(staged, basename(String(licence))))
     end
-    write_readme(staged; name, version, requirements, licences)
+    licence_texts &&
+        bundle_licence_texts!(staged; project, cache = licence_cache, credits,
+                              extra_texts = [name => joinpath(context.root, file)
+                                             for (name, file) in extra_texts])
+    write_readme(staged; name, version, requirements, licences, source,
+                 third_party = licence_texts, credits, source_archive)
 
     mkpath(output)
     archive = joinpath(abspath(output),
@@ -100,6 +137,68 @@ function build_distribution(context::BuildContext; name::AbstractString,
     report_distribution(archive)
     staging === nothing && rm(root; recursive = true, force = true)
     archive
+end
+
+"""
+    GLIBC_LIBRARIES
+
+The shared libraries that every Linux machine with glibc has: a bundle may need
+them and not carry them.
+"""
+const GLIBC_LIBRARIES = ["ld-linux-x86-64.so.2", "libc.so.6", "libdl.so.2", "libm.so.6",
+                         "libpthread.so.0", "librt.so.1", "libutil.so.1",
+                         "libresolv.so.2", "libanl.so.1", "libmvec.so.1", "libnsl.so.1"]
+
+"""
+    collect_missing_libraries(bundle;
+                              system = GLIBC_LIBRARIES) -> Vector{Pair{String,String}}
+
+Every shared library that a file of `bundle` needs, by the `NEEDED` entries that
+`readelf -d` shows, and that neither the bundle nor `system` provides, as
+`"<library>" => "<file that needs it>"`. The test of a copy can not see such a
+library when the machine that builds has it, for example in `/usr/local/lib`.
+"""
+function collect_missing_libraries(bundle::AbstractString; system = GLIBC_LIBRARIES)
+    Sys.which("readelf") === nothing &&
+        error("collect_missing_libraries: install binutils; the check reads each " *
+              "library with readelf")
+    provided = Set{String}(system)
+    files = String[]
+    for (directory, _, names) in walkdir(bundle), name in names
+        occursin(r"\.so(\.|$)", name) && push!(provided, name)
+        path = joinpath(directory, name)
+        (isfile(path) && !islink(path)) && push!(files, path)
+    end
+    missing_libraries = Pair{String,String}[]
+    for path in files
+        _is_elf_file(path) || continue
+        for line in eachline(ignorestatus(`readelf -d $path`))
+            needed = match(r"\(NEEDED\)\s+Shared library: \[([^\]]+)\]", line)
+            needed === nothing && continue
+            needed.captures[1] in provided ||
+                push!(missing_libraries, needed.captures[1] => relpath(path, bundle))
+        end
+    end
+    sort!(unique!(missing_libraries))
+end
+
+_is_elf_file(path) = open(io -> read(io, 4), path) == UInt8[0x7f, 0x45, 0x4c, 0x46]
+
+# A distribution carries the libstdc++ of Julia. PackageCompiler copies the one
+# that the building Julia loaded, and Julia loads the machine's own when it is
+# newer; that one can need a newer glibc than a user's machine has, and its source
+# is not the source of Julia's. A binary still loads a newer libstdc++ of its
+# user's machine when there is one.
+function _check_julia_libstdcxx(bundle::AbstractString)
+    Sys.islinux() || return nothing
+    bundled = joinpath(bundle, "lib", "julia", "libstdc++.so.6")
+    own = joinpath(Sys.BINDIR, "..", "lib", "julia", "libstdc++.so.6")
+    (isfile(bundled) && isfile(own)) || return nothing
+    read(bundled) == read(own) ||
+        error("build_distribution: the bundle carries $(basename(realpath(bundled))) " *
+              "of this machine, not $(basename(realpath(own))) of Julia. Start the " *
+              "build with JULIA_PROBE_LIBSTDCXX=0, as bin/build_projectured does.")
+    nothing
 end
 
 """
@@ -213,16 +312,25 @@ function check_relocation(executable::AbstractString, working_directory::Abstrac
 end
 
 """
-    write_readme(staged; name, version, requirements, licences) -> String
+    write_readme(staged; name, version, requirements, licences, source,
+                 third_party, credits, source_archive) -> String
 
-What a person who unpacks the archive reads.
+What a person who unpacks the archive reads. `source`, when a caller gives it,
+says where the source code of this version is, which a licence such as MPL-2.0
+asks of a program in executable form. `third_party` says that the archive
+carries the licences of its other parts, and `credits` are sentences that a
+licence asks to appear in the documentation.
 
 The requirements are the reason a distribution is a function per binary rather
 than one call: what the target machine still needs is the one thing that differs
 between them.
 """
 function write_readme(staged::AbstractString; name, version, requirements,
-                        licences = String[])
+                        licences = String[],
+                        source::Union{AbstractString,Nothing} = nothing,
+                        third_party::Bool = false,
+                        credits = String[],
+                        source_archive::Union{AbstractString,Nothing} = nothing)
     lines = ["$name $version",
              "",
              "Built $(Dates.format(Dates.now(), "yyyy-mm-dd")) by ProjecturedBuilder, for " *
@@ -257,6 +365,26 @@ function write_readme(staged::AbstractString; name, version, requirements,
         end
         push!(lines, "")
     end
+    if source !== nothing
+        push!(lines, "The source code of this version: $source, tag v$version.")
+        push!(lines, "")
+    end
+    if third_party
+        push!(lines, "The licences of the other parts of this archive, the Julia " *
+                     "runtime and the")
+        push!(lines, "libraries among them: share/licenses/README.")
+        push!(lines, "")
+    end
+    if source_archive !== nothing
+        push!(lines, "The source code of the libraries under the LGPL and the " *
+                     "GPL in this archive:")
+        push!(lines, "$source_archive, beside this archive in the same release.")
+        push!(lines, "")
+    end
+    for credit in credits
+        push!(lines, String(credit))
+    end
+    isempty(credits) || push!(lines, "")
     push!(lines, "What went into this build:")
     push!(lines, "")
     push!(lines, "    ./bin/$name --build-info")

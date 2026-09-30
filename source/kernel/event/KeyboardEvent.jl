@@ -2,7 +2,7 @@
 # events `KeyDown`, `KeyUp` and `KeyPress`.
 
 """
-    KeyDown(key::Symbol, modifiers::ModifierKeys[, repeat::Bool]; time)
+    KeyDown(key::Symbol, modifiers::ModifierKeys; repeat = false, time)
     KeyDown(key, modifiers, repeat, time)
 
 A key went down.
@@ -13,16 +13,18 @@ A key went down.
 - the keys that edit: `:backspace`, `:delete`, `:return`, `:tab` and `:insert`;
 - the function keys, `:f1` to `:f12`;
 - other keys: `:escape`, `:space` and `:caps_lock`;
-- letters, such as `:c`, and punctuation: `:period`, `:minus`, `:slash`,
-  `:backslash`, `:asterisk`, `:equals` and `:zero`, the `0` key;
+- the letter keys: each has the name of its lower-case letter, `:a` to `:z`, in
+  every backend;
+- punctuation: `:period`, `:minus`, `:slash`, `:backslash`, `:asterisk`, `:equals`
+  and `:zero`, the `0` key;
 - the modifier keys: `:lctrl`, `:rctrl`, `:lshift`, `:rshift`, `:lalt`, `:ralt`,
   `:lmeta` and `:rmeta`;
 - `:char`, for a key whose name does not matter, because its character comes in a
   `KeyPress`.
 
 `repeat` is `true` for an event that the operating system repeats while the key is
-held. Without `repeat`, the event is not a repeat. `time` is the time of the input
-(see `Event`).
+held. The short form takes `repeat` as a keyword, and its default is `false`. `time`
+is the time of the input (see `Event`).
 """
 struct KeyDown <: Event
     key::Symbol
@@ -31,9 +33,7 @@ struct KeyDown <: Event
     time::Float64
 end
 
-KeyDown(key::Symbol, modifiers::ModifierKeys; time::Real) =
-    KeyDown(key, modifiers, false, Float64(time))
-KeyDown(key::Symbol, modifiers::ModifierKeys, repeat::Bool; time::Real) =
+KeyDown(key::Symbol, modifiers::ModifierKeys; repeat::Bool = false, time::Real) =
     KeyDown(key, modifiers, repeat, Float64(time))
 
 """

@@ -11,10 +11,10 @@
 The editor has no reference to the protocol. It gets a server by a name:
 
 ```julia
-run_editor!(backend, projection, document; mcp = true)
+run_editor!(make_editor(document, projection; backend); mcp = true)
 ```
 
-`run_editor!` calls `make_agent_server(:mcp, editor)` with `instructions`, `host` and `port` from its keywords `mcp_instructions`, `mcp_host` and `mcp_port`, each one only when the caller gives it. It calls `start_agent_server!` after `on_start` and before the first frame, so a tool that `on_start` registers is served, and `stop_agent_server!` in a `finally` when the loop ends. `ProjecturedMcp` adds the three methods: `make_agent_server(::Val{:mcp}, editor; kwargs...)` makes an `McpServer`, and the other two call `start_mcp!` and `stop_mcp!`. When the package is not loaded, the fallback of the kernel throws an error that says no agent server is registered for `:mcp`. So the kernel holds no protocol code and no HTTP dependency. `run_window_editor` passes `mcp`, `mcp_instructions`, `mcp_host` and `mcp_port` to `run_editor!`.
+`run_editor!` calls `make_agent_server(:mcp, editor)` with the fields `instructions`, `host` and `port` of its setting `mcp`, each one only when the caller gives it: `mcp = true` for the defaults, or `mcp = (; host, port)`. It calls `start_agent_server!` after `on_start` and before the first frame, so a tool that `on_start` registers is served, and `stop_agent_server!` in a `finally` when the loop ends. `ProjecturedMcp` adds the three methods: `make_agent_server(::Val{:mcp}, editor; kwargs...)` makes an `McpServer`, and the other two call `start_mcp!` and `stop_mcp!`. When the package is not loaded, the fallback of the kernel throws an error that says no agent server is registered for `:mcp`. So the kernel holds no protocol code and no HTTP dependency. `run_editor!(document, projection; ...)` passes `mcp` to `run_editor!(editor)`.
 
 ### The server
 
@@ -49,7 +49,7 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 
 `ProjecturedMcp` depends on `ModelContextProtocol` and on the kernel. From the kernel it takes the `agent` seam with `run_on_editor_task!`, `record_fault!` and the `tool` layer, from which it uses `Tool`, `Resource`, `ToolSet`, `list_tools`, `list_resources` and `register_default_tools!`. [agent.md](../kernel/agent.md) describes those layers. The package has no `__init__`: its three methods are its registration.
 
-`run_editor!` and `run_window_editor` use it with `mcp = true`, and the application starts it with `--mcp`, or with `--mcp=PORT` or `--mcp=HOST:PORT` at another address. The package binds no meaning model to the tool set. An MCP client runs no turn of the assistant, so the application binds the meaning model of its backend in `on_start`, and a search by description ranks by meaning for the client too.
+`run_editor!` uses it with `mcp = true`, and the application starts it with `--mcp`, or with `--mcp=PORT` or `--mcp=HOST:PORT` at another address. The package binds no meaning model to the tool set. An MCP client runs no turn of the assistant, so the application binds the meaning model of its backend in `on_start`, and a search by description ranks by meaning for the client too.
 
 ## Design decisions
 
@@ -62,7 +62,7 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 ## Usage
 
 ```julia
-run_window_editor(document, projection, "My data"; backend = SdlBackend(), mcp = true)
+run_editor!(document, projection; window = (; title = "My data"), mcp = true)
 
 mcp = McpServer(editor; instructions = "You operate a JSON editor.")
 start_mcp!(mcp)                  # http://127.0.0.1:9876/mcp

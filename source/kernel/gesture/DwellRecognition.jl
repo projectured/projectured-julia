@@ -51,10 +51,11 @@ recognize(::DwellRecognition, motion, input, window) = RecognitionStep(motion)
 function recognize(recognition::DwellRecognition, motion, event::MouseMove, window)
     window === nothing && return RecognitionStep(nothing)
     _is_same_point(motion, event, window) && return RecognitionStep(motion)
-    moved = _Motion(window, event.x, event.y, event.modifiers, event.time,
+    now = get_event_time(event)
+    moved = _Motion(window, event.x, event.y, event.modifiers, now,
                     event.buttons == MouseButtons())
     moved.is_waiting || return RecognitionStep(moved)
-    RecognitionStep(moved; deadline = event.time + recognition.delay)
+    RecognitionStep(moved; deadline = now + recognition.delay)
 end
 
 recognize(::DwellRecognition, motion, ::Union{MouseDown,MouseClick,MouseScroll}, window) =
@@ -63,9 +64,10 @@ recognize(::DwellRecognition, motion, ::Union{MouseDown,MouseClick,MouseScroll},
 recognize(::DwellRecognition, motion, ::WindowLeave, window) = RecognitionStep(nothing)
 
 function recognize(recognition::DwellRecognition, motion, timer::TimerExpire, window)
-    (motion === nothing || !motion.is_waiting || timer.time < motion.time + recognition.delay) &&
+    now = get_event_time(timer)
+    (motion === nothing || !motion.is_waiting || now < motion.time + recognition.delay) &&
         return RecognitionStep(motion; held = true)
-    dwell = MouseDwell(motion.x, motion.y, motion.modifiers; time = timer.time)
+    dwell = MouseDwell(motion.x, motion.y, motion.modifiers; time = now)
     RecognitionStep(_stop_waiting(motion); inputs = [WindowInput(motion.window, dwell)],
                     held = true)
 end

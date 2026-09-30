@@ -317,7 +317,7 @@ end
     tracked, tracking = make_tracking_screen(scene, composed;
                                              inner_wrappers = [wrap_tooltip_window])
     backend = HeadlessBackend()
-    editor = Editor(backend, tracked, tracking, Device[Keyboard(), Mouse()])
+    editor = Editor(tracked, tracking; backend = backend, devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     time = Ref(0.0)
     move!(x, y) = (push_event!(backend, WindowInput(:shell, MouseMove(x, y; time = time[] += 0.01)));

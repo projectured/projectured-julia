@@ -36,6 +36,8 @@ ReferenceModule.get_reference_step_kind(::SequenceChartRowReferenceStep) = :stru
 
 Base.:(==)(a::SequenceChartRowReferenceStep, b::SequenceChartRowReferenceStep) =
     a.index == b.index
+Base.hash(s::SequenceChartRowReferenceStep, h::UInt) =
+    hash(s.index, hash(:SequenceChartRowReferenceStep, h))
 
 Base.show(io::IO, s::SequenceChartRowReferenceStep) = print(io, "row(", s.index, ")")
 
@@ -51,7 +53,7 @@ function ReferenceModule.match_reference_step(::Val{:row}, hex, argpats, rest_su
         if $hex isa $(GlobalRef(SequenceChartModule, :SequenceChartRowReferenceStep))
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

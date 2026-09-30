@@ -48,15 +48,18 @@ function get_application_greeting_text(backend::Symbol)
 end
 
 """
-    make_application_assistant(backend::Symbol; model = "") -> Assistant or nothing
+    make_application_assistant(backend::Symbol; model = "", context = 0, llm = nothing) -> Assistant or nothing
 
 The assistant pane of the application. `backend` is one of
 [`APPLICATION_ASSISTANTS`](@ref); `:none` answers `nothing`, and the window then
 has no assistant pane. An empty `model` means the default model of the backend,
-and a `context` of `0` means its default token window.
+and a `context` of `0` means its default token window. A given `llm` is the model
+that the assistant asks, in place of the one it builds from `backend`, `model` and
+`context`: a scripted model that stands in for the real one, or an `OllamaLlm`
+with a `seed` and a `temperature`.
 """
 function make_application_assistant(backend::Symbol; model::AbstractString = "",
-                                    context::Integer = 0)
+                                    context::Integer = 0, llm = nothing)
     backend in APPLICATION_ASSISTANTS ||
         error("make_application_assistant: the backend must be one of ",
               join(APPLICATION_ASSISTANTS, ", "), ", not ", repr(backend))
@@ -64,8 +67,8 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
     greeting = ConversationConversation([
         ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
-                context = context, system = APPLICATION_SYSTEM,
-                api_key = get(ENV, "ANTHROPIC_API_KEY", ""))
+                context = context, system = make_application_system(),
+                api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm)
 end
 
 """
@@ -199,6 +202,7 @@ end
 
 """
     make_application_window(paths; root = pwd(), assistant = nothing,
+                            status_bar = true,
                             measure = FontFileMeasure())
         -> (document, projection)
 
@@ -211,6 +215,10 @@ The application window, wrappers and all: the document of
 warm-up of a build and the suite all come here, so none of them can hold a list
 of its own that drifts from the others.
 
+`status_bar = false` leaves out the status bar at the bottom of the window. A
+video that shows what the window paints again uses it, because the status bar
+changes with every move of the caret.
+
 **The clipboard offers all six of its gestures here**, cut and the view toggle
 included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
 what is stored. An interface over a record of a run leaves those two out, because
@@ -218,6 +226,7 @@ a cut would write into the record.
 """
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
+                                 status_bar::Bool = true,
                                  measure = FontFileMeasure())
     document = make_application_document(paths; root = root, assistant = assistant)
     projection = make_application_projection(; measure = measure)
@@ -225,7 +234,8 @@ function make_application_window(paths::AbstractVector;
                        selection = true,
                        history = _with_window_history,
                        context_menu = compute_context_menu,
-                       shell = document -> _make_application_shell(document, assistant, root),
+                       shell = document -> _make_application_shell(document, assistant, root,
+                                                                     status_bar),
                        measure = measure)(document, projection)
 end
 
@@ -237,11 +247,11 @@ end
 # The toolbar's assistant is a fresh one with the backend, the model and the
 # greeting of the one the window opened with, and its explorer lists `root`. A
 # window opened with no assistant has no assistant button.
-_make_application_shell(document, assistant, root) =
+_make_application_shell(document, assistant, root, status_bar::Bool) =
     (make_window_menu_bar(),
      make_window_toolbar(; assistant = _make_assistant_factory(assistant),
                            explorer = _ -> _make_application_navigator(root)),
-     make_window_status_bar(document), nothing, nothing)
+     status_bar ? make_window_status_bar(document) : nothing, nothing, nothing)
 
 _make_assistant_factory(::Nothing) = nothing
 _make_assistant_factory(assistant::Assistant) =
@@ -316,23 +326,45 @@ three descriptions of one thing, so all three change together.
 const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "THIS WINDOW SHOWS FILES. Its verbs are the functions of the modules " *
     "PaneModule, WidgetModule, LayoutModule, FileFormatModule and " *
-    "FileSystemModule. PaneModule arranges the window and places a document in " *
-    "it: open_pane! puts a document in a tab, find_pane_reference names a pane " *
-    "by its title, focus_pane!, move_pane! and close_pane! bring one forward, " *
-    "move it and close it, and show_layout prints what is where. " *
-    "WidgetModule and LayoutModule build what a " *
+    "FileSystemModule, and the names that search_api lists. Read the guide " *
+    "resource://guide/guide/orientation first: it shows each step below in code. " *
+    "find_pane(editor, title) answers a tab by its title, and " *
+    "get_edited_document(tab) answers the document that the tab shows, which acts " *
+    "like the data: index it, iterate it, read a field. print_natural_text(document) " *
+    "answers its text. To change a document, use a verb, so the change is an edit " *
+    "that Ctrl+Z takes back: replace_referenced_value!(editor, part, new_value), " *
+    "insert_elements!(editor, collection, index, values) and " *
+    "delete_elements!(editor, collection, index). open_pane!(editor, document; " *
+    "title, target, side) puts a document in a tab, beside or under another tab, " *
+    "and get_parent(editor, tab) answers the group that holds a tab; focus_pane!, " *
+    "move_pane! and close_pane! bring a pane forward, move it and close it, and " *
+    "show_layout prints what is where. WidgetModule and LayoutModule build what a " *
     "pane shows — a card, a button, a table, a row or a column of them. " *
-    "FileFormatModule opens a path as a tab with make_file_tab, writes one " *
-    "back with write_document_file, and answers what a file tab holds with " *
-    "get_file_content. FileSystemModule names the workspace the navigator " *
-    "lists. To read what a tab holds, in one round: " *
-    "`tab = get_referenced_value(editor, find_pane_reference(editor, \"people.json\"))` " *
-    "answers the tab of that title, and `print_natural_text(tab.content)` answers " *
-    "the text of the file it holds, which parse_natural_text reads back. " *
-    "search_documents finds a document in the window when no tab names it. " *
+    "FileFormatModule opens a path as a tab with make_file_tab_content and writes a " *
+    "document back with write_document_file. FileSystemModule names the workspace " *
+    "the navigator lists. search_documents finds a document in the window when no " *
+    "tab names it. " *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."
+
+"""
+    make_application_system() -> String
+
+The system text of the assistant of this application: [`APPLICATION_SYSTEM`](@ref),
+then the section "Reach what a tab holds" of the orientation guide, which shows in
+code how to read what a tab holds, change a part of it with a verb, add a record and
+open a table beside a tab.
+
+The section is in the text from the first round, because a model that is only told
+to read the guide sometimes starts without it, guesses how to make a value, and
+fails. Measured with the rehearsal of the assistant (`tool/assistant/rehearsal.jl`):
+with the section, S2 passed 10 of 10 seeds and the tasks of one prompt 12 of 12;
+without it, 4 of 5 and 4 of 6. The guide stays the one place of the section.
+"""
+make_application_system() =
+    APPLICATION_SYSTEM * "\n\nHOW TO WORK IN THIS WINDOW, from the orientation guide:\n\n" *
+    read_guide_section("guide/orientation", "Reach what a tab holds")
 
 """
     run_application(paths...; backend = nothing,
@@ -379,22 +411,26 @@ function run_application(paths::AbstractString...;
     # capture of the Julia logger and a feed, the statistics by a feed, and the
     # fault log by the store of the editor. The shell gives all of them.
     run_with_window_tools() do feeds, start
-        editor = make_editor(document, projection, "ProjecturEd";
-                             backend = backend, width = width, height = height,
-                             feeds = feeds,
-                             # The tooltip window is kept at the screen, so a
-                             # tooltip opens in every window; the natural
-                             # projection draws what it holds.
-                             inner_wrappers = [wrap_tooltip_window],
-                             opened_window_projections =
-                                 make_opened_window_projections(;
-                                     content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure)],
-                                                    make_application_content_projections(measure = measure)),
-                                     measure = measure),
-                             fault_policy = fault_policy)
+        # The window is the application's own pane tree inside its shell, so
+        # it has no tabs around it.
+        editor = build_editor(document, projection;
+                              backend = backend, tabs = false,
+                              feeds = feeds, fault_policy = fault_policy,
+                              # The tooltip window is kept at the screen, so a
+                              # tooltip opens in every window, and the natural
+                              # projection draws what it holds. The other windows
+                              # that a wrapper opens draw with the rows a pane
+                              # draws with.
+                              window = (; title = "ProjecturEd", width, height,
+                                        inner_wrappers = [wrap_tooltip_window],
+                                        opened_window_projections =
+                                            make_opened_window_projections(;
+                                                content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure)],
+                                                               make_application_content_projections(measure = measure)),
+                                                measure = measure)))
         start(editor)
         start_application!(editor, mcp, assistant, model)
-        run_editor!(editor; mcp = mcp, mcp_host = mcp_host, mcp_port = mcp_port)
+        run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
     end
 end
 
@@ -559,8 +595,8 @@ function warm_application()
         composed = make_window_scene_projection(projection;
             opened_window_projections = make_opened_window_projections(;
                 content = make_application_content_projections()))
-        editor = Editor(ConsoleBackend(), scene, composed,
-                        Device[Display(), Keyboard(), Mouse()])
+        editor = Editor(scene, composed; backend = ConsoleBackend(),
+                        devices = Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, scene)
         _force_reactive!(editor.iomap)
         for event in events
@@ -591,7 +627,7 @@ and `redo` tools. With `mcp`, the tools also get the meaning model of the
 backend, because an MCP client runs no turn of the assistant and its searches by
 description rank by meaning too.
 
-[`run_application`](@ref) calls it between `make_editor` and `run_editor!`. A
+[`run_application`](@ref) calls it between `build_editor` and `run_editor!`. A
 host that opens the same window another way calls it too, so its assistant is
 the one of the application.
 """

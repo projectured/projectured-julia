@@ -9,69 +9,69 @@ provides the render/decode/image seam methods. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
 primitives `_open_offscreen_renderer` and `_close_offscreen_renderer` that the
 opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives
-there, not here); `record_video` reaches the unexported `_emit_frames!`
-through the qualified name.
+there, not here); `ProjecturedVideo` imports the unexported `_emit_frames!` and
+the other offscreen helpers by name.
 """
 module ProjecturedSdl
 
 using ProjecturedCollection
 using ProjecturedGraphics
-using ProjecturedCollection
-using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedScreen
 using ProjecturedStyle
-using ProjecturedScreen
-using ProjecturedStyle
-
 
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
+# The locale data of Xlib, which SDL needs to give a window its title.
+using Xorg_libX11_jll: Xorg_libX11_jll
 # The backend + device contracts (PAR-QUALIFIED-EXTENSION): bare `using`,
 # extended by qualification below. A bare `using` of an alias binds the
 # module's *real* name, so the extension sites read BackendModule.*;
 # DeviceModule supplies the `Device` type used in the render signatures.
 using ProjecturedKernel.BackendModule
 using ProjecturedKernel.DeviceModule
-import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
-                         GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
-                         GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
+import ProjecturedKernel.EditorModule: get_backend_name, get_backend_output
+using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect,
+                         GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
+                         GraphicsSpline, GraphicsViewport, GraphicsImage, GraphicsFence,
+                         LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _bounds_elem!, _bounds_extend!,
                          compute_first_visible_index, has_declared_extent,
                          tessellate_spline, build_polyline_arrowhead
-import ProjecturedCollection.CollectionModule: ListNode, CellVector
-import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
-import ProjecturedStyle.StyleModule: StyleColor
-import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, font_device_size,
+using ProjecturedCollection.CollectionModule: ListNode, CellVector
+using ProjecturedStyle.StyleModule: AffineTransform, affine_identity,
+                         is_affine_axis_aligned
+using ProjecturedStyle.StyleModule: StyleColor
+using ProjecturedStyle.StyleModule: StyleFont, font_logical_size, font_device_size,
                          step_zoom, adjust_font_zoom!
 # `_get_font` resolves a font's name through this rather than opening
 # `font.filename` directly, so a bundle copied to another machine finds its
 # fonts where they are now. The metrics reader resolves the same way, which is
 # what keeps SDL and it opening one file.
-import ProjecturedStyle.StyleModule: font_file
+using ProjecturedStyle.StyleModule: font_file
 # A character the font lacks draws in the font the style package names, and each
 # glyph draws where the layout measures it (`compute_placed_glyphs`).
-import ProjecturedStyle.StyleModule: compute_text_extent, compute_placed_glyphs, PlacedGlyph,
-                         FontFileMeasure
-import ProjecturedKernel.EventModule: WindowQuit
-import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
-import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus, WindowLeave,
-                                     DisplayUpdate
-import ProjecturedKernel.EventModule: ModifierKeys
-import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
-import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove,
-    MouseScroll
-import ProjecturedKernel.GestureModule: MouseClick
-import ProjecturedStyle.StyleModule: ImageFile
-import ProjecturedKernel.ProjectionModule: print_document, read_intent, Projection
-import ProjecturedKernel.OperationModule: Operation, evaluate_operation
-import ProjecturedKernel.DocumentModule: is_view_state_field
-import ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
-import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
-import ProjecturedKernel.ProjectionModule: PrinterContext
-import ProjecturedKernel.CellModule: AbstractCell, Cell, Computation, is_cell_up_to_date
-import ProjecturedKernel.ReferenceModule: EmptyReference
-import ProjecturedKernel.IoMapModule: SimpleIoMap
+using ProjecturedStyle.StyleModule: compute_text_extent, compute_placed_glyphs,
+                         PlacedGlyph, FontFileMeasure
+using ProjecturedKernel.EventModule: WindowQuit
+using ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
+using ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus,
+                         WindowLeave, DisplayUpdate
+using ProjecturedKernel.EventModule: ModifierKeys
+using ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
+using ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove,
+                         MouseScroll
+using ProjecturedStyle.StyleModule: ImageFile
+using ProjecturedKernel.ProjectionModule: Projection, PrinterContext
+using ProjecturedKernel.OperationModule: AdjustZoomOperation, AdjustFontZoomOperation
+using ProjecturedKernel.CellModule: AbstractCell, Cell, ImmutableCell, is_cell_up_to_date
+using ProjecturedKernel.DocumentModule: is_view_state_field
+using ProjecturedKernel.ReferenceModule: EmptyReference
+using ProjecturedKernel.IoMapModule: SimpleIoMap
+
+# Imported to extend: this package adds a method to each of these.
+import ProjecturedKernel.ProjectionModule: print_document
+import ProjecturedKernel.OperationModule: evaluate_operation
 
 include("../../../source/sdl/Sdl.jl")
 

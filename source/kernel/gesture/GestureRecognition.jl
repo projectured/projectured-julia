@@ -60,7 +60,8 @@ struct RecognitionStep
     held::Bool
 end
 
-RecognitionStep(state; inputs::Vector = WindowInput[], deadline = nothing, held::Bool = false) =
+RecognitionStep(state; inputs::Vector = WindowInput[], deadline = nothing,
+                held::Bool = false) =
     RecognitionStep(state, WindowInput[input for input in inputs],
                     deadline === nothing ? nothing : Float64(deadline), held)
 

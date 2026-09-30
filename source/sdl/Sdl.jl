@@ -5,6 +5,18 @@ export SdlBackend,
        write_image, GraphicsCanvasToImageFile,
        _open_offscreen_renderer, _close_offscreen_renderer
 
+# Xlib reads its locale data from the folder that its build named, and that
+# folder exists only on the machine that built `Xorg_libX11_jll`. Without the
+# data `XSupportsLocale` is false, and SDL then gives a window no title: X11
+# shows neither `WM_NAME` nor `_NET_WM_NAME`. The artifact of the JLL holds the
+# data, so SDL reads it there. A value that the user set wins.
+function __init__()
+    haskey(ENV, "XLOCALEDIR") && return nothing
+    directory = joinpath(Xorg_libX11_jll.artifact_dir, "share", "X11", "locale")
+    isdir(directory) && (ENV["XLOCALEDIR"] = directory)
+    nothing
+end
+
 # Pixel size of the primary monitor from xrandr's RandR 1.5
 # `--listmonitors`. SDL can fold a multi-monitor X screen into a single
 # "display" whose bounds span every monitor, hiding the per-monitor layout;
@@ -87,17 +99,21 @@ end
 # What the dirty walk remembers of each graphic from the frame that painted it,
 # keyed by its placement (`_make_placement_key`): the place of every graphic (the
 # absolute content origin of a canvas, the origin of the container of any other),
-# and the box, the content and the transform of a viewport. The walk compares the
-# geometry of this frame with it by value. `baseline` is the count of records
-# after the last full paint; it bounds how many records of graphics that are gone
-# can collect.
+# the box, the content and the transform of a viewport, the keys of the elements
+# that a canvas drew, and the signature of each leaf (`_compute_leaf_signature`).
+# The walk compares this frame with it by value. `baseline` is the count of
+# records after the last full paint; it bounds how many records of graphics that
+# are gone can collect.
 mutable struct _PaintedGeometry
     origins::Dict{UInt,NTuple{2,Int}}
     viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}
+    members::Dict{UInt,Vector{UInt}}
+    signatures::Dict{UInt,UInt}
     baseline::Int
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
-                                      Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(), 0)
+                                      Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(),
+                                      Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0)
 
 """
     SdlWindowResources
@@ -160,6 +176,11 @@ They live on the backend rather than at module level, so two backends in one
 process never hand each other an event or a delay. `partial_render` and
 `debug_dirty` are read for each window of this backend alone.
 
+`modifiers` holds the modifier keys of the last key event that the poll read. A
+mouse event and a text event take their modifiers from it, so they hold the
+modifiers at their place in the queue, not at the time of the poll.
+`initialize_backend!` seeds it from `SDL_GetModState`.
+
 `display_updates` holds a `DisplayUpdate` for each window that showed a frame
 which differs from the one before, until `read_from_devices` answers it. A window
 that shows two changed frames before a read has one update, with the later time.
@@ -188,6 +209,8 @@ mutable struct SdlBackend <: Backend
     pending_input::Union{WindowInput, Nothing}
     pending_motion::Union{WindowInput, Nothing}
     last_hover_motion::Float64
+    # The modifier keys of the last key event in the order of the queue.
+    modifiers::ModifierKeys
     # The SDL user-event type `wake_backend!` pushes to end a wait in
     # progress. Zero until `initialize_backend!` registers one; a wake on an
     # uninitialized backend is a no-op.
@@ -210,7 +233,11 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               nothing, nothing, 0.0, UInt32(0), Display(), WindowInput[])
+               nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[])
+
+# SDL draws a screen of windows, and `--backend=sdl` names it.
+get_backend_name(::Type{SdlBackend}) = :sdl
+get_backend_output(::Type{SdlBackend}) = :windows
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -311,7 +338,7 @@ function sdl_modifiers(mod::UInt16)::ModifierKeys
     shift = (mod & UInt16(0x0003)) != UInt16(0)  # KMOD_LSHIFT | KMOD_RSHIFT
     alt   = (mod & UInt16(0x0300)) != UInt16(0)  # KMOD_LALT | KMOD_RALT
     meta  = (mod & UInt16(0x0C00)) != UInt16(0)  # KMOD_LGUI | KMOD_RGUI
-    ModifierKeys(ctrl, shift, alt, meta)
+    ModifierKeys(; ctrl, shift, alt, meta)
 end
 
 # Convenience overload: extract modifiers from the current SDL state.
@@ -325,6 +352,7 @@ _current_modifiers() = sdl_modifiers(UInt16(SDL_GetModState() & 0xFFFF))
     sdl_keysym_to_symbol(keysym::Int32) -> Symbol
 
 Map an SDL keysym integer to the backend-agnostic key symbol vocabulary.
+Each letter key has the name of its lower-case letter, `:a` to `:z`.
 Returns `:char` for printable keys whose specific identity is not tracked
 (the character value arrives separately via `SDL_TEXTINPUT`).
 """
@@ -361,19 +389,12 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(27)         && return :escape
     keysym == Int32(32)         && return :space
     keysym == Int32(46)         && return :period   # '.' — used by the Ctrl+. fold chord
-    # Clipboard projection chords (ClipboardModule): the letter and
-    # punctuation keys it binds need distinct symbols rather than the `:char`
-    # fallback so `@gesture_case` can tell them apart under Ctrl.
-    keysym == Int32(116)        && return :t        # Ctrl+T — open a pane tab
-    keysym == Int32(119)        && return :w        # Ctrl+W — close a pane tab
+    # Letters: the keysym of a letter key is the code of its lower-case letter.
+    Int32(97) <= keysym <= Int32(122) && return Symbol(Char(keysym))
+    # Punctuation chords: the punctuation keys that a binding names need distinct
+    # symbols rather than the `:char` fallback so `@gesture_case` can tell them
+    # apart under Ctrl.
     keysym == Int32(92)         && return :backslash # Ctrl+\\ — split a pane group
-    keysym == Int32(99)         && return :c        # Ctrl+C — copy
-    keysym == Int32(120)        && return :x        # Ctrl+X — cut
-    keysym == Int32(118)        && return :v        # Ctrl+V — paste
-    keysym == Int32(110)        && return :n        # Ctrl+N — note
-    keysym == Int32(112)        && return :p        # Ctrl+Shift+P — the command palette
-    keysym == Int32(115)        && return :s        # Ctrl+S — save, Ctrl+Shift+S — snapshot
-    keysym == Int32(111)        && return :o        # Ctrl+O — reload from disk
     keysym == Int32(47)         && return :slash    # '/' — toggle slice display
     keysym == Int32(1073741908) && return :slash    # keypad '/'
     keysym == Int32(1073741909) && return :asterisk # keypad '*' — toggle collection display
@@ -403,7 +424,7 @@ end
 Build a `KeyDown` from SDL key-down event fields, at the time `time`.
 """
 function sdl_to_keydown(keysym::Int32, mod::UInt16, is_repeat::Bool; time::Real)::KeyDown
-    KeyDown(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod), is_repeat; time)
+    KeyDown(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod); repeat = is_repeat, time)
 end
 
 """
@@ -416,14 +437,16 @@ function sdl_to_keyup(keysym::Int32, mod::UInt16; time::Real)::KeyUp
 end
 
 """
-    sdl_to_keypress(evt; time) -> Union{KeyPress, Nothing}
+    sdl_to_keypress(evt; modifiers, time) -> Union{KeyPress, Nothing}
 
-Build a `KeyPress` at the time `time` from an `SDL_TEXTINPUT` event. Returns `nothing` if
-the event carries no printable text (e.g. empty or invalid UTF-8).
+Build a `KeyPress` with `modifiers` at the time `time` from an `SDL_TEXTINPUT`
+event. Returns `nothing` if the event carries no printable text (e.g. empty or
+invalid UTF-8).
 `SDL_TEXTINPUT` provides a null-terminated UTF-8 string in `evt.text.text`
 (a `NTuple{32,UInt8}`).
 """
-function sdl_to_keypress(evt; time::Real)::Union{KeyPress,Nothing}
+function sdl_to_keypress(evt; modifiers::ModifierKeys,
+                         time::Real)::Union{KeyPress,Nothing}
     text_bytes = evt.text.text  # NTuple{32,UInt8}
     len = 0
     for b in text_bytes
@@ -438,8 +461,7 @@ function sdl_to_keypress(evt; time::Real)::Union{KeyPress,Nothing}
     end
     isempty(text) && return nothing
     ch = first(text)
-    mods = _current_modifiers()
-    KeyPress(ch, text, mods; time)
+    KeyPress(ch, text, modifiers; time)
 end
 
 # The time of an SDL event on the clock of `time()`. SDL stamps each event with
@@ -454,14 +476,16 @@ end
 # Mouse helpers
 # ════════════════════════════════════════════════════════════════════════
 
-# Map SDL button byte → Symbol.
-_sdl_button_sym(b::UInt8) = b == 0x01 ? :left : b == 0x02 ? :middle : :right
+# The name of an SDL button: 1 is the left, 2 the middle and 3 the right button. A
+# side button, 4 or more, has no name in the event layer, and the answer is `nothing`.
+_sdl_button_sym(b::UInt8) =
+    b == 0x01 ? :left : b == 0x02 ? :middle : b == 0x03 ? :right : nothing
 
-# The buttons that the mask of `SDL_GetMouseState` holds.
+# The buttons that an SDL button mask holds: the `state` of a motion event.
 _get_held_mouse_buttons(bstate::UInt32) =
-    MouseButtons((bstate & UInt32(0x01)) != UInt32(0),
-                 (bstate & UInt32(0x02)) != UInt32(0),
-                 (bstate & UInt32(0x04)) != UInt32(0))
+    MouseButtons(left = (bstate & UInt32(0x01)) != UInt32(0),
+                 middle = (bstate & UInt32(0x02)) != UInt32(0),
+                 right = (bstate & UInt32(0x04)) != UInt32(0))
 
 # ════════════════════════════════════════════════════════════════════════
 # Native window lifecycle (internal helpers; driven by the reconciler in
@@ -1844,8 +1868,8 @@ end
 # A record is keyed by the PLACEMENT of a graphic, not by the graphic alone: the
 # `objectid` of the graphic mixed with the key of the container that holds it
 # (`_make_placement_key`). One graphic can be drawn at more than one place — the
-# four regions of a frozen pane share their content — and each place has its
-# own geometry.
+# regions of a table share its rules and bands — and each place has its own
+# geometry.
 
 # Mutable accumulator for a union of absolute logical bounds.
 mutable struct _DirtyAcc
@@ -1904,6 +1928,7 @@ end
 # the cells it reads — exactly what we want, since the unit is about to be
 # repainted).
 function _bounds_of_elem(elem, ox::Int, oy::Int, ratio::Float64)
+    _is_invisible_graphic(elem) && return nothing
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
     _extend_drawn_bounds!(elem, ox, oy, ratio, mnx, mny, mxx, mxy)
@@ -1919,6 +1944,12 @@ function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int, ratio::Floa
     end
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
+
+# True for a rectangle with a transparent fill and no visible border, such as the
+# hit target of a widget: SDL draws no pixel of it, so it has no bounds to paint.
+_is_invisible_graphic(elem) =
+    elem isa GraphicsRect && elem.color.alpha == 0 &&
+    (Int(elem.border_width) == 0 || elem.border_color.alpha == 0)
 
 # Extend the bounds by what SDL draws for `elem` at the content origin `(ox, oy)`.
 function _extend_drawn_bounds!(elem, ox::Int, oy::Int, ratio::Float64, mnx, mny, mxx, mxy)
@@ -2002,7 +2033,42 @@ function _record_painted_element!(res::SdlWindowResources, elem, key::UInt, ox::
         return _record_painted_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
     elem isa GraphicsViewport && return _record_painted_viewport!(res, elem, key, ox, oy)
     res.painted.origins[key] = (ox, oy)
+    signature = _compute_leaf_signature(elem)
+    signature === nothing ? delete!(res.painted.signatures, key) :
+                            (res.painted.signatures[key] = signature)
     _record_bounds!(res, key, _bounds_of_elem(elem, ox, oy, res.ratio))
+end
+
+# What a leaf draws, as one number: the hash of the values of its cells, or
+# `nothing` when a value can change in place and keep its hash. The engine
+# computes a cell again when a cell it read was written, also when the new value
+# is the same, so the walk compares this and the bounds before it paints a leaf
+# whose cells were stale. A leaf with no signature is painted whenever it is stale.
+function _compute_leaf_signature(elem)::Union{UInt,Nothing}
+    signature = hash(typeof(elem))
+    for f in fieldnames(typeof(elem))
+        (is_view_state_field(f) || f === :prev || f === :next) && continue
+        c = getfield(elem, f)
+        value = c isa AbstractCell ? c[] : c
+        _is_hashed_faithfully(value) || return nothing
+        signature = hash(value, signature)
+    end
+    signature
+end
+
+# True for a value whose hash changes whenever what it holds changes: a plain
+# value, a small array of plain values, or a document whose fields are immutable
+# cells, such as a color or a font, which hashes by identity and can not change in
+# place. A pointer, a large array, of which `hash` reads a sample, and any other
+# mutable object can change in place and keep their hash.
+function _is_hashed_faithfully(value)::Bool
+    value isa Ptr && return false
+    value isa AbstractString && return true
+    value isa Tuple && return all(_is_hashed_faithfully, value)
+    value isa AbstractArray && return length(value) < 32768 && isbitstype(eltype(value))
+    ismutable(value) || return true
+    T = typeof(value)
+    fieldcount(T) > 0 && all(i -> fieldtype(T, i) <: ImmutableCell, 1:fieldcount(T))
 end
 
 # A canvas whose content origin is `(ox, oy)`.
@@ -2019,13 +2085,17 @@ function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas
             b === nothing || _acc_extend!(acc, b)
         end
     else
+        members = UInt[]
         for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
             elem = elements[i]
             elem isa GraphicsFence && continue
             _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
-            b = _record_painted_element!(res, elem, _make_placement_key(elem, key), ox, oy, edges)
+            elem_key = _make_placement_key(elem, key)
+            push!(members, elem_key)
+            b = _record_painted_element!(res, elem, elem_key, ox, oy, edges)
             b === nothing || _acc_extend!(acc, b)
         end
+        res.painted.members[key] = members
     end
     _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
 end
@@ -2081,14 +2151,42 @@ _is_painted(res::SdlWindowResources, key::UInt) = haskey(res.painted.origins, ke
 # knows: the old bounds of a unit, the old and new box of a viewport, the place a
 # graphic left. It runs the recordings after, in the order it met them, so a unit
 # is recorded before the container that holds it records its bounds again.
+#
+# A canvas whose element list is new is read in a second phase, in `lists`, after
+# the walk has tested every cell of the frame, because its list can read the size
+# of other graphics and compute their cells. Under that canvas the walk compares
+# by value (`by_value`): a read of the list can have computed the cells below it,
+# so a stale cell there says nothing. A container records its bounds from the
+# records of what it draws, so the first phase queues that in `lists` too, after
+# the lists below it, and it runs after their recordings. The clip of a viewport,
+# in the `clips` of the walk that holds it, runs after every recording, because a
+# recording adds the rectangles it clips; a viewport keeps the clips of the
+# viewports inside it and runs them first.
 struct _DirtyWalk
     region::_DirtyRegion
     deferred::Vector{Function}
+    lists::Vector{Function}
+    clips::Vector{Function}
+    by_value::Bool
 end
-_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[])
+_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[], Function[], Function[], false)
+
+# The walk of the second phase under a canvas of `walk` whose list is new.
+_make_by_value_walk(walk::_DirtyWalk) =
+    _DirtyWalk(walk.region, walk.deferred, walk.lists, walk.clips, true)
+
+# The walk of the content of a viewport: a region and clips of its own.
+_make_viewport_walk(walk::_DirtyWalk) =
+    _DirtyWalk(_DirtyRegion(), walk.deferred, walk.lists, Function[], walk.by_value)
 
 # Run `f` after the walk. True, so a caller can answer that something changed.
 _defer!(walk::_DirtyWalk, f::Function) = (push!(walk.deferred, f); true)
+
+# Run `f`, which records the bounds of a container from the records of what it
+# draws, after the recordings of everything inside the container. In the first
+# phase a list below it can wait for the second phase, so `f` waits too.
+_defer_refresh!(walk::_DirtyWalk, f::Function) =
+    walk.by_value ? _defer!(walk, f) : (push!(walk.lists, () -> _defer!(walk, f)); true)
 
 # Clear the place of a graphic that was painted and that the render no longer
 # reaches, and forget it. False when it was not painted: the render did not reach
@@ -2100,6 +2198,8 @@ function _clear_left_view!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt)
     delete!(res.dirty_bounds, key)
     delete!(res.painted.origins, key)
     delete!(res.painted.viewports, key)
+    delete!(res.painted.members, key)
+    delete!(res.painted.signatures, key)
     true
 end
 
@@ -2123,6 +2223,8 @@ function _forget_painted_geometry!(res::SdlWindowResources)
     empty!(res.dirty_bounds)
     empty!(res.painted.origins)
     empty!(res.painted.viewports)
+    empty!(res.painted.members)
+    empty!(res.painted.signatures)
     res.painted.baseline = 0
     nothing
 end
@@ -2132,7 +2234,8 @@ end
 const _PAINTED_RECORD_SLACK = 10_000
 
 _count_painted_records(res::SdlWindowResources) =
-    length(res.dirty_bounds) + length(res.painted.origins) + length(res.painted.viewports)
+    length(res.dirty_bounds) + length(res.painted.origins) + length(res.painted.viewports) +
+    length(res.painted.members) + length(res.painted.signatures)
 
 _is_painted_geometry_full(res::SdlWindowResources) =
     _count_painted_records(res) > 2 * res.painted.baseline + _PAINTED_RECORD_SLACK
@@ -2162,10 +2265,10 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     # must not be mistaken for "dirty"). `(ox, oy)` already holds this canvas's own
     # offset, which the caller read, so the place is compared by value.
     moved = get(res.painted.origins, key, nothing) != (ox, oy)
-    unit = moved || !is_cell_up_to_date(elements_cell)
+    list_changed = walk.by_value || !is_cell_up_to_date(elements_cell)
     ev = elements_cell[]                 # read after capturing validity above
-    if !unit && ev isa CellVector && !is_cell_up_to_date(getfield(ev, :elements))
-        unit = true                      # the regenerated element vector changed
+    if !list_changed && ev isa CellVector && !is_cell_up_to_date(getfield(ev, :elements))
+        list_changed = true              # the regenerated element vector changed
     end
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
@@ -2174,9 +2277,16 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
         # was never painted, reflows as a changed spine does.
         res.painted.origins[key] = (ox, oy)
         return _collect_listnode_dirty!(res, ev, key, ox, oy, edges, layout, early, walk;
-                                        reflow = unit)
+                                        reflow = moved || list_changed)
     end
-    if !unit
+    if !moved && list_changed && haskey(res.painted.members, key)
+        # A new element list, read in the second phase and walked by value.
+        walk.by_value && return _collect_new_elements_dirty!(res, canvas, key, ox, oy, edges, walk)
+        push!(walk.lists, () -> _collect_new_elements_dirty!(res, canvas, key, ox, oy, edges,
+                                                             _make_by_value_walk(walk)))
+        return true
+    end
+    if !moved && !list_changed
         # The walk starts where the render starts. A search that would read a
         # stale slot answers nothing, and the canvas is painted whole.
         start = _find_first_walked_index(canvas, ev, ox, oy, edges)
@@ -2186,8 +2296,8 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
                                                            ox, oy, edges, layout, early, walk)
             if !stale_slot
                 return changed &&
-                       _defer!(walk, () -> _refresh_canvas_bounds!(res, ev, key, first, ox, oy, edges,
-                                                                   layout, early))
+                       _defer_refresh!(walk, () -> _refresh_canvas_bounds!(res, ev, key, first, ox, oy,
+                                                                           edges, layout, early))
             end
         end
     end
@@ -2255,18 +2365,63 @@ function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, first:
     (false, changed)
 end
 
-# Record the bounds of a canvas again, from the records of the elements it draws.
-function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::Int,
-                                 ox::Int, oy::Int, edges::_ClipEdges, layout::LayoutDirection,
-                                 early::Bool)
-    drawn = _DirtyAcc()
+# The elements of a canvas whose element list is new and that did not move, in a
+# walk by value. Each element is taken by its placement key, as in a list that did
+# not change: a new one is painted, a moved one at its old and new place, a kept
+# one only when it draws something else. What the canvas drew before and does not
+# draw now is cleared: an element that left the list, or the view. Where elements
+# can overlap, the order draws too: a kept element that has another place in the
+# order is painted again.
+function _collect_new_elements_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
+                                      ox::Int, oy::Int, edges::_ClipEdges, walk::_DirtyWalk)
+    ev = canvas.elements
+    layout = canvas.layout
+    early = _is_early_stop_layout(canvas)
+    first = _compute_first_drawn_index(canvas, ox, oy, edges)
+    drawn = UInt[]
     for i in first:length(ev)
         elem = ev[i]
         elem isa GraphicsFence && continue
         _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
-        b = get(res.dirty_bounds, _make_placement_key(elem, key), nothing)
+        elem_key = _make_placement_key(elem, key)
+        push!(drawn, elem_key)
+        _collect_dirty_elem!(res, elem, elem_key, ox, oy, edges, walk, false)
+    end
+    old_members = res.painted.members[key]
+    drawn_set = Set(drawn)
+    for old in old_members
+        old in drawn_set || _clear_left_view!(res, walk, old)
+    end
+    if canvas.overlapping_elements
+        old_set = Set(old_members)
+        kept_now = [k for k in drawn if k in old_set]
+        kept_before = [k for k in old_members if k in drawn_set]
+        for (now, before) in zip(kept_now, kept_before)
+            now == before && continue
+            bounds = get(res.dirty_bounds, now, nothing)
+            bounds === nothing || _add_dirty_rect!(walk.region, bounds)
+        end
+    end
+    _defer_refresh!(walk, () -> _refresh_canvas_bounds!(res, ev, key, first, ox, oy, edges, layout, early))
+end
+
+# Record the bounds of a canvas again, from the records of the elements it draws,
+# and the keys of those elements.
+function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::Int,
+                                 ox::Int, oy::Int, edges::_ClipEdges, layout::LayoutDirection,
+                                 early::Bool)
+    drawn = _DirtyAcc()
+    members = UInt[]
+    for i in first:length(ev)
+        elem = ev[i]
+        elem isa GraphicsFence && continue
+        _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
+        elem_key = _make_placement_key(elem, key)
+        push!(members, elem_key)
+        b = get(res.dirty_bounds, elem_key, nothing)
         b === nothing || _acc_extend!(drawn, b)
     end
+    res.painted.members[key] = members
     _record_bounds!(res, key, _acc_tuple_or_nothing(drawn))
 end
 
@@ -2279,8 +2434,19 @@ function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int,
         return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, walk)
     elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, walk)
     # A leaf new to the screen, or one with an in-place-mutated (stale) field cell.
-    (leaf_dirty || !_is_painted(res, key)) || return false
-    _union_unit!(res, walk, key, () -> _record_painted_element!(res, elem, key, ox, oy, edges))
+    record = () -> _record_painted_element!(res, elem, key, ox, oy, edges)
+    _is_painted(res, key) || return _union_unit!(res, walk, key, record)
+    (leaf_dirty || walk.by_value) || return false
+    # A leaf that draws what it drew, where it drew it, is not painted.
+    _defer!(walk, () -> begin
+        old = get(res.dirty_bounds, key, nothing)
+        old_signature = get(res.painted.signatures, key, nothing)
+        new = record()
+        new == old && old_signature !== nothing &&
+            old_signature == get(res.painted.signatures, key, nothing) && return
+        old === nothing || _add_dirty_rect!(walk.region, old)
+        new === nothing || _add_dirty_rect!(walk.region, new)
+    end)
 end
 
 # A viewport clips its content, so its dirty contribution is clamped to its own
@@ -2300,11 +2466,14 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
     end
     cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
     # The content can answer that nothing changed in its bounds while a viewport
-    # inside it has rectangles to give, so the clip is always deferred; an empty
-    # region costs nothing there.
-    inner = _DirtyWalk(_DirtyRegion(), walk.deferred)
+    # inside it has rectangles to give, so the clip always runs, after the
+    # recordings; an empty region costs nothing there. The clips of the viewports
+    # inside the content, also those that the second phase finds, run first, so
+    # they add their rectangles before this one clips them.
+    inner = _make_viewport_walk(walk)
     _collect_canvas_dirty!(res, content, _make_placement_key(content, key), cox, coy, cedges, inner)
-    _defer!(walk, () -> begin
+    push!(walk.clips, () -> begin
+        foreach(clip -> clip(), inner.clips)
         isempty(inner.region.rects) && return
         # Under a scale the content's dirty region is in scaled content units;
         # rather than map every sub-rect through the transform, treat any dirty
@@ -2459,7 +2628,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
                 value_key = _make_placement_key(val, nkey)
                 # Something changed inside the value: the node's record follows it.
                 _collect_dirty_elem!(res, val, value_key, ox, oy, edges, walk, false) &&
-                    (changed = _defer!(walk, () ->
+                    (changed = _defer_refresh!(walk, () ->
                         _record_bounds!(res, nkey, get(res.dirty_bounds, value_key, nothing))))
             end
         end
@@ -2467,7 +2636,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     changed || return false
     # The bounds of the list are those of the nodes it draws, so a list that
     # moves or leaves the view clears them.
-    _defer!(walk, () -> begin
+    _defer_refresh!(walk, () -> begin
         drawn = _DirtyAcc()
         for (_, nkey, _, _) in visited
             b = get(res.dirty_bounds, nkey, nothing)
@@ -2477,8 +2646,9 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     end)
 end
 
-# Compute the dirty region for `canvas` (the whole window content): the walk,
-# then the recordings it deferred. Each rectangle is clamped to the window and
+# Compute the dirty region for `canvas` (the whole window content): the walk, the
+# new element lists it queued, the recordings it deferred, and the clips of the
+# viewports (see `_DirtyWalk`). Each rectangle is clamped to the window and
 # padded a couple of logical pixels so anti-aliased glyph edges straddling the
 # clip boundary are not clipped. Empty when nothing changed. Recording what was
 # painted is a side effect, so this is also called (its region ignored) on the
@@ -2487,7 +2657,13 @@ function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
     walk = _DirtyWalk()
     _collect_canvas_dirty!(res, canvas, _make_placement_key(canvas, UInt(0)),
                            0, 0, _ClipEdges(0, 0, res.width, res.height), walk)
+    i = 0
+    while i < length(walk.lists)
+        i += 1
+        walk.lists[i]()
+    end
     foreach(record -> record(), walk.deferred)
+    foreach(clip -> clip(), walk.clips)
     pad = 2
     padded = _DirtyRegion()
     for r in walk.region.rects
@@ -3101,11 +3277,13 @@ function print_document(p::GraphicsCanvasToImageFile,
     SimpleIoMap(p, canvas, output)
 end
 
-function map_reference_forward(::GraphicsCanvasToImageFile, iomap, reference)
+function ProjecturedKernel.ProjectionModule.map_reference_forward(
+        ::GraphicsCanvasToImageFile, iomap, reference)
     nothing
 end
 
-function map_reference_backward(::GraphicsCanvasToImageFile, iomap, reference)
+function ProjecturedKernel.ProjectionModule.map_reference_backward(
+        ::GraphicsCanvasToImageFile, iomap, reference)
     nothing
 end
 
@@ -3211,6 +3389,30 @@ function _emit_frame_with_overlay!(off, width::Integer, height::Integer, overlay
     nothing
 end
 
+# Draw `overlay` over the frame saved in `picture` and save the result as
+# `filename`. The frame has the size of the output of `off`, so the overlay is
+# drawn at the scale of the output, as `_emit_frame_with_overlay!` draws it.
+function _save_picture_with_overlay!(off, picture::AbstractString, overlay::GraphicsCanvas,
+                                     width::Integer, height::Integer, filename::AbstractString)
+    surface = IMG_Load(picture)
+    surface == C_NULL &&
+        error("_save_picture_with_overlay!: failed to load $picture: $(unsafe_string(SDL_GetError()))")
+    try
+        renderer = SDL_CreateSoftwareRenderer(surface)
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
+        SDL_RenderSetScale(renderer, Float32(off.sc), Float32(off.sc))
+        _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), off.sc)
+        SDL_RenderFlush(renderer)
+        _evict_renderer_textures!(renderer)
+        SDL_DestroyRenderer(renderer)
+        IMG_SavePNG(surface, filename) == 0 ||
+            error("_save_picture_with_overlay!: IMG_SavePNG failed for $filename: $(unsafe_string(SDL_GetError()))")
+    finally
+        SDL_FreeSurface(surface)
+    end
+    nothing
+end
+
 
 # ════════════════════════════════════════════════════════════════════════
 # Application lifecycle
@@ -3226,6 +3428,7 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     # with an event left over from its last life.
     backend.pending_input = nothing
     backend.pending_motion = nothing
+    backend.modifiers = _current_modifiers()
     # The wake event, registered once per SDL life. `SDL_RegisterEvents`
     # answers `(Cuint)-1` when the pool is exhausted; the wait then degrades
     # to its timeout slices and nothing else is lost.
@@ -3456,8 +3659,8 @@ end
 Pop SDL events until one of them surfaces as a `WindowInput`, and answer a pair
 in which exactly one member is non-`nothing`: `motion` for a `MouseMove`,
 `other` for every other input. An SDL event the backend does not surface (a
-window event it ignores, a text input that maps to no key) is skipped here, so
-`(nothing, nothing)` means the queue is empty and nothing else.
+window event it ignores, a text input that maps to no key, a button with no name)
+is skipped here, so `(nothing, nothing)` means the queue is empty and nothing else.
 
 `read_from_devices` runs it in a loop and keeps only the newest motion.
 """
@@ -3512,25 +3715,28 @@ function _poll_window_input(backend::SdlBackend)
             # the insertion, the command palette and every other reader that binds
             # it. The editor loop quits on an Escape that nothing handled.
             is_repeat = evt.key.repeat != 0
+            backend.modifiers = sdl_modifiers(evt.key.keysym.mod)
             keydown = sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat;
                                      time = event_time)
             return (WindowInput(wid, keydown), nothing)
 
         elseif t == 0x00000301  # SDL_KEYUP
             wid = _lookup_window_id(backend, evt.key.windowID)
+            backend.modifiers = sdl_modifiers(evt.key.keysym.mod)
             keyup = sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod;
                                  time = event_time)
             return (WindowInput(wid, keyup), nothing)
 
         elseif t == 0x00000303  # SDL_TEXTINPUT
-            kp = sdl_to_keypress(evt; time = event_time)
+            kp = sdl_to_keypress(evt; modifiers = backend.modifiers, time = event_time)
             kp === nothing && continue
             wid = _lookup_window_id(backend, evt.text.windowID)
             return (WindowInput(wid, kp), nothing)
 
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
-            mods = _current_modifiers()
+            button === nothing && continue    # a button with no name makes no event
+            mods = backend.modifiers
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
             return (WindowInput(wid, MouseDown(button, x, y, mods; time = event_time)),
@@ -3538,17 +3744,16 @@ function _poll_window_input(backend::SdlBackend)
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
-            mods = _current_modifiers()
+            button === nothing && continue    # a button with no name makes no event
+            mods = backend.modifiers
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
             return (WindowInput(wid, MouseUp(button, x, y, mods; time = event_time)),
                     nothing)
 
         elseif t == 0x00000400  # SDL_MOUSEMOTION
-            mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
-            bstate = UInt32(SDL_GetMouseState(mx_ref, my_ref))
-            buttons = _get_held_mouse_buttons(bstate)
-            mods = _current_modifiers()
+            buttons = _get_held_mouse_buttons(evt.motion.state)
+            mods = backend.modifiers
             wid = _lookup_window_id(backend, evt.motion.windowID)
             # The motion slot of the pair. The caller keeps only the newest of a
             # run of these, and applies the rate limit to what it keeps.
@@ -3560,7 +3765,7 @@ function _poll_window_input(backend::SdlBackend)
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
             SDL_GetMouseState(mx_ref, my_ref)
-            mods = _current_modifiers()
+            mods = backend.modifiers
             wid = _lookup_window_id(backend, evt.wheel.windowID)
             dx, dy = Int(evt.wheel.x), Int(evt.wheel.y)
             if mods.shift && dx == 0
@@ -3775,10 +3980,10 @@ function _queue_display_update!(backend::SdlBackend, id::Symbol)
 end
 
 # Queue a move at the point where the pointer is now, in the window under it, with
-# the buttons that are held now. A frame that changed a window can put another
-# part under a pointer that does not move, and the readers find it by this move.
-# It waits as a motion sample, so a newer motion replaces it. A pointer on no
-# window of this backend gives no move.
+# the buttons that are held now and the modifiers of the last key event read. A
+# frame that changed a window can put another part under a pointer that does not
+# move, and the readers find it by this move. It waits as a motion sample, so a
+# newer motion replaces it. A pointer on no window of this backend gives no move.
 function _queue_pointer_move!(backend::SdlBackend)
     id = _find_pointer_window(backend)
     id === nothing && return nothing
@@ -3787,7 +3992,7 @@ function _queue_pointer_move!(backend::SdlBackend)
     buttons = _get_held_mouse_buttons(UInt32(SDL_GetMouseState(x_ref, y_ref)))
     backend.pending_motion = WindowInput(id,
         MouseMove(_to_logical(Int(x_ref[]), ratio), _to_logical(Int(y_ref[]), ratio),
-                  buttons, _current_modifiers(); time = time()))
+                  buttons, backend.modifiers; time = time()))
     nothing
 end
 
@@ -4077,8 +4282,7 @@ end
 BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename)
 
 # Display size via the generic seam (delegates to the SDL-specific query).
-BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
-    get_sdl_display_size(; display=display)
+BackendModule.get_display_size(::SdlBackend) = get_sdl_display_size()
 
 # Fill the first `Display` in `devices` with the usable size and the scale of the
 # real display, and draw with it from now on: its `zoom` then steps with

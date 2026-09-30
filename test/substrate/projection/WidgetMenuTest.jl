@@ -223,15 +223,19 @@ end
     _mtt_move!(MttDriver(proj, menu), xy[1] + 2, xy[2] + 2, 1.0)
     @test get_mouse_target(item) !== nothing
 
-    # A lit item renders an extra (hover surface) element vs an un-lit one.
+    # A lit item draws one more surface as large as the item: the layer of the
+    # light, which has no size while the pointer is off the item.
+    full_surfaces(io) = begin
+        size = (Int(io.output.w[]), Int(io.output.h[]))
+        count(e -> e isa GraphicsRect && (Int(e.w), Int(e.h)) == size,
+              map(e -> e isa CellModule.Cell ? e[] : e, collect(io.output.elements)))
+    end
     plain = print_document(proj, WidgetMenuItem("New"))
-    hov   = WidgetMenuItem("New"); getfield(hov, :mouse_target)[] = EmptyReference()
-    hovio = print_document(proj, hov)
-    @test length(collect(hovio.output.elements)) > length(collect(plain.output.elements))
-    # A disabled lit item shows no surface (same element count as plain).
+    lit   = WidgetMenuItem("New"); getfield(lit, :mouse_target)[] = EmptyReference()
+    @test full_surfaces(print_document(proj, lit)) == full_surfaces(plain) + 1
+    # A disabled lit item shows no surface.
     dis = WidgetMenuItem("New"; enabled=false); getfield(dis, :mouse_target)[] = EmptyReference()
-    @test length(collect(print_document(proj, dis).output.elements)) ==
-          length(collect(plain.output.elements))
+    @test full_surfaces(print_document(proj, dis)) == full_surfaces(plain)
 end
 
 end # @testset

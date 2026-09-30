@@ -4,9 +4,9 @@
 
 The editor ties everything together: it owns the document, the projection
 pipeline, the backend, and the input devices, and runs a read-eval-print loop
-that responds to user input. The implementation lives in
-[source/kernel/editor/EditorModule.jl](../../../source/kernel/editor/EditorModule.jl), whose `run_editor!`
-function is the entry point.
+that responds to user input. The implementation lives in the nine files of
+[source/kernel/editor/](../../../source/kernel/editor/), and `run_editor!` of
+[EditorLoop.jl](../../../source/kernel/editor/EditorLoop.jl) is the entry point.
 
 ## The Editor struct
 
@@ -21,6 +21,14 @@ mutable struct Editor
     inbox::Channel{Operation}
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
+    faults::FaultStore
+    fault_policy::FaultPolicy
+    replaced_projection::Union{Projection, Nothing}
+    feeds::Vector{Feed}
+    wake_pending::Threads.Atomic{Bool}
+    frame_measurements::FrameMeasurementStore
+    loop_task::Union{Task, Nothing}
+    timers::Dict{Symbol, Float64}
 end
 ```
 
@@ -36,7 +44,7 @@ end
 - `tools` — what this editor exposes to an agent: the `ToolSet` an agent loop
   drives and an MCP server publishes, empty until
   `register_default_tools!(editor.tools)` fills it. Per editor, so two editors
-  in one process share neither a tool list nor an `execute_julia_code`
+  in one process share neither a tool list nor an `execute_julia_code!`
   namespace — see [agent.md](agent.md)
 - `inbox` — what was posted from outside the editor's own task; see
   [The inbox](#the-inbox)
@@ -44,22 +52,43 @@ end
   `read_intent` to translate the next event back to a domain operation
 - `operation` — the most recent operation; used by `evaluate!` and the
   per-frame log
+- `faults` — the `FaultStore` of this editor: every barrier writes to it, and
+  each frame drains it; see [fault.md](../fault/fault.md)
+- `fault_policy` — what the barriers do with a fault. `Editor(…)` starts with
+  `make_strict_fault_policy()`, `make_editor` turns the barriers on, and
+  `run_editor!` keeps the policy of its editor
+- `replaced_projection` — the projection that the safe mode put aside, or
+  `nothing` while the editor is not in the safe mode
+- `feeds` — the registered inflows, drained once per frame, with the built-in
+  `InboxFeed` first; see [The feeds](#the-feeds)
+- `wake_pending` — set by `wake_editor!` from any task; each frame takes every
+  wake posted before it
+- `frame_measurements` — the `FrameMeasurementStore` of the last frames; see
+  [Performance counters](#performance-counters)
 - `loop_task` — the task that runs `run_editor!`, or `nothing` while no loop
   runs; see [A call on the editor task](#a-call-on-the-editor-task)
+- `timers` — the timers that readers set with `SetTimerOperation`: the time of
+  each, by its name; see [The Read-Eval-Print loop](#the-read-eval-print-loop)
 
 ## The Read-Eval-Print loop
 
 `run_editor!(editor)` executes (the fault barriers around each stage elided):
 
 ```julia
+editor.iomap === nothing && print!(editor)   # an editor with no IoMap prints first
+t_start = time_ns()                          # the monotonic clock
 while true
-    if !editor.wake_pending[]                        # a pending wake skips the wait
-        timeout = compute_wait_timeout(editor)       # animation, feed deadlines, timers, else Inf
-        timeout > 0 && wait_for_input(editor.backend, editor.devices, timeout)
+    # A pending wake skips the wait; else animation, feed deadlines, timers, else Inf.
+    timeout = editor.wake_pending[] ? 0.0 : compute_wait_timeout(editor)
+    if timeout > 0
+        wait_for_input(editor.backend, editor.devices, timeout)
+    else
+        yield()                      # the turn of the other tasks of this thread
     end
     Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
     with_performance_counters() do   # bind a fresh per-frame counter store
-        set_clock_time!(editor.clock, Base.time() - t_start)  # tick the animation clock
+        wall_time = (time_ns() - t_start) / 1e9
+        set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))
         drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
         perf!(editor)                # log reactive counters
@@ -92,22 +121,29 @@ a frame happened, such as the frame statistics or a reflected value, writes at
 most once per interval, so that the frames do not feed themselves.
 The wake-pending flag starts set, so the first frame paints before the first
 wait. A backend without a wait of its own sleeps one 10 ms poll slice per
-call — the cadence this loop had when it slept — and that slice is also where
-cooperative `@async` tasks on the thread get their turn.
+call, and that slice is also where cooperative `@async` tasks on the thread get
+their turn. A frame that does not wait yields once for the same reason.
 
 `run_frame!` is what a burst of input runs through:
 
 ```julia
 function run_frame!(editor)
+    report_frame_faults!(editor)           # the faults of the last frame, before any read
     applied = nothing
+    is_input_left = true
     for _ in 1:MAX_OPERATIONS_PER_FRAME    # = 32
-        read!(editor) || break             # poll devices → read_intent → editor.operation
+        if !read!(editor)                  # poll devices → read_intent → editor.operation
+            is_input_left = false
+            break
+        end
         evaluate!(editor)                  # evaluate_operation(editor, editor.operation)
         applied = editor.operation
         editor.iomap === nothing && break  # a projection-invalidating op ends the frame early
     end
+    is_input_left && (editor.wake_pending[] = true)  # the next frame does not wait
     editor.operation = applied
     print!(editor)                         # print_document → editor.iomap; render to devices
+    # then the safe mode, when the print failed in too many frames in a row
 end
 ```
 
@@ -197,7 +233,7 @@ handed to each store as a callback at registration. A feed whose data arrives
 only with frames (the frame statistics) never wakes; it answers a deadline
 from `compute_wake_deadline` instead, and the wait honours the minimum.
 
-The concrete feeds so far:
+The concrete feeds:
 
 | feed | producer | store shape | target |
 | --- | --- | --- | --- |
@@ -205,10 +241,11 @@ The concrete feeds so far:
 | `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
 | `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FramePlot` |
 | `ReflectionFeed` (`ProjecturedReflection`) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
+| `TooltipFeed` (`ProjecturedTooltip`) | the probe of a window, on each pointer event | the place and the time of the last move | the inbox: at its deadline it posts the operation that the projection answers for a `PointerRest` |
 
-The fault store predates the feeds and stays what it is: `run_frame!` reports
-it at its top, so a hand-driven frame collects its faults too; it joined only
-the wake protocol (`attach_fault_wake!`). The whole rule is
+The fault store is not a feed: `run_frame!` reports it at its top, so a
+hand-driven frame collects its faults too. It uses only the wake protocol of the
+feeds (`attach_fault_wake!`). The whole rule is
 `PAR-STORE-THEN-DRAIN` in
 [architecture-invariants.md](../../rule/architecture-invariants.md).
 
@@ -220,10 +257,10 @@ because a timer belongs to no window. Otherwise `read_from_devices(backend,
 devices)` polls the backend's event queue (in the SDL case, `SDL_PollEvent`)
 for a `WindowInput` wrapping a backend-agnostic event: `KeyDown`, `KeyUp`,
 `KeyPress`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll`, `WindowQuit`,
-or `WindowClose`. The editor recognizes no gesture: a projection runs the
-recognitions of the gesture layer, such as the gesture tracking projection
-that the screen package puts around the screen; see
-[gesturetracking.md](../gesturetracking/gesturetracking.md).
+`WindowClose`, `WindowResize`, `WindowDefocus` or `WindowLeave`. The editor
+recognizes no gesture: a projection runs the recognitions of the gesture layer,
+such as the gesture tracking projection that the screen package puts around the
+screen; see [gesturetracking.md](../gesturetracking/gesturetracking.md).
 
 The window input is wrapped in an `Intent` and passed through
 `read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)`
@@ -322,57 +359,95 @@ edit from a pane tree to the root; see
 
 ## Running an editor
 
-The entry point is the bootstrap overload
-`run_editor!(backend, projection, document; mcp=false, mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing, devices=…, feeds=…, fault_policy=…)`:
+Three functions make an editor, and they differ in what they decide for the
+caller:
+
+- `make_editor(document, projection; backend, devices, feeds, fault_policy)`
+  decides nothing. The caller names the backend, and no wrapper is applied. A
+  test and a program that wants exact control call it.
+- `build_editor(document, projection; backend = nothing, devices, feeds,
+  fault_policy, wrappers...)` chooses the backend when none is given, applies
+  the wrappers, and then calls `make_editor`. `build_editor(document; ...)`
+  takes the projection from `make_document_projection(document)`.
+- `run_editor!(document, projection; wait = true, mcp = false, keywords...)` and
+  `run_editor!(document; ...)` are `build_editor` and then the loop. With
+  `wait = false` the call returns the editor at once, and the editor is built
+  and runs on a task pinned to another thread of the default pool, because a
+  backend such as SDL answers only the thread that started it. The task is
+  `editor.loop_task` until the loop ends.
+
+The raw constructor has the same shape:
+`Editor(document, projection; backend, devices, clock, tools, faults,
+fault_policy, feeds)`. It builds the state and does nothing else: it starts no
+backend and prints nothing, and its fault policy is strict.
 
 ```julia
 using Projectured
 
-backend  = SdlBackend()
 document = JsonString("hello world")
-proj     = ChainingProjection(
+projection = ChainingProjection(
     JsonToSyntax(),
     SyntaxToText(),
     TextToGraphics(measure = FontFileMeasure()),
 )
 
-run_editor!(backend, proj, document)
+run_editor!(document, projection)                          # the one loaded backend
+run_editor!(document, projection; backend = WebBackend())  # a browser
 ```
 
-The backend is pluggable: swap `SdlBackend()` for `WebBackend()` to run the same
-editor in a browser instead of a native window (see the
-[devices and backends guide](devices-and-backends.md#webbackend)), or
-`ConsoleBackend()` for the terminal. Nothing else changes.
+**The choice of the backend.** A backend package declares its type with two
+seams: `get_backend_name(::Type{SdlBackend}) = :sdl`, and
+`get_backend_output(::Type{SdlBackend}) = :windows`. With no `backend`,
+`make_default_backend(:windows)` takes the one loaded type that draws windows.
+With none, or with more than one, it raises an error that names the loaded
+backends, because an order of preference would change the backend of a program
+when one more package is loaded. A backend with no method of
+`get_backend_output`, such as a recorder or a test double, is never chosen.
 
-This overload is `make_editor(backend, projection, document; devices, feeds,
-fault_policy)` and then `run_editor!(editor)`. `make_editor` calls
-`initialize_backend!(backend)`, takes a `Vector{Device}` (default `Display()`,
-`Keyboard()`, `Mouse()`), populates their physical properties from the backend
-with `configure_devices!`, opens the native windows with `open_native_windows!`,
-constructs the `Editor`, and prints it once. The windows
-are opened before the first frame, and the document is corrected to the geometry
-the window system granted: a manager may grant less than it is asked for, and it
-answers only once the window exists, so a document projected first is projected
-at a size the window never has and computes a second time when the answer
-arrives. A window a projection opens later — a tooltip, a popup — is still
-opened on demand, by `write_to_devices` against the `ScreenDocument` output (the
-pipeline is expected to end in one).
+**The wrappers.** A wrapper is a keyword of `build_editor`, such as
+`dragging = true`. A package declares it with methods for `Val{keyword}`:
+
+| Seam | What it answers |
+|---|---|
+| `wrap_editor!(::Val{k}, layer, setting, parts::EditorParts)` | changes the document, the projection, the feeds and the start steps of the editor that is made |
+| `get_wrapper_layers(::Val{k})` | the layers it acts in, each with a number that orders it in the layer, as `(:document => 70,)` |
+| `get_excluded_wrappers(::Val{k})` | the keywords that can not be on with it; none by default |
+| `is_wrapper_default(::Val{k})` | whether it is on when the caller does not name it; off by default |
+
+The layers are `:document`, `:container`, `:window` and `:screen`, from the
+inside out. The value of a keyword is its setting: `true` for the defaults, a
+`NamedTuple` of settings, or `false` to turn off a wrapper that is on by
+default. A keyword that no loaded package declares is an error when it is on,
+and is ignored when it is off.
+
+`make_editor` calls `initialize_backend!(backend)`, takes a `Vector{Device}`
+(default `Display()`, `Keyboard()`, `Mouse()`), populates their physical
+properties from the backend with `configure_devices!`, opens the native windows
+with `open_native_windows!`, constructs the `Editor`, and prints it once. The
+windows are opened before the first frame, and the document is corrected to the
+geometry the window system granted: a manager may grant less than it is asked
+for, and it answers only once the window exists, so a document projected first
+is projected at a size the window never has and computes a second time when the
+answer arrives. A window a projection opens later — a tooltip, a popup — is
+still opened on demand, by `write_to_devices` against the `ScreenDocument`
+output (the pipeline is expected to end in one).
 `run_editor!(editor)` runs the loop, and calls `quit_backend!(editor.backend)` in
 a `finally` block when the loop ends. `make_editor` quits the backend too when the
-build or the print throws. Pass
-`mcp=true` to start an MCP server alongside the loop, and `mcp_instructions` to
-override the text the MCP server's `initialize` response sends a connecting
-client (see [MCP server](#mcp-server)) — omitted, the server uses its own
-default. `mcp_host` and `mcp_port` say where the server listens, and each one
-that is omitted keeps the server's default, `127.0.0.1` and `9876`. A backend
-that drives a different channel passes its own `devices` (the `ConsoleBackend`
-uses `devices = Device[Keyboard()]` — no `Display`/`Mouse`).
+build or the print throws. Pass `mcp = true` to `run_editor!(editor)` to start
+an MCP server alongside the loop. The setting can also be a `NamedTuple`:
+`instructions` overrides the text the MCP server's `initialize` response sends a
+connecting client (see [MCP server](#mcp-server)), and `host` and `port` say
+where the server listens. A field that is left out keeps the server's default:
+its own text, `127.0.0.1` and `9876`. A backend that
+drives a different channel passes its own `devices` (the `ConsoleBackend` uses
+`devices = Device[Keyboard()]` — no `Display`/`Mouse`).
 
 A caller with work to do before the loop calls the two halves itself. It gets the
-editor from `make_editor`, does its work, and then runs the loop:
+editor from `make_editor` or `build_editor`, does its work, and then runs the
+loop:
 
 ```julia
-editor = make_editor(backend, proj, document)
+editor = make_editor(document, projection; backend)
 attach_fault_target!(editor.faults, log)   # hand the editor on
 @async drive(editor)                       # a driver that posts its work
 focus_pane!(editor, reference)             # an edit through the readers
@@ -382,8 +457,9 @@ run_editor!(editor)
 The editor from `make_editor` has printed once, so `editor.iomap` exists, and an
 edit that reads through the readers (`read_rooted_operation`, the pane verbs)
 works before the loop. `make_editor` reads no input: only the loop reads the
-backend. The screen package has the same pair for a window:
-`make_editor(document, projection, title; backend, …)` and `run_window_editor`.
+backend. The `window` wrapper of the screen package puts the document in one
+window when the backend draws windows, and `window = (; title, width, height)`
+gives it a title and a size.
 
 ## Scripted live playback
 
@@ -393,7 +469,7 @@ session plays out on a real window while the user watches (and can still
 interact — real input is polled every frame, and Escape / window-close quits).
 
 ```julia
-play_live!(backend, projection, document, timeline;
+play_live!(document, projection, timeline; backend,
            window_id::Symbol, initial_hold=0.5,
            op_prefix=EmptyReference())
 ```
@@ -437,10 +513,14 @@ In the example packages this is wired up for you — see `play_live_example` and
 
 - `Device` is an abstract type. Concrete subtypes are `Display`, `Keyboard`,
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
-- `Backend` is the abstraction over the display/input platform. There are two
-  implementations: `SdlBackend` (graphics) and `ConsoleBackend` (terminal). The
-  backend provides `initialize_backend!`, `quit_backend!`, and
-  the per-frame device I/O `read_from_devices` / `write_to_devices`.
+- `Backend` is the abstraction over the display/input platform. There are four
+  implementations: `SdlBackend` (native windows), `WebBackend` (a browser page),
+  `ConsoleBackend` (a terminal) and `VideoBackend` (the frames of a video file),
+  and the test double `HeadlessBackend`. The backend provides
+  `initialize_backend!`, `quit_backend!`, the per-frame device I/O
+  `read_from_devices` / `write_to_devices`, and the wait between frames
+  `wait_for_input` / `wake_backend!` — see
+  [the devices and backends guide](devices-and-backends.md#backends).
 - Projections that need to measure text take a `measure::TextMeasure` argument
   (e.g. `TextToGraphics`); `FontFileMeasure()` of `ProjecturedStyle` is the
   usual injection, and every backend draws what it measures.
@@ -459,10 +539,10 @@ In the example packages this is wired up for you — see `play_live_example` and
 
 When `run_editor!` starts with `mcp=true`, it constructs an `McpServer` bound to
 the editor when the loop starts, so the server serves the tools that a caller
-registers between `make_editor` and `run_editor!`. It launches the server at `mcp_host` and `mcp_port`,
+registers between `make_editor` and `run_editor!`. It launches the server at the `host` and `port` of the setting,
 `http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
 seam (see
-[source/kernel/agent/AgentModule.jl](../../../source/kernel/agent/AgentModule.jl)). The server
+[source/kernel/agent/AgentInterface.jl](../../../source/kernel/agent/AgentInterface.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
 [ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
 
@@ -472,7 +552,7 @@ preloaded), plus resource listings for guides, modules, classes, and
 function documentation. The intent is that an AI assistant can inspect and
 manipulate `editor.document` and `editor.projection` live.
 
-`execute_julia_code` runs each top-level statement in a **persistent scratch
+`execute_julia_code!` runs each top-level statement in a **persistent scratch
 module**, so a variable assigned in one call (`paths = search_references(…)`)
 stays bound for the next — the caller can build up state incrementally instead
 of resending one large block. It returns what the code printed, then the value
@@ -528,22 +608,41 @@ document through the projection, tick the clock.
 The layer lives in [source/kernel/editor/](../../../source/kernel/editor/):
 
 ```
-EditorModule.jl    (EditorModule)    — the run_editor! loop and Editor struct
-PlaybackModule.jl  (PlaybackModule)  — scripted live playback on a wall-clock timeline
+EditorModule.jl        (EditorModule) — the module: its docstring, imports, exports and fragments
+    ├─ Editor.jl            — Editor, its constructor, the invalidation of its projection,
+    │                         the editor as the start of a reference, and its fault store
+    ├─ Inbox.jl             — post_operation!, wake_editor!, drain_operations!, and the
+    │                         calls that another task runs on the editor task
+    ├─ Feeds.jl             — InboxFeed, the timeout of the wait, the frame
+    │                         measurements, and drain_feeds!
+    ├─ ReadEvaluatePrint.jl — read!, evaluate!, print! and read_rooted_operation
+    ├─ DocumentEdits.jl     — find_rooted_operation, insert_elements! and delete_elements!
+    ├─ SafeMode.jl          — the safe mode, which shows the fault list in place of a
+    │                         projection that fails
+    ├─ FaultBarriers.jl     — the barrier of each stage, the report of the faults of a
+    │                         frame, the limits of the fault counts, and the repairs
+    └─ EditorLoop.jl        — perf!, run_frame!, get_frame_clock_time, run_editor! and
+                              make_editor
 ```
 
-The animation `Clock` type lives in `clock/`
-(every animated projection reads one, so the type belongs beside the engine it
-depends on); each `Editor` likewise owns its own instance in `editor.clock`,
-ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)`
+Scripted playback is a layer of its own, above this one, in `playback/`.
+
+The editor holds no gesture recognizer: the recognitions of the gesture layer
+run in a projection, such as the gesture tracking projection. The animation
+`Clock` type lives in `clock/` (every animated projection reads one, so the type
+belongs beside the engine it depends on); each `Editor` likewise owns its own
+instance in `editor.clock`, ticked once per frame with
+`set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))`
 — invalidating every cell that subscribed to `get_reactive_clock_time(editor.clock)`
 — so two editors in the same process animate independently. What's left in
-`editor/` is the loop itself and its scripted playback.
+`editor/` is the loop itself.
 
 ### Downward edges
 
 - `..ProjectionModule` — `Projection`, `print_document`, `read_intent`,
-  `Intent`, `IoMap`.
+  `PrinterContext`.
+- `..IntentModule` — `Intent`, the unit that `read!` passes to the readers.
+- `..IoMapModule` — `IoMap`, the type of `editor.iomap`.
 - `..DeviceModule` — `Device`, `Display`.
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`,
   `read_from_devices`, `write_to_devices`.
@@ -552,11 +651,21 @@ ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)
 - `..PerformanceModule` — the counters bumped inline in the loop.
 - `..ClockModule` — `Clock`, `set_clock_time!`, `get_reactive_clock_time`.
 - `..DocumentModule` — the abstract `Document` type.
+- `..ReferenceModule` — `Reference` and `DocumentLocator`, so a reference can
+  start at an editor.
+- `..SelectionModule` — `get_selection`, which a repair after a failed
+  operation reads.
+- `..CellModule` — `has_dependent_cells`, which says whether anything animates.
 - `..OperationModule` — the operation abstract + evaluate seam.
+- `..FaultModule` — the store, the policy, the barrier and the report of a
+  fault.
+- `..FeedModule` — `Feed` and its three generics, which the loop drives once per
+  frame.
 - `..ToolModule` — `ToolSet`, the `tools` field every `Editor` owns
   ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
 - `..AgentModule` — the make_agent_server/start/stop seam driven by
-  `Editor` when an agent server is configured.
+  `Editor` when an agent server is configured, and `run_on_editor_task!`, which
+  the editor layer answers for an `Editor`.
 
 That is nearly the full kernel — the editor is the layer that consumes
 every other layer. Playback additionally depends on `EditorModule` (to
@@ -572,5 +681,10 @@ place the loop can be exercised without any real backend package. It covers
 the printer/reader/REPL drivers and navigation (`PrinterTest.jl`,
 `ReaderTest.jl`, `ReplTest.jl`, `NavigationTest.jl`, `ConstructTest.jl`), the
 `Escape`-closes-unless-claimed rule (`EscapeQuitTest.jl`), the inbox
-(`InboxTest.jl`), and the `run_frame!` multi-operation-per-frame batching
-(`FrameDrainTest.jl`).
+(`InboxTest.jl`), the wait between frames (`WaitTest.jl`), the feeds and the
+frame measurements (`FeedsTest.jl`), the fault barriers of the loop
+(`FaultBarriersTest.jl`), the edits through the readers (`DocumentEditsTest.jl`),
+and the `run_frame!` multi-operation-per-frame batching (`FrameDrainTest.jl`).
+The safe mode needs the fault view, so its test is in the suite of
+`ProjecturedFault`, in
+[test/fault/FaultSafeModeTest.jl](../../../test/fault/FaultSafeModeTest.jl).

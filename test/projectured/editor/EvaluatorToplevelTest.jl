@@ -7,7 +7,7 @@
 using Test
 using ProjecturedKernel.ToolModule: ToolSet
 
-# `execute_julia_code` reads the `tools` field of an editor.
+# `execute_julia_code!` reads the `tools` field of an editor.
 mutable struct _EvaluatorToplevelMockEditor; document::Any; tools::ToolSet; end
 
 # Flatten a result document (a `TextBlock`, or another document's own printed
@@ -166,7 +166,7 @@ circles(node, depth = 0) =
     # The host still hears what an evaluation of the evaluator made.
     @test length(seen) == 1 && only(seen) isa GraphicsCircle
     # The code of the assistant runs in the tools of the editor, with its API.
-    @test occursin("UndefVarError", execute_julia_code(tools, ed, "GraphicsCircle(10, 10, 10)"))
+    @test occursin("UndefVarError", execute_julia_code!(tools, ed, "GraphicsCircle(10, 10, 10)"))
 end
 
 @testset "a graphics value draws as itself, not as a tree of its fields" begin
@@ -368,6 +368,38 @@ end
     @test form.form isa PrimitiveString
     @test form.form.value == "x = ("
     @test form.is_error
+end
+
+@testset "a form becomes Julia with an infix operator and with its semicolons" begin
+    for code in ("files = first(search_documents(editor.document, d -> d isa Workspace))",
+                 "push!(toolbar.elements, WidgetToolbarItem(\"Hello\"));",
+                 "k = :a => 1", "x = 1; y = 2")
+        form = evaluated_form(code)
+        @test !(form.form isa PrimitiveString)
+        @test print_natural_text(form.form) == code
+    end
+end
+
+@testset "a form that ends with a semicolon hides its value" begin
+    no_result(form) = form.result isa TextBlock && isempty(form.result.elements)
+    # The value is not shown, and the code ran: the name it bound holds the value.
+    form = evaluated_form("xs = [1, 2, 3];")
+    @test no_result(form)
+    @test !form.is_error
+    @test print_natural_text(form.form) == "xs = [1, 2, 3];"
+    # A comment after the `;` does not show the value either, and a string form
+    # hides it as a Julia document does.
+    @test no_result(evaluated_form("xs = [1, 2, 3];  # three"))
+    @test no_result(evaluated_form("xs = [1, 2, 3];"; parse = false))
+    # A document is not drawn either.
+    @test no_result(evaluated_form("TextBlock(TextString(\"hidden\"));"))
+    # What the code prints still shows, and so does an error.
+    @test _et_flatten(evaluated_form("println(\"shown\"); 42;").result) == "shown"
+    form = evaluated_form("throw(ArgumentError(\"stop\"));")
+    @test form.is_error
+    @test occursin("stop", _et_flatten(form.result))
+    # A `;` between two statements hides nothing.
+    @test _et_flatten(evaluated_form("a = 1; a + 1").result) == "2"
 end
 
 @testset "the parse changes the form, never the result" begin

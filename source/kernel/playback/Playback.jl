@@ -83,7 +83,7 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
     next = 1
     try
         while true
-            read!(editor)
+            EditorModule.read!(editor)
             # When no real-input operation is pending and the next scheduled entry
             # is due, inject it. Real input wins the frame; the scheduled entry
             # retries on the following frame.
@@ -101,24 +101,26 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
 end
 
 """
-    play_live!(backend::Backend, timeline; projection, document, window_id,
+    play_live!(document::Document, projection, timeline; backend::Backend, window_id,
                initial_hold=0.5)
 
-Bootstrap overload: initialise the backend, wire up an `Editor`, and run the
+Bootstrap overload: start the backend as `make_editor` does (`initialize_backend!`,
+`configure_devices!`, `open_native_windows!`), wire up an `Editor`, and run the
 scripted live loop above. Like [`run_editor!`](@ref), the pipeline is expected to
 produce a `ScreenDocument` so the backend opens a real window; `window_id` is the
 `WindowDocument.id` scripted events are routed to. The windows open before the
 first frame, so a recording does not start with the document reflowing to the
 size the window system granted.
 """
-function play_live!(backend::Backend, timeline; projection, document,
+function play_live!(document::Document, projection, timeline; backend::Backend,
                     window_id::Symbol, initial_hold::Real=0.5,
                     op_prefix::Reference=EmptyReference())
     initialize_backend!(backend)
     try
         devices = Device[Display(), Keyboard(), Mouse()]
+        configure_devices!(backend, devices)
         open_native_windows!(backend, get_wrapped_document(document))
-        editor = Editor(backend, document, projection, devices)
+        editor = Editor(document, projection; backend = backend, devices = devices)
         play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold,
                    op_prefix=op_prefix)
     finally

@@ -141,8 +141,7 @@ BackendModule.quit_backend!(b::BrokenWriteBackend) = quit_backend!(b.inner)
 BackendModule.read_from_devices(b::BrokenWriteBackend, devices) = read_from_devices(b.inner, devices)
 BackendModule.open_native_windows!(b::BrokenWriteBackend, document) = open_native_windows!(b.inner, document)
 BackendModule.configure_devices!(b::BrokenWriteBackend, devices) = configure_devices!(b.inner, devices)
-BackendModule.get_display_size(b::BrokenWriteBackend; display::Integer = 0) =
-    get_display_size(b.inner; display = display)
+BackendModule.get_display_size(b::BrokenWriteBackend) = get_display_size(b.inner)
 BackendModule.get_pointer_position(b::BrokenWriteBackend) = get_pointer_position(b.inner)
 BackendModule.wait_for_input(b::BrokenWriteBackend, devices, timeout_seconds) =
     wait_for_input(b.inner, devices, timeout_seconds)

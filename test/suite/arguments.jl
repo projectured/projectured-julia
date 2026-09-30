@@ -38,10 +38,10 @@ const ARGUMENT_PROTOCOL = Set(String[
     "read_intent", "map_reference_forward", "map_reference_backward", "read_gesture",
     "evaluate_operation", "reroot_operation", "retarget_operation", "operation_reference",
     "match_reference_step", "match_reference_step_value", "solve_constraint_layout",
-    "splice_value!", "copy_document", "copy_shadow_element", "get_frozen_extent",
+    "splice_value!", "copy_document",
     "getproperty", "setproperty!", "getindex", "setindex!", "iterate", "length",
     "show", "hash", "isequal", "print", "size", "handle_message", "shouldlog",
-    "sync_document!", "layout_graph",
+    "sync_document!", "layout_graph", "recognize",
 ])
 
 "One definition of a file: where it stands, what it is called, and what it takes."

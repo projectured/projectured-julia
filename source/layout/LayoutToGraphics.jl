@@ -547,6 +547,8 @@ function read_intent(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, ev
     _annotate_operation(iomap.input, reroot_operation(answer, (FieldReferenceStep("child"),)))
 end
 
+# @positional: the container, its children, the child, and the path in the child, in
+# the order of the path that it makes.
 """
     make_slot_reference(canvas, entries, index, inner; drawn) -> Reference | Nothing
 
@@ -580,6 +582,8 @@ function make_slot_reference(canvas, entries::Vector, index::Int, inner::Referen
                       ConcreteReference(RangeReferenceStep(slot - 1, slot), below))
 end
 
+# @positional: the container, its children, their field, and the path, in the order
+# of the path that it reads.
 """
     descend_reference_forward(canvas, entries, field, reference; drawn) -> Reference | Nothing
 
@@ -918,6 +922,9 @@ end
 
 function print_document(p::HorizontalLayoutToGraphicsCanvas,
                           recursion, doc::HorizontalLayout, ctx)
+    # The type of `children` says which layout this is: a list draws the
+    # children a viewport shows, a vector draws them all.
+    doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :x)
     build = Cell(@computation _hl_build(recursion, doc, ctx))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
@@ -983,6 +990,7 @@ function _main_context(cctx, i::Int, children, child_iomaps, slotted::Vector{Boo
     with_size_range(cctx; on_axis((minimum > 0 ? Cell(Int32(minimum)) : nothing, bound))...)
 end
 
+# @positional: the context and the child, then the axis and the policy of that axis.
 """
     make_cross_axis_context(cctx, child, axis, default) -> PrinterContext
 
@@ -1143,6 +1151,9 @@ end
 
 function print_document(p::VerticalLayoutToGraphicsCanvas,
                           recursion, doc::VerticalLayout, ctx)
+    # The type of `children` says which layout this is: a list draws the
+    # children a viewport shows, a vector draws them all.
+    doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :y)
     # A single cell holding the laid-out stack, recomputed when `doc.children`
     # changes. The output canvas, its element list, and the child-routing
     # entries are all derived reactively from it, so adding/removing a child
@@ -1279,7 +1290,7 @@ function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
             (mins[k], maxs[k], prefs[k], wts[k]) =
                 _gl_axis_inputs(policy, reads(k) ? content[k][] : 0)
         end
-        (avail === nothing || !weighted) && return prefs
+        (avail === nothing || !weighted) && return Int[clamp(prefs[k], mins[k], maxs[k]) for k in 1:c]
         allocate_axis(Int(avail[]); mins, maxs, prefs, weights = wts, gap = gap[], n = c)
     end))
 end
@@ -1328,6 +1339,9 @@ end
 
 function print_document(p::GridLayoutToGraphicsCanvas,
                           recursion, doc::GridLayout, ctx)
+    # The type of `children` says which grid this is: a list of rows draws the
+    # rows a viewport shows, a vector of cells draws them all.
+    doc.children isa ListNode && return _print_grid_list(p, recursion, doc, ctx)
     n = length(doc.children)
     if n == 0
         return GridLayoutIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]),
@@ -1346,21 +1360,27 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
     avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
 
-    # A column's and a row's policy, read once. What a policy IS, a caller says
-    # when it builds the grid; nothing changes one while the grid is on screen,
-    # so this is a plain read and not a dependency.
-    column_policy = doc.column_policy
-    row_policy    = doc.row_policy
-    column_policies = doc.column_policies
-    row_policies    = doc.row_policies
-    policy_of_column(k::Int) = _gl_policy_at(column_policies, k, column_policy)
-    policy_of_row(k::Int)    = _gl_policy_at(row_policies, k, row_policy)
+    # A column's and a row's policy. Its KIND — `Fixed`, a weight or `Content` —
+    # decides what a cell is offered, and that is read when the grid prints,
+    # with no dependency: a caller says what a column is when it builds the
+    # grid. Its NUMBERS are read inside the extent cells, so a policy that is a
+    # computed cell — a header row that takes the widths of the grid under it —
+    # follows what it reads, and a new number does not print the grid again.
+    policy_of_column(k::Int) = _gl_policy_at(doc.column_policies, k, doc.column_policy)
+    policy_of_row(k::Int)    = _gl_policy_at(doc.row_policies, k, doc.row_policy)
+    peek_column_policy(k::Int) = _gl_policy_at(peek(getfield(doc, :column_policies)), k,
+                                               peek(getfield(doc, :column_policy)))
+    peek_row_policy(k::Int)    = _gl_policy_at(peek(getfield(doc, :row_policies)), k,
+                                               peek(getfield(doc, :row_policy)))
     # A column that was given an extent hands it to its cells unless the grid
     # was told not to for that column; a column that was not given one has
     # nothing to hand out either way.
     column_offers = doc.column_offers
-    offers_to_cells(k::Int) = _gl_offers(policy_of_column(k)) &&
+    offers_to_cells(k::Int) = _gl_offers(peek_column_policy(k)) &&
         !(column_offers isa AbstractVector && k <= length(column_offers) && column_offers[k] === false)
+    row_offers = doc.row_offers
+    offers_to_row_cells(k::Int) = _gl_offers(peek_row_policy(k)) &&
+        !(row_offers isa AbstractVector && k <= length(row_offers) && row_offers[k] === false)
 
     # Up to n columns and n rows — one child per column, or one column of n.
     #
@@ -1380,7 +1400,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end
     col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w;
                                    reads = k -> !offers_to_cells(k))
-    row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h)
+    row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h;
+                                   reads = k -> !offers_to_row_cells(k))
     col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
     row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
 
@@ -1389,7 +1410,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # columns. It reads only columns that come before it, and nothing forces it
     # while the cells are printed. A sized column that keeps its extent from its
     # cells (`column_offers`) clips them instead, and gives them no edge.
-    is_content_column(k::Int) = !_gl_offers(policy_of_column(k))
+    is_content_column(k::Int) = !_gl_offers(peek_column_policy(k))
     edge_w = ctx === nothing ? nothing : ctx.maximum_width
     function make_column_edge(col::Int)
         edge_w === nothing && return nothing
@@ -1420,7 +1441,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
             cctx = offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    withhold_offer(cctx, :x)
-            cctx = _gl_offers(policy_of_row(row)) ?
+            cctx = offers_to_row_cells(row) ?
                 with_exact_size(cctx; height = _gl_int32_cell(row_h[row])) :
                 withhold_offer(cctx, :y)
         end
@@ -1473,8 +1494,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         c isa GraphicsDocument || continue
         col = columns_now > 0 ? _grid_col(i, columns_now) : 1
         row = columns_now > 0 ? _grid_row(i, columns_now) : 1
-        clip_x = _gl_offers(policy_of_column(col))
-        clip_y = _gl_offers(policy_of_row(row))
+        clip_x = _gl_offers(peek_column_policy(col))
+        clip_y = _gl_offers(peek_row_policy(row))
         if clip_x || clip_y
             push!(wrapped, clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i],
                                               y_cell = child_y[i], slot_x = col_x[col],

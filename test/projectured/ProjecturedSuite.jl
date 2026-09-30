@@ -14,6 +14,7 @@ using ProjecturedExample
 using ProjecturedKernelTest
 using ProjecturedSubstrateTest
 using ProjecturedJsonTest
+using ProjecturedJsonTest: test_json_content_clicks_clean
 using ProjecturedYamlTest
 using ProjecturedXmlTest
 using ProjecturedMarkdownTest
@@ -112,6 +113,9 @@ using ProjecturedOdbcTest
 # one live test skips itself when none answers.
 using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
+# The suite of the data frame view. It prints its views without a window.
+using ProjecturedDataFramesTest
+using ProjecturedDisplayTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
                    ConcreteReference, EmptyReference, Reference,
@@ -128,6 +132,9 @@ end
 
 include("ExportCollisionTest.jl")
 include("SearchScaleTest.jl")
+include("SearchCorpusTest.jl")
+include("CallSiteTest.jl")
+include("SearchRankingTest.jl")
 include("PackageGraphTest.jl")
 # The tree guard, which lives at the repository root rather than in a package:
 # it reads directories and project files, and it has to run before the packages
@@ -142,9 +149,10 @@ include("../suite/documentation.jl")
 include("backend/ConsoleBackendTest.jl")
 include("backend/PdfTest.jl")
 include("backend/WebTest.jl")
+include("backend/BackendChoiceTest.jl")
 include("../builder/BuilderTest.jl")
+include("../builder/PackageReleaseTest.jl")
 include("document/SelectionEnumeration.jl")
-include("reference/TypeReferenceTest.jl")
 include("editor/ConstructTest.jl")
 include("editor/ConversationPanelTest.jl")
 include("editor/ConversationParsingTest.jl")
@@ -179,6 +187,7 @@ include("projection/TextInkTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
 include("projection/TableNavigationTest.jl")
 include("projection/TableSelectionTest.jl")
+include("projection/TableCellEditingTest.jl")
 include("serializer/FileProjectTest.jl")
 include("serializer/MarkerVocabularyTest.jl")
 include("serializer/SerializationTest.jl")
@@ -235,6 +244,7 @@ function test_projections()
         test_console_backend()
         test_write_pdf()
         test_web_backend()
+        test_backend_choice()
     end
 end
 
@@ -371,20 +381,19 @@ end
 """
     test_all()
 
-The full suite: the three engine test packages and the twenty domain test
-packages, then the umbrella's full-stack integration tests (examples, editor
-loop, SDL/Tulip/Video-coupled suites, live-DB-optional checks).
+The full suite: the static guards, the three engine test packages and the twenty
+domain test packages, then [`test_integration`](@ref).
 """
 function test_all()
     @testset "Projectured" begin
-    # The per-package suites: the kernel unit tests, the substrate documents and
-    # projections, every domain, and the layering guard of each package.
+    # The static guards of the rules that a program can check.
     test_tree()
     test_naming()
     test_arguments()
     test_exports()
     test_documentation()
-    test_package_graph()
+    # The per-package suites: the kernel unit tests, the substrate documents and
+    # projections, every domain, and the layering guard of each package.
     test_kernel()
     test_substrate()
     test_json()
@@ -410,6 +419,22 @@ function test_all()
     test_help()
     test_anthropic()
     test_ollama()
+    test_dataframes()
+    test_display()
+    test_integration()
+    end
+end
+
+"""
+    test_integration()
+
+The umbrella's full-stack integration tests: the package graph, the examples,
+the editor loop, the SDL, Tulip and Video suites of the umbrella, and the checks
+that need no live database. CI runs it in a job of its own.
+"""
+function test_integration()
+    @testset "integration" begin
+    test_package_graph()
     # Every concrete-domain example through the printer.
     test_domain_examples()
     # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
@@ -421,6 +446,9 @@ function test_all()
     # The corpus a search answers on when a window declares what it can draw:
     # thousands of names, with the questions a person asks of them.
     test_search_scale()
+    test_search_corpus()
+    test_call_site()
+    test_search_ranking()
     # Umbrella integration: everything below needs the example registry, the
     # editor loop, or an opt-in backend package (Sdl/Tulip/Odbc/Video).
     test_documents()
@@ -472,6 +500,7 @@ function test_all()
     test_value_viewer()
     test_referenced_document_editor()
     test_builder()
+    test_package_release()
     test_gallery_wrappers()
     test_mouse_clicks()
     test_click_roundtrips()
@@ -481,6 +510,7 @@ function test_all()
     test_tree_navigations()
     test_tree_navigations_complete()
     test_table_navigation()
+    test_table_cell_editing()
     test_odbc_database_no_db()
     end
 end
@@ -489,25 +519,28 @@ end
     test_table()
 
 Narrow runner for the table selection + grid-navigation suites
-(`test_table_selection` and `test_table_navigation`).
+(`test_table_selection` and `test_table_navigation`), and the editing inside a
+cell (`test_table_cell_editing`).
 """
 function test_table()
     @testset "Table" begin
         test_table_selection()
         test_table_navigation()
+        test_table_cell_editing()
     end
 end
 
-export test_all, test_domain_examples, test_package_graph, test_tree, test_naming,
+export test_all, test_integration, test_documents, test_projections, test_domain_examples,
+       test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
-export test_search_scale
+export test_search_scale, test_search_corpus, test_call_site, test_search_ranking
 export test_type_reference, test_gesture_case, test_gesture_binding, test_focusing, test_console_backend, test_message_log_feed, test_frame_statistics_feed
 export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
-export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_text_ink_inside_viewports, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect, test_web_backend
-export test_table, test_table_selection, test_table_navigation, explore_table_selections
+export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_text_ink_inside_viewports, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect, test_web_backend, test_backend_choice
+export test_table, test_table_selection, test_table_navigation, test_table_cell_editing, explore_table_selections
 export test_graph_projection
 export test_examples, test_position_navigations, test_position_navigations_complete
 export test_printer, test_printers, test_example, test_position_navigation
@@ -536,6 +569,7 @@ export test_application, test_history_sweep, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
        test_value_viewer, test_referenced_document_editor, test_builder,
+       test_package_release,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql

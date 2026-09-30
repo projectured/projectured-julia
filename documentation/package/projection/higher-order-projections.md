@@ -109,7 +109,7 @@ ReferenceDispatchingProjection(
 ReferenceDispatchingProjection(ref -> @reference_case ref begin
     above(entries)  => CopyingProjection()
     entries         => SortingProjection(by = e -> e.key)
-    _               => IdentityProjection()
+    __              => IdentityProjection()
 end)
 ```
 

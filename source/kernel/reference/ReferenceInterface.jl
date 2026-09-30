@@ -2,19 +2,28 @@
 # and `Reference` abstract types every reference value is built from (a `Reference`
 # is what a document's `selection` field points to, or `nothing`), and the open
 # generics higher packages add methods to. Nothing here carries a body — the kernel
-# step types and their seam defaults live in `ReferenceStep.jl`, the path structure
-# and algebra in `ReferencePath.jl`, path evaluation in `ReferenceEvaluation.jl`, and
-# the two DSLs in `ReferenceCase.jl` / `ReferenceBuilder.jl`.
+# step types and their `get_reference_step_kind` and `evaluate_reference_step`
+# methods live in `ReferenceStep.jl`, the path structure and algebra in
+# `ReferencePath.jl`, and path evaluation in `ReferenceEvaluation.jl`. The defaults
+# of the DSL seams live with their DSLs: `build_reference_step` in
+# `ReferenceBuilder.jl`, `match_reference_step` in `ReferenceCase.jl`,
+# `match_reference_step_value` in `ReferenceRules.jl`, and
+# `get_reference_step_subpath_args` in `ReferenceSyntax.jl`.
 
 """
     ReferenceStep
 
-One step of an address: a field, an element, a range, or a check.
+One step of an address: a field, an element, a range, or a step that a higher
+package adds.
 
-Use it when you build or read a path a step at a time. A structural step goes
-one level down, into a field or an element; a checkpoint step stays where it is
-and states what must be true there, which is what keeps a path honest while the
-document changes.
+Use it when you build or read a path a step at a time. A step goes one level
+down, into a field or an element, or to a value that stands for the place, such
+as a coordinate or a range of characters. The type that keeps a path honest while
+the document changes sits on each node of the path, not in a step.
+
+A step type defines `==` by value and a `hash` that agrees with it, because a
+`Reference` compares and hashes by its steps. A step of a type that defines no
+`==` equals only itself.
 
 # Example
 
@@ -37,6 +46,10 @@ an edit, the tab a verb opened. A reference stays meaningful while the document
 changes around it, and a projection can carry it from what is held to what is
 shown and back.
 
+A path is a linked list. A new node in front of a path reuses its tail, and
+`extend_reference`, which appends at the far end, builds a new node for each node
+of the path.
+
 # Example
 
     place = @reference(document, rows[2].name)
@@ -44,23 +57,17 @@ shown and back.
 
 See also `ReferenceStep`, the one step it is built of, `get_selection`, and the
 guide `kernel/reference`.
-
-Abstract base type for a path into a document. Implemented as an
-immutable linked list so that extending a path (going deeper) reuses
-the existing tail — no copying required.
 """
 abstract type Reference end
 
 """
     get_reference_step_kind(step) -> Symbol
 
-Classify a reference step: `:structural` (descends to a child or synthetic
-value) or `:checkpoint` (stays on the current node, asserts an invariant).
-Every step type answers for itself, beside its `evaluate_reference_step` — there is no
-default, so a new step type that forgets to classify itself fails loudly at the
-first path walk rather than being silently treated as structural. A
-`:structural` step must be evaluatable under the "types always present"
-invariant.
+Classify a reference step. A step type answers `:structural`: the step descends
+to a child or to a synthetic value. Every step type answers for itself, beside
+its `evaluate_reference_step`, and there is no default. No kernel walker reads
+the kind. A `:structural` step must be evaluatable under the "types always
+present" invariant.
 """
 function get_reference_step_kind end
 
@@ -70,9 +77,8 @@ function get_reference_step_kind end
 Take one step of an address, and answer what is there.
 
 Use it to walk a path by hand, or to write a step of your own: every kind of
-step answers for itself. A structural step answers the child it reaches and
-throws when the document has no such place; a checkpoint answers the document it
-was given, having checked what it states.
+step answers for itself. A step answers the child it reaches, and throws when
+the document has no such place.
 
 # Example
 
@@ -84,8 +90,7 @@ Navigate through `step`. For a `:structural` step, return the descended
 value (throws on descent failure). Some step types descend to a document
 child (`FieldReferenceStep`, `RangeReferenceStep`); others descend to a synthetic
 value that stands in for the reference target — a coordinate pair, a projection's
-output path, a character range. For a `:checkpoint` step, return `document`
-unchanged after asserting the invariant (throws on mismatch).
+output path, a character range.
 """
 function evaluate_reference_step end
 

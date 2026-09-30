@@ -12,10 +12,10 @@
 """
     record_application_video(paths, timeline, filename; width=1280, height=720,
                              fps=30, assistant=:none, model="", context=0,
-                             root=pwd(), initial_hold=0.5, final_hold=1.0,
+                             llm=nothing, root=pwd(), initial_hold=0.5, final_hold=1.0,
                              supersample=2, scale=1, video_time=false, pointer=true,
                              partial_render=false, debug_dirty=false, debug_dirty_hold=0,
-                             measure=FontFileMeasure()) -> String
+                             status_bar=true, measure=FontFileMeasure(), prepare=document -> nothing) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
 way, over `paths` and `root`, with the same `assistant`/`model`/`context` — and
@@ -49,7 +49,16 @@ frames are slow to make. A take that waits for a model keeps the wall clock.
 `partial_render = true` repaints only what changed from one frame to the next,
 as a live window with `partial_render` does, and `debug_dirty = true` outlines
 that in red on the frames, and `debug_dirty_hold` keeps each outline that many
-seconds (see `VideoBackend`).
+seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
+of the window (see [`make_application_window`](@ref)).
+
+`prepare` is called with the document of the window before the editor is made,
+so a take starts from the layout it wants, such as a pane with the session's
+gesture log below a file.
+
+`llm` is the model of the assistant when it is given, as
+[`make_application_assistant`](@ref) takes it: a scripted model, or an
+`OllamaLlm` with the seed and the temperature of a take.
 
 The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
@@ -60,19 +69,21 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   width::Integer = 1280, height::Integer = 720,
                                   fps::Integer = 30, assistant::Symbol = :none,
                                   model::AbstractString = "", context::Integer = 0,
-                                  root::AbstractString = pwd(),
+                                  llm = nothing, root::AbstractString = pwd(),
                                   initial_hold::Real = 0.5, final_hold::Real = 1.0,
                                   supersample::Integer = 2, scale::Real = 1,
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
-                                  debug_dirty_hold::Real = 0,
-                                  measure = FontFileMeasure())
+                                  debug_dirty_hold::Real = 0, status_bar::Bool = true,
+                                  measure = FontFileMeasure(), prepare = document -> nothing)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
-    chat = make_application_assistant(assistant; model = model, context = context)
+    chat = make_application_assistant(assistant; model = model, context = context, llm = llm)
     document, projection = make_application_window(collect(String, paths);
                                                     root = root, assistant = chat,
+                                                    status_bar = status_bar,
                                                     measure = measure)
+    prepare(document)
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,
                            fps = fps, initial_hold = initial_hold, final_hold = final_hold,
@@ -81,12 +92,13 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                            debug_dirty = debug_dirty, debug_dirty_hold = debug_dirty_hold)
     try
         run_with_window_tools() do feeds, start
-            editor = make_editor(document, projection, title; backend = backend,
-                                 width = width, height = height, feeds = feeds,
-                                 opened_window_projections =
-                                     make_opened_window_projections(;
-                                         content = make_application_content_projections(measure = measure),
-                                         measure = measure))
+            editor = build_editor(document, projection; backend = backend, feeds = feeds,
+                                  tabs = false,
+                                  window = (; title, width, height,
+                                            opened_window_projections =
+                                                make_opened_window_projections(;
+                                                    content = make_application_content_projections(measure = measure),
+                                                    measure = measure)))
             backend.editor = editor
             start(editor)
             start_application!(editor, false, assistant, model)

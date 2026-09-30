@@ -39,11 +39,10 @@ using ..PrimitiveModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
-using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
-import ..EditorModule: make_editor
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..OperationModule: evaluate_operation
 import ..GraphicsModule: map_operation_position
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -52,8 +51,8 @@ export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-export make_window_scene, make_window_scene_projection, make_tracking_screen, make_editor,
-       run_window_editor
+export make_window_scene, make_window_scene_projection, make_tracking_screen,
+       show_document!
 export ScreenDocument, WindowDocument
 export find_part_place
 
@@ -63,12 +62,7 @@ include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
 include("PartPlace.jl")
+include("DocumentShow.jl")
 
-# A file may name a screen and a window. The registry is runtime state, so the
-# offer is made here and not at the top level.
-function __init__()
-    register_pred_type!(ScreenDocument)
-    register_pred_type!(WindowDocument)
-end
 
 end # module

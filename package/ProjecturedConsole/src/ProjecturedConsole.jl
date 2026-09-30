@@ -16,6 +16,7 @@ using ProjecturedStyle
 using ProjecturedText
 
 const BackendModule = ProjecturedKernel.BackendModule
+const EditorModule = ProjecturedKernel.EditorModule
 const EventModule = ProjecturedKernel.EventModule
 const GestureModule = ProjecturedKernel.GestureModule
 const StyleModule = ProjecturedStyle.StyleModule

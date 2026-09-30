@@ -10,12 +10,10 @@
 # "which selection is this" then reads that node alone: no walk from the root, no
 # answer threaded down the printer context.
 #
-# **Why it lives here, next to the macro.** `@document` emits the injected field's
-# type as an *expression*, resolved in the caller's module, and 64 modules import
-# the reference layer by name (`import ..ReferenceModule: Reference`) rather than
-# wholesale. A type declared above this layer would therefore not be in scope where
-# the expansion lands. Declared here, in the macro's own module, it is spliced as a
-# type **object** and needs no import anywhere.
+# **Why it lives here, next to the macro.** `@document` splices the type of the
+# injected field into its expansion as a type **object**, so the module of the
+# caller needs no import for it. The macro can splice only a type that is defined
+# at or below this layer.
 #
 # `primary` is `Any` for the same layering reason in the other direction: this
 # layer sits below the reference layer and cannot name `Reference`.
@@ -29,8 +27,8 @@ A [`SelectionDocument`](@ref) answers its `primary` while it is live, and
 `nothing` once it is dormant. Every other value — `nothing`, or a bare
 `Reference` — answers itself.
 
-Dispatch on the stored value, not on the field name, so a read of any other field
-of any other document pays nothing for this.
+The `getproperty` that `@document` emits calls it for the field named `selection`
+only, so a read of any other field makes no call to it.
 
 Answering `nothing` for a dormant selection is deliberate. It makes every reader
 that was written against a bare reference correct by default: a printer draws no
@@ -56,7 +54,7 @@ The field is declared explicitly as `ImmutableCell{Nothing}`, the value-document
 pivot: a selection is not itself selectable, and the explicit field also stops the
 macro from injecting a field whose type names this very type.
 """
-@document struct SelectionDocument
+@document [C] struct SelectionDocument
     primary::Any = nothing
     live::Bool = true
     selection::ImmutableCell{Nothing} = nothing

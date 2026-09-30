@@ -48,7 +48,9 @@ using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
+using ..ScreenModule
 using ..SerializationModule
+using ..StyleModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
@@ -58,7 +60,10 @@ import ..ClipboardModule: find_clipboard_document
 import ..DomainModule: accepts_pasted_replacement
 import ..DocumentModule: get_document_title, get_edited_field
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
+import ..ScreenModule: show_document!
 
+export make_tabs_projection
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
        get_pane_tab_title_string, default_new_pane_tab,
        get_opposite_pane_orientation, get_pane_split_axis,
@@ -99,14 +104,7 @@ include("PaneGestures.jl")
 include("PaneToWidget.jl")
 include("UserInterfaceFile.jl")
 include("PaneFile.jl")
+include("PaneTabsWrapper.jl")
 
-# A file may name a pane tree, a split, a group or a tab. The registry is
-# runtime state, so the offer is made here and not at the top level.
-function __init__()
-    register_pred_type!(PaneTree)
-    register_pred_type!(PaneSplit)
-    register_pred_type!(PaneGroup)
-    register_pred_type!(PaneTab)
-end
 
 end # module

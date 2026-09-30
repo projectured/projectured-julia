@@ -108,7 +108,7 @@ _gt_move(x, y, t; buttons = MouseButtons(), window = :win) =
     WindowInput(window, MouseMove(x, y, buttons, ModifierKeys(); time = t))
 const _GT_CTRL = ModifierKeys(ctrl = true)
 _gt_key(name, t; modifiers = _GT_CTRL, repeat = false) =
-    WindowInput(:win, KeyDown(name, modifiers, repeat; time = t))
+    WindowInput(:win, KeyDown(name, modifiers; repeat, time = t))
 _gt_chord(names...) = [[KeyDown(name, _GT_CTRL; time = 0.0) for name in names]]
 
 # The clicks that the content read.

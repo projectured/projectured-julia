@@ -24,7 +24,8 @@
 # where their *content* diverges, tagged with the path to the divergence. It
 # mirrors `DocumentModule.walk_document`'s descent exactly — the four shapes
 # (`is_element_collection` / dict / array / struct-by-`fieldnames`), the cell
-# unwrap, the `:ref` / `:selection` skip, and the `is_walk_leaf` stop — so it
+# unwrap, the skip of `:selection` and `:mouse_target`, and the `_is_walk_leaf`
+# stop — so it
 # agrees with the canonical notion of what a document's content *is*. Cell
 # identity, selection, and reactive wrappers are deliberately invisible to it.
 #
@@ -33,7 +34,7 @@
 # ───────────────────────────────────────────────────────────────────────────
 
 # A content leaf — nothing to descend into. Same set as `walk_document`'s
-# internal `is_walk_leaf` (which is not exported): a scalar Julia value or an
+# internal `_is_walk_leaf` (which is not exported): a scalar Julia value or an
 # opaque document.
 _content_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
                    x isa Symbol || x isa Char || is_walk_opaque(x)
@@ -60,7 +61,7 @@ of mismatch descriptions, each tagged with the path (`∅` = root, `.field`,
 `[i]`) to the divergence; an **empty vector means the documents are equal**.
 
 Selection state, cell identity, and reactive wrappers are ignored — the walk
-unwraps cells and skips `:ref` / `:selection`, exactly as
+unwraps cells and skips `:selection` and `:mouse_target`, exactly as
 `DocumentModule.walk_document` does. This is the oracle behind `test_construct`.
 """
 function compare_content(actual, expected)
@@ -107,7 +108,7 @@ function _compare!(errs, a, b, path)
         end
     else
         for fn in fieldnames(typeof(b))
-            (fn === :ref || is_view_state_field(fn)) && continue
+            is_view_state_field(fn) && continue
             isdefined(b, fn) || continue
             _compare!(errs, unwrap_cell(getfield(a, fn)),
                             unwrap_cell(getfield(b, fn)), "$path.$fn")

@@ -456,33 +456,32 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
     screen, composed = make_tracking_screen(
         _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap),
         compose(projs, backend); mouse_target_tracking=mouse_target_tracking)
-    make_editor(backend, composed, screen; feeds=feeds)
+    make_editor(screen, composed; backend = backend, feeds = feeds)
 end
 
 # Run the loop of `editor`, under the profiler when `profile` is set.
-function _run_editor_profiled(editor; profile::Bool=false, mcp::Bool=false,
-                              mcp_host=nothing, mcp_port=nothing)
+function _run_editor_profiled(editor; profile::Bool=false,
+                              mcp::Union{Bool,NamedTuple}=false)
     if profile
         Profile.clear()
         try
-            Profile.@profile run_editor!(editor; mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
+            Profile.@profile run_editor!(editor; mcp=mcp)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run_editor!(editor; mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
+        run_editor!(editor; mcp=mcp)
     end
 end
 
 # Make the editor of a window scene and run its loop. The tail of `run_file_editor`.
 function _run_window_scene(docs, projs, names; width, height, backend,
                            compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
-                           mcp::Bool=false, mcp_host=nothing, mcp_port=nothing,
-                           feeds::Vector{Feed}=Feed[])
+                           mcp::Union{Bool,NamedTuple}=false, feeds::Vector{Feed}=Feed[])
     editor = _make_window_scene_editor(docs, projs, names; width=width, height=height,
                                        backend=backend, compose=compose,
                                        content_unwrap=content_unwrap, feeds=feeds)
-    _run_editor_profiled(editor; profile=profile, mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
+    _run_editor_profiled(editor; profile=profile, mcp=mcp)
 end
 
 # Build a projection that projects the screen down to each
@@ -686,7 +685,8 @@ function run_console_example(; document=make_json_document_example(),
         # that lands on the rendered screen and corrupts it (the console owns the
         # display). Discard those logs for the duration of the interactive loop.
         Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            run_editor!(backend, projection, document; devices=Device[Keyboard()])
+            run_editor!(make_editor(document, projection; backend = backend,
+                                     devices = Device[Keyboard()]))
         end
     else
         backend = ConsoleBackend(; ansi=ansi, clear=something(clear, false))

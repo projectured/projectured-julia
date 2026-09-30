@@ -1,0 +1,17 @@
+name = "ProjecturedDataFramesExample"
+uuid = "61ad9eff-ea91-43c8-867c-8ad08b1239de"
+version = "0.1.0"
+authors = []
+
+# The DataFrames tier of the example-package DAG: the factory that builds a
+# deterministic DataFrame for tests and galleries to load.
+
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
+
+[sources]
+ProjecturedDataFrames = {path = "../ProjecturedDataFrames"}
+
+[compat]
+DataFrames = "1"

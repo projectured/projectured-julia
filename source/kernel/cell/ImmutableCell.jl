@@ -8,9 +8,10 @@
 
 A box that holds one value and can never be written.
 
-Use it for a document that is finished: a snapshot to serialize, a page to
-export, a value a projection may read but nothing may change. It is free, since
-an immutable field of a known type lives inside the thing that holds it.
+Use it for a value that must not change: a snapshot to serialize, a struct that
+is finished, a value that a computation reads and that nothing writes. It is
+free, since an immutable field of a known type lives inside the thing that holds
+it.
 
 # Example
 

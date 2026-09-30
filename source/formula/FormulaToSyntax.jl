@@ -248,12 +248,8 @@ end
 # Returns a bare `TypeDispatchingProjection` (the convention used by
 # JuliaToSyntax / JsonToSyntax / BookToSyntax); callers wrap it once in a
 # `RecursiveProjection` so node projections can recurse children.
-function FormulaToSyntax()
-    julia = JuliaToSyntax()  # TypeDispatchingProjection
-    pairs = copy(julia.dispatch)
-    push!(pairs, FormulaInsertion   => FormulaInsertionToSyntaxLeaf())
-    push!(pairs, FormulaReference    => FormulaReferenceToSyntaxLeaf())
-    push!(pairs, FormulaFormula      => FormulaFormulaToSyntaxNode())
-    push!(pairs, FormulaEnvironment  => FormulaEnvironmentToSyntaxNode())
-    TypeDispatchingProjection(pairs)
-end
+FormulaToSyntax() = JuliaToSyntax(
+    FormulaInsertion   => FormulaInsertionToSyntaxLeaf(),
+    FormulaReference   => FormulaReferenceToSyntaxLeaf(),
+    FormulaFormula     => FormulaFormulaToSyntaxNode(),
+    FormulaEnvironment => FormulaEnvironmentToSyntaxNode())

@@ -88,7 +88,7 @@ ProcessModel ──ProcessToProcessDiagram──▶ ProcessDiagram ──Process
 
 The highlights of the graph follow the session: the current node gets a ring, and the edge from the previous node to the current one is drawn again. The runtime reports only node indices, and the stage finds the edge from the pair; see [graph.md](../graph/graph.md#the-highlight).
 
-The example names `make_deferred_layout_engine(orthogonal = true)`. With `ProjecturedAdaptagrams` loaded, libcola places the boxes and libavoid draws right-angled routes that avoid the boxes. Without it, `ForceDirectedLayout` places a flowchart of fewer than 20 vertices and `SpringEmbedderLayout` a larger one, and both draw straight lines. No engine uses the reading direction of a flowchart, so the picture does not always run from top to bottom.
+The example names `make_deferred_layout_engine(orthogonal = true)`. With `ProjecturedAdaptagrams` loaded, libcola places the boxes and libavoid draws right-angled routes that avoid the boxes. Without it, `FruchtermanReingoldLayout` places the flowchart and draws straight lines. No engine uses the reading direction of a flowchart, so the picture does not always run from top to bottom.
 
 ### Realization
 

@@ -64,7 +64,8 @@ requirement; the rule is its own lead sentence.
 | ID | Rule |
 | --- | --- |
 | [PAR-PURE-THUNK](#par-pure-thunk) | Every reactive computation must be a pure function of the cells it reads |
-| [PAR-NO-WRITE-IN-THUNK](#par-no-write-in-thunk) | A thunk must never write another cell or mutate shared document state |
+| [PAR-NO-WRITE-IN-THUNK](#par-no-write-in-thunk) | A computation must never write another cell or mutate shared document state |
+| [PAR-STORE-THEN-DRAIN](#par-store-then-drain) | Data enters a running editor through a store and a drain, never through a direct write |
 | [PAR-ACYCLIC-CELLS](#par-acyclic-cells) | The cell dependency graph must stay acyclic |
 | [PAR-MONOTONE-INVALIDATION](#par-monotone-invalidation) | Never hand-set `valid` and never partially invalidate |
 | [PAR-WRITE-DRIVEN-PROPAGATION](#par-write-driven-propagation) | Treat propagation as write-driven, not value-driven |
@@ -104,7 +105,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-GEOMETRY-FREE-IN-DOCUMENT](#par-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
 | [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
 | [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
-| [PAR-STABLE-IOMAP-IDENTITY](#par-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity |
+| [PAR-STABLE-IOMAP-IDENTITY](#par-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity and index |
 | [PAR-CROSS-DOMAIN-LATE](#par-cross-domain-late) | Cross domains as late as possible in the mappers; an introduced part maps forward and backward |
 | [PAR-HIGHER-ORDER-IS-DOMAIN-FREE](#par-higher-order-is-domain-free) | Higher-order projections touch no domain; generic projections are input-domain-independent |
 | [PAR-USE-PROJECTION-MACRO](#par-use-projection-macro) | Use `@projection` for projection structs with reactive fields, defaulting the supertype |
@@ -251,10 +252,12 @@ barrier inside a computation — writes a plain store outside the reactive graph
 write never blocks and never touches a cell. The editor drains the store into
 the target document on its own task, once per frame, before `read!`
 (`drain_feeds!`; the fault report at the top of `run_frame!` is the same
-motion). Only the editor task writes a document a running editor shows. A
-producer that wants a frame soon calls the wake function it was given
-(`wake_editor!`, or the callback its store received at registration); it never
-reaches into the editor. The inbox (`post_operation!`) is the queue-shaped
+motion). Only the editor task writes a document a running editor shows. The
+heartbeat of a wall clock is the accepted exception: `start_wall_clock!` writes
+the time cell of its clock from a task of its own, on the thread of the task that
+reads the clock. A producer that wants a frame soon calls the wake function it was
+given (`wake_editor!`, or the callback its store received at registration); it
+never reaches into the editor. The inbox (`post_operation!`) is the queue-shaped
 case of the same rule, for a payload that is an edit: ordered, applied exactly
 once, with backpressure.
 
@@ -262,9 +265,9 @@ once, with backpressure.
 
 **The cell dependency graph must stay acyclic.** `_recompute!` evaluates a computation
 while its cell is on the computing stack; a cell that transitively reads
-itself recurses forever. The engine only skips a *direct* self-edge — it does
-not detect multi-cell cycles — so a computed cell must never depend on itself
-through any chain.
+itself recurses forever. The engine records no edge for a *direct* self-read,
+but that read recurses too, and the engine detects no cycle, so a computed cell
+must never read itself, directly or through any chain.
 
 ### PAR-MONOTONE-INVALIDATION
 
@@ -369,11 +372,13 @@ a field a derivation, so a bare `f` is always data.
 
 ### PAR-DOCUMENT-IDENTITY
 
-**Do not assume two documents with equal fields are `==`.** A `@document` type
-is a `mutable struct` and keeps identity `==`/`hash`; only the immutable
-`I`-prefixed snapshot compares structurally. Code needing value comparison
-(e.g. `collect_references`) compares unwrapped *leaf values*, not whole
-documents.
+**Do not assume two documents with equal fields are `==`.** The cell layout of a
+`@document` type is an immutable struct that holds one cell for each field, and
+`===` compares it cell by cell. A reactive cell and a mutable cell compare by
+identity, so two documents built apart with equal contents are not `==`. Only
+`ICFoo`, whose cells are immutable too, compares structurally. Code needing
+value comparison (e.g. a string query of `search_documents`) compares unwrapped
+*leaf values*, not whole documents.
 
 ### PAR-DOMAINS-INDEPENDENT
 
@@ -605,13 +610,16 @@ backward.
 ### PAR-STABLE-IOMAP-IDENTITY
 
 **A projection's IoMap keeps its identity; its varying parts are computed cells,
-and its children reconcile by identity.** `print_document` returns one IoMap per
-projection instance and never rebuilds or replaces it in response to a change.
+and its children reconcile by identity and index.** `print_document` returns one
+IoMap per projection instance and never rebuilds or replaces it in response to a
+change.
 Every part that can vary — the output document, its `selection`, and every child
 IoMap — is a *computed cell* deriving from the projection's input and parameter
 cells, not a value captured eagerly at print time; and a collection of children
-goes through the shared reconciler (keyed by child identity) so a surviving
-child's IoMap is reused and only a genuinely-changed child is rebuilt. A change
+goes through the shared reconciler, keyed by the identity and the index of each
+child, so the IoMap of a child that keeps its object and its index is reused. A
+delete or a front insert moves the later children to other indices, so their
+IoMaps are made again. A change
 therefore propagates through the cells the projection already wired — never by
 allocating a new IoMap, and never by nulling `editor.iomap`. This is the
 generalization, from "a compound projection should" to "every projection must,"
@@ -948,8 +956,8 @@ pipeline, or domains. Convert platform events to the backend-agnostic device
 vocabulary (`KeyPress`, `KeyDown`, `Mouse*`, `WindowQuit`) in the backend, so
 projection reader code never sees a raw platform event; a projection that needs
 to measure text takes an injected `measure::TextMeasure` rather than the
-backend itself. A single source of truth governs any cross-backend mapping (e.g.
-`convert_web_key_to_symbol` mirrors `sdl_keysym_to_symbol`).
+backend itself. A single source of truth governs any cross-backend mapping. For
+example, `convert_web_key_to_symbol` gives the key names of `sdl_keysym_to_symbol`.
 
 ### PAR-OPT-IN-DEPENDENCY
 
@@ -970,19 +978,22 @@ events.
 
 ### PAR-PROFILE-WITH-COUNTERS
 
-**Profile edits with the per-frame performance counters.** The read-eval-print
-loop resets and logs `reads / computes / invalidations / writes` each frame;
-use them to find unintentional recomputation (a single keypress causing
-thousands of `computes` means something reads more cells than necessary).
+**Profile edits with the per-frame performance counters.** Set
+`PROJECTURED_PERFORMANCE_COUNTERS=true` and recompile to compile the counters in.
+The read-eval-print loop then binds a fresh counter store for each frame, and
+`perf!` logs `reads / computes / invalidations / writes` for each frame that
+applied an operation. Use them to find unintentional recomputation (a single
+keypress causing thousands of `computes` means something reads more cells than
+necessary).
 
 ### PAR-PER-EDITOR-STATE
 
 **No process-global state in the editor or the machinery it drives; one process
 must run many editors at once.** Every piece of mutable runtime state an editor
-touches — its `document`, `selection`, `iomap`, in-flight `operation`,
-animation clock, and per-frame performance counters — must
-live on the `Editor` instance (or on values reachable only from it), never in a
-module-level `const` cell, `Ref`, `Dict`, or counter. This is a correctness
+touches — its `document`, `selection`, `iomap`, in-flight `operation` and
+animation clock — must live on the `Editor` instance (or on values reachable only
+from it), never in a module-level `const` cell, `Ref`, `Dict`, or counter. This is
+a correctness
 requirement, not a style preference: it is what lets one Julia process host
 several independent editors side by side (product requirement
 PR-MANY-EDITORS-ONE-PROCESS). Process-global holds tie the editors together and
@@ -995,12 +1006,12 @@ projections and the machinery they call; this extends the same ban up to the
 editor loop, the devices, and the backends it drives — a backend or device that
 must hold per-connection state holds it on its own instance (one per editor),
 never in a global registry. State that belongs to a single *evaluation* rather
-than to an editor is instead task-local (its natural scope): the reactive
-engine's computing stack, which tracks dependencies, has been migrated from a module
-global to task-local storage, so concurrent evaluations never cross-register
-dependencies. `PerformanceModule` was likewise migrated off its
-process-global `_perf` dict onto a task-local `with_performance_counters`
-binding (each editor frame binds its own store). The animation clock is a
+than to an editor is instead task-local (its natural scope). The reactive
+engine keeps its computing stack, which tracks dependencies, in task-local
+storage, so concurrent evaluations never cross-register dependencies. The
+performance counters live in the scope of one frame of one editor:
+`run_editor!` binds a fresh counter store for each frame with
+`with_performance_counters`, a task-local binding. The animation clock is a
 per-editor `Clock` (a `@cell_struct`, not a document — `clock/ClockModule.jl`);
 `run_editor!` advances `editor.clock`, and every animated cell subscribes to the
 clock the printer context carries, so two editors in one process never
@@ -1031,8 +1042,6 @@ qualifies:
 A shared read of one such value does not reintroduce the cross-editor *write*
 conflict PAR-PER-EDITOR-STATE targets.
 
-## Package, layer, slice, and module structure
-
 ### PAR-REPORT-NEVER-THROWS
 
 **A fault report never throws, and a barrier never swallows a fault in
@@ -1046,16 +1055,17 @@ and a log target that throws does not stop the drain. Tests assert both.
 The second half is what keeps the first half honest. **A barrier that catches
 must record**, so no fault is lost, and the policy that governs the barriers
 must default to catching **nothing** wherever a test can reach it. An `Editor`
-starts with `make_strict_fault_policy()` and `run_editor!` is what turns the
-barriers on, because every test in the tree builds an `Editor` directly and none
-of them calls `run_editor!`. A barrier that is on under test turns a real bug
-into a passing run, which is the one way error tolerance can make the program
-worse than it was.
+starts with `make_strict_fault_policy()`. `make_editor` turns the barriers on,
+because it gives the editor `FaultPolicy()`, and `run_editor!` keeps the policy
+of its editor. A barrier that is on under test turns a real bug into a passing
+run, which is the one way error tolerance can make the program worse than it was.
 
 An exception that means the program is to stop or can not go on is never caught:
 `is_passthrough_exception` names them one at a time — `QuitEditorException`,
 `InterruptException`, `StackOverflowError`, `OutOfMemoryError` — and a layer that
 owns a control-flow exception adds its own method.
+
+## Package, layer, slice, and module structure
 
 ### PAR-PACKAGE-CHAIN
 

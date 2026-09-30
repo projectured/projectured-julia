@@ -74,5 +74,4 @@ _cut_text(text::AbstractString, width::Integer) =
 
 function __init__()
     register_natural_syntax!(:gesturelog, () -> Pair{Type,Any}[GestureLog => GestureLogToSyntax()])
-    register_pred_type!(GestureLog)
 end

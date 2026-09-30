@@ -19,7 +19,8 @@ import ProjecturedKernel.FeedModule: compute_wake_deadline
 import ProjecturedKernel.EditorModule: Editor, post_operation!, wake_editor!,
                                        compute_wait_timeout, FRAME_INTERVAL,
                                        run_editor!, make_editor
-import ProjecturedKernel.FaultModule: make_strict_fault_policy
+import ProjecturedKernel.FaultModule: make_strict_fault_policy, FaultPolicy,
+                                      get_fault_records
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation,
                                           QuitEditorOperation
 using ProjecturedKernelExample
@@ -78,6 +79,58 @@ end
 FeedModule.drain_changes!(::DeadlineFeed, editor::Editor) = 0
 FeedModule.compute_wake_deadline(feed::DeadlineFeed, editor) = feed.deadline
 
+# A feed whose deadline throws, as a feed whose clock fails does.
+struct DeadlineFailingFeed <: Feed end
+FeedModule.drain_changes!(::DeadlineFailingFeed, editor::Editor) = 0
+FeedModule.compute_wake_deadline(::DeadlineFailingFeed, editor) =
+    error("the deadline failed")
+
+# Wakes the editor in every frame, so the loop never waits. It posts a quit once
+# another task set `is_done`, or after 100 frames.
+mutable struct AlwaysWakingFeed <: Feed
+    is_done::Bool
+    frames::Int
+end
+function FeedModule.drain_changes!(feed::AlwaysWakingFeed, editor::Editor)
+    feed.frames += 1
+    if feed.is_done || feed.frames >= 100
+        post_operation!(editor, QuitEditorOperation())
+    else
+        wake_editor!(editor)
+    end
+    0
+end
+
+# Counts the frames of the loop and posts a quit in the third, so a loop that
+# never applies its key still ends.
+mutable struct FrameCountFeed <: Feed
+    frames::Int
+end
+function FeedModule.drain_changes!(feed::FrameCountFeed, editor::Editor)
+    feed.frames += 1
+    feed.frames == 3 && post_operation!(editor, QuitEditorOperation())
+    0
+end
+
+# Turns every gesture into an operation that records the frame it applies in.
+struct WaitKeyProjection <: Projection
+    log::Vector{Int}
+    feed::FrameCountFeed
+end
+ProjectionModule.print_document(::WaitKeyProjection, recursion, input, ctx) =
+    SimpleIoMap(nothing, input, input)
+ProjectionModule.read_intent(p::WaitKeyProjection, recursion, change::Intent, iomap) =
+    Intent(change.gesture, WaitKeyOperation(p.log, p.feed))
+
+struct WaitKeyOperation <: Operation
+    log::Vector{Int}
+    feed::FrameCountFeed
+end
+evaluate_operation(::Editor, operation::WaitKeyOperation) =
+    (push!(operation.log, operation.feed.frames); nothing)
+
+_quiet_wait_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
+
 struct ProbeWaitOperation <: Operation
     log::Vector{Any}
     tag::Symbol
@@ -86,7 +139,8 @@ evaluate_operation(::Editor, operation::ProbeWaitOperation) =
     (push!(operation.log, operation.tag); nothing)
 
 _wait_editor(backend; feeds::Vector{Feed} = Feed[]) =
-    Editor(backend, WaitProbe(), WaitProbeProjection(), Device[]; feeds = feeds)
+    Editor(WaitProbe(), WaitProbeProjection(); backend = backend, devices = Device[],
+           feeds = feeds)
 
 function test_editor_wait()
 @testset "the editor's wait" begin
@@ -100,6 +154,16 @@ function test_editor_wait()
                               feeds = Feed[DeadlineFeed(0.25), DeadlineFeed(nothing),
                                            DeadlineFeed(0.75)])
         @test compute_wait_timeout(editor) == 0.25
+    end
+
+    @testset "a deadline that throws is recorded and counts as no deadline" begin
+        editor = _wait_editor(ProbeWaitBackend();
+                              feeds = Feed[DeadlineFailingFeed(), DeadlineFeed(0.5)])
+        editor.fault_policy = _quiet_wait_policy()
+        @test compute_wait_timeout(editor) == 0.5
+        records = get_fault_records(editor.faults)
+        @test length(records) == 1
+        @test records[1].origin === :DeadlineFailingFeed
     end
 
     @testset "a clock subscriber bounds the wait to the animation" begin
@@ -142,9 +206,29 @@ function test_editor_wait()
         @test all(timeout -> timeout == Inf, backend.waits)
     end
 
+    @testset "a loop that never waits still gives the other tasks their turn" begin
+        # The wait of this backend returns at once and yields to no task.
+        feed = AlwaysWakingFeed(false, 0)
+        editor = _wait_editor(ProbeLifeBackend(); feeds = Feed[feed])
+        @async (feed.is_done = true)
+        run_editor!(editor)
+        @test feed.frames < 100
+    end
+
+    @testset "an editor with no print applies a queued key in its first frame" begin
+        feed = FrameCountFeed(0)
+        log = Int[]
+        backend = HeadlessBackend()
+        editor = Editor(WaitProbe(), WaitKeyProjection(log, feed); backend = backend,
+                        devices = Device[], feeds = Feed[feed])
+        push_event!(backend, :key)
+        run_editor!(editor)
+        @test log == [1]
+    end
+
     @testset "make_editor prints once and reads nothing, and the loop quits the backend" begin
         backend = ProbeLifeBackend()
-        editor = make_editor(backend, WaitProbeProjection(), WaitProbe(); devices = Device[])
+        editor = make_editor(WaitProbe(), WaitProbeProjection(); backend, devices = Device[])
         @test backend.starts == 1 && backend.quits == 0
         # Printed once, so a verb that reads through the readers has an iomap.
         @test editor.iomap !== nothing
@@ -156,7 +240,7 @@ function test_editor_wait()
 
     @testset "the loop quits the backend also when it throws" begin
         backend = ProbeLifeBackend()
-        editor = make_editor(backend, WaitProbeProjection(), WaitProbe(); devices = Device[],
+        editor = make_editor(WaitProbe(), WaitProbeProjection(); backend, devices = Device[],
                              fault_policy = make_strict_fault_policy())
         post_operation!(editor, ProbeFailOperation())
         @test_throws Exception run_editor!(editor)

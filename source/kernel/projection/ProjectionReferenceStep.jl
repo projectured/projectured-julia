@@ -4,8 +4,8 @@
 # document. It carries the projection that introduced the element and an
 # `output_path` saying where in that projection's output the reference points.
 #
-# It is a `:terminal` step type — it names a location and takes no part in
-# structural navigation — and it registers its own `.proj(projection, sub)`
+# It is a `:structural` step type — it descends to the introduced element, and it
+# evaluates to `output_path` — and it registers its own `.proj(projection, sub)`
 # entries with the `@reference` and `@reference_case` DSLs through the
 # reference layer's `build_reference_step`, `match_reference_step` and
 # `get_reference_step_subpath_args` seams.
@@ -43,9 +43,9 @@ the input throws — which is what [`is_introduced_reference`](@ref) documents a
 Build every introduced caret through this, never by hand. A hand-built path leaves the
 terminal untyped, which no reader notices while the caret stays inside its own domain —
 `@reference` runs its strict check on **construction**, and a domain that maps its own
-references never constructs one from this path. An embedder does: a pane tab holds a
-foreign document, so `PaneToWidget` splices whatever the content projection hands back
-into an `@reference` literal, and an untyped terminal throws there.
+references never constructs one from this path. A projection that embeds a foreign
+document does: it splices the reference that the content projection answers into an
+`@reference` literal, and an untyped terminal throws there.
 """
 make_introduced_reference(projection, node_type::Type, output_path::Reference) =
     ConcreteReference(node_type, ProjectionReferenceStep(projection, output_path),
@@ -138,6 +138,9 @@ ReferenceModule.evaluate_reference_step(step::ProjectionReferenceStep, document)
 
 Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
     a.projection === b.projection && a.output_path == b.output_path
+# It mixes exactly what `==` reads, so two equal steps key one entry of a table.
+Base.hash(s::ProjectionReferenceStep, h::UInt) =
+    hash(s.output_path, hash(objectid(s.projection), hash(:ProjectionReferenceStep, h)))
 
 # A short line, such as a log of operations, asks for the `:compact` form through
 # its `IOContext`. There the step reads as the part that the projection printed,
@@ -174,7 +177,7 @@ function ReferenceModule.match_reference_step(::Val{:proj}, hex, argpats, rest_s
         if $hex isa $(GlobalRef(ProjectionModule, :ProjectionReferenceStep))
             $after_proj
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

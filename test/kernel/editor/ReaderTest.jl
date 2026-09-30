@@ -11,7 +11,7 @@ const _ALL_KEY_EVENTS = vcat(
     # KeyDown with each symbol, with and without ctrl
     [KeyDown(key, ModifierKeys(ctrl=ctrl); time = 0.0) for key in _ALL_KEY_SYMBOLS for ctrl in (false, true)],
     # KeyDown with repeat flag
-    [KeyDown(key, ModifierKeys(), true; time = 0.0)    for key in (:left, :right, :backspace, :delete)],
+    [KeyDown(key, ModifierKeys(); repeat = true, time = 0.0)    for key in (:left, :right, :backspace, :delete)],
     # KeyUp
     [KeyUp(key, ModifierKeys(); time = 0.0)            for key in _ALL_KEY_SYMBOLS],
     # KeyPress — printable characters

@@ -14,7 +14,6 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedMouseTargetTracking = "87a499b1-801b-4f04-a98c-56187a2b9450"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
 ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
-ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
@@ -24,4 +23,3 @@ ProjecturedGestureTracking = {path = "../ProjecturedGestureTracking"}
 ProjecturedMouseTargetTracking = {path = "../ProjecturedMouseTargetTracking"}
 ProjecturedPrimitive = {path = "../ProjecturedPrimitive"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
-ProjecturedSerialization = {path = "../ProjecturedSerialization"}

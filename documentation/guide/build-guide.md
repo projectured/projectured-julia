@@ -141,6 +141,48 @@ The archive lands beside the bundle, as
 `build/<name>-<version>-linux-x86_64.tar.gz`, with a `README` that says what the
 target machine still needs.
 
+## Release the packages
+
+The packages reach a Julia programmer through the General registry. Each one
+has a release repository of its own, `projectured/<Name>.jl`, with the package
+at its root, because General expects that name. In it the package holds
+everything it reads, because Pkg installs only the package.
+[builder.md](../package/builder/builder.md) says how the copy is made.
+
+**Warning: do not rewrite the history of a release repository.** The registry
+names each version by the git tree of the repository, and Pkg must find that
+tree for as long as the version exists.
+
+1. Keep one folder beside this checkout that holds a clone of each release
+   repository, `<Name>.jl`. Make sure that none has an uncommitted change; the
+   build refuses one.
+2. Write the release into it:
+
+   ```julia
+   using ProjecturedBuilder                    # julia --project=environment/build
+   results = build_projectured_package_release!("../release")
+   ```
+
+   The build stops when a version of the last release is not in General yet:
+   General refuses a version that skips the one before it. A package whose
+   content did not change keeps its repository as it is. A changed package gets
+   the next patch version. A new package gets a folder, which needs `git init`
+   and a repository `projectured/<Name>.jl` on GitHub. `results` lists each
+   package with its status and its version, dependencies first.
+3. In each repository of a new or changed package: commit, and push.
+4. Register them in the order of `results`, with a comment on the commit in
+   each repository:
+
+   ```
+   @JuliaRegistrator register
+   ```
+
+   A package goes into General only after the packages it depends on, because
+   General installs each new version to test it. A new version of a package
+   that General already holds merges after 15 minutes; the first version of a
+   new package waits 3 days.
+
+## Add a binary
 ## Add a binary
 
 A binary is a function. `source/builder/ProjecturedProgram.jl` holds the ones of
@@ -168,17 +210,19 @@ package. That is what lets another repository use the same builder.
 
 | Path | What |
 | --- | --- |
-| [source/builder/](../../source/builder/) | the builder: context, preferences, usage, app package, executable, distribution |
-| [source/builder/ProjecturedProgram.jl](../../source/builder/ProjecturedProgram.jl) | the binaries of this repository |
+| [source/builder/](../../source/builder/) | the builder: context, preferences, usage, app package, executable, distribution, release copy |
+| [source/builder/ProjecturedProgram.jl](../../source/builder/ProjecturedProgram.jl) | the binaries of this repository, and what its release copy holds |
 | [source/builder/build_binary.jl](../../source/builder/build_binary.jl) | the shell front end |
 | [bin/](../../bin/) | one script to run a program, one to build it |
 | [package/ProjecturedBuilder/](../../package/ProjecturedBuilder/) | the package that holds them |
 | [environment/build/](../../environment/build/) | the environment of a build: the builder and PackageCompiler |
 | [test/builder/BuilderTest.jl](../../test/builder/BuilderTest.jl) | `test_builder()`: what a build writes, and which inputs stop it |
+| [test/builder/PackageReleaseTest.jl](../../test/builder/PackageReleaseTest.jl) | `test_package_release()`: the release copy, its versions and its scan |
 
 The tests compile nothing. Run them with the rest of the suite, or alone:
 
 ```julia
 using ProjecturedTest                         # julia --project=environment/all
 test_builder()
+test_package_release()
 ```

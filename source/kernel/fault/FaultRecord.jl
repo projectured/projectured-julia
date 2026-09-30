@@ -138,7 +138,8 @@ end
 The name to record for the thing that failed.
 """
 _get_fault_origin_name(origin::Symbol) = origin
-_get_fault_origin_name(origin::Type) = nameof(origin)
+_get_fault_origin_name(origin::Type) =
+    origin isa DataType || origin isa UnionAll ? nameof(origin) : Symbol(string(origin))
 _get_fault_origin_name(origin::Nothing) = :unknown
 _get_fault_origin_name(origin) = nameof(typeof(origin))
 

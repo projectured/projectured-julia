@@ -19,7 +19,9 @@ using ProjecturedKernel
 using ProjecturedLayout
 using ProjecturedPrimitive
 using ProjecturedProjection
+using ProjecturedScreen
 using ProjecturedSerialization
+using ProjecturedStyle
 using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
@@ -44,6 +46,8 @@ const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ClipboardModule = ProjecturedClipboard.ClipboardModule
 const FocusModule = ProjecturedFocus.FocusModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
+const ScreenModule = ProjecturedScreen.ScreenModule
+const StyleModule = ProjecturedStyle.StyleModule
 
 include("../../../source/pane/PaneModule.jl")
 

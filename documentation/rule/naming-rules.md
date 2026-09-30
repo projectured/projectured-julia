@@ -343,8 +343,9 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   must start with a verb — a "mutating getter" like consuming a queue is a
   `pop_`/`take_`, not a noun.
 - **A qualifier that narrows the *result* is a suffix**:
-  `get_document_gesture_bindings_own`, `is_reference_equal_ignoring_types`,
-  `is_prefix_of_ignoring_types`.
+  `get_document_gesture_bindings_own` answers only the bindings that a type
+  declares itself, and `get_document_gesture_bindings` also collects the
+  bindings of its supertypes.
 - **A qualifier that names the *subject* keeps subject-first order**, because
   it reads as English: `get_base_plane_length`, not `get_length_base_plane`;
   `get_command_palette_settled_selection`, not
@@ -385,8 +386,10 @@ Two shapes are exempt from the verb-first rule, and only these:
 - **DSL words** inside macros: `when` and `prefix` in `@reference_case`, and
   `bound`, `project`, `collection`, `tokens` and `sections` in
   `@projection_template`. Each of the five is a one-line builder for its
-  CamelCase marker type — `bound(input, T, render) = Bound(...)` — and they are
-  exported as a set. They read as the vocabulary of the template, not as calls:
+  CamelCase marker type — `bound(input, T, render) = Bound(...)`. They are not
+  exported: `@projection_template` rewrites a call of each one in its builder
+  expression into a call of the function of the projection layer. They read as
+  the vocabulary of the template, not as calls:
   `SyntaxLeaf(bound(:value, Bool, ...))` says what the leaf is bound to, and
   `make_bound` would say it worse.
 - **Declarative macros** are noun-named: `@document`, `@iomap`,

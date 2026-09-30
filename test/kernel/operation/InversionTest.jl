@@ -6,11 +6,17 @@ apply the inverse, and the document is what it was.
 
 A **test-local** operation with no method proves the default is `nothing`, and a
 test-local wrapper proves a wrapper's way back is the way back of what it holds.
+It also verifies the splice helpers that the text edits use. The lists are a
+test-local collection that keeps each element in a cell of its own, so a splice
+must give each item as it is and let the collection wrap it. A second test-local
+collection writes a value into the slot cell that is there, so the way back of an
+overwrite must hold the old value and not the slot. It replaces the slot for a cell,
+so the way back of a cell must hold the old slot.
 """
 
 using Test
 using ProjecturedKernel
-using ProjecturedKernel.CellModule: unwrap_cell
+using ProjecturedKernel.CellModule: AbstractCell, Cell, MutableCell, unwrap_cell
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.DocumentModule: @document, Document
 using ProjecturedKernel.ReferenceModule
@@ -25,12 +31,48 @@ end
     right::InvLeaf
 end
 
+# A test-local collection of documents: it keeps each element in a `MutableCell`
+# of its own. It wraps a value that it gets, and it keeps a cell that it gets, so
+# an element that a way back puts back is the cell that was taken out.
+struct InvCells
+    cells::Vector{Any}
+end
+_wrap_inv_cell(value) = value isa AbstractCell ? value : MutableCell{Any}(value)
+Base.length(list::InvCells) = length(list.cells)
+Base.getindex(list::InvCells, index::Integer) = list.cells[index][]
+Base.setindex!(list::InvCells, value, index::Integer) =
+    (list.cells[index] = _wrap_inv_cell(value); value)
+Base.insert!(list::InvCells, index::Integer, value) =
+    (insert!(list.cells, index, _wrap_inv_cell(value)); list)
+Base.deleteat!(list::InvCells, index) = (deleteat!(list.cells, index); list)
+ProjecturedKernel.DocumentModule.is_element_collection(::InvCells) = true
+ProjecturedKernel.OperationModule.get_slot_at(list::InvCells, index::Integer) =
+    list.cells[index]
+
+# A test-local collection that writes a value into the slot cell that is there,
+# and replaces the slot only for a cell, as the reactive `CellVector` does.
+struct InvSlots
+    cells::Vector{Any}
+end
+Base.length(list::InvSlots) = length(list.cells)
+Base.getindex(list::InvSlots, index::Integer) = list.cells[index][]
+Base.setindex!(list::InvSlots, value, index::Integer) =
+    (list.cells[index][] = value; value)
+Base.setindex!(list::InvSlots, cell::AbstractCell, index::Integer) =
+    (list.cells[index] = cell; cell)
+ProjecturedKernel.OperationModule.get_slot_at(list::InvSlots, index::Integer) =
+    list.cells[index]
+
 @document struct InvList
-    items::Vector{Any}
+    items::InvCells
 end
 
 @document struct InvBox
     collapsed::Bool
+end
+
+@document struct InvNumber
+    value::Union{Nothing, Real}
 end
 
 # The editor an operation is applied against: whatever object holds the document.
@@ -51,7 +93,9 @@ ProjecturedKernel.OperationModule.rewrap_operation(::InvWrapperOperation, inner)
     InvWrapperOperation(inner)
 
 _leaf(text) = InvLeaf(text, nothing)
-_values(list) = [unwrap_cell(item).value for item in list.items]
+_inv_list(texts...) = InvList(InvCells(Any[MutableCell{Any}(_leaf(t)) for t in texts]),
+                              nothing)
+_values(list) = [unwrap_cell(cell).value for cell in list.items.cells]
 
 function test_inversion()
 @testset "Inversion" begin
@@ -90,10 +134,58 @@ function test_inversion()
         @test leaf.value == "a"
     end
 
-    @testset "an element overwrite puts back the slot that was there" begin
-        list = InvList(Any[_leaf("a"), _leaf("b")], nothing)
+    @testset "an element overwrite puts back the value that was there" begin
+        list = _inv_list("a", "b")
         editor = _InvEditor(list)
         reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 2))
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(nothing, reference, _leaf("z")))
+        @test _values(list) == ["a", "z"]
+        evaluate_operation(editor, inverse)
+        @test _values(list) == ["a", "b"]
+    end
+
+    # A reactive collection writes one value into the slot cell that is there, as
+    # the reactive `CellVector` does. The way back must hold the old value, because
+    # the slot cell holds the new value once the write runs.
+    @testset "an overwrite in place is undone by the old value" begin
+        slots = InvSlots(Any[MutableCell{Any}("a"), MutableCell{Any}("b")])
+        editor = _InvEditor(nothing)
+        slot = slots.cells[2]
+        reference = Reference(RangeReferenceStep(1, 2))
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(slots, reference, "z"))
+        @test [slots[1], slots[2]] == ["a", "z"]
+        @test inverse.value == "b"
+        evaluate_operation(editor, inverse)
+        @test [slots[1], slots[2]] == ["a", "b"]
+        @test slots.cells[2] === slot
+        # A cell replaces the slot, so the way back puts the old slot back and
+        # leaves the new cell as it is.
+        c = Cell("z")
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(slots, reference, c))
+        @test slots.cells[2] === c
+        evaluate_operation(editor, inverse)
+        @test slots.cells[2] === slot
+        @test [slots[1], slots[2]] == ["a", "b"]
+        @test c[] == "z"
+    end
+
+    # A step of the plain layout (`M…`) writes and inverts as the cell layout does.
+    @testset "a write through a plain step has a way back" begin
+        leaf = _leaf("a")
+        editor = _InvEditor(nothing)
+        inverse = evaluate_invertible_operation!(editor,
+            ReplaceReferencedValueOperation(leaf, Reference(MFieldReferenceStep("value")),
+                                            "b"))
+        @test leaf.value == "b"
+        evaluate_operation(editor, inverse)
+        @test leaf.value == "a"
+
+        list = _inv_list("a", "b")
+        editor = _InvEditor(list)
+        reference = Reference(MFieldReferenceStep("items"), MRangeReferenceStep(1, 2))
         inverse = evaluate_invertible_operation!(editor,
             ReplaceReferencedValueOperation(nothing, reference, _leaf("z")))
         @test _values(list) == ["a", "z"]
@@ -109,7 +201,7 @@ function test_inversion()
                  (1, 2, Any[],                          ["a", "c"]),            # delete
                  (0, 2, Any[_leaf("x")],                ["x", "c"]),            # replace
                  (0, 3, Any[_leaf("x"), _leaf("y")],    ["x", "y"]))            # replace many
-            list = InvList(Any[_leaf("a"), _leaf("b"), _leaf("c")], nothing)
+            list = _inv_list("a", "b", "c")
             editor = _InvEditor(list)
             reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(start, stop))
             inverse = evaluate_invertible_operation!(editor,
@@ -118,6 +210,65 @@ function test_inversion()
             evaluate_operation(editor, inverse)
             @test _values(list) == ["a", "b", "c"]
         end
+    end
+
+    # The collection, not the splice, decides the form in which an element is
+    # stored: here a `MutableCell` of its own around the value.
+    @testset "a splice gives each item to the collection as it is" begin
+        list = _inv_list("a")
+        reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 1))
+        evaluate_operation(_InvEditor(list),
+            ReplaceReferencedValueOperation(nothing, reference, Any[_leaf("b")]))
+        @test _values(list) == ["a", "b"]
+        @test all(cell -> cell isa MutableCell, list.items.cells)
+        @test !any(cell -> unwrap_cell(cell) isa AbstractCell, list.items.cells)
+    end
+
+    @testset "a write refuses a key of a dictionary and a range of many elements" begin
+        table = Dict{String, Any}("a" => 1)
+        @test_throws "writes no key" evaluate_operation(_InvEditor(nothing),
+            ReplaceReferencedValueOperation(table, "a", 2))
+        @test table["a"] == 1
+
+        list = _inv_list("a", "b", "c")
+        reference = Reference(FieldReferenceStep("items"), RangeReferenceStep(0, 2))
+        @test_throws "more than one element" evaluate_operation(_InvEditor(list),
+            ReplaceReferencedValueOperation(nothing, reference, _leaf("z")))
+        @test _values(list) == ["a", "b", "c"]
+    end
+
+    @testset "a compound of one operation holds that operation" begin
+        compound = CompoundOperation(DoNothingOperation())
+        @test compound.operations == Any[DoNothingOperation()]
+    end
+
+    # Each text edit goes through this one splice, between 0-based boundaries, so a
+    # character of more than one byte stays whole.
+    @testset "splice_string replaces the characters between two boundaries" begin
+        @test splice_string("hello", 1, 3, "EY") == "hEYlo"
+        @test splice_string("abc", 1, 1, "x") == "axbc"
+        @test splice_string("aéb", 1, 2, "x") == "axb"
+        @test splice_string("abc", -1, 1, "x") == "xbc"
+        @test splice_string("abc", 2, 10, "x") == "abx"
+    end
+
+    @testset "splice_number splices the text and reads the number back" begin
+        @test splice_number("4", 1, 1, "2") === 42
+        @test splice_number("4", 1, 1, ".5") === 4.5
+        @test splice_number("1", 1, 1, "e3") === 1000.0
+        @test splice_number("4", 0, 1, "") === nothing
+        @test splice_number("4", 1, 1, "x") === nothing
+    end
+
+    @testset "splice_value! writes the splice of the value that the field holds" begin
+        leaf = _leaf("abc")
+        splice_value!(leaf, :value, leaf.value, 1, 2, "X")
+        @test leaf.value == "aXc"
+        splice_value!(leaf, :value, nothing, 0, 0, "new")
+        @test leaf.value == "new"
+        number = InvNumber(4, nothing)
+        splice_value!(number, :value, number.value, 1, 1, "2")
+        @test number.value === 42
     end
 
     # An entry outlives the moment it was made, and the document may move in the
@@ -133,7 +284,7 @@ function test_inversion()
         evaluate_operation(_InvEditor(InvBranch(_leaf("p"), _leaf("q"), nothing)), inverse)
         @test root.left.value == "a"
 
-        list = InvList(Any[_leaf("a"), _leaf("b")], nothing)
+        list = _inv_list("a", "b")
         splice = make_inverse_operation(list,
             ReplaceReferencedValueOperation(nothing,
                 Reference(FieldReferenceStep("items"), RangeReferenceStep(0, 1)), Any[]))
@@ -212,7 +363,7 @@ function test_inversion()
     # index are the smallest case that shows it — inverting both up front would
     # put the first element back twice.
     @testset "a compound is inverted while it is applied" begin
-        list = InvList(Any[_leaf("a"), _leaf("b"), _leaf("c")], nothing)
+        list = _inv_list("a", "b", "c")
         editor = _InvEditor(list)
         delete_second() = ReplaceReferencedValueOperation(nothing,
             Reference(FieldReferenceStep("items"), RangeReferenceStep(1, 2)), Any[])

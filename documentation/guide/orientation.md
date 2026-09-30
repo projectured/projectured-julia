@@ -22,7 +22,7 @@ browsing tools below. Do not guess names — search for them.
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
-| Editor & loop | `Editor`, `run_editor!`, `run_frame!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code` | `kernel/editor` |
+| Editor & loop | `Editor`, `run_editor!`, `run_frame!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code!` | `kernel/editor` |
 | Screen / pane tree | `ScreenDocument` → `WindowDocument` → `PaneTree` → `PaneSplit`/`PaneGroup` → `PaneTab`; `ScreenToScreen`, `WindowManagingProjection` | `pane/pane`, `kernel/editor` |
 | Backends / devices | `Backend`/`SdlBackend`, `Device`/`Display`/`Keyboard`/`Mouse`, `KeyPress`, `MouseClick` | `kernel/devices-and-backends` |
 
@@ -69,38 +69,40 @@ shows, through the file and the history that hold it. The pane verbs and
 `print_natural_text` take a referenced document where they take a reference or a
 document.
 
-Look at the data first, in one call:
+Look at the data first, in one call. Here a tab shows `items.json`, a JSON array
+of records with a `name` and a `price`:
 
 ```julia
-people_tab_1 = find_pane(editor, "people.json")
-people_1 = get_edited_document(people_tab_1)
-println(print_natural_text(people_1))
+items_tab_1 = find_pane(editor, "items.json")
+items_1 = get_edited_document(items_tab_1)
+println(print_natural_text(items_1))
 ```
 
 Then use the same variables in the next call. A `JsonArray` acts as a vector, and
-a `JsonObject` as a map from key to value:
+a `JsonObject` as a map from key to value; `.value` is the plain value of a leaf.
+Build the rows of a table and sort them in one call, with a comprehension in its
+brackets, `[… for item in items_1]`: `sort` takes a vector, not a generator.
 
 ```julia
-rows_1 = [[person["name"].value, person["age"].value] for person in people_1]
-sort!(rows_1; by = first)
-table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1); title = "People by name")
+rows_1 = sort([[item["name"].value, item["price"].value] for item in items_1]; by = first)
+table_tab_1 = open_pane!(editor, WidgetTable(["name", "price"], rows_1); title = "Items by name")
 ```
 
 To change what a tab shows, give the part and its new value to
 `replace_referenced_value!`, so the change is an edit that Ctrl+Z can undo:
 
 ```julia
-replace_referenced_value!(editor, people_1[2]["city"], JsonString("Paris"))
+replace_referenced_value!(editor, items_1[2]["price"], JsonNumber(12))
 ```
 
-and not `people_1[2]["city"].value = "Paris"`, which changes the document outside
-the editor's handling of an edit. To add a record, or to remove one, use
+and not `items_1[2]["price"].value = 12`, which changes the document outside the
+editor's handling of an edit. To add a record, or to remove one, use
 `insert_elements!` and `delete_elements!`, which take the collection and a
 1-based index:
 
 ```julia
-frank_1 = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30), "city" => JsonString("Paris"))
-insert_elements!(editor, people_1, length(people_1) + 1, [frank_1])
+item_1 = JsonObject("name" => JsonString("lamp"), "price" => JsonNumber(25))
+insert_elements!(editor, items_1, length(items_1) + 1, [item_1])
 ```
 
 Each of the three records the edit in the history of the file, so Ctrl+Z in the
@@ -110,19 +112,18 @@ tab of the file takes it back.
 the end of a group, give that tab or group as `target`. To put it in a new pane
 beside or under the group of the target, add `side`: `:left`, `:right`, `:above`
 or `:below`. The new pane is always next to one group.
-`get_parent(editor, people_tab_1)` answers the group that holds the tab, so this
-puts a card under the group of `people.json` and the tabs beside it:
+`get_parent(editor, items_tab_1)` answers the group that holds the tab, so this
+puts the table in a new pane under the group of `items.json`:
 
 ```julia
-card_tab_1 = open_pane!(editor, WidgetCard(content = WidgetTable(["name", "age"], rows_1));
-                        title = "Names and ages", target = get_parent(editor, people_tab_1),
-                        side = :below)
+table_tab_2 = open_pane!(editor, WidgetTable(["name", "price"], rows_1); title = "Items",
+                         target = get_parent(editor, items_tab_1), side = :below)
 ```
 
 Each call runs in the same module, so a variable that one call binds at the top
 level is still there in every later call. Keep each object that you find or make
-in its own variable, named by what it holds and numbered: `people_tab_1`,
-`people_1`, `rows_1`. When you make another object of the same kind, give it the
+in its own variable, named by what it holds and numbered: `items_tab_1`,
+`items_1`, `rows_1`. When you make another object of the same kind, give it the
 next number, `rows_2`, and do not overwrite the first. Use a variable again in a
 later call instead of finding its object again.
 
@@ -132,6 +133,6 @@ later call instead of finding its object again.
 - A pane tree can mirror the **same** document into two tabs at once, so a bare
   value match hits both — scope by **domain node type** (`v isa JsonString`).
 - `execute_julia_code` keeps top-level bindings between calls, so build state up
-  in numbered variables (`people_1 = …` in one call, use `people_1` in the next).
+  in numbered variables (`items_1 = …` in one call, use `items_1` in the next).
 - A referenced document is not an instance of its document's type:
-  `people_1 isa JsonArray` is false. Ask `get_document(people_1) isa JsonArray`.
+  `items_1 isa JsonArray` is false. Ask `get_document(items_1) isa JsonArray`.

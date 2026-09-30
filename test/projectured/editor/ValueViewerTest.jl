@@ -68,7 +68,8 @@ function test_value_viewer()
             value = Dict("inner" => _ViewerPoint(1, 2))
             document, projection = make_value_viewer(value)
             # The editor that `run_value_viewer` runs, with the feeds it passes.
-            editor = Editor(HeadlessBackend(), document, projection, Device[];
+            editor = Editor(document, projection; backend = HeadlessBackend(),
+                            devices = Device[],
                             feeds = make_value_viewer_feeds(document, value))
             print!(editor)
             node = document.children[1]

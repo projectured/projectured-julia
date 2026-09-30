@@ -10,6 +10,15 @@ The declared type of a field of the kind `kind` that holds a value of the type
 `ImmutableCell` or `MutableCell` field is a cell of `value_type`, such as
 `ImmutableCell{Int}`. The result holds the types as objects, so it needs no name in
 the scope where it expands.
+
+Use it to declare a field of your struct in the kind that your macro chose.
+
+# Example
+
+    build_cell_struct_field_type(ImmutableCell, :Int)   # ImmutableCell{Int}
+    build_cell_struct_field_type(ReactiveCell, :Int)    # Cell
+
+See also `retype_cell_struct_fields!`, which writes the types into the definition.
 """
 build_cell_struct_field_type(kind, value_type) =
     kind === ReactiveCell ? Cell : Expr(:curly, kind, value_type)
@@ -60,19 +69,38 @@ _build_cell_struct_property_accessors(type_name) = (
 The parameters of a keyword constructor, as `Base.@kwdef` writes them:
 `name = default` for a field with a default, and the required keyword `name` for a
 field without one.
+
+Use it to give your struct a constructor that takes each field by name, together
+with `build_cell_struct_keyword_constructor`.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; y::Int = 0; end))
+    build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
+    # the required keyword x, and y = 0
 """
 build_cell_struct_keyword_parameters(field_names, defaults) =
     Any[haskey(defaults, name) ? Expr(:kw, name, defaults[name]) : name
         for name in field_names]
 
 """
-    build_cell_struct_keyword_constructor(type_name, field_names, parameters) -> Expr
+    build_cell_struct_keyword_constructor(type_name, field_names; parameters) -> Expr
 
 The keyword constructor `type_name(; parameters…)`. It calls the positional
 constructor `type_name(field_names…)`, so only the positional constructor wraps a
 value in a cell.
+
+Use it to give a struct of your macro the constructor `T(; x, y = 0)` beside its
+positional constructor.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; y::Int = 0; end))
+    parameters = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
+    build_cell_struct_keyword_constructor(:Point, plan.field_names; parameters)
+    # function Point(; x, y = 0) Point(x, y) end
 """
-function build_cell_struct_keyword_constructor(type_name, field_names, parameters)
+function build_cell_struct_keyword_constructor(type_name, field_names; parameters)
     # `Expr(:call, type_name, field_names...)` lowers to `Core._apply_iterate` on the
     # generic `Expr` constructor. A `juliac --trim=safe` build of omnet-julia reported
     # that call as a verifier error, so `append!` builds the same expression.
@@ -84,7 +112,8 @@ function build_cell_struct_keyword_constructor(type_name, field_names, parameter
 end
 
 """
-    build_cell_struct_positional_ctors(plan, type_name; each_arity = _ -> ()) -> Vector
+    build_cell_struct_positional_constructors(plan, type_name; each_arity = _ -> ())
+        -> Vector
 
 The positional constructors that leave out fields with a default at the end of the
 declaration, as `Base.@kwdef` does for keywords. For each arity `k` from
@@ -102,9 +131,20 @@ not compute that condition again.
 
 When `find_cell_struct_parameter_slots(plan)` returns `nothing`, the constructors
 name the type parameters: `type_name{A…}(f₁, …, f_k) where {A…}`.
+
+Use it to let a caller of your struct leave out the fields with a default at the
+end, as `Point(1)` for `Point(1, 0)`.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Point; x::Int; y::Int = 0; end))
+    build_cell_struct_positional_constructors(plan, :Point)
+    # [:(Point(x) = Point(x, 0))]
+
+See also `get_cell_struct_required_count`, the smallest arity.
 """
-function build_cell_struct_positional_ctors(plan::CellStructPlan, type_name;
-                                            each_arity = _ -> ())
+function build_cell_struct_positional_constructors(plan::CellStructPlan, type_name;
+                                                   each_arity = _ -> ())
     field_count = length(plan.field_names)
     required    = get_cell_struct_required_count(plan)
     ctors = Any[]
@@ -167,7 +207,7 @@ function build_cell_struct_exprs(definition; default = ReactiveCell)
     # one of its type parameters binds from no argument.
     if !isempty(plan.defaults) && (isempty(plan.parameters) || inferring !== nothing)
         parameters = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
-        push!(parts, build_cell_struct_keyword_constructor(plan.name, plan.field_names,
+        push!(parts, build_cell_struct_keyword_constructor(plan.name, plan.field_names;
                                                            parameters))
     end
     Expr(:block, parts...)
@@ -179,6 +219,17 @@ end
 Parse the arguments of a macro of the form `@macro [Kind] struct … end`. `Kind` is
 `ReactiveCell`, `Cell`, `ImmutableCell` or `MutableCell`, and it sets the kind of
 each field whose type names no kind. Without it, the kind is `ReactiveCell`.
+
+Use it to let your macro take a kind before `struct`, as `@cell_struct` does.
+
+# Example
+
+    macro shape(arguments...)
+        kind, definition = parse_cell_struct_macro_arguments(arguments)
+        esc(build_cell_struct_exprs(definition; default = kind))
+    end
+
+See also `build_cell_struct_exprs`, which makes the struct in that kind.
 """
 function parse_cell_struct_macro_arguments(arguments)
     length(arguments) == 1 && return (ReactiveCell, arguments[1])

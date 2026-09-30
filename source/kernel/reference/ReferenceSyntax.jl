@@ -292,10 +292,23 @@ function _ref_type_and_fields!(steps::Vector{ReferenceSyntaxStep}, base)
     end
     cur isa Symbol ||
         error("type step must start with a type name: $base")
+    isempty(fields) || _check_bare_type_name(cur, first(fields))
     push!(steps, ReferenceSyntaxType(cur))
     for f in fields
         push!(steps, ReferenceSyntaxField(f))
     end
+end
+
+# A type step takes a bare type name: `::Mod.T` reads as the type `Mod` and a field
+# `.T`. A capital letter starts a type name, as for a `::T` of a pattern, so a type
+# followed by such a name is a qualified type name, and the parser refuses it. So a
+# field whose name starts with a capital letter can not follow a type step
+# (`::JsonObject.Name`).
+function _check_bare_type_name(type_name::Symbol, next_name::AbstractString)
+    isuppercase(first(next_name)) || return nothing
+    error("a type step takes a bare type name, not `$type_name.$next_name`: " *
+          "bring `$next_name` into scope and write `::$next_name`. A field " *
+          "whose name starts with a capital letter can not follow a type step")
 end
 
 # `x::T` type suffix: a bare `T` is the type step; `T{i}` / `T[i]` (which Julia parses as
@@ -332,6 +345,9 @@ function _ref_leading_type!(steps::Vector{ReferenceSyntaxStep}, X)
         root = steps[n + 1]
         root isa ReferenceSyntaxField ||
             error("leading ::T must start with a type name: $X")
+        next = length(steps) > n + 1 ? steps[n + 2] : nothing
+        next isa ReferenceSyntaxField &&
+            _check_bare_type_name(Symbol(root.name), next.name)
         steps[n + 1] = ReferenceSyntaxType(Symbol(root.name))
     end
 end
@@ -341,50 +357,22 @@ end
 """
     parse_reference_step(ex) -> ReferenceSyntaxStep
 
-Parse a one-step expression (the `@reference_step` grammar). Unlike [`parse_reference_path`](@ref),
-a leading identifier in front of an operator (`xs[i]`, `xs{k}`, `c.name(...)`) is a
-**placeholder** and is dropped; only a bare symbol (`value`) is taken as a field name.
+Parse a one-step expression (the `@reference_step` grammar) with
+[`parse_reference_path`](@ref). A leading identifier in front of an operator
+(`xs[i]`, `xs{k}`, `c.name(...)`) is a **placeholder** and is dropped; only a bare
+symbol (`value`) is taken as a field name. A type step, a splice and a tail bind
+(`x...`) are not steps that `@reference_step` builds, and a path of two field steps
+(`a.b`) is not one step.
 """
 function parse_reference_step(ex)
-    if ex isa Symbol
-        return ReferenceSyntaxField(String(ex))
-    elseif ex isa Expr && ex.head == :ref
-        if length(ex.args) == 2
-            return ReferenceSyntaxIndex(ex.args[2])
-        elseif length(ex.args) == 3
-            return ReferenceSyntaxRange(ex.args[2], ex.args[3], :element)
-        else
-            error("indexing supports 1 or 2 dimensions in @reference_step: $ex")
-        end
-    elseif ex isa Expr && ex.head == :curly
-        length(ex.args) == 2 || error("only one-dimensional position is supported in @reference_step: $ex")
-        return _ref_braces_step(ex.args[2])
-    elseif ex isa Expr && ex.head == :vect
-        if length(ex.args) == 1
-            return ReferenceSyntaxIndex(ex.args[1])
-        elseif length(ex.args) == 2
-            return ReferenceSyntaxRange(ex.args[1], ex.args[2], :element)
-        else
-            error("vector syntax supports 1 or 2 elements in @reference_step: $ex")
-        end
-    elseif ex isa Expr && ex.head == :braces
-        length(ex.args) == 1 || error("braces syntax supports exactly one element in @reference_step: $ex")
-        return _ref_braces_step(ex.args[1])
-    elseif ex isa Expr && ex.head == :call
-        f = ex.args[1]
-        if f isa Expr && f.head == :. && f.args[2] isa QuoteNode
-            opname = f.args[2].value
-            if opname == :field
-                length(ex.args) == 2 || error(".field(name) expects exactly one argument in @reference_step: $ex")
-                return ReferenceSyntaxFieldExpression(ex.args[2])
-            else
-                # A `.name(...)` extension step, dispatched through the seam.
-                return _ref_extension_step(opname, ex.args[2:end])
-            end
-        else
-            error("unsupported call form in @reference_step: $ex")
-        end
-    else
+    steps = parse_reference_path(ex)
+    # The path parser reads a placeholder as a field step in front of the step. Two
+    # field steps (`a.b`) are a path of two steps, not a placeholder and a step.
+    length(steps) == 2 && steps[1] isa ReferenceSyntaxField &&
+        !(steps[2] isa ReferenceSyntaxField) && popfirst!(steps)
+    (length(steps) == 1 &&
+     !(steps[1] isa Union{ReferenceSyntaxType, ReferenceSyntaxSplice,
+                          ReferenceSyntaxTailBind})) ||
         error("unsupported @reference_step syntax: $ex")
-    end
+    return only(steps)
 end

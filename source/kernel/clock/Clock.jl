@@ -121,8 +121,9 @@ Call it on the task that reads the clock. The heartbeat is a task on the thread 
 the caller, and Julia keeps the caller on that thread too, so the two never run at
 the same moment. A read of the clock on another thread races with the heartbeat.
 The heartbeat writes at the points where the tasks of its thread yield, so a frame
-that yields can see two times. Do not start a heartbeat on a clock that other
-code writes.
+that yields can see two times. A computation that reads the clock, directly or
+through another cell, must not yield, because a write at that yield can leave it
+stale for good. Do not start a heartbeat on a clock that other code writes.
 
 The heartbeat holds the clock through a `WeakRef`, so it ends when the collector
 frees a clock that nobody stopped. It does not start while a package precompiles,
@@ -135,7 +136,7 @@ function start_wall_clock!(clock::Clock)
     current = clock.heartbeat
     (current !== nothing && !istaskdone(current)) && return clock
     reference = WeakRef(clock)
-    start = Base.time() - get_clock_time(clock)
+    start = time_ns() / 1e9 - get_clock_time(clock)
     clock.heartbeat = @async _run_wall_clock_heartbeat(reference, start)
     clock
 end
@@ -163,17 +164,18 @@ end
 
 const _HEARTBEAT_INTERVAL = 0.01
 
-# The loop of a heartbeat. It writes `Base.time() - start`, where `start` is the
-# real time at which the clock would have been at zero. It holds its clock only
-# between a read of `reference` and the write, so the collector can free a clock
-# that nobody stopped. It ends when the clock is gone, or when the clock holds
-# another heartbeat or none.
+# The loop of a heartbeat. It writes `time_ns() / 1e9 - start`, where `start` is
+# the monotonic time in seconds at which the clock would have been at zero. The
+# monotonic time does not step when the system clock is set. The loop holds its
+# clock only between a read of `reference` and the write, so the collector can
+# free a clock that nobody stopped. It ends when the clock is gone, or when the
+# clock holds another heartbeat or none.
 function _run_wall_clock_heartbeat(reference::WeakRef, start::Float64)
     while true
         clock = reference.value
         clock === nothing && return
         clock.heartbeat === current_task() || return
-        set_clock_time!(clock, Base.time() - start)
+        set_clock_time!(clock, time_ns() / 1e9 - start)
         clock = nothing
         sleep(_HEARTBEAT_INTERVAL)
     end

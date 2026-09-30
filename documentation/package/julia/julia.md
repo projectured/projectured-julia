@@ -12,7 +12,7 @@ The Julia domain, `ProjecturedJulia`, holds Julia source code as a tree of react
 
 - **Literals:** `JuliaIdentifier`, `JuliaInteger`, `JuliaFloat`, `JuliaString`, `JuliaBool`, `JuliaSymbol`, `JuliaChar`.
 - **Expressions:** `JuliaCall`, `JuliaBinaryOperation`, `JuliaUnaryOperation`, `JuliaIndex`, `JuliaFieldAccess`, `JuliaTuple`, `JuliaArray`, `JuliaRange` and others.
-- **Statements and definitions:** `JuliaBlock`, `JuliaAssignment`, `JuliaIf`, `JuliaFor`, `JuliaWhile`, `JuliaTry`, `JuliaFunction`, `JuliaStruct`, `JuliaModuleDefinition`, `JuliaUsing`, `JuliaDocstring` and others.
+- **Statements and definitions:** `JuliaBlock`, `JuliaToplevel`, `JuliaAssignment`, `JuliaIf`, `JuliaFor`, `JuliaWhile`, `JuliaTry`, `JuliaFunction`, `JuliaStruct`, `JuliaModuleDefinition`, `JuliaUsing`, `JuliaDocstring` and others.
 
 A variable-length list of children is a `CellVector`: `arguments`, `statements`, `params`. `JuliaEmpty` prints nothing, for example a missing `else` branch. It is not the same as `JuliaNothing`, the `nothing` literal.
 
@@ -24,13 +24,13 @@ A variable-length list of children is a `CellVector`: `arguments`, `statements`,
 
 ### The parser
 
-`parse_julia(text)` calls `Meta.parseall`, the parser of Julia itself, and converts the `Expr` tree into documents in one recursive pass. It has one `_convert_head(::Val{head}, x)` method for each `Expr` head. It builds no syntax tree of its own. Where the `Expr` tree has one shape for two spellings, the document has one type: `a ? b : c` and `if` both become `JuliaIf`, and `begin … end` becomes `JuliaBlock`. A head with no converter raises an error.
+`parse_julia(text)` calls `Meta.parseall`, the parser of Julia itself, and converts the `Expr` tree into documents in one recursive pass. It has one `_convert_head(::Val{head}, x)` method for each `Expr` head. It builds no syntax tree of its own. Where the `Expr` tree has one shape for two spellings, the document has one type: `a ? b : c` and `if` both become `JuliaIf`, and `begin … end` becomes `JuliaBlock`. A head with no converter raises an error. A call of an infix operator becomes a `JuliaBinaryOperation`, so it prints between its operands: the arithmetic and comparison operators, `%`, `÷`, `isa`, `in`, `∈`, `∉`, `=>`, `|>`, and the dotted forms of the arithmetic and comparison operators. Any other callee stays a `JuliaCall`. Statements on one line with `;` between them have a `:toplevel` of their own in the `Expr` tree, and they become a `JuliaToplevel`, which prints them on their line. The `Expr` tree does not say whether a `;` follows the last statement, so `parse_julia` reads that from the tokens of the text and sets `trailing_semicolon`. A `;` inside `begin … end` separates statements of that block.
 
 ### The printer
 
-`JuliaToSyntax()` is a `TypeDispatchingProjection` of `@projection_template` rules, one for each type. The template markers cover the keyword headers, the coloured callee and the lists of variable length.
+`JuliaToSyntax()` is a `TypeDispatchingProjection` of `@projection_template` rules, one for each type. A `JuliaBinaryOperation` puts parentheses around an operand that binds looser than its operator, by the order of the Julia manual: `=>`, `||`, `&&`, the comparisons, `|>`, the additions, the multiplications and `^`. The parser folds a chained comparison `a < b < c` to the left, and a comparison associates to the left in the printer, so the chain prints as it was written. The template markers cover the keyword headers, the coloured callee and the lists of variable length.
 
-The last entry of the dispatch is `Document => JuliaObjectToSyntaxLeaf()`. The dispatch takes the first entry that matches, so no Julia node reaches it: it draws a document that is not Julia, an object that stands in the code, as one leaf with its title in angle marks, `⟨a.json⟩`, or its type name when it has no title. It is the one leaf written by hand, because the reader of a template would give a key on the label to the object's own table. It answers no key, maps a whole selection both ways, and shows a selection only when the object is selected whole. A chain that recurses through this table, as `print_natural_text` and the application's window do, draws the label; a bare `NaturalToGraphics` recurses a child of the code through its shared syntax table by the child's own type.
+The last entry of the dispatch is `Document => JuliaObjectToSyntaxLeaf()`. The dispatch takes the first entry that matches, so no Julia node reaches it: it draws a document that is not Julia, an object that stands in the code, as one leaf with its title in angle marks, `⟨a.json⟩`, or its type name when it has no title. It is the one leaf written by hand, because the reader of a template would give a key on the label to the object's own table. It answers no key, maps a whole selection both ways, and shows a selection only when the object is selected whole. A chain that recurses through this table, as `print_natural_text` and the application's window do, draws the label; a bare `NaturalToGraphics` recurses a child of the code through its shared syntax table by the child's own type. A domain that embeds Julia code passes the entries of its own types to `JuliaToSyntax(entries...)`, which puts them before that last entry: `FsmToSyntax()`, `FormulaToSyntax()` and `ProcessToSyntax()` do so.
 
 The leaves are opaque: they have no `bound` marker. So a caret selects an identifier, a number or a string as a whole, and does not go into its characters. A `bound` leaf needs the flat-offset mapping of JSON for the tokens that no document field produces, such as `function`, `(` and `end`.
 
@@ -71,6 +71,7 @@ Its `__init__` registers the natural notation (format `:jl`, extension `.jl`, pa
 code = parse_julia("function f(x)\n    x + 1\nend")   # one statement: a bare JuliaFunction
 code.name                                     # the JuliaIdentifier `f`
 parse_julia("a = 1\nb = 2")                   # two statements: a JuliaBlock
+parse_julia("x = 1;")                         # a JuliaToplevel with trailing_semicolon
 print_natural_text(code)                      # back to source text
 run_example("julia")
 ```

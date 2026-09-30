@@ -3,11 +3,13 @@
 # `IoMapInterface.jl`, already in scope.
 
 """
-    @iomap struct T ... end
+    @iomap [Kind] struct T ... end
 
 Annotate an IoMap struct whose `::Cell` fields should be transparent: `obj.field`
 reads the Cell value, `obj.field = val` writes it, and raw Cells stay reachable
-via `getfield(obj, :field)`. Fields may carry `@kwdef`-style defaults
+via `getfield(obj, :field)`. The optional `Kind` before `struct` is the kind of
+the cells: `ImmutableCell`, `MutableCell`, `ReactiveCell` (the default) or
+`Cell`. Fields may carry `@kwdef`-style defaults
 (`field::T = value`); when at least one is present, a keyword constructor is
 generated alongside the positional auto-wrapping one.
 
@@ -39,7 +41,7 @@ end
 # property access and yield the *value* — `iomap.output` unwraps the field's `Cell`
 # (pass a `Cell(@computation …)` so it re-derives reactively; `getfield` reaches
 # the raw cell). An IoMap whose derived correspondence lives under different field
-# names stores those as computed cells too (cf. `ChainingIoMap.output`).
+# names stores those as computed cells too.
 get_iomap_projection(iomap::IoMap) = iomap.projection
 get_iomap_input(iomap::IoMap) = iomap.input
 get_iomap_output(iomap::IoMap) = iomap.output
@@ -92,5 +94,5 @@ its identity; `iomap.output` reads the current value, `getfield` reaches the raw
     projection::Any
     input::Any
     output::Any
-    inner_iomap::IoMap        # the projected content's IoMap (documentary — @iomap stores it as a Cell)
+    inner_iomap::Any
 end

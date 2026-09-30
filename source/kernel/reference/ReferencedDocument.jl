@@ -93,10 +93,13 @@ end
 function _find_referenced_value(x::ReferencedDocument, value)
     _is_referenced_value(value) || return value
     document = get_document(x)
-    found = search_references(document, node -> node === value)
+    # The search answers the path to the value itself, with its types recorded. The
+    # step that it records for a key of a dictionary is the key as a string, so a key
+    # of another type gives a path that does not lead back to the value.
+    found = search_references(document, node -> node === value; raw = true)
     length(found) == 1 || return value
-    ReferencedDocument(value, concat_references(get_reference(x),
-                                                annotate_reference_types(document, only(found))))
+    try_evaluate_reference(document, only(found)) === value || return value
+    ReferencedDocument(value, concat_references(get_reference(x), only(found)))
 end
 
 function Base.getproperty(x::ReferencedDocument, name::Symbol)
@@ -201,10 +204,21 @@ end
 _get_short_type_name(T) = T isa DataType ? nameof(T) : T
 
 function Base.show(io::IO, x::ReferencedDocument{T}) where {T}
-    print(io, "ReferencedDocument{", _get_short_type_name(T), "} at ",
-          strip_reference_types(get_reference(x)), ": ")
+    _show_referenced_document_header(io, x)
     show(io, get_document(x))
 end
+
+# The display of the REPL and of the answer of a tool: the document as the REPL
+# shows it, so a document with a display of its own, such as a table that says
+# how many rows it has, is read that way through the reference too.
+function Base.show(io::IO, mime::MIME"text/plain", x::ReferencedDocument)
+    _show_referenced_document_header(io, x)
+    show(io, mime, get_document(x))
+end
+
+_show_referenced_document_header(io::IO, x::ReferencedDocument{T}) where {T} =
+    print(io, "ReferencedDocument{", _get_short_type_name(T), "} at ",
+          strip_reference_types(get_reference(x)), ": ")
 
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Document} = convert(T, get_document(x))
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Reference} = convert(T, get_reference(x))
@@ -232,8 +246,8 @@ Use it to keep where a document is, and to find the document there again later.
 
 # Example
 
-    locator = DocumentLocator(editor, get_reference(people_tab))
-    people_tab = find_referenced_document(locator)
+    locator = DocumentLocator(editor, get_reference(items_tab))
+    items_tab = find_referenced_document(locator)
 """
 struct DocumentLocator{S}
     start::S
@@ -280,7 +294,7 @@ document around any part, for example to open a new tab in the group of a tab.
 
 # Example
 
-    people_group_1 = get_parent(editor, find_pane(editor, "people.json"))
+    items_group_1 = get_parent(editor, find_pane(editor, "items.json"))
 """
 function get_parent(root, x::Union{Reference, ReferencedDocument})
     steps = get_reference_steps(strip_reference_types(convert(Reference, x)))

@@ -12,8 +12,6 @@ end
 
 function test_formula_file()
 @testset "a formula and its file" begin
-    register_pred_type!(FormulaFormula)
-    register_pred_type!(FormulaEnvironment)
 
     @testset "a name in the code binds to the formula of that name" begin
         sheet = FormulaEnvironment([
@@ -78,7 +76,6 @@ function test_formula_file()
             FormulaFormula("twice", parse_julia("2 * rho")),
         ])
         holder = TestFormulaHolder(formula = sheet.formulas[2])
-        register_pred_type!(TestFormulaHolder)
         project = FileProject(directory, [PredFile("formulas.pred", sheet), PredFile("holder.pred", holder)])
         @test save_project!(project) === true
         @test occursin("code = \"2 * rho\"", read(joinpath(directory, "formulas.pred"), String))

@@ -1,21 +1,14 @@
 # Fragment of `AgentModule` — the agent-server **contract**: the seams of the
 # inbound half, a channel that lets an agent *outside* this process inspect
 # and manipulate a running editor — conceptually another device/backend,
-# reading operations from an agent and writing document state back.
-# Independent of the editor loop, which reaches it only through
-# `make_agent_server`.
-#
-# The *outbound* half — the agent loop of `Agent.jl` and `AgentLoop.jl`, this
-# editor driving a model — is the mirror image. Both spend the same currency,
-# the editor's `ToolSet`: an agent server publishes it, an agent loop calls it.
-# Both call it from a task that is not the editor's, so both go through one
-# door, `run_on_editor_task!`, which the editor layer answers.
+# reading operations from an agent and writing document state back — and
+# `run_on_editor_task!`, which both halves call.
 #
 # Concrete servers live in their own packages and register methods for these
-# generics. The editor loop drives a server only through them, so it never
-# names a concrete server type, which is what lets the implementation live in
-# an optional package whose types cannot be referenced at load time. Nothing
-# here carries a body — the fallback behaviours sit in `AgentDefaults.jl`.
+# generics. A caller reaches a server only through them, so it never names a
+# concrete server type, which is what lets the implementation live in an
+# optional package whose types cannot be referenced at load time. Nothing here
+# carries a body — the fallback behaviours sit in `AgentDefaults.jl`.
 
 """
     make_agent_server(kind::Symbol, editor; kwargs...)
@@ -62,7 +55,7 @@ The call runs at once, on the calling task, when nothing runs a loop for
 `target`, or when the calling task is the one that runs it. So a call from the
 editor's own task, and a call in a test that drives no loop, never wait.
 
-The kernel answers every target by running at once. The editor layer answers an
-`Editor` whose loop runs on another task.
+The default runs the call at once for every target. A target type whose loop can
+run on another task adds a method that posts the call to that loop.
 """
 function run_on_editor_task! end

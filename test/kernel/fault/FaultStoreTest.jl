@@ -20,14 +20,6 @@ end
 FaultModule.append_fault!(target::QuietTarget, record) = push!(target.seen, record)
 FaultModule.append_fault!(::AngryTarget, record) = error("this target refuses records")
 
-struct AngryBackend end
-FaultModule.play_fault_sound!(::AngryBackend) = error("this backend has no sound")
-
-# A store that throws at its first use, because it has no method of a store.
-struct AngryStore end
-
-_quiet_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
-
 function test_fault_store()
 @testset "the fault store" begin
 
@@ -47,15 +39,19 @@ function test_fault_store()
 
     @testset "a different exception in the same place is a different fault" begin
         store = FaultStore()
-        record_fault!(store, :print; origin = :SyntaxToText, exception = BoundsError([1], 1))
-        record_fault!(store, :print; origin = :SyntaxToText, exception = ErrorException("other"))
+        record_fault!(store, :print; origin = :SyntaxToText,
+                      exception = BoundsError([1], 1))
+        record_fault!(store, :print; origin = :SyntaxToText,
+                      exception = ErrorException("other"))
         @test length(get_fault_records(store)) == 2
     end
 
     @testset "the same exception in a different place is a different fault" begin
         store = FaultStore()
-        record_fault!(store, :print; origin = :SyntaxToText, exception = ErrorException("x"))
-        record_fault!(store, :read; origin = :SyntaxToText, exception = ErrorException("x"))
+        record_fault!(store, :print; origin = :SyntaxToText,
+                      exception = ErrorException("x"))
+        record_fault!(store, :read; origin = :SyntaxToText,
+                      exception = ErrorException("x"))
         @test length(get_fault_records(store)) == 2
     end
 
@@ -69,17 +65,30 @@ function test_fault_store()
         @test store.dropped == 7
     end
 
-    @testset "the drain hands a record over once per power of ten" begin
+    @testset "a store holds at least one fault" begin
+        @test_throws ArgumentError FaultStore(capacity = 0)
+    end
+
+    @testset "one drain hands a record over once, with its last count" begin
         store = FaultStore()
         target = QuietTarget(Any[])
         attach_fault_target!(store, target)
         for _ in 1:3000
-            record_fault!(store, :print; origin = :SyntaxToText, exception = ErrorException("e"))
+            record_fault!(store, :print; origin = :SyntaxToText,
+                          exception = ErrorException("e"))
         end
-        # Counts 1, 10, 100 and 1000 each open a new bucket; 3000 does not.
-        @test length(drain_faults!(store)) == 4
-        @test length(target.seen) == 4
+        # Counts 1, 10, 100 and 1000 each open a new bucket before the drain.
+        drained = drain_faults!(store)
+        @test length(drained) == 1
+        @test drained[1].count == 3000
+        @test length(target.seen) == 1
         @test isempty(drain_faults!(store))
+        # The next bucket starts at 10000, and it queues the record again.
+        for _ in 1:7000
+            record_fault!(store, :print; origin = :SyntaxToText,
+                          exception = ErrorException("e"))
+        end
+        @test [record.count for record in drain_faults!(store)] == [10000]
     end
 
     @testset "a drain with nothing new writes nothing" begin
@@ -99,12 +108,36 @@ function test_fault_store()
         attach_fault_target!(store, AngryTarget())
         attach_fault_target!(store, good)
         record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
-        @test length(drain_faults!(store)) == 1
+        records = @test_logs((:error, "[fault] a fault target refused a record"),
+                             drain_faults!(store))
+        @test length(records) == 1
         @test length(good.seen) == 1
     end
 
+    @testset "a policy with the console closed writes no line for a refusal" begin
+        store = FaultStore()
+        attach_fault_target!(store, AngryTarget())
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
+        quiet = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
+        records = @test_logs drain_faults!(store; policy = quiet)
+        @test length(records) == 1
+    end
+
+    @testset "a policy that is not a FaultPolicy throws before the drain" begin
+        store = FaultStore()
+        target = QuietTarget(Any[])
+        attach_fault_target!(store, target)
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
+        @test_throws ArgumentError drain_faults!(store; policy = :quiet)
+        @test isempty(target.seen)
+        # The record waits for the next drain.
+        @test length(drain_faults!(store)) == 1
+        @test length(target.seen) == 1
+    end
+
     @testset "no store is a working store" begin
-        @test record_fault!(nothing, :print; origin = :P, exception = ErrorException("e")) === nothing
+        @test record_fault!(nothing, :print; origin = :P,
+                            exception = ErrorException("e")) === nothing
         @test isempty(drain_faults!(nothing))
         @test isempty(get_fault_records(nothing))
         @test get_consecutive_fault_count(nothing, :print) == 0
@@ -128,29 +161,8 @@ function test_fault_store()
     @testset "a wake that throws is swallowed" begin
         store = FaultStore()
         attach_fault_wake!(store, () -> error("the wake is broken"))
-        @test record_fault!(store, :print; origin = :P, exception = ErrorException("e")) !== nothing
-    end
-end
-end
-
-function test_fault_report()
-@testset "the report cascade" begin
-
-    @testset "report_fault! never throws, whatever is broken" begin
-        store = FaultStore()
-        record = record_fault!(store, :device; origin = :AngryBackend,
-                               exception = ErrorException("the screen is gone"))
-        # Every tier above tier 5 is broken at once: the store throws and the
-        # backend throws. The cascade must still answer a tier.
-        @test report_fault!(AngryStore(), record; policy = FaultPolicy(),
-                            backend = AngryBackend()) === :swallowed
-        @test report_fault!(store, record; policy = FaultPolicy(),
-                            backend = AngryBackend()) isa Symbol
-        @test report_fault!(store, record; policy = _quiet_policy(),
-                            backend = AngryBackend()) === :swallowed
-        @test report_fault!(store, nothing; policy = FaultPolicy(),
-                            backend = AngryBackend()) === :swallowed
-        @test store.depth == 0
+        @test record_fault!(store, :print; origin = :P,
+                            exception = ErrorException("e")) !== nothing
     end
 end
 end

@@ -43,6 +43,7 @@ function read_child_move(child_iomap, move::MouseMove)
         add_mouse_target(answer, compute_part_at_point(child_iomap, move.x, move.y))
 end
 
+# @positional: the offset of the frame of the child is a pair, `dx` and `dy`.
 """
     read_child_leave(child_iomap, event::MouseMove, dx, dy) -> operation or nothing
 

@@ -89,9 +89,11 @@ _call(callee::AbstractString, args...) = JuliaCall(_id(callee), JuliaDocument[ar
 _field(object::AbstractString, name::AbstractString) = JuliaFieldAccess(_id(object), _id(name))
 _int32(value::Integer) = _call("Int32", JuliaInteger(Int(value)))
 
-# A body that is already a block stays one; anything else is wrapped, so every
-# generated `if` branch has a block to hold statements.
-_block(doc) = doc isa JuliaBlock ? doc : JuliaBlock(JuliaDocument[doc])
+# A body that is already a block stays one, the statements of a `;` line become
+# the lines of a block, and anything else is wrapped, so every generated `if`
+# branch has a block to hold statements.
+_block(doc) = doc isa JuliaBlock ? doc :
+              doc isa JuliaToplevel ? JuliaBlock(_statements(doc)) : JuliaBlock(JuliaDocument[doc])
 _block(docs::Vector) = JuliaBlock(JuliaDocument[docs...])
 
 # ── Declarations ─────────────────────────────────────────────────────────────
@@ -248,7 +250,8 @@ function _transition_body(machine::FsmMachine, state::FsmState,
     JuliaBlock(statements)
 end
 
-_statements(doc) = doc isa JuliaBlock ? JuliaDocument[s for s in doc.statements] : JuliaDocument[doc]
+_statements(doc) = doc isa Union{JuliaBlock,JuliaToplevel} ? JuliaDocument[s for s in doc.statements] :
+                   JuliaDocument[doc]
 
 # The per-state branch: try each transition in document order, first match
 # wins. On a re-evaluation pass only the condition-only transitions are

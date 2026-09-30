@@ -57,8 +57,8 @@ DocumentWalk(; locate_field = (location, name, child) -> child,
 
 # A node is a walk leaf — nothing to descend into — when it is a scalar Julia
 # value or an opaque document (see `is_walk_opaque`).
-is_walk_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
-                  x isa Symbol || x isa Char || is_walk_opaque(x)
+_is_walk_leaf(x) = x === nothing || x isa Number || x isa AbstractString ||
+                   x isa Symbol || x isa Char || is_walk_opaque(x)
 
 # The string form of a leaf, for a String/Regex query. Struct and collection
 # nodes have none, so they never match one.
@@ -95,9 +95,9 @@ instead, scalars included.
 
 Each location is reported at most once. How often a *node* is visited is
 `walk.policy`'s business. `include_selection` includes `selection` fields in the
-walk; a `mouse_target` field is never walked. `maxdepth` bounds recursion for structures that are never the *same* object
-— an infinite lazy list whose nodes are generated fresh on demand — which the
-visited set alone cannot stop.
+walk; a `mouse_target` field is never walked. `maxdepth` bounds recursion for
+structures that are never the *same* object — an infinite lazy list whose nodes
+are generated fresh on demand — which the visited set alone cannot stop.
 
 `descend(parent, child) -> Bool` returns whether the walk enters `child` from
 `parent`. The walk does not match or walk a child that it does not enter. The
@@ -123,19 +123,20 @@ end
 _enter_every_child(_, _) = true
 
 # Enter `obj` under the walk's cycle rule. Returns the visited set the children
-# should be walked with, or `nothing` to prune this node entirely.
+# should be walked with, or `nothing` to prune this node entirely. A walk leaf
+# does not come here: it has no children, so it cannot close a cycle, and two
+# equal scalars in two documents are two matches.
 #
-# `:once_per_path` guards on `ismutable` because an immutable value has no stable
-# identity to loop back through; `:once_per_object` does not, and so also collapses
-# repeats of an identical immutable — which is what makes it report each *object*
-# once rather than each occurrence.
+# `:once_per_object` keeps one set for the whole walk, so it walks and reports
+# each *object* once. `:once_per_path` keeps the ancestors of the current path, so
+# it prunes only a path that comes back to one of them. It records every node,
+# mutable or not: a `@document` cell layout is an immutable struct, and its
+# `IdDict` key is the identity of its cells, so a `prev`/`next` loop ends there.
 function _enter_node(walk::DocumentWalk, obj, seen)
     if walk.policy === :once_per_path
-        if ismutable(obj)
-            haskey(seen, obj) && return nothing
-            seen = copy(seen)
-            seen[obj] = true
-        end
+        haskey(seen, obj) && return nothing
+        seen = copy(seen)
+        seen[obj] = true
         return seen
     else
         haskey(seen, obj) && return nothing
@@ -169,8 +170,11 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     # the closure form compiled 16 instances, the closure with `here::Any` 14, and
     # this form 9.
     @nospecialize enclosing
-    seen = _enter_node(walk, obj, seen)
-    seen === nothing && return
+    leaf = _is_walk_leaf(obj)
+    if !leaf
+        seen = _enter_node(walk, obj, seen)
+        seen === nothing && return
+    end
     here = obj isa Document ? location : enclosing
     if (try predicate(obj) catch; false end)
         target = raw ? location : here
@@ -178,8 +182,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             push!(results, target); reported[target] = true
         end
     end
-    depth <= 0 && return
-    is_walk_leaf(obj) && return
+    (leaf || depth <= 0) && return
 
     if is_element_collection(obj)
         for i in 1:length(obj)
@@ -210,9 +213,9 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
                             here, seen, include_selection, depth - 1, raw, descend)
         end
     else
-        fnames = try fieldnames(typeof(obj)) catch; () end
-        for fn in fnames
-            (fn == :ref || fn == :mouse_target || (fn == :selection && !include_selection)) && continue
+        for fn in fieldnames(typeof(obj))
+            fn == :mouse_target && continue
+            fn == :selection && !include_selection && continue
             isdefined(obj, fn) || continue
             child = unwrap_cell(getfield(obj, fn))
             descend(obj, child) || continue

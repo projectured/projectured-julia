@@ -2,10 +2,18 @@
     LlmModule
 
 The **provider abstraction**: how the editor drives a language model, and what
-comes back. Three fragments share this namespace:
+comes back. Five fragments share this namespace:
 
-- [`Llm.jl`](Llm.jl) — the `Llm` supertype, the `stream_turn` / `render_tool_schema`
-  seams a provider implements, and the meaning model a provider can have.
+- [`LlmInterface.jl`](LlmInterface.jl) — the provider contract, declaration-only:
+  the `Llm` supertype, the `stream_turn` / `render_tool_schema` seams a provider
+  implements, the seams of the meaning model a provider can have, and the factory
+  seams `make_llm` and `get_default_llm_model`.
+- [`LlmDefaults.jl`](LlmDefaults.jl) — the fallbacks: a backend with no meaning
+  model, and the forms of the two factories that take a symbol.
+- [`Llm.jl`](Llm.jl) — what the layer does with the contract: a backend is opaque
+  to the reflection walk, `bind_meaning_model!` gives a tool set the meaning model
+  of a backend, and `get_llm_backend_names` reads the backends off the method
+  table of `make_llm`.
 - [`LlmMessage.jl`](LlmMessage.jl) — the conversation as the model sees it: content
   blocks, messages, and the `LlmRequest` for one turn.
 - [`LlmEvent.jl`](LlmEvent.jl) — what streams back while the model answers.
@@ -24,7 +32,7 @@ turn.
 
 Concrete backends live outside `main`: the real provider adapters in their own
 opt-in packages, the test doubles in an example package, never in a `main`
-package. A caller that must build one names it by symbol — `make_llm(:ollama)` —
+package. A caller that must build one names it by symbol — `make_llm(kind)` —
 and never its type, which is what lets the adapter live in a package whose types
 cannot be referenced at load time.
 """
@@ -36,7 +44,7 @@ using ..ToolModule
 export Llm, stream_turn, render_tool_schema,
        has_meaning_model, get_meaning_model_name, compute_meaning_vectors,
        bind_meaning_model!,
-       make_llm, default_llm_model, get_llm_backend_names,
+       make_llm, get_default_llm_model, get_llm_backend_names,
        LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
        LlmMessage, LlmRequest,
        LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,

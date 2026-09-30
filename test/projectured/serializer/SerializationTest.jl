@@ -57,6 +57,15 @@ function test_serialization()
             @test getfield(loaded, :selection)[] == before
         end
 
+        @testset "binary saves a computed field that nothing read" begin
+            # The save reads the stored value of each cell, and a new computed cell
+            # stores `nothing` until its first read.
+            doc = JsonString(Cell(@computation "computed"))
+            p = tempname() * ".pdoc"
+            @test save_document(doc, p) == p
+            @test load_document(p) isa JsonString
+        end
+
         @testset "binary header validation" begin
             bogus = tempname() * ".pdoc"
             write(bogus, "not a projectured document")

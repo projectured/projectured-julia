@@ -45,9 +45,9 @@ coordinates line up with what is rendered. Errors from the pipeline propagate
 
 ```julia
 gestures = [
-    (event = KeyPress('h'; time = time()),                        hold = 0.3),
-    (event = KeyPress('i'; time = time()),                        hold = 0.3),
-    (event = KeyDown(:right, ModifierKeys(), false; time = time()), hold = 0.5),
+    (event = KeyPress('h'; time = time()),                   hold = 0.3),
+    (event = KeyPress('i'; time = time()),                   hold = 0.3),
+    (event = KeyDown(:right, ModifierKeys(); time = time()), hold = 0.5),
 ]
 record_video(doc, proj; gestures, filename = "/tmp/demo.mp4", fps = 30)
 ```

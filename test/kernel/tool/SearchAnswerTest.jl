@@ -123,6 +123,34 @@ function test_search_answer()
         @test occursin("A verb may do it: `search_api`", search_guides("zzzznotarealword"))
     end
 
+    @testset "a limit below one answers a sentence, and a real limit is rounded" begin
+        for limit in (0, -1)
+            @test startswith(search_guides("selection"; limit = limit),
+                             "A limit of $limit shows no hit.")
+            @test startswith(search_api("box"; api = api, limit = limit),
+                             "A limit of $limit shows no hit.")
+        end
+        @test count("## resource://guide/", search_guides("selection"; limit = 2.5)) == 2
+        @test count("\n- `", search_api("verb"; api = api, limit = 2.5)) == 2
+    end
+
+    @testset "a line that starts with # inside a code fence is no heading" begin
+        sections = _AnswerTools._guide_index()
+        @test !any(section -> startswith(section.heading, "@broken:") ||
+                              startswith(section.heading, "Fragment of"), sections)
+        marker = only(section for section in sections
+                      if section.guide == "guide/testing-guide" &&
+                         section.heading == "Marker format")
+        @test occursin("# @broken: <one-line reason>", marker.body)
+    end
+
+    @testset "a file directly in the package folder is a guide" begin
+        documentation = _AnswerTools._get_documentation_directory()
+        readme = joinpath(documentation, "package", "README.md")
+        @test read_guide("package/README") == read(readme, String)
+        @test count("**package/README**", list_guides()) == 1
+    end
+
     @testset "a section and a function are read by the shape of their URI" begin
         set = register_default_tools!(ToolSet())
         section = read_resource(set, "resource://guide/kernel/cell#invalidation")

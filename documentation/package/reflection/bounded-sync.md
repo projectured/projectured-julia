@@ -57,7 +57,7 @@ materialise.
 
 ```julia
 is_descendable_for_sync(policy, depth, shadow_slot) -> Bool
-sync_element_limit(policy, source, shadow) -> Int
+compute_sync_element_limit(policy, source, shadow) -> Int
 ```
 
 `DepthPolicy(depth = 1, elements = 32)` is the general answer. Its rule is three
@@ -154,7 +154,7 @@ The kernel consults three generics at every child, declared in
 | | |
 |---|---|
 | `is_descendable_for_sync(policy, depth, slot)` | descend, or stop here? |
-| `sync_element_limit(policy, source, shadow)` | how many elements to keep |
+| `compute_sync_element_limit(policy, source, shadow)` | how many elements to keep |
 | `make_unsynced_placeholder(policy, source, current)` | what stands where it stopped |
 
 `policy = nothing` answers "descend" and "keep them all" and so never reaches the

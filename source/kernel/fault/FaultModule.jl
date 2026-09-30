@@ -30,7 +30,7 @@ The module lives in seven fragments that share this namespace:
 - [`FaultPolicy.jl`](FaultPolicy.jl) — whether the barriers catch, and which
   tiers are open.
 - [`FaultCascade.jl`](FaultCascade.jl) — `report_fault!` and its five tiers.
-- [`FaultBarrier.jl`](FaultBarrier.jl) — `run_fault_barrier`, the barrier around one
+- [`FaultBarrier.jl`](FaultBarrier.jl) — `run_fault_barrier!`, the barrier around one
   stage of work.
 """
 module FaultModule
@@ -42,14 +42,14 @@ export FaultStore, record_fault!, drain_faults!, get_fault_records,
        attach_fault_target!, attach_fault_wake!,
        get_consecutive_fault_count, reset_consecutive_fault_count!
 export FaultPolicy, make_strict_fault_policy
-export report_fault!, run_fault_barrier
+export report_fault!, run_fault_barrier!
 
-include("FaultInterface.jl")   # the open seams (declaration-only)
-include("FaultDefaults.jl")    # what each seam answers on its own
-include("FaultRecord.jl")      # one fault as a value
-include("FaultStore.jl")       # the per-editor collection
-include("FaultPolicy.jl")      # whether the barriers catch, and the tiers
-include("FaultCascade.jl")     # report_fault! and the tiers
-include("FaultBarrier.jl")     # run_fault_barrier
+include("FaultInterface.jl")
+include("FaultDefaults.jl")
+include("FaultRecord.jl")
+include("FaultStore.jl")
+include("FaultPolicy.jl")
+include("FaultCascade.jl")
+include("FaultBarrier.jl")
 
 end # module

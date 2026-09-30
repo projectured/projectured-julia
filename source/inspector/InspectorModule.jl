@@ -61,8 +61,6 @@ function __init__()
                                                  WordWrapping(measure = measure),
                                                  TextToGraphics(measure = measure)),
     ])
-    register_pred_type!(ReferenceInspector)
-    register_pred_type!(SelectionInspector)
 end
 
 end # module

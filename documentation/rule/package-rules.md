@@ -55,7 +55,7 @@ says why. `test_package_graph()` asserts it, along with two more:
 domain packages, none of which has a third-party dependency. It deliberately does not
 aggregate `ProjecturedSdl`, `ProjecturedOdbc`, `ProjecturedTulip`,
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMcp`,
-`ProjecturedWeb` or
+`ProjecturedWeb`, `ProjecturedDataFrames` or
 `ProjecturedAdaptagrams`, each of which owns one.
 
 The rule: a sub-stem is a layer and carries no third-party dependency of its
@@ -164,14 +164,14 @@ the packages its own source names — no more and no less.
 The kernel depends on nothing. A row names it only where it is the one
 dependency.
 
-### The twenty-nine packages of the substrate
+### The thirty packages of the substrate
 
 | package | depends on | third-party |
 | --- | --- | --- |
 | `ProjecturedCollection` | Kernel | — |
 | `ProjecturedSerialization` | Kernel | Serialization |
-| `ProjecturedPrimitive` | Serialization | — |
-| `ProjecturedDomain` | Serialization | — |
+| `ProjecturedPrimitive` | Kernel | — |
+| `ProjecturedDomain` | Kernel | — |
 | `ProjecturedStyle` | Kernel | — |
 | `ProjecturedComponent` | Kernel | — |
 | `ProjecturedProjection` | Collection, Primitive | — |
@@ -180,13 +180,13 @@ dependency.
 | `ProjecturedVersioning` | Collection, Domain, Primitive | — |
 | `ProjecturedPlot` | Style | — |
 | `ProjecturedGraphics` | Collection, Projection, Style | — |
-| `ProjecturedScreen` | Collection, Graphics, Primitive, Projection, Serialization | — |
+| `ProjecturedScreen` | Collection, Graphics, Primitive, Projection | — |
 | `ProjecturedLayout` | Collection, Focus, Graphics, Projection | — |
 | `ProjecturedText` | Collection, Domain, Graphics, Primitive, Projection, Style | — |
 | `ProjecturedWidget` | Collection, Domain, Focus, Graphics, Layout, Primitive, Projection, Screen, Serialization, Style, Text | — |
 | `ProjecturedReflection` | Collection, Widget | — |
 | `ProjecturedClipboard` | Collection, Domain, Primitive, Projection, Serialization, Text | — |
-| `ProjecturedPane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Serialization, Widget | — |
+| `ProjecturedPane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Screen, Serialization, Style, Widget | — |
 | `ProjecturedTooltip` | Screen | — |
 | `ProjecturedNatural` | Collection, Domain, Layout, Primitive, Projection, Style, Text, Widget | — |
 | `ProjecturedSyntax` | Collection, Domain, Natural, Primitive, Projection, Style, Text | — |
@@ -197,6 +197,7 @@ dependency.
 | `ProjecturedFault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `ProjecturedConsole` | Style, Text | — |
 | `ProjecturedPdf` | Graphics, Style | — |
+| `ProjecturedDisplay` | Natural, Screen, Style, Widget | — |
 
 ### The twenty-one domains
 
@@ -209,6 +210,7 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 | --- | --- | --- |
 | `ProjecturedAnthropic` | Kernel | HTTP, JSON3 |
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
+| `ProjecturedOpenRouter` | Kernel | HTTP, JSON3 |
 | `ProjecturedMcp` | Kernel | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
 | `ProjecturedVideo` | Graphics, Kernel, Screen, Sdl | FFMPEG |
@@ -216,6 +218,7 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 | `ProjecturedSdl` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
 | `ProjecturedWeb` | Collection, Graphics, Kernel, Screen, Style | Base64, HTTP, JSON3 |
 | `ProjecturedOdbc` | Collection, Database, DbCatalog, Kernel, Projection, Sql, Syntax, Text | DBInterface, ODBC, Tables |
+| `ProjecturedDataFrames` | Collection, Kernel, Layout, Primitive, Projection, Style, Widget | DataFrames |
 
 ### The aggregate and the leaves
 
@@ -240,6 +243,8 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 - **FFMPEG** — encodes a recording.
 - **HTTP**, **JSON3**, **ModelContextProtocol** — wire protocols this project
   does not define.
+- **DataFrames** — the native tables that `ProjecturedDataFrames` views and
+  edits.
 - **PackageCompiler**, **FixedPointNumbers** — building the binary. A leaf;
   nothing depends on it.
 - **PrecompileTools**, **Preferences** — the workload mechanism itself.

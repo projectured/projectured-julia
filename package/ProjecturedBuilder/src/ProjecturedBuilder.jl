@@ -15,6 +15,11 @@
 #     build_projectured_distribution()                  # build/projectured-*.tar.gz
 #
 # `source/builder/build_binary.jl` gives the same builds from a shell.
+#
+# `PackageRelease.jl` writes the other form a user can install: a copy of the
+# packages in which each package folder holds everything it reads, for a
+# registry. `build_projectured_package_release!(output)` writes the one of this
+# repository.
 # ═══════════════════════════════════════════════════════════════════════════
 
 module ProjecturedBuilder
@@ -31,20 +36,31 @@ include("../../../source/builder/Usage.jl")
 include("../../../source/builder/AppPackage.jl")
 include("../../../source/builder/Executable.jl")
 include("../../../source/builder/Distribution.jl")
+include("../../../source/builder/LicenceTexts.jl")
+include("../../../source/builder/SourceArchive.jl")
+include("../../../source/builder/PackageRelease.jl")
 include("../../../source/builder/ProjecturedProgram.jl")
 
 export BuildContext, get_package_directory, get_package_uuid, make_projectured_build_context
 export has_package_directory, collect_missing_sources
 export Preference, make_baked_preference, make_exposed_preferences, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
-export write_app_package, write_if_changed, get_app_module_name, LOG_LEVEL_NAMES
+export write_app_package, write_if_changed, StandIn, get_app_module_name, LOG_LEVEL_NAMES
 export build_executable, compile_app!, resolve_app_project, build_info, get_smoke_flag
 export bundle_fonts!, bundle_assets!, print_build_report!, INCREMENTAL_MARK, PORTABLE_CPU_TARGET
-export build_distribution, get_staging_root, check_relocation, write_readme, report_distribution
+export build_distribution, collect_missing_libraries, GLIBC_LIBRARIES, get_staging_root,
+       check_relocation, write_readme, report_distribution
 export get_hidden_directories, make_hidden_command
-export PROJECTURED_BACKENDS, PROJECTURED_OPTIONS, PROJECTURED_REQUIREMENTS,
-       PROJECTURED_LICENCES, make_projectured_usage
+export bundle_licence_texts!, SourceOffer, build_source_archive
+export build_package_release!, collect_outside_paths
+export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_OPTIONS,
+       PROJECTURED_REQUIREMENTS, PROJECTURED_LICENCES, PROJECTURED_SOURCE,
+       PROJECTURED_CREDITS, PROJECTURED_EXTRA_TEXTS, PROJECTURED_SOURCE_OFFERS,
+       make_projectured_usage
 export build_projectured_executable, build_projectured_distribution
 export PROJECTURED_ASSETS, check_projectured_copy
+export PROJECTURED_RELEASE_EXCLUSIONS, PROJECTURED_PACKAGE_ASSETS,
+       PROJECTURED_JULIA_COMPAT, collect_projectured_release_packages,
+       build_projectured_package_release!
 
 end # module ProjecturedBuilder

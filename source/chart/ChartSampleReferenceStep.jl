@@ -8,6 +8,8 @@ end
 ReferenceModule.get_reference_step_kind(::ChartSampleReferenceStep) = :structural
 
 Base.:(==)(a::ChartSampleReferenceStep, b::ChartSampleReferenceStep) = a.index == b.index
+Base.hash(s::ChartSampleReferenceStep, h::UInt) =
+    hash(s.index, hash(:ChartSampleReferenceStep, h))
 
 Base.show(io::IO, s::ChartSampleReferenceStep) = print(io, "sample(", s.index, ")")
 
@@ -23,7 +25,7 @@ function ReferenceModule.match_reference_step(::Val{:sample}, hex, argpats, rest
         if $hex isa $(GlobalRef(ChartModule, :ChartSampleReferenceStep))
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

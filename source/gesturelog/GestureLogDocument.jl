@@ -14,12 +14,14 @@ end
 
 The buffer. `entries` holds at most `capacity` entries, oldest first. `count` is
 the number of entries that were recorded, including the entries that the buffer
-dropped.
+dropped. `typing` is the text of the run of typed characters that the newest
+entry folds, and is empty when the newest entry is not such a run.
 """
 @document struct GestureLog
     entries::CellVector = CellVector()
     capacity::Int = 20
     count::Int = 0
+    typing::String = ""
 end
 
 # The name the tab calls itself, and the name a person types into an empty tab
@@ -36,17 +38,45 @@ pred_arguments(log::GestureLog) = (), Pair{Symbol,Any}[:capacity => log.capacity
 # ── Record ─────────────────────────────────────────────────────────────────
 
 """
-    record_gesture!(log, gesture, operation) -> GestureLog
+    record_gesture!(log, gesture, operation; root = nothing, fold_typing = false) -> GestureLog
 
 Append one entry and drop the oldest entries that do not fit in the capacity.
 The caller decides what to record; the filter lives on the recording projection.
+
+With `root`, the document the references of `operation` start at, the entry
+writes each reference as `describe_reference` writes it, from the deepest
+document on it that has a title. With `fold_typing`, a typed character joins the
+newest entry when that entry is a run of typed characters, so a typed sentence
+is one entry, `typed "…"`, with the operation of its last character.
 """
-function record_gesture!(log::GestureLog, gesture, operation)
+function record_gesture!(log::GestureLog, gesture, operation; root = nothing,
+                         fold_typing::Bool = false)
+    text = root === nothing ? describe_operation(operation) : describe_operation(operation, root)
+    event = gesture isa WindowInput ? gesture.event : gesture
+    if fold_typing && event isa KeyPress
+        typing = log.typing * event.text
+        log.typing = typing
+        entry = GestureLogEntry(0, _describe_typing(typing), text, _operation_kind(operation))
+        if length(typing) > length(event.text) && !isempty(log.entries)
+            newest = log.entries[end]
+            log.entries[end] = GestureLogEntry(newest.index, entry.gesture, text, entry.kind)
+            return log
+        end
+        return _push_entry!(log, entry)
+    end
+    log.typing = ""
+    _push_entry!(log, GestureLogEntry(0, describe_gesture(gesture), text, _operation_kind(operation)))
+end
+
+# A run of typed characters as its line: the end of the text, which is what the
+# person typed last.
+_describe_typing(text::AbstractString) =
+    string("typed \"", length(text) <= 20 ? text : "…" * last(text, 19), "\"")
+
+function _push_entry!(log::GestureLog, entry::GestureLogEntry)
     index = log.count + 1
     log.count = index
-    push!(log.entries, GestureLogEntry(index, describe_gesture(gesture),
-                                       describe_operation(operation),
-                                       _operation_kind(operation)))
+    push!(log.entries, GestureLogEntry(index, entry.gesture, entry.operation, entry.kind))
     capacity = log.capacity
     while length(log.entries) > capacity
         deleteat!(log.entries, 1)
@@ -73,13 +103,21 @@ end
 The filter that the overlay uses when the caller names no other one. It drops an
 operation that replaces a path, because a selection follows almost every click
 and almost every arrow key, and the part under the pointer follows every move,
-and they would fill the whole buffer. It also drops the operations that change
-nothing.
+and they would fill the whole buffer. It drops a write of view state, such as a
+scroll, because it is no edit and follows the pointer as often. It also drops the
+operations that change nothing, and a compound of nothing but these.
 """
 default_gesture_log_filter(gesture, operation) =
-    !(operation === nothing ||
-      operation isa DoNothingOperation ||
-      operation isa ReplacePathOperation)
+    !(operation === nothing || _is_view_only(operation))
+
+# An operation that changes no document: one that does nothing, a move of the
+# selection or of the part under the pointer, a write of view state, or a compound
+# of nothing else.
+_is_view_only(operation) =
+    operation isa Union{DoNothingOperation, ReplacePathOperation,
+                        ReplaceViewStateOperation} ||
+    (operation isa CompoundOperation && !isempty(operation.operations) &&
+     all(_is_view_only, operation.operations))
 
 _operation_kind(::Nothing) = :Nothing
 _operation_kind(operation) = nameof(typeof(operation))

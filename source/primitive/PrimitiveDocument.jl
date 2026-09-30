@@ -57,16 +57,6 @@ A primitive domain-independent string document with selection and identity.
     value::Union{String, Nothing}
 end
 
-"""
-    make_pred_document(::Type{PrimitiveString}, positional, keywords)
-
-The string a call in a file builds: `PrimitiveString("hi")` or
-`PrimitiveString(value = "hi")`. `value` has no field default, so the macro
-gives the bare name no keyword constructor — [`pred_arguments`](@ref) always
-writes a document's fields as keywords, so the file format needs this one.
-"""
-make_pred_document(::Type{PrimitiveString}, positional, keywords) =
-    PrimitiveString(isempty(positional) ? only(keywords).second : positional[1])
 
 # ── Operations ────────────────────────────────────────────────────────────────
 

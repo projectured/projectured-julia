@@ -23,11 +23,24 @@ function _gr_read(recognition, inputs)
     (step, given)
 end
 
-_gr_down(button, x, y, t) = (MouseDown(button, x, y, ModifierKeys(); time = t), :win)
-_gr_up(button, x, y, t; window = :win) = (MouseUp(button, x, y, ModifierKeys(); time = t), window)
+_gr_down(button, x, y, t; window = :win) =
+    (MouseDown(button, x, y, ModifierKeys(); time = t), window)
+_gr_up(button, x, y, t; window = :win) =
+    (MouseUp(button, x, y, ModifierKeys(); time = t), window)
 const _GR_CTRL = ModifierKeys(ctrl = true)
-_gr_key(name, t; repeat = false) = (KeyDown(name, _GR_CTRL, repeat; time = t), :win)
-_gr_chords(names...) = ChordRecognition([[KeyDown(name, _GR_CTRL; time = 0.0) for name in names]])
+_gr_key(name, t; repeat = false) = (KeyDown(name, _GR_CTRL; repeat, time = t), :win)
+_gr_chords(names...) =
+    ChordRecognition([[KeyDown(name, _GR_CTRL; time = 0.0) for name in names]])
+
+# The clicks of a press 0.02 s before each time of `times` and a release at it,
+# all at `(10, 20)`, each in the window of the same index of `windows`: the count
+# of each click.
+function _gr_click_counts(times; windows = fill(:win, length(times)))
+    inputs = vcat([[_gr_down(:left, 10, 20, t - 0.02; window),
+                    _gr_up(:left, 10, 20, t; window)]
+                   for (t, window) in zip(times, windows)]...)
+    [input.event.count for input in last(_gr_read(ClickRecognition(), inputs))]
+end
 
 function test_gesture_recognition()
 @testset "the standard recognitions of gestures" begin
@@ -50,11 +63,25 @@ function test_gesture_recognition()
         end
     end
 
+    @testset "a click window ends before its limit" begin
+        # The tests are strict: a release 5 px away from its press, or 0.3 s after
+        # it, is no click. 4 px and 0.29 s are inside.
+        release_at(x, y, t) = length(last(_gr_read(ClickRecognition(),
+            [_gr_down(:left, 10, 20, 0.0), _gr_up(:left, x, y, t)])))
+        @test release_at(15, 20, 0.1) == 0
+        @test release_at(10, 25, 0.1) == 0
+        @test release_at(10, 20, 0.3) == 0
+        @test release_at(14, 24, 0.29) == 1
+    end
+
     @testset "clicks in quick succession count up, and a gap starts again" begin
-        clicks(times) = [e.event.count for e in last(_gr_read(ClickRecognition(),
-            vcat([[_gr_down(:left, 10, 20, t - 0.02), _gr_up(:left, 10, 20, t)] for t in times]...)))]
-        @test clicks([0.05, 0.15, 0.25]) == [1, 2, 3]
-        @test clicks([0.05, 0.50]) == [1, 1]
+        @test _gr_click_counts([0.05, 0.15, 0.25]) == [1, 2, 3]
+        @test _gr_click_counts([0.05, 0.50]) == [1, 1]
+    end
+
+    @testset "the next click in another window starts the count again" begin
+        @test _gr_click_counts([0.05, 0.15, 0.25]; windows = [:win, :popup, :popup]) ==
+              [1, 1, 2]
     end
 
     @testset "a key of the chord table is held, and the last one gives the chord" begin

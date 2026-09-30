@@ -127,7 +127,7 @@ end
         opened_window_projections = make_opened_window_projections(; gesture_help = false))
     tracked, tracking = make_tracking_screen(scene, composed)
     backend = HeadlessBackend()
-    editor = Editor(backend, tracked, tracking, Device[Keyboard(), Mouse()])
+    editor = Editor(tracked, tracking; backend = backend, devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     move!(window, x, y, time) = (push_event!(backend, WindowInput(window, MouseMove(x, y; time))); run_frame!(editor))
     lit() = [item.action.label for item in menu.elements if get_mouse_target(item) !== nothing]

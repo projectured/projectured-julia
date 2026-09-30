@@ -69,7 +69,7 @@ function drive_example!(document, projection)
     screen = ProjecturedExample._build_window_scene(Any[document], String["example"];
                                                     width = WIDTH, height = HEIGHT)
     composed = ProjecturedExample._multi_window_projection(Any[projection])
-    editor = Editor(backend, screen, composed, devices)
+    editor = Editor(screen, composed; backend = backend, devices = devices)
     set_clock_time!(editor.clock, time() - t0)
     print!(editor)
     for event in GESTURES

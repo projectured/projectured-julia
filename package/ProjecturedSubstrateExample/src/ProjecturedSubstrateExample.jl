@@ -158,6 +158,7 @@ include("../../../example/substrate/Harness.jl")
 export Address, AppSettings, FormServer, Person, SearchSettings, WindowSettings, collection_example
 export constraint_layout_example, filtering_example, force_next, force_prev, integers_from
 export integers_from_bidirectional, layout_example, lazy_bidirectional_example
+export make_primes_around, is_prime_number, make_lazy_list_view, show_lazy_list!
 export lazy_bidirectional_node, lazy_example, lazy_filter, lazy_filter_bidirectional
 export lazy_node, line_numbering_example, make_anchored_layout_document_example
 export make_clipboard_collection_document_example, make_clipboard_slice_document_example

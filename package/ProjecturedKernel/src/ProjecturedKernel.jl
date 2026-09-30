@@ -31,9 +31,9 @@ include("../../../source/kernel/cell/CellModule.jl")                 # layer 3  
 include("../../../source/kernel/struct/CellStructModule.jl")         # layer 4  — the @cell_struct codegen
 include("../../../source/kernel/clock/ClockModule.jl")               # layer 5  — the animation clock
 include("../../../source/kernel/event/EventModule.jl")               # layer 6  — the input events
-include("../../../source/kernel/device/DeviceModule.jl")             # layer 7  — the devices events come from
+include("../../../source/kernel/device/DeviceModule.jl")             # layer 7  — the devices and their physical properties
 include("../../../source/kernel/gesture/GestureModule.jl")           # layer 8  — the gestures and the pattern language
-include("../../../source/kernel/backend/BackendModule.jl")           # layer 9  — rendering-target seam
+include("../../../source/kernel/backend/BackendModule.jl")           # layer 9  — the seam to a platform: input, output, the wait
 include("../../../source/kernel/document/DocumentModule.jl")         # layer 10 — the document contract
 include("../../../source/kernel/reference/ReferenceModule.jl")       # layer 11 — reference machinery
 include("../../../source/kernel/selection/SelectionModule.jl")       # layer 12 — document current-focus state

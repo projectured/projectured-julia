@@ -12,14 +12,18 @@ The layer lives in [source/kernel/document/](../../../source/kernel/document/), 
 module (`DocumentModule`) split across fragments that share its namespace:
 
 ```
-DocumentModule.jl   (DocumentModule)  — the aggregator: imports Cell, exports every public name
+DocumentModule.jl   (DocumentModule)  — the aggregator: imports the cell and struct layers, exports every public name
     ├─ DocumentInterface.jl  — the contract: the Document supertype + the open generics
-    │                          (is_element_collection / is_walk_opaque / copy_document /
-    │                          sync_document! / search_documents), declaration-only
-    ├─ DocumentDefaults.jl   — default behaviours: is_element_collection / is_walk_opaque = false + debug show
+    │                          (the traits, the layout registry, the title, the seams of a
+    │                          wrapper, copy_document, sync_document! and their hooks,
+    │                          search_documents), declaration-only
+    ├─ DocumentDefaults.jl   — the default of each generic, HiddenElements, and the debug show
     ├─ DocumentCopy.jl       — copy_document: deep copy, kind-preserving or kind-converting
     ├─ DocumentSync.jl       — sync_document!: the double-buffer shadow sync
-    ├─ DocumentMacro.jl      — @document: the document codegen (injects the selection field)
+    ├─ DocumentMacro.jl      — @document and @document_preset: the document codegen
+    │                          (the layouts, the layout registry, the selection field)
+    ├─ SelectionDocument.jl  — SelectionDocument, the value a selection cell holds, and
+    │                          unwrap_selection
     ├─ DocumentWalk.jl       — walk_document: the one reflection walk, parameterized by DocumentWalk
     ├─ DocumentSearch.jl     — search_documents: the value-collecting walk
     └─ ForwardProtocol.jl    — @forward_protocol / @forward_vector_protocol /
@@ -33,22 +37,33 @@ file sharing the aggregator's namespace — so the whole layer is one module wit
 internal API boundaries; splitting the machinery into separate modules would only
 multiply import headers.
 
-Concrete engine documents do not live in this layer: `Collection` and `Primitive`
-live in `base`, `ScreenDocument` in `visual`. The **document layer is the
-contract**; concrete documents belong to the packages built on top of it.
+Concrete engine documents do not live in this layer: the collections live in
+`ProjecturedCollection`, the primitives in `ProjecturedPrimitive`, and
+`ScreenDocument` in `ProjecturedScreen`. The **document layer is the contract**;
+concrete documents belong to the packages built on top of it.
 
 ## What every `@document` node carries
 
-1. **A `selection` field.** `@document` appends a `selection::Reference = nothing`
-   field (always last, always defaulted); declaring one by hand is an error. It
-   names what is selected *inside* this node — a `Reference`, or `nothing`.
-   `Reference` is emitted as a **bare symbol**, resolved in the domain's own
-   scope, so the document layer takes no upward dependency on the reference layer
-   (Layer 11) that defines the type. The generics that *read and write* the
-   selection — `get_selection` / `clear_selection!` / `set_selection!` /
+1. **A `selection` field.** `@document` appends the field
+   `selection::Union{Nothing, Reference, SelectionDocument} = nothing` as the last
+   field. It names what is selected *inside* this node: a `Reference`, a
+   `SelectionDocument`, or `nothing`. A schema can declare `selection` itself, and
+   the field must then be the last one; a value document does this to fix the
+   value type of the field (see [macros.md](macros.md)). `Reference` is emitted as
+   a **bare symbol**, resolved in the domain's own scope, so the document layer
+   takes no upward dependency on the reference layer (Layer 11) that defines the
+   type. `SelectionDocument` is defined in this layer, so the macro puts the type
+   itself in the expansion.
+2. **A selection that is live or dormant.** A `SelectionDocument` holds a
+   reference in `primary`, and `live` says whether it is the one selection the
+   editor acts on. A document that keeps the selection it loses, such as a tab
+   group, holds a dormant one. A read of the property `selection` passes the
+   value of the cell through `unwrap_selection`: a live `SelectionDocument` gives
+   its reference, and a dormant one gives `nothing`. The generics that *read and
+   write* the selection — `get_selection` / `clear_selection!` / `set_selection!` /
    `with_selection` — are the **selection layer's** (Layer 12), not this one's; see
    [selection.md](selection.md).
-2. **Field names ARE the reference vocabulary.** A `FieldReferenceStep("foo")` in a
+3. **Field names ARE the reference vocabulary.** A `FieldReferenceStep("foo")` in a
    reference path is resolved by `getfield(document, :foo)` — so struct field
    names are public API. Renaming a field silently breaks every stored reference.
    Choose field names deliberately.
@@ -68,6 +83,28 @@ domain — fills in:
   and positional-collection shapes.
 - **`search_documents`** — the reflection walk's value-collecting entry point
   (below).
+- **The layout registry** — `get_document_family`, `get_document_cell_type`,
+  `get_document_native_type` and `get_document_schema_name`. They answer the
+  family of a schema, its cell layout, its native layout (or `nothing`) and the
+  name that the programmer wrote. `@document` writes the methods for each schema,
+  so a caller asks for a layout and does not name its type. The defaults answer a
+  hand-written document.
+- **`get_document_title`** — the name that a document carries for itself, or
+  `nothing`, the default. Each slice writes the method for its own documents.
+- **The seams of a wrapper** — `get_wrapped_document`, `replace_wrapped_document!`
+  and `get_edited_field`. A transparent wrapper, such as a history or a tab, adds
+  one method to each. The defaults answer the node itself, the replacement, and
+  `nothing`.
+- **`is_collection_field_type`** and **`get_cell_layout_field_type`** — asked by
+  `@document` at expansion, keyed on the symbol of a declared field type. A
+  collection type of a higher package registers its name. The macro then wraps a
+  raw vector in that collection, and the cell layout of a field declared as a
+  `Vector` holds the reactive collection. So the document layer names no concrete
+  collection type.
+
+`@document` itself has more parts: the layout list, which says which layouts a
+schema emits, and `@document_preset`, which fixes one layout list for a package.
+[macros.md](macros.md) describes them.
 
 ## The value protocol
 
@@ -95,8 +132,11 @@ Both walks are optionally **bounded**. A full walk per frame of an object with
 thousand-entry collections is wasted work, so `sync_document!` and the
 kind-converting `copy_document(K, doc)` take a `policy` and consult three
 generics at every child —
-`is_descendable_for_sync`, `sync_element_limit`, `make_unsynced_placeholder` (declared in
-`DocumentInterface.jl`, defaulted in `DocumentDefaults.jl`). The default policy
+`is_descendable_for_sync`, `compute_sync_element_limit`,
+`make_unsynced_placeholder` (declared in
+`DocumentInterface.jl`, defaulted in `DocumentDefaults.jl`). The walk gives the
+elements that it does not keep to `make_unsynced_placeholder` as a
+`HiddenElements`, a vector over the source that copies nothing. The default policy
 `nothing` descends everywhere and keeps every element, so an un-policed walk is
 the walk described above and pays nothing for the option. This layer never names
 a marker *type*, and never sees a policy that is not handed to it: it calls
@@ -159,19 +199,19 @@ of the same kind that they control on its own.
 calls it each time it prints a tab, so a method answers from the type and never
 walks the tree. A kind declares its duplicate in one line, and adds a
 `copy_document(::DuplicatePolicy, ::Kind)` method when one field needs custom
-handling:
+handling. The evaluator of `source/conversation/Evaluator.jl` shares the result of
+a form, because a result can be live:
 
 ```julia
-has_document_duplicate(::SimulationFilter) = true
-copy_document(policy::DuplicatePolicy, form::SimulationFilter) =
-    copy_document_fields(policy, form; runner = Ref{Any}(filter_runner(form)))
+has_document_duplicate(::EvaluatorDocument) = true
+copy_document(policy::DuplicatePolicy, form::EvaluatorForm) =
+    copy_document_fields(policy, form; result = form.result)
 ```
 
 **An action that a duplicate shares receives the document it acts on; it does
-not capture it.** The runner's action above is called with the form whose Run
-was pressed, so one function serves the original and its duplicate. An `Action`
-declares no duplicate, and a button's duplicate shares it, as every control
-that shows one command does.
+not capture it.** Then one function serves the original and its duplicate. An
+`Action` declares no duplicate, and a button's duplicate shares it, as every
+control that shows one command does.
 
 ## The reflection walk
 
@@ -216,9 +256,15 @@ a projection, not a `show` method.
 
 ## Testing pressure
 
-Kernel tests for this layer use ONLY a test-local `@document struct ToyNode`,
-never `Collection` or `Primitive`. You cannot reach for the engine documents
-as fixtures. That constraint is what keeps the interface sufficient. If the
-contract cannot be exercised without the concrete documents, it is not actually a
-contract. See
-[test/document/DocumentContractTest.jl](../../../test/kernel/document/DocumentContractTest.jl).
+The kernel tests of this layer use ONLY documents that they declare themselves:
+`ToyNode` and the `Contract*` documents in
+[DocumentContractTest.jl](../../../test/kernel/document/DocumentContractTest.jl), and
+the `Dm*` documents and the collection `DmCollection` in
+[DocumentMacroTest.jl](../../../test/kernel/document/DocumentMacroTest.jl). They
+never use a collection, a primitive or a screen document as a fixture. That
+constraint is what keeps the interface sufficient. If the contract cannot be
+exercised without the concrete documents, it is not actually a contract.
+
+The tests of the walk, the bounded sync and the duplicate use collections and
+primitives, so they are in the substrate suite: `DocumentWalkTest.jl`,
+`BoundedSyncTest.jl` and `DocumentDuplicateTest.jl` in `test/substrate/document/`.

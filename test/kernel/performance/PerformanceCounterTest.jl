@@ -15,6 +15,26 @@ function test_performance_counter()
     outside = get_performance_counters()
     @test isempty(outside.counts) && isempty(outside.times)
 
+    # The store and the bumps, whatever the switch says: bind a store as a scope
+    # does, and add to it.
+    @testset "a bound store keeps what the bumps add" begin
+        store = PerformanceModule._make_performance_counter_store()
+        counters = Base.ScopedValues.with(PerformanceModule._counters => store) do
+            PerformanceModule._bump_count!(:reads, 2)
+            PerformanceModule._bump_count!(:layout_passes, 1)
+            PerformanceModule._bump_time!(:print_time, 500)
+            PerformanceModule._bump_time!(:print_time, 250)
+            get_performance_counters()
+        end
+        @test counters.counts[:reads] == 2
+        @test counters.counts[:layout_passes] == 1
+        @test counters.counts[:computes] == 0
+        @test counters.times == Dict(:print_time => 750)
+        @test !haskey(counters.counts, :print_time)
+        after = get_performance_counters()
+        @test isempty(after.counts) && isempty(after.times)
+    end
+
     if !PERFORMANCE_COUNTERS_ENABLED
         # Counting is compiled out: the machinery is inert but still transparent.
         # `with_performance_counters` runs the body and returns its value, and

@@ -232,13 +232,11 @@ function _evaluate_splice(project, index, e::Expr)
         file, text = positional
         return _evaluate_path_text(get_file_content(file), String(text))
     elseif _is_type_name(verb)
-        # A capitalised name constructs the type it names: a document is a data
-        # structure, and its constructor is how one is written down. Which types
-        # a file may name is the registry's business.
+        # A capitalised name constructs the document type it names: a document
+        # is a data structure, and its constructor is how one is written down.
         T = get_pred_type(String(verb))
         T === nothing &&
-            error("marker: no type named ", verb, " is offered here — a package calls ",
-                  "register_pred_type!(", verb, ") to say a file may construct one")
+            error("marker: ", verb, " names no loaded type that a file may build")
         return make_pred_document(T, positional, keywords)
     end
     f = get_marker_function(verb)

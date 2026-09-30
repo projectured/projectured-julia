@@ -15,7 +15,7 @@ bin/projectured --mcp notes.md
 From your own code, the same editor takes a keyword:
 
 ```julia
-run_window_editor(document, projection, "My data"; backend = SdlBackend(), mcp = true)
+run_editor!(document, projection; window = (; title = "My data"), mcp = true)
 ```
 
 By default, the server listens at `http://127.0.0.1:9876/mcp`, on the loopback address only. `ProjecturedMcp` must be loaded; the application holds it already.
@@ -27,7 +27,7 @@ bin/projectured --mcp=9900 notes.md            # http://127.0.0.1:9900/mcp
 bin/projectured --mcp=localhost:9900 notes.md  # the host by its name
 ```
 
-From code, the keywords are `mcp_host` and `mcp_port`, and each one that you do not give keeps its default.
+From code, `mcp = (; host, port)` says where the server listens, and a field that you do not give keeps its default.
 
 **One server, one editor.** The server drives the editor it was started with. To serve two editors on one machine, give each one its own port.
 
@@ -47,7 +47,7 @@ The tools are the tool set of the kernel, so a client and the assistant in the w
 
 | Tool | What it does |
 | --- | --- |
-| `search_api` | finds a module, a type or a function of the loaded packages, by name, by pattern or by description |
+| `search_api` | finds a module, a type or a function by name, by pattern or by description: in the API that the tool set declares, or in every loaded `Projectured` package when it declares none. The application declares its API. |
 | `read_function_documentation` | reads the documentation of one name |
 | `search_guides` | searches the guides of this repository |
 | `list_resources`, `read_resource` | lists and reads the resources below |

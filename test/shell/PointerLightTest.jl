@@ -14,7 +14,7 @@ function _pl_make_editor(content)
     projection = make_window_scene_projection(make_widget_projection_example(measure = _PL_MEASURE))
     tracked, tracking = make_tracking_screen(scene, projection)
     backend = HeadlessBackend()
-    editor = Editor(backend, tracked, tracking, Device[Keyboard(), Mouse()])
+    editor = Editor(tracked, tracking; backend = backend, devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     time = Ref(0.0)
     move!(x, y) = (push_event!(backend, WindowInput(:light, MouseMove(x, y; time = time[] += 0.01)));

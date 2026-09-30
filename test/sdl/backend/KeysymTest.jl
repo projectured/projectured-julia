@@ -1,31 +1,29 @@
-# The SDL keysym → key symbol table. A printable key that the table does not name
-# falls back to `:char`, because its character arrives separately as
+# The SDL keysym → key symbol table. Each letter key has the name of its
+# lower-case letter, `:a` to `:z`. Another printable key that the table does not
+# name falls back to `:char`, because its character arrives separately as
 # SDL_TEXTINPUT. That fallback is right for typing and wrong for a chord: a
 # binding on `KeyDown(:p; ctrl, shift)` can never fire if SDL reports `:char`.
 #
-# So every letter a projection binds under a modifier must be named here. This
-# test is the guard: it fails when a binding names a key the backend cannot
+# This test is the guard: it fails when a binding names a key the backend cannot
 # deliver. The mapping helpers are internal to the backend, so they are qualified.
 
 function test_sdl_keysym()
 @testset "SDL keysym mapping" begin
 
-    # The letters bound under a modifier, with their ASCII keysyms.
-    @testset "every letter a chord binds has its own symbol" begin
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(99))  === :c   # Ctrl+C — copy
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(110)) === :n   # Ctrl+N — note
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(111)) === :o   # Ctrl+O — reload from disk
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(112)) === :p   # Ctrl+Shift+P — command palette
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(115)) === :s   # Ctrl+S — save
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(116)) === :t   # Ctrl+T — open a pane tab
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(118)) === :v   # Ctrl+V — paste
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(119)) === :w   # Ctrl+W — close a pane tab
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(120)) === :x   # Ctrl+X — cut
+    # The keysym of a letter key is the code of its lower-case letter.
+    @testset "every letter key has the name of its letter" begin
+        for (keysym, letter) in zip(97:122, 'a':'z')
+            @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(keysym)) === Symbol(letter)
+        end
     end
 
-    @testset "a letter no chord binds stays a character" begin
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(113)) === :char   # 'q'
-        @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(122)) === :char   # 'z'
+    # The same table through the constructor of the event that the poll calls.
+    @testset "sdl_to_keydown names every letter key by its letter" begin
+        for (keysym, letter) in zip(97:122, 'a':'z')
+            event = ProjecturedSdl.sdl_to_keydown(Int32(keysym), UInt16(0), false;
+                                                  time = 0.0)
+            @test event == KeyDown(Symbol(letter), ModifierKeys(); time = 0.0)
+        end
     end
 
     # The precompile recording presses keys by name. A name that no backend reports
@@ -50,6 +48,19 @@ function test_sdl_keysym()
                                                 time = 0.0)
         @test event.key === :p
         @test is_command_palette_gesture(event)
+    end
+
+    @testset "the undo pattern matches the event SDL builds for Ctrl+Z" begin
+        # SDL modifier bit: KMOD_LCTRL = 0x0040.
+        event = ProjecturedSdl.sdl_to_keydown(Int32(122), UInt16(0x0040), false;
+                                              time = 0.0)
+        @test event.key === :z
+        projection = UndoBufferToAnyProjection()
+        iomap = print_document(projection, IdentityProjection(),
+                               UndoBuffer(make_json_document_example()), PrinterContext())
+        bindings = get_projection_gesture_bindings(projection, iomap)
+        undo = only(binding for binding in bindings if binding.name == "Undo")
+        @test matches_gesture_pattern(undo.pattern, event)
     end
 
 end

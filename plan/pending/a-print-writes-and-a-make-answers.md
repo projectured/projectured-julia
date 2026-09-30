@@ -101,11 +101,30 @@ print to print, no?", then:
   4. A JSON string leaf prints as its JSON literal, with the quotes:
      `string(JsonString("Cleo"))` is `"Cleo"` with the two quotes. The bare text
      stays `.value`, as the orientation guide shows.
+  5. **A table prints as its rows** (the owner, 2026-09-27: "Yes, natural table
+     printing is right"). A `WidgetTable` has no natural text now
+     (`print_natural_text` fails: "no natural text for WidgetTable"), so without
+     one `print` of a table falls back to the debug form. Its natural text is its
+     column headers and its rows, one line each, with the cells of a column
+     lined up. A tab prints as what it shows. Found in the rehearsal of S2
+     (`plan/pending/a-fast-loop-for-the-assistant.md`): a model that wrote
+     `println(table_tab)` read the debug form, and stated the count of an earlier
+     turn; with the rows it reads the count and the names. The three-argument
+     `show` of a tab and a table stays the summary that landed on 2026-09-27
+     (a2ad3898), `PaneTab("People", WidgetTable(5 rows × 3 columns: name, age, city))`.
   In the same step, a `ReferencedDocument` follows the contract: `print` of it
   prints its document; its long form `ReferencedDocument{T} at …: …` moves to
   the three-argument `show`; its two-argument `show` becomes short. Found in the
   S2 rehearsal of 2026-09-26: `string(person["name"])` printed the long form into
   every cell of the table, because `print` fell back to the two-argument `show`.
+
+- **D6. The display of a returned document does not change** (the owner,
+  2026-09-27: "All documents should display with their natural notation and they
+  already do. A table widget and all widgets display as widgets and that is good
+  as it is today."). The natural string of D5 is for `print` and for text only.
+  Where the two meet: a form that returns a document shows it drawn, and the
+  model receives it as text, its natural string; a table has none now, so the
+  model receives the debug form, and with point 5 of D5 it receives the rows.
 
 ## 4. Steps
 
@@ -124,7 +143,8 @@ print to print, no?", then:
       fallback to `show`; then the `show` and `print` of `ReferencedDocument`.
       Tests: `string` of a JSON array and of a JSON string leaf, of a document
       with no natural text, of a referenced document, and `repr` of a vector of
-      referenced documents.
+      referenced documents. The natural text of a table (point 5), and `string` of a
+      table and of a tab that holds one.
 - [ ] **Step 4: omnet-julia.** The NED and INI methods and every call; the two
       repositories land together.
 - [ ] **Step 5: the texts the model reads.** The orientation guide, the S2 code

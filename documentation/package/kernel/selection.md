@@ -29,8 +29,8 @@ generics documents override and callers dispatch on, and `SelectionDefaults.jl`
 holds their default implementations — reading and writing the conventional
 `document.selection` field — plus the private path-walking helpers
 (`_selection_child`, `_set_selection_walk!`, `_sync_selection!`,
-`_mutate_terminal_step!`) they share. It sits above the reference layer (8) and
-the document layer (7): a selection's payload is a `Reference` stored on a
+`_mutate_terminal_step!`) they share. It sits above the reference layer (11) and
+the document layer (10): a selection's payload is a `Reference` stored on a
 `Document`.
 
 ## The document contract
@@ -97,8 +97,9 @@ records the `typeof` of the document it stands on (see
 [type checkpoints](reference.md#type-checkpoints-and-replay-validity)). It then
 **validates** the canonical path — every field, element index, and folded node
 type along the way must still resolve — before writing anything. A path that
-does not match `document` throws [`SelectionMismatchException`](#dormant-selections)
-and leaves the stored selection untouched: a selection either matches and
+does not match `document` throws
+[`SelectionMismatchException`](#a-path-that-does-not-match) and leaves the stored
+selection untouched: a selection either matches and
 applies, or fails without a half-written cell. On a match, the writer descends
 the path, storing each suffix into the matching child's `selection` field.
 
@@ -116,6 +117,15 @@ JsonObject.selection[]                         ← [1] + .value + .value + {3}
   └─ entries[1] (JsonObjectEntry).selection[]  ← .value + .value + {3}
        └─ value (JsonString).selection[]       ← .value + {3}
 ```
+
+### A path that does not match
+
+`set_selection!` and `replace_selection!` throw
+`SelectionMismatchException(document, path)` when `path` does not match
+`document`: a step names a field that the node does not have, an index is past
+the end of a collection that has a length, or a node does not hold the type that
+the path records. The writer throws before it writes a cell, so the stored
+selection stays as it was.
 
 ### Replacing selection
 
@@ -316,9 +326,7 @@ For example, in the widget tree the pane tree projects to:
   (`selector_element_pairs[i].…`), so the focused document tab follows the
   selection and receives key events (`_tab_index_from_selection`).
 
-A node with no selection (e.g. a split pane built outside the pane tree, where
-nothing forward-projects onto it) falls back to forwarding to each child in
-turn. Mouse events still hit-test by coordinate rather than following the
+Mouse events still hit-test by coordinate rather than following the
 selection — the selection only directs *coordless* events such as keystrokes.
 
 ## How the reader translates the selection backward

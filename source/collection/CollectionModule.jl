@@ -35,8 +35,8 @@ import ..OperationModule: child_reference_steps, get_slot_at
 import ..ProjectionModule: make_children_container, get_children_container_type
 
 export CollectionDocument, CellVector, CellMatrix, CellTable, ListNode,
-       get_left_tail, get_right_tail, find_list_node, get_cell_at, take_first, insert_row!,
-       insert_column!, delete_row!, delete_column!
+       get_left_tail, get_right_tail, find_list_node, get_cell_at, take_first,
+       count_computed_nodes, insert_row!, insert_column!, delete_row!, delete_column!
 
 
 include("CellVector.jl")

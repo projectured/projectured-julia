@@ -175,7 +175,8 @@ type-name reflection where it isn't. So the SQL and DbCatalog *documents and pro
 **live ODBC querying** lives in `Odbc`. Likewise each editor's *tool surface* is
 kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
 kernel-resident too (the `llm` and `agent` layers); only the MCP transport and
-the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
+the HTTP clients of the model providers are in the opt-in `ProjecturedMcp`,
+`ProjecturedAnthropic` and `ProjecturedOllama`.
 
 > The inventory below cites a file by name. Every one of them lives in
 > `source/<slice>/`, one folder per slice, and the package that includes it is
@@ -315,18 +316,19 @@ composes with any higher-order projection.
 
 | Module | Role |
 |---|---|
-| `EditorModule.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
-| `Sdl.jl` (opt-in `package/sdl/`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `backend/Console.jl` | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
-| `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../../asset/web) |
-| `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
+| `EditorModule.jl` | REPL loop: read → eval → print; `make_editor(document, projection; backend)`, `build_editor` and `run_editor!` entry points |
+| `sdl/Sdl.jl` (opt-in `ProjecturedSdl`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
+| `console/Console.jl` (substrate `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
+| `web/Web.jl` (opt-in `ProjecturedWeb`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [asset/web/](../../asset/web) |
+| `video/VideoBackend.jl` (opt-in `ProjecturedVideo`) | Video backend: plays a scripted timeline through the editor loop into the frames of a video file |
+| `pdf/Pdf.jl` (substrate `ProjecturedPdf`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `event/MouseEvent.jl` | `MouseButtons`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus`, `WindowLeave` |
 | `event/TimerEvent.jl` | `TimerExpire` |
 | `event/DisplayEvent.jl` | `DisplayUpdate` |
-| `agent/AgentModule.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
+| `agent/AgentInterface.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `ProjecturedMcp` |
 
 ---
 
@@ -343,7 +345,8 @@ enforces.
 ProjecturedKernel ◄── the 30 substrate packages ◄── the 20 domains ◄── Projectured
        ▲                          ▲                        ▲            (umbrella)
        │                          │                        │
-   Mcp, Llm             Sdl, Web, Video, Tulip      Odbc, Adaptagrams
+   Mcp, Anthropic,      Sdl, Web, Video, Tulip      Odbc, Adaptagrams
+   Ollama
    (opt-in)                    (opt-in)                 (opt-in)
 ```
 
@@ -359,7 +362,7 @@ includes them in:
 
 ```
  1 fault       the FaultRecord, the FaultStore a computation may write, the FaultPolicy,
-               run_fault_barrier and the report_fault! cascade. It imports nothing,
+               run_fault_barrier! and the report_fault! cascade. It imports nothing,
                which is why it comes first: every layer above can report.
  2 performance the per-frame performance counters and the FrameMeasurementStore of
                an editor
@@ -376,8 +379,8 @@ includes them in:
                describe_gesture_pattern, @gesture_case) and the recognitions
                (GestureRecognition, ChordRecognition, ClickRecognition, DwellRecognition,
                make_standard_recognitions)
- 9 backend     the Backend seam (lifecycle, text, device I/O, display size, device
-               config, image/video output)
+ 9 backend     the Backend seam (lifecycle, device I/O, the wait and the wake, display
+               size, device config, image/video output)
 10 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents
 11 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
@@ -389,16 +392,17 @@ includes them in:
                readers, CollectIntents and CollectedIntentsOperation
 15 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
-16 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
-               (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap)
+16 iomap       the IoMap contract (IoMap + accessors), the concrete IO maps
+               (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap), and the child
+               reconcilers (reconcile_child_iomaps, reconcile_child_iomap)
 17 projection  the four interface functions, @projection, ProjectionTemplate,
                ProjectionReferenceStep
 18 tool        the editor's capability surface: Tool / Resource / ToolSet,
-               execute_julia_code, doc/API search, register_default_tools!
+               execute_julia_code!, doc/API search, register_default_tools!
 19 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-20 agent       the AI control surface: AgentModule (inbound, the MCP
-               seam) and AgentModule (outbound, the Agent and run_turn! loop)
+20 agent       the AI control surface: AgentModule, with the inbound MCP seam
+               and the outbound Agent and run_turn! loop
 21 feed        the feed contract: a registered inflow that the editor moves into a
                target document once per frame
 22 editor      run_editor!, the read-eval-print loop
@@ -501,10 +505,10 @@ for adding one.
 | Tree domain | `SyntaxDocument.jl` | ✅ |
 | Styled string domain | `TextDocument.jl` | ✅ |
 | Graphics domain | `GraphicsDocument.jl` | ✅ |
-| SDL backend | `backend/Sdl.jl` | ✅ |
-| Console (terminal) backend | `backend/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
-| Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
-| PDF export backend | `backend/Pdf.jl` | ✅ |
+| SDL backend | `sdl/Sdl.jl` | ✅ |
+| Console (terminal) backend | `console/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
+| Web backend (browser renderer) | `web/Web.jl` | ✅ (new in Julia port) |
+| PDF export backend | `pdf/Pdf.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
 | References | `reference/` (layer 11) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |

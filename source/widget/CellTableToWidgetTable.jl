@@ -58,6 +58,8 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         Cell(Symbol[]),                    # every cell sits at the left
                         Cell(true),          # visible
                         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
+                        Cell(Point2D(0, 0)), # scroll_position
+                        Cell(1),             # top_row
                         Cell(nothing))               # no tooltip (selection defaults)
     SimpleIoMap(p, ct, table)
 end

@@ -163,11 +163,10 @@ at the top of `JsonParser.jl`, named the file it already was, and used none of
 the banned words. There were 166 of them, and they are gone: each now opens with
 the module that owns the fragment.
 
-The other four forms need a reader, not a grep. 27 lines still match, and 26 of
-them are legitimate: in `# Used to size an output to the content`, `used to`
-means *is used to*, and `# a rect whose row no longer exists` describes a run,
-not a refactor. The twenty-seventh is in a sealed file,
-`kernel/selection/SelectionDefaults.jl:76`, and waits for permission.
+The other four forms need a reader, not a grep. Most lines that still match are
+legitimate: in `# Used to size an output to the content`, `used to` means *is
+used to*, and `# a rect whose row no longer exists` describes a run, not a
+refactor.
 
 A check, not a verdict:
 
@@ -258,7 +257,7 @@ function print_document(projection::JsonToSyntax, recursion, document, ctx)
 | --- | --- |
 | A method of a protocol | The arity is the contract: `print_document`, `read_intent`, `match_reference_step`, `splice_value!`, a method of Base. New information goes into the context that the protocol already carries, and never into a new argument. |
 | A conventional tuple | `x, y, w, h` of a rectangle, `MouseClick(button, x, y, modifiers)`, `Inset(top, right, bottom, left)`. One order, everywhere in the repository, and a wrong order fails at once. |
-| A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. `source/graph/cpp/` is the whole of this case today. |
+| A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. No file of this repository is a port today. |
 | The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/sdl/` and `source/pdf/`. The family is read as a whole. |
 
 **A marker excuses the count, and nothing else.** The definition under it keeps
@@ -329,8 +328,8 @@ tool/survey-arguments.jl`, over `source/` and `example/`. Every other row is of
 did not see `# Folded in from …`, which is a banner and not a sentence, and
 `source/` held 166 of those — so history in a comment stood at about 210 lines,
 not 51. The banners are gone, and so are the nineteen word-list
-lines that really were history. 27 still match, 26 of them legitimately. The
-size of the four largest files is the other weak point.
+lines that really were history. On 2026-09-29, 30 still match, 29 of them
+legitimately. The size of the four largest files is the other weak point.
 
 ## 7. Where this repository differs from the other two
 

@@ -34,8 +34,8 @@ The library of the MCP server installs a logger of its own when its server start
 
 ```julia
 previous = install_message_log_capture!()
-run_window_editor(document, projection, "Title"; backend = SdlBackend(),
-                  feeds = Feed[MessageLogFeed()])
+run_editor!(document, projection; window = (; title = "Title"),
+            feeds = Feed[MessageLogFeed()])
 remove_message_log_capture!(previous)
 ```
 

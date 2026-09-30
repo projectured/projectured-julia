@@ -685,6 +685,15 @@ function test_sequencechart_selection()
             @test evaluate_reference(chart, get_event_reference(chart, 99)) === nothing
         end
 
+        @testset "a row step hashes as it compares" begin
+            chart = _sc_chart()
+            first_path = get_event_reference(chart, 2)
+            second_path = get_event_reference(chart, 2)
+            @test first_path == second_path
+            @test hash(first_path) == hash(second_path)
+            @test length(Set([first_path, second_path])) == 1
+        end
+
         @testset "arrow keys walk the parts" begin
             chart = _sc_chart()
             chart.selection = nothing

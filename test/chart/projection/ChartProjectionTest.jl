@@ -342,6 +342,14 @@ function test_chart_projection()
             @test at(-50, -50) === nothing
         end
 
+        @testset "a sample step hashes as it compares" begin
+            first_step = ChartSampleReferenceStep(3)
+            second_step = ChartSampleReferenceStep(3)
+            @test first_step == second_step
+            @test hash(first_step) == hash(second_step)
+            @test length(Set([Reference(first_step), Reference(second_step)])) == 1
+        end
+
         @testset "empty chart" begin
             # A placeholder root still draws as a chart-shaped surface rather
             # than collapsing to nothing.

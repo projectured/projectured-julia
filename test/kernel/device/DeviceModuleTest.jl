@@ -1,7 +1,7 @@
 """
 The device layer: the defaults and the keyword constructors of the three
-devices, the properties that a backend writes, and the ratio of device pixels to
-logical pixels of a display.
+devices, the limits of the scale and the zoom of a display, the mutability of a
+device, and the ratio of device pixels to logical pixels of a display.
 """
 
 using Test
@@ -35,7 +35,13 @@ function test_device_module()
         @test Keyboard(layout = :azerty).layout === :azerty
     end
 
-    @testset "a backend writes the properties in place" begin
+    @testset "a scale or a zoom of 0 or less is no display" begin
+        @test_throws ArgumentError Display(scale = 0)
+        @test_throws ArgumentError Display(zoom = -1.0)
+        @test_throws ArgumentError Display(scale = NaN)
+    end
+
+    @testset "each device is mutable" begin
         display = Display()
         display.scale = 2.0
         display.width = 2560

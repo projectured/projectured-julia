@@ -47,6 +47,8 @@ ReferenceModule.evaluate_reference_step(step::TextColumnReferenceStep, document)
 
 Base.:(==)(a::TextColumnReferenceStep, b::TextColumnReferenceStep) =
     a.start == b.start && a.stop == b.stop
+Base.hash(s::TextColumnReferenceStep, h::UInt) =
+    hash(s.stop, hash(s.start, hash(:TextColumnReferenceStep, h)))
 
 function Base.show(io::IO, s::TextColumnReferenceStep)
     print(io, "▥(", s.start, ":", s.stop, ")")

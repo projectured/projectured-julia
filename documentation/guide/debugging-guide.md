@@ -75,8 +75,8 @@ Julia, pass the policy to the loop:
 
 ```julia
 julia> run_application(; fault_policy = make_strict_fault_policy())
-julia> run_window_editor(document, projection, "Title";
-                         backend = SdlBackend(), fault_policy = make_strict_fault_policy())
+julia> run_editor!(document, projection; window = (; title = "Title"),
+                   fault_policy = make_strict_fault_policy())
 ```
 
 A `FaultCatchingProjection` in the pipeline reads the same policy, so it raises
@@ -435,9 +435,9 @@ rendering takes.
 ```julia
 julia> using Projectured, ProjecturedExample
 julia> gestures = [
-           (event = KeyPress('h'; time = time()),                       hold = 0.3),
-           (event = KeyPress('i'; time = time()),                       hold = 0.3),
-           (event = KeyDown(:right, ModifierKeys(), false; time = time()), hold = 0.5),
+           (event = KeyPress('h'; time = time()),                   hold = 0.3),
+           (event = KeyPress('i'; time = time()),                   hold = 0.3),
+           (event = KeyDown(:right, ModifierKeys(); time = time()), hold = 0.5),
        ]
 julia> record_example_video("json", gestures, "/tmp/demo.mp4"; fps=30)
 ```

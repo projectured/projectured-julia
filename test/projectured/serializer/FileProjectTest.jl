@@ -57,7 +57,34 @@ end
     items::CellVector = CellVector()
 end
 
-"A document offered by one of its concrete layouts."
+"A document with no field default, so the macro gives it no keyword constructor."
+@document struct TestBare
+    value::String
+end
+
+"A value that is data but not a document; the test lets a file build it."
+struct TestWire
+    port::Int
+end
+TestWire(; port) = TestWire(port)
+SerializationModule.is_pred_constructible(::Type{TestWire}) = true
+
+"A value that is not a document, and that no method lets a file build."
+struct TestNotWire
+    port::Int
+end
+
+# Two loaded document types with one name, in two modules.
+module PredTwinFirst
+import ProjecturedKernel.DocumentModule: Document
+struct TestTwin <: Document end
+end
+module PredTwinSecond
+import ProjecturedKernel.DocumentModule: Document
+struct TestTwin <: Document end
+end
+
+"A document written by one of its concrete layouts."
 @document struct TestLayout
     name::String
     count::Int = 0
@@ -106,9 +133,8 @@ A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
 inside a file is `<<node(file("b.xml"), "children[1]")>>`, where the path is
 the reference DSL's text form.
 
-- `PredFile(filename, document)` — a `.pred` file: any registered document,
+- `PredFile(filename, document)` — a `.pred` file: any loaded document type,
   written as its own constructor and read by the marker interpreter.
-  `register_pred_type!(T)` is the gate.
 
 The documents are built by hand, the way a user builds them in the editor:
 no marker, no stub, foreign nodes held directly.
@@ -395,7 +421,6 @@ function test_file_project()
             write(joinpath(d, "page.md"),
                   "# Page\n\nProse.\n\n```pred-ref\n<<file(\"good.pred\")>>\n```\n\n" *
                   "```pred-ref\n<<file(\"foreign.pred\")>>\n```\n")
-            register_pred_type!(TestRun)
             # Without it the whole page is lost to the one file that will not open.
             @test_throws Exception load_project(d, ["page.md"]; follow = true)
             project = load_project(d, ["page.md"]; follow = true, tolerant = true)
@@ -411,10 +436,8 @@ function test_file_project()
     end
 
     @testset "a .pred file: the document as its constructor" begin
-        register_pred_type!(TestRun)
 
         @testset "a symbol writes as :name and reads back" begin
-            register_pred_type!(TestState)
             text = print_pred_text(TestState(kind = :holds))
             @test text == "TestState(\n    kind = :holds,\n)"
             loaded = parse_pred_text(text)
@@ -425,23 +448,35 @@ function test_file_project()
             @test_throws Exception parse_pred_text("TestState(kind = Symbol(\"a b\"))")
         end
 
-        @testset "a file names a document by its schema, whatever layout was offered" begin
+        @testset "a type with no keyword constructor is built from its fields" begin
+            loaded = parse_pred_text("TestBare(value = \"hi\")")
+            @test loaded isa TestBare && loaded.value == "hi"
+            @test parse_pred_text(print_pred_text(loaded)).value == "hi"
+            @test_throws "gives no value" parse_pred_text("TestBare(other = 1)")
+        end
+
+        @testset "a type that is not a document is built only when its package allows it" begin
+            @test parse_pred_text("TestWire(port = 5000)") == TestWire(5000)
+            @test get_pred_type("TestNotWire") === nothing
+        end
+
+        @testset "a name that two loaded document types have is an error that names both" begin
+            @test_throws r"PredTwinFirst\.TestTwin and .*PredTwinSecond\.TestTwin|PredTwinSecond\.TestTwin and .*PredTwinFirst\.TestTwin" get_pred_type("TestTwin")
+        end
+
+        @testset "a file names a document by its schema, whatever its layout" begin
             # A concrete layout has no keyword constructor, so the name builds
             # the type that the schema's module binds to it.
-            register_pred_type!(typeof(TestLayout(name = "x")))
             @test get_pred_type("TestLayout") === TestLayout
             loaded = parse_pred_text("TestLayout(name = \"a\")")
             @test loaded isa TestLayout && loaded.name == "a"
-            @test is_pred_type(typeof(loaded))
             # The name a file writes is the schema's, also when the schema binds
             # it to a native struct of another name.
-            register_pred_type!(TestMark)
             @test get_pred_type("TestMark") === TestMark
             @test parse_pred_text("TestMark(3)").at == 3
         end
 
         @testset "a collection of cells writes as a list" begin
-            register_pred_type!(TestBag)
             bag = TestBag(items = CellVector(Cell[Cell(TestRun(name = "a")), Cell(TestRun(name = "b"))]))
             text = print_pred_text(bag)
             @test occursin("items = [\n", text)
@@ -509,7 +544,7 @@ function test_file_project()
             @test_throws r"marker" load_file(d, "sum.pred")
         end
 
-        @testset "a type the gate does not allow is refused by name" begin
+        @testset "a name that no loaded document type has is refused by name" begin
             d = mktempdir()
             write(joinpath(d, "x.pred"), "Secret(key = 1)")
             @test_throws r"Secret" load_file(d, "x.pred")
@@ -551,7 +586,6 @@ function test_file_project()
         end
 
         @testset "a document may write a reduced form of itself" begin
-            register_pred_type!(TestWindow)
             d = mktempdir()
             try
                 # The panel is a document of no file's domain. Nothing writes

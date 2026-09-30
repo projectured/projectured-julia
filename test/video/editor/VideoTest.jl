@@ -27,9 +27,9 @@ function test_record_video()
 @testset "record_video" begin
     @testset "encodes an mp4" begin
         gestures = [
-            (event = KeyPress('h'; time = 0.0),                        hold = 0.3),
-            (event = KeyPress('i'; time = 0.0),                        hold = 0.3),
-            (event = KeyDown(:right, ModifierKeys(), false; time = 0.0),  hold = 0.4),
+            (event = KeyPress('h'; time = 0.0),                    hold = 0.3),
+            (event = KeyPress('i'; time = 0.0),                    hold = 0.3),
+            (event = KeyDown(:right, ModifierKeys(); time = 0.0),  hold = 0.4),
         ]
         filename = tempname() * ".mp4"
         ok = try
@@ -149,7 +149,8 @@ function test_json_build_live()
     document = live.example.make_document()
     projection = live.example.make_projection()
     set_selection!(document, EmptyReference())
-    editor = Editor(ConsoleBackend(), document, projection, Device[Display(), Keyboard(), Mouse()])
+    editor = Editor(document, projection; backend = ConsoleBackend(),
+                    devices = Device[Display(), Keyboard(), Mouse()])
     reprint!() = editor.iomap = print_document(projection, nothing, editor.document,
         PrinterContext(EmptyReference(), Cell(live.width), Cell(live.height), Dict{Symbol,Any}(), Clock()))
     reprint!()

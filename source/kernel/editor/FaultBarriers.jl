@@ -1,11 +1,12 @@
-# Fragment of `EditorModule` — the fault barriers of the loop: the per-stage guards, the repairs, and the frame report.
+# Fragment of `EditorModule` — the stage barriers, the repairs and the frame report.
 
 # ── The fault barriers ───────────────────────────────────────────────────────
 #
 # One barrier per stage of the frame. Each one answers its fallback rather than
 # the exception, so a stage that fails costs that stage and not the editor.
-# `editor.fault_policy` decides whether any of them catches at all; a programmatic
-# editor starts strict, and `run_editor!` is what turns them on.
+# `editor.fault_policy` decides whether any of them catches at all. An editor that
+# `Editor(…)` builds starts strict, `make_editor` turns the barriers on, and
+# `run_editor!` keeps the policy of its editor.
 
 # What a barrier answers when it caught. A sentinel rather than `nothing`,
 # because `nothing` is a value a stage may answer for itself.
@@ -14,9 +15,9 @@ const _BARRIER_FAILED = _BarrierFailed()
 
 _run_barrier(body, editor::Editor, site::Symbol; counter::Symbol = site,
              origin = :editor, reference = nothing, fallback = nothing) =
-    run_fault_barrier(body, editor.faults; policy = editor.fault_policy,
-                      backend = editor.backend, site = site, counter = counter,
-                      origin = origin, reference = reference, fallback = fallback)
+    run_fault_barrier!(body, editor.faults; policy = editor.fault_policy,
+                       backend = editor.backend, site = site, counter = counter,
+                       origin = origin, reference = reference, fallback = fallback)
 
 """
     report_frame_faults!(editor) -> Int
@@ -27,10 +28,10 @@ many there were.
 Call it once per frame, before anything reads the projection. This is the one
 place a fault is reported on the console, because it is the one place that knows
 which records are new — a printer's fault arrives here too, recorded from inside
-a thunk that could not report anything itself.
+a computation that could not report anything itself.
 """
 function report_frame_faults!(editor::Editor)
-    records = drain_faults!(editor.faults)
+    records = drain_faults!(editor.faults; policy = editor.fault_policy)
     for record in records
         report_fault!(editor.faults, record; policy = editor.fault_policy,
                       backend = editor.backend)
@@ -84,14 +85,35 @@ function _read_from_devices_guarded(editor::Editor)
     end
 end
 
+# The barrier of one operation. It applies `operation`, and when the operation
+# fails half way, it takes the change back where there is a way back and runs the
+# repairs below. It writes no log line and leaves `editor.operation` alone, so
+# `evaluate!` and the drain of the inbox apply an operation the same way.
+function _evaluate_operation_guarded!(editor::Editor, operation)
+    editor.fault_policy.is_barrier_enabled ||
+        return evaluate_operation(editor, operation)
+    inverse = _make_operation_inverse(editor, operation)
+    answer = _run_barrier(editor, :evaluate;
+                          origin = operation === nothing ? :nothing : typeof(operation),
+                          fallback = _BARRIER_FAILED) do
+        evaluate_operation(editor, operation)
+    end
+    answer === _BARRIER_FAILED || return answer
+    _repair_after_operation_fault!(editor, inverse)
+    nothing
+end
+
 # An inverse reads the state the change starts from, so it is taken BEFORE the
-# change is applied. Taking one can itself fail, and a way back that could not be
-# worked out is `nothing` — a truthful answer, not an error.
+# change is applied. Taking one can itself fail: the fault is recorded, and a way
+# back that could not be worked out is `nothing` — a truthful answer, not an error.
 function _make_operation_inverse(editor::Editor, operation)
     operation === nothing && return nothing
     try
         make_inverse_operation(editor.document, operation)
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
+        record_fault!(editor.faults, :evaluate; origin = typeof(operation), exception,
+                      traceback = catch_backtrace())
         nothing
     end
 end
@@ -104,9 +126,12 @@ function _repair_after_operation_fault!(editor::Editor, inverse)
     if inverse !== nothing
         try
             evaluate_operation(editor, inverse)
-        catch
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
             # The way back failed too. The document stands as it is, and the
             # two repairs below still run.
+            record_fault!(editor.faults, :evaluate; origin = typeof(inverse), exception,
+                          traceback = catch_backtrace())
         end
     end
     # Repair 1 — re-print from scratch. A change that failed half way often
@@ -125,69 +150,12 @@ function _repair_selection!(editor::Editor)
         is_valid_reference(editor.document, path) && return nothing
         clear_selection!(editor.document)
         @warn "[fault] the selection did not survive a failed operation and was cleared"
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
         # A document that can not even be asked where its selection is has
         # nothing this repair can do for it.
+        record_fault!(editor.faults, :evaluate; origin = :_repair_selection!, exception,
+                      traceback = catch_backtrace())
     end
     nothing
-end
-
-"""
-    evaluate!(editor::Editor)
-
-Apply the current operation to the document. Logs the operation when it is
-non-nothing.
-"""
-function evaluate!(editor::Editor)
-    # Log via @info, not a raw println: the assistant runs `execute_julia_code` on
-    # a concurrent task that globally redirects `stdout`/`stderr` to a pipe (and
-    # closes it), so a raw write to the live global stdout from this loop can land
-    # in that closed pipe and crash. The logger writes to the stream captured at
-    # startup, which the redirect leaves untouched.
-    editor.operation !== nothing && @info "[operation] $(editor.operation)"
-    operation = editor.operation
-    editor.fault_policy.is_barrier_enabled ||
-        return evaluate_operation(editor, operation)
-    inverse = _make_operation_inverse(editor, operation)
-    answer = _run_barrier(editor, :evaluate;
-                          origin = operation === nothing ? :nothing : typeof(operation),
-                          fallback = _BARRIER_FAILED) do
-        evaluate_operation(editor, operation)
-    end
-    answer === _BARRIER_FAILED || return answer
-    _repair_after_operation_fault!(editor, inverse)
-    nothing
-end
-
-"""
-    print!(editor::Editor)
-
-Project the editor's document through its projection pipeline. The root
-`PrinterContext` is minted with the editor's own `clock`, so animated cells
-descendants build subscribe to this editor's clock rather than a shared one.
-
-It also carries the editor's own document under `:root`. A projection deep in
-the tree cannot reach the root any other way, and one that shows something about
-the whole editor — where the selection is, which tabs are open — needs it.
-"""
-function print!(editor::Editor)
-    if editor.iomap === nothing
-        # The store and the policy ride down with the context. A projection
-        # barrier deep in the tree records into the store from inside a thunk,
-        # where it can write no cell and reach no editor, and it catches only
-        # what the policy lets it catch. `PrinterContext` itself does not change.
-        ctx = with_property(
-                  with_property(
-                      with_property(with_clock(PrinterContext(), editor.clock),
-                                    :root, editor.document),
-                      :fault_store, editor.faults),
-                  :fault_policy, editor.fault_policy)
-        editor.iomap = print_document(editor.projection, nothing,
-                                      editor.document, ctx)
-    end
-    is_editor_degraded(editor, :device_write) && return nothing
-    _run_barrier(editor, :device; counter = :device_write,
-                 origin = typeof(editor.backend)) do
-        write_to_devices(editor.backend, editor.devices, editor.iomap.output)
-    end
 end

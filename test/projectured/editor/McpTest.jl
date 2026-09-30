@@ -210,6 +210,43 @@ function test_search_tools_registered()
     end
 end
 
+# With no declared API, the documentation tools read the whole surface that the
+# code tool binds: the modules of the packages outside the kernel, and only the
+# names that the code can write.
+function test_whole_surface_documentation()
+    @testset "the documentation tools read the whole surface" begin
+        tools = register_default_tools!(ToolSet())
+        call = (name, args) -> call_tool(tools, name; args = args, target = nothing)
+        # A type of a package outside the kernel is the one clear match.
+        found = call("search_api", Dict("query" => "CellVector"))
+        @test startswith(found, "# `CellVector` — the one API match")
+        # A module outside the kernel is found, and its function reads in full.
+        read = call("read_function_documentation",
+                    Dict("module_name" => "PaneModule",
+                         "function_name" => "get_pane_rectangles"))
+        @test occursin("Every group with its rectangle in the unit square", read)
+        # A name that nobody defined is answered with a name outside the kernel.
+        answer = call("execute_julia_code", Dict("code" => "CellVectr(1)"))
+        @test occursin("UndefVarError", answer)
+        @test occursin("Did you mean: `CellVector`", answer)
+        # Each name of the index is the binding that the code of the model reaches.
+        # The scratch module binds its names after this function starts, so the
+        # check reads them in the newest world.
+        execute_julia_code!(tools, nothing, "@__MODULE__")
+        scratch = get_last_evaluated_value(tools)
+        is_writable = entry -> begin
+            module_name, name = split(entry.qualname, '.')
+            symbol = Symbol(name)
+            isdefined(scratch, symbol) && getfield(scratch, symbol) ===
+                getfield(getfield(Projectured, Symbol(module_name)), symbol)
+        end
+        entries = ToolModule._api_index()
+        @test length(entries) > 2000
+        @test isempty([entry.qualname for entry in entries if entry.kind != "module" &&
+                       !Base.invokelatest(is_writable, entry)])
+    end
+end
+
 function test_pane_tab_b1()
     @testset "pane tabs via operations + search" begin
         editing = PaneGroup(PaneTab[])
@@ -392,28 +429,28 @@ function test_search_object()
 end
 
 function test_execute_julia_code()
-    @testset "execute_julia_code" begin
+    @testset "execute_julia_code!" begin
         # Need a mock editor for this test
         # For now, we'll test with a simple dict as editor
         editor = Dict("document" => "test", "projection" => "test")
         tools = ToolSet()
 
         # Test simple expression
-        result = execute_julia_code(tools, editor, "1 + 1")
+        result = execute_julia_code!(tools, editor, "1 + 1")
         @test isa(result, String)
         @test occursin("2", result)
 
         # Test expression that uses editor
-        result = execute_julia_code(tools, editor, "editor")
+        result = execute_julia_code!(tools, editor, "editor")
         @test isa(result, String)
 
         # Test error handling
-        result = execute_julia_code(tools, editor, "undefined_function()")
+        result = execute_julia_code!(tools, editor, "undefined_function()")
         @test isa(result, String)
         @test occursin("Error", result) || occursin("UndefVarError", result)
 
         # Test multi-line code
-        result = execute_julia_code(tools, editor, """
+        result = execute_julia_code!(tools, editor, """
             x = 5
             y = 10
             x + y
@@ -422,42 +459,42 @@ function test_execute_julia_code()
         @test occursin("15", result)
 
         # Test string operations
-        result = execute_julia_code(tools, editor, "\"hello\" * \" world\"")
+        result = execute_julia_code!(tools, editor, "\"hello\" * \" world\"")
         @test isa(result, String)
         @test occursin("hello world", result)
 
         # Test array operations
-        result = execute_julia_code(tools, editor, "[1, 2, 3] .^ 2")
+        result = execute_julia_code!(tools, editor, "[1, 2, 3] .^ 2")
         @test isa(result, String)
         @test occursin("[1, 4, 9]", result)
 
         # Test stdout capture (using println)
-        result = execute_julia_code(tools, editor, "println(\"test output\")")
+        result = execute_julia_code!(tools, editor, "println(\"test output\")")
         @test isa(result, String)
         @test occursin("test output", result)
 
         # Test that nothing expressions don't add extra output
-        result = execute_julia_code(tools, editor, "x = 42")
+        result = execute_julia_code!(tools, editor, "x = 42")
         @test isa(result, String)
         # Should not contain "nothing" since x = 42 returns nothing but we don't print it
 
         # Test accessing editor fields
-        result = execute_julia_code(tools, editor, "editor[\"document\"]")
+        result = execute_julia_code!(tools, editor, "editor[\"document\"]")
         @test isa(result, String)
         @test occursin("test", result)
 
         # Test editor variable access - verify editor is available in scope
-        result = execute_julia_code(tools, editor, "editor isa Dict")
+        result = execute_julia_code!(tools, editor, "editor isa Dict")
         @test isa(result, String)
         @test occursin("true", result)
 
         # Test editor field access with different syntax
-        result = execute_julia_code(tools, editor, "editor[\"projection\"]")
+        result = execute_julia_code!(tools, editor, "editor[\"projection\"]")
         @test isa(result, String)
         @test occursin("test", result)
 
         # Test complex expression
-        result = execute_julia_code(tools, editor, "sqrt(16) + 2^3")
+        result = execute_julia_code!(tools, editor, "sqrt(16) + 2^3")
         @test isa(result, String)
         @test occursin("12", result)
     end
@@ -467,7 +504,7 @@ end
 # used to pass `nothing` for editor, so the assistant saw `editor === nothing`
 # and any `editor.document` reach-through crashed with FieldError. Verifies
 # the assistant forwards the live editor (or a stand-in carrying
-# `.document`) all the way to `execute_julia_code`'s `let editor = …`.
+# `.document`) all the way to `execute_julia_code!`'s `let editor = …`.
 function test_assistant_editor_reference()
     @testset "assistant editor reference" begin
         tools = register_default_tools!(ToolSet())
@@ -542,37 +579,37 @@ function test_function_availability()
         tools = ToolSet()
 
         # Test that evaluate_reference is available by calling it
-        result = execute_julia_code(tools, editor, "evaluate_reference(5, EmptyReference())")
+        result = execute_julia_code!(tools, editor, "evaluate_reference(5, EmptyReference())")
         @test isa(result, String)
         @test occursin("5", result)
         
         # Test that extend_reference is available by calling it
-        result = execute_julia_code(tools, editor, "extend_reference(EmptyReference(), PositionReferenceStep(1))")
+        result = execute_julia_code!(tools, editor, "extend_reference(EmptyReference(), PositionReferenceStep(1))")
         @test isa(result, String)
         # Should not error
         
         # Test that is_reference_equal is available by calling it
-        result = execute_julia_code(tools, editor, "is_reference_equal(EmptyReference(), EmptyReference())")
+        result = execute_julia_code!(tools, editor, "is_reference_equal(EmptyReference(), EmptyReference())")
         @test isa(result, String)
         # Should not error
         
         # Test that PositionReferenceStep is available by constructing it
-        result = execute_julia_code(tools, editor, "PositionReferenceStep(1)")
+        result = execute_julia_code!(tools, editor, "PositionReferenceStep(1)")
         @test isa(result, String)
         # Should not error
         
         # Test that ElementReferenceStep is available by constructing it
-        result = execute_julia_code(tools, editor, "ElementReferenceStep(1)")
+        result = execute_julia_code!(tools, editor, "ElementReferenceStep(1)")
         @test isa(result, String)
         # Should not error
         
         # Test that FieldReferenceStep is available by constructing it
-        result = execute_julia_code(tools, editor, "FieldReferenceStep(\"test\")")
+        result = execute_julia_code!(tools, editor, "FieldReferenceStep(\"test\")")
         @test isa(result, String)
         # Should not error
         
         # Test that EmptyReference is available by constructing it
-        result = execute_julia_code(tools, editor, "EmptyReference()")
+        result = execute_julia_code!(tools, editor, "EmptyReference()")
         @test isa(result, String)
         # Should not error
     end
@@ -585,7 +622,7 @@ function test_base_extensions()
         tools = ToolSet()
 
         # Test that CellVector indexing works (Base.getindex extension)
-        result = execute_julia_code(tools, editor, """
+        result = execute_julia_code!(tools, editor, """
             cv = CellVector([Cell(1), Cell(2), Cell(3)])
             cv[1]
         """)
@@ -593,7 +630,7 @@ function test_base_extensions()
         @test occursin("1", result)
         
         # Test that CellVector length works (Base.length extension)
-        result = execute_julia_code(tools, editor, """
+        result = execute_julia_code!(tools, editor, """
             cv = CellVector([Cell(1), Cell(2), Cell(3)])
             length(cv)
         """)
@@ -601,7 +638,7 @@ function test_base_extensions()
         @test occursin("3", result)
         
         # Test that CellVector iteration works (Base.iterate extension)
-        result = execute_julia_code(tools, editor, """
+        result = execute_julia_code!(tools, editor, """
             cv = CellVector([Cell(1), Cell(2), Cell(3)])
             collect(cv)
         """)
@@ -609,7 +646,7 @@ function test_base_extensions()
         @test occursin("[1, 2, 3]", result)
         
         # Test that JsonArray indexing works (Base.getindex extension)
-        result = execute_julia_code(tools, editor, """
+        result = execute_julia_code!(tools, editor, """
             arr = JsonArray([Cell(JsonNumber(Cell(1))), Cell(JsonNumber(Cell(2)))])
             arr[1]
         """)
@@ -632,7 +669,8 @@ function _find_free_mcp_port()
     Int(port)
 end
 
-_mcp_editor() = Editor(HeadlessBackend(), JsonString("x"), IdentityProjection(), Device[])
+_mcp_editor() = Editor(JsonString("x"), IdentityProjection(); backend = HeadlessBackend(),
+                       devices = Device[])
 
 # One request of the protocol, and the text of its answer. `params` is the JSON
 # text of the parameters.
@@ -727,7 +765,7 @@ function test_mcp_server()
                     end
                     post_operation!(editor, QuitEditorOperation())
                 end
-                run_editor!(editor; mcp = true, mcp_host = "127.0.0.1", mcp_port = port)
+                run_editor!(editor; mcp = (; host = "127.0.0.1", port = port))
                 @test occursin("\"execute_julia_code\"", listing[])
                 @test occursin("\"probe_declared\"", listing[])
                 # The call ran on the task of the loop, which is this one.
@@ -804,6 +842,7 @@ function test_mcp_tools()
         test_search_guides()
         test_search_api()
         test_search_tools_registered()
+        test_whole_surface_documentation()
         test_pane_tab_b1()
         test_print_object_options()
         test_search_object()
@@ -819,5 +858,6 @@ export test_read_module_documentation, test_read_class_documentation, test_read_
 export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_assistant_editor_reference, test_assistant_turn_binds_meaning_model
 export test_search_guides, test_search_api, test_search_tools_registered
+export test_whole_surface_documentation
 export test_pane_tab_b1, test_print_object_options, test_search_object
 export test_mcp_server, test_mcp_tool_runs_on_editor_task

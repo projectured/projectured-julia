@@ -27,12 +27,14 @@ on both.
 ## `tool/`: what the editor can be asked to do
 
 ```
-Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
+Tool.jl           Tool (an action), Resource (a read-only datum), ApiEntry, MeaningModel,
+                  RelevanceModel, ToolSet, observe_evaluations!
 ToolSet.jl        register / list / find / call — all on a ToolSet
-CodeExecution.jl  execute_julia_code and execute_julia_expression, and their persistent scratch namespace
+CodeExecution.jl  execute_julia_code! and execute_julia_expression!, and their persistent scratch namespace
 SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
 Documentation.jl  guide / module / type / function docs, and search over them
 MeaningSearch.jl  the rank of a description by its meaning, and the stores of vectors
+RelevanceSearch.jl the rank of a description by a classifier that reads it with each hit
 DefaultTools.jl   register_default_tools!, which puts the above into a ToolSet
 ```
 
@@ -51,16 +53,25 @@ answer as a Markdown document, and the MCP server sends the text as it is,
 because an MCP text content has no media type.
 
 **One `ToolSet` per editor** ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
-`Editor` owns one. Nothing here is process-global: not the tool list, not the
-resource list, not the scratch module `execute_julia_code` evaluates into, not its
-last result. Two editors in one process therefore cannot see each other's tools or
+`Editor` owns one. The tool list, the resource list, the declared API, the scratch
+module `execute_julia_code!` evaluates into, and its last result live on the
+`ToolSet`. Two editors in one process therefore cannot see each other's tools or
 evaluate code into each other's namespace.
 
-*The one carve-out*, stated where it lives: the guide and API indexes, and the
-stores of meaning vectors, are process-global lazily-built caches. They are
-derived from source files that do not change while the process runs, and from
-the model a store is named for, so they are identical for every editor. That is
-the exception that PAR-PER-EDITOR-STATE grants.
+A few values of the layer are process-global, each for a reason:
+
+- The guide index, the API index and the index of each declared API are caches
+  that the process builds on first use. They come from text and code that do not
+  change while the process runs, so they are identical for every editor. That is
+  the exception that PAR-PER-EDITOR-STATE grants.
+- The stores of meaning vectors, one for each model, are the same kind: a vector
+  comes from a text and from the model that its store is named for.
+- The extra guide roots are what an application adds with `register_guide_root!`
+  when it loads, for every window that it opens.
+- The folder of the vector files and the time that a search waits for a build are
+  settings that a test changes.
+- A call of the code tool redirects the `stdout` and the `stderr` of the process
+  while the code runs, so that the answer holds what the code printed.
 
 ### Three kinds of query
 
@@ -108,8 +119,19 @@ the list says how to read a hit in full: a function with
 meaning model ranked says so in its first line, and says what to do instead.
 
 `search_api(set, query; …)` and `search_guides(set, query; …)` search as
-the tools of `set` do, with its declaration and its meaning model, so a call
-from the REPL answers what a model is answered.
+the tools of `set` do, with its declaration, its meaning model and its
+relevance model, so a call from the REPL answers what a model is answered.
+
+**A query says what the step needs.** The description of `query` tells the
+model that a query can be a sentence about what this step needs, and the search
+reads it whole. One sentence can mean two names: "save it" is `save_document`
+for a document open in a pane and `save_user_interface` for the arrangement of
+the windows, and only the words of the situation tell them apart. The tools
+have no separate context argument: measured on 90 questions, 2026-09-29, the
+same words joined into the query ranked as well as a separate context, and a
+context the model wrote beside its own queries changed no rank. The functions
+`search_api` and `search_guides` keep a `context` keyword for a caller from
+code.
 
 **Two searches, two intents.** `search_api` finds the name to call, and
 `search_guides` says how the parts fit together; their descriptions say so in
@@ -140,7 +162,7 @@ re-exports, such as `Point2D` given through `WidgetModule`, is read by the same
 shape, `resource://type/<module>/<type>`. `list_resources` answers the kinds,
 each with its count and its shape, in six lines.
 
-**`execute_julia_code` answers what the code printed, whole, then the value of
+**`execute_julia_code!` answers what the code printed, whole, then the value of
 the last statement on its own.** What the code prints is what the model asked
 for, so it is never cut. The value comes unasked — a `DataFrame` of thousands
 of rows, the `Text` a side-effect verb answers — so a `describe_value` function
@@ -153,15 +175,15 @@ declared names: a call to `plot_results` returns `make_result_plot`, the search
 that starts from a guess, done where the guess fails.
 
 **A person reads the value as the Julia REPL shows it, with no note.** The
-evaluator and the chat composer call `execute_julia_code` with `describe_value
+evaluator and the chat composer call `execute_julia_code!` with `describe_value
 = describe_value_for_person`, so what a person reads is `show` with
 `MIME"text/plain"()`, exactly as a terminal displays it — quotes on a string, `⋮`
 on a collection the display cuts short. The model's tool call, and an MCP
 client, keep the default.
 
-`execute_julia_expression(set, target, expression)` runs code that is already an
+`execute_julia_expression!(set, target, expression)` runs code that is already an
 `Expr`, as `make_julia_expression` gives it, and shares everything with
-`execute_julia_code` except the parse: the scratch module, the `editor` binding,
+`execute_julia_code!` except the parse: the scratch module, the `editor` binding,
 the answer and the notice to the observers. An object that the expression holds
 in a `QuoteNode` is used as that very object.
 
@@ -208,12 +230,41 @@ of the answer says why. For a model
 that is not installed, the reason says how to install it: `Run ollama pull
 nomic-embed-text`.
 
+**A relevance model ranks a description before the meaning does, and keywords
+before their words do.** A `RelevanceModel` is a classifier: it reads the query,
+its context and one thing a search could find together, and answers how likely
+that thing does what was asked. Keywords go to it because a model searches with
+keywords far more than with a sentence; a keyword query whose words match one
+name as strongly as the name itself would, and no other name so, is answered
+with that name in full, as before, and the `+word` and
+`-word` filters still say which entries it may rank. A pattern never goes to it. A meaning vector is made from one text alone, so it cannot weigh a
+docstring against the question it is asked for. `set_relevance_model!` gives a
+tool set one; the kernel holds its two functions and no client of a server.
+
+- **`search_api`** has the model score every entry of a declaration of up to
+  255. Above that, the model first chooses among the entries by their first
+  sentences, in groups of 255 asked at once, keeps the best 3 of each group, and
+  scores those.
+- **`search_guides`** has the model score the first 50 sections by words and the
+  first 50 by meaning. The meaning vectors already rank the sections of a guide
+  well, so the model orders their first hits rather than choosing among all.
+- **A model that throws leaves the ranking to the meaning model**, and the first
+  line of the answer says why, as it does for a meaning model.
+
+Measured on the 5,187 names of an IDE and 131 questions, 2026-09-28: the meaning
+vectors put 30 of 60 questions' names in the first ten; a classifier that scores
+the first fifty of words and meaning put 43; the choice and then the score, 54.
+On the sections of the guides the gain is small: 10 of 13 first against 9.
+
 ## `llm/`: how the editor talks to a model
 
 ```
-Llm.jl         the Llm supertype; the stream_turn and render_tool_schema seams; the meaning model
-LlmMessage.jl  LlmText / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
-LlmEvent.jl    LlmTextDelta, LlmToolUseStart, LlmTurnEnd, … — what streams back
+LlmInterface.jl  the Llm supertype; the stream_turn and render_tool_schema seams; the
+                 meaning-model seams; the make_llm and get_default_llm_model factories
+LlmDefaults.jl   the fallbacks: no meaning model; the factories that take a symbol
+Llm.jl           a backend is opaque to the walk; bind_meaning_model!; get_llm_backend_names
+LlmMessage.jl    LlmText / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
+LlmEvent.jl      LlmTextDelta, LlmToolUseStart, LlmTurnEnd, … — what streams back
 ```
 
 **None of this is any provider's wire format.** The messages and events are the
@@ -279,12 +330,13 @@ model are the backend's own configuration, so a cached backend would freeze
 whichever model was selected first and editing `assistant.model` would stop taking
 effect.
 
-Three functions carry the whole selection, and all three live in `llm/LlmInterface.jl`:
+Three functions carry the whole selection. `llm/LlmInterface.jl` declares `make_llm`
+and `get_default_llm_model`, and `get_llm_backend_names` is in `llm/Llm.jl`:
 
 | function | what it answers |
 | --- | --- |
 | `make_llm(kind; model, api_key, context)` | build the backend registered under `kind` |
-| `default_llm_model(kind)` | the model this backend talks to when nobody names one |
+| `get_default_llm_model(kind)` | the model this backend falls back to; for an empty name a backend can choose another |
 | `get_llm_backend_names()` | which backends can be built right now |
 
 `make_llm` dispatches on `Val`, and each adapter package adds one method. **The
@@ -360,7 +412,9 @@ function it cannot call wastes a round and learns to distrust the answer, so the
 two are never allowed to differ.
 
 Empty — the default — means the editor's whole surface: every loaded `Projectured`
-package, which is what the assistant and the MCP server want.
+package, which is what the assistant and the MCP server want. The documentation
+tools read that surface from an index that the process builds on first use, so a
+package that loads after it is not in their answers.
 
 **The list opens as much as it narrows.** The default surface is gathered by
 package name, so a module in a package not called `Projectured…` is unreachable
@@ -378,7 +432,13 @@ finding out what that is, is not one of the things it does. So `search_api` and
 the declaration already applied — which is what makes the locator `search_api`
 prints for every function, a `read_function_documentation(…)` call, name something
 the model can actually reach. It cannot widen its own view by passing a different
-list.
+list. `list_modules`, `list_types` and `list_functions` are bound the same way.
+
+These five names always belong to the namespace. A declared module that exports
+one of these functions, as the tool module does, gives nothing more: the name
+arrives as the helper, with the declaration applied. A declaration that gives
+another value under one of the names is refused, because the model would write
+the word and reach the helper; the value can come under another name.
 
 The tool description follows the declaration too. With a list it names the modules
 and says that anything else is an `UndefVarError`; with none it keeps the wider
@@ -393,9 +453,11 @@ of names that mean nothing to its task.
 ## `agent/`: the two directions
 
 ```
-AgentModule.jl  (AgentModule)  inbound  — make/start/stop_agent_server!, run_on_editor_task!
-Agent.jl        (AgentModule)        outbound — the Agent, and AgentToolResult
-AgentLoop.jl    (AgentModule)        outbound — run_turn!
+AgentModule.jl     (AgentModule)  the module: both halves share its namespace
+AgentInterface.jl  inbound  — make/start/stop_agent_server!, run_on_editor_task!, declared
+AgentDefaults.jl   inbound  — the fallbacks, when no server package is loaded
+Agent.jl           outbound — the Agent, and AgentToolResult
+AgentLoop.jl       outbound — run_turn!
 ```
 
 **Inbound** is something outside the process driving *this* editor. The editor loop
@@ -426,6 +488,11 @@ transcript, free to drift from the real one.
 each tool that runs. The assistant turns those into live conversation
 parts; something else might simply print them.
 
+A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` ends the turn
+with `:error`, and its tool calls do not run. A tool that throws gives an
+`AgentToolResult` with `is_error = true`. An exception that
+`is_passthrough_exception` names goes through the loop, and `run_turn!` throws it.
+
 ### Both directions call from another task
 
 An MCP server calls a tool on the task of the server, and a turn runs on a task
@@ -453,7 +520,7 @@ layer answers it for an `Editor` whose loop runs on another task;
 
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
-| `make_agent_server(:mcp, …)` | `agent/AgentModule.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
+| `make_agent_server(:mcp, …)` | `agent/AgentInterface.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
 | `run_on_editor_task!` | `agent/AgentInterface.jl` | the editor layer (`editor/Inbox.jl`) for an `Editor`; the default in `agent/AgentDefaults.jl` runs every other target at once |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/LlmInterface.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

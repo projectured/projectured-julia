@@ -63,6 +63,10 @@ function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
                Dict{Symbol,WebWindowState}(), Symbol[], false)
 end
 
+# The browser draws a screen of windows, and `--backend=web` names it.
+get_backend_name(::Type{WebBackend}) = :web
+get_backend_output(::Type{WebBackend}) = :windows
+
 """
     get_web_asset_directory(name, bindir = Sys.BINDIR) -> String
 
@@ -78,16 +82,19 @@ function get_web_asset_directory(name::AbstractString, bindir::AbstractString = 
 end
 
 # ════════════════════════════════════════════════════════════════════════
-# Key mapping (server-side; mirrors sdl_keysym_to_symbol)
+# Key mapping (server-side; the key names of sdl_keysym_to_symbol)
 # ════════════════════════════════════════════════════════════════════════
 
 """
     convert_web_key_to_symbol(key, code, mods) -> Symbol
 
 Map a browser `KeyboardEvent.key` (+ `code` for left/right modifier identity)
-to the backend-agnostic key vocabulary, mirroring `sdl_keysym_to_symbol`.
-Printable keys whose specific identity is not tracked return `:char` (the
-character itself arrives separately via a `keypress` → `KeyPress`).
+to the backend-agnostic key vocabulary, with the names that `sdl_keysym_to_symbol`
+gives. The browser reports the character that a key types, so a character that
+SDL names only on the keypad, such as `*`, has its name here on every key.
+A letter key `a` to `z` or `A` to `Z` has the name of its lower-case letter,
+`:a` to `:z`. Printable keys whose specific identity is not tracked return
+`:char` (the character itself arrives separately via a `keypress` → `KeyPress`).
 """
 function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mods::ModifierKeys)::Symbol
     # Navigation
@@ -131,15 +138,13 @@ function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mo
         c == ' ' && return :space
         c == '.' && return :period
         c == '/' && return :slash
+        c == '\\' && return :backslash
         c == '*' && return :asterisk
         (c == '=' || c == '+') && return :equals
         c == '-' && return :minus
         c == '0' && return :zero          # Ctrl+0 — reset transform/zoom
         lc = lowercase(c)
-        lc == 'c' && return :c
-        lc == 'x' && return :x
-        lc == 'v' && return :v
-        lc == 'n' && return :n
+        'a' <= lc <= 'z' && return Symbol(lc)
         return :char
     end
     return :char
@@ -536,17 +541,23 @@ end
 
 function _mods(obj)::ModifierKeys
     m = get(obj, :mods, nothing)
-    m === nothing && return ModifierKeys(false, false, false, false)
-    ModifierKeys(Bool(get(m, :ctrl, false)), Bool(get(m, :shift, false)),
-              Bool(get(m, :alt, false)), Bool(get(m, :meta, false)))
+    m === nothing && return ModifierKeys()
+    ModifierKeys(ctrl = Bool(get(m, :ctrl, false)), shift = Bool(get(m, :shift, false)),
+                 alt = Bool(get(m, :alt, false)), meta = Bool(get(m, :meta, false)))
 end
 
-_button(obj)::Symbol = Symbol(String(get(obj, :button, "left")))
+# The button of a message, or `nothing` for a name other than left, middle and right:
+# the event layer names no other button.
+function _button(obj)::Union{Symbol,Nothing}
+    name = get(obj, :button, "left")
+    name in ("left", "middle", "right") ? Symbol(name) : nothing
+end
 
 # The buttons that the `buttons` mask of a browser pointer event holds: 1 is the left,
 # 2 the right and 4 the middle button.
 _get_held_mouse_buttons(mask::Integer) =
-    MouseButtons((mask & 1) != 0, (mask & 4) != 0, (mask & 2) != 0)
+    MouseButtons(left = (mask & 1) != 0, middle = (mask & 4) != 0,
+                 right = (mask & 2) != 0)
 _winid(obj)::Symbol = haskey(obj, :window) ? Symbol(String(obj[:window])) : :none
 
 # The time of a message on the clock of `time()`. The page sends `t`, the time of
@@ -567,10 +578,12 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
 
     if typ == "mousedown"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y])
+        b === nothing && return
         put!(backend.inbound, WindowInput(wid, MouseDown(b, x, y, _mods(obj); time = at)))
 
     elseif typ == "mouseup"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y]); m = _mods(obj)
+        b === nothing && return
         put!(backend.inbound, WindowInput(wid, MouseUp(b, x, y, m; time = at)))
 
     elseif typ == "mousemove"
@@ -593,7 +606,7 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         # Escape that no reader handled.
         sym = convert_web_key_to_symbol(key, String(get(obj, :code, "")), m)
         repeat = Bool(get(obj, :repeat, false))
-        put!(backend.inbound, WindowInput(wid, KeyDown(sym, m, repeat; time = at)))
+        put!(backend.inbound, WindowInput(wid, KeyDown(sym, m; repeat, time = at)))
 
     elseif typ == "keyup"
         m = _mods(obj)

@@ -278,7 +278,6 @@ end
 # ── Reference mapping (transparent, via the "content" field) ───────────────
 
 function map_reference_forward(::DraggingProjection, iomap::DraggingIoMap, reference)
-    # Skip canonical TypeReferenceStep checkpoints before reading the `content` step.
     reference = reference
     if reference isa ConcreteReference
         h = get_reference_head(reference)

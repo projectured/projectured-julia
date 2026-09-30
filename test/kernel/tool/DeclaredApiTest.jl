@@ -2,7 +2,7 @@
 The declared API — what a model may write, and what it may find.
 
 A `ToolSet` that names modules gets those and nothing else, in both directions:
-`execute_julia_code` resolves their names and no others, and the documentation
+`execute_julia_code!` resolves their names and no others, and the documentation
 tools offer their names and no others. The two are one list, because a model that
 finds a function it cannot call wastes a round.
 """
@@ -96,6 +96,18 @@ export toy_verb
 toy_verb(x) = x
 end
 
+# The answer of `string(Cell)` where `Cell` resolves. The text of an
+# `UndefVarError` for `Cell` also holds the name, so the answer must hold no error.
+_is_cell_name_answer(answer) =
+    occursin("Cell", answer) && !occursin("UndefVarError", answer)
+
+# A module with a value of its own under a word the model looks the API up with.
+module ToyLookalike
+export search_api
+"""A search of toys only."""
+search_api(query) = "toys"
+end
+
 function test_declared_api()
 @testset "Declared API" begin
 
@@ -103,21 +115,26 @@ function test_declared_api()
         set = ToolSet()
         @test isempty(set.api)
         # `Cell` is a kernel name, so it resolves through the default gathering.
-        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code!(set, nothing, "string(Cell)"))
     end
 
     @testset "a call with no code answers that, rather than answering nothing" begin
-        # Empty source evaluates to nothing and prints nothing, so the tool used to
-        # answer an empty string — which a model reads as a broken tool rather than
-        # as its own mistake, and then it stops writing code at all.
+        # Empty source evaluates to nothing and prints nothing. A model reads an
+        # empty answer as a broken tool rather than as its own mistake, so the
+        # tool says that no code was given.
         set = ToolSet()
         for blank in ("", "\n", "   \n  ")
-            answer = execute_julia_code(set, nothing, blank)
+            answer = execute_julia_code!(set, nothing, blank)
             @test occursin("No code was given", answer)
             @test occursin("`code`", answer)
         end
         # And a real call still runs.
-        @test strip(execute_julia_code(set, nothing, "1 + 1")) == "2"
+        @test strip(execute_julia_code!(set, nothing, "1 + 1")) == "2"
+        # A tool call that leaves out the argument gets the same answer.
+        register_default_tools!(set)
+        answer = call_tool(set, "execute_julia_code"; args = Dict{String,Any}(),
+                           target = nothing)
+        @test occursin("No code was given", answer)
     end
 
     @testset "a function's documentation is reachable as a tool" begin
@@ -155,9 +172,8 @@ function test_declared_api()
                        search.handler(nothing, Dict("query" => "toy_arrange")))
     end
 
-    # Half of a turn was a lookup pair: a search for the name, then a read for
-    # its documentation. These three cut the pair to one call, and they cut the
-    # round a miss used to cost.
+    # A lookup is a search for the name and a read of its documentation. A search
+    # with one clear hit answers both in one call.
     @testset "a search answers in one round what took two" begin
         set = ToolSet(; api = Module[ToyShaped])
         register_default_tools!(set)
@@ -169,7 +185,7 @@ function test_declared_api()
         answer = ask("toy_arrange")
         @test occursin("the one API match", answer)
         @test occursin("toy_arrange(window) -> String", answer)
-        # A sentence that lives below the signature, which the old answer cut.
+        # A sentence that stands below the signature is in the answer.
         @test occursin("person", answer)
         # And it does not ask for another round.
         @test !occursin("Read one in full", answer)
@@ -216,8 +232,8 @@ function test_declared_api()
 
     @testset "a declared module is what resolves" begin
         set = ToolSet(; api = Module[ToyApi])
-        @test execute_julia_code(set, nothing, "toy_verb()") |> strip == "\"toy\""
-        @test strip(execute_julia_code(set, nothing, "toy_count([1, 2, 3])")) == "3"
+        @test execute_julia_code!(set, nothing, "toy_verb()") |> strip == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_count([1, 2, 3])")) == "3"
     end
 
     # ── A declaration of names ───────────────────────────────────────────────
@@ -228,11 +244,11 @@ function test_declared_api()
     # with no module re-exporting a name it does not own.
     @testset "a pair gives the names it lists, and no others" begin
         set = ToolSet(; api = [ToyApi => (:toy_verb,)])
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
 
         # `toy_count` is exported by the same module, and the declaration left it
         # out, so it is not a name this model may write.
-        answer = execute_julia_code(set, nothing, "toy_count([1, 2])")
+        answer = execute_julia_code!(set, nothing, "toy_count([1, 2])")
         @test occursin("UndefVarError", answer)
         @test occursin("toy_count", answer)
     end
@@ -242,14 +258,14 @@ function test_declared_api()
     # found, and what they list is what the code can call.
     @testset "a declared module can be listed, and lists what it gives" begin
         set = ToolSet(; api = [ToyApi => (:toy_verb,)])
-        functions = execute_julia_code(set, nothing, "list_functions(\"ToyApi\")")
+        functions = execute_julia_code!(set, nothing, "list_functions(\"ToyApi\")")
         @test !occursin("not found", functions)
         @test occursin("toy_verb", functions)
         @test !occursin("toy_count", functions)
-        @test !occursin("not found", execute_julia_code(set, nothing, "list_types(\"ToyApi\")"))
-        @test occursin("ToyApi", execute_julia_code(set, nothing, "list_modules()"))
+        @test !occursin("not found", execute_julia_code!(set, nothing, "list_types(\"ToyApi\")"))
+        @test occursin("ToyApi", execute_julia_code!(set, nothing, "list_modules()"))
         # A module the declaration does not name is not found, as its names do not resolve.
-        @test occursin("not found", execute_julia_code(set, nothing, "list_functions(\"ToolModule\")"))
+        @test occursin("not found", execute_julia_code!(set, nothing, "list_functions(\"ToolModule\")"))
     end
 
     # The module's own name stays bound, and that is deliberate. The harm a wide
@@ -259,7 +275,7 @@ function test_declared_api()
     # and not a security boundary, which is what `ToolSet` already says of itself.
     @testset "a narrowed module keeps its own name" begin
         set = ToolSet(; api = [ToyApi => (:toy_verb,)])
-        @test strip(execute_julia_code(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
+        @test strip(execute_julia_code!(set, nothing, "ToyApi.toy_count([1, 2])")) == "2"
     end
 
     # Two packages own the same common word often enough that a surface would
@@ -269,11 +285,11 @@ function test_declared_api()
         set = ToolSet(; api = [ToyApi => (:toy_verb => :say_toy, :toy_count)])
 
         # The model writes the name it was given.
-        @test strip(execute_julia_code(set, nothing, "say_toy()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "say_toy()")) == "\"toy\""
         # And the one that was not renamed is itself.
-        @test strip(execute_julia_code(set, nothing, "toy_count([1, 2])")) == "2"
+        @test strip(execute_julia_code!(set, nothing, "toy_count([1, 2])")) == "2"
         # The module's own word is not what this model writes.
-        @test occursin("UndefVarError", execute_julia_code(set, nothing, "toy_verb()"))
+        @test occursin("UndefVarError", execute_julia_code!(set, nothing, "toy_verb()"))
 
         # It is findable and readable under the new name, and its documentation
         # is still its own.
@@ -341,7 +357,18 @@ function test_declared_api()
         @test !any(resource -> occursin("ToyBox", resource.uri) &&
                                !endswith(resource.uri, "/ToyBox"), list_resources(set))
         @test occursin("ToyStorage.ToyBox",
-                       execute_julia_code(set, nothing, "string(DCToyBox)"))
+                       execute_julia_code!(set, nothing, "string(DCToyBox)"))
+    end
+
+    @testset "the module catalogue names each module once, with its declared types" begin
+        set = register_default_tools!(ToolSet(; api = [ToyStorage => (:ToyBox, :MToyBox),
+                                                       ToyStorage => (:Action,)]))
+        listed = read_resource(set, "resource://modules")
+        @test count("**ToyStorage**", listed) == 1
+        # The two declared types, and not the schema variant that the first
+        # entry also names.
+        @test occursin("Types: Action, ToyBox\n", listed * "\n")
+        @test !occursin("MToyBox", listed)
     end
 
     @testset "a name two modules re-export is one hit, and one binding" begin
@@ -351,8 +378,8 @@ function test_declared_api()
         # One binding is one hit, although two modules give the word.
         @test count(entry -> endswith(entry.qualname, ".toy_verb"), entries) == 1
         @test count(entry -> endswith(entry.qualname, ".toy_echo"), entries) == 1
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
-        @test strip(execute_julia_code(set, nothing, "toy_echo()")) == "\"toytoy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "toy_echo()")) == "\"toytoy\""
     end
 
     @testset "two entries that give one name are refused" begin
@@ -368,6 +395,34 @@ function test_declared_api()
         @test occursin("ToyRival", message)
         # Nothing was declared by the refusal.
         @test isempty(set.api)
+    end
+
+    # A wide declaration names the tool module too, which exports the helpers.
+    @testset "a declared module that exports the helpers builds, and the helpers keep the declaration" begin
+        set = register_default_tools!(ToolSet())
+        declare_api!(set, [ToyApi, ToolModule])
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
+        listed = execute_julia_code!(set, nothing, "list_modules()")
+        @test occursin("ToyApi", listed)
+        @test occursin("ToolModule", listed)
+        # The whole surface would list the cell module as well.
+        @test !occursin("CellModule", listed)
+    end
+
+    @testset "another value under a helper name is refused, and arrives under its own" begin
+        set = ToolSet()
+        message = try
+            declare_api!(set, [ToyApi, ToyLookalike])
+            ""
+        catch error
+            sprint(showerror, error)
+        end
+        @test occursin("search_api", message)
+        @test occursin("ToyLookalike", message)
+        @test isempty(set.api)
+        declare_api!(set, [ToyApi, ToyLookalike => (:search_api => :search_toys,)])
+        @test strip(execute_julia_code!(set, nothing, "search_toys(1)")) == "\"toys\""
+        @test occursin("toy_verb", execute_julia_code!(set, nothing, "search_api(\"toy\")"))
     end
 
     # What is discoverable is what is callable, and a pair narrows both halves.
@@ -394,7 +449,7 @@ function test_declared_api()
     @testset "the description does not claim a whole module it did not take" begin
         whole = ToolSet(; api = Module[ToyApi])
         register_default_tools!(whole)
-        @test occursin("The functions of ToyApi",
+        @test occursin("The functions of ToyApi are in scope",
                        only([t for t in whole.tools if t.name == "execute_julia_code"]).description)
 
         narrow = ToolSet(; api = [ToyApi => (:toy_verb,)])
@@ -429,7 +484,7 @@ function test_declared_api()
 
     @testset "a name outside the declaration fails in the round that used it" begin
         set = ToolSet(; api = Module[ToyApi])
-        answer = execute_julia_code(set, nothing, "Cell(1)")
+        answer = execute_julia_code!(set, nothing, "Cell(1)")
         @test occursin("UndefVarError", answer)
         @test occursin("Cell", answer)
     end
@@ -443,26 +498,26 @@ function test_declared_api()
     @testset "the declaration decides, in both directions" begin
         wide = ToolSet()
         narrow = ToolSet(; api = Module[ToyApi])
-        @test occursin("Cell", execute_julia_code(wide, nothing, "string(Cell)"))
-        @test occursin("UndefVarError", execute_julia_code(narrow, nothing, "string(Cell)"))
-        @test strip(execute_julia_code(narrow, nothing, "toy_verb()")) == "\"toy\""
+        @test _is_cell_name_answer(execute_julia_code!(wide, nothing, "string(Cell)"))
+        @test occursin("UndefVarError", execute_julia_code!(narrow, nothing, "string(Cell)"))
+        @test strip(execute_julia_code!(narrow, nothing, "toy_verb()")) == "\"toy\""
     end
 
     @testset "two declared modules both arrive" begin
         set = ToolSet(; api = Module[ToyApi, ToyExtra])
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
-        @test strip(execute_julia_code(set, nothing, "string(toy_extra())")) == "\"7\""
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
+        @test strip(execute_julia_code!(set, nothing, "string(toy_extra())")) == "\"7\""
     end
 
     @testset "state still survives between calls" begin
         set = ToolSet(; api = Module[ToyApi])
-        execute_julia_code(set, nothing, "kept = toy_count([1, 2])")
-        @test strip(execute_julia_code(set, nothing, "string(kept)")) == "\"2\""
+        execute_julia_code!(set, nothing, "kept = toy_count([1, 2])")
+        @test strip(execute_julia_code!(set, nothing, "string(kept)")) == "\"2\""
     end
 
     @testset "the target is still bound as editor" begin
         set = ToolSet(; api = Module[ToyApi])
-        @test strip(execute_julia_code(set, (name = "a",), "editor.name")) == "\"a\""
+        @test strip(execute_julia_code!(set, (name = "a",), "editor.name")) == "\"a\""
     end
 
     # Both directions of the invariant. Every name the tools offer resolves, and
@@ -478,7 +533,7 @@ function test_declared_api()
         # And every name that IS offered resolves in the scratch module.
         for verb in ("toy_verb", "toy_count")
             @test !occursin("UndefVarError",
-                            execute_julia_code(set, nothing, "string(" * verb * ")"))
+                            execute_julia_code!(set, nothing, "string(" * verb * ")"))
         end
     end
 
@@ -491,7 +546,7 @@ function test_declared_api()
         @test occursin("How many toys a box holds.", hits)
         @test occursin("bound a count", read_resource(set, "resource://value/ToyApi/toy_limit"))
         @test startswith(read_resource(set, "resource://value/ToyApi/nothing_here"), "Value 'nothing_here' is not")
-        @test strip(execute_julia_code(set, nothing, "toy_limit + 1")) == "4"
+        @test strip(execute_julia_code!(set, nothing, "toy_limit + 1")) == "4"
     end
 
     @testset "a name read under the wrong module is pointed to its own" begin
@@ -510,15 +565,11 @@ function test_declared_api()
 
     # The resources a declared set publishes are its own modules AND the guides.
     #
-    # The guides were once withheld from a declared set, on the reasoning that
-    # they describe the whole editor and would send a model to read about a
-    # surface it cannot reach. That was wrong in one way and then wrong in
-    # another. `search_guides` went on printing `resource://guide/…` for
-    # every hit it found, and `read_resource` could not resolve one, so a model
-    # told to read a guide spent a round on "Resource not found" — measured
-    # 2026-09-13. And an application registers guides of its own with
-    # `register_guide_root!`: prose about the window a declared surface belongs
-    # to, which is the documentation such a surface most wants.
+    # `search_guides` prints `resource://guide/…` for every hit it finds, so
+    # `read_resource` must resolve each one for a declared set too. And an
+    # application registers guides of its own with `register_guide_root!`: prose
+    # about the window a declared surface belongs to, which is the documentation
+    # such a surface most wants.
     #
     # A declaration narrows the NAMES a model may write. It is not a reason to
     # withhold the prose about how to write them.
@@ -541,6 +592,20 @@ function test_declared_api()
         @test any(u -> startswith(u, "resource://guide"), wide_uris)
     end
 
+    # The folder lives until the process ends, as the registered root does.
+    @testset "a guide root that an application registers is read" begin
+        directory = mktempdir()
+        write(joinpath(directory, "toy-guide.md"),
+              "# Toy guide\n\nA toy box keeps its zephyrquartz lid shut.\n")
+        register_guide_root!(directory; prefix = "toyroot/")
+        @test occursin("zephyrquartz", read_guide("toyroot/toy-guide"))
+        set = register_default_tools!(ToolSet(; api = Module[ToyApi]))
+        @test occursin("zephyrquartz",
+                       read_resource(set, "resource://guide/toyroot/toy-guide"))
+        @test occursin("resource://guide/toyroot/toy-guide#toy-guide",
+                       search_guides("zephyrquartz"))
+    end
+
     # The description the model reads names the modules it may call, so it is not
     # sent to read five guides about a surface it does not have.
     @testset "the tool description follows the declaration" begin
@@ -558,30 +623,50 @@ function test_declared_api()
     # effect, so it drops the namespace.
     @testset "declaring after the first evaluation still takes effect" begin
         set = ToolSet()
-        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code!(set, nothing, "string(Cell)"))
         declare_api!(set, Module[ToyApi])
-        @test occursin("UndefVarError", execute_julia_code(set, nothing, "string(Cell)"))
-        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
+        @test occursin("UndefVarError", execute_julia_code!(set, nothing, "string(Cell)"))
+        @test strip(execute_julia_code!(set, nothing, "toy_verb()")) == "\"toy\""
         declare_api!(set, Module[])
-        @test occursin("Cell", execute_julia_code(set, nothing, "string(Cell)"))
+        @test _is_cell_name_answer(execute_julia_code!(set, nothing, "string(Cell)"))
     end
 
     # How to look is always in scope, and it looks only at what was declared.
     @testset "the model can look things up from the code it writes" begin
         set = ToolSet(; api = Module[ToyApi])
-        found = execute_julia_code(set, nothing, "search_api(\"toy\")")
+        found = execute_julia_code!(set, nothing, "search_api(\"toy\")")
         @test occursin("toy_verb", found)
-        doc = execute_julia_code(set, nothing,
-                                 "read_function_documentation(\"ToyApi\", \"toy_verb\")")
+        doc = execute_julia_code!(set, nothing,
+                                  "read_function_documentation(\"ToyApi\", \"toy_verb\")")
         @test occursin("Answer the word", doc)
         # It cannot widen its own view: the declaration is applied for it.
-        @test occursin("No API matches", execute_julia_code(set, nothing, "search_api(\"Cell\")"))
+        @test occursin("No API matches", execute_julia_code!(set, nothing, "search_api(\"Cell\")"))
     end
 
     @testset "a docstring is the interface, and it is readable" begin
         set = ToolSet(; api = Module[ToyApi])
         doc = read_function_documentation("ToyApi", "toy_verb"; api = set.api)
         @test occursin("Answer the word", doc)
+    end
+
+    # A tool of the same name replaces the one that is there, so a registration
+    # that runs again refreshes the tool and does not add a second one.
+    @testset "a tool registered under a name that is there replaces it" begin
+        set = ToolSet()
+        register_tool!(set, Tool("toy_tool", "the first", NamedTuple[],
+                                 (target, arguments) -> "first"))
+        register_tool!(set, Tool("toy_tool", "the second", NamedTuple[],
+                                 (target, arguments) -> "second"))
+        @test count(tool -> tool.name == "toy_tool", list_tools(set)) == 1
+        @test find_tool(set, "toy_tool").description == "the second"
+        @test call_tool(set, "toy_tool"; args = Dict{String,Any}(), target = nothing) ==
+              "second"
+    end
+
+    @testset "a call of a name that no tool has throws a KeyError" begin
+        set = ToolSet()
+        @test_throws KeyError call_tool(set, "toy_missing_tool";
+                                        args = Dict{String,Any}(), target = nothing)
     end
 
 end

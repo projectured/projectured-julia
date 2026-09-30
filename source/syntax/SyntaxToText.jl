@@ -1315,9 +1315,8 @@ end
 # value ++ close. Returns -1 if the path does not point to a cursor position inside
 # this leaf.
 function _leaf_cursor(leaf::SyntaxLeaf, path)
-    # Paths are canonical (carry TypeReferenceStep checkpoints); strip them so
-    # the raw .open/.value/.close{k} structural match below sees the plain
-    # skeleton (otherwise sel.head is a TypeReferenceStep and no cursor is found).
+    # Paths are canonical: each node records its type. Strip the types, so the
+    # raw .open/.value/.close{k} structural match below reads the plain skeleton.
     sel = strip_reference_types(path)
     sel isa EmptyReference && return -1
     sel isa ConcreteReference || return -1
@@ -1501,8 +1500,8 @@ function _resolve_collapsible(node::SyntaxCompound, path)
     # way down is stepped over, not selected.
     best = is_syntax_collapsible(node) ? node : nothing
     cur = node
-    # Selections are canonical (carry TypeReferenceStep checkpoints); strip them so
-    # the plain structural skeleton (.children[i]...) is what we walk below.
+    # Selections are canonical: each node records its type. Strip the types, so the
+    # walk below reads the plain structural skeleton (.children[i]...).
     p = strip_reference_types(path)
     while true
         step = peel_child_step(p)

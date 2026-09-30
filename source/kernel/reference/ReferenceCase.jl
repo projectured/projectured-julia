@@ -67,10 +67,6 @@ end
 # `lo..hi` — a number within an inclusive range, the reading an ini file's `{38..47}`
 # has. Both bounds are evaluated at the construction site, so a stored pattern holds
 # values rather than expressions (as `^(…)` and `::T` do).
-#
-# The syntax already parsed: a value slot keeps its Julia expression raw, so `xs[0..3]`
-# reached the matcher as an interpolation and was compared against an `Int`, which never
-# matched. This gives the slot its meaning rather than adding syntax.
 struct PatValueRange <: PatValue
     lo
     hi
@@ -149,12 +145,6 @@ PatStepGap() = PatStepGap(nothing, false)
 # step. It is the counterpart of an ini file's `*` used as a whole path component, and
 # unlike a gap it needs no search, since it consumes exactly one thing — so it compiles
 # to what every other step compiles to and never reaches the interpreter.
-#
-# "Any kind" is literal: on a transitional path that still carries an unfolded
-# `TypeReferenceStep`, `_` consumes that step like any other. A gap differs here, since
-# its length arithmetic is shared with the stripped shape walk `^(p)` uses and so counts
-# navigation steps only. Neither is observable on a canonical path, where type
-# checkpoints are folded into the nodes and there are no checkpoint steps to count.
 struct PatStepAny <: PatStep end
 
 # `any(P, Q, …)` in **path** position — any one of the alternative subpaths, tried in
@@ -278,16 +268,16 @@ _pat_type_step(x) = _is_type_bind_symbol(x) ? PatStepTypeBind(x) : PatStepType(x
 _case_subpath(ex) =
     ex isa Symbol ? PatStep[PatStepWholePathBind(ex)] : _to_pat_steps(parse_reference_path(ex))
 
-# `_` and `__` reach the shared grammar as ordinary field names — the parser names no
-# pattern concept, and needs to name none for either. The *matching* reading of those
-# names is a step wildcard and a gap, which is why the surface syntax needed nothing
-# added to it. They mirror an ini file's `*` and `**`, and unlike those they are legal
-# Julia identifiers in path position.
-# The migration guard's message, shared so the two DSLs cannot word it differently.
+# The message of a bare `_` arm, shared so the two DSLs cannot word it differently.
 const REFERENCE_RETIRED_CATCH_ALL =
     "`_` is no longer the catch-all arm — write `__` for \"any path\". `_` now matches " *
     "exactly one step, so `a._.b` is a path of three; write `at(_)` for a one-step arm."
 
+# `_` and `__` reach the shared grammar as ordinary field names — the parser names no
+# pattern concept, and needs to name none for either. The *matching* reading of those
+# names is a step wildcard and a gap, so the surface syntax needs nothing more. They
+# mirror an ini file's `*` and `**`, and unlike those they are legal Julia identifiers
+# in path position.
 const REFERENCE_STEP_NAME = "_"
 const REFERENCE_GAP_NAME = "__"
 
@@ -462,8 +452,7 @@ _value_or_alt_needs_interpreter(s::PatStepExtension) =
 # ------------------------------------------------------------
 
 # A step that consumes exactly one navigation step, whatever it is. `::T` and `::t` do
-# not (they are non-navigating, and `::T` steps over an unfolded checkpoint), nor does
-# anything of variable length.
+# not (they are non-navigating), nor does anything of variable length.
 _step_consumes_one(::PatStep) = false
 _step_consumes_one(::PatStepField) = true
 _step_consumes_one(::PatStepIndex) = true
@@ -506,13 +495,9 @@ end
 # Rule parsing
 # ------------------------------------------------------------
 
-# The pattern side of one arm, minus any `when(…)`: answers `(mode, patsteps)`.
-# A bare pattern is `at(…)`; the five arm words say where the input sits relative
-# to it.
-# Arm words this DSL does not accept, and what to write instead. They raise where written
-# rather than being quietly accepted, so a block written against the old vocabulary is a
-# message and not a mystery. `prefix` is here too: it named `above` while reading as
-# though it meant `within`, which is why it went.
+# Arm words this DSL does not accept, and what to write instead. They raise where
+# written, so a block that uses one gets a message that names the word to write.
+# `_parse_arm_pattern` gives `prefix` a message of its own.
 const REFERENCE_RETIRED_ARMS = Dict(
     :at_or_below => "within",
     :at_or_above => "toward")
@@ -521,10 +506,13 @@ _retired_arm_message(name::Symbol) =
     "`$(name)(path)` is no longer an arm word — write `$(REFERENCE_RETIRED_ARMS[name])(path)`; " *
     "an arm word spells one relation, not a disjunction of two"
 
+# The pattern side of one arm, minus any `when(…)`: answers `(mode, patsteps)`.
+# A bare pattern is `at(…)`; the five arm words say where the input sits relative
+# to it.
 function _parse_arm_pattern(lhs)
     if lhs isa Expr && lhs.head == :call && lhs.args[1] === :prefix
-        # `prefix(P)` named `above(P)` while reading as though it meant
-        # `within(P)`; the word is gone rather than left to mislead.
+        # `prefix(P)` can be read as `above(P)` or as `within(P)`, so it raises
+        # and names both words.
         error("`prefix(path)` is no longer an @reference_case arm — write `above(path)` " *
               "for \"the input runs out inside path\", or `within(path)` for " *
               "\"the input is path or deeper\"")
@@ -582,26 +570,31 @@ end
 # Code generation helpers
 # ------------------------------------------------------------
 
+# The value of an arm that does not match. The generated arms and the match branch
+# that an extension step returns (`match_reference_step`) name it as `_NO_MATCH`, and
+# the expansion reads it from this module, so no call allocates one.
+const _NO_MATCH = Base.RefValue{Any}()
+
 # Returns (expr, boundnames)
 #
-# `expr` evaluates either to `success` or to `_nomatch`.
+# `expr` evaluates either to `success` or to `_NO_MATCH`.
 function _gen_value_match(valex, pat::PatValueWildcard, success, bound::Set{Symbol})
     return success, bound
 end
 
 function _gen_value_match(valex, pat::PatValueLiteral, success, bound::Set{Symbol})
     lit = pat.value
-    return :($valex == $(QuoteNode(lit)) ? $success : _nomatch), bound
+    return :($valex == $(QuoteNode(lit)) ? $success : _NO_MATCH), bound
 end
 
 function _gen_value_match(valex, pat::PatValueInterp, success, bound::Set{Symbol})
-    return :($valex == $(esc(pat.expr)) ? $success : _nomatch), bound
+    return :($valex == $(esc(pat.expr)) ? $success : _NO_MATCH), bound
 end
 
 function _gen_value_match(valex, pat::PatValueBind, success, bound::Set{Symbol})
     name = pat.name
     if name in bound
-        return :($valex == $(esc(name)) ? $success : _nomatch), bound
+        return :($valex == $(esc(name)) ? $success : _NO_MATCH), bound
     else
         return :(let $(esc(name)) = $valex
                      $success
@@ -612,12 +605,12 @@ end
 function _gen_value_match(valex, pat::PatValueGlob, success, bound::Set{Symbol})
     return :(($valex isa AbstractString &&
               ReferenceModule.glob_matches($(pat.pattern), $valex)) ?
-             $success : _nomatch), bound
+             $success : _NO_MATCH), bound
 end
 
 function _gen_value_match(valex, pat::PatValueRange, success, bound::Set{Symbol})
     lo, hi = esc(pat.lo), esc(pat.hi)
-    return :(($valex isa Number && $lo <= $valex <= $hi) ? $success : _nomatch), bound
+    return :(($valex isa Number && $lo <= $valex <= $hi) ? $success : _NO_MATCH), bound
 end
 
 # An alternation never reaches codegen: `_gen_rule` routes a pattern holding one to the
@@ -631,14 +624,14 @@ function _gen_value_match(valex, pat::PatValueTypedBind, success, bound::Set{Sym
     name = pat.name
     ty = esc(pat.ty)
     if name in bound
-        return :(($valex isa $ty && $valex == $(esc(name))) ? $success : _nomatch), bound
+        return :(($valex isa $ty && $valex == $(esc(name))) ? $success : _NO_MATCH), bound
     else
         return :(if $valex isa $ty
                      let $(esc(name)) = $valex
                          $success
                      end
                  else
-                     _nomatch
+                     _NO_MATCH
                  end), union(bound, Set([name]))
     end
 end
@@ -682,10 +675,10 @@ function _gen_step_match(hex, tex, step::PatStepField, rest_success, bound::Set{
     inner, bound2 = _gen_value_match(nameexpr, step.namepat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.FieldReferenceStep
+        if $hex isa ReferenceModule.AFieldReferenceStep
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound2
@@ -696,10 +689,11 @@ function _gen_step_match(hex, tex, step::PatStepIndex, rest_success, bound::Set{
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_element_reference_step($hex)
+        if $hex isa ReferenceModule.ARangeReferenceStep &&
+           ReferenceModule.is_element_reference_step($hex)
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound2
@@ -710,10 +704,11 @@ function _gen_step_match(hex, tex, step::PatStepPosition, rest_success, bound::S
     inner, bound2 = _gen_value_match(idxexpr, step.idxpat, rest_success, bound)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReferenceStep && ReferenceModule.is_position_reference_step($hex)
+        if $hex isa ReferenceModule.ARangeReferenceStep &&
+           ReferenceModule.is_position_reference_step($hex)
             $inner
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound2
@@ -727,10 +722,10 @@ function _gen_step_match(hex, tex, step::PatStepRange, rest_success, bound::Set{
     inner1, bound1 = _gen_value_match(startexpr, step.startpat, inner2, bound2)
 
     ex = quote
-        if $hex isa ReferenceModule.RangeReferenceStep
+        if $hex isa ReferenceModule.ARangeReferenceStep
             $inner1
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1
@@ -787,7 +782,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         test = terminal === :below ?
                :($path_ex isa ReferenceModule.ConcreteReference) :
                :($path_ex isa ReferenceModule.EmptyReference)
-        return :($test ? $success : _nomatch), bound
+        return :($test ? $success : _NO_MATCH), bound
     end
 
     # A gap whose length is arithmetic rather than a search — see `_computed_gap_split`,
@@ -811,10 +806,10 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
             let $p = $path_ex
                 let $taken = ReferenceModule._navigation_length($p) - $(length(suffix))
                     if $taken < 0
-                        _nomatch
+                        _NO_MATCH
                     else
                         let $skipped = ReferenceModule._drop_navigation_steps($p, $taken)
-                            $skipped === nothing ? _nomatch : $rest
+                            $skipped === nothing ? _NO_MATCH : $rest
                         end
                     end
                 end
@@ -827,7 +822,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         # A tail bind swallows whatever remains, so the leftover is empty by
         # construction — which `below` can never satisfy.
         name = steps[1].name
-        terminal === :below && return :(_nomatch), union(bound, Set([name]))
+        terminal === :below && return :(_NO_MATCH), union(bound, Set([name]))
         return :(let $(esc(name)) = $path_ex; $success end), union(bound, Set([name]))
     end
 
@@ -835,26 +830,19 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
     # step, and where the path records a node type that type must be `<: T` or the
     # whole rule fails and the next arm gets its chance. Where the path records no
     # type it says nothing — see `_type_step_matches` for which paths those are and
-    # why they are tolerated. Matching the rest stays on the SAME path for a folded
-    # node (the type is a field) and advances past an unfolded `TypeReferenceStep`
-    # *step* if one is present.
+    # why they are tolerated. The type is a field of the node, so matching the rest
+    # stays on the SAME path.
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_path_match(:(ReferenceModule.get_reference_tail($sp)), steps[2:end], success, bound, terminal)
-        rest_on_same, b2 = _gen_path_match(sp, steps[2:end], success, bound, terminal)
+        rest, b = _gen_path_match(sp, steps[2:end], success, bound, terminal)
+        nodetype = gensym(:nodetype)
         ex = quote
-            let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.get_reference_head($sp) isa ReferenceModule.TypeReferenceStep
-                    ReferenceModule._type_step_matches(ReferenceModule.get_reference_head($sp).type, $ty) ?
-                        $rest_on_tail : _nomatch
-                else
-                    ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
-                        $rest_on_same : _nomatch
-                end
+            let $sp = $path_ex, $nodetype = ReferenceModule._type_step_node_type($sp)
+                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _NO_MATCH
             end
         end
-        return ex, union(b1, b2)
+        return ex, b
     end
 
     # `::t` binds the matched node's folded `type` field to `t`, then continues
@@ -883,7 +871,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
         test = terminal === :at ? :($a == $b) :
                terminal === :below ? :(ReferenceModule.is_reference_prefix($b, $a)) :
                :($a == $b || ReferenceModule.is_reference_prefix($b, $a))
-        return :($test ? $success : _nomatch), bound
+        return :($test ? $success : _NO_MATCH), bound
     end
 
     p = gensym(:p)
@@ -901,7 +889,7 @@ function _gen_path_match(path_ex, steps::Vector{PatStep}, success, bound::Set{Sy
                     $step_success
                 end
             else
-                _nomatch
+                _NO_MATCH
             end
         end
     end
@@ -918,8 +906,9 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
     if isempty(steps)
         # The pattern is spent, so the input was not strictly shallower. It is `at`
         # if the input is spent too, which only `toward` accepts.
-        include_at || return :(_nomatch), bound
-        return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _nomatch), bound
+        include_at || return :(_NO_MATCH), bound
+        return :(($path_ex isa ReferenceModule.EmptyReference) ? $success : _NO_MATCH),
+               bound
     end
 
     if length(steps) == 1 && steps[1] isa PatStepPathInterp
@@ -930,31 +919,24 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
         test = include_at ?
                :(ReferenceModule.is_reference_prefix($a, $b) || $a == $b) :
                :(ReferenceModule.is_reference_prefix($a, $b))
-        return :($test ? $success : _nomatch), bound
+        return :($test ? $success : _NO_MATCH), bound
     end
 
     # A leading `::T` is a non-navigating **narrowing** type assertion (the same
     # `_type_step_matches` rule as in `_gen_path_match`, so the two cannot drift):
-    # a recorded node type must be `<: T`, an absent one says nothing. It advances
-    # past an unfolded `TypeReferenceStep` *step* if present, else matches on the
-    # same path.
+    # a recorded node type must be `<: T`, an absent one says nothing. It matches
+    # the rest on the same path.
     if steps[1] isa PatStepType
         ty = esc(steps[1].typeexpr)
         sp = gensym(:sp)
-        rest_on_tail, b1 = _gen_above_match(:(ReferenceModule.get_reference_tail($sp)), steps[2:end], success, bound, include_at)
-        rest_on_same, b2 = _gen_above_match(sp, steps[2:end], success, bound, include_at)
+        rest, b = _gen_above_match(sp, steps[2:end], success, bound, include_at)
+        nodetype = gensym(:nodetype)
         ex = quote
-            let $sp = $path_ex
-                if $sp isa ReferenceModule.ConcreteReference && ReferenceModule.get_reference_head($sp) isa ReferenceModule.TypeReferenceStep
-                    ReferenceModule._type_step_matches(ReferenceModule.get_reference_head($sp).type, $ty) ?
-                        $rest_on_tail : _nomatch
-                else
-                    ReferenceModule._type_step_matches(ReferenceModule._type_step_node_type($sp), $ty) ?
-                        $rest_on_same : _nomatch
-                end
+            let $sp = $path_ex, $nodetype = ReferenceModule._type_step_node_type($sp)
+                ReferenceModule._type_step_matches($nodetype, $ty) ? $rest : _NO_MATCH
             end
         end
-        return ex, union(b1, b2)
+        return ex, b
     end
 
     # `::t` binds the matched node's type, then continues the above-match on the
@@ -988,7 +970,7 @@ function _gen_above_match(path_ex, steps::Vector{PatStep}, success, bound::Set{S
                     $step_match
                 end
             else
-                _nomatch
+                _NO_MATCH
             end
         end
     end
@@ -1005,7 +987,7 @@ function _gen_rule(rule)
         :(if $(esc(cond))
               $(esc(rhs))
           else
-              _nomatch
+              _NO_MATCH
           end)
 
     # A lone anonymous gap is the catch-all arm — by far the commonest arm there is, and
@@ -1019,7 +1001,7 @@ function _gen_rule(rule)
         # take anything, leaving the whole input over, so "strictly deeper" reduces to
         # "the input is not empty".
         mode === :below || return body
-        return :(_ref_input isa ReferenceModule.ConcreteReference ? $body : _nomatch)
+        return :(_ref_input isa ReferenceModule.ConcreteReference ? $body : _NO_MATCH)
     end
 
     # A gap whose length is arithmetic compiles like everything else.
@@ -1061,16 +1043,24 @@ end
 # arrived at is a defect either way.
 # ------------------------------------------------------------
 
+# True when the code that builds a pattern reads the call site: a `^(…)`, a `::T` or
+# the bound of a range is an escaped expression.
+_reads_call_site(ex) =
+    ex isa Expr && (ex.head === :escape || any(_reads_call_site, ex.args))
+
 function _gen_interpreted_rule(mode, pat::Vector{PatStep}, body)
     bindings = gensym(:bindings)
     lets = [:($(esc(name)) = $bindings[$(QuoteNode(name))])
             for name in _pattern_binder_names(pat)]
+    # A pattern that reads nothing at the call site is the same on every call, so the
+    # expansion holds the pattern itself. The matcher does not change a pattern.
+    built = _quote_pattern(pat)
+    pattern = _reads_call_site(built) ? built : pat
     quote
         let $bindings = ReferenceModule.match_reference_pattern($(QuoteNode(mode)),
-                                                                $(_quote_pattern(pat)),
-                                                                _ref_input)
+                                                                $pattern, _ref_input)
             if $bindings === nothing
-                _nomatch
+                _NO_MATCH
             else
                 let $(lets...)
                     $body
@@ -1097,11 +1087,18 @@ use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, a leading/su
 
 - Bare symbols in *path* position are literal field names; bare symbols in *value*
   position (inside `[]`, `field(...)`, …) **bind** the matched value.
-- `_` is a wildcard; `name::T` binds `name` only if the value `isa T`; `^(expr)`
-  interpolates a value to compare against.
+- In path position, `_` matches exactly one step of any kind, `__` any run of
+  steps (possibly none), `__ʔ` the shortest such run, and `__(name)` binds the
+  run that it took. `any(P, Q, …)` matches one of the subpaths.
+- In value position, `_` matches any value; `name::T` binds `name` only if the
+  value `isa T`; `lo..hi` matches a number from `lo` to `hi`, both included;
+  `glob"…"` matches a name that the glob matches; `any(a, b, …)` matches one of
+  the values; `^(expr)` interpolates a value to compare against.
 - `when(pattern, cond)` matches `pattern` then requires the guard `cond` (which may
   read the pattern's bindings); `name...` binds the entire remaining tail; `∅`
   matches the empty (whole-element) path.
+- An arm written `ref"…"` gives its pattern in the string spelling of a
+  configuration key (see `parse_reference_pattern`).
 
 Each arm says where the **input** sits relative to its pattern `P` — the same five
 words `@reference_rules` uses:
@@ -1114,7 +1111,7 @@ words `@reference_rules` uses:
 | `above(P)` | the input is strictly shallower — it runs out *inside* `P` |
 | `toward(P)` | `P` or shallower |
 
-There is no `prefix(…)`: it named `above(…)` while reading as though it meant
+There is no `prefix(…)` arm: the word can be read as `above(…)` or as
 `within(…)`, so writing it is an error that says which one to pick.
 
 A `::T` checkpoint **narrows** the match: where the path records a node type,
@@ -1135,16 +1132,16 @@ macro reference_case(ref, block)
     for rule in reverse(rules)
         rule_ex = _gen_rule(rule)
         chain = quote
-            let _ref_input = $(esc(ref))
-                let _m = $rule_ex
-                    _m === _nomatch ? $chain : _m
-                end
+            let _m = $rule_ex
+                _m === _NO_MATCH ? $chain : _m
             end
         end
     end
 
+    # The input is evaluated once, and every arm reads it. The expansion gives
+    # `_ref_input` a fresh name, so it can not capture a name of the call site.
     return quote
-        let _nomatch = Base.RefValue{Any}()
+        let _ref_input = $(esc(ref))
             $chain
         end
     end

@@ -1,7 +1,8 @@
 # Fragment of `ProjectionModule` — the projection **contract**: the `Projection`
-# abstract type every projection subtypes, and the four open generics every one
-# of them implements. Nothing here carries a body — the fallback of each generic
-# lives in `ProjectionDefaults.jl`, the `@projection` codegen in
+# abstract type every projection subtypes, the four open generics every one of
+# them implements, and the open seams of the layer. Nothing here carries a body —
+# the fallback of each generic lives in `ProjectionDefaults.jl`, the default of the
+# gesture-binding seam in `GestureBindings.jl`, the `@projection` codegen in
 # `ProjectionMacro.jl`, and the template engine that writes most concrete
 # projections in `ProjectionTemplate.jl`.
 
@@ -21,13 +22,13 @@ reader, which brings an edit back, so what is shown can be edited.
     struct BoxToText <: Projection end
     print_document(::BoxToText, recursion, box, context) = SimpleIoMap(...)
 
-See also `print_document` and `read_intent`, the two halves, and the guide
-`kernel/projection-system`.
-
 Abstract base type for all projection types, primitive and higher-order alike.
 Subtype this to inherit the default `map_reference_forward`,
 `map_reference_backward` and `read_intent` behaviour, which every projection
 gets unless it overrides the function it wants to change.
+
+See also `print_document` and `read_intent`, the two halves, and the guide
+`kernel/projection-system`.
 """
 abstract type Projection end
 
@@ -72,7 +73,9 @@ arbitrary projections purely via this dispatch.
   recursive projection wrapping a type-dispatcher) instead of this
   single projection. Always recurse through the helper rather than open-coding
   the doubled argument. The 2-arg overload `print_document(p, input)` supplies
-  `nothing`.
+  `nothing` and a fresh `PrinterContext()`. So it serves a leaf projection, or a
+  pipeline that a recursive projection wraps: a node projection called through it
+  has no `recursion` to print its children with.
 - `context::PrinterContext` — downward-flowing per-invocation data: a
   `reference` path locating `input` relative to the document root, plus
   the range of each axis (`minimum_width`/`maximum_width`,
@@ -123,7 +126,21 @@ function print_document end
 """
     print_child(recursion, input, ctx) -> iomap
 
-Project a child by re-entering the whole pipeline. Equivalent to
+Project a child by re-entering the whole pipeline.
+
+Use it to show each child of a node from the printer of the node: the child goes
+back through the whole pipeline, so the projection that fits the child shows it,
+also when the child is of another domain.
+
+# Example
+
+    context = make_child_context(ctx, FieldReferenceStep("content"))
+    content_iomap = print_child(recursion, input.content, context)
+
+See also `print_document`, which it calls, and `make_child_context`, which gives
+the child its context.
+
+Equivalent to
 `print_document(recursion, recursion, input, ctx)`: `recursion` is both the
 projection to invoke *and* that call's own `recursion` argument, so the child
 goes back through the full pipeline (normally a recursive projection wrapping a
@@ -138,19 +155,16 @@ function print_child end
 
 The **pure** forward half: a second interpreter of a projection that produces the
 projected *output document tree directly* — no iomap, no reactive cells, no
-selection wiring — for batch/export use (write_image / write_pdf / text
-serialization) where nothing is edited and no selection is mapped back. Output
-nodes are immutable-kind, so the tree is cheap to allocate and cheap to traverse
-repeatedly (multi-page layout, serialization).
+selection wiring — for a print where nothing is edited and no selection is mapped
+back. Output nodes are immutable-kind, so the tree is cheap to allocate and cheap
+to traverse repeatedly. No code outside the higher-order projections calls it: an
+export prints through `print_document`.
 
-Higher-order projections (Sequential / Recursive / TypeDispatching) thread it so a
-whole *pipeline* is pure; every concrete projection falls back to a snapshot of the
-reactive output (`copy_document(ImmutableCell, print_document(...).output[])`) — slower (it builds the
-reactive machinery first, then copies), but total, so `print_pure` works end-to-end
-for any pipeline. A genuinely fast per-projection interpreter is future work,
-justified only where a profile shows it pays (most render-stage projections are
-hand-written, not template-generated). See plan/pending/cell-kind-documents.md,
-Phase 6.
+Higher-order projections thread it so a whole *pipeline* is pure; every concrete
+projection falls back to a snapshot of the reactive output
+(`copy_document(ImmutableCell, print_document(...).output[])`). The fallback builds
+the reactive machinery first and then copies it, so it is slower than a direct
+print, but it works for any pipeline.
 """
 function print_document_pure end
 
@@ -176,8 +190,15 @@ default moves the cursor by mapping its place back.
 
 # Example
 
-    read_intent(::BoxToText, iomap, event::KeyDown) =
-        event.key == :backspace ? ShrinkBoxOperation(iomap.input) : nothing
+    # A click on the right edge of the drawn box makes the box narrower. Only the
+    # drawing says where that edge is, so the projection answers the click.
+    function read_intent(p::BoxToGraphics, recursion, change::Intent, iomap)
+        click = change.gesture
+        on_edge = click isa MouseClick && click.x >= iomap.input.width - 4
+        on_edge || return @invoke read_intent(p::Projection, recursion,
+                                              change::Intent, iomap)
+        Intent(click, ShrinkBoxOperation(iomap.input))
+    end
 
 See also `print_document`, which goes the other way, `map_reference_backward`,
 which brings a place back, and the guide `kernel/projection-system`.
@@ -194,8 +215,9 @@ Most projections need no `read_intent` method at all: the generic bridge in
 `ProjectionModule` unwraps the `Intent` and dispatches the 3-arg
 `read_intent(projection, iomap, event_or_op)` on the gesture (when no
 operation has been produced yet) or the operation, then re-wraps the result with
-the gesture preserved. Leaf projections therefore keep their 3-arg methods; only
-compound projections that thread the change to children override the 4-arg form.
+the gesture, the description and the domain preserved. The 3-arg methods that
+exist are reached through this bridge. A new reader is a 4-arg method that returns
+an `Intent`; do not write a 3-arg method in new code.
 
 The editor hands the raw device event (key press, mouse click) to the
 **top-level** projection's `read_intent`; from there, routing is entirely
@@ -204,16 +226,17 @@ chain and threads the operation that comes back up through each earlier step,
 translating it one domain closer to the input at every step. A different
 projection might instead dispatch the event to the sub-projection of one of its
 document parts (e.g. a projection over a multi-window screen routes each
-event to the matching window's content). So `event_or_op` is a raw event when a
+event to the matching window's content). So the payload is a raw event when a
 parent handed this projection the bare event, or an `Operation` another
-projection already produced — and the method returns an `Operation` in *this*
-projection's input domain, or `nothing`.
+projection already produced — and the reader returns an `Intent` whose operation
+is in *this* projection's input domain, or is `nothing`.
 
 The default method (in `ProjectionModule`) handles every `ReplacePathOperation`
 (the selection, the part under the pointer) by mapping its path with
 `map_reference_backward` and making the same kind with `make_path_operation`, so
-a projection that only moves the cursor needs **no** `read_intent` method. When you do write one,
-these are the moves available — from the lightest touch to the most involved:
+a projection that only moves the cursor needs **no** `read_intent` method. When
+you do write one, these are the moves available — from the lightest touch to the
+most involved:
 
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from the output domain to the input
@@ -238,9 +261,9 @@ these are the moves available — from the lightest touch to the most involved:
   answer to decide its own final operation — e.g. to choose among alternatives,
   or to act only when the child declines by returning `nothing`.
 
-Whichever moves it makes, a projection returns an `Operation` in its own input
-domain (or `nothing`); the operation the **top-level** projection ultimately
-returns is the final answer the editor applies to the document.
+Whichever moves it makes, a 4-arg reader returns an `Intent` whose operation is in
+its own input domain, or is `nothing`; the operation the **top-level** projection
+ultimately returns is the final answer the editor applies to the document.
 """
 function read_intent end
 
@@ -271,14 +294,15 @@ This is the mapper `print_document` uses to wire the output selection (see
 its docstring), so getting it right gives the forward cursor mapping for free.
 
 - Express the cases with `@reference_case` (see
-  [package/kernel/doc/reference.md](../../doc/reference.md)).
+  [reference.md](../../../documentation/package/kernel/reference.md)).
 - **Recurse in lockstep with the printer.** If `print_document` recursed into
   children, so must this: peel only the steps this projection owns, look up the
   child the peeled step selects in the **stored child IoMaps**, and delegate the
   remaining tail to that child projection's own `map_reference_forward`. Do *not*
   re-walk the input document dispatching on each child's concrete type — that
   couples the projection to its children's domains and breaks composition with
-  other domains (see [package/kernel/doc/projection-system.md](../../doc/projection-system.md)).
+  other domains (see
+  [projection-system.md](../../../documentation/package/kernel/projection-system.md)).
 - **The map does not depend on what is printed.** It answers from the input and
   from the projection's own mapping, which is usually an index mapping, and it
   gives the same reference whether the printer computed the part or a lazy
@@ -295,11 +319,11 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   projection implements a second generic for positions, and every wrapper
   (chaining, recursive, type-dispatching, …) takes part just by mapping its own
   step.
-- **A popup is not placed by a reference.** The widget that opens one answers
-  its position in its own frame, and each reader that read the widget with a
-  press moves that position back into its own frame on the way up, with
-  `map_operation_position` of the graphics package. The reader that moved the
-  press down is the one that moves the popup up, so the two can not disagree.
+- **A position that an operation carries is not a reference.** An operation that
+  opens something at a point holds that point in the frame of the reader that made
+  it. Each reader that moved a press down into a child's frame moves the position of
+  the answer back into its own frame on the way up. The same reader makes both
+  moves, so the two can not disagree.
 - If the input reference begins with `ProjectionReferenceStep(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and
@@ -311,6 +335,19 @@ function map_reference_forward end
 
 """
     map_reference_backward(projection, iomap, reference) -> reference_or_nothing
+
+Follow a place in what is shown back to where it is in the document.
+
+Use it to carry a click, a caret or the place of an edit from what a reader sees
+back to what a document holds, through one projection. It answers nothing when
+the place has no pre-image in the input.
+
+# Example
+
+    held = map_reference_backward(projection, iomap, shown_selection)
+
+See also `map_reference_forward`, which goes the other way, `read_intent`, which
+calls it for an edit, and the guide `kernel/reference`.
 
 Map an **output reference** (steps understood from `projection`'s output
 document) to an **input reference** (steps understood from its input document).
@@ -353,7 +390,7 @@ that a caret or the pointer on the bracket names.
 
 The mirror of `map_reference_forward`'s "the output domain may be coordinates":
 at the bottom of a render chain the *output* reference handed to this mapper can
-be a `PointReferenceStep` (a click point) rather than a structural step. A container
+be a point step (a click point) rather than a structural step. A container
 inverts its own placement — subtract the offset it positioned the child at, then
 delegate the translated point to the child's own `map_reference_backward` — never
 dispatching on the child's type. Coordinates and structural paths travel the same
@@ -372,7 +409,7 @@ children in an IoMap of its own adds a method for that IoMap.
 """
 function get_child_iomaps end
 
-# ── The children-container seam (methods in ChildrenContainer.jl) ──────
+# ── The children-container seam (methods in a higher package) ──────────
 
 """
     make_children_container(cells_or_thunk) -> children container
@@ -390,3 +427,16 @@ The concrete children container type a registrant supplies. Used by the
 template engine for `TypeReferenceStep(...)` markers.
 """
 function get_children_container_type end
+
+# ── The gesture-binding seam (default in GestureBindings.jl) ───────────────
+
+"""
+    get_projection_gesture_bindings(projection, iomap) -> Vector{GestureBinding}
+
+Gestures owned by a *projection* rather than a document (focus, collapse
+glyph, clipboard, …). The default answers an empty vector; a projection adds a
+method to contribute its own rows to a listing. `read_projection_gesture` fires
+them and answers a `CollectIntents` payload with all of them, so the reader
+gathers them across the chain with no second traversal.
+"""
+function get_projection_gesture_bindings end

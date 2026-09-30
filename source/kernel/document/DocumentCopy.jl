@@ -27,9 +27,9 @@
 """
     DocumentCopyException(value, reason)
 
-A copy refused `value`, for `reason`: a sentence that says what `value` holds
-that the copy can not own. A hook throws it, and the walk lets it through at
-any depth.
+Thrown when a copy can not own `value`. `reason` is a sentence that says what
+`value` holds that the copy can not own. A hook throws it, and the walk does not
+catch it at any depth.
 """
 struct DocumentCopyException <: Exception
     value::Any
@@ -53,15 +53,23 @@ copy_document(policy::CopyPolicy, value) = value
 # Vector: struct-with-integer-fields. Recurse per element; a `Vector{Cell}`'s
 # slot cells dispatch to the `AbstractCell` method and are cloned per-slot, so
 # the caller-visible shape (per-slot cells vs. plain values) is preserved.
-copy_document(policy::CopyPolicy, v::AbstractVector) = [copy_document(policy, x) for x in v]
+copy_document(policy::CopyPolicy, v::AbstractVector) =
+    _make_vector_copy(v, Any[copy_document(policy, x) for x in v])
 
-# A list of slot cells stays a `Vector{Cell}` even when it is empty, which the
-# comprehension above can not promise: a collection keys its storage on that type.
-copy_document(policy::CopyPolicy, v::Vector{Cell}) = Cell[copy_document(policy, c) for c in v]
-
-# A list of any value stays one, so the copy accepts any value that the source
-# accepts. The comprehension above narrows to the type of the values it holds.
-copy_document(policy::CopyPolicy, v::Vector{Any}) = Any[copy_document(policy, x) for x in v]
+# The copy of `v` that holds `copies`. It has the type of `v` when each copy is an
+# instance of the element type of `v`, so it accepts every value that `v` accepts:
+# a vector of an abstract type that holds one subtype takes a `push!` of another,
+# and a list of slot cells stays a `Vector{Cell}` when it is empty. A copy of
+# another type does not fit: a native element that a kinded copy converts, or the
+# placeholder of a policy. The copy then takes the types of the values it holds.
+function _make_vector_copy(v::AbstractVector, copies::Vector{Any})
+    all(x -> x isa eltype(v), copies) || return [x for x in copies]
+    out = similar(v, length(copies))
+    for i in eachindex(copies)
+        out[i] = copies[i]
+    end
+    out
+end
 
 # Cell: a fresh cell of the same kind and value type, holding the copied inner
 # value. A cell that computes is the policy's to copy.
@@ -92,7 +100,8 @@ function copy_document_fields(policy::CopyPolicy, document::Document; replacemen
         earlier === nothing || return earlier
         memo[document] = _CopyInProgress()
     end
-    base = Base.typename(T).wrapper   # the UnionAll: its ctor accepts cells/values
+    # The UnionAll, with the parameters of the source: its ctor accepts cells/values.
+    base = _apply_schema_parameters(Base.typename(T).wrapper, T)
     arguments = Any[]
     for name in field_names
         raw = getfield(document, name)
@@ -107,6 +116,19 @@ function copy_document_fields(policy::CopyPolicy, document::Document; replacemen
     result = base(arguments...)
     memo === nothing || (memo[document] = result)
     result
+end
+
+# `base` with the type parameters that the programmer declared on the schema of
+# `T`, so that a copy keeps them. The bare name binds a parameter from a cell of
+# `Any` as `Any`, and it can not bind one that no field is. A cell layout carries
+# one more parameter for each field after them, and a native layout carries only
+# them. A hand-written document is its own family, and `base` stays as it is.
+function _apply_schema_parameters(base, T::DataType)
+    wrapper = Base.typename(T).wrapper
+    get_document_family(T) === wrapper && return base
+    cells = wrapper === get_document_native_type(T) ? 0 : fieldcount(T)
+    count = length(T.parameters) - cells
+    count == 0 ? base : base{Tuple(T.parameters)[1:count]...}
 end
 
 # A replacement for a field that holds a cell goes in a new cell of the same
@@ -133,14 +155,17 @@ _get_refused_value_word(value) = String(nameof(typeof(value)))
 The policy of [`make_document_duplicate`](@ref). Made for one duplicate, because
 it records every document it copies.
 
-- It descends into a document whose kind declares a duplicate, and shares every
-  other document: what the duplicate does not own, it reads.
-- It refuses a cell that computes, because a copy of its value looks live and is
-  not. A selection is not refused: it is view state, and the duplicate takes the
-  selection as it is now (see [`copy_selection_cell`](@ref)).
-- It refuses a function, a `Ref` and a `Task`, because the walk can not know
+- The walk descends into a document whose kind declares a duplicate, and shares
+  every other document: what the duplicate does not own, it reads.
+- A cell that computes stops the copy, because a copy of its value looks live
+  and is not. A selection does not stop it: it is view state, and the duplicate
+  takes the selection as it is now (see [`copy_selection_cell`](@ref)).
+- A function, a `Ref` and a `Task` stop the copy, because the walk can not read
   what they capture, and an action that captures the original acts on it.
-- It refuses a document that holds itself, unless the kind makes its own copy.
+- A document that holds itself stops the copy, unless the kind makes its own
+  copy.
+
+The copy stops with a [`DocumentCopyException`](@ref).
 """
 struct DuplicatePolicy <: CopyPolicy
     copies::IdDict{Any,Any}
@@ -173,27 +198,36 @@ copy_document(::Type{<:AbstractCell}, value, policy = nothing, depth::Int = 0) =
 copy_document(K::Type{<:AbstractCell}, v::AbstractVector, policy = nothing, depth::Int = 0) =
     _copy_elements(K, v, policy, depth)
 
-# A bounded element copy has to preserve the source vector's element type (a
-# collection document declares `Vector{Cell}`), so it builds with `similar`
-# rather than a comprehension, and stops after `sync_element_limit` with one
-# placeholder standing for the tail.
+# The elements of `v`, which stand at `depth`, each copied as kind `K`. The copy
+# stops after `compute_sync_element_limit`, with one placeholder that stands for the tail,
+# and it keeps the element type of `v` as `_make_vector_copy` says.
 function _copy_elements(K, v::AbstractVector, policy, depth)
-    policy === nothing && return [copy_document(K, x) for x in v]
     n = length(v)
-    limit = sync_element_limit(policy, v, ())
-    out = similar(v, 0)
-    for i in 1:min(limit, n)
-        push!(out, copy_document(K, v[i], policy, depth))
+    copies = Any[]
+    limit = min(compute_sync_element_limit(policy, v, copies), n)
+    for i in 1:limit
+        push!(copies, _copy_element(K, v[i], policy, depth))
     end
     if limit < n
         m = make_unsynced_placeholder(policy, HiddenElements(v, limit + 1, n), nothing)
-        # Wrapped exactly as a copied element would be — a slot-celled vector
-        # (`Vector{Cell}`) cannot hold a bare document.
-        push!(out, v[limit + 1] isa AbstractCell ?
-                   K{K === ReactiveCell ? Any : typeof(m)}(m) : m)
+        push!(copies, _wrap_placeholder(K, v[limit + 1], m))
     end
-    out
+    _make_vector_copy(v, copies)
 end
+
+# One element of a kinded copy. An element document faces the bound at `depth`,
+# which is the depth at which `_sync_elements!` asks the bound for it.
+function _copy_element(K, x, policy, depth::Int)
+    inner = unwrap_cell(x)
+    (inner isa Document && !is_descendable_for_sync(policy, depth, nothing)) ||
+        return copy_document(K, x, policy, depth)
+    _wrap_placeholder(K, x, make_unsynced_placeholder(policy, inner, nothing))
+end
+
+# The placeholder `m` wrapped exactly as a copy of the element `x` would be: a
+# slot-celled vector (`Vector{Cell}`) cannot hold a bare document.
+_wrap_placeholder(K, x, m) =
+    x isa AbstractCell ? K{K === ReactiveCell ? Any : typeof(m)}(m) : m
 
 function copy_document(K::Type{<:AbstractCell}, c::AbstractCell, policy = nothing, depth::Int = 0)
     v = copy_document(K, c[], policy, depth)
@@ -221,11 +255,8 @@ function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing,
     # The target is the schema's **cell layout**, not the source's own layout. A kind
     # is a property of a cell, so a kinded copy only means something in a tree that
     # has cells; a native source therefore converts here rather than rebuilding
-    # itself. Building through `Base.typename(T).wrapper` instead is what let a
-    # native child land in a reactive shadow, where nothing could invalidate it.
-    base = get_document_cell_type(T)
-    base === nothing &&
-        error("copy_document: $(T) has no cell layout, so a $(K) copy of it is not a thing")
+    # itself. A native child in a reactive shadow could never invalidate a reader.
+    base = _apply_schema_parameters(get_document_cell_type(T), T)
     Ts = _declared_value_types(base)
     # Every field of a macro-emitted cell layout is a cell slot, whatever the source
     # held; `_declared_value_types` is emitted for exactly those types, so its

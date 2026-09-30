@@ -202,8 +202,8 @@ make_widget_button_document_example() =
 
 # WidgetButton (behaviour) — a button whose `action` increments a counter shown
 # by a sibling label. Click it (real input or a scripted MouseClick) and the
-# label re-renders; hovering re-styles the button via its transient `hovered`
-# flag (cleared by the MouseLeave of the mouse target tracking). The action captures
+# label re-renders; the button lights while its mouse target names it, that is
+# while the pointer is on it. The action captures
 # the label so it can mutate it when the editor evaluates the
 # InvokeWidgetActionOperation.
 function make_widget_button_action_document_example()
@@ -558,18 +558,19 @@ make_widget_table_offered_document_example() =
 
 # A table whose header strips stay put while its body scrolls.
 #
-# Scrolled 60 down and 40 across, so the picture shows what a frozen prefix is
-# for: the column names are still at the top, the ordinals are still at the left,
-# the corner has not moved, and the body has travelled away from all three.
+# Scrolled 60 down and 40 across, so the picture shows what the parts of a table
+# are for: the column names are still at the top, the ordinals are still at the
+# left, the corner has not moved, and the body has travelled away from all
+# three. The pane only gives the table its size, which the table fills and
+# scrolls in.
 make_widget_table_frozen_document_example() =
     WidgetScrollPane(
         WidgetTable(;
                     column_headers = Any["Invoice", "Status", "Method", "Amount"],
                     row_headers = Any["1", "2", "3", "4", "5", "6"],
                     rows = Any[Any["INV00$(i)", "Paid", "Credit Card", "\$$(i)50.00"] for i in 1:6],
-                    column_count = 4);
+                    column_count = 4, scroll_position = Point2D(40, 60));
         size = Point2D(320, 150),
-        scroll_position = Point2D(40, 60),
         style = WidgetStyle(content_color = StyleColor(0.98, 0.96, 0.90, 1.0)))
 
 # WidgetTree — a nested outline with expand chevrons.

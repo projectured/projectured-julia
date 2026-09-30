@@ -2,15 +2,15 @@
 # fault, records it and answers a fallback.
 
 """
-    run_fault_barrier(body, store; policy, backend, site, counter, origin, reference,
-                      fallback)
+    run_fault_barrier!(body, store; policy, backend, site, counter, origin, reference,
+                       fallback)
 
 Run `body`, and answer `fallback` rather than the exception when it throws.
 
 Use it around one stage of work that the editor must survive: a frame stage, a
-call into a backend, the evaluation of an operation. It is not what a projection
-uses — a projection must answer a substitute document and so carries its own
-catch, and calls [`record_fault!`](@ref) directly.
+call into a backend, the evaluation of an operation. Where the answer must
+depend on the fault and not be a fixed fallback, catch in place and call
+[`record_fault!`](@ref) instead.
 
 What it does, in order:
 
@@ -25,11 +25,10 @@ What it does, in order:
    write that failed just raised, and the breaker never trips.
 3. The fault goes in the store, keyed, so the thousands of nodes one bug fails
    at become one record with a number.
-4. Reporting is left to [`drain_faults!`](@ref) and the frame that calls it,
-   because the drain is the one place that knows which records are new and it
-   is where the projection barrier's records arrive too. One reporter, one line
-   per new fault. A barrier given no store has no drain behind it, so that one
-   reports for itself.
+4. Reporting is left to [`drain_faults!`](@ref), because the drain holds the
+   list of the new records, and every record in the store reaches it. One
+   reporter, one line per new fault. A barrier given no store has no drain
+   behind it, so that one reports for itself.
 
 **`policy.is_barrier_enabled` false means it catches nothing.** An editor that a
 test makes has it false, so a broken projection fails its test rather than
@@ -37,17 +36,17 @@ passing quietly.
 
 # Example
 
-    run_fault_barrier(editor.faults; policy = editor.fault_policy,
-                      backend = editor.backend, site = :print) do
+    run_fault_barrier!(editor.faults; policy = editor.fault_policy,
+                       backend = editor.backend, site = :print) do
         print!(editor)
     end
 
 See also [`FaultPolicy`](@ref), [`record_fault!`](@ref) and
 [`report_fault!`](@ref).
 """
-function run_fault_barrier(body, store; policy::FaultPolicy, backend, site::Symbol,
-                           counter::Symbol = site, origin = :editor, reference = nothing,
-                           fallback = nothing)
+function run_fault_barrier!(body, store; policy::FaultPolicy, backend, site::Symbol,
+                            counter::Symbol = site, origin = :editor, reference = nothing,
+                            fallback = nothing)
     policy.is_barrier_enabled || return body()
     try
         value = body()

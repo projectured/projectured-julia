@@ -1,18 +1,16 @@
 """
 `@document`'s **emitted constructor surface** — Rule Y (positional defaults) and
-Rule C (single-`CellVector` element sugar).
+Rule C (single-collection element sugar).
 
-These rules are the subtlest part of the macro and were, until the plan/emitter
-split, untestable except by declaring a struct and seeing whether a call happened
-to work. They are tested here by counting and calling the *methods* the macro
-emits, which is the macro's actual public contract.
+These rules are the subtlest part of the macro. They are tested here by counting
+and calling the *methods* the macro emits, which is the macro's actual public
+contract.
 
-The `CellVector` cases use a **test-local stand-in**: Rule C detects its collection
-field by matching the declared type's *symbol*, so the real `CellVector` (which
-lives in `base`, above the kernel) need not be in scope for the macro to fire — and
-the kernel test package cannot see it. That the rule works on a look-alike is not a
-loophole in the test; it is the wart the rule is built on, and is documented as such
-on `_emit_collection_ctors`.
+The Rule C cases use a **test-local collection**, `DmCollection`. Rule C finds a
+collection field through `is_collection_field_type(::Val{name})`, keyed on the
+declared type's *symbol*, and this file registers `Val{:DmCollection}` before its
+first `@document`. The real `CellVector` lives in the collection package above the
+kernel, and the kernel test package does not load it.
 """
 
 using Test
@@ -21,15 +19,17 @@ using ProjecturedKernel.CellStructModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule: Reference, EmptyReference
 
-# A stand-in for base's CellVector: Rule C keys off the *name*, and the emitted
-# `CellVector(items)` call has to resolve to something. `<: Document` (not
-# `<: AbstractVector`) mirrors the real one, which is what makes the raw and
-# bracketed Rule C forms non-overlapping.
-struct CellVector <: Document
+# The collection of the Rule C cases. The emitted `DmCollection(items)` call wraps
+# a raw vector with it. `<: Document` (not `<: AbstractVector`) mirrors the real
+# `CellVector`, which is what makes the raw and bracketed Rule C forms
+# non-overlapping. The macro asks `is_collection_field_type` at expansion, so the
+# registration comes before the first `@document` that declares the type.
+struct DmCollection <: Document
     items::Vector{Any}
 end
-CellVector(items::AbstractVector) = CellVector(collect(Any, items))
-Base.:(==)(a::CellVector, b::CellVector) = a.items == b.items
+DmCollection(items::AbstractVector) = DmCollection(collect(Any, items))
+Base.:(==)(a::DmCollection, b::DmCollection) = a.items == b.items
+DocumentModule.is_collection_field_type(::Val{:DmCollection}) = true
 
 # ── Rule Y ────────────────────────────────────────────────────────────────
 @document struct DmRuleY
@@ -41,13 +41,13 @@ end
 
 # ── Rule C: the collection is the sole content, everything else defaults ──
 @document struct DmSoleVector
-    items::CellVector = CellVector([])
+    items::DmCollection = DmCollection([])
 end
 
 # ── Rule C: the collection sits beside a *required* sibling ───────────────
 @document struct DmVectorWithSibling
     callee::Int
-    args::CellVector
+    args::DmCollection
 end
 
 # ── No collection: Rule C must stay silent ────────────────────────────────
@@ -130,6 +130,17 @@ end
     box::Tuple{A}
 end
 
+# A schema that declares its own `selection` field, as the last field.
+@document ImmutableCell struct DmValueSel
+    x::Float64
+    selection::ImmutableCell{Nothing}
+end
+
+# A value whose `unwrap_selection` counts the calls that reach it.
+struct DmUnwrapProbe end
+const dm_unwrap_calls = Ref(0)
+DocumentModule.unwrap_selection(value::DmUnwrapProbe) = (dm_unwrap_calls[] += 1; value)
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -164,25 +175,25 @@ end
 
 @testset "Rule C wraps a raw Vector into the collection" begin
     # Without Rule C the auto-wrapping inner ctor would store Cell(Vector) — a cell
-    # wrapping a plain Vector — instead of a CellVector.
-    @test DmSoleVector([1, 2]).items == CellVector([1, 2])
+    # wrapping a plain Vector — instead of a DmCollection.
+    @test DmSoleVector([1, 2]).items == DmCollection([1, 2])
 
     # Beside a required sibling, the bracketed form accompanies the Rule Y arity.
     d = DmVectorWithSibling(7, [1, 2])
     @test d.callee == 7
-    @test d.args == CellVector([1, 2])
+    @test d.args == DmCollection([1, 2])
     @test d.selection === nothing
 end
 
 @testset "an already-built collection reaches the variadic, and is nested" begin
     # Passing a real collection to a sole-collection document does NOT pass it
-    # through: a CellVector is a `Document`, not an `AbstractVector`, so the call
+    # through: a DmCollection is a `Document`, not an `AbstractVector`, so the call
     # lands on Rule C's variadic `T(items::Document...)` and becomes a one-element
-    # collection *containing* it. Surprising, and long-standing — pinned here so a
-    # future change to Rule C's tail cannot alter it silently.
-    @test DmSoleVector(CellVector([1, 2])).items == CellVector([CellVector([1, 2])])
+    # collection *containing* it. This test pins it, so that a change of the tail
+    # of Rule C can not alter it silently.
+    @test DmSoleVector(DmCollection([1, 2])).items == DmCollection([DmCollection([1, 2])])
     # To wrap an existing collection, name the selection too and take the inner ctor.
-    @test DmSoleVector(CellVector([1, 2]), nothing).items == CellVector([1, 2])
+    @test DmSoleVector(DmCollection([1, 2]), nothing).items == DmCollection([1, 2])
 end
 
 @testset "Rule C emits its bracketed form exactly ONCE" begin
@@ -223,8 +234,7 @@ end
     @test getfield(node, :value) isa ImmutableCell{Int}
     @test MCDmParametric{Int}(3, nothing) isa MCDmParametric{Int}
     # The declared value types mention the parameter too, so that method takes
-    # it from the type. Asked about the bare name, which is what a copy does,
-    # it answers `nothing` and the copy reads the source's own field types.
+    # it from the type. Asked about the bare name, it answers `nothing`.
     types = DocumentModule._declared_value_types(DmParametric{Int})
     @test types isa Tuple && first(types) === Int
     @test DocumentModule._declared_value_types(DmParametric) === nothing
@@ -254,6 +264,33 @@ end
     @test nested.box === (3,) && nested.selection === nothing
 end
 
+@testset "a copy keeps the parameters of a schema" begin
+    # A cell of `Any` binds a parameter as `Any`, so the copy takes the parameters
+    # from the type of the source, not from the values of its cells.
+    @test copy_document(DmParametric(3)) isa DmParametric{Int}
+    @test copy_document(ReactiveCell, DmParametric(3)) isa DmParametric{Int}
+    @test copy_document(ReactiveCell, DmBounded(2.0)) isa DmBounded{Float64}
+    @test copy_document(ReactiveCell, DmBounded(2.0)).value === 2.0
+    # The kinded copy of a native source converts, and keeps the parameter.
+    @test copy_document(ImmutableCell, MDmBounded(2.0)) isa ICDmBounded{Float64}
+    @test copy_document(MDmBounded(2.0)) isa MDmBounded{Float64}
+    # A parameter that no field binds is taken from the source, too.
+    @test copy_document(DmNested{Int}((3,))) isa DmNested{Int}
+    @test copy_document(ReactiveCell, DmNested{Int}((3,))).box === (3,)
+end
+
+@testset "a read calls unwrap_selection for the selection field only" begin
+    # The read of a field of the reactive kind gets `Any`, so a call to
+    # `unwrap_selection` there dispatches at run time on every read.
+    node = DmParametric(DmUnwrapProbe())
+    dm_unwrap_calls[] = 0
+    @test node.value isa DmUnwrapProbe
+    @test dm_unwrap_calls[] == 0
+    getfield(node, :selection)[] = DmUnwrapProbe()
+    @test node.selection isa DmUnwrapProbe
+    @test dm_unwrap_calls[] == 1
+end
+
 @testset "the layout registry answers for every variant" begin
     # The point of the registry: a caller asks for a layout instead of naming one.
     # Both accessors are keyed on the family, so either variant answers the same.
@@ -267,8 +304,8 @@ end
 
     # A hand-written document is its own cell layout and has no native one, so a
     # copy of one rebuilds exactly what it was.
-    @test get_document_cell_type(CellVector([]))   === CellVector
-    @test get_document_native_type(CellVector([])) === nothing
+    @test get_document_cell_type(DmCollection([]))   === DmCollection
+    @test get_document_native_type(DmCollection([])) === nothing
 end
 
 @testset "the layout list says which layouts a schema emits" begin
@@ -368,12 +405,8 @@ end
 @testset "an explicit `selection` field overrides the injected default" begin
     # A value-document types its selection `Nothing` (non-selectable) instead of the
     # injected `Reference`, so the bare ctor builds an isbits form.
-    @eval @document ImmutableCell struct DmValueSel
-        x::Float64
-        selection::ImmutableCell{Nothing}
-    end
-    @test @eval(getfield(DmValueSel(1.0), :selection)) isa ImmutableCell{Nothing}
-    @test @eval(isbitstype(typeof(DmValueSel(1.0))))
+    @test getfield(DmValueSel(1.0), :selection) isa ImmutableCell{Nothing}
+    @test isbitstype(typeof(DmValueSel(1.0)))
     # An explicit `selection` field must be declared last.
     @test_throws LoadError @eval @document struct DmMisplacedSel
         selection::ImmutableCell{Nothing}

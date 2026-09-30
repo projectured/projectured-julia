@@ -14,7 +14,7 @@ _describe_missing_meaning_model(llm::Llm) =
 
 # The `Symbol` entries every caller uses; a provider package answers the `Val`.
 make_llm(kind::Symbol; kwargs...) = make_llm(Val(kind); kwargs...)
-default_llm_model(kind::Symbol) = default_llm_model(Val(kind))
+get_default_llm_model(kind::Symbol) = get_default_llm_model(Val(kind))
 
 # A kind nothing answered: say which packages are loaded rather than raise a
 # bare `MethodError`.
@@ -24,5 +24,5 @@ make_llm(::Val{K}; kwargs...) where {K} = error(
      join(map(n -> ":" * String(n), get_llm_backend_names()), ", ")) *
     ". Load the opt-in package that provides :$(K).")
 
-default_llm_model(::Val{K}) where {K} = error(
+get_default_llm_model(::Val{K}) where {K} = error(
     "No LLM backend registered for :$(K); it has no default model.")

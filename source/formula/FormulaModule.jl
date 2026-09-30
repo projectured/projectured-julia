@@ -47,11 +47,9 @@ include("FormulaDocument.jl")
 include("FormulaToSyntax.jl")
 include("FormulaToGraphics.jl")
 
-# A file may name a formula and a sheet. The registry is runtime state, so the
-# offer is made here and not at the top level.
+# The row that lets the natural renderer draw a formula. The registry is
+# runtime state, so the row is added here and not at the top level.
 function __init__()
-    register_pred_type!(FormulaFormula)
-    register_pred_type!(FormulaEnvironment)
     register_natural_graphics!(:formula, make_formula_graphics_entry)
 end
 

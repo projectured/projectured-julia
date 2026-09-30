@@ -109,7 +109,12 @@ The two extra arguments are essential:
 
 A two-argument convenience overload `print_document(p, input)` is defined in
 [projection/ProjectionDefaults.jl](../../../source/kernel/projection/ProjectionDefaults.jl) and supplies
-`nothing` and a fresh `PrinterContext()`. The editor uses this.
+`nothing` and a fresh `PrinterContext()`. It serves a leaf projection, or a
+pipeline that a `RecursiveProjection` wraps. A node projection called through it
+has no `recursion` to print its children with. The editor calls the four-argument
+form: its `recursion` is `nothing`, and its context carries the clock of the
+editor, the document of the editor under `:root`, and the fault store and the
+fault policy.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
 parameter; it is computed reactively. The canonical form maps the input
@@ -145,8 +150,9 @@ print_document_pure(projection, recursion, input, ctx) → output
 print_child_pure(recursion, input, ctx) → output
 ```
 
-A pipeline uses this pair for batch or export work — writing an image, a PDF, or
-a text serialization — where nothing is edited and no selection maps back.
+The pair is for batch or export work, such as an image, a PDF or a text
+serialization, where nothing is edited and no selection maps back. No pipeline of
+the repository calls it: the export functions print with `print_document`.
 Every projection gets this automatically: the default falls back to a snapshot of the
 reactive output, so a projection author writes `print_document_pure` only to
 skip that snapshot on a path a profile shows is slow. `ChainingProjection`,
@@ -157,13 +163,17 @@ in
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([intent/IntentModule.jl](../../../source/kernel/intent/IntentModule.jl)) —
+The reader's payload is a **`Intent`** ([intent/Intent.jl](../../../source/kernel/intent/Intent.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia
 struct Intent
-    gesture    # the originating device event (MouseClick/KeyDown), threaded UNCHANGED
-    operation  # the change in the current projection's input domain; starts nothing
+    gesture::Any        # the originating input (MouseClick/KeyDown), threaded UNCHANGED
+    operation::Any      # the change in the current projection's input domain; starts nothing
+    description::String # what the change does, in words; empty when the reader says nothing
+    domain::String      # the heading that groups the change in a list of what is available
+    route::Union{Nothing,Reference}  # the path to the place of an operation that code
+                                     # made, or to the part that a gesture is for
 end
 ```
 
@@ -179,11 +189,14 @@ A reader returns a `Intent`: either it keeps `operation === nothing`, meaning it
 found no operation to return, or it returns a fresh `Intent` with the gesture
 preserved and a real operation swapped in.
 
-A fifth field, `route`, carries a path when the change comes from code that
+The fifth field, `route`, carries a path when the change comes from code that
 already has the place its operation belongs to, rather than from a gesture;
 a reader follows it down to that place and lifts the answer back up exactly as
 it lifts the answer to a gesture — see
-[editor.md](editor.md#an-operation-from-a-place-not-a-gesture).
+[editor.md](editor.md#an-operation-from-a-place-not-a-gesture). A gesture that is
+for one part, such as a leave for the part that the pointer left, carries the path
+to that part in the same field. A container whose IO map holds its children follows
+a route by default (`read_routed_child`).
 
 ### `read_intent` — the reader
 
@@ -561,6 +574,8 @@ recursively-projected input children. The extra requirements are:
    (see [§ Recursion across projections](#recursion-across-projections)).
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
    separate cells — see [§8 of the selection deep dive](selection.md)).
+   `reconcile_child_iomaps` makes that cell, and it keeps the IoMap of each
+   child that stays, as PAR-STABLE-IOMAP-IDENTITY asks.
 3. **Project the selection reactively.** Canonically this is
    `Cell(@computation map_reference_forward(p, iomap, node.selection))` with the
    deferred-iomap trick for the not-yet-built `iomap`. The inline form shown
@@ -574,31 +589,32 @@ recursively-projected input children. The extra requirements are:
 struct MyNodeProjection <: Projection end
 
 function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
-    # Step 1+2: project children, store IO maps in a shared cell.
-    # `print_child` re-enters the whole pipeline for each child;
-    # `make_child_context` extends the reference path to child i.
-    child_iomaps = Cell(@computation([
-        print_child(recursion,
-                                   getfield(node, :children)[][i][],
-                                   make_child_context(ctx, ElementReferenceStep(i)))
-        for i in 1:length(node.children)
-    ]))
+    # Step 1+2: project the children, and keep their IO maps in one cell.
+    # `reconcile_child_iomaps` reuses the IoMap of each child that stays, so an
+    # edit prints again only a child that is new or moved. `print_child`
+    # re-enters the whole pipeline for each child, and `make_child_context`
+    # extends the reference path to child i, typed against `node`.
+    child_iomaps = reconcile_child_iomaps(
+        () -> node.children,
+        (i, child) -> print_child(recursion, child,
+            make_child_context(ctx, node, FieldReferenceStep("children"),
+                               ElementReferenceStep(i))))
 
     # Build the output children from the IO maps
-    out_children = Cell(@computation CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
+    out_children = CellVector(@computation [m.output for m in child_iomaps[]])
 
     # Step 3: project the selection reactively
     sel = Cell(@computation(begin
         path = node.selection
         @reference_case path begin
-            children[i] + rest => begin
+            children[i].rest... => begin
                 iomaps = child_iomaps[]
                 i > length(iomaps) && return nothing
                 child_sel = iomaps[i].output.selection
                 child_sel === nothing && return nothing
-                ConcreteReference(ElementReferenceStep(Cell(i)), child_sel)
+                @reference ::SyntaxNode.children::CellVector[i].^(child_sel)
             end
-            _ => nothing
+            __ => nothing
         end
     end))
 
@@ -608,29 +624,31 @@ function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
         child_iomaps)
 end
 
+# A property read of an IoMap unwraps its cell, so `iomap.child_iomaps` is the
+# vector of the child IO maps. A `@reference` literal types each node it
+# builds, and the spliced tail carries the types of the child.
 function map_reference_forward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        children[i] + rest => begin
-            iomaps = iomap.child_iomaps[]
+        children[i].rest... => begin
+            iomaps = iomap.child_iomaps
             i > length(iomaps) && return nothing
             child_iomap = iomaps[i]
             child_ref = map_reference_forward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReference(ElementReferenceStep(Cell(i)), child_ref)
+            @reference ::SyntaxNode.children::CellVector[i].^(child_ref)
         end
     end
 end
 
 function map_reference_backward(::MyNodeProjection, iomap::ChildrenIoMap, reference)
     @reference_case reference begin
-        [i] + rest => begin
-            iomaps = iomap.child_iomaps[]
+        children[i].rest... => begin
+            iomaps = iomap.child_iomaps
             i > length(iomaps) && return nothing
             child_iomap = iomaps[i]
             child_ref = map_reference_backward(child_iomap.projection, child_iomap, rest)
             child_ref === nothing && return nothing
-            ConcreteReference(FieldReferenceStep(Cell("children")),
-                ConcreteReference(ElementReferenceStep(i), child_ref))
+            @reference ::MyNode.children::CellVector[i].^(child_ref)
         end
     end
 end

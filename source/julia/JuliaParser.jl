@@ -24,8 +24,11 @@
 # which is lossless for display.
 
 const BINARY_OPERATORS = Set{Symbol}([
-    :+, :-, :*, :/, :^, :(==), :(!=), :(<), :(>), :(<=), :(>=),
-    :(===), :(!==)])
+    :+, :-, :*, :/, :^, :%, :÷, :(==), :(!=), :(<), :(>), :(<=), :(>=),
+    :(===), :(!==), :isa, :in, :∈, :∉, :(=>), :|>,
+    # A broadcast of an operator is a call of the dotted operator.
+    :.+, :.-, :.*, :./, :.^, :.%,
+    Symbol(".=="), Symbol(".!="), Symbol(".<"), Symbol(".>"), Symbol(".<="), Symbol(".>=")])
 
 const UNARY_OPERATORS = Set{Symbol}([:-, :!, :~])
 
@@ -39,15 +42,36 @@ const COMPOUND_ASSIGNMENTS = Set{Symbol}([:(+=), :(-=), :(*=), :(/=)])
 Parse a Julia source string into a `JuliaDocument` tree.
 
 Top-level source with several statements becomes a `JuliaBlock`; a single
-expression is returned bare.
+expression is returned bare. A line that ends with `;` is a `JuliaToplevel`
+with `trailing_semicolon`.
 """
 function parse_julia(text::AbstractString)
     parsed = Meta.parseall(String(text))
     # `parseall` always wraps in `Expr(:toplevel, …)` interleaved with
     # `LineNumberNode`s. Flatten: one real statement → bare, otherwise a block.
     stmts = _convert_statements(parsed.args)
+    # The parser gives a line that ends with `;` a `:toplevel` of its own, but the
+    # `Expr` does not say whether the `;` follows its last statement: the text does.
+    last = findlast(a -> !(a isa LineNumberNode), parsed.args)
+    if last !== nothing && Meta.isexpr(parsed.args[last], :toplevel) &&
+       _has_trailing_semicolon(text)
+        stmts[end] = JuliaToplevel(_convert_statements(parsed.args[last].args), true)
+    end
     length(stmts) == 1 && return stmts[1]
     return JuliaBlock(stmts)
+end
+
+# Whether the last token of `text`, apart from spaces and comments, is `;`.
+function _has_trailing_semicolon(text::AbstractString)
+    code = String(text)
+    last_kind = nothing
+    for token in Base.JuliaSyntax.tokenize(code)
+        kind = Base.JuliaSyntax.kind(token)
+        kind in (Base.JuliaSyntax.K"Whitespace", Base.JuliaSyntax.K"NewlineWs",
+                 Base.JuliaSyntax.K"Comment") && continue
+        last_kind = kind
+    end
+    last_kind == Base.JuliaSyntax.K";"
 end
 
 """
@@ -125,8 +149,14 @@ function _convert_head(::Val{:call}, x::Expr)
         end
     end
     if callee isa Symbol
-        if length(args) == 2 && callee in BINARY_OPERATORS
-            return JuliaBinaryOperation(callee, convert_expr(args[1]), convert_expr(args[2]))
+        if length(args) >= 2 && callee in BINARY_OPERATORS
+            # `a + b + c` is one call of `+` with three operands. It folds to the
+            # left, so it prints as it is written.
+            result = JuliaBinaryOperation(callee, convert_expr(args[1]), convert_expr(args[2]))
+            for operand in args[3:end]
+                result = JuliaBinaryOperation(callee, result, convert_expr(operand))
+            end
+            return result
         elseif length(args) == 1 && callee in UNARY_OPERATORS
             return JuliaUnaryOperation(callee, convert_expr(args[1]))
         end
@@ -318,10 +348,9 @@ end
 _convert_head(::Val{:block}, x::Expr) = JuliaBlock(_convert_statements(x.args))
 
 # `a; b` written on ONE line parses to a `:toplevel` *nested* inside the outer
-# one, so a semicolon-separated statement group reaches here instead of being
-# flattened by `parse_julia`'s own top-level handling. It means exactly what a
-# `:block` means — a sequence of statements — and converts the same way.
-_convert_head(::Val{:toplevel}, x::Expr) = JuliaBlock(_convert_statements(x.args))
+# one. It runs as a `:block` does, and it is a `JuliaToplevel`, which keeps the
+# statements on their line with the `;` between them.
+_convert_head(::Val{:toplevel}, x::Expr) = JuliaToplevel(_convert_statements(x.args))
 
 function _convert_head(::Val{:tuple}, x::Expr)
     # `(; a = 1)` puts its entries in a `:parameters` child; `(a = 1,)` writes

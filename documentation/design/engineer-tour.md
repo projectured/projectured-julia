@@ -188,8 +188,8 @@ A document type declares which gestures it answers, as data:
 ```julia
 @gestures JsonObject begin
     KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, JsonObjectEntry)
-    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
-    nothing       => "Move from value to key" => move_to_field(doc, :value, :key)
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
+    nothing       => "Move from value to key" => move_to_field(doc; from = :value, to = :key)
 end
 ```
 
@@ -306,8 +306,8 @@ is the platform that drives the devices: `SdlBackend`, `ConsoleBackend`,
 and renders the output document.
 
 ```julia
-run_editor!(SdlBackend(), projection, document)   # a native window
-run_editor!(WebBackend(), projection, document)   # the same editor in a browser
+run_editor!(document, projection; backend = SdlBackend())   # a native window
+run_editor!(document, projection; backend = WebBackend())   # the same editor in a browser
 run_console_example(interactive=true)             # the terminal
 ```
 

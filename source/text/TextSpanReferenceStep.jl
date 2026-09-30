@@ -13,6 +13,8 @@ ReferenceModule.evaluate_reference_step(step::TextSpanReferenceStep, document) =
 
 Base.:(==)(a::TextSpanReferenceStep, b::TextSpanReferenceStep) =
     a.start == b.start && a.stop == b.stop
+Base.hash(s::TextSpanReferenceStep, h::UInt) =
+    hash(s.stop, hash(s.start, hash(:TextSpanReferenceStep, h)))
 
 function Base.show(io::IO, s::TextSpanReferenceStep)
     print(io, "▢(", s.start, ":", s.stop, ")")

@@ -1,15 +1,18 @@
 """
     BackendModule
 
-The backend contract. A `Backend` encapsulates everything needed to initialise,
-shut down, read input from, and write output to a particular display/input
+The backend contract. A `Backend` holds everything that is necessary to
+initialize, stop, read input from and write output to one display and input
 system.
-Concrete subtypes and the methods of the generic functions declared here
-live in **opt-in backend packages** that depend on this kernel; this module
-carries only the abstract type and the forward-declared generics, so generic
-code can name a capability (measure text, write an image, …) without
-referencing any concrete backend at load time. A generic that isn't
-implemented because its backend package isn't loaded raises a `MethodError`.
+
+The concrete subtypes and the methods of the generic functions declared here
+live in packages above the kernel. The SDL, web and video backends are opt-in
+packages, the console backend is a package of the substrate, and the headless
+test double is in `ProjecturedKernelExample`. This module carries only the
+abstract type and the forward-declared generics, so generic code can name a
+capability, such as the output of an image, and refer to no concrete backend
+when it loads. A generic whose backend package is not loaded raises a
+`MethodError`.
 
 The contract is declared here and answered elsewhere. The module lives in two
 fragments that share this namespace:
@@ -17,9 +20,9 @@ fragments that share this namespace:
 - [`BackendInterface.jl`](BackendInterface.jl) — the contract: the abstract
   `Backend` type and the open generics a backend package answers.
 - [`BackendDefaults.jl`](BackendDefaults.jl) — the fallback behaviours the
-  contract supplies itself, for the capabilities a backend may decline (pointer
+  contract supplies itself, for the capabilities a backend can lack (pointer
   position, display size, device configuration, native windows, the input
-  wait).
+  wait and the wake).
 """
 module BackendModule
 
@@ -28,7 +31,7 @@ export Backend, initialize_backend!, quit_backend!,
        open_native_windows!, wait_for_input, wake_backend!,
        write_image, record_video, render_canvas, decode_image, get_pointer_position
 
-include("BackendInterface.jl")  # the backend contract (declaration-only)
-include("BackendDefaults.jl")   # the fallback behaviours the contract supplies itself
+include("BackendInterface.jl")
+include("BackendDefaults.jl")
 
 end # module

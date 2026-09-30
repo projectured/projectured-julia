@@ -35,8 +35,8 @@ _pure_snapshot(x) = x isa Document ? copy_document(ImmutableCell, x) : x
 # Total fallback for any projection without a specialized pure interpreter: run
 # the reactive printer once and snapshot its output. Slower than a real pure
 # interpreter (it builds the reactive machinery first), but it makes the pure
-# pipeline total from day one — a Sequential chain can mix template stages (fast,
-# pure) with hand-written stages (this fallback) transparently.
+# pipeline total — a chain can mix stages that have a pure interpreter with stages
+# that use this fallback.
 print_document_pure(p::Projection, recursion, input, ctx) =
     _pure_snapshot(unwrap_cell(print_document(p, recursion, input, ctx).output))
 
@@ -99,12 +99,10 @@ function map_reference_backward(projection::Projection, iomap, reference)
     # Without the input document there is no pre-image to wrap against, so the
     # reference is returned unchanged.
     iomap === nothing && return reference
-    # The projection-introduced element has no input pre-image; build the
-    # `proj`-wrapped path and annotate it against the input document (the 2-arg
-    # `@reference(doc, …)` form) so its node carries the input type (a
-    # `ProjectionReferenceStep` evaluates to its `output_path`, so the terminal records
-    # that path's own type) — keeping the strict-typing invariant.
-    @reference(iomap.input, proj(projection, ^(reference)))
+    # The projection-introduced element has no input pre-image, so the answer is the
+    # canonical caret on it: its node carries the type of the input document, and its
+    # terminal records `Position`.
+    make_introduced_reference(projection, iomap.input, reference)
 end
 
 """
@@ -124,19 +122,21 @@ its members goes back alone, and a member with no image is left out. A
 `ReplaceReferencedValueOperation` has its `reference` re-targeted — this covers
 document-replace and sequence-insert/delete, which are
 `ReplaceReferencedValueOperation`s with a terminal `RangeReferenceStep`; a self-contained one
-(carrying its own root) is forwarded unchanged. `ToggleCollapseOperation` is
-forwarded unchanged.
+(carrying its own root) is forwarded unchanged.
 
 An operation type the kernel cannot name re-targets through the open
 `operation_reference` / `retarget_operation` seam — this is how the
 `Replace*RangeOperation`s of the package above travel back. An operation that
-reports no reference returns `nothing`.
+reports no reference is forwarded unchanged when `operation_travels_unchanged`
+answers `true` for it, as for `DoNothingOperation` and `ToggleCollapseOperation`,
+and returns `nothing` otherwise.
 """
 function read_intent(projection::Projection, iomap, operation)
     # INVARIANT: the set of reference-carrying operation types handled here must
     # stay in sync with `reroot_operation` (OperationModule, operation/Rerooting.jl).
     # A new path-bearing operation missing from either is silently passed through
-    # with its reference left in the wrong domain. See package/kernel/doc/operation.md.
+    # with its reference left in the wrong domain. See
+    # documentation/package/kernel/operation.md.
     if operation isa Union{KeyPress, KeyDown, Gesture, CollectIntents}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a key and every gesture to the projection-independent
@@ -190,15 +190,6 @@ function read_intent(projection::Projection, iomap, operation)
                    i.operation === nothing ? nothing : read_intent(projection, iomap, i.operation),
                    i.description, i.domain)
             for i in operation.intents])
-    elseif operation isa ToggleCollapseOperation
-        # Collapse state lives at the syntax layer; every other projection
-        # forwards the operation up the chain unchanged.
-        return operation
-    elseif operation isa SelectNextInsertionOperation
-        # Editor-global "jump to next hole": carries no reference, so every
-        # projection forwards it up the chain unchanged (it resolves against
-        # `editor.document` at evaluation time).
-        return operation
     else
         # An operation type the kernel does not name: ask the open seam for the
         # reference it targets. An operation that reports one is re-targeted like
@@ -208,8 +199,9 @@ function read_intent(projection::Projection, iomap, operation)
         # collide with the catch-all reader of every concrete projection.
         reference = operation_reference(operation)
         # An operation that names no reference either carries its own subject —
-        # and travels — or is one this level cannot place, and is dropped. The
-        # two branches above are the kernel's own instances of the first case.
+        # and travels — or is one this level cannot place, and is dropped.
+        # `DoNothingOperation`, `ToggleCollapseOperation` and the other kernel
+        # operations that name no place in a document are of the first kind.
         reference === nothing &&
             return operation_travels_unchanged(operation) ? operation : nothing
         input_reference = map_reference_backward(projection, iomap, reference)
@@ -226,23 +218,27 @@ Generic bridge from the symmetric 4-arg `Intent` interface to the 3-arg
 reader. For any projection without its own 4-arg method, unwrap the `Intent` and
 dispatch `read_intent(p, iomap, payload)` on the operation (when one
 has already been produced) or otherwise the gesture (the gesture→operation stage),
-then re-wrap the result as a `Intent` with the gesture preserved. Compound
+then re-wrap the result as a `Intent` with the gesture, the description and the
+domain preserved. Compound
 projections that must thread the change to their children override this with a
 4-arg method of their own.
 
 A change with a route goes on to the child that the route names, when `iomap`
 holds children ([`get_child_iomaps`](@ref)), through
 [`read_routed_child`](@ref). A container is then not asked where the change goes,
-so it needs no code of its own for a route. A reader that holds no children reads
-the change as it reads every change.
+so it needs no code of its own for a route. Where `iomap` holds no children, a
+gesture is read as every gesture is, with the rest of the route as the part. The
+3-arg reader follows no route, so an operation whose route names a place below
+the input answers no operation.
 """
 function read_intent(p::Projection, recursion, change::Intent, iomap)
-    if change.route !== nothing && get_child_iomaps(iomap) !== nothing
+    change.route === nothing || get_child_iomaps(iomap) === nothing ||
         return read_routed_child(recursion, change, iomap)
-    end
+    change.route isa ConcreteReference && change.operation !== nothing &&
+        return Intent(change.gesture, nothing)
     payload = change.operation === nothing ? change.gesture : change.operation
     op = read_intent(p, iomap, payload)
-    return Intent(change.gesture, op)
+    return Intent(change.gesture, op, change.description, change.domain)
 end
 
 # @positional: the arity of the reader of the projection protocol, which it calls.
@@ -255,6 +251,18 @@ the child's input is the place of the change. For an operation, the child is not
 read, and the answer is the operation that `change` carries, with no route. For a
 gesture, the child is the part that the gesture is for, and it reads the gesture.
 Otherwise the child reads `change` with `read_intent`.
+
+Use it to pass a change with a route to one child from a 4-arg reader: it reads
+the child, or it answers the operation when the child is its place.
+
+# Example
+
+    routed = follow_intent_route(change, FieldReferenceStep("content"))
+    routed === nothing && return Intent(change.gesture, nothing)
+    answer = read_routed_intent(child.projection, recursion, routed, child)
+
+See also `follow_intent_route`, which gives the route that remains for the child,
+and `read_intent`, which it calls.
 """
 function read_routed_intent(projection, recursion, change::Intent, iomap)
     change.route isa EmptyReference || return read_intent(projection, recursion, change, iomap)

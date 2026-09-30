@@ -306,7 +306,7 @@ answers them in order, the ones behind first.
     shown = take_first(node, 20)          # this link and the nineteen after it
     around = take_first(node, 5, 5)       # five behind, this one, five ahead
 
-See also `ListNode`, `get_left_tail` and `get_right_tail`.
+See also `ListNode`, `get_left_tail`, `get_right_tail` and `count_computed_nodes`.
 """
 function take_first(node::ListNode, n::Int, direction::Symbol=:next)
     result = Any[]
@@ -348,4 +348,43 @@ function take_first(node::ListNode, n_prev::Int, n_next::Int)
         current = next_node
     end
     result
+end
+
+"""
+    count_computed_nodes(node) -> Int
+
+The number of links of a chain that exist now, the node itself too, counted
+without computing one more.
+
+Use it to show how far a lazy chain has been read: a `next` or a `prev` whose
+computation has not run yet ends the count in that direction, and it stays not
+run. A chain without an end, of which a viewport has read thirty links, counts
+thirty.
+
+# Example
+
+    numbers = integers_from(1)       # each `next` computes the next number
+    count_computed_nodes(numbers)    # 1: only the node itself
+    numbers[5]                       # reads four links
+    count_computed_nodes(numbers)    # 5
+
+See also `take_first` and `ListNode`.
+"""
+count_computed_nodes(node::ListNode) =
+    1 + _count_computed_links(node, :next) + _count_computed_links(node, :prev)
+
+# The links that follow `node` in the direction `link` and exist now. A link whose
+# computation has not run ends the walk, and `peek` reads the others, so the count
+# computes nothing and depends on no cell of the chain.
+function _count_computed_links(node::ListNode, link::Symbol)
+    count = 0
+    current = node
+    while true
+        cell = getfield(current, link)
+        is_computed_cell(cell) && !is_cell_up_to_date(cell) && return count
+        linked = peek(cell)
+        linked isa ListNode || return count
+        count += 1
+        current = linked
+    end
 end

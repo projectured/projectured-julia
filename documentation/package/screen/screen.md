@@ -53,7 +53,9 @@ The projection changes only the input screen. `ScreenToScreen` then updates the 
 
 `make_window_scene(document, title)` makes a screen with one window. `make_window_scene_projection(projection)` makes the matching projection, and it decides by the place of the content before its type: the content of the first window always goes through `projection`, and only the content of a window opened later goes through the projection of its content type, from `opened_window_projections`. So an entry of `opened_window_projections` for a type that the first window's content also has, such as a widget, draws only the windows that open later.
 
-`make_editor(document, projection, title; backend)` builds both, makes the editor and prints it once. `run_window_editor(document, projection, title; backend)` is `make_editor` and then `run_editor!(editor)`. A caller with work to do before the loop, such as a driver to start or a pane to focus, calls the two itself and does its work between them.
+`show_document!(editor, document; title)` shows a document in an editor that runs. It asks the content of the first window: a package that gives a container adds a method for the type of its container, as the pane package does for its tabs. With no such method, the document opens in a window of its own, beside the first window and as large as it, and a document that a window shows already opens no second window.
+
+The wrapper `window` of `build_editor` builds both. It is on by default, and it puts the root document in one window when the backend draws windows. Its setting `(; title, width, height, opened_window_projections)` names the window, gives its size, which defaults to the display, and adds rows for the windows that open later. It does nothing when the root is a `ScreenDocument` already, or when the backend draws text. `window = false` turns it off, and `make_editor` applies no wrapper, so a caller that builds its own screen passes that screen.
 
 ## How it fits
 
@@ -72,7 +74,7 @@ The projection changes only the input screen. `ScreenToScreen` then updates the 
 ```julia
 window = WindowDocument(; id = :main, title = "Demo", width = 800, height = 600, content = document)
 screen = ScreenDocument([window])
-run_window_editor(document, projection, "Demo"; backend = SdlBackend())
+run_editor!(document, projection; backend = SdlBackend(), window = (; title = "Demo"))
 ```
 
 - Test: no package suite exists. The tooltip, popup, dialog, command palette, gesture help and native window tests use the package.

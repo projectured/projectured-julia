@@ -44,6 +44,7 @@ const StyleModule = ProjecturedStyle.StyleModule
 const DomainModule = ProjecturedDomain.DomainModule
 const TooltipModule = ProjecturedTooltip.TooltipModule
 const DocumentModule = ProjecturedKernel.DocumentModule
+const EditorModule = ProjecturedKernel.EditorModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule

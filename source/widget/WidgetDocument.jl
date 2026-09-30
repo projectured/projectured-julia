@@ -2178,8 +2178,9 @@ The single table abstraction. A grid of **document cells** (each cell is a
 `JsonString`, an `XmlElement`, text, even a nested `WidgetTable`) decorated with
 borders / hairline rules, optional header strips, and selection bands. Its
 renderer ([`WidgetTableToGraphicsCanvas`](@ref)) delegates *all positioning* to
-a `GridLayout` and overlays decorations from the grid geometry it reads off the
-layout iomap ("layout is just layout").
+the `GridLayout`s of its parts — the header row, the header column and the
+cells, each in a pane of its own — and draws its decorations at the places
+that the grids report ("layout is just layout").
 
 # Fields
 
@@ -2212,6 +2213,9 @@ layout iomap ("layout is just layout").
   zero width). Distinct from `border_width` and the cell padding above.
 - `style` — `nothing`, a `WidgetStyle`, or a `WidgetTableStyle`; overrides one
   color of the projection.
+- `scroll_position`, `top_row` — view state: the one offset of the scrolled
+  parts, and the row at the top of a list of rows, counted from its head. The
+  row or the column under the pointer lights from the table's mouse target.
 
 The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
@@ -2237,6 +2241,8 @@ See also `make_result_table` and `WidgetList` for one column.
     border::Inset
     padding::Inset
     style::Any
+    scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
+    top_row::Int                 # view state: the row at the top of a list of rows, counted from its head
     tooltip::Any
 end
 
@@ -2272,7 +2278,8 @@ _table_rows(rows::ListNode) = Cell(rows)
                 border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
-                cell_policy=:clip, column_cell_policies=Symbol[], column_align=Symbol[])
+                cell_policy=:clip, column_cell_policies=Symbol[], column_align=Symbol[],
+                scroll_position=Point2D(0, 0))
 
 Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 `Document`/`nothing`, and a table has no row headers unless it is given some.
@@ -2283,7 +2290,18 @@ Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 reaches it, with no count and no end it has to have. Each node's value is a row,
 which [`make_widget_table_row`](@ref) builds from a vector of values or
 documents. Every column must be given a width — `Fixed`, or a weight — and the
-rows are `Fixed` or `Content`; a list draws no row headers.
+rows are `Fixed` or `Content`; a list draws no row headers. When
+`column_headers` is a `ListNode` too, the columns are a list as well: the
+cells of every row are a `ListNode` anchored at the same column, and so is
+`column_align` when it names each column; every column is `column_policy`,
+which must be `Fixed`, and at least as wide as its header, and every row is
+`Fixed`. Such a table fills
+the height that it is offered and scrolls its own parts there: the header row
+holds still above the rows, and `scroll_position` is the offset of both.
+`top_row` is the row at the top of the cells, counted from the head of the
+list, which the table writes as it scrolls. When that row is far from the head,
+the table moves the head of `rows` to it, so the rows that it builds stay near
+the head.
 
 **A body column and a body row take a `SizePolicy`**, the way a `GridLayout`'s
 do: `column_policy` / `row_policy` say what every one is and the two vectors name
@@ -2300,34 +2318,37 @@ line, cut at the column's edge.
 **A cell sits at the left of its column** unless `column_align` names `:center`
 or `:right` for that column, as a `GridLayout`'s `column_align` does.
 """
-function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
+function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Vector,ListNode},
                      rows::Union{Vector,ListNode}, column_count::Integer,
                      row_headers::Vector=Any[],
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
-                     column_align=Symbol[],
+                     column_align=Symbol[], scroll_position::Point2D=Point2D(0, 0),
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
-    for align in column_align
-        align in (:left, :center, :right) ||
-            error("WidgetTable: a column aligns :left, :center or :right, not ", repr(align))
+    if !(column_align isa ListNode)
+        for align in column_align
+            align in (:left, :center, :right) ||
+                error("WidgetTable: a column aligns :left, :center or :right, not ", repr(align))
+        end
     end
     rows isa ListNode && !isempty(row_headers) &&
         error("WidgetTable: a table whose rows are a list draws no row headers")
     WidgetTable(Cell(position),
-                CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
+                column_headers isa ListNode ? Cell(column_headers) :
+                    CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
                 _table_rows(rows),
                 Cell(Int(column_count)), Cell(Int(border_width)),
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(collect(Symbol, column_align)),
+                Cell(column_align isa ListNode ? column_align : collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(tooltip))
+                Cell(scroll_position), Cell(1), Cell(tooltip))
 end
 
 """
@@ -2364,6 +2385,29 @@ function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0,
                 margin=margin, border=border, padding=padding, style=style,
                 tooltip=tooltip)
 end
+
+# What the REPL and the answer of a tool show of a table: how many rows and
+# columns it has, and its column headers, which say what it holds. The rows are
+# in the tab, and a model that reads this answer can say how many there are
+# without a guess. Julia's own display of a value, so a `print` or a `show` of the
+# table is as it was.
+function Base.show(io::IO, ::MIME"text/plain", table::WidgetTable)
+    headers = [_describe_table_header(header) for header in table.column_headers]
+    columns = isempty(headers) ? table.column_count : length(headers)
+    print(io, "WidgetTable(", _count_table_rows(table.rows), " rows × ", columns, " columns")
+    isempty(headers) || print(io, ": ", join(headers, ", "))
+    print(io, ")")
+end
+
+_count_table_rows(rows) = try count(_ -> true, rows) catch; 0 end
+
+_describe_table_header(header::Cell) = _describe_table_header(header[])
+_describe_table_header(header::AbstractString) = String(header)
+_describe_table_header(header::WidgetLabel) = _describe_table_header(header.content)
+_describe_table_header(::Nothing) = ""
+_describe_table_header(header) =
+    hasproperty(header, :value) && header.value isa AbstractString ? String(header.value) :
+                                                                     string(nameof(typeof(header)))
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
@@ -2857,8 +2901,3 @@ pred_arguments(pane::WidgetScrollPane) = (pane.content,), Pair{Symbol,Any}[]
 # A person sees through a scroll pane to what it shows, which names the pane.
 get_edited_field(::WidgetScrollPane) = :content
 get_document_title(pane::WidgetScrollPane) = get_document_title(pane.content)
-
-function __init__()
-    register_pred_type!(WidgetShell)
-    register_pred_type!(WidgetScrollPane)
-end

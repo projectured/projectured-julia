@@ -36,9 +36,9 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOper
     # An edit that maps onto projection-introduced output — a delimiter the projection
     # printed (a JSON string's quotes, a bracket), with no document pre-image — is
     # deferred, so the raw key falls through to the structural gesture rather than
-    # writing into the projection's own constant output. `_atomic_backward` proj-wraps
-    # such a reference (at the head for a directly-projected scalar, or below an
-    # `.elements[i]` step for a nested one), which `has_introduced_step` detects.
+    # writing into the projection's own constant output. The atomic `_map_backward`
+    # proj-wraps such a reference (at the head for a directly-projected scalar, or below
+    # an `.elements[i]` step for a nested one), which `has_introduced_step` detects.
     has_introduced_step(new_ref) && return nothing
     # The leaf that holds the edited value retypes the edit, also when a
     # container holds the leaf: the container finds it through its children.

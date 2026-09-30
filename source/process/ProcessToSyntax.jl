@@ -283,21 +283,15 @@ end
 # Merged with the Julia table so an embedded action/condition/iterable renders
 # through the same recursion (the `FsmToSyntax` precedent).
 
-function ProcessToSyntax(; session = nothing)
-    # The domain's own pairs come first: a table is tried in order, and the Julia
-    # table ends with a `Document` fallback that would take every document here.
-    pairs = Pair{Type, Any}[
-        ProcessSequence  => ProcessSequenceToSyntaxNode(),
-        ProcessModel     => ProcessModelToSyntaxNode(),
-        ProcessStep      => ProcessStepToSyntaxNode(session = session),
-        ProcessDecision  => ProcessDecisionToSyntaxNode(session = session),
-        ProcessWhile     => ProcessWhileToSyntaxNode(session = session),
-        ProcessForeach   => ProcessForeachToSyntaxNode(session = session),
-        ProcessBreak     => ProcessBreakToSyntaxLeaf(session = session),
-        ProcessContinue  => ProcessContinueToSyntaxLeaf(session = session),
-        ProcessReturn    => ProcessReturnToSyntaxNode(session = session),
-        ProcessInsertion => ProcessInsertionToSyntaxLeaf(),
-        ProcessNothing   => InsertionNothingToSyntaxLeaf()]
-    append!(pairs, JuliaToSyntax().dispatch)
-    TypeDispatchingProjection(pairs)
-end
+ProcessToSyntax(; session = nothing) = JuliaToSyntax(
+    ProcessSequence  => ProcessSequenceToSyntaxNode(),
+    ProcessModel     => ProcessModelToSyntaxNode(),
+    ProcessStep      => ProcessStepToSyntaxNode(session = session),
+    ProcessDecision  => ProcessDecisionToSyntaxNode(session = session),
+    ProcessWhile     => ProcessWhileToSyntaxNode(session = session),
+    ProcessForeach   => ProcessForeachToSyntaxNode(session = session),
+    ProcessBreak     => ProcessBreakToSyntaxLeaf(session = session),
+    ProcessContinue  => ProcessContinueToSyntaxLeaf(session = session),
+    ProcessReturn    => ProcessReturnToSyntaxNode(session = session),
+    ProcessInsertion => ProcessInsertionToSyntaxLeaf(),
+    ProcessNothing   => InsertionNothingToSyntaxLeaf())

@@ -13,9 +13,9 @@ Use it to keep a value that others depend on: a cell records the cells that read
 it, and a write invalidates them, so each of them computes again the next time
 it is read.
 Nothing recomputes until it is read, and nothing recomputes that did not depend
-on what changed. Unless its declaration names another kind, a document keeps
-its fields in these, which is how an edit redraws the part of the screen it
-touched and no more.
+on what changed. A struct of cells keeps its fields in these unless its
+declaration names another kind, so a write to one field invalidates only the
+computations that read that field.
 
 # Example
 
@@ -59,11 +59,13 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
 
     ReactiveCell{T}(value) where {T} =
         new{T}(value, nothing, true, nothing, nothing)
-    # With a `Computation`, `value` stays undefined, because a typed field can not
-    # hold a placeholder. `valid = false` makes `_recompute!` assign it before any
-    # read returns.
+    # With a `Computation`, `value` holds `nothing` when `T` admits it, as after
+    # `set_cell_computation!`. For another `T`, `value` stays undefined, because the
+    # field can not hold a placeholder. `valid = false` makes `_recompute!` assign
+    # it before any read returns.
     function ReactiveCell{T}(marker::Computation) where {T}
         c = new{T}()
+        nothing isa T && (c.value = nothing)
         c.computation = marker.computation
         c.valid = false
         c.dependencies = nothing
@@ -75,8 +77,8 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
 end
 
 # Both edge sets are `nothing` until the first edge forms, and these two make them
-# on first use. Most cells are values that read nothing, and nothing reads them
-# until a projection shows them. An empty `Set` and an empty `Vector` in every
+# on first use. Most cells are values that read nothing, and a cell has no reader
+# until a computation reads it. An empty `Set` and an empty `Vector` in every
 # cell would be about 90% of the cost to make one: about 168 bytes, against 24
 # bytes for a `MutableCell`.
 #
@@ -167,6 +169,7 @@ function _recompute!(c::ReactiveCell)
     end
     _detach_upstream!(c)
     stack = _get_computing_stack()
+    @count_performance :computes
     push!(stack, c)
     try
         c.value = _run_computation(c.computation)
@@ -174,7 +177,6 @@ function _recompute!(c::ReactiveCell)
         pop!(stack)
     end
     c.valid = true
-    @count_performance :computes
 end
 
 # ── invalidation ─────────────────────────────────────────────────────────────
@@ -203,13 +205,15 @@ end
     c[] = value
 
 Make `c` hold `value`, and invalidate every cell that reads `c`, and the cells
-that read those. If `c` held a computation, it holds `value` in its place.
+that read those. If `c` held a computation, it holds `value` in its place. A value
+that does not convert to the value type of `c` throws, and `c` stays as it was.
 """
-function Base.setindex!(c::ReactiveCell, value)
+function Base.setindex!(c::ReactiveCell{T}, value) where {T}
+    converted = convert(T, value)
     @count_performance :writes
     _detach_upstream!(c)
     c.computation = nothing
-    c.value = value
+    c.value = converted
     c.valid = true
     _invalidate_dependents!(c)
     return value
@@ -321,10 +325,9 @@ end
 #
 # `dependents` carries invalidation down to the readers, and it must not keep a
 # reader alive, so it holds `WeakRef`s. With strong edges, a cell would keep alive
-# every cell that ever read it: every projection printed from a document, and
-# every span that a printer drops when it computes again. A reader removes its
-# edges only when it computes again or is written, and a cell that nothing holds
-# never does either.
+# every cell that ever read it, also a computed cell that no other object holds
+# any more. A reader removes its edges only when it computes again or is written,
+# and a cell that nothing holds never does either.
 #
 # The edges are in a `Vector`, which a linear scan by identity searches, and not
 # in a hash set, because the set is small. Across a live pipeline the mean size is
@@ -382,9 +385,11 @@ end
 
 # ── display ──────────────────────────────────────────────────────────────────
 
-function Base.show(io::IO, c::ReactiveCell)
+function Base.show(io::IO, c::ReactiveCell{T}) where {T}
     kind = c.computation === nothing ? "value" : "computation"
-    print(io, "Cell(", kind, ", ")
+    # `Cell` is the name of `ReactiveCell{Any}`, so only a typed cell shows its type.
+    T === Any ? print(io, "Cell(") : print(io, "ReactiveCell{", T, "}(")
+    print(io, kind, ", ")
     # The value is shown into the same `io`, not through `repr`, which makes a new
     # buffer. So the depth and limit keys that a caller set on `io` still hold
     # inside a value in a cell.

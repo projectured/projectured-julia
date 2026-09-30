@@ -42,8 +42,8 @@ Two things are therefore **forbidden**:
    projection needing it with one that does not breaks at that boundary. All
    descent must ride the functions everyone already implements. (This is also why
    the contract is validated *externally*, by a harness driving these four — see
-   [documentation/testing.md](../../../../documentation/testing.md) — never by adding
-   an interface method.)
+   [documentation/guide/testing-guide.md](../../../documentation/guide/testing-guide.md)
+   — never by adding an interface method.)
 2. **No self-walking / flattening by child type.** A function must not recurse over
    the input (or output) subtree itself, dispatching on each child's concrete type,
    and bake the whole subtree into its result. That hard-codes which projection
@@ -51,24 +51,24 @@ Two things are therefore **forbidden**:
    a substituted projection — the "School B" anti-pattern. Delegate through the
    child IoMap / `recursion` instead ("School A").
 
-See [package/kernel/doc/projection-system.md](../../doc/projection-system.md)
+See [projection-system.md](../../../documentation/package/kernel/projection-system.md)
 ("The recursion contract" and "Recursion across projections") for worked recipes
-and [package/kernel/doc/selection.md](../../doc/selection.md)
-for the selection mechanism.
+and [selection.md](../../../documentation/package/kernel/selection.md) for the
+selection mechanism.
 
 # The fragments
 
 | Fragment | Contract |
 |---|---|
-| [`ChildrenContainer.jl`](ChildrenContainer.jl) | the open generics for the children container a template rule holds |
+| [`ChildrenContainer.jl`](ChildrenContainer.jl) | no code: `ProjectionInterface.jl` declares the children-container seam, and a higher package adds its methods |
 | [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree |
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
-| [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype and the four open generics |
+| [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics and the open seams |
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
 | [`OutputPaths.jl`](OutputPaths.jl) | `make_output_path_cells` — every kind of path of an output document, from one forward map |
 | [`ProjectionMacro.jl`](ProjectionMacro.jl) | `@projection` — the projection codegen |
-| [`GestureBindings.jl`](GestureBindings.jl) | the open generics for a projection's gesture-binding tables |
-| [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine every structural projection is written with |
+| [`GestureBindings.jl`](GestureBindings.jl) | the default gesture table of a projection, and `read_projection_gesture` |
+| [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine that many structural projections are written with |
 """
 module ProjectionModule
 
@@ -95,8 +95,9 @@ export ProjectionReferenceStep, make_introduced_reference, is_introduced_referen
        has_introduced_step, find_introduced_path, normalize_named_node_reference
 export PrinterContext, make_child_context, with_exact_size, with_bounded_size, with_size_range,
        with_inner_size, get_exact_width, get_exact_height, withhold_offer, with_clock, with_property, get_property
-export make_children_container, get_children_container_type
-export get_projection_gesture_bindings, read_projection_gesture
+export make_children_container, get_children_container_type,
+       get_projection_gesture_bindings
+export read_projection_gesture
 export RuleIoMap, var"@projection_template"
 export print_template_rule, read_template_intent, make_template_builder, find_template_value_retype
 

@@ -167,16 +167,16 @@ Each verb makes its edit at the pane tree and carries it to the root through the
 ```
 (root)                                          ::GestureTrackingState  # the editor's document
   .content                                      ::ScreenDocument
-    .windows[1]                                 ::WindowDocument        # ProjecturEd
+    .windows[1]                                 ::WindowDocument        # title "ProjecturEd"
       .content.content.content.content          ::PaneTree              # inside ClipboardSlice › WidgetShell › UndoBuffer
         .root                                   ::PaneSplit             # side by side: 20% | 80%
           .elements[1]                          ::PaneGroup             # 1 tab
-            .tabs[1]                            ::PaneTab               # Files — Workspace (focused)
+            .tabs[1]                            ::PaneTab               # title "Files", shows Workspace (focused)
           .elements[2]                          ::PaneGroup             # 1 tab
-            .tabs[1]                            ::PaneTab               # a.json — JsonFile
+            .tabs[1]                            ::PaneTab               # title "a.json", shows JsonFile
 ```
 
-A line's steps are those after the nearest printed line whose path is a prefix of its own, so the path of a part is the steps of the lines on its branch, joined in order: `@reference(editor.document, content.windows[1].content.content.content.content.root.elements[2].tabs[1])`. To name a pane there is a shorter way: `find_pane_reference` answers the reference of a pane by its title. The type on each line is `nameof(typeof(node))`; the note names the node (`get_document_title`), what it is (`describe_document`) when that says more than the type, the wrappers a line's steps pass through, and the deepest focused tab. `include(node)` says which nodes get a line and `descend(parent, child)` where the walk goes; the defaults show the windows, the pane trees, the splits, the groups and the tabs, and a pane tree inside a tab below that tab. It answers a `Text` and not a `String`, so the tree arrives as the lines it is and not as one line of `\n` escapes.
+A line's steps are those after the nearest printed line whose path is a prefix of its own, so the path of a part is the steps of the lines on its branch, joined in order: `@reference(editor.document, content.windows[1].content.content.content.content.root.elements[2].tabs[1])`. To name a pane there is a shorter way: `find_pane_reference` answers the reference of a pane by its title. The type on each line is `nameof(typeof(node))`; the note gives the node's title after `title`, quoted as `find_pane` takes it (`get_document_title`), what it shows after `shows` (`describe_document`) when that says more than the type, the wrappers a line's steps pass through, and the deepest focused tab. `include(node)` says which nodes get a line and `descend(parent, child)` where the walk goes; the defaults show the windows, the pane trees, the splits, the groups and the tabs, and a pane tree inside a tab below that tab. It answers a `Text` and not a `String`, so the tree arrives as the lines it is and not as one line of `\n` escapes.
 
 A path written by hand is typed against the tree it names a part of, then set after the path to that tree: resolve `find_pane_tree_reference(editor)` to the tree object with `evaluate_reference`, type the rest with `@reference(tree, …)`, and join the two with `concat_references`:
 
@@ -195,6 +195,14 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 `find_pane(editor, title)` answers the tab of that title as a `ReferencedDocument` that acts like the tab, or `nothing` when no tab has that title; two tabs of that title raise the same `ArgumentError` as `find_pane_reference`. Every verb that takes a reference, or a document to place, also takes a `ReferencedDocument` in its stead: `focus_pane!`, `close_pane!`, `duplicate_pane!`, `move_pane!` for either its reference or its target, `get_referenced_value`, `replace_referenced_value!` for the reference or the value it writes, `describe_document`, and `open_pane!` for the document it opens and for its `target` — such as the tab `find_pane` answers. `open_pane!` and `duplicate_pane!` answer the tab they made as a `ReferencedDocument` too; `get_reference` gives its reference.
 
 `make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
+
+### The tabs of an editor
+
+The wrapper `tabs` of `build_editor` puts the root document in the one tab of a pane tree. It is on by default, so an editor that is built with this package loaded shows its documents as tabs, and `tabs = false` turns it off. A root that is a `PaneTree` or a `ScreenDocument` already is left as it is. Its setting `(; title, font, measure)` names the tab and gives the font and the measure of the pane's widgets.
+
+`make_tabs_projection(projection)` draws the tree. `PaneToWidget` makes the widgets and leaves the content of each tab as it is. The stage after it draws every widget and layout with the widget renderer, and every other document with `projection`. So the tabs work with a projection that draws no widget, and a content that is itself a widget draws as a widget. A content can not be told by its place, because the widget printers hand their own context to a child.
+
+`show_document!(editor, document; title)` of the screen package shows a later document. For a window whose content is a `PaneTree`, this package's method opens a tab named `title`, or focuses the tab that shows `document` already.
 
 ### Save and load of the whole editor
 

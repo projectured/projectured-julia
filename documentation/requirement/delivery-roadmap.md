@@ -12,7 +12,7 @@ The order of the work has been the same from the start: **make the whole path wo
 
 **Twenty domains.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia, math, formulas, charts, sequence charts, graphs, state machines, processes, books, the file system, the conversation, the assistant, versioning and the reflection view of any object. [domain-inventory.md](../design/domain-inventory.md) lists them with what each one holds.
 
-**Views that are not text.** Line, bar, histogram, scatter and strip charts, sequence charts, a graph with two layout engines, a state machine as a diagram, and a form or a table of widgets. A data point of a chart is selected like any other part.
+**Views that are not text.** Line, bar, histogram, scatter and strip charts, sequence charts, a graph with two layout engines, a state machine as a diagram, and a form or a table of widgets. A table cell takes a click, the arrows, typed characters and Backspace ([edit-inside-a-table-cell.md](../../plan/done/edit-inside-a-table-cell.md)); a drag inside a cell does not select text yet. A data point of a chart is selected like any other part.
 
 **The general steps.** A filter, a sort, a search, a focus, a collapse and a copy are steps in front of any data, so a new domain gets them without code. A search runs over one document by default (`search_references`, `search_documents`).
 
@@ -55,7 +55,6 @@ Each line names the plan that carries it.
 
 **A user sees these.**
 
-- **Editable tables.** A table renders and navigates; a cell does not take an edit.
 - **A click that selects in every view.** A click works where a projection wires it, and elsewhere it does nothing.
 - **Links between documents** ([document-link-feature.md](../../plan/pending/document-link-feature.md), [document-locator.md](../../plan/pending/document-locator.md)). A reference from one document to another does not exist yet.
 - **Richer SQL** ([bound-sql-statement.md](../../plan/pending/bound-sql-statement.md), [sql-select-aggregation-support.md](../../plan/pending/sql-select-aggregation-support.md), [dbcatalog-index-support.md](../../plan/pending/dbcatalog-index-support.md)).

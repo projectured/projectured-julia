@@ -107,4 +107,5 @@ LlmRequest(; system::AbstractString = "",
              messages::AbstractVector{LlmMessage} = LlmMessage[],
              tools::AbstractVector{Tool} = Tool[],
              thinking::Bool = false) =
-    LlmRequest(String(system), collect(LlmMessage, messages), collect(Tool, tools), thinking)
+    LlmRequest(String(system), collect(LlmMessage, messages), collect(Tool, tools),
+               thinking)

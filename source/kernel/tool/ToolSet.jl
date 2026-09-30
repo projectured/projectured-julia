@@ -12,8 +12,8 @@ An entry of `declaration` is a **module**, which gives every name it exports, or
 a **`module => names` pair**, which gives those names and no others:
 
 ```julia
-declare_api!(set, [AgentModule,
-                   PaneModule => (:PaneSplit, :PaneGroup, :PaneTab),
+declare_api!(set, [DocumentModule,
+                   ToolModule => (:list_tools, :find_tool),
                    ReferenceModule => (Symbol("@reference"),)])
 ```
 
@@ -30,11 +30,17 @@ Declaring nothing restores the whole surface.
 both give**. The first fails when the namespace is built, and the second is an
 ambiguity Julia reports only when the model writes the name — both far from the
 line a person can fix. The declaration is that line.
+
+**A name a model looks the API up with**, such as `search_api`, is always the
+helper of the namespace, with the declaration applied. A declared module that
+exports the helper function itself gives nothing more, and one that gives another
+value under that name is refused: give that value under another name.
 """
 function declare_api!(set::ToolSet, declaration)
     entries = _api_entries(declaration)
     _refuse_missing_names(entries)
     _refuse_declared_twice(entries)
+    _refuse_helper_names(entries)
     set.api = entries
     # The namespace is built from the declaration, so a new declaration needs a
     # new namespace. What the model had assigned in it goes with it, which is
@@ -54,6 +60,18 @@ a search then ranks by its words.
 function set_meaning_model!(set::ToolSet, model::Union{Nothing,MeaningModel})
     set.meaning_model = model
     _start_meaning_vectors!(set)
+    set
+end
+
+"""
+    set_relevance_model!(set, model) -> set
+
+Give `set` the [`RelevanceModel`](@ref) its searches by description rank with.
+`nothing` takes the model away, and such a search then ranks by meaning, or by
+its words.
+"""
+function set_relevance_model!(set::ToolSet, model::Union{Nothing,RelevanceModel})
+    set.relevance_model = model
     set
 end
 
@@ -98,7 +116,7 @@ function _refuse_declared_twice(entries::Vector{ApiEntry})
     # that writes the word reaches one function either way. A declaration of
     # twenty-five modules holds a dozen of those, so refusing them would refuse
     # every wide declaration.
-    for entry in entries, (name, alias) in api_entry_bindings(entry)
+    for entry in entries, (name, alias) in get_api_entry_bindings(entry)
         value = isdefined(entry.module_, name) ? getfield(entry.module_, name) : nothing
         first_one = get(seen, alias, nothing)
         if first_one === nothing
@@ -113,7 +131,20 @@ function _refuse_declared_twice(entries::Vector{ApiEntry})
     entries
 end
 
-register_tools!(set::ToolSet, ts) = (foreach(t -> register_tool!(set, t), ts); set.tools)
+# The namespace defines each helper name itself (`_SCRATCH_HELPER_NAMES`). A
+# declared binding under one of them is the helper function itself, which the
+# namespace then gives with the declaration applied, or it is refused: the
+# model would write the word and reach the helper, not the value declared.
+function _refuse_helper_names(entries::Vector{ApiEntry})
+    for entry in entries, (name, alias) in get_api_entry_bindings(entry)
+        alias in _SCRATCH_HELPER_NAMES || continue
+        getfield(entry.module_, name) === getfield(@__MODULE__, alias) && continue
+        error("The name " * repr(alias) * " is how a model looks the API up, and " *
+              String(nameof(entry.module_)) * " gives another value under it. " *
+              "Give that value under another name.")
+    end
+    entries
+end
 
 """
     list_tools(set) -> Vector{Tool}
@@ -151,9 +182,6 @@ function register_resource!(set::ToolSet, r::Resource)
     i === nothing ? push!(set.resources, r) : (set.resources[i] = r)
     r
 end
-
-register_resources!(set::ToolSet, rs) =
-    (foreach(r -> register_resource!(set, r), rs); set.resources)
 
 """
     list_resources(set) -> Vector{Resource}

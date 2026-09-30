@@ -99,8 +99,9 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         command_palette &&
             (projection = CommandPaletteDecoratorProjection(inner = projection, measure = measure))
         # The recorder is outermost, where it sees every operation the window
-        # makes, and it is always there.
-        projection = GestureLogRecordingProjection(inner = projection, log = log)
+        # makes, and it is always there. A typed run is one entry: a person reads
+        # what was typed, not one line for each letter.
+        projection = GestureLogRecordingProjection(inner = projection, log = log, fold_typing = true)
         (document, projection)
     end
 end
@@ -110,8 +111,8 @@ end
                                    measure::TextMeasure = FontFileMeasure()) -> Vector
 
 What draws the content of a window that a wrapper of [`make_window_wrap`](@ref)
-opens. It is the value of the `opened_window_projections` keyword of
-`run_window_editor`.
+opens. It is the value of the `opened_window_projections` setting of the
+`window` wrapper of `build_editor`.
 
 **A window whose content type is named by no row draws nothing.** The help
 window holds a `GestureMap`, which this function names. A tooltip window holds a

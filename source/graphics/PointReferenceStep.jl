@@ -13,6 +13,8 @@ ReferenceModule.get_reference_step_kind(::PointReferenceStep) = :structural
 ReferenceModule.evaluate_reference_step(step::PointReferenceStep, document) = (step.x, step.y)
 
 Base.:(==)(a::PointReferenceStep, b::PointReferenceStep) = a.x == b.x && a.y == b.y
+Base.hash(s::PointReferenceStep, h::UInt) =
+    hash(s.y, hash(s.x, hash(:PointReferenceStep, h)))
 
 function Base.show(io::IO, s::PointReferenceStep)
     print(io, "@(", s.x, ",", s.y, ")")
@@ -48,7 +50,7 @@ function ReferenceModule.match_reference_step(::Val{:point}, hex, argpats, rest_
         if $hex isa $(GlobalRef(GraphicsModule, :PointReferenceStep))
             $inner1
         else
-            _nomatch
+            _NO_MATCH
         end
     end
     return ex, bound1

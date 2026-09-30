@@ -68,6 +68,7 @@ include("../../../test/julia/document/JuliaParserTest.jl")
 include("../../../test/julia/document/JuliaExpressionTest.jl")
 include("../../../test/julia/document/JuliaDefinitionTest.jl")
 include("../../../test/julia/document/JuliaDuplicateTest.jl")
+include("../../../test/julia/projection/JuliaToSyntaxTest.jl")
 include("../../../test/julia/editor/JuliaTypeinTest.jl")
 
 include("../../../test/julia/JuliaSuite.jl")

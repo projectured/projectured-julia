@@ -128,6 +128,42 @@ end
     @test tc[] == 20
 end
 
+@testset "a write that does not convert leaves a typed computed cell as it was" begin
+    t = ReactiveCell{Int}(1)
+    tc = ReactiveCell{Int}(@computation t[] + 1)
+    @test tc[] == 2
+    @test_throws InexactError tc[] = 2.5
+    @test is_computed_cell(tc)
+    t[] = 5
+    @test !is_cell_up_to_date(tc)          # the cell still reads `t`
+    @test tc[] == 6
+
+    # A cell that nothing read keeps its computation too.
+    unread = ReactiveCell{Int}(@computation t[] * 3)
+    @test_throws InexactError unread[] = 2.5
+    @test is_computed_cell(unread)
+    @test unread[] == 15
+end
+
+@testset "a new computed cell holds nothing until its first read" begin
+    # The stored value is what persistence reads, so it must be defined.
+    fresh = Cell(@computation 1)
+    @test getfield(fresh, :value) === nothing
+    @test fresh[] == 1
+    wide = ReactiveCell{Union{Nothing,Int}}(@computation 2)
+    @test getfield(wide, :value) === nothing
+    @test wide[] == 2
+end
+
+@testset "a MutableCell rejects a written Computation" begin
+    m = MutableCell{Any}(0)
+    @test_throws ArgumentError m[] = @computation 1
+    @test m[] === 0
+    typed = MutableCell{Int}(0)
+    @test_throws ArgumentError typed[] = Computation(() -> 1)
+    @test typed[] === 0
+end
+
 @testset "MutableCell" begin
     m = MutableCell(1)
     @test m isa AbstractCell{Int}
@@ -249,6 +285,124 @@ end
     @test Cell(Computation(doubled))[] == 4
     # `@computation f` computes the function as a value, and does not call it.
     @test Cell(@computation doubled)[] === doubled
+end
+
+@testset "show" begin
+    @test repr(Cell(2)) == "Cell(value, 2)"
+    @test repr(Cell(@computation 2)) == "Cell(computation, <invalid>)"
+    # A typed cell is not a `Cell`, so it shows its type.
+    @test repr(ReactiveCell{Int}(2)) == "ReactiveCell{$(Int)}(value, 2)"
+    typed = ReactiveCell{Int}(@computation 3)
+    typed[]
+    @test repr(typed) == "ReactiveCell{$(Int)}(computation, 3)"
+    @test repr(MutableCell(1)) == "MutableCell(1)"
+    @test repr(ImmutableCell("a")) == "ImmutableCell(\"a\")"
+end
+
+@testset "unwrap_cell" begin
+    source = Cell(3)
+    @test unwrap_cell(source) == 3
+    @test unwrap_cell(MutableCell(4)) == 4
+    @test unwrap_cell(ImmutableCell(5)) == 5
+    @test unwrap_cell(6) == 6                      # a plain value reads as itself
+    @test unwrap_cell(nothing) === nothing
+    # The read is an ordinary one, so a computation depends on the cell.
+    reader = Cell(@computation unwrap_cell(source) + 1)
+    @test reader[] == 4
+    source[] = 10
+    @test !is_cell_up_to_date(reader)
+    @test reader[] == 11
+end
+
+@testset "set_cell_value!" begin
+    margin = Cell(5)
+    width = Cell(@computation 2 * margin[])
+    reader = Cell(@computation width[] + 1)
+    @test reader[] == 11
+    set_cell_value!(width, 80)
+    @test !is_computed_cell(width)
+    @test !is_cell_up_to_date(reader)              # the write invalidates the reader
+    @test reader[] == 81
+    margin[] = 6                                   # the value does not follow `margin`
+    @test is_cell_up_to_date(width)
+    @test width[] == 80
+end
+
+@testset "copy_cell_as keeps the kind and the value type" begin
+    m = copy_cell_as(MutableCell{Union{Nothing,Int}}(1), 2)
+    @test m isa MutableCell{Union{Nothing,Int}}
+    @test m[] == 2
+    i = copy_cell_as(ImmutableCell{Real}(1), 2.5)
+    @test i isa ImmutableCell{Real}
+    @test i[] == 2.5
+    r = copy_cell_as(ReactiveCell{Int}(1), 3)
+    @test r isa ReactiveCell{Int}
+    @test r[] == 3
+    # The copy is a new cell that holds the value, and it has no computation.
+    computed = Cell(@computation 7)
+    copied = copy_cell_as(computed, 8)
+    @test copied !== computed
+    @test !is_computed_cell(copied)
+    @test copied[] == 8
+end
+
+@testset "is_computed_cell" begin
+    @test !is_computed_cell(Cell(3))
+    @test is_computed_cell(Cell(@computation 3))
+    @test !is_computed_cell(MutableCell(3))
+    @test !is_computed_cell(ImmutableCell(3))
+end
+
+@testset "peek inside a computation records no dependency" begin
+    frames = Cell(1)
+    title = Cell("a")
+    drawn = Cell(@computation string(peek(frames), title[]))
+    @test drawn[] == "1a"
+    @test !has_dependent_cells(frames)
+    frames[] = 2
+    @test is_cell_up_to_date(drawn)                # not a reader of `frames`
+    @test drawn[] == "1a"
+    title[] = "b"
+    @test drawn[] == "2b"
+
+    # A peek of an invalid computed cell computes it, and the reader of the peek
+    # does not depend on it.
+    inner = Cell(@computation frames[] + 100)
+    outer = Cell(@computation peek(inner) + 1)
+    @test outer[] == 103
+    @test is_cell_up_to_date(inner)
+    @test !has_dependent_cells(inner)
+    @test has_dependent_cells(frames)              # `inner` reads `frames`
+end
+
+@testset "a reader that caught a failed computation computes again after a write" begin
+    a = Cell(0)
+    b = Cell(@computation a[] == 0 ? error("zero") : 10 ÷ a[])
+    c = Cell(@computation try b[] catch; -1 end)
+    @test c[] == -1
+    a[] = 2
+    # A failed computation leaves its cell invalid, so the walk of the write stops
+    # there.
+    # @broken: a failed computation stops the walk of a later write (L03-1)
+    @test_broken c[] == 5
+end
+
+@testset "a write while a reader computes reaches the reader" begin
+    t = Cell(1)
+    q = Cell(@computation t[] + 1)
+    written = Ref(false)
+    p = Cell(@computation begin
+        value = q[]
+        # A write to an input of `q` while `p` computes.
+        written[] || (written[] = true; t[] = 10)
+        value
+    end)
+    @test p[] == 2
+    t[] = 20
+    # The walk of the first write stopped at `p`, which computed, and `q` stays
+    # invalid.
+    # @broken: a write while a reader computes leaves the reader stale (L03-2)
+    @test_broken p[] == 21
 end
 
 @testset "a MethodError in a chain of ten computed cells" begin

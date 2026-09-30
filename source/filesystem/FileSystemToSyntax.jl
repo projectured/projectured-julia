@@ -224,6 +224,4 @@ function __init__()
                                                 RecursiveProjection(WidgetToGraphics(font_ubuntu_monospace_regular_20;
                                                                                      measure = measure))),
     ])
-    register_pred_type!(Workspace)
-    register_pred_type!(WorkspaceFolder)
 end

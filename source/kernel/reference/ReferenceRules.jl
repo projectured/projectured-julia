@@ -224,18 +224,18 @@ _match_value(value, pat::PatValueInterp, b::ReferenceRuleBindings) =
           "interpolation is evaluated at construction, so store the value")
 
 _match_step(h, step::PatStepField, b::ReferenceRuleBindings) =
-    h isa FieldReferenceStep ? _match_value(h.name, step.namepat, b) : nothing
+    h isa AFieldReferenceStep ? _match_value(h.name, step.namepat, b) : nothing
 
 _match_step(h, step::PatStepIndex, b::ReferenceRuleBindings) =
-    (h isa RangeReferenceStep && is_element_reference_step(h)) ?
+    (h isa ARangeReferenceStep && is_element_reference_step(h)) ?
     _match_value(h.start + 1, step.idxpat, b) : nothing
 
 _match_step(h, step::PatStepPosition, b::ReferenceRuleBindings) =
-    (h isa RangeReferenceStep && is_position_reference_step(h)) ?
+    (h isa ARangeReferenceStep && is_position_reference_step(h)) ?
     _match_value(h.start, step.idxpat, b) : nothing
 
 function _match_step(h, step::PatStepRange, b::ReferenceRuleBindings)
-    h isa RangeReferenceStep || return nothing
+    h isa ARangeReferenceStep || return nothing
     start = step.numbering === :element ? h.start + 1 : h.start
     b1 = _match_value(start, step.startpat, b)
     b1 === nothing ? nothing : _match_value(h.stop, step.stoppat, b1)
@@ -323,13 +323,8 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
     # node type it must be `<: T`, where it records none the step says nothing. The rule
     # is `_type_step_matches`, the same predicate `ReferenceCase.jl`'s codegen calls, so
     # the compiled and interpreted readings cannot drift. Matching continues on the SAME
-    # path for a folded node (the type is a field, consuming no step) and past an
-    # unfolded `TypeReferenceStep` *step* if one is present.
+    # path, because the type is a field of the node and consumes no step.
     if step isa PatStepType
-        if path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
-            return _type_step_matches(get_reference_head(path).type, step.typeexpr) ?
-                   _consume(get_reference_tail(path), rest, b, accept) : nothing
-        end
         return _type_step_matches(_type_step_node_type(path), step.typeexpr) ?
                _consume(path, rest, b, accept) : nothing
     end
@@ -366,9 +361,8 @@ function _consume(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleBindi
 end
 
 # Consume an interpolated path `sub` from the front of `path`, shape-only. The step walk
-# is over the stripped forms (so an unfolded checkpoint step on either side is
-# invisible), and the leftover is taken from `path` itself so folded node types survive
-# into a delegated rule set.
+# is over the stripped forms, and the leftover is taken from `path` itself so folded
+# node types survive into a delegated rule set.
 function _consume_path(path::Reference, sub)
     sub isa Reference ||
         error("^(path) in an @reference_rules pattern must interpolate a Reference, got $(typeof(sub))")
@@ -385,26 +379,21 @@ function _consume_path(path::Reference, sub)
     _drop_navigation_steps(path, consumed)
 end
 
-# Drop `n` navigation steps from the front of `path`, stepping over any unfolded
-# checkpoint step on the way (those are invisible to the shape walk above).
+# Drop `n` navigation steps from the front of `path`, or answer `nothing` when the
+# path has fewer.
 function _drop_navigation_steps(path::Reference, n::Int)
-    while n > 0
+    for _ in 1:n
         path isa ConcreteReference || return nothing
-        get_reference_head(path) isa TypeReferenceStep || (n -= 1)
-        path = get_reference_tail(path)
-    end
-    while path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
         path = get_reference_tail(path)
     end
     path
 end
 
-# How many navigation steps a path has, ignoring any unfolded checkpoint step — the
-# count a gap's arithmetic is done in.
+# How many navigation steps a path has — the count a gap's arithmetic is done in.
 function _navigation_length(path::Reference)
     n = 0
     while path isa ConcreteReference
-        get_reference_head(path) isa TypeReferenceStep || (n += 1)
+        n += 1
         path = get_reference_tail(path)
     end
     n
@@ -415,8 +404,8 @@ end
 function _take_leading_steps(path::Reference, n::Int)
     n == 0 && return EmptyReference(path.type)
     path isa ConcreteReference || return EmptyReference()
-    taken = get_reference_head(path) isa TypeReferenceStep ? n : n - 1
-    ConcreteReference(path.type, get_reference_head(path), _take_leading_steps(get_reference_tail(path), taken))
+    ConcreteReference(path.type, get_reference_head(path),
+                      _take_leading_steps(get_reference_tail(path), n - 1))
 end
 
 """
@@ -432,11 +421,6 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     step = steps[1]
     rest = steps[2:end]
 
-    # Reaching a gap settles it. A gap is unbounded, so whatever is left of the input can
-    # be absorbed by it and the pattern still has a member that continues past — which is
-    # exactly "the input is a proper prefix of some member". Nothing after the gap needs
-    # examining, and a bound gap has nothing well-defined to bind here, since the run it
-    # would name is the part of a member the input never reached.
     if step isa PatStepAlt
         for alternative in step.alternatives
             attempt = copy(b)
@@ -449,6 +433,10 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
         return false
     end
 
+    # Reaching a gap settles it. A gap is unbounded, so whatever is left of the input can
+    # be absorbed by it and the pattern still has a member that continues past — which is
+    # exactly "the input is a proper prefix of some member". Nothing after the gap needs
+    # examining.
     if step isa PatStepGap
         # A named gap binds what it covered — which here is whatever is left of the
         # input, since that is the part of the member the input reached before running
@@ -459,10 +447,6 @@ function _match_above(path::Reference, steps::Vector{PatStep}, b::ReferenceRuleB
     end
 
     if step isa PatStepType
-        if path isa ConcreteReference && get_reference_head(path) isa TypeReferenceStep
-            return _type_step_matches(get_reference_head(path).type, step.typeexpr) &&
-                   _match_above(get_reference_tail(path), rest, b)
-        end
         return _type_step_matches(_type_step_node_type(path), step.typeexpr) &&
                _match_above(path, rest, b)
     end
@@ -810,8 +794,8 @@ _quote_pat_value(pat::PatValueBind) = :($PatValueBind($(QuoteNode(pat.name))))
 _quote_pat_value(pat::PatValueTypedBind) =
     :($PatValueTypedBind($(QuoteNode(pat.name)), $(esc(pat.ty))))
 _quote_pat_value(pat::PatValueLiteral) = :($PatValueLiteral($(QuoteNode(pat.value))))
-# Both bounds are evaluated at the construction site, like every other interpolation.
 _quote_pat_value(pat::PatValueGlob) = :($PatValueGlob($(pat.pattern)))
+# Both bounds are evaluated at the construction site, like every other interpolation.
 _quote_pat_value(pat::PatValueRange) = :($PatValueRange($(esc(pat.lo)), $(esc(pat.hi))))
 _quote_pat_value(pat::PatValueAny) =
     :($PatValueAny($PatValue[$(map(_quote_pat_value, pat.alternatives)...)]))
@@ -874,9 +858,9 @@ function _parse_rules_arm(ex)
         lhs = lhs.args[2]
     end
 
-    # A bare `_` arm is the retired catch-all, so it raises rather than quietly
-    # becoming "any one-step path". Only the un-worded arm is guarded: `at(_)` says
-    # one step deliberately, and is how the new meaning is written meanwhile.
+    # A bare `_` arm raises: a reader takes it for a catch-all, and `_` matches
+    # exactly one step. Only the un-worded arm is guarded: `at(_)` says one step
+    # deliberately.
     lhs === :_ && error(REFERENCE_RETIRED_CATCH_ALL)
 
     mode = :at

@@ -152,6 +152,17 @@ function HorizontalLayout(children::Vector;
                      Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
+# A row of the children of a list, which it draws lazily: the children that a
+# viewport shows, walked from the head. See `LayoutList.jl`.
+function HorizontalLayout(children::ListNode;
+                          vertical_align::Symbol=:top,
+                          gap::Integer=0,
+                          child_width::Union{Nothing,SizePolicy}=nothing,
+                          child_height::Union{Nothing,SizePolicy}=nothing)
+    HorizontalLayout(Cell(children), Cell(vertical_align), Cell(Int(gap)),
+                     Cell(child_width), Cell(child_height), Cell(nothing))
+end
+
 # ── VerticalLayout ──────────────────────────────────────────────────────────
 
 """
@@ -185,6 +196,17 @@ function VerticalLayout(children::Vector;
                         child_height::Union{Nothing,SizePolicy}=nothing)
     VerticalLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                    Cell(horizontal_align), Cell(Int(gap)),
+                   Cell(child_width), Cell(child_height), Cell(nothing))
+end
+
+# A column of the children of a list, which it draws lazily: the children that a
+# viewport shows, walked from the head. See `LayoutList.jl`.
+function VerticalLayout(children::ListNode;
+                        horizontal_align::Symbol=:left,
+                        gap::Integer=0,
+                        child_width::Union{Nothing,SizePolicy}=nothing,
+                        child_height::Union{Nothing,SizePolicy}=nothing)
+    VerticalLayout(Cell(children), Cell(horizontal_align), Cell(Int(gap)),
                    Cell(child_width), Cell(child_height), Cell(nothing))
 end
 
@@ -226,6 +248,12 @@ An entry past the end of a vector, or `nothing` in one, means the default.
 A weighted column or row is given its share of what the parent offered, and its
 cells are offered that share. A `Content` one keeps the axis withheld, because
 its extent comes from those cells and offering it back would close a cycle.
+Every column and row is at least the `min` and at most the `max` of its policy.
+
+`column_offers` and `row_offers` are one `Bool` for each column and each row: a
+`false` keeps the extent of a sized column or row from its cells, which it then
+clips. A caller uses it to measure a cell at its own size in a column or a row
+that another grid sizes.
 """
 @document struct GridLayout <: LayoutDocument
     children::CellVector
@@ -248,6 +276,8 @@ its extent comes from those cells and offering it back would close a cycle.
     # what a table means by a clipped cell, and it is said here because the
     # offer is the grid's to make.
     column_offers::Any
+    # Vector{Bool}, one per row; the same for the height of a row.
+    row_offers::Any
 end
 
 function GridLayout(children::Vector, columns::Integer;
@@ -260,7 +290,8 @@ function GridLayout(children::Vector, columns::Integer;
                     row_policy::SizePolicy=Content,
                     column_policies=Any[],
                     row_policies=Any[],
-                    column_offers=Bool[])
+                    column_offers=Bool[],
+                    row_offers=Bool[])
     columns >= 1 || error("GridLayout: columns must be >= 1")
     GridLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(Int(columns)),
@@ -269,7 +300,33 @@ function GridLayout(children::Vector, columns::Integer;
                Cell(collect(column_align)),
                Cell(column_policy), Cell(row_policy),
                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
-               Cell(collect(Bool, column_offers)),
+               Cell(collect(Bool, column_offers)), Cell(collect(Bool, row_offers)),
+               Cell(nothing))
+end
+
+# A grid of the rows of a list, which it draws lazily: the rows that a viewport
+# shows, walked from the head. Each row is a vector of the documents of its
+# cells, one for each column, or, when `column_policies` is a list, a list of
+# them anchored with it, which the grid draws lazily as well. See `GridList.jl`
+# and `GridColumnList.jl`.
+function GridLayout(rows::ListNode, columns::Integer;
+                    horizontal_align::Symbol=:left,
+                    vertical_align::Symbol=:top,
+                    horizontal_gap::Integer=0,
+                    vertical_gap::Integer=0,
+                    column_align=Symbol[],
+                    column_policy::SizePolicy=Content,
+                    row_policy::SizePolicy=Content,
+                    column_policies=Any[],
+                    column_offers=Bool[])
+    columns >= 1 || error("GridLayout: columns must be >= 1")
+    GridLayout(Cell(rows), Cell(Int(columns)),
+               Cell(horizontal_align), Cell(vertical_align),
+               Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
+               Cell(column_align isa ListNode ? column_align : collect(column_align)),
+               Cell(column_policy), Cell(row_policy),
+               Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),
+               Cell(Any[]), Cell(collect(Bool, column_offers)), Cell(Bool[]),
                Cell(nothing))
 end
 

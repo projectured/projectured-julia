@@ -65,7 +65,8 @@ end
 BackendModule.quit_backend!(::TimerProbeBackend) = nothing
 
 function _timer_editor(backend::TimerProbeBackend, log::Vector{Any}; delay::Real = 0.1)
-    editor = Editor(backend, TimerProbe(), TimerProbeProjection(log, Float64(delay)), Device[])
+    editor = Editor(TimerProbe(), TimerProbeProjection(log, Float64(delay));
+                    backend = backend, devices = Device[])
     print!(editor)
     editor
 end

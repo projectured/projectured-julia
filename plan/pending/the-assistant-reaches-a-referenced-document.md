@@ -299,6 +299,13 @@ model takes.
   for the S2 rehearsals). It names the older path (`find_pane_reference`,
   `get_referenced_value`, `print_natural_text(tab.content)`), which still works;
   whether it names the new one is the owner's choice after Step 6.
+  **Changed by the owner, 2026-09-26** (after take 5 of S2, where the model took
+  the older path, never read the guide, and so never found `insert_elements!`;
+  the path also broke on the scroll pane of a file tab): the paragraph of
+  `APPLICATION_SYSTEM` names no data file, sends the model to the orientation
+  guide first, and names `find_pane`, `get_edited_document`, the three editing
+  verbs, `open_pane!` with `target` and `side`, `get_parent` and
+  `make_file_tab_content`. `make_file_api` declares `make_file_tab_content`.
 
 - **D22. The model knows from the start that it changes the editor's document
   through a verb or an operation** (the owner, 2026-09-26: "It should not discover

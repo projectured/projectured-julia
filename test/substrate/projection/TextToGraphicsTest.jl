@@ -165,6 +165,39 @@ next_node = iomap.output.elements.next
 
 end # @testset "TextToGraphics ListNode lazy evaluation"
 
+@testset "TextToGraphics reads a key on a list of text without walking it" begin
+
+# Ten thousand paragraphs, each link computed when it is first read. The printer
+# reads the first paragraph; a key must read no more, because a list can be
+# endless and a list block keeps no line geometry for a key to move along.
+font = font_ubuntu_monospace_regular_20
+computed = Ref(0)
+function make_paragraph(i)
+    text = ListNode(TextString("paragraph $i", font, color_white))
+    newline = ListNode(TextNewline(font = font))
+    text.next = newline
+    newline.prev = text
+    i < 10_000 && set_cell_computation!(getfield(newline, :next), () -> begin
+        computed[] += 1
+        following = make_paragraph(i + 1)
+        following.prev = newline
+        following
+    end)
+    text
+end
+block = TextBlock()
+block.elements = make_paragraph(1)
+p = TextToGraphics(measure = _test_measure(10, 20))
+iomap = print_document(p, IdentityProjection(), block, PrinterContext())
+printed = computed[]
+@test printed <= 1
+for key in (:up, :down, :home, :end, :return)
+    @test read_intent(p, iomap, KeyDown(key, ModifierKeys(); time = 0.0)) === nothing
+end
+@test computed[] == printed
+
+end # @testset "TextToGraphics reads a key on a list of text without walking it"
+
 @testset "TextToGraphics inline image" begin
 
 m = _test_measure(10, 18)

@@ -34,9 +34,9 @@
 #
 # `file` and `node` are the splice's own. Every other verb is registered by the
 # package that owns its machinery, with `register_marker_function!(:name, f)`,
-# and is called as `f(project, args...)`. A capitalised name constructs the type
-# it names, of the types `register_pred_type!` offered. A `.pred` file is one
-# such call, at file scale: see `PredFile.jl`.
+# and is called as `f(project, args...)`. A capitalised name constructs the
+# loaded document type it names. A `.pred` file is one such call, at file scale:
+# see `PredFile.jl`.
 
 """
     FileDocument
@@ -252,31 +252,92 @@ end
 _is_type_name(name::Symbol) =
     (text = String(name); Base.isidentifier(text) && isuppercase(first(text)))
 
-# The types a file may construct, by name. The serialization layer knows nothing
-# about which modules a project may name, so a package offers what its files may
-# hold and nothing else can be built.
-const _PRED_TYPES = Dict{String,Type}()
+# ── The types a file may name ────────────────────────────────────────────────
+#
+# A file names a document by the name of its schema, the name written after
+# `struct`, and the reader builds the type that the schema's module binds to
+# that name, because that is the type a programmer calls. Every loaded subtype
+# of `Document` may be named, so no package lists its types, and a type that is
+# data but not a document may be named when its package says so with
+# `is_pred_constructible`. The names are read from the loaded modules when a
+# name is not known yet, because a package that is loaded later brings types of
+# its own.
 
 """
-    register_pred_type!(T) -> T
+    is_pred_constructible(::Type) -> Bool
 
-Offer `T` to a file: a marker naming it constructs one, and a `.pred` file may
-hold one. Nothing is offered by default, so a file can never name a type the
-session did not put on this list.
-
-A file names a document by its schema, the name written after `struct`, and
-every layout of the schema answers to that name. The name builds the type that
-the schema's module binds to it, because that is the type a programmer calls. A
-layout whose own name is not the schema's is offered under its own name too,
-which is the name the writer prints.
-
-Runtime state, so register it from `__init__`.
+Whether a file may name a type and have one built. `true` for a `Document`, and
+`false` for anything else unless the package that owns the type adds a method,
+as a wire format that is data does. A type that must not be built from a file
+says so in its method of [`make_pred_document`](@ref).
 """
-function register_pred_type!(T::Type)
-    constructor = _get_schema_type(T)
-    _PRED_TYPES[String(get_document_schema_name(T))] = constructor
-    _PRED_TYPES[String(nameof(T))] = constructor
-    T
+is_pred_constructible(::Type{T}) where {T} = T <: Document
+
+# The name of each loaded document type, to its constructor, or to every
+# constructor when two loaded types have one name.
+const _PRED_NAMES = Dict{String,Any}()
+const _PRED_NAMES_LOCK = ReentrantLock()
+
+"""
+    get_pred_type(name) -> Type or nothing
+
+The loaded type that a file names with `name`, or `nothing` when no loaded type
+that [`is_pred_constructible`](@ref) has that name. A name that two such types
+have is an error that names both, because a file can not say which one it
+means.
+"""
+function get_pred_type(name::AbstractString)
+    key = String(name)
+    found = lock(_PRED_NAMES_LOCK) do
+        haskey(_PRED_NAMES, key) || _collect_pred_names!()
+        get(_PRED_NAMES, key, nothing)
+    end
+    found isa Vector || return found
+    error("the name ", key, " names more than one loaded type that a file may build: ",
+          join((string(parentmodule(T), ".", nameof(T)) for T in found), " and "),
+          ", so a file can not say which one it means")
+end
+
+# Read the names of the loaded document types again, from every loaded module
+# and from `Main`, which holds the types a person defines at the prompt.
+function _collect_pred_names!()
+    empty!(_PRED_NAMES)
+    seen = Set{Module}()
+    for m in Base.loaded_modules_array()
+        _collect_pred_names!(m, seen)
+    end
+    _collect_pred_names!(Main, seen)
+    nothing
+end
+
+function _collect_pred_names!(m::Module, seen::Set{Module})
+    m in seen && return nothing
+    push!(seen, m)
+    for name in names(m; all = true)
+        isdefined(m, name) || continue
+        value = getfield(m, name)
+        if value isa Module
+            value !== m && parentmodule(value) === m && _collect_pred_names!(value, seen)
+        elseif (value isa DataType || value isa UnionAll) && value !== Union{} &&
+               is_pred_constructible(value)
+            constructor = _get_schema_type(value)
+            _add_pred_name!(String(nameof(value)), constructor)
+            _add_pred_name!(String(get_document_schema_name(value)), constructor)
+        end
+    end
+    nothing
+end
+
+function _add_pred_name!(key::String, constructor)
+    found = get(_PRED_NAMES, key, nothing)
+    if found === nothing
+        _PRED_NAMES[key] = constructor
+    elseif found isa Vector
+        any(T -> T === constructor, found) || push!(found, constructor)
+    elseif found !== constructor
+        _PRED_NAMES[key] = Any[found, constructor]
+    end
+    nothing
 end
 
 # The type a module binds to the schema name of `T`, or `T` when the name is not
@@ -289,20 +350,6 @@ function _get_schema_type(T::Type)
     bound = getfield(home, schema)
     bound isa Type ? bound : T
 end
-
-"The type `name` names, or `nothing` when nothing offered it."
-get_pred_type(name::AbstractString) = get(_PRED_TYPES, String(name), nothing)
-
-# Whether `T` is offered to a file by name. A `@document` type is parametric in
-# the kind of each of its cells, so what a package registers is the name and
-# every layout of it answers to that name.
-function is_pred_type(T::Type)
-    registered = get(_PRED_TYPES, String(nameof(T)), nothing)
-    registered === nothing && return false
-    registered === T || T <: registered || _get_schema_type(T) === registered
-end
-
-is_pred_type(::Any) = false
 
 # Parse a marker body, returning the expression when it is in the
 # restricted subset and `nothing` otherwise. `raise=false` turns a

@@ -41,7 +41,7 @@ ask permission before fixing (the seal still holds until permission is given).
 
 ### `source/kernel/` seal status
 
-- 🔒 `ProjecturedKernel.jl` — module root, the layer diagram. It is the one entry
+- ⬜ `ProjecturedKernel.jl` — module root, the layer diagram. It is the one entry
   that does not live under `source/kernel/`: a package root file belongs to its
   package, at `package/ProjecturedKernel/src/ProjecturedKernel.jl`. Every entry
   below is a path under `source/kernel/`.
@@ -55,7 +55,7 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `fault/FaultDefaults.jl`
   - 🔒 `fault/FaultRecord.jl`
   - 🔒 `fault/FaultStore.jl`
-  - 🔒 `fault/FaultPolicy.jl`
+  - ⬜ `fault/FaultPolicy.jl`
   - 🔒 `fault/FaultCascade.jl`
   - 🔒 `fault/FaultBarrier.jl`
 - **Layer 2 — performance** (`performance/`)
@@ -200,6 +200,8 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `editor/SafeMode.jl`
   - ⬜ `editor/FaultBarriers.jl`
   - ⬜ `editor/EditorLoop.jl`
+  - ⬜ `editor/BackendChoice.jl`
+  - ⬜ `editor/EditorBuild.jl`
 - **Layer 23 — playback** (`playback/`)
   - ⬜ `playback/PlaybackModule.jl`
   - ⬜ `playback/Playback.jl`

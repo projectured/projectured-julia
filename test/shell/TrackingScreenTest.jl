@@ -11,7 +11,8 @@ function _ts_editor(tracking::Bool)
     document, projection = make_tracking_screen(scene, composed; gesture_tracking = tracking,
                                                 mouse_target_tracking = tracking)
     backend = HeadlessBackend()
-    editor = Editor(backend, document, projection, Device[Keyboard(), Mouse()])
+    editor = Editor(document, projection; backend = backend,
+                    devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     (editor, backend, count)
 end

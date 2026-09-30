@@ -6,17 +6,17 @@ types `Intent` and `ClaimedGesture`, the `CollectIntents` payload, and the
 `CollectedIntentsOperation` that carries a collection home. They are concrete data
 vehicles, not interfaces to implement; readers import them from here directly.
 
-They sit in the operation layer because an `Intent`'s second half *is* an
-operation, and because the binding layer above has to build one.
+They sit in layer 14, above the operation layer, because an `Intent`'s second
+half *is* an operation.
 """
 module IntentModule
 
-using ..ReferenceModule
 using ..OperationModule
-import ..OperationModule: reroot_operation
+using ..ReferenceModule
+import ..OperationModule: make_inverse_operation, reroot_operation
 
 export Intent, ClaimedGesture, CollectIntents, CollectedIntentsOperation,
-       with_intent_labels, merge_collected_intents, follow_intent_route
+       merge_collected_intents, follow_intent_route
 
 include("Intent.jl")
 

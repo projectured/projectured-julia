@@ -44,7 +44,8 @@ rebuilt on every recompute). They are derived cells over the graph's own fields,
 so changing a highlight repaints without re-running the layout engine.
 
 `engine` names the algorithm that placed this layout — `:grid`,
-`:spring_embedder`, `:force_directed`, `:adaptagrams`. A caller that asks for
+`:fruchterman_reingold`, or the name of an engine that a package registered,
+such as `:adaptagrams`. A caller that asks for
 the engine that defers its choice does not otherwise learn which one ran, and
 without that a view cannot say what a reader is looking at and a test cannot
 assert that the choice went the way it should have.

@@ -169,4 +169,15 @@ end # @testset "TextLine: line-structured blocks"
     @test read_bound_gesture(at(ConcreteReference(TextSpanReferenceStep(0, 5), EmptyReference())),
                              KeyDown(:left, shift; time = 0.0)) === nothing
 end # @testset "Shift and a motion key select a range"
+
+@testset "a text step hashes as it compares" begin
+    for make_step in (TextRangeReferenceStep, TextSpanReferenceStep,
+                      TextColumnReferenceStep)
+        first_path = Reference(FieldReferenceStep("content"), make_step(2, 4))
+        second_path = Reference(FieldReferenceStep("content"), make_step(2, 4))
+        @test first_path == second_path
+        @test hash(first_path) == hash(second_path)
+        @test length(Set([first_path, second_path])) == 1
+    end
+end # @testset "a text step hashes as it compares"
 end # test_text

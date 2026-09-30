@@ -1,8 +1,4 @@
-# Fragment of `SelectionModule` — the default implementations of the selection
-# generics declared in `SelectionInterface.jl`, plus the private path-walking helpers they
-# share (`_selection_child`, `_set_selection_walk!`, `_sync_selection!`,
-# `_mutate_terminal_step!`). All read and write the conventional
-# `document.selection` field and descend the folded reference path.
+# Fragment of `SelectionModule` — the defaults of the generics and the path-walk helpers.
 
 get_selection(document::Document) = document.selection
 
@@ -39,7 +35,8 @@ function map_selection_forward(source, map; map_missing::Bool = false)
 end
 
 get_stored_selection(document) =
-    hasproperty(document, :selection) ? _get_stored_path(getfield(document, :selection)[]) : nothing
+    hasproperty(document, :selection) ?
+        _get_stored_path(getfield(document, :selection)[]) : nothing
 
 function clear_selection!(document)
     hasproperty(document, :selection) || return
@@ -73,20 +70,19 @@ Base.showerror(io::IO, e::SelectionMismatchException) =
 
 # ── Dormant selections ─────────────────────────────────────────────────────
 #
-# At a divergence the old branch used to be cleared unconditionally. It is now
-# either cleared, exactly as before, or kept and marked dormant when a document on
-# it asks to keep it. Marking costs the same walk the clearing did: it writes a
-# flag instead of erasing a path.
+# At a divergence the old branch is cleared, or kept and marked dormant when a
+# document on it asks to keep it. Marking walks the same path as a clear and
+# writes a flag.
 
 # Whether the branch `divergence` is abandoning is kept. The walk starts at the
 # divergence node **itself** and goes down the abandoned path; the first `true`
-# keeps the whole branch. Inclusive because a pane group sits below the divergence
-# while a tabbed pane is the divergence.
+# keeps the whole branch. Inclusive because a keeper can sit below the divergence
+# or be the divergence.
 function _keeps_branch(owner, divergence, old_path)
-    # The owner of the divergence node first. A tabbed pane and a split pane both
-    # hold their alternatives in a `CellVector`, so the step that differs belongs
-    # to that collection and the collection is the divergence — while the document
-    # that knows the children are alternatives is the one above it.
+    # The owner of the divergence node first. A document that holds its
+    # alternatives in a collection has that collection as the divergence, because
+    # the step that differs belongs to the collection — while the document that
+    # knows the children are alternatives is the one above it.
     (owner !== nothing && has_dormant_selection(owner)) && return true
     has_dormant_selection(divergence) && return true
     node = divergence
@@ -148,12 +144,13 @@ end
 function _matched_selection(document, path)
     path === nothing && return nothing
     canonical = annotate_reference_types(document, strip_reference_types(path))
-    _selection_matches(document, canonical) || throw(SelectionMismatchException(document, canonical))
+    _selection_matches(document, canonical) ||
+        throw(SelectionMismatchException(document, canonical))
     restored = _restore_selection(document, canonical)
     restored === canonical && return canonical
     # A dormant path can name a node an edit has since removed. Canonicalize and
-    # match the extension too, and fall back to the plain path when it no longer
-    # holds — a stale memory must not fail the write that woke it.
+    # match the extension too, and fall back to the plain path when the extension
+    # does not match — a stale memory must not fail the write that woke it.
     extended = annotate_reference_types(document, strip_reference_types(restored))
     _selection_matches(document, extended) ? extended : canonical
 end
@@ -250,7 +247,7 @@ end
 #     within a leaf therefore differs from the stored selection only in the
 #     terminal cursor step's start/stop: we mutate those two cells in place and
 #     rewrite **no** `selection` cell on the path. Unchanged routing ancestors
-#     (e.g. a tabbed pane's active-tab cell, which reads only the head step)
+#     (e.g. the cell of a container that reads only the head step)
 #     are not invalidated, so partial rendering repaints only the caret.
 #
 #   * Where the path structurally diverges, we clear just the old divergent
@@ -271,7 +268,8 @@ function _sync_selection!(document, path, owner = nothing)
     old = _get_stored_path(stored)
     # A live write through a node revives it: the wrapper goes, the path stays.
     stored isa SelectionDocument && (cell[] = old)
-    (old isa Reference && path isa Reference && is_reference_equal(old, path)) && return old
+    (old isa Reference && path isa Reference && is_reference_equal(old, path)) &&
+        return old
 
     if old isa ConcreteReference && path isa ConcreteReference
         old_child = _selection_child(document, old)
@@ -286,7 +284,8 @@ function _sync_selection!(document, path, owner = nothing)
         # Terminal cursor moved within the same leaf step: mutate start/stop in
         # place, leaving every selection cell on the path untouched.
         if new_child === nothing && old_child === nothing &&
-           is_reference_equal(old.tail, path.tail) && _mutate_terminal_step!(old.head, path.head)
+           is_reference_equal(old.tail, path.tail) &&
+           _mutate_terminal_step!(old.head, path.head)
             return old
         end
     end
@@ -296,7 +295,8 @@ function _sync_selection!(document, path, owner = nothing)
     if old isa ConcreteReference
         oc = _selection_child(document, old)
         if oc !== nothing
-            _keeps_branch(owner, document, old) ? _mark_dormant!(oc) : clear_selection!(oc)
+            _keeps_branch(owner, document, old) ? _mark_dormant!(oc) :
+                                                  clear_selection!(oc)
         end
     end
     cell[] = path
@@ -313,7 +313,7 @@ end
 # `clear_selection!`, `_set_selection_walk!`, and `_sync_selection!`.
 function _selection_child(document, path::ConcreteReference)
     h = path.head
-    child = if h isa FieldReferenceStep
+    child = if h isa AFieldReferenceStep
         sym = Symbol(h.name)
         # The path may not match this node (a stale or cross-domain selection):
         # stop walking gracefully rather than throwing FieldError. In the folded
@@ -321,15 +321,31 @@ function _selection_child(document, path::ConcreteReference)
         # guard the field's presence explicitly.
         hasproperty(document, sym) || return nothing
         unwrap_cell(getfield(document, sym))
-    elseif h isa RangeReferenceStep
+    elseif h isa ARangeReferenceStep
         document isa AbstractString && return nothing
-        idx = h.start + 1
-        (!applicable(length, document) || idx < 1 || idx > length(document)) && return nothing
-        document[idx]
+        _find_indexed_child(document, h.start + 1)
     else
         return nothing
     end
     child isa Document ? child : nothing
+end
+
+# The element at `index` of a sequence, or `nothing` past its ends. A sequence
+# with a length is checked against it. One with none, such as a link of a list
+# that can be endless, is indexed as `evaluate_reference_step` indexes it, and
+# an index past its ends names no child.
+function _find_indexed_child(document, index::Integer)
+    if applicable(length, document)
+        (1 <= index <= length(document)) || return nothing
+        return document[index]
+    end
+    applicable(getindex, document, index) || return nothing
+    try
+        document[index]
+    catch exception
+        exception isa BoundsError || rethrow()
+        nothing
+    end
 end
 
 # Mutate a terminal cursor step `old` in place to match `new`, returning `true`

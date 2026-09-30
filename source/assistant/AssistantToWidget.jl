@@ -289,5 +289,4 @@ end
 function __init__()
     register_natural_graphics!(:assistant,
         (; measure) -> Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane()])
-    register_pred_type!(Assistant)
 end

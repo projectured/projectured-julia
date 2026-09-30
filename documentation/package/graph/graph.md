@@ -55,7 +55,7 @@ Edges and edge labels are decorations: a click on them selects nothing.
 
 ### The layout engine seam
 
-`layout_graph(engine, graph, sizes, constraints; extent, border)` returns the positions and the routes, keyed by `objectid`. The call reads no cell, so the first stage can hold it in one computed cell. `GridEmbedding`, `SpringEmbedderLayout` and `ForceDirectedLayout` are in this package; `AdaptagramsLayout` is in `ProjecturedAdaptagrams`, see [adaptagrams.md](../adaptagrams/adaptagrams.md). Each engine lists the constraint kinds it implements, and `check_constraints` throws an `ArgumentError` for any other kind. [graph-layout.md](graph-layout.md) has the table of engines and constraints.
+`layout_graph(engine, graph, sizes, constraints; extent, border)` returns the positions and the routes, keyed by `objectid`. The call reads no cell, so the first stage can hold it in one computed cell. `GridEmbedding` and `FruchtermanReingoldLayout` are in this package; `AdaptagramsLayout` is in `ProjecturedAdaptagrams`, see [adaptagrams.md](../adaptagrams/adaptagrams.md). Each engine lists the constraint kinds it implements, and `check_constraints` throws an `ArgumentError` for any other kind. [graph-layout.md](graph-layout.md) has the table of engines and constraints.
 
 `extent` and `border` are fields of the projection, not of the engine. Two panes that show one graph have two projections, and so two extents.
 
@@ -64,7 +64,7 @@ Edges and edge labels are decorations: a click on them selects nothing.
 `make_deferred_layout_engine(; orthogonal)` returns a `DeferredLayout`. It becomes a real engine in each call of `layout_graph`, through `resolve_layout_engine`:
 
 1. If a package registered a factory with `register_layout_engine!`, the factory makes the engine.
-2. If not, `make_pure_julia_layout_engine(vertex_count)` returns `SpringEmbedderLayout` for 20 vertices or more (`ADVANCED_LAYOUT_LIMIT`) and `ForceDirectedLayout` for fewer.
+2. If not, `make_pure_julia_layout_engine(vertex_count)` returns `FruchtermanReingoldLayout`, for every size.
 
 The choice is made when the layout runs, not when the projection is built, because an `Example` builds its projection at module load. At that time an optional engine package is not loaded yet. The first stage writes the name of the engine that ran into `GraphLayout.engine`, so a view can show it and a test can assert it.
 
@@ -110,7 +110,7 @@ run_example(graph, projection; name = "graph")
 ```
 
 - Examples: `graph_example`, a table, a JSON object and an XML element joined by edges, in `example/graph/`. The atomic catalog has the entries `graph/graph` and `graph/layout`. `graph_adaptagrams_example` is in `ProjecturedAdaptagramsExample`.
-- Test: `test_graph()` runs the layering guard and `test_graph_projection()`. `test/graph/reference/` holds the C++ programs whose output the tests of the ported engines compare against.
+- Test: `test_graph()` runs the layering guard, `test_graph_projection()` and `test_fruchterman_reingold_layout()`.
 
 ## Limits
 

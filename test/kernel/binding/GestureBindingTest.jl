@@ -1,8 +1,8 @@
-# Reified gesture bindings: pattern matching/describe, the @gestures macro,
-# supertype inheritance, applicability, and the read_gesture interpreter.
-# JSON read_gesture *parity* with the old hand-written readers lives in
-# JsonToSyntaxTest (test_json_to_syntax_reader) — exercised through the real
-# projection pipeline.
+# Reified gesture bindings: the @gestures macro, supertype inheritance, the
+# instance tables, applicability, the claim gate, and the read_gesture interpreter.
+# The patterns and their descriptions are the gesture layer's, in GestureModuleTest.
+# The JSON tables of read_gesture are tested through the real projection pipeline
+# in JsonToSyntaxTest (test_json_to_syntax_reader).
 
 # A throwaway document hierarchy to register gestures on, independent of any
 # real domain. `GestureProbe` is the abstract base; the concrete leaves inherit
@@ -68,6 +68,79 @@ end
     nothing                        => "reverse"       => MarkOperation(:reverse)
 end
 
+# A document whose bare name is the concrete `DC` spelling: its table sits on a
+# concrete parameterization of the cell layout, not on a UnionAll.
+@document [DC] struct GestureProbeValue
+    value::Int = 0
+end
+
+@gestures GestureProbeValue begin
+    KeyPress('v')                  => "value"         => MarkOperation(:value)
+end
+
+# A document whose bare name is the plain mutable struct: it holds its selection as a
+# value, not in a cell.
+@document [M, C] struct GestureProbeNative
+    value::Int = 0
+end
+
+@gestures GestureProbeNative begin
+    KeyPress('m')                  => "native"        => MarkOperation(:native)
+end
+
+# A document whose bare name is the immutable native struct.
+@document [I, C] struct GestureProbeImmutable
+    value::Int = 0
+end
+
+@gestures GestureProbeImmutable begin
+    KeyPress('i')                  => "immutable"     => MarkOperation(:immutable)
+end
+
+# A plain rule and a rule that claims its key from the output layers.
+@document struct ClaimProbe
+    value::Int = 0
+end
+
+@gestures ClaimProbe begin
+    KeyPress('<')                  => "plain"         => MarkOperation(:plain)
+    override(KeyPress('>'))        => "claims"        => MarkOperation(:claims)
+end
+
+# Two rules of one key: the first makes no operation while `value` is 0.
+@document struct DeclineProbe
+    value::Int = 0
+end
+
+@gestures DeclineProbe begin
+    KeyPress('d') => "first"  => (doc.value > 0 ? MarkOperation(:first) : nothing)
+    KeyPress('d') => "second" => MarkOperation(:second)
+end
+
+# A document that carries a table of its own beside the table of its type.
+@document struct InstanceProbe
+    bindings::Any = GestureBinding[]
+end
+GestureBindingModule.get_instance_gesture_bindings(probe::InstanceProbe) =
+    probe.bindings
+
+@gestures InstanceProbe begin
+    KeyPress('i')                  => "type rule"     => MarkOperation(:type)
+end
+
+# A target that is no document: its table is an instance table.
+struct GestureTargetProbe
+    bindings::Vector{GestureBinding}
+end
+GestureBindingModule.get_instance_gesture_bindings(target::GestureTargetProbe) =
+    target.bindings
+
+# One rule of `key` that makes `MarkOperation(tag)`, and stands where a selection is.
+make_probe_binding(key, tag) =
+    GestureBinding(KeyPressPattern(key), (doc, event) -> MarkOperation(tag);
+                   applicable = (doc, sel) -> sel !== nothing,
+                   description = string(tag), domain = "probe")
+
 # A tiny operation stand-in so the binding RHS produces something identifiable.
 struct MarkOperation
     tag::Symbol
@@ -75,41 +148,6 @@ end
 
 function test_gesture_binding()
 @testset "GestureBinding" begin
-
-    @testset "matches: KeyPress ignores modifiers, honours char + guard" begin
-        p = KeyPressPattern('n')
-        @test matches_gesture_pattern(p, KeyPress('n'; time = 0.0))
-        @test matches_gesture_pattern(p, KeyPress('n', ModifierKeys(shift=true); time = 0.0))   # modifiers ignored
-        @test !matches_gesture_pattern(p, KeyPress('x'; time = 0.0))
-        @test !matches_gesture_pattern(p, KeyDown(:n, ModifierKeys(); time = 0.0))
-
-        digit = KeyPressPattern(nothing; guard = e -> isdigit(e.char), label = "0-9")
-        @test matches_gesture_pattern(digit, KeyPress('5'; time = 0.0))
-        @test !matches_gesture_pattern(digit, KeyPress('z'; time = 0.0))
-    end
-
-    @testset "matches: KeyDown honours key + exact modifiers" begin
-        p = KeyDownPattern(:period; modifiers = [:ctrl])
-        @test matches_gesture_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true); time = 0.0))
-        @test !matches_gesture_pattern(p, KeyDown(:period, ModifierKeys(); time = 0.0))                    # ctrl required
-        @test !matches_gesture_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true, alt=true); time = 0.0)) # exact: alt absent
-        @test !matches_gesture_pattern(p, KeyDown(:home, ModifierKeys(ctrl=true); time = 0.0))
-    end
-
-    @testset "matches: MouseClick honours button, ignores position" begin
-        p = MouseClickPattern(:left)
-        @test matches_gesture_pattern(p, MouseClick(:left, 10, 20; time = 0.0))
-        @test matches_gesture_pattern(p, MouseClick(:left, 99, 5; time = 0.0))
-        @test !matches_gesture_pattern(p, MouseClick(:right, 10, 20; time = 0.0))
-    end
-
-    @testset "describe renders readable gesture strings" begin
-        @test describe_gesture_pattern(KeyPressPattern('n')) == "n"
-        @test describe_gesture_pattern(KeyDownPattern(:period; modifiers = [:ctrl])) == "Ctrl+."
-        @test describe_gesture_pattern(KeyDownPattern(:tab)) == "Tab"
-        @test describe_gesture_pattern(KeyDownPattern(:home; modifiers = [:ctrl, :alt])) == "Ctrl+Alt+Home"
-        @test describe_gesture_pattern(MouseClickPattern(:left)) == "Left click"
-    end
 
     @testset "@gestures registers an own table; descriptions captured" begin
         own = get_document_gesture_bindings_own(GestureProbe)
@@ -295,6 +333,90 @@ function test_gesture_binding()
         end
         @test overriding !== nothing
         @test occursin("override", sprint(showerror, overriding))
+    end
+
+    @testset "a block takes one precondition" begin
+        second = :(@gestures CommandProbe begin
+            when(sel !== nothing)
+            KeyPress('x') => "cut it" => MarkOperation(:cut)
+            when(sel === nothing)
+            KeyPress('y') => "other" => MarkOperation(:other)
+        end)
+        @test_throws "a block takes one `when(expr)`" macroexpand(@__MODULE__, second)
+    end
+
+    @testset "a table is built once" begin
+        @test get_document_gesture_bindings_own(GestureProbe) ===
+              get_document_gesture_bindings_own(GestureProbe)
+    end
+
+    @testset "a table on a concrete document type fires" begin
+        value = GestureProbeValue()
+        @test read_gesture(value, KeyPress('v'; time = 0.0)) == MarkOperation(:value)
+        @test [b.description for b in get_document_gesture_bindings(value)] == ["value"]
+    end
+
+    @testset "a table on a native document reads its selection" begin
+        native = GestureProbeNative()
+        @test read_gesture(native, KeyPress('m'; time = 0.0)) == MarkOperation(:native)
+        @test length(get_applicable_gesture_bindings(native,
+                         get_document_gesture_bindings(native))) == 1
+    end
+
+    @testset "a table on an immutable native document fires" begin
+        value = GestureProbeImmutable()
+        @test !ismutable(value)
+        @test read_gesture(value, KeyPress('i'; time = 0.0)) == MarkOperation(:immutable)
+    end
+
+    @testset "a claimed event fires only a rule that overrides" begin
+        probe = ClaimProbe()
+        claim = MarkOperation(:output)
+        @test [b.override for b in get_document_gesture_bindings_own(ClaimProbe)] ==
+              [false, true]
+        @test read_gesture(probe, KeyPress('<'; time = 0.0)) == MarkOperation(:plain)
+        @test read_gesture(probe, KeyPress('<'; time = 0.0); claimed = claim) === nothing
+        @test read_gesture(probe, KeyPress('>'; time = 0.0); claimed = claim) ==
+              MarkOperation(:claims)
+        @test read_gesture(probe, KeyPress('>'; time = 0.0)) == MarkOperation(:claims)
+    end
+
+    @testset "a rule that makes no operation lets a later rule fire" begin
+        @test read_gesture(DeclineProbe(), KeyPress('d'; time = 0.0)) ==
+              MarkOperation(:second)
+        @test read_gesture(DeclineProbe(value = 1), KeyPress('d'; time = 0.0)) ==
+              MarkOperation(:first)
+    end
+
+    @testset "the table of an instance goes before the table of its type" begin
+        @test isempty(get_instance_gesture_bindings(GestureProbeLeaf()))
+        probe = InstanceProbe()
+        probe.selection = EmptyReference()
+        @test read_gesture(probe, KeyPress('i'; time = 0.0)) == MarkOperation(:type)
+        probe.bindings = [make_probe_binding('i', :instance),
+                          make_probe_binding('j', :extra)]
+        @test read_gesture(probe, KeyPress('i'; time = 0.0)) == MarkOperation(:instance)
+        @test read_gesture(probe, KeyPress('j'; time = 0.0)) == MarkOperation(:extra)
+        collected = read_bound_gesture(probe, CollectIntents())
+        @test [i.description for i in collected.intents] ==
+              ["instance", "extra", "type rule"]
+    end
+
+    @testset "the three-argument read takes the selection that it is given" begin
+        probe = CommandProbe()                # its own selection is nothing
+        @test read_bound_gesture(probe, KeyPress('x'; time = 0.0)) === nothing
+        @test read_bound_gesture(probe, KeyPress('x'; time = 0.0), EmptyReference()) ==
+              MarkOperation(:cut)
+        probe.selection = EmptyReference()
+        @test read_bound_gesture(probe, KeyPress('x'; time = 0.0), nothing) === nothing
+
+        # A target that is no document has no selection of its own.
+        target = GestureTargetProbe([make_probe_binding('t', :target)])
+        @test read_bound_gesture(target, KeyPress('t'; time = 0.0), EmptyReference()) ==
+              MarkOperation(:target)
+        @test read_bound_gesture(target, KeyPress('t'; time = 0.0), nothing) === nothing
+        @test read_bound_gesture(target, KeyPress('u'; time = 0.0), EmptyReference()) ===
+              nothing
     end
 
 end

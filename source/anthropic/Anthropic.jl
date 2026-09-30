@@ -6,17 +6,21 @@ const _MODELS_URL        = "https://api.anthropic.com/v1/models"
 # The alias the backend falls back to. An alias, and not a dated id: it keeps
 # naming a model that exists after a new one comes out.
 const _DEFAULT_MODEL     = "claude-opus-5"
-# The newest model this process found, asked once. Empty before the first ask.
-const _NEWEST_MODEL      = Ref{String}("")
+# The newest model that this process found for each Models API address and key,
+# asked once for each pair. The lock guards the dictionary, because a backend can
+# be made on any task.
+const _NEWEST_MODELS      = Dict{Tuple{String,String},String}()
+const _NEWEST_MODELS_LOCK = ReentrantLock()
 
 """
     get_newest_anthropic_model(api_key; models_url) -> String
 
 The newest Claude model that this assistant can use, from the Models API.
 
-**Asked once in a process**, and kept, because a list request per turn is a
-request that buys nothing: the list changes when Anthropic releases a model, not
-while a person types.
+**Asked once in a process for each `models_url` and key**, and kept, because a
+list request per turn is a request that buys nothing: the list changes when
+Anthropic releases a model, not while a person types. Another key can see
+other models, so each pair keeps its own answer.
 
 The list arrives newest first, so the first model that takes **adaptive
 thinking** is the newest one this backend can drive: `_thinking_param` sends
@@ -29,18 +33,21 @@ first turn.
 """
 function get_newest_anthropic_model(api_key::AbstractString;
                                     models_url::AbstractString = _MODELS_URL)
-    isempty(_NEWEST_MODEL[]) || return _NEWEST_MODEL[]
     isempty(api_key) && return _DEFAULT_MODEL
-    found = try
-        response = HTTP.get(models_url,
-                            ["x-api-key" => String(api_key),
-                             "anthropic-version" => _ANTHROPIC_VERSION];
-                            status_exception = false, readtimeout = 10)
-        response.status == 200 ? find_adaptive_model(response.body) : ""
-    catch
-        ""
+    lock(_NEWEST_MODELS_LOCK) do
+        get!(_NEWEST_MODELS, (String(models_url), String(api_key))) do
+            found = try
+                response = HTTP.get(models_url,
+                                    ["x-api-key" => String(api_key),
+                                     "anthropic-version" => _ANTHROPIC_VERSION];
+                                    status_exception = false, readtimeout = 10)
+                response.status == 200 ? find_adaptive_model(response.body) : ""
+            catch
+                ""
+            end
+            isempty(found) ? _DEFAULT_MODEL : found
+        end
     end
-    _NEWEST_MODEL[] = isempty(found) ? _DEFAULT_MODEL : found
 end
 
 """
@@ -93,7 +100,8 @@ AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
                max_tokens::Integer = 4096) =
     AnthropicLlm(String(api_key),
                  # An empty `model` asks the Models API for the newest one, once
-                 # in this process. A name that a caller wrote wins over it.
+                 # in this process for each key. A name that a caller wrote wins
+                 # over it.
                  String(isempty(model) ? get_newest_anthropic_model(api_key) : model),
                  String(base_url), Int(max_tokens))
 
@@ -105,7 +113,7 @@ AnthropicLlm(; api_key::AbstractString = get(ENV, "ANTHROPIC_API_KEY", ""),
 # model and is not a parameter of a request, so there is nothing here to set.
 make_llm(::Val{:anthropic}; context::Integer = 0, kwargs...) = AnthropicLlm(; kwargs...)
 
-default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
+get_default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
 
 # ═══════════════════════════════════════════════════════════════════════
 # Request → Anthropic JSON
@@ -176,6 +184,16 @@ end
 # Anthropic SSE → LlmEvent
 # ═══════════════════════════════════════════════════════════════════════
 
+# The stop reasons of the Messages API, as the reasons of `LlmTurnEnd`. A stop
+# sequence, a refusal and a paused turn end the turn as a finished answer does.
+# A reason that is not in the table goes on as its own symbol.
+const _STOP_REASONS = Dict("end_turn"      => :end_turn,
+                           "tool_use"      => :tool_use,
+                           "max_tokens"    => :max_tokens,
+                           "stop_sequence" => :end_turn,
+                           "refusal"       => :end_turn,
+                           "pause_turn"    => :end_turn)
+
 # Translate one Anthropic SSE event and hand the result to `emit`. This function is
 # the whole of what the rest of the system is spared: above `stream_turn`,
 # `content_block_delta` and `input_json_delta` do not exist.
@@ -225,9 +243,11 @@ function _translate_sse!(emit::Function, type::Symbol, data; input_tokens::Ref{I
         delta = get(data, :delta, nothing)
         delta === nothing && return
         sr = get(delta, :stop_reason, nothing)
+        sr === nothing && return
         usage = get(data, :usage, nothing)
         output_tokens = usage === nothing ? 0 : Int(get(usage, :output_tokens, 0))
-        sr === nothing || emit(LlmTurnEnd(Symbol(sr), input_tokens[], output_tokens))
+        reason = get(_STOP_REASONS, String(sr), Symbol(sr))
+        emit(LlmTurnEnd(reason, input_tokens[], output_tokens))
     elseif type === :error
         err = get(data, :error, nothing)
         msg = err === nothing ? "unknown streaming error" :
@@ -242,7 +262,9 @@ end
 
 POST a streaming Messages request and translate the SSE stream into `LlmEvent`s. An
 HTTP failure throws; an error reported *inside* the stream arrives as an
-`LlmFailure`.
+`LlmFailure`. A stream that ends before its turn end throws, as a dead socket
+does. The stop reasons `stop_sequence`, `refusal` and `pause_turn` give
+`:end_turn`.
 """
 function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
     body = Dict{String,Any}(
@@ -274,6 +296,8 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
     tool_input = Ref(IOBuffer())
     # What the model read this round, said at the start and carried to the end.
     input_tokens = Ref(0)
+    # Whether the stream sent its terminal event, a turn end or a failure.
+    ended = Ref(false)
     emit = function (ev)
         if ev === nothing                            # a content_block_stop
             b = open_block[]
@@ -300,6 +324,8 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
             tool_input[] = IOBuffer()
         elseif ev isa LlmToolInputDelta
             print(tool_input[], ev.json)
+        elseif ev isa LlmTurnEnd || ev isa LlmFailure
+            ended[] = true
         end
         on_event(ev)
         nothing
@@ -326,17 +352,18 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
             chunk = try
                 readavailable(io)
             catch e
-                # SSE streams can close abruptly after the last event; treat EOF as
-                # a clean end-of-stream, the final message_stop having been seen.
+                # An EOF ends the read. The check after the read throws when the
+                # stream sent no terminal event.
                 e isa EOFError ? UInt8[] : rethrow()
             end
             isempty(chunk) && continue
             write(buf, chunk)
-            _drain_sse_events!(buf, emit)
+            _drain_sse_events!(buf, emit; input_tokens)
         end
-        _drain_sse_events!(buf, emit; final = true)
+        _drain_sse_events!(buf, emit; final = true, input_tokens)
         HTTP.closeread(io)
     end
+    ended[] || error("Anthropic API error: the stream ended before its turn end")
     nothing
 end
 
@@ -361,7 +388,10 @@ function _parse_tool_input(raw::AbstractString)
 end
 
 # Pull complete SSE events ("event: …\ndata: …\n\n") out of `buf` and translate each.
-function _drain_sse_events!(buf::IOBuffer, emit::Function; final::Bool = false)
+# `input_tokens` carries the input count of `message_start` to the `message_delta`
+# of a later read.
+function _drain_sse_events!(buf::IOBuffer, emit::Function; final::Bool = false,
+                            input_tokens::Ref{Int})
     s = String(take!(buf))
     isempty(s) && return
     parts = split(s, "\n\n")

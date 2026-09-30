@@ -49,8 +49,3 @@ get_edited_field(::ClipboardCollection) = :content
 pred_arguments(slice::ClipboardSlice) = (), Pair{Symbol,Any}[:content => slice.content]
 pred_arguments(collection::ClipboardCollection) =
     (), Pair{Symbol,Any}[:content => collection.content]
-
-function __init__()
-    register_pred_type!(ClipboardSlice)
-    register_pred_type!(ClipboardCollection)
-end

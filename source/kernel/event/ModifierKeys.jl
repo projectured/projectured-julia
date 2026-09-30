@@ -1,7 +1,6 @@
 # Fragment of `EventModule` — the modifier keys that keyboard and mouse events hold.
 
 """
-    ModifierKeys(ctrl, shift, alt, meta)
     ModifierKeys(; ctrl = false, shift = false, alt = false, meta = false)
 
 The modifier keys that are held: one flag for each of `ctrl`, `shift`, `alt` and

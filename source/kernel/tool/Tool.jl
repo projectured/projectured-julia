@@ -57,17 +57,15 @@ module in a declaration means.
 
 **A name here is not an export.** A module goes on exporting exactly what it
 owns; this says which of those names *this* model is given, and a name listed
-here arrives in the model's namespace unqualified. That is what lets a
-declaration hand out `PaneSplit` without any module re-exporting a name it does
-not own.
+here arrives in the model's namespace unqualified. So a declaration can give a
+name that no other module re-exports.
 
-**A name can be given another name.** An entry of `:describe => :summarize_frame`
-gives `DataFrames.describe` to the model as `summarize_frame`. Two packages own
-the same common word often enough that the surface would otherwise have to drop
-one of them: `describe` is `DataFrames`' per-column statistics *and* the one
-sentence a pane says about what it holds. A rename is a declaration, not a
-wrapper — `using M: describe as summarize_frame` is what the scratch module
-writes — so the owning module is untouched and there is one function, not two.
+**A name can be given another name.** An entry of `:describe => :describe_table`
+gives the `describe` of its module to the model as `describe_table`. Two packages
+own the same common word often enough that the surface would otherwise have to
+drop one of them. A rename is a declaration, not a wrapper —
+`using M: describe as describe_table` is what the scratch module writes — so the
+owning module is untouched and there is one function, not two.
 """
 struct ApiEntry
     module_::Module
@@ -95,15 +93,15 @@ Base.hash(entry::ApiEntry, h::UInt) = hash(entry.names, hash(objectid(entry.modu
 The names one entry gives, whether it named them or took the module's exports.
 """
 get_api_entry_names(entry::ApiEntry) =
-    Symbol[last(pair) for pair in api_entry_bindings(entry)]
+    Symbol[last(pair) for pair in get_api_entry_bindings(entry)]
 
 """
-    api_entry_bindings(entry) -> Vector{Pair{Symbol,Symbol}}
+    get_api_entry_bindings(entry) -> Vector{Pair{Symbol,Symbol}}
 
 The name each binding has in its own module, and the name the model writes. They
 differ only where a declaration renamed one.
 """
-api_entry_bindings(entry::ApiEntry) =
+get_api_entry_bindings(entry::ApiEntry) =
     entry.names === nothing ?
         Pair{Symbol,Symbol}[n => n for n in names(entry.module_)
                             if n !== nameof(entry.module_) && isdefined(entry.module_, n)] :
@@ -120,29 +118,21 @@ _api_entry(other) = error("A declared API is a module or a `module => names` pai
                           repr(other) * " is neither.")
 
 """
-    api_source_name(api, module, name) -> Symbol
+    get_api_source_name(api, module, name) -> Symbol
 
 The name `module` knows a model-facing `name` by. They are the same word unless a
 declaration renamed it, and a caller that looks a value up in the module needs
 this one rather than the word the model wrote.
 """
-function api_source_name(api, mod::Module, name::Symbol)
+function get_api_source_name(api, mod::Module, name::Symbol)
     for entry in api
         entry.module_ === mod || continue
-        for (source, model) in api_entry_bindings(entry)
+        for (source, model) in get_api_entry_bindings(entry)
             model === name && return source
         end
     end
     name
 end
-
-"""
-    get_api_modules(set) -> Vector{Module}
-
-The modules a declaration names, for a reader that wants those rather than the
-names.
-"""
-get_api_modules(set) = Module[entry.module_ for entry in set.api]
 
 """
     MeaningModel(name, compute)
@@ -168,13 +158,39 @@ struct MeaningModel
 end
 
 """
-    ToolSet(; api = ApiEntry[], meaning_model = nothing)
+    RelevanceModel(name, score, choose)
+
+What reads a search and each thing it could find **together**, and says how
+likely each thing is what the search wants: a classifier, where a
+[`MeaningModel`](@ref) compares two vectors made apart.
+
+- `name` says which model, as `"openrouter/typesafe/jev-1.13"`.
+- `score(query, context, texts)` answers a `Vector{Float64}`, one probability per
+  text that the thing it describes does what `query` asks, or a step of it.
+  `context` is what the search is asked in, such as the request of the person,
+  and it is empty when there is none.
+- `choose(query, context, options)` answers a `Vector{Float64}`, one probability
+  per option, which add up to one: which option holds what `query` asks. An
+  option is an identifier and one short line; a call holds at most 255.
+
+A `ToolSet` holds one or none; [`set_relevance_model!`](@ref) gives one. A
+search by description ranks with it when it has one, and a model that throws
+leaves the ranking to the meaning model.
+"""
+struct RelevanceModel
+    name::String
+    score::Function
+    choose::Function
+end
+
+"""
+    ToolSet(; api = ApiEntry[], meaning_model = nothing, relevance_model = nothing)
 
 The tools and resources one editor exposes, plus the state its built-in tools
 need to keep between calls.
 
 Per editor, never process-global: `scratch` is the module
-`execute_julia_code` evaluates into — so a top-level assignment in one call is
+`execute_julia_code!` evaluates into — so a top-level assignment in one call is
 still bound in the next — and `last_value` is that call's actual return value,
 which lets a caller embed a returned `Document` live instead of stringifying it.
 Two editors in one process each get their own, so neither can see the other's
@@ -187,8 +203,10 @@ cannot call wastes a round and learns to distrust the answer. Each line of it is
 an [`ApiEntry`](@ref), and [`declare_api!`](@ref) is how one is written.
 
 Empty, the default, means the editor's whole surface: every loaded `Projectured`
-package, which is what the assistant and the MCP server want. A caller that names
-modules gets those and nothing else.
+package, which is what the assistant and the MCP server want. The documentation
+tools read that surface from an index that the process builds on first use, so a
+package that loads after it is not in their answers. A caller that names modules
+gets those and nothing else.
 
 Naming modules **opens** as much as it narrows. The default surface is gathered by
 package name, so a module outside the `Projectured` packages is unreachable until
@@ -203,6 +221,10 @@ thousands of names that mean nothing to the task.
 `meaning_model` is the [`MeaningModel`](@ref) a search by description ranks with,
 or `nothing`, where such a search ranks by its words alone.
 [`set_meaning_model!`](@ref) gives one.
+
+`relevance_model` is the [`RelevanceModel`](@ref) that ranks a search by
+description before the meaning model does, or `nothing`.
+[`set_relevance_model!`](@ref) gives one.
 """
 mutable struct ToolSet
     tools::Vector{Tool}
@@ -215,21 +237,23 @@ mutable struct ToolSet
     # `api` is the whole surface — see `declare_api!`.
     api::Vector{ApiEntry}
     meaning_model::Union{Nothing,MeaningModel}
+    relevance_model::Union{Nothing,RelevanceModel}
 end
 
-ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing) =
-    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api), meaning_model)
+ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing,
+        relevance_model::Union{Nothing,RelevanceModel} = nothing) =
+    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api), meaning_model,
+            relevance_model)
 
 """
     observe_evaluations!(f, set) -> f
 
-Be told what each `execute_julia_code` call produced. `f(value)` is called with
+Be told what each `execute_julia_code!` call produced. `f(value)` is called with
 the value the code evaluated to — `nothing` when it errored or answered nothing.
 
-A host registers one when a value MEANS something to it beyond being a result.
-The simulator's editor uses it to give a simulation a reader made in a cell the
-watch that keeps its picture still: the value is a live thing, and only the host
-knows what living costs.
+A host registers one when a value MEANS something to it beyond being a result,
+such as a value that goes on running and that the host must watch. The tool set
+gives each value to every observer and does nothing else with it.
 
 Every registration is called, in order, and a failure in one is reported and
 does not stop the others or the evaluation. An observer is a side effect on a

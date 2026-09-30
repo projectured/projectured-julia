@@ -66,22 +66,23 @@ recognize(::ClickRecognition, state::_ClickState, input, window) = RecognitionSt
 
 function recognize(::ClickRecognition, state::_ClickState, event::MouseDown, window)
     window === nothing && return RecognitionStep(state)
-    press = _ButtonPress(event.button, window, event.x, event.y, event.time)
+    press = _ButtonPress(event.button, window, event.x, event.y, get_event_time(event))
     RecognitionStep(_ClickState((_remove_press(state.presses, event.button)..., press),
                                 state.last_click))
 end
 
-function recognize(recognition::ClickRecognition, state::_ClickState, event::MouseUp, window)
+function recognize(recognition::ClickRecognition, state::_ClickState, event::MouseUp,
+                   window)
     press = _find_press(state.presses, event.button)
     press === nothing && return RecognitionStep(state)
     presses = _remove_press(state.presses, event.button)
     _is_click(recognition, press, event, window) ||
         return RecognitionStep(_ClickState(presses, state.last_click))
     count = _count_click(recognition, state.last_click, event, window)
-    click = MouseClick(event.button, event.x, event.y, count, event.modifiers; time = event.time)
-    RecognitionStep(_ClickState(presses,
-                                _Click(event.button, window, event.x, event.y, event.time, count));
-                    inputs = [WindowInput(window, click)])
+    now = get_event_time(event)
+    click = MouseClick(event.button, event.x, event.y, count, event.modifiers; time = now)
+    last_click = _Click(event.button, window, event.x, event.y, now, count)
+    RecognitionStep(_ClickState(presses, last_click); inputs = [WindowInput(window, click)])
 end
 
 # Whether an up in `window` is inside the click window of `press`.
@@ -89,7 +90,7 @@ _is_click(recognition::ClickRecognition, press::_ButtonPress, event::MouseUp, wi
     press.window === window &&
     abs(event.x - press.x) < recognition.click_max_displacement &&
     abs(event.y - press.y) < recognition.click_max_displacement &&
-    (event.time - press.time) < recognition.click_max_duration
+    (get_event_time(event) - press.time) < recognition.click_max_duration
 
 # The count of the click that `event` completes: one higher than the last click
 # when it has the same button and window and is inside the window of a double
@@ -99,6 +100,7 @@ function _count_click(recognition::ClickRecognition, last, event::MouseUp, windo
     last.window === window && last.button === event.button &&
         abs(event.x - last.x) < recognition.multi_click_max_displacement &&
         abs(event.y - last.y) < recognition.multi_click_max_displacement &&
-        (event.time - last.time) < recognition.multi_click_max_interval || return 1
+        (get_event_time(event) - last.time) < recognition.multi_click_max_interval ||
+        return 1
     last.count + 1
 end

@@ -44,7 +44,8 @@ end
     scene = make_window_scene(WidgetLabel("content"), "W"; width = 400, height = 300)
     composed = make_window_scene_projection(make_widget_projection_example())
     document, projection = make_tracking_screen(scene, composed)
-    editor = Editor(HeadlessBackend(), document, projection, Device[Keyboard(), Mouse()])
+    editor = Editor(document, projection; backend = HeadlessBackend(),
+                    devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     open_file_dialog!(editor, directory)
     @test length(scene.windows) == 2

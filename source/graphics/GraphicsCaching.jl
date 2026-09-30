@@ -13,9 +13,8 @@
 # ── Predicates ──────────────────────────────────────────────────────────────
 
 # A canvas with no end: its elements are a list the renderer walks and stops
-# in, or one of its element canvases is. One level down is what a table whose
-# rows are a list draws — a header strip beside a body that is the list — and
-# it is the level a pane holding such a table has to see.
+# in, or one of its element canvases is: a content can draw a list beside other
+# elements, and one level down is the level that a pane around it looks at.
 function is_infinite_canvas(canvas::GraphicsCanvas)
     elements = canvas.elements
     elements isa ListNode && return true

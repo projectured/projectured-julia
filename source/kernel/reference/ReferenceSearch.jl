@@ -7,15 +7,33 @@
 # reference paths, while the value-collecting `search_documents` supplies the
 # defaults that hand back the child object.
 
-# The path-valued walk: descending by a field appends a `FieldReferenceStep`, by an
-# index an `ElementReferenceStep`, and the root is the empty path. The `:once_per_path`
-# cycle policy (reports distinct paths, not objects) is documented on
-# `search_references` below.
+# The path-valued walk. A location is a reversed chain of steps: `()` for the root,
+# and `Pair{Any,Any}(parent, step)` for a child, where `step` is the name of a field
+# (a `Symbol` or a `String`) or the 1-based index of an element (an `Int`). A visit
+# costs one pair, and `search_references` builds a `Reference` for a result only.
+# The chain has one type at every depth, so the walk compiles once for each type of
+# node. The `:once_per_path` cycle policy (reports distinct paths, not objects) is
+# documented on `search_references` below.
 const _PATH_WALK = DocumentWalk(
-    locate_field   = (location, name, child) -> extend_reference(location, FieldReferenceStep(string(name))),
-    locate_element = (location, index, child) -> extend_reference(location, ElementReferenceStep(index)),
-    initial        = root -> EmptyReference(),
+    locate_field   = (location, name, child) ->
+        Pair{Any,Any}(location, name isa Symbol ? name : string(name)),
+    locate_element = (location, index, child) -> Pair{Any,Any}(location, index),
+    initial        = root -> (),
     policy         = :once_per_path)
+
+# The `Reference` of a location of `_PATH_WALK`, read from the deepest step back to
+# the root.
+function _make_location_reference(location)
+    path = EmptyReference()
+    while location isa Pair
+        step = location.second
+        head = step isa Int ? ElementReferenceStep(step) :
+                              FieldReferenceStep(string(step))
+        path = ConcreteReference(head, path)
+        location = location.first
+    end
+    path
+end
 
 """
     search_references(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector{Reference}
@@ -33,11 +51,11 @@ selectable node. Pass `raw=true` to get the path to the **exact matched node**
 instead (scalar leaves included) — the path-valued counterpart to
 `search_documents(...; raw=true)`.
 
-The returned paths are **canonical at rest**: each navigation step is preceded by
-a `TypeReferenceStep(typeof(node))` checkpoint (via [`annotate_reference_types`](@ref)),
-so results are self-describing and carry replay-validation checkpoints.
-`evaluate_reference` honours the checkpoints; pass a result through
-`strip_reference_types` first if a consumer needs the plain navigation-only path.
+The returned paths are **canonical at rest**: each node records the type of the
+document node that it stands on (via [`annotate_reference_types`](@ref)), so results
+are self-describing and can be checked again after an edit. `evaluate_reference`
+checks those types; pass a result through `strip_reference_types` first if a
+consumer needs the plain navigation-only path.
 
 ```julia
 for ref in search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
@@ -66,8 +84,9 @@ covers it (those paths are for inspection only, not selectable).
 """
 function search_references(obj, predicate; kwargs...)
     root = unwrap_cell(obj)
-    paths = walk_document(_PATH_WALK, root, predicate; kwargs...)
-    Reference[annotate_reference_types(root, p) for p in paths]
+    locations = walk_document(_PATH_WALK, root, predicate; kwargs...)
+    Reference[annotate_reference_types(root, _make_location_reference(location))
+              for location in locations]
 end
 
 search_references(obj, query::Union{AbstractString,Regex}; kwargs...) =

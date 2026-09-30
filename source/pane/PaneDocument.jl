@@ -77,6 +77,16 @@ _title_string(title::PrimitiveString) = something(title.value, "")
 _title_string(title::AbstractString) = String(title)
 _title_string(title) = string(title)
 
+# What the REPL and the answer of a tool show of a tab: its title and what it
+# shows, as the REPL shows that. A tab that holds a table then says how many rows
+# the table has. Julia's own display of a value, so a `print` or a `show` of the
+# tab is as it was.
+function Base.show(io::IO, mime::MIME"text/plain", tab::PaneTab)
+    print(io, "PaneTab(", repr(get_pane_tab_title_string(tab)), ", ")
+    show(io, mime, tab.content)
+    print(io, ")")
+end
+
 # A paste never takes the place of a pane, and a pane is never pasted: the tree
 # of a window is changed by the pane's own edits, which keep it well formed. A
 # paste fills or replaces the content of a tab.

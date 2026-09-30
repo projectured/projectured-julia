@@ -48,11 +48,11 @@ Layer 12 — selection/   the selection primitives (get/clear/set/replace_select
 Layer 13 — operation/   Operation + evaluate_operation + the traversal and reroot seams
 Layer 14 — intent/      Intent and ClaimedGesture, the unit that flows back through the readers, and CollectIntents
 Layer 15 — binding/     gesture → operation bindings, @gestures/@gesture_set, read_gesture
-Layer 16 — iomap/       the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
+Layer 16 — iomap/       the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap) + the child reconcilers (reconcile_child_iomaps/reconcile_child_iomap)
 Layer 17 — projection/  ProjectionInterface/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
-Layer 18 — tool/        the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
+Layer 18 — tool/        the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code!, doc/API search, register_default_tools! (side-stack)
 Layer 19 — llm/         the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
-Layer 20 — agent/       the AI control surface — AgentModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 20 — agent/       the AI control surface — AgentModule, with the inbound MCP seam and the outbound Agent and run_turn! loop (side-stack)
 Layer 21 — feed/        the feed contract — a registered inflow that the editor moves into a target document once per frame
 Layer 22 — editor/      the run_editor! loop — read!, evaluate!, print! and the frame
 Layer 23 — playback/    scripted live playback — a timeline that fires in the editor loop on a wall-clock schedule
@@ -93,20 +93,21 @@ text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`Text
 their navigation through `evaluate_reference_step`, with no edit to layer 11.
 
 **The agent stack is a side-stack.** The editor (layer 22) reaches it only through
-the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentModule.jl`
-(`AgentModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
-transports are the opt-in `package/mcp/` and `package/llm/`, which register their
-method on load.
+the factory seam `make_agent_server(:mcp, editor)` declared in
+`agent/AgentInterface.jl` (`AgentModule`), so the editor does **not** depend on
+`ProjecturedMcp`, `ProjecturedAnthropic` or `ProjecturedOllama`. These opt-in
+packages hold the real transports, and they register their methods on load.
 
-**Fan-in.** Counting `import ..XxxModule` lines across the kernel's own files identifies
-the hubs. These are the modules a consolidation must keep cheap to import:
+**Fan-in.** A count of the kernel module files that name a module in a
+`using ..XxxModule` or `import ..XxxModule` line identifies the hubs. These are the
+modules a consolidation must keep cheap to import:
 
 | Hub | Layer | Imported by |
 | --- | --- | --- |
-| `CellModule` | 3 | 8 kernel files |
-| `EventModule` | 6 | 6 |
+| `CellModule` | 3 | 9 kernel module files |
+| `EventModule` | 6 | 5 |
 | `DocumentModule` | 10 | 7 |
-| `ReferenceModule` | 11 | 5 |
+| `ReferenceModule` | 11 | 6 |
 | `OperationModule` | 13 | 4 |
 | `ProjectionModule` | 17 | 2 |
 
@@ -160,11 +161,12 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 
 | Folder | Holds |
 | --- | --- |
-| `performance/` | `PerformanceModule` — the per-frame performance counters (see [cell.md](cell.md)) |
+| `fault/` | `FaultModule` — the fault record, the store, the policy, the barrier and the report (see [fault.md](../fault/fault.md)) |
+| `performance/` | `PerformanceModule` — the per-frame performance counters and the frame measurement store of an editor, `FrameMeasurementStore` (see [cell.md](cell.md)) |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
 | `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, and `start_wall_clock!`/`stop_wall_clock!`, the heartbeat that writes real time into a clock |
-| `event/` | the input event vocabulary — `EventModule` (Event, ModifierKeys, KeyDown/KeyUp/KeyPress, Mouse*, Window*, WindowInput) |
+| `event/` | `EventModule` — the input event vocabulary (Event, ModifierKeys, KeyDown/KeyUp/KeyPress, Mouse*, Window*, TimerExpire, DisplayUpdate, WindowInput) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureModule` — the gestures (`MouseClick`, `MouseEnter`/`MouseLeave`/`MouseHover`, `MouseDwell`, `KeyChord`), the pattern language (`GesturePattern`, `@gesture_case`) and the recognitions (`GestureRecognition`, `ChordRecognition`, `ClickRecognition`, `DwellRecognition`) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
@@ -174,11 +176,11 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `intent/` | `IntentModule` — `Intent` and `ClaimedGesture`, the unit that flows back through the readers, and `CollectIntents` |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
-| `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`) and the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`) |
+| `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`), the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`), and the child reconcilers (`IoMapReconcile.jl`: `reconcile_child_iomaps`, `reconcile_child_iomap`) |
 | `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `PrinterContext`, `ChildrenContainer`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
-| `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
+| `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code!`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |
-| `agent/` | `AgentModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |
+| `agent/` | `AgentModule` — the inbound contract (`make/start/stop_agent_server!`, `run_on_editor_task!`) and the outbound Agent and `run_turn!` |
 | `feed/` | `FeedModule` — the feed contract: a registered inflow that the editor moves into a target document once per frame |
 | `editor/` | Editor (the `run_editor!` loop) |
 | `playback/` | `PlaybackModule` — scripted live playback of a timeline in the editor loop |
@@ -190,6 +192,6 @@ ProjecturedKernel.XxxModule` aliases, so its files can use relative `..XxxModule
 imports. The `Projectured` umbrella mechanically re-exports every public name of
 every kernel (and domain) submodule into one flat namespace. Consequently, **module
 names are de-facto public API**: renaming one ripples into the domain alias block
-and the umbrella. A new sub-module added within a layer (as `PerformanceModule`
-and `IntentModule` are) is picked up by the umbrella automatically and
-needs only an added domain alias if a domain file imports from it directly.
+and the umbrella. The module of a new layer, such as `PerformanceModule` or
+`IntentModule`, is picked up by the umbrella automatically and needs only an
+added domain alias if a domain file imports from it directly.

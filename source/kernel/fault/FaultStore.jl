@@ -8,28 +8,30 @@ Where a fault goes the moment it is caught. One per editor.
 
 **A store is deliberately not made of cells, and that is what makes the whole
 design work.** A printer does not throw when `print_document` runs; it throws
-later, inside the thunk that derives its output, while the renderer reads it. So
-the barrier must catch inside the thunk — and a thunk may not write a cell
-(`PAR-NO-WRITE-IN-THUNK`), because a write in the middle of a computation
-invalidates consumers half way through and leaves the graph inconsistent.
+later, inside the computation that derives its output, while the renderer reads
+it. So the barrier must catch inside the computation — and a computation may not
+write a cell (`PAR-NO-WRITE-IN-THUNK`), because a write in the middle of a
+computation invalidates consumers half way through and leaves the graph
+inconsistent.
 
 A store has no dependents, so a write to it invalidates nothing and the rule it
-protects is not in play. The write is keyed, so a thunk that runs ten times for
-one logical fault leaves one record. And the thunk's own answer does not depend
-on the store, so its cached value stays correct. `PAR-PURE-THUNK` and
-`PAR-NO-WRITE-IN-THUNK` each carry the paragraph that says so.
+protects is not in play. The write is keyed, so a computation that runs ten
+times for one logical fault leaves one record. And the answer of the computation
+does not depend on the store, so its cached value stays correct.
+`PAR-PURE-THUNK` and `PAR-NO-WRITE-IN-THUNK` each carry the paragraph that says
+so.
 
-The editor loop then calls [`drain_faults!`](@ref) once per frame, on its own
-task, outside every thunk. That call may write cells, and it is what puts a
-fault into a log document.
+Call [`drain_faults!`](@ref) once per frame, on the task of the editor, outside
+every computation. The drain may write cells, and it is what puts a fault into a
+log document.
 
 A store has no lock, so all code that writes it must run on the thread of the
 editor task. A task that the editor task starts with `@async` runs on that
 thread.
 
-`capacity` bounds the number of distinct keys. A new key that does not fit is
-counted in `dropped` rather than kept: the first faults are the ones that name
-the cause, so the store keeps those.
+`capacity` bounds the number of distinct keys, and it must be at least 1. A new
+key that does not fit is counted in `dropped` rather than kept: the first faults
+are the ones that name the cause, so the store keeps those.
 
 # Example
 
@@ -40,7 +42,7 @@ the cause, so the store keeps those.
     drain_faults!(store)
 
 See also [`record_fault!`](@ref), [`drain_faults!`](@ref) and
-[`run_fault_barrier`](@ref).
+[`run_fault_barrier!`](@ref).
 """
 mutable struct FaultStore
     records::Dict{UInt64, FaultRecord}
@@ -59,10 +61,12 @@ mutable struct FaultStore
     wake::Any
 end
 
-FaultStore(; capacity::Integer = 64) =
+function FaultStore(; capacity::Integer = 64)
+    capacity >= 1 || throw(ArgumentError("a fault store holds at least one fault"))
     FaultStore(Dict{UInt64, FaultRecord}(), UInt64[], UInt64[],
                Dict{UInt64, Int}(), Any[], Dict{Symbol, Int}(),
                Int(capacity), 0, 0, nothing)
+end
 
 """
     get_fault_records(store) -> Vector{FaultRecord}
@@ -98,7 +102,7 @@ attach_fault_wake!(store::FaultStore, wake) = (store.wake = wake; store)
 attach_fault_wake!(::Nothing, wake) = nothing
 
 # Best effort, and it must stay that: `record_fault!` runs inside reactive
-# thunks and inside barriers, so a wake that throws must not throw through
+# computations and inside barriers, so a wake that throws must not throw through
 # them (PAR-REPORT-NEVER-THROWS).
 function _notify_fault_wake!(store::FaultStore)
     wake = store.wake
@@ -128,8 +132,8 @@ thousands of nodes one bug fails at become one line with a number. The message
 and the traceback are formatted for a new key alone, because formatting a
 traceback is expensive and a repeat needs neither.
 
-It is safe to call from inside a reactive thunk, which is the whole reason the
-store exists. It is also safe to call with `nothing` as the store, so a
+It is safe to call from inside a reactive computation, which is the whole reason
+the store exists. It is also safe to call with `nothing` as the store, so a
 projection that was given none still runs.
 
 Answers `nothing` when there is no store, or when the store is full and the key
@@ -155,11 +159,12 @@ function record_fault!(store::FaultStore, site::Symbol; origin, reference = noth
         # Compare against the count that was last queued, not the one that was
         # last drained. Comparing against the drained count re-queues the key on
         # every occurrence above the first bucket, which is the busy loop this
-        # rule exists to stop.
+        # rule exists to stop. A key that waits for the drain already has its
+        # latest count in `records`, so it waits there one time.
         queued = get(store.queued_counts, key, 0)
         if _get_fault_count_bucket(grown.count) != _get_fault_count_bucket(queued)
             store.queued_counts[key] = grown.count
-            push!(store.undrained, key)
+            key in store.undrained || push!(store.undrained, key)
             _notify_fault_wake!(store)
         end
         return grown
@@ -181,24 +186,29 @@ record_fault!(::Nothing, site::Symbol; origin, reference = nothing, exception,
               traceback = nothing) = nothing
 
 """
-    drain_faults!(store) -> Vector{FaultRecord}
+    drain_faults!(store; policy = FaultPolicy()) -> Vector{FaultRecord}
 
 Hand every record that is new, or that grew by an order of magnitude, to each
 attached target, and answer the records that were handed over.
 
 The answer is what lets the caller report the same records on the console: the
-drain is the one place that knows which records are new, and the console tier
-needs exactly that.
+drain holds the list of the new records, and the console tier needs exactly that.
 
-Call it once per frame from the editor's own task, before anything reads the
-projection. A record is handed over at most once per count bucket, so a store
-with nothing new writes no cell, invalidates nothing, and causes no repaint.
+Call it once per frame, on the task of the editor, outside every computation and
+before anything reads the projection. A record is handed over at most once per
+drain and at most once per count bucket, so a store with nothing new writes no
+cell, invalidates nothing, and causes no repaint.
 
-It never throws. A target whose `append_fault!` fails is skipped and reported on
-the console, because a log that can not take a fault must not take the editor
-with it.
+It throws nothing but an `ArgumentError` for a `policy` that is not a
+`FaultPolicy`, and it checks that before it changes the store. A target whose
+`append_fault!` fails is skipped, and a console line reports it when `policy`
+opens the console tier. A log that can not take a fault must not stop the editor.
 """
-function drain_faults!(store::FaultStore)
+function drain_faults!(store::FaultStore; policy = FaultPolicy())
+    # FaultPolicy.jl loads after this file, so the keyword has no type.
+    policy isa FaultPolicy ||
+        throw(ArgumentError("drain_faults!: the policy must be a FaultPolicy, " *
+                            "not a $(typeof(policy))"))
     isempty(store.undrained) && return FaultRecord[]
     keys_to_emit = copy(store.undrained)
     empty!(store.undrained)
@@ -210,7 +220,7 @@ function drain_faults!(store::FaultStore)
             try
                 append_fault!(target, record)
             catch exception
-                _log_fault_report_failure(target, exception)
+                _log_fault_report_failure(policy, target, exception)
             end
         end
         push!(emitted, record)
@@ -218,7 +228,7 @@ function drain_faults!(store::FaultStore)
     emitted
 end
 
-drain_faults!(::Nothing) = FaultRecord[]
+drain_faults!(::Nothing; policy = FaultPolicy()) = FaultRecord[]
 
 """
     get_consecutive_fault_count(store, counter) -> Int

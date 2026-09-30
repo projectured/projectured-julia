@@ -735,9 +735,9 @@ end
 
 # Parse `text.selection[]` into (path, char_start, char_stop) when it matches
 # `.elements[i].content[s:e]` or the in-line `.elements[i].elements[j].content[s:e]`,
-# else return nothing. Selections are canonical at rest; the TypeReferenceStep
-# checkpoints are stripped (this parser extracts only integer span/char offsets)
-# before the raw structural walk.
+# else return nothing. Selections are canonical at rest; the node types are
+# stripped (this parser extracts only integer span/char offsets) before the raw
+# structural walk.
 _text_selection_range(text::TextBlock) = _text_selection_range(text, text.selection)
 _text_selection_range(::TextBlock, selection) = _parse_selection_range(strip_reference_types(selection))
 
@@ -905,8 +905,8 @@ Two shapes occur, both with 0-based offsets:
     inside a line — add the span's base offset.
 """
 function get_flat_selection(text::TextBlock)
-    # Selections are canonical at rest (carry TypeReferenceStep checkpoints); the
-    # range parser peels them, but the rectangular shape is read raw.
+    # Selections are canonical at rest: each node records its type. The range
+    # parser strips the types, and the rectangular shape is read raw.
     sel = text.selection
     sel isa ConcreteReference || return nothing
     h = sel.head
@@ -1234,7 +1234,12 @@ end
 # operation `_lower_text_range` makes of it. A text stage that gets a key reads it
 # against its input this way, so the edit reaches the document as an operation that
 # the stages before it carry and undo can take back.
+#
+# A block whose elements are a list has no flat caret stream: the list can be
+# endless, so it has no end to go to, and a flat offset would walk it. Such a
+# block reads no key.
 function _read_lowered_gesture(block::TextBlock, evt)
+    block.elements isa ListNode && return nothing
     op = read_gesture(block, evt)
     op isa ReplaceTextRangeOperation ? _lower_text_range(block, op) : op
 end
@@ -1302,7 +1307,7 @@ function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::Abstract
     container = _get_container_reference(paths[1])
     index = paths[1][end] - 1
     write = if isempty(replacement)
-        delete_elements(container, index, length(paths))
+        delete_elements(container, index; count = length(paths))
     else
         run = _make_styled_run(replacement, _find_style_span(text, paths[1]))
         ReplaceReferencedValueOperation(nothing,

@@ -11,7 +11,7 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
     doc = make_json_document_example()
     proj = make_json_console_projection_example()
     backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
-    editor = Editor(backend, doc, proj, Device[Keyboard()])
+    editor = Editor(doc, proj; backend = backend, devices = Device[Keyboard()])
     sels = String[]
     # The editor logs every applied operation via @info; quiet it for the test.
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
@@ -36,7 +36,7 @@ function _drive_console_doc(bytes::Vector{UInt8}, steps::Int)
     doc = make_json_document_example()
     proj = make_json_console_projection_example()
     backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
-    editor = Editor(backend, doc, proj, Device[Keyboard()])
+    editor = Editor(doc, proj; backend = backend, devices = Device[Keyboard()])
     sels = String[]
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
         _ED.print!(editor)
@@ -91,9 +91,27 @@ function test_console_backend()
         @test _parse(0x0d) == KeyDown(:return, ModifierKeys(); time = 0.0)
         @test _parse(0x7f) == KeyDown(:backspace, ModifierKeys(); time = 0.0)
         @test _parse(0x09) == KeyDown(:tab, ModifierKeys(); time = 0.0)
+        # A Ctrl byte that no row above reads is its letter with Ctrl: 0x1A is Ctrl+Z.
+        @test _parse(0x1a) == KeyDown(:z, ModifierKeys(ctrl=true); time = 0.0)
+        @test _parse(0x01) == KeyDown(:a, ModifierKeys(ctrl=true); time = 0.0)
         @test _parse(UInt8('a')) == KeyPress('a'; time = 0.0)
         # An incomplete CSI (just "ESC [") yields no event and is left buffered.
         @test _parse(0x1b, UInt8('[')) === nothing
+    end
+
+    # ── the letters ──────────────────────────────────────────────────────
+    @testset "each letter has the name of its lower-case letter" begin
+        # A letter byte is a KeyPress of the letter. A Ctrl byte that no other row
+        # reads is a KeyDown of its letter with Ctrl: 0x01 is Ctrl+A. The console
+        # reads no mouse, so the table holds no button and no wheel.
+        read_already = (0x03, 0x08, 0x09, 0x0a, 0x0d)
+        for (index, letter) in enumerate('a':'z')
+            @test _parse(UInt8(letter)) == KeyPress(letter; time = 0.0)
+            byte = UInt8(index)
+            byte in read_already && continue
+            @test _parse(byte) ==
+                  KeyDown(Symbol(letter), ModifierKeys(ctrl = true); time = 0.0)
+        end
     end
 
     # ── Escape, Alt chords and the modifiers of a CSI sequence ───────────
@@ -168,8 +186,9 @@ function test_console_backend()
     @testset "escape quits the editor" begin
         function read_operation(bytes)
             backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
-            editor = Editor(backend, make_json_document_example(),
-                            make_json_console_projection_example(), Device[Keyboard()])
+            editor = Editor(make_json_document_example(),
+                            make_json_console_projection_example();
+                            backend = backend, devices = Device[Keyboard()])
             Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
                 _ED.print!(editor)
                 _ED.read!(editor)

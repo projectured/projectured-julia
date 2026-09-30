@@ -122,6 +122,55 @@ first_5_from_100 = take_first(inf_ints_100, 5, :next)
 @test first_5_from_100[4].value == 103
 @test first_5_from_100[5].value == 104
 
+# ── The count of the links that exist ───────────────────────────────────────
+
+counted = lazy_integers_from(1)
+@test count_computed_nodes(counted) == 1
+@test counted[5].value == 5                       # reads four links
+@test count_computed_nodes(counted) == 5
+# The count computes nothing: the `next` of the fifth link is still not run.
+fifth = counted.next.next.next.next
+@test !is_cell_up_to_date(getfield(fifth, :next))
+@test count_computed_nodes(counted) == 5
+# A link that holds its neighbour as a value counts too, in either direction:
+# the fifth link counts itself and the one link back that it holds.
+fifth.prev = counted.next.next.next
+@test count_computed_nodes(fifth) == 2
+
+# ── The primes around a number, both ways ───────────────────────────────────
+
+# The primes that the tests expect, found by a test that shares no code with the
+# example: no divisor from 2 to the number less one.
+is_prime_by_all_divisors(n) = n >= 2 && all(d -> n % d != 0, 2:n-1)
+around = make_primes_around(1000)
+@test around.value.value == 1009
+@test count_computed_nodes(around) == 1
+@test around.next.value.value == 1013
+@test around.prev.value.value == 997
+# A link and the link back meet the same node.
+@test around.next.prev === around
+@test around.prev.next === around
+@test count_computed_nodes(around) == 3
+# Twenty links each way are the primes in order, and none is skipped.
+forward, back = around, around
+for _ in 1:20
+    @test all(n -> !is_prime_by_all_divisors(n), forward.value.value+1:forward.next.value.value-1)
+    @test all(n -> !is_prime_by_all_divisors(n), back.prev.value.value+1:back.value.value-1)
+    forward, back = forward.next, back.prev
+end
+@test all(is_prime_by_all_divisors, [n.value.value for n in (forward, back)])
+@test count_computed_nodes(around) == 41
+# The chain ends at 2, whose `prev` is `nothing`.
+low = make_primes_around(3)
+@test low.value.value == 3
+@test low.prev.value.value == 2
+@test low.prev.prev === nothing
+# A start far away costs the links that are read, and no prefix.
+far = make_primes_around(10^12)
+@test far.value.value == 1_000_000_000_039
+@test far.prev.value.value == 999_999_999_989
+@test count_computed_nodes(far) == 2
+
 # ── Bidirectional lazy list (simple test) ───────────────────────────────────
 
 # Note: Bidirectional lazy lists are not fully implemented/tested yet
@@ -343,6 +392,32 @@ end # @testset "ReactiveCollection"
         src[] = 3
         @test [x for x in derived] == [10, 20, 30]   # re-derives on upstream change
         @test [x for x in CellVector(@computation [1, 2])] == [1, 2]
+    end
+
+    @testset "a list in a document copies in a kind by its own method" begin
+        # The walk calls the four-argument form for a child. A list of the mutable
+        # kind holds plain values, so a `push!` to the copy works.
+        copied = copy_document(MutableCell, ListNode(CellVector([1, 2])))
+        inner = copied.value
+        @test !any(x -> x isa AbstractCell, getfield(inner, :elements)[])
+        push!(inner, 3)
+        @test collect(inner) == [1, 2, 3]
+    end
+
+    # A write of one element goes into the slot cell that is there, so the way
+    # back of the write holds the old value and not that cell.
+    @testset "the way back of an element overwrite puts back the old value" begin
+        operation_module = ProjecturedKernel.OperationModule
+        v = CellVector(["a", "b"])
+        slot = get_cell_at(v, 2)
+        editor = (document = nothing,)
+        reference = Reference(RangeReferenceStep(1, 2))
+        write = ReplaceReferencedValueOperation(v, reference, "z")
+        inverse = operation_module.evaluate_invertible_operation!(editor, write)
+        @test collect(v) == ["a", "z"]
+        operation_module.evaluate_operation(editor, inverse)
+        @test collect(v) == ["a", "b"]
+        @test get_cell_at(v, 2) === slot
     end
 
 end # @testset "CellVector protocol"

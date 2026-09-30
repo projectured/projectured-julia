@@ -26,13 +26,16 @@ struct HiddenElements{S} <: AbstractVector{Any}
     to::Int
 end
 Base.size(h::HiddenElements) = (max(0, h.to - h.from + 1),)
-Base.getindex(h::HiddenElements, i::Int) = h.source[h.from + i - 1]
+function Base.getindex(h::HiddenElements, i::Int)
+    @boundscheck checkbounds(h, i)
+    h.source[h.from + i - 1]
+end
 
 # The unbounded default: descend everywhere, keep every element, and so never
 # reach the third. A policy overriding these is what bounds a sync or a copy —
 # the walks in `DocumentSync.jl` / `DocumentCopy.jl` consult them at every child.
 is_descendable_for_sync(policy, depth::Int, slot) = true
-sync_element_limit(policy, source, shadow) = length(source)
+compute_sync_element_limit(policy, source, shadow) = length(source)
 make_unsynced_placeholder(policy, source, current) =
     error("make_unsynced_placeholder: policy $(typeof(policy)) stopped the walk but supplies no marker")
 

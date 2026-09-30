@@ -239,7 +239,7 @@ navigator, a dialog — belongs to the host, because a host knows what it holds.
 make_file_api() = Any[
     FileFormatModule => (
         # A path becomes a tab, and a tab becomes a file again.
-        :make_file_tab, :read_document_file, :write_document_file,
+        :make_file_tab, :make_file_tab_content, :read_document_file, :write_document_file,
         # What Ctrl+S and Ctrl+O answer with.
         :SaveFileOperation, :ReloadFileOperation,
         # Text in, document out, and back.

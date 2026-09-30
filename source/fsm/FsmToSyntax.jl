@@ -261,19 +261,13 @@ end
 # Merged with the Julia table so an embedded guard/action/entry/helper renders
 # through the same recursion (the `FormulaToSyntax` precedent).
 
-function FsmToSyntax()
-    # The domain's own pairs come first: a table is tried in order, and the Julia
-    # table ends with a `Document` fallback that would take every document here.
-    pairs = Pair{Type, Any}[
-        FsmVariable   => FsmVariableToSyntaxNode(),
-        FsmTimer      => FsmTimerToSyntaxLeaf(),
-        FsmEvent      => FsmEventToSyntaxLeaf(),
-        FsmTransition => FsmTransitionToSyntaxNode(),
-        FsmState      => FsmStateToSyntaxNode(),
-        FsmMachine    => FsmMachineToSyntaxNode(),
-        FsmComponent  => FsmComponentToSyntaxNode(),
-        FsmInsertion  => FsmInsertionToSyntaxLeaf(),
-        FsmNothing    => InsertionNothingToSyntaxLeaf()]
-    append!(pairs, JuliaToSyntax().dispatch)
-    TypeDispatchingProjection(pairs)
-end
+FsmToSyntax() = JuliaToSyntax(
+    FsmVariable   => FsmVariableToSyntaxNode(),
+    FsmTimer      => FsmTimerToSyntaxLeaf(),
+    FsmEvent      => FsmEventToSyntaxLeaf(),
+    FsmTransition => FsmTransitionToSyntaxNode(),
+    FsmState      => FsmStateToSyntaxNode(),
+    FsmMachine    => FsmMachineToSyntaxNode(),
+    FsmComponent  => FsmComponentToSyntaxNode(),
+    FsmInsertion  => FsmInsertionToSyntaxLeaf(),
+    FsmNothing    => InsertionNothingToSyntaxLeaf())

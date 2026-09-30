@@ -1,6 +1,6 @@
 # Fragment of `FeedModule` — the fallback behaviours the feed contract
-# supplies itself, for the generics a feed may leave unanswered. The contract
-# is declared in `FeedInterface.jl`; the concrete feeds live beside their
+# supplies itself, for the generics that a feed does not have to implement. The
+# contract is declared in `FeedInterface.jl`; the concrete feeds live beside their
 # stores. `drain_changes!` has no counterpart here on purpose — an
 # unimplemented drain must raise a `MethodError`, not quietly move nothing.
 

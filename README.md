@@ -1,18 +1,19 @@
 # ProjecturEd
 
-ProjecturEd: an application to view, edit and transform structured data with an AI assistant, and a generic user interface for any Julia program.
+ProjecturEd: one structure, many editable views — with an AI assistant. It is an application to view and edit structured data, made to be extended with your own data structures and views, and a generic user interface for any Julia program.
 
 > **Status: under development.** Most features work, but ProjecturEd is not a finished product. Some parts are incomplete, and names and interfaces can still change. The [roadmap](documentation/requirement/delivery-roadmap.md) lists what works today and what comes next. Problem reports and questions are welcome as GitHub issues.
 
-ProjecturEd is an application to view, edit and transform structured data, with an AI assistant. It works with about twenty kinds of data, among them JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia code, math formulas, charts, graphs and state machines. It shows them in one window, in tabs and split panes, and one document can mix kinds: JSON inside XML inside prose. ProjecturEd is written in Julia. So it is also a generic user interface for your own Julia programs: it shows your documents, and the values of a running program, in the same way.
+ProjecturEd is an application to view and edit structured data, with an AI assistant, and it is made to be extended: you define your own data structures as documents and their views as projections. About twenty domains come with it, among them JSON, YAML, XML, Markdown, SQL, Julia code, math formulas, charts, graphs and state machines. They are examples, not the limit. ProjecturEd shows them in one window, in tabs and split panes, and one document can mix kinds, yours with the others: JSON inside XML inside prose. ProjecturEd is written in Julia. So it is also a generic user interface for your own Julia programs: it shows your documents, and the values of a running program, in the same way.
 
-A view can be a tree, a statement with syntax colours, a chart, a diagram, a form or a table. When the data changes, its views change with it. Most views are also editors: an edit in a view changes the data itself, not a text copy of it. You can design your own user interface from views and widgets. For data that has no view yet, you get one on demand: a generic view that ProjecturEd makes by reflection over the value, or a view that the assistant opens for you.
+You can extend ProjecturEd with your own domain: its document types, the projections that make its views, its operations and its key bindings. A domain is a package of its own, and no other domain depends on it. So you can work on your domain without changes to other domains, while other developers work on theirs. Your domain gets the general features with little or no extra code: selection and navigation, search, copy and paste, filtered and sorted views, a text notation and a file format, saving, every backend, and the AI assistant, which can find and call your functions.
+
+A view can be a tree, a statement with syntax colours, a chart, a diagram, a form or a table. When the data changes, every view of it changes with it: each view reads the data through reactive cells, so no view on the screen can show an old value. Most views are also editors: an edit in a view changes the data itself, not a text copy of it. You can design your own user interface from views and widgets. For data that has no view yet, you get one on demand: a generic view that ProjecturEd makes by reflection over the value, or a view that the assistant opens for you.
 
 The same views work in a native window, in a web browser, in a terminal, and without a screen for tests and scripts. A view can also go to a PDF file, an image or a video. The data goes to text files or to binary files. A text file uses the notation of its domain, and several files can refer to each other. So data with shared parts and mutually recursive structures comes back unchanged after a save and a load. Parts of a document that are not on the screen cost nothing, so a view can show a part of a very large document, or of an infinite list.
 
-The AI assistant runs inside the application, with a local model through Ollama or with Claude. It searches the API of the loaded packages, writes Julia code and runs it in the application. It changes the data with the same operations as your key presses. The conversation is a document too, with its own view, and you can also run Julia code in it yourself. An external AI client, for example Claude Code, can use the same tools through MCP.
+The AI assistant runs inside the application, with a local model through Ollama or with Claude. It searches the API of the loaded packages, writes Julia code and runs it in the application. It changes the data with the same operations as your key presses. The window is a document too, so the assistant also controls the user interface: it can open a tab, split a pane or scroll a view. The conversation is a document too, with its own view, and you can also run Julia code in it yourself. An external AI client, for example Claude Code, can use the same tools through MCP.
 
-You can extend ProjecturEd with your own domain: its document types, the projections that make its views, its operations and its key bindings. A domain is a package of its own, and no other domain depends on it. So you can work on your domain without changes to other domains, while other developers work on theirs. Your domain gets the general features with little or no extra code: selection and navigation, search, copy and paste, filtered and sorted views, a text notation and a file format, saving, every backend, and the AI assistant, which can find and call your functions.
 
 ## Screenshots
 
@@ -26,7 +27,8 @@ You can extend ProjecturEd with your own domain: its document types, the project
 
 ## What you can do with it
 
-- **View and edit structured files as structures.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia and a math notation open, change and save through their own parsers. See [the domain inventory](documentation/design/domain-inventory.md).
+- **Build an application for your own data.** Define the structure of your data as documents and its views as projections, in a package of its own. [new-domain-guide.md](documentation/guide/new-domain-guide.md) walks through a whole domain, and [view-your-data-guide.md](documentation/guide/view-your-data-guide.md) shows your own Julia values with no new domain.
+- **Edit files as structures.** The domains that come with ProjecturEd open, change and save their files through their own parsers, among them JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia and a math notation. See [the domain inventory](documentation/design/domain-inventory.md).
 - **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs, split panes and a pane tree come from the [widget](documentation/package/widget/widget.md) and [pane](documentation/package/pane/pane.md) packages. ProjecturEd's own window is a complete application of this kind.
 - **Look into a running Julia program.** A reflection view shows any object as a tree that opens one level at a time.
 - **Show results.** Line, bar, histogram, scatter and strip charts, and [sequence charts](documentation/package/sequencechart/sequencechart.md), are documents. A data point can be selected like any other part.
@@ -97,12 +99,11 @@ ProjecturEd is under development. These limits are true today:
 
 - Undo and redo work in the application, which puts a history around each file and one around the window. A window of your own has none until you put one there.
 - Type-in of single characters does not work the same way in every domain.
-- A table renders and navigates, but a cell does not take an edit.
+- A drag inside a table cell does not select text. A click, the arrows and typing edit the cell.
 - A click selects where a projection wires it, and elsewhere it does nothing.
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
 - The packages are not in the General registry. You clone the repository and use `environment/all`.
 - SDL2 and SDL_ttf must be installed for a native window.
-- Commercial use needs a licence from the author.
 
 The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes next.
 
@@ -137,11 +138,16 @@ A package and its code do not share a directory. `package/ProjecturedJson/` is a
 
 Forks and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) says how the repository is organised, what a change must keep, and how to add a domain of your own. If you are an AI assistant working in this repository, read [CLAUDE.md](CLAUDE.md) and [SEALING.md](SEALING.md) first.
 
+## How the code is made
+
+ProjecturEd began in Common Lisp in 2013. I wrote that version by hand, and it is still available as [projectured-lisp](https://github.com/projectured/projectured-lisp). This Julia version is a port of it, which I started in May 2026. Most of the code is written by Claude Code, an AI coding tool, but the design and the decisions are mine.
+
+I work plan first. Each change starts from a written plan in [plan/](plan/), and I refine the plan with the tool until I agree with each decision in it: the concepts, the alternatives, the risks and the order of the work. There are more than 400 plans so far. A typical plan went through several rounds of refinement, and the larger ones through dozens; about half of the more than 4,000 commits change a plan. The rules that every change must keep are in [documentation/rule/](documentation/rule/). Static guards check the rules that a program can check, the test suites check the behaviour, and [CI](.github/workflows/CI.yml) runs both.
+
+I review the code file by file against its [architecture invariants](documentation/rule/architecture-invariants.md), and I seal each file after the review. [SEALING.md](SEALING.md) lists the sealed files. So far I sealed only files of the kernel; the other packages will follow. When I seal a file, I read all its types and the interface of each public function, but I do not check the implementation of every function. Outside the sealed files, I read the parts that I am interested in.
+
 ## Licence, author and contact
 
-ProjecturEd is free for non-commercial use, and you can modify it for that use. Commercial use needs a licence from the author.
-
-- [LICENCE-PD](LICENCE-PD) — non-commercial use.
-- [LICENCE-COMMERCIAL](LICENCE-COMMERCIAL) — commercial use.
+ProjecturEd is under the [Mozilla Public License 2.0](LICENSE). You can use it, change it and build products on it, commercial ones included. A change to a file of ProjecturEd stays under the MPL, and its source must be available to the people you give it to; files of your own, such as a package that extends ProjecturEd, can be under any licence.
 
 Author: Levente Mészáros. Contact: projectured@gmail.com.

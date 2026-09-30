@@ -4,7 +4,7 @@
 # edge, so an auto-sized item canvas (w=h=0) would take every point to its right,
 # and the first button would light wherever the pointer is.
 
-using ProjecturedKernel.CellModule: Cell, Computation
+using ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 
 function test_widget_toolbar()
 @testset "WidgetToolbar pointer routing" begin
@@ -40,6 +40,38 @@ end
     for (i, c) in enumerate(wrappers)
         _mtt_move!(driver, Int(c.x) + 6, Int(c.y) + Int(c.h[]) ÷ 2, 1.0 + i)
         @test [item.action.label for item in tb.elements if get_mouse_target(item) !== nothing] == [labels[i]]
+    end
+end
+
+# A hover writes the mouse target of an item. The layer that shows it reads that
+# cell in cells of its own, so the element list and the extent of the item stay up
+# to date: the toolbar does not lay out its items again, and a partial repaint
+# paints only the layer.
+@testset "a hover changes the layer of an item and nothing else" begin
+    for item in (WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save"))
+        c = print_document(proj, item).output
+        width, height = Int(c.w[]), Int(c.h[])
+        rects = [e for e in map(_unwrap, collect(c.elements)) if e isa GraphicsRect]
+        hidden = [r for r in rects if Int(r.w) == 0 && Int(r.h) == 0]
+        @test length(hidden) == 1
+        replace_mouse_target!(item, EmptyReference())
+        @test is_cell_up_to_date(getfield(c, :elements))
+        @test is_cell_up_to_date(getfield(c.elements, :elements))
+        @test is_cell_up_to_date(getfield(c, :w)) && is_cell_up_to_date(getfield(c, :h))
+        layer = only(hidden)
+        @test (Int(layer.w), Int(layer.h)) == (width, height)
+        replace_mouse_target!(item, nothing)
+        @test (Int(layer.w), Int(layer.h)) == (0, 0)
+    end
+end
+
+# A toolbar item states its size, and the bar takes it. A button can draw outside
+# its size, as its shadow does, so the bar measures it.
+@testset "a toolbar is as large as what its items draw" begin
+    for items in (Any[WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save")],
+                  Any[WidgetToolbarItem("Run"; icon = :play), WidgetButton("Go")])
+        c = print_document(proj, WidgetToolbar(items)).output
+        @test (Int(c.w[]), Int(c.h[])) == get_graphics_size(c, _det)
     end
 end
 

@@ -49,6 +49,66 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]) === nothing
     end
 
+    @testset "a letter key has the name of its lower-case letter" begin
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"z","code":"KeyZ",
+                "mods":{"ctrl":true}}""")
+        @test read_from_devices(backend, Device[]).event.key === :z
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"Z","code":"KeyZ",
+                "mods":{"ctrl":true,"shift":true}}""")
+        @test read_from_devices(backend, Device[]).event.key === :z
+    end
+
+    @testset "the backslash key has the name that the SDL backend gives it" begin
+        # The JSON of the page holds the key `\` as "\\".
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"\\\\","code":"Backslash",
+                "mods":{"ctrl":true}}""")
+        down = read_from_devices(backend, Device[]).event
+        @test down.key === :backslash
+        @test down.modifiers.ctrl
+    end
+
+    @testset "a button with no name in the event layer makes no event" begin
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mousedown","window":"main","button":"back","x":5,"y":6}""")
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mouseup","window":"main","button":"back","x":5,"y":6}""")
+        @test read_from_devices(backend, Device[]) === nothing
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mousedown","window":"main","button":"right","x":5,"y":6}""")
+        @test read_from_devices(backend, Device[]).event.button === :right
+    end
+
+    @testset "letters, buttons and the wheel have the names of the event layer" begin
+        backend = WebBackend(port = 0)
+        # Each letter key has the name of its lower-case letter, with or without Shift.
+        for letter in 'a':'z', key in (string(letter), uppercase(string(letter)))
+            code = "Key" * uppercase(string(letter))
+            _WEB._decode_and_enqueue!(backend,
+                """{"type":"keydown","window":"main","key":"$key","code":"$code"}""")
+            @test read_from_devices(backend, Device[]).event.key === Symbol(letter)
+        end
+        # The page names the left, the middle and the right button. The server
+        # drops another name, as the page sends none for a side button.
+        for (button, name) in (("left", :left), ("middle", :middle), ("right", :right),
+                               ("forward", nothing))
+            _WEB._decode_and_enqueue!(backend,
+                """{"type":"mousedown","window":"main","button":"$button","x":5,"y":6}""")
+            down = read_from_devices(backend, Device[])
+            @test name === nothing ? down === nothing : down.event.button === name
+        end
+        # A turn of the wheel away from the user: the page sends a positive `dy`.
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"scroll","window":"main","dx":0,"dy":1,"x":5,"y":6}""")
+        scroll = read_from_devices(backend, Device[]).event
+        @test scroll isa MouseScroll && scroll.dy > 0
+    end
+
     @testset "a motion holds every button that the mask of the browser holds" begin
         backend = WebBackend(port = 0)
         # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.

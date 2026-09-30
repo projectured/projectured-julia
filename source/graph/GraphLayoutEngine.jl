@@ -1,8 +1,9 @@
 # Fragment of `GraphModule`.
 #
 # A swappable interface for graph placement + edge routing. `GridEmbedding`
-# (pure Julia) places without simulating, so nothing downstream is blocked. The
-# force-directed engines ported from C++ live above this file; the native
+# (pure Julia) places without simulating, so nothing downstream is blocked.
+# `FruchtermanReingoldLayout` (pure Julia) places by forces, in a file of its
+# own; the native
 # binding (Adaptagrams: libcola for placement, libavoid for routing) lives in its
 # own package, `ProjecturedAdaptagrams`, because it pulls in an external native
 # dependency — it adds an `AdaptagramsLayout <: GraphLayoutEngine` method to
@@ -26,8 +27,8 @@
 # - `routes`       maps each `GraphEdge` (by `objectid`) to `Vector{Tuple{Int,Int}}`.
 #
 # `extent` and `border` are one argument pair rather than engine fields, because
-# the same graph in two panes needs two layouts. The C++ original passes the same pair the
-# same way, as `GraphLayouter::setSize(width, height, border)`.
+# the same graph in two panes needs two layouts. OMNeT++ passes the same pair the same
+# way, as `GraphLayouter::setSize(width, height, border)`.
 #
 # Keying on `objectid` keeps the engine call pure of any reactive cell, so the
 # projection can memoize it on topology + sizes + constraints.
@@ -50,7 +51,8 @@ function layout_graph end
     layout_engine_name(engine) -> Symbol
 
 Which algorithm this engine is, as a name a view can print and a test can
-assert: `:grid`, `:spring_embedder`, `:force_directed`, `:adaptagrams`. An
+assert: `:grid`, `:fruchterman_reingold`, or the name of an engine that a
+package registered, such as `:adaptagrams`. An
 engine that stands in for another answers the name of whatever really ran.
 """
 function layout_engine_name end
@@ -130,9 +132,10 @@ vertex naming the same `group` belongs to one family that moves as one body,
 each member holding its own offset from the family's anchor point.
 
 The payload is `(group, offx, offy)`, or just `group` for an offset of zero.
-This is `addAnchoredNode(id, anchorname, offx, offy, w, h)`, which is how
-The C++ original lays out a module vector: `rte[0..56]` is 57 nodes and one anchor, so
-the ring or the row keeps its shape while the whole family finds its place.
+OMNeT++ lays out a module vector the same way, with
+`addAnchoredNode(id, anchorname, offx, offy, w, h)`: `rte[0..56]` is 57 nodes
+and one anchor, so the ring or the row keeps its shape while the whole family
+finds its place.
 
 Groups are compared with `isequal`, so a `Symbol`, a `String` or a number all
 name a family.
@@ -262,13 +265,13 @@ The affine that maps the placement of `indices` onto `extent` inset by `border`:
 `new_x = ox + (x - x1) * fx`, and the same on y. `nothing` when there is nothing
 to map or no room to map it into.
 
-Only centres are mapped; a box keeps the size it was measured at. That is what
-the original does — `BasicSpringEmbedderLayout::execute` rescales `n.x` and `n.y` and
-never `n.sx`, `n.sy` — and it is what makes `:fixed_size` true for every engine
-here without any engine doing anything about it.
+Only centres are mapped; a box keeps the size it was measured at. OMNeT++ does
+the same: its layouters rescale the position of a node and never its size. It
+is what makes `:fixed_size` true for every engine here without any engine doing
+anything about it.
 
-The two axes scale apart, so a graph asked to fill a wide box becomes wide. That
-is also the behaviour of the original: it computes `xfact` and `yfact` separately.
+The two axes scale apart, so a graph asked to fill a wide box becomes wide, as
+in OMNeT++, which computes the two factors separately.
 """
 function get_extent_transform(cx, cy; widths, heights, indices, extent, border::Real)
     isempty(indices) && return nothing

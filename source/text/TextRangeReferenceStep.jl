@@ -51,6 +51,8 @@ ReferenceModule.evaluate_reference_step(step::TextRangeReferenceStep, document) 
 
 Base.:(==)(a::TextRangeReferenceStep, b::TextRangeReferenceStep) =
     a.start == b.start && a.stop == b.stop
+Base.hash(s::TextRangeReferenceStep, h::UInt) =
+    hash(s.stop, hash(s.start, hash(:TextRangeReferenceStep, h)))
 
 function Base.show(io::IO, s::TextRangeReferenceStep)
     s.start == s.stop ? print(io, "⌶{", s.start, "}") :

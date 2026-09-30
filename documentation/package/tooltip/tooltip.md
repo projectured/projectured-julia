@@ -34,7 +34,7 @@ The gesture tracker recognizes the dwell when the pointer rests. The mouse targe
 
 ### The window
 
-`TooltipWindowProjection` keeps the tooltip window. It sits at the screen, inside the gesture tracker and around the mouse target tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`.
+`TooltipWindowProjection` keeps the tooltip window. It sits at the screen, inside the gesture tracker and around the mouse target tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`. The `window` wrapper of `build_editor` gives its setting `inner_wrappers` to `make_tracking_screen`.
 
 - **Opening.** The wrapper takes the `OpenTooltipOperation` out of the answer of its content and opens a window with `style = :tooltip`, `offset` from the point, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens at the forward image of the part.
 - **What it shows.** The window holds a `TooltipContent`: all the layers, and how many of them show. The natural projection draws it: the content of each shown layer, and a separator and the title before each layer when more than one shows. The row is `make_natural_tooltip_row(; measure)`, and a host gives it in `make_opened_window_projections(; content)`.
@@ -65,10 +65,10 @@ The command palette lists the binding by its `description` on the selection, and
 ## Usage
 
 ```julia
-editor = make_editor(document, projection, "Title"; backend = backend,
-    opened_window_projections = make_opened_window_projections(;
-        content = Pair{Type,Any}[make_natural_tooltip_row(measure = measure)]),
-    inner_wrappers = [wrap_tooltip_window])
+editor = build_editor(document, projection; backend = backend,
+    window = (; title = "Title", inner_wrappers = [wrap_tooltip_window],
+              opened_window_projections = make_opened_window_projections(;
+                  content = Pair{Type,Any}[make_natural_tooltip_row(measure = measure)])))
 ```
 
 **The window fits what it says.** The wrapper gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of `TooltipWindowProjection`. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut.

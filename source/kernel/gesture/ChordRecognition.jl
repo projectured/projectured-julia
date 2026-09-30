@@ -32,7 +32,7 @@ function recognize(recognition::ChordRecognition, kept::Tuple, event::KeyDown, w
     if any(chord -> _is_chord_prefix(keys, chord), recognition.chords)
         any(chord -> length(chord) == length(keys) && _is_chord_prefix(keys, chord),
             recognition.chords) || return RecognitionStep(keys; held = true)
-        chord = KeyChord(KeyDown[key.event for key in keys]; time = event.time)
+        chord = KeyChord(KeyDown[key.event for key in keys]; time = get_event_time(event))
         return RecognitionStep((); inputs = [WindowInput(first(keys).window_id, chord)],
                                held = true)
     end
@@ -44,6 +44,7 @@ end
 # modifiers, whatever the `repeat` flag.
 function _is_chord_prefix(keys, chord::Vector{KeyDown})
     length(keys) <= length(chord) || return false
-    all(i -> chord[i].key == keys[i].event.key && chord[i].modifiers == keys[i].event.modifiers,
+    all(i -> chord[i].key == keys[i].event.key &&
+             chord[i].modifiers == keys[i].event.modifiers,
         eachindex(keys))
 end

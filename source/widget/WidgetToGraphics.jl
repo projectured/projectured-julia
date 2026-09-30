@@ -455,6 +455,26 @@ function _push_state_layer!(elements::Vector, color, x::Int, y::Int, width::Int,
     _push_panel!(elements, x, y, width, height; fill = color, radius = radius)
 end
 
+# Push the layer of the light under the pointer, and of the pressed state when
+# `pressed_color` is given, over the surface of `w`. The layer is always there:
+# its size and its color are cells of its own that read the mouse target and the
+# `pressed` cell of `w`, as the focus ring reads the selection. A crossing then
+# changes the layer and not the element list or the extent of the widget, so
+# only the layer is painted again. While the pointer is off `w` and `w` is not
+# pressed, the layer has no size and draws nothing.
+function _push_hover_layer!(elements::Vector, w::WidgetDocument, x::Int, y::Int,
+                            width::Int, height::Int; hovered_color::StyleColor,
+                            pressed_color = nothing, radius::Int = 0)
+    is_pressed() = pressed_color !== nothing && w.pressed === true
+    is_shown() = is_pressed() || _is_under_pointer(w)
+    layer = GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius)
+    set_cell_computation!(getfield(layer, :w), () -> is_shown() ? Int32(width) : Int32(0))
+    set_cell_computation!(getfield(layer, :h), () -> is_shown() ? Int32(height) : Int32(0))
+    pressed_color === nothing ||
+        set_cell_computation!(getfield(layer, :color), () -> is_pressed() ? pressed_color : hovered_color)
+    push!(elements, layer)
+end
+
 # A focus ring around a focused widget (Stage 2). Focus is selection. The ring is
 # a **persistent overlay** (always pushed) whose `w`/`h` read the selection — full
 # control bounds when focused, 0 when not (a zero-size rect the renderer skips).
@@ -963,6 +983,7 @@ WidgetToolbarToGraphicsCanvas(theme::WidgetTheme; measure,
     track_color::StyleColor       # rail fill
     thumb_color::StyleColor       # thumb fill
     minimum_thumb_length::Int
+    thickness::Int                # across the bar, where nothing sizes it
 end
 
 WidgetScrollBarToGraphicsCanvas(theme::WidgetTheme;
@@ -970,9 +991,10 @@ WidgetScrollBarToGraphicsCanvas(theme::WidgetTheme;
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
                                 track_color = theme.muted, thumb_color = theme.border,
-                                minimum_thumb_length = 8) =
+                                minimum_thumb_length = 8, thickness = 12) =
     WidgetScrollBarToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                    content_color, track_color, thumb_color, minimum_thumb_length)
+                                    content_color, track_color, thumb_color, minimum_thumb_length,
+                                    thickness)
 
 # ── IoMap for WidgetScrollPane ─────────────────────────────────────────────
 
@@ -2034,15 +2056,15 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         inner_width, inner_height = button_width - inset_width, button_height - inset_height
         corner_radius = _sc(p.corner_radius)
         # State-driven surface. The reader keeps the transient `pressed` cell
-        # current, and the mouse target says whether the pointer is on the button;
-        # reading them here ties the rendered layer to both reactively. A lit or a
-        # pressed button draws a translucent layer over its surface, so the state
-        # shows over any surface color. A disabled button (or one bound to a
-        # disabled command) ignores both: its own muted surface and label, no
-        # shadow (its reader also never sets `pressed`).
+        # current, and the mouse target says whether the pointer is on the button.
+        # A lit or a pressed button draws a translucent layer over its surface, so
+        # the state shows over any surface color; the layer reads the state in
+        # cells of its own. A press also drops the shadow, so it is read here. A
+        # disabled button (or one bound to a disabled command) ignores both: its
+        # own muted surface and label, no shadow, no layer (its reader also never
+        # sets `pressed`).
         enabled = _button_enabled(w)
         pressed = enabled && w.pressed === true
-        lit = enabled && _is_under_pointer(w)
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         # The rect of the border: the box without its margin.
@@ -2060,8 +2082,9 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         end
         _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
                          radius = corner_radius)
-        _push_state_layer!(elements, pressed ? p.layer_pressed_color : lit ? p.layer_hovered_color : nothing,
-                           margin_left, margin_top, border_box_width, border_box_height; radius = corner_radius)
+        enabled && _push_hover_layer!(elements, w, margin_left, margin_top, border_box_width, border_box_height;
+                                      hovered_color = p.layer_hovered_color,
+                                      pressed_color = p.layer_pressed_color, radius = corner_radius)
         # Lay out icon + label as one centered group; the icon tints to the label color
         # (so it mutes with the button), the label sits to its right.
         start_x = content_x + (inner_width - full_w) ÷ 2
@@ -2579,7 +2602,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             cw += icon_w + gap
         end
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
-         elements = elems, child_iomaps)
+         enabled, elements = elems, child_iomaps)
     end)
     build = Cell(@computation begin
         needed = measured[]
@@ -2590,12 +2613,11 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
         _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
                          control_w - needed.inset_width, control_h - needed.inset_height)
-        # The light, only while the pointer is on the item and it is enabled, drawn
-        # over the box and under the content. The measure does not read it, so a
-        # light changes no extent.
-        lit = _menu_item_enabled(w) && _is_under_pointer(w)
-        _push_state_layer!(final, lit ? p.layer_hovered_color : nothing,
-                           0, 0, control_w, control_h)
+        # The layer of the light of an enabled item, drawn over the box and under
+        # the content. It reads the mouse target in cells of its own, so a light
+        # changes no extent.
+        needed.enabled && _push_hover_layer!(final, w, 0, 0, control_w, control_h;
+                                             hovered_color = p.layer_hovered_color)
         append!(final, needed.elements)
         (width=control_w, height=control_h, elements=final, child_iomaps=needed.child_iomaps)
     end)
@@ -2699,8 +2721,7 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
                          content_width, content_height)
-        _push_state_layer!(drawn, enabled && _is_under_pointer(w) ? p.layer_hovered_color : nothing,
-                           0, 0, width, height)
+        enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color)
         append!(drawn, elements)
         (width = width, height = height, elements = drawn)
     end))
@@ -2791,6 +2812,29 @@ _menu_item_height(cim) =
     cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_height :
         (cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0)
 
+# The extent that a bar reaches: the box parts in `box`, and each item of
+# `child_iomaps` at its place. A menu item and a toolbar item draw inside the size
+# they state, so the bar takes that size, and a parent that asks the size of the
+# bar reads no graphic inside such an item, such as the layer that a hover
+# changes: a hover does not move what lies under the bar. Any other item is
+# measured, because it can draw outside its size, as the shadow of a button does.
+function _compute_bar_extent(box::Vector, child_iomaps::Vector, measure)
+    width, height = 0, 0
+    for part in box
+        part_width, part_height = _element_size(part, measure)
+        width = max(width, part_width); height = max(height, part_height)
+    end
+    for (x, y, cim) in child_iomaps
+        item_width, item_height =
+            get_iomap_input(cim) isa Union{WidgetMenuItem,WidgetToolbarItem} ?
+                (_menu_item_width(cim), _menu_item_height(cim)) :
+            cim.output isa GraphicsDocument ? _element_size(cim.output, measure) : (0, 0)
+        width = max(width, x + item_width)
+        height = max(height, y + item_height)
+    end
+    (width, height)
+end
+
 function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     # Reconcile every element by identity, keeping the ORIGINAL index so the
@@ -2839,13 +2883,13 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w; variant), _get_box_colors(p, w; variant),
                          content_width, content_height)
+        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
         append!(elems, items)
-        (elements=elems, child_iomaps=child_iomaps)
+        # A menu is an overlay: capped by the window, never stretched to it.
+        (width = _resolve_overlay(ctx, :x, 0, width), height = _resolve_overlay(ctx, :y, 0, height),
+         elements = elems, child_iomaps = child_iomaps)
     end)
-    # A menu is an overlay: capped by the window, never stretched to it.
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p);
-                                              cap = ctx),
-                  Cell(@computation build[].child_iomaps))
+    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
 end
 
 map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) = _map_child_forward(iomap, reference)
@@ -4973,66 +5017,104 @@ end
 
 # ── WidgetScrollPane ────────────────────────────────────────────────────────
 
-"""
-    get_frozen_extent(iomap) -> Cell of `(fx, fy)`, or `nothing`
-
-How many pixels of a printed content do **not** scroll: a prefix on each axis
-that an enclosing `WidgetScrollPane` holds still while the rest travels.
-
-A content with no such prefix answers `nothing`, and that is every content but a
-table today — those panes keep exactly the one viewport they have always had.
-`WidgetTable` answers the extent of its header strips, which it already computes.
-
-**The pane freezes and the content declares**, rather than the other way round.
-A content that scrolled itself would need its own `size` and `scroll_position`,
-and a pane around it would scroll a thing that scrolls; every wheel and drag
-already reaches the pane. And a prefix is not about tables: a sequence chart, a
-spreadsheet and a log with a fixed first line all want one.
-"""
-get_frozen_extent(::Any) = nothing
-
-# One region of a pane that holds a prefix of its content still.
-#
-# Four of them tile the viewport: the corner holds both axes, the two strips hold
-# one each, and the body holds neither. A **held** axis draws the content's own
-# prefix at the viewport edge and does not travel. A **free** axis is offset by
-# the scroll and by the prefix, so the first thing it shows is what lies just
-# past the strip.
-#
-# A region whose extent is zero — the strips of a table with only one of them —
-# draws nothing and claims no click, because a viewport clips to its own box.
-function _pane_frozen_region(cox::Int, coy::Int, vw, vh, frozen,
-                             inner_x, inner_y, elements, hold_x::Bool, hold_y::Bool)
-    fx() = max(0, Int(frozen[][1]))
-    fy() = max(0, Int(frozen[][2]))
-    x = Cell(@computation Int32(cox + (hold_x ? 0 : fx())))
-    y = Cell(@computation Int32(coy + (hold_y ? 0 : fy())))
-    vpw = Cell(@computation Int32(hold_x ? min(fx(), Int(vw[])) : max(0, Int(vw[]) - fx())))
-    vph = Cell(@computation Int32(hold_y ? min(fy(), Int(vh[])) : max(0, Int(vh[]) - fy())))
-    cx = Cell(@computation Int32(hold_x ? 0 : Int(inner_x[]) - fx()))
-    cy = Cell(@computation Int32(hold_y ? 0 : Int(inner_y[]) - fy()))
-    GraphicsViewport(x, y, vpw, vph,
-                     Cell(GraphicsCanvas(cx, cy, Int32(0), Int32(0), elements,
-                                         layout_none, true, Cell(nothing))),
-                     Cell(affine_identity), Cell(nothing))
-end
-
 # How far down a pane shows its content, in pixels. The printer draws the content
 # at this offset and the reader routes a pointer event by it, so a press lands on
 # what is drawn under it.
 #
 # A pane that follows the end shows the end, whatever `scroll_position` holds. A
 # stored offset is clamped as it is read, because the content can shrink under a
-# position that was valid when it was written. A content with no end has no
-# extent to clamp against: its offset is measured from the head of its list, in
+# position that was valid when it was written. A list has no extent to clamp
+# against along its axis: its offset is measured from the head of the list, in
 # either direction, and following an end it does not have means staying where it
-# is.
+# is. The ends that a list does have stop it, once the walk from the head reaches
+# them (`_clamp_to_list_ends`). A list that runs to the side has its extent down,
+# and the pane clamps to it.
 function _pane_scroll_y(w::WidgetScrollPane, content::GraphicsCanvas, view_h::Integer)
     y = Int((getfield(w, :scroll_position)[]::Point2D).y[])
-    is_infinite_canvas(content) && return y
+    if is_infinite_canvas(content)
+        _find_list_canvas(content, :y) === nothing &&
+            return clamp(y, 0, max(0, Int(content.h) - Int(view_h)))
+        return _clamp_to_list_ends(content, y, Int(view_h), :y)
+    end
     room = max(0, Int(content.h) - Int(view_h))
     getfield(w, :follow_end)[] === true && return room
     clamp(y, 0, room)
+end
+
+# How far to the side a pane shows its content, in pixels. A content with an
+# extent is clamped as it is scrolled, not as it is read. A list that runs to the
+# side stops at its ends as it is read, as a list that runs down does.
+function _pane_scroll_x(w::WidgetScrollPane, content::GraphicsCanvas, view_w::Integer)
+    x = Int((getfield(w, :scroll_position)[]::Point2D).x[])
+    (is_infinite_canvas(content) && _find_list_canvas(content, :x) !== nothing) || return x
+    _clamp_to_list_ends(content, x, Int(view_w), :x)
+end
+
+# The canvas whose elements are a list that runs along `axis` (`:y` down, `:x`
+# to the side), with its start on that axis in the coordinates of `content`. It
+# is `content` itself, which the pane places at its own origin, or the first of
+# its element canvases whose list runs that way. `nothing` when no list runs
+# along `axis`.
+function _find_list_canvas(content::GraphicsCanvas, axis::Symbol)
+    layout = axis === :y ? layout_vertical : layout_horizontal
+    start(canvas) = Int(axis === :y ? canvas.y : canvas.x)
+    content.elements isa ListNode &&
+        return content.layout == layout ? (content, start(content)) : nothing
+    for element in content.elements
+        (element isa GraphicsCanvas && element.elements isa ListNode && element.layout == layout) ||
+            continue
+        return (element, start(element))
+    end
+    nothing
+end
+
+# The start and the end of one element of a list along `axis`, in the
+# coordinates of the list, or `nothing` for an element that has no extent of
+# its own.
+function _get_list_element_span(element, axis::Symbol)
+    position, extent = axis === :y ? (:y, :h) : (:x, :w)
+    (hasproperty(element, position) && hasproperty(element, extent)) || return nothing
+    first_edge = Int(getproperty(element, position))
+    (first_edge, first_edge + Int(getproperty(element, extent)))
+end
+
+# `offset` clamped to the ends of the list that `content` draws along `axis`,
+# where a walk from the head reaches them. The last child does not come short of
+# the far edge of the viewport, and the first child does not pass the near
+# edge. The first child wins, so a list shorter than the viewport starts at its
+# start. Each walk stops at an edge of the viewport, so it reads the children
+# that a renderer reads to draw them.
+function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, view::Int, axis::Symbol = :y)
+    found = _find_list_canvas(content, axis)
+    found === nothing && return offset
+    list, start = found
+    node = list.elements
+    while true
+        span = _get_list_element_span(node.value, axis)
+        span === nothing && return offset
+        far_edge = start + span[2]
+        far_edge >= offset + view && break
+        following = node.next
+        if following === nothing
+            offset = far_edge - view
+            break
+        end
+        node = following
+    end
+    node = list.elements
+    while true
+        span = _get_list_element_span(node.value, axis)
+        span === nothing && return offset
+        near_edge = start + span[1]
+        near_edge <= offset && break
+        preceding = node.prev
+        if preceding === nothing
+            offset = near_edge
+            break
+        end
+        node = preceding
+    end
+    offset
 end
 
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
@@ -5080,7 +5162,6 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     offer_h = extent_cell(() -> sz isa Point2D ? Int(sz.y[]) : 0, avail_h, ty)
     cox, coy = _content_offset(p, w)
     scroll_cell = getfield(w, :scroll_position)
-    inner_x = Cell(@computation begin sp = scroll_cell[]::Point2D; Int32(-Int(sp.x[])) end)
     # Recurse into the content before the extent cells exist: on an unclipped axis
     # the viewport extent is the content's own, so the content must come first.
     content_iomap = nothing
@@ -5102,6 +5183,10 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # print the pane and everything in it again.
     vw_cell = _pane_extent(offer_w, inner_canvas === nothing ? nothing : getfield(inner_canvas, :w))
     vh_cell = _pane_extent(offer_h, inner_canvas === nothing ? nothing : getfield(inner_canvas, :h))
+    # Horizontal offset of the content inside the viewport. A list that runs to
+    # the side stops at its ends.
+    inner_x = Cell(@computation Int32(-(inner_canvas === nothing ?
+        Int((scroll_cell[]::Point2D).x[]) : _pane_scroll_x(w, inner_canvas, vw_cell[]))))
     elems = Any[]
     # The margin, the border and the padding follow the viewport extent; the
     # viewport is the content part. A transparent part draws no element.
@@ -5117,32 +5202,23 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                               Cell(color_transparent),
                               Cell(nothing)))
     if inner_canvas !== nothing
-        inner_elems_cv = inner_canvas.elements
+        # A content whose elements are a collection is drawn element by element.
+        # A content that holds its elements in a cell — a layout of a list — is
+        # drawn as its canvas, so a new list in that cell reaches the viewport
+        # and the pane reads no cell of its content as it prints.
+        inner_elems_cv = getfield(inner_canvas, :elements)
         # Vertical offset of the content inside the viewport. With `follow_end`
         # the pane sticks to the bottom of its content, so newly appended content
         # (a streaming chat) stays in view as the content grows.
         inner_y = Cell(@computation Int32(-_pane_scroll_y(w, inner_canvas, vh_cell[])))
         held = inner_elems_cv isa CellVector ? inner_elems_cv : CellVector(Cell[Cell(inner_canvas)])
-        # A content that holds a prefix of itself still is drawn in four regions;
-        # every other content is the one viewport it has always been, and pays
-        # nothing for a feature it does not use.
-        frozen = get_frozen_extent(content_iomap)
-        if frozen === nothing
-            push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
-                                          vw_cell, vh_cell,
-                                          Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
-                                                              held,
-                                                              layout_none, true, Cell(nothing))),
-                                          Cell(affine_identity),
-                                          Cell(nothing)))
-        else
-            # The body first and the corner last, so a rounded edge never leaves
-            # the body drawn over a strip.
-            for (hold_x, hold_y) in ((false, false), (false, true), (true, false), (true, true))
-                push!(elems, _pane_frozen_region(cox, coy, vw_cell, vh_cell, frozen,
-                                                 inner_x, inner_y, held, hold_x, hold_y))
-            end
-        end
+        push!(elems, GraphicsViewport(Cell(Int32(cox)), Cell(Int32(coy)),
+                                      vw_cell, vh_cell,
+                                      Cell(GraphicsCanvas(inner_x, inner_y, Int32(0), Int32(0),
+                                                          held,
+                                                          layout_none, true, Cell(nothing))),
+                                      Cell(affine_identity),
+                                      Cell(nothing)))
     end
     # Report the pane's own box as the outer canvas extent (viewport + insets)
     # rather than 0×0. A scroll pane occupies a fixed viewport, so a parent that
@@ -5162,9 +5238,8 @@ end
 # The viewport of a scroll pane or a transform pane shows the content in a canvas
 # of the pane's own, moved by the scroll or the transform, that holds the
 # elements of the content's canvas (or the content's canvas itself, when its
-# elements are no vector). So `content` is the content of the pane's viewport
-# that shows the part (`_find_frozen_region`), and the content's own answer goes
-# on from there.
+# elements are no vector). So `content` is the content of the pane's viewport,
+# and the content's own answer goes on from there.
 map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference) =
     _map_viewport_content_forward(iomap, reference)
 
@@ -5180,35 +5255,14 @@ function _map_viewport_content_forward(iomap, reference)
     inner = map_reference_forward(get_iomap_projection(child), child, reference.tail)
     inner === nothing && return nothing
     elements = unwrap_cell(getfield(unwrap_cell(get_iomap_output(iomap)), :elements))
-    viewports = Int[k for k in 1:length(elements) if unwrap_cell(elements[k]) isa GraphicsViewport]
-    isempty(viewports) && return nothing
-    body = unwrap_cell(elements[viewports[1]])
+    k = findfirst(i -> unwrap_cell(elements[i]) isa GraphicsViewport, 1:length(elements))
+    k === nothing && return nothing
+    body = unwrap_cell(elements[k])
     held = find_node_reference(getfield(body, :content), unwrap_cell(get_iomap_output(child)); depth = 1)
     inner = held === nothing ? inner : concat_references(held, inner)
-    k = viewports[_find_frozen_region(child, body, inner, length(viewports))]
     ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(k - 1, k),
             ConcreteReference(FieldReferenceStep("content"), inner)))
-end
-
-# The region of a pane that shows the part at `inner`. A content that holds a
-# prefix of itself still, such as a table with frozen headers, is drawn in four
-# regions in the order of `_pane_frozen_region`: the body, the strip held on the
-# height, the strip held on the width and the corner. A part is held on an axis
-# when all of it lies in the prefix there, and every other content has the one
-# region.
-function _find_frozen_region(child, body::GraphicsViewport, inner, count::Int)
-    count == 4 || return 1
-    frozen = get_frozen_extent(child)
-    frozen === nothing && return 1
-    fx, fy = frozen[]
-    content = unwrap_cell(getfield(body, :content))
-    box = find_reference_box(content, inner)
-    box === nothing && return 1
-    right = box.x - Int(unwrap_cell(getfield(content, :x))) + box.width
-    bottom = box.y - Int(unwrap_cell(getfield(content, :y))) + box.height
-    hold_x, hold_y = right <= fx, bottom <= fy
-    hold_x ? (hold_y ? 4 : 3) : (hold_y ? 2 : 1)
 end
 
 # The scroll pane wraps a single content document as its `.content` field.
@@ -5229,23 +5283,16 @@ end
 
 # The point `(x, y)` of the pane in the frame of its content: past the content
 # origin, and moved by the scroll offset that the printer drew with, so a pane
-# that follows the end maps a point to what is drawn at the end. On an axis where
-# the point lies in the prefix that the content holds still (`get_frozen_extent`),
-# such as a frozen header of a table, the scroll does not move it.
+# that follows the end maps a point to what is drawn at the end, and a list stops
+# at the ends that a walk from its head reaches.
 function _find_scroll_pane_local_point(p::WidgetScrollPaneToGraphicsCanvas,
                                        iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Int, y::Int)
     w = iomap.input
     cox, coy = _content_offset(p, w)
-    sp = getfield(w, :scroll_position)[]::Point2D
-    _, ty = _inset_total(p, w)
-    sy = _pane_scroll_y(w, iomap.content_iomap.output, Int(iomap.output.h) - ty)
-    sx = Int(sp.x[])
-    frozen = get_frozen_extent(iomap.content_iomap)
-    if frozen !== nothing
-        fx, fy = frozen[]
-        x - cox < fx && (sx = 0)
-        y - coy < fy && (sy = 0)
-    end
+    tx, ty = _inset_total(p, w)
+    content = iomap.content_iomap.output
+    sx = _pane_scroll_x(w, content, Int(iomap.output.w) - tx)
+    sy = _pane_scroll_y(w, content, Int(iomap.output.h) - ty)
     (x - cox + sx, y - coy + sy)
 end
 
@@ -5272,7 +5319,8 @@ end
 # which equals its value at evaluate time (no intervening mutation in the loop).
 # How far a pane can scroll on each axis: the content's extent past the viewport,
 # and `0` on an axis where the content fits. `nothing` when there is no content to
-# measure, which leaves the scroll unbounded as it was.
+# measure, which leaves the scroll unbounded. `nothing` for a list too, which has
+# no extent; `_scroll_list_by` finds the ends of a list by a walk.
 function _scroll_room(p, iomap)
     out = iomap.output
     cim = iomap.content_iomap
@@ -5334,6 +5382,9 @@ function _self_scroll(p, iomap, canvas, evt)
             _write_view_state(w, "follow_end", false),
             _write_view_state(w, "scroll_position", Point2D(x, y))])
     end
+    content = iomap.content_iomap === nothing ? nothing : iomap.content_iomap.output
+    room === nothing && content isa GraphicsCanvas && is_infinite_canvas(content) &&
+        return _scroll_list_by(p, iomap, content, dx, dy)
     op = _scroll_by(w, dx, dy, room)
     # Back at the end: follow again, so new turns stay in view.
     if op !== nothing && room !== nothing && room[2] > 0 &&
@@ -5342,6 +5393,28 @@ function _self_scroll(p, iomap, canvas, evt)
             _write_view_state(w, "follow_end", true)])
     end
     op
+end
+
+# A wheel turn over a list. It starts from the offset that the pane draws with,
+# and along the list it stops at the ends that a walk from the head reaches. So a
+# turn past the last child moves nothing and answers `nothing`, and a turn back
+# moves at once. Across the list the content has an extent, and a turn stops at
+# its edge, as it does over any content.
+function _scroll_list_by(p, iomap, content::GraphicsCanvas, dx::Int, dy::Int)
+    w = iomap.input
+    tx, ty = _inset_total(p, w)
+    view_w = Int(iomap.output.w) - tx
+    view_h = Int(iomap.output.h) - ty
+    drawn_x = _pane_scroll_x(w, content, view_w)
+    drawn_y = _pane_scroll_y(w, content, view_h)
+    x = _find_list_canvas(content, :x) === nothing ?
+        clamp(drawn_x + dx, 0, max(0, Int(content.w) - view_w)) :
+        _clamp_to_list_ends(content, drawn_x + dx, view_w, :x)
+    y = _find_list_canvas(content, :y) === nothing ?
+        clamp(drawn_y + dy, 0, max(0, Int(content.h) - view_h)) :
+        _clamp_to_list_ends(content, drawn_y + dy, view_h, :y)
+    (x == drawn_x && y == drawn_y) && return nothing
+    _write_view_state(w, "scroll_position", Point2D(x, y))
 end
 
 # Whether the point `(x, y)` of a scroll pane or a transform pane is in the view of
@@ -5692,11 +5765,11 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         content_width = max(0, x_cursor - item_gap)
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, item_h)
+        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
         append!(elems, items)
-        (elements=elems, child_iomaps=child_iomaps)
+        (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
-                  Cell(@computation build[].child_iomaps))
+    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
 end
 
 map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -5799,36 +5872,73 @@ read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
-function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, _)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position
-    sz  = w.size
-    px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
-    py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    bw = sz  isa Point2D ? Int(sz.x[])  : 0
-    bh = sz  isa Point2D ? Int(sz.y[])  : 0
+# The extent of a scroll bar on one axis: its authored size, else the extent
+# that its parent offers, else its thickness across and nothing along.
+function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int)
+    authored > 0 && return authored
+    offered === nothing || return Int(offered[])
+    along ? 0 : thickness
+end
+
+# The track of a scroll bar and its thumb inside it, as `(x, y, w, h)` in the
+# canvas of the bar, from the extent of the bar and its value.
+function _get_scroll_bar_thumb(p::WidgetScrollBarToGraphicsCanvas, w::WidgetScrollBar,
+                               width::Int, height::Int)
     cox, coy = _content_offset(p, w)
     tx, ty = _inset_total(p, w)
-    cw = max(1, bw - tx)
-    ch = max(1, bh - ty)
-    elems = Any[]
-    _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), cw, ch)
-    trad = min(cw, ch) ÷ 2
+    cw = max(1, width - tx)
+    ch = max(1, height - ty)
+    value = clamp(Float64(w.value), 0.0, 1.0)
+    thumb_size = clamp(Float64(w.thumb_size), 0.05, 1.0)
+    if w.orientation === :horizontal
+        tw = min(cw, max(p.minimum_thumb_length, Int(round(thumb_size * cw))))
+        ((cox, coy, cw, ch), (cox + Int(round(value * (cw - tw))), coy, tw, ch))
+    else
+        th = min(ch, max(p.minimum_thumb_length, Int(round(thumb_size * ch))))
+        ((cox, coy, cw, ch), (cox, coy + Int(round(value * (ch - th))), cw, th))
+    end
+end
+
+# A scroll bar is as long as its parent offers and as thick as its theme says,
+# unless it authors a size. Its track and its thumb read the value in cells, so
+# a scroll moves the thumb and prints nothing again.
+function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position
+    px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
+    py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
+    sz = w.size
+    horizontal = w.orientation === :horizontal
+    offered_w = ctx === nothing ? nothing : get_exact_width(ctx)
+    offered_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    width = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.x[]) : 0,
+                                                           offered_w, horizontal, p.thickness)))
+    height = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.y[]) : 0,
+                                                            offered_h, !horizontal, p.thickness)))
+    parts = Cell(@computation _get_scroll_bar_thumb(p, w, Int(width[]), Int(height[])))
     track_color = _get_part_color(w, :track_color, p.track_color)
     thumb_color = _get_part_color(w, :thumb_color, p.thumb_color)
-    push!(elems, GraphicsRect(cox, coy, cw, ch; color = track_color, radius = trad))
-    value    = clamp(Float64(w.value),     0.0, 1.0)
-    thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
-    if w.orientation === :horizontal
-        tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
-        tx_pos = cox + Int(round(value * (cw - tw)))
-        push!(elems, GraphicsRect(tx_pos, coy, tw, ch; color = thumb_color, radius = ch ÷ 2))
-    else
-        th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
-        ty_pos = coy + Int(round(value * (ch - th)))
-        push!(elems, GraphicsRect(cox, ty_pos, cw, th; color = thumb_color, radius = cw ÷ 2))
+    function make_rect(part::Int, color)
+        rect = GraphicsRect(0, 0, 0, 0; color)
+        for (k, field) in enumerate((:x, :y, :w, :h))
+            set_cell_computation!(getfield(rect, field), () -> Int32(parts[][part][k]))
+        end
+        for corner in (:radius_tl, :radius_tr, :radius_br, :radius_bl)
+            set_cell_computation!(getfield(rect, corner),
+                                  () -> Int32(min(parts[][part][3], parts[][part][4]) ÷ 2))
+        end
+        rect
     end
-    SimpleIoMap(p, w, _make_canvas(px, py, elems))
+    elems = Any[]
+    tx, ty = _inset_total(p, w)
+    _push_following_box_bands!(elems, _get_box_insets(p, w), _get_box_colors(p, w),
+                               Cell(@computation Int32(max(1, Int(width[]) - tx))),
+                               Cell(@computation Int32(max(1, Int(height[]) - ty))))
+    push!(elems, make_rect(1, track_color))
+    push!(elems, make_rect(2, thumb_color))
+    SimpleIoMap(p, w, GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
+                                     CellVector(Cell[Cell(e) for e in elems]),
+                                     layout_none, true, Cell(nothing)))
 end
 
 map_reference_forward(::WidgetScrollBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -5837,27 +5947,24 @@ function map_reference_backward(::WidgetScrollBarToGraphicsCanvas, iomap, refere
     return nothing
 end
 
+# A press, a button down, or a move with the left button held puts the middle
+# of the thumb under the pointer, and writes the value there.
 function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
-    evt isa MouseClick || return nothing
+    (evt isa MouseClick || evt isa MouseDown ||
+     (evt isa MouseMove && evt.buttons.left)) || return nothing
     w = iomap.input
     w isa WidgetScrollBar || return nothing
-    sz  = w.size
-    bw = sz isa Point2D ? Int(sz.x[]) : 0
-    bh = sz isa Point2D ? Int(sz.y[]) : 0
-    cox, coy = _content_offset(p, w)
-    tx, ty = _inset_total(p, w)
-    cw = max(1, bw - tx)
-    ch = max(1, bh - ty)
-    thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
-    if w.orientation === :horizontal
-        tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
-        new_value = clamp(Float64(evt.x - cox - div(tw, 2)) / max(1, cw - tw), 0.0, 1.0)
+    canvas = iomap.output
+    track, thumb = _get_scroll_bar_thumb(p, w, Int(canvas.w), Int(canvas.h))
+    new_value = if w.orientation === :horizontal
+        clamp(Float64(evt.x - Int(canvas.x) - track[1] - thumb[3] ÷ 2) / max(1, track[3] - thumb[3]),
+              0.0, 1.0)
     else
-        th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
-        new_value = clamp(Float64(evt.y - coy - div(th, 2)) / max(1, ch - th), 0.0, 1.0)
+        clamp(Float64(evt.y - Int(canvas.y) - track[2] - thumb[4] ÷ 2) / max(1, track[4] - thumb[4]),
+              0.0, 1.0)
     end
-    # new_value is already clamped to [0,1] above.
+    new_value == Float64(w.value) && return nothing
     ReplaceReferencedValueOperation(w, "value", new_value)
 end
 
@@ -6197,7 +6304,7 @@ function _card_build(p, w, ctx, tim, cim)
         push!(child_iomaps, (padding, y, cim))
         inner = cim.output
         # The card offered its body an inner width, so the card clips that width
-        # (§3b of layout-rules.md) and a body wider than the card no longer draws
+        # (§3b of layout-rules.md), and a body wider than the card does not draw
         # past its border. It is the same width the card's own texts break to, so
         # a card of a declared width holds everything it draws. Height is not
         # clipped: the card withholds that axis and takes its own height from
@@ -7146,6 +7253,30 @@ function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, co
     # The chevron glyph fills the middle half of its box, so a box of 4s puts its
     # tips `s` from the center, where a fold mark has them.
     _push_icon!(elems, dir === :right ? :chevron_right : :chevron_down, cx - 2s, cy - 2s, 4s, color)
+    nothing
+end
+
+# A chevron at the same place, which points down while `is_open()` answers true
+# and right otherwise. When both chevrons of the icon registry are one glyph each
+# of one font file, the chevron is one text whose cell calls `is_open`, so a toggle
+# changes the glyph and not the element list that holds it. Other icons are read
+# here, in the computation of the caller.
+function _push_open_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, color::StyleColor,
+                             is_open::Function)
+    down, right = Any[], Any[]
+    _push_chevron!(down, cx, cy, s, :down, color)
+    _push_chevron!(right, cx, cy, s, :right, color)
+    if length(down) == 1 && length(right) == 1 && only(down) isa GraphicsText &&
+       only(right) isa GraphicsText && only(down).font.filename == only(right).font.filename
+        # The two glyphs are read and dropped: the caller's computation must not
+        # read the cell that reads `is_open`.
+        down_text, right_text = only(down).text, only(right).text
+        glyph = only(right)
+        push!(elems, GraphicsText(() -> is_open() ? down_text : right_text, glyph.x, glyph.y;
+                                  font = glyph.font, color = glyph.color))
+    else
+        append!(elems, is_open() ? down : right)
+    end
     nothing
 end
 
@@ -8471,28 +8602,45 @@ _translate_pointer_event(evt::MouseScroll, dx, dy) = MouseScroll(evt.dx, evt.dy,
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #
-# The single table abstraction. The renderer delegates *all positioning* to a
-# `GridLayout` (built from the recursed cell documents) and overlays the table
-# decorations — borders, hairline rules, header styling, selection bands — using
-# the grid geometry it reads off the `GridLayoutIoMap` ("layout is just layout").
+# The single table abstraction. A table scrolls its own parts: the header row,
+# the header column and the cells are each a `GridLayout` in a
+# `WidgetScrollPane` of their own, and the corner between the two headers holds
+# still. The table owns the one offset of the parts, `scroll_position`: the pane
+# of the cells shares it, the pane of the header row reads its `x` and the pane
+# of the header column its `y`. A table whose rows are a list is printed by
+# `WidgetTableParts.jl`; this section prints a table whose rows are a vector.
 #
-# Layout / padding model. The grid's children are the bare cell documents; the
-# grid uses `horizontal_gap = vertical_gap = 2*cell_padding + border_width` so
-# that every inter-cell gap is "padding-right + rule + padding-left", and the
-# whole grid canvas is offset by `border_width + cell_padding` inside the box's
-# content area so the first row/column is padded too. Rules are then drawn
-# centred in the gaps (and on the outer edges) at edges computed from the grid
-# geometry. This yields uniformly-padded cells while reusing GridLayout for the
-# actual positioning. The table's own box (margin/border/padding) is separate
-# from this cell padding and the outer frame drawn in `divider_stroke`; by
-# default every box part is transparent and every inset is zero, so the box
-# costs nothing and the look is what it always was.
+# **The geometry.** The table keeps the geometry of its whole grid as if it were
+# not scrolled, `WTGeometry`: the edge of every column and of every row, the
+# header column and the header row first. Its readers work in these
+# coordinates, and a point over a part that scrolls moves by the offset that
+# the pane of the part draws with.
 #
-# Selection. Field names `rows` / `column_headers` / `row_headers` are the public
-# reference vocabulary. A whole-element selection is a path terminating at the element (`∅`);
-# the renderer — the one place with the grid geometry — turns a 1-D handle into a
-# 2-D highlight band. An in-cell cursor (`rows[r][c].…`) descends into the cell's
-# own sub-pipeline and is drawn there.
+# **The graphics.** A layout positions and draws nothing, so the table draws the
+# header bands, the bands of the hover and of the selection, and the rules,
+# once, in the coordinates of the geometry. Every region shows them behind its
+# pane, moved by its own offset and clipped to its box, so the band of a row
+# runs across the header column and the cells, and the band of a column across
+# the header row and the cells.
+#
+# **The widths and the heights.** The cells decide the width of every column
+# and the height of every row. A column is at least as wide as its header, and
+# a `Content` row at least as tall as its header, unless the header is offered
+# the extent and wraps in it. The header row takes the widths as `Fixed`, and
+# the header column the heights. A table with no rows has no cells to decide
+# the widths, so its header row takes the policies of the columns.
+#
+# **Padding.** Every gap of a grid is "padding, rule, padding", and the pane of
+# each part has the padding and the rule of its edges as its own padding. So
+# the rules lie in the gaps and the paddings, and every cell is padded alike. By
+# default every part of the box of the table is transparent and every inset is
+# zero, so the box costs nothing.
+#
+# **Selection.** Field names `rows` / `column_headers` / `row_headers` are the
+# public reference vocabulary. A whole-element selection is a path terminating at
+# the element (`∅`); the table, the one place with the geometry, turns a 1-D
+# handle into a 2-D band. An in-cell cursor (`rows[r][c].…`) descends into the
+# cell's own sub-pipeline and is drawn there.
 
 @projection struct WidgetTableToGraphicsCanvas
     margin::Inset
@@ -8527,10 +8675,11 @@ WidgetTableToGraphicsCanvas(theme::WidgetTheme;
 # style field.
 const _WT_ROW_RADIUS = 4
 
-# Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus
-# the table's own padding / border. `col_x` / `row_y` are cumulative left/top
-# edges in *outer-canvas* coordinates, length grid_cols+1 / grid_rows+1 so that
-# `col_x[gc+1]` is the right edge of grid column gc.
+# The geometry of a table as if it were not scrolled, in the coordinates of its
+# content. `col_x` / `row_y` are the cumulative left/top edges, length
+# grid_cols+1 / grid_rows+1, so that `col_x[gc+1]` is the right edge of grid
+# column gc. Grid column 1 is the header column and grid row 1 the header row,
+# when the table has them.
 struct WTGeometry
     nrows::Int
     ncols::Int
@@ -8547,65 +8696,23 @@ struct WTGeometry
     bw::Int                  # border / rule width
     pad_x::Int               # inner padding, left and right of a cell
     pad_y::Int               # inner padding, above and below a cell
-    grid_off_x::Int          # outer offset of the grid canvas (= bw + pad_x)
-    grid_off_y::Int          # outer offset of the grid canvas (= bw + pad_y)
+    grid_off_x::Int          # from the rule left of a column to its cells (= bw + pad_x)
+    grid_off_y::Int          # from the rule above a row to its cells (= bw + pad_y)
 end
 
-# IoMap: carries the grid iomap (for cell delegation) plus the persisted geometry
-# (the table analog of TextToGraphics's char_to_coord).
+# IoMap: the panes of the parts, and the geometry that the readers work in (the
+# table analog of TextToGraphics's char_to_coord).
 @iomap struct WidgetTableToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
-    grid_iomap::Cell         # the GridLayoutIoMap
-    geometry::Cell
+    parts::Cell              # the panes of the parts and the regions that hold them
+    geometry::Cell           # WTGeometry
 end
 
-# What a table holds still: the extent of its header strips, and zero on an axis
-# with no strip. `col_x` and `row_y` are the cumulative edges the geometry
-# already computes, in the table's own outer coordinates — which is the space a
-# pane places its content in — so `col_x[2]` IS the width of the row-header strip.
-get_frozen_extent(iomap::WidgetTableToGraphicsCanvasIoMap) =
-    Cell(Computation(function ()
-        g = iomap.geometry
-        fx = (g.has_row_headers && length(g.col_x) >= 2) ? g.col_x[2] : 0
-        fy = (g.has_col_headers && length(g.row_y) >= 2) ? g.row_y[2] : 0
-        (fx, fy)
-    end))
-
-# A header strip is a column, or a row, of the same grid, and it is always
-# `Content`: as wide, or as tall, as the labels in it. So the table's own
-# policies — which are the BODY's — move over by one when a strip is there.
-_wt_shift(policies, offset::Int) =
-    offset == 1 ? Any[Content; collect(Any, policies)...] : collect(Any, policies)
-
-# A WidgetTable carries `rows`, `column_headers`, `row_headers`. The grid is laid
-# out row-major over `grid_rows × grid_cols` cells where the (optional) header
-# strips occupy grid row/column 1. The corner and any short cells are filled with
-# an empty placeholder so the grid sizes consistently.
 _wt_has_col_headers(w::WidgetTable) = length(w.column_headers) > 0
 _wt_has_row_headers(w::WidgetTable) = length(w.row_headers) > 0
 _wt_empty_cell() = WidgetLabel("")
-
-# Build the flat row-major list of grid-child documents for the table.
-function _wt_grid_children(w::WidgetTable)
-    nrows = length(w.rows)
-    ncols = Int(w.column_count)
-    has_ch = _wt_has_col_headers(w)
-    has_rh = _wt_has_row_headers(w)
-    row_offset = has_ch ? 1 : 0
-    col_offset = has_rh ? 1 : 0
-    grid_rows = nrows + row_offset
-    grid_cols = ncols + col_offset
-    children = Any[]
-    for gr in 1:grid_rows
-        for gc in 1:grid_cols
-            doc = _wt_cell_doc(w, gr, gc, row_offset, col_offset, ncols)
-            push!(children, doc === nothing ? _wt_empty_cell() : doc)
-        end
-    end
-    (children, grid_rows, grid_cols, row_offset, col_offset, nrows, ncols, has_ch, has_rh)
-end
 
 # The cell policy of body column `c`: the column's own when it names one, else
 # the table's.
@@ -8621,80 +8728,203 @@ function _wt_column_align(w::WidgetTable, c::Int)
     (aligns isa AbstractVector && 1 <= c <= length(aligns)) ? Symbol(aligns[c]) : :left
 end
 
-# The alignment of each grid column. The row-header strip, when there is one,
-# sits at the left, and a header cell sits as the cells of its column do.
-_wt_grid_column_align(w::WidgetTable, grid_cols::Int, col_offset::Int) =
-    Symbol[gc - col_offset < 1 ? :left : _wt_column_align(w, gc - col_offset)
-           for gc in 1:grid_cols]
-
-# How far a cell `content` wide sits from the left of a column `column` wide.
-_wt_align_offset(align::Symbol, column::Int, content::Int) =
-    align === :center ? max(0, div(column - content, 2)) :
-    align === :right  ? max(0, column - content) : 0
-
-# Whether each grid column hands its extent to its cells: a body column does
-# when its cells wrap and not when they clip, because a cell that is handed a
-# width breaks its lines there and a cell that is not draws one line for the
-# grid to cut. The row-header strip, when there is one, is its content and the
-# grid has nothing to hand it.
-function _wt_column_offers(w::WidgetTable, grid_cols::Int, col_offset::Int)
-    Bool[gc - col_offset < 1 || _wt_column_cell_policy(w, gc - col_offset) === :wrap
-         for gc in 1:grid_cols]
+# The policy of body row `r`: the row's own when it names one, else the table's.
+function _wt_row_policy(w::WidgetTable, r::Int)
+    policies = w.row_policies
+    (policies isa AbstractVector && 1 <= r <= length(policies) && policies[r] isa SizePolicy) ?
+        policies[r] : w.row_policy
 end
 
-# The document occupying grid position (gr, gc), or nothing (→ placeholder).
-function _wt_cell_doc(w::WidgetTable, gr::Int, gc::Int, row_offset::Int, col_offset::Int, ncols::Int)
-    header_row = row_offset == 1 && gr == 1
-    header_col = col_offset == 1 && gc == 1
-    if header_row && header_col
-        return nothing                       # corner
-    elseif header_row
-        c = gc - col_offset
-        return (1 <= c <= length(w.column_headers)) ? w.column_headers[c] : nothing
-    elseif header_col
-        r = gr - row_offset
-        return (1 <= r <= length(w.row_headers)) ? w.row_headers[r] : nothing
-    else
-        r = gr - row_offset
-        c = gc - col_offset
-        row = (1 <= r <= length(w.rows)) ? w.rows[r] : nothing
-        row === nothing && return nothing
-        return (1 <= c <= length(row)) ? row[c] : nothing
+# Header `k` of a strip, or an empty cell where the strip has none.
+function _wt_get_header(headers, k::Int)
+    header = k <= length(headers) ? headers[k] : nothing
+    header === nothing ? _wt_empty_cell() : header
+end
+
+# The cell in row `r` and column `c`, or an empty cell where the row has none.
+function _wt_get_cell(rows, r::Int, c::Int)
+    row = rows[r]
+    cell = (row !== nothing && c <= length(row)) ? row[c] : nothing
+    cell === nothing ? _wt_empty_cell() : cell
+end
+
+# The height of what a part printed for one cell, or 0 for no cell.
+_get_part_child_height(cim) =
+    (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim.output.h) : 0
+
+# The policy of body row `r` of the cells: the table's, and at least as tall as
+# the header of the row, `header`, when the row is its content.
+function _wt_get_cells_row_policy(w::WidgetTable, r::Int, header)
+    policy = _wt_row_policy(w, r)
+    header === nothing && return policy
+    (policy.min === nothing && policy.preferred === nothing &&
+     (policy.weight === nothing || policy.weight == 0)) || return policy
+    SizePolicy(_get_part_child_height(header), nothing, policy.max, policy.weight)
+end
+
+# ── The parts ────────────────────────────────────────────────────────────────
+
+# The item of a part that sets the size of a column of the other part: the
+# header of a column that is its content, which no width reaches.
+_wt_is_content_column(policy::SizePolicy) =
+    policy.preferred === nothing && (policy.weight === nothing || policy.weight == 0)
+
+# Print the parts of a table whose rows are a vector: the header row, the header
+# column and the cells, each a grid in a pane, and the regions that place the
+# panes and show the graphics of the table behind them. `ctx` is the context of
+# the content of the table.
+function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx,
+                                  graphics, pad_x::Int, pad_y::Int, bw::Int)
+    n = Int(w.column_count)
+    rows = w.rows
+    m = length(rows)
+    hgap = 2 * pad_x + bw
+    vgap = 2 * pad_y + bw
+    content_x, content_y = _content_offset(p, w)
+    aligns = Symbol[_wt_column_align(w, c) for c in 1:n]
+    wraps = Bool[_wt_column_cell_policy(w, c) === :wrap for c in 1:n]
+    offset = getfield(w, :scroll_position)
+    # What the cells decide once they print: the width of every column, the
+    # height of every row, and the widest cell of every column. And what the
+    # headers decide once they print: the height of the header row and the
+    # width of the header column.
+    widths = Cell[Cell(0) for _ in 1:n]
+    heights = Cell[Cell(0) for _ in 1:m]
+    widest = Cell[Cell(0) for _ in 1:n]
+    header_height = Cell(0)
+    header_width = Cell(0)
+    # The header row: `Fixed` widths from the cells, or the policies of the
+    # columns when there are no cells. A header that is not offered its width
+    # is measured, to be a floor for its column.
+    column_header_pane = nothing
+    if _wt_has_col_headers(w)
+        master = m == 0
+        policies = master ? Cell(Any[_get_table_column_policy(w, c) for c in 1:n]) :
+                            Cell(@computation Any[Fixed(Int(widths[c][])) for c in 1:n])
+        offers = Bool[wraps[c] && (master || !_wt_is_content_column(_get_table_column_policy(w, c)))
+                      for c in 1:n]
+        grid = GridLayout(CellVector(Cell[Cell(_wt_get_header(w.column_headers, c)) for c in 1:n]),
+                          Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
+                          Cell(master ? w.column_policy : Fixed(0)), Cell(Content), policies,
+                          Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
+        pane = _make_part_pane(grid, Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0)),
+                               Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
+        column_header_pane = print_child(recursion, pane,
+                                         withhold_offer(with_inner_size(ctx; width = header_width), :y))
     end
+    # The header column: `Fixed` heights from the cells. A header is never
+    # offered its height, so it is measured, to be a floor for its row.
+    row_header_pane = nothing
+    if _wt_has_row_headers(w)
+        grid = GridLayout(CellVector(Cell[Cell(_wt_get_header(w.row_headers, r)) for r in 1:m]),
+                          Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(Symbol[]),
+                          Cell(Content), Cell(Fixed(0)), Cell(Any[]),
+                          Cell(@computation Any[Fixed(Int(heights[r][])) for r in 1:m]),
+                          Cell(Bool[]), Cell(fill(false, m)), Cell(nothing))
+        pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
+                               Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
+        row_header_pane = print_child(recursion, pane,
+                                      withhold_offer(with_inner_size(ctx; height = header_height), :x))
+    end
+    # The cells, which decide the widths and the heights.
+    get_column_header(c) = column_header_pane === nothing ? nothing :
+                           column_header_pane.content_iomap.child_iomaps[c][3]
+    get_row_header(r) = row_header_pane === nothing ? nothing :
+                        row_header_pane.content_iomap.child_iomaps[r][3]
+    column_policies = Cell(@computation Any[
+        _get_cells_column_policy(w, c, get_column_header(c), widest[c]) for c in 1:n])
+    row_policies = Cell(@computation Any[_wt_get_cells_row_policy(w, r, get_row_header(r)) for r in 1:m])
+    grid = GridLayout(CellVector(Cell[Cell(_wt_get_cell(rows, r, c)) for r in 1:m for c in 1:n]),
+                      Cell(max(1, n)), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
+                      Cell(w.column_policy), Cell(w.row_policy), column_policies, row_policies,
+                      Cell(wraps), Cell(Bool[]), Cell(nothing))
+    cells_pane = print_child(recursion,
+                             _make_part_pane(grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
+                             with_inner_size(ctx; width = header_width, height = header_height))
+    cells = cells_pane.content_iomap
+    if m > 0
+        for c in 1:n
+            set_cell_computation!(widths[c], () -> Int(cells.col_w[c][]))
+            set_cell_computation!(widest[c], () -> maximum(
+                _get_part_child_width(cells.child_iomaps[(r - 1) * n + c][3]) for r in 1:m))
+        end
+        for r in 1:m
+            set_cell_computation!(heights[r], () -> Int(cells.row_h[r][]))
+        end
+    end
+    column_header_pane === nothing ||
+        set_cell_computation!(header_height, () -> Int(column_header_pane.output.h))
+    row_header_pane === nothing ||
+        set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
+
+    # The regions, each at its place in the table, with the graphics of the
+    # table moved by the place of the region.
+    no_offset = Cell(0)
+    regions = Any[]
+    if column_header_pane !== nothing && row_header_pane !== nothing
+        corner = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                                graphics, layout_none, true, Cell(nothing))
+        size_w = Cell(@computation Int32(Int(header_width[])))
+        size_h = Cell(@computation Int32(Int(header_height[])))
+        viewport = GraphicsViewport(Cell(Int32(0)), Cell(Int32(0)), size_w, size_h, Cell(corner),
+                                    Cell(affine_identity), Cell(nothing))
+        push!(regions, GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)), size_w, size_h,
+                                      CellVector(Cell[Cell(viewport)]), layout_none, true, Cell(nothing)))
+    end
+    get_place(start, offset_cell) = Cell(@computation Int32(start + Int(offset_cell[])))
+    column_header_pane === nothing ||
+        push!(regions, _make_part_region(column_header_pane, graphics; x = get_place(content_x, header_width),
+                                         y = Cell(Int32(content_y)), origin_x = header_width,
+                                         origin_y = no_offset, pad_x, pad_y, bw))
+    row_header_pane === nothing ||
+        push!(regions, _make_part_region(row_header_pane, graphics; x = Cell(Int32(content_x)),
+                                         y = get_place(content_y, header_height), origin_x = no_offset,
+                                         origin_y = header_height, pad_x, pad_y, bw))
+    push!(regions, _make_part_region(cells_pane, graphics; x = get_place(content_x, header_width),
+                                     y = get_place(content_y, header_height), origin_x = header_width,
+                                     origin_y = header_height, pad_x, pad_y, bw))
+    (; column_header_pane, row_header_pane, cells_pane, header_width, header_height, regions,
+       rows = m, columns = n)
 end
 
-# Map a (gr, gc) grid position to the flat grid-child index (1-based, row-major).
-_wt_grid_index(gr::Int, gc::Int, grid_cols::Int) = (gr - 1) * grid_cols + gc
-
-# Compute the outer geometry from the GridLayoutIoMap and the table padding/border.
-function _wt_geometry(gim::GridLayoutIoMap, grid_rows::Int, grid_cols::Int,
-                      row_offset::Int, col_offset::Int, nrows::Int, ncols::Int,
-                      has_ch::Bool, has_rh::Bool, pad_x::Int, pad_y::Int, bw::Int)
-    grid_off_x = bw + pad_x
-    grid_off_y = bw + pad_y
-    # Per-grid-column width and per-grid-row height from the layout geometry.
-    col_w = Int[Int(gim.col_w[c][]) for c in 1:grid_cols]
-    row_h = Int[Int(gim.row_h[r][]) for r in 1:grid_rows]
-    # Cumulative edges. `col_x[gc]` is the position of the rule to the LEFT of grid
-    # column gc (so col_x[1] = 0 is the left border, col_x[grid_cols+1] is the
-    # right border). The content-left of column gc is col_x[gc] + bw + pad_x,
-    # which matches the GridLayout child x (Σ prev (col_w+gap)) plus grid_off_x,
-    # since each box advance is col_w + 2*pad_x + bw (= the layout gap plus
-    # col_w); rows the same with pad_y.
+# The geometry of the parts as if they were not scrolled.
+function _compute_eager_table_geometry(parts, pad_x::Int, pad_y::Int, bw::Int)
+    m, n = parts.rows, parts.columns
+    has_ch = parts.column_header_pane !== nothing
+    has_rh = parts.row_header_pane !== nothing
+    row_offset = has_ch ? 1 : 0
+    col_offset = has_rh ? 1 : 0
+    grid_rows = m + row_offset
+    grid_cols = n + col_offset
+    grid_cols == 0 && return _wt_geometry_empty(pad_x, pad_y, bw)
+    cells = parts.cells_pane.content_iomap
+    # The cells decide the widths; with no rows, the header row does.
+    master = m == 0 ? (has_ch ? parts.column_header_pane.content_iomap : nothing) : cells
+    col_w = Int[]
+    has_rh && push!(col_w, Int(parts.row_header_pane.content_iomap.output.w))
+    for c in 1:n
+        push!(col_w, master === nothing ? 0 : Int(master.col_w[c][]))
+    end
+    row_h = Int[]
+    has_ch && push!(row_h, Int(parts.column_header_pane.content_iomap.output.h))
+    for r in 1:m
+        push!(row_h, Int(cells.row_h[r][]))
+    end
     col_x = compute_axis_offsets(col_w, 2 * pad_x + bw)
     row_y = compute_axis_offsets(row_h, 2 * pad_y + bw)
-    total_w = col_x[grid_cols + 1] + bw   # + trailing right border
-    total_h = row_y[grid_rows + 1] + bw
-    WTGeometry(nrows, ncols, row_offset, col_offset, grid_rows, grid_cols,
-               has_rh, has_ch, col_x, row_y, total_w, total_h, bw,
-               pad_x, pad_y, grid_off_x, grid_off_y)
+    WTGeometry(m, n, row_offset, col_offset, grid_rows, grid_cols, has_rh, has_ch, col_x, row_y,
+               col_x[grid_cols + 1] + bw, row_y[grid_rows + 1] + bw, bw, pad_x, pad_y,
+               bw + pad_x, bw + pad_y)
 end
+
+_wt_geometry_empty(pad_x::Int, pad_y::Int, bw::Int) =
+    WTGeometry(0, 0, 0, 0, 0, 0, false, false, Int[bw], Int[bw], bw, bw, bw,
+               pad_x, pad_y, bw + pad_x, bw + pad_y)
+
 
 # ── Selection-shape recognition ───────────────────────────────────────────────
 # `.<field>[index]∅` → (field_name, 1-based index), else nothing.
 function _wt_field_element_terminal(sel)
-    # Selections are canonical (carry TypeReferenceStep checkpoints); skip them
-    # before each structural step so the shape match is modulo checkpoints.
     sel = sel
     sel isa ConcreteReference || return nothing
     h = sel.head
@@ -8785,11 +9015,12 @@ function _wt_highlight_bounds(sel, geom::WTGeometry)
     (0, 0, 0, 0)
 end
 
+
 function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     # The printer reads the type of `rows` and nothing else says which table
     # this is: a list draws the rows a viewport shows, a vector draws them all.
-    w.rows isa ListNode && return _wtl_print(p, recursion, w, ctx)
+    w.rows isa ListNode && return _print_table_parts(p, recursion, w, ctx)
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.
@@ -8799,184 +9030,199 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     box = _get_box_insets(p, w)
     colors = _get_box_colors(p, w)
     inset_width, inset_height = _inset_total(p, w)
-    content_x, content_y = _content_offset(p, w)
     divider_stroke = _get_state_stroke(p, w, :divider)
     header_row_color = _get_state_color(p, w, :header_row)
     row_selected_color = _get_state_color(p, w, :row; state = :selected)
+    # The parts are drawn inside the table's own box, so they get the table's
+    # range less its insets, in the same state.
+    inner = ctx === nothing ? ctx : with_inner_size(ctx; width = inset_width, height = inset_height)
 
-    layout_info = Cell(@computation _wt_grid_children(w))
+    # The graphics of the table, in the coordinates of its geometry. The parts
+    # read them, and they read the geometry of the parts, only when drawn.
+    geometry = Cell(nothing)
+    graphics = CellVector(@computation _wt_make_graphics(p, w, geometry[], header_row_color,
+                                                         divider_stroke, row_selected_color))
+    # The parts, built again when the table changes its shape: a row, a column
+    # or a header added or removed.
+    parts = Cell(@computation _print_eager_table_parts(p, recursion, w, inner, graphics,
+                                                       pad_x, pad_y, bw))
+    set_cell_computation!(geometry, () -> _compute_eager_table_geometry(parts[], pad_x, pad_y, bw))
 
-    # The grid is drawn inside the table's own box, its outer rules and the
-    # cell padding beside them, so it gets the table's range less those, in the
-    # same state. A table whose columns share a slot then ends where the slot
-    # does.
-    grid_ctx = ctx === nothing ? ctx : with_inner_size(ctx; width = 2 * (pad_x + bw) + inset_width,
-                                                           height = 2 * (pad_y + bw) + inset_height)
-
-    # Build a GridLayout whose children are the recursed cell documents and
-    # project it through `recursion` (which dispatches GridLayout → its renderer
-    # and each cell document → its own projection). Gaps carry the per-cell
-    # padding + rule so positioning matches the decoration overlay.
-    grid_iomap = Cell(@computation begin
-        info = layout_info[]
-        children, grid_rows, grid_cols = info[1], info[2], info[3]
-        row_offset, col_offset = info[4], info[5]
-        grid = GridLayout(children, grid_cols;
-                          horizontal_gap = 2 * pad_x + bw, vertical_gap = 2 * pad_y + bw,
-                          column_policy = w.column_policy, row_policy = w.row_policy,
-                          column_policies = _wt_shift(w.column_policies, col_offset),
-                          row_policies = _wt_shift(w.row_policies, row_offset),
-                          column_offers = _wt_column_offers(w, grid_cols, col_offset),
-                          column_align = _wt_grid_column_align(w, grid_cols, col_offset))
-        # The grid is positioned at (grid_off_x, grid_off_y) inside the table's
-        # content area; extend the context reference to the table's grid so
-        # child contexts are rooted here.
-        print_child(recursion, grid, grid_ctx)
-    end)
-
-    geometry = Cell(@computation begin
-        info = layout_info[]
-        _, grid_rows, grid_cols, row_offset, col_offset, nrows, ncols, has_ch, has_rh = info
-        gim = grid_iomap[]
-        gim isa GridLayoutIoMap || return _wt_geometry_empty(pad_x, pad_y, bw)
-        _wt_geometry(gim, grid_rows, grid_cols, row_offset, col_offset,
-                     nrows, ncols, has_ch, has_rh, pad_x, pad_y, bw)
-    end)
-
-    # Persistent selection-highlight overlay: one rect whose bounds read the
-    # selection (collapsed to 0×0 when there is none — the renderer skips it).
-    # Keeping the selection read OUT of the elements thunk means a caret move
-    # invalidates only this rect's geometry, not the whole content vector
-    # (printer-locality dimension A; the focus-ring / text-cursor overlay pattern).
-    # Bounds are content-local; the table's own box sits outside the content,
-    # so the band is shifted by the content offset.
-    hl_bounds = Cell(@computation _wt_highlight_bounds(w.selection, geometry[]))
-    highlight_rect = GraphicsRect(0, 0, 0, 0; color = row_selected_color, radius = _WT_ROW_RADIUS)
-    set_cell_computation!(getfield(highlight_rect, :x),
-                          () -> Int32(hl_bounds[][1] + content_x))
-    set_cell_computation!(getfield(highlight_rect, :y),
-                          () -> Int32(hl_bounds[][2] + content_y))
-    set_cell_computation!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
-    set_cell_computation!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
-
-    # The light: the same pattern as the selection band, for the row or the column
-    # header that the mouse target of the table names, in the fainter colour of the
-    # light. Drawn behind the selection band, so a selected row under the pointer
-    # still reads as selected.
-    hov_bounds = Cell(@computation _wt_highlight_bounds(_find_wt_lit_reference(get_mouse_target(w)),
-                                                        geometry[]))
-    hover_rect = GraphicsRect(0, 0, 0, 0; color = p.layer_hovered_color, radius = _WT_ROW_RADIUS)
-    set_cell_computation!(getfield(hover_rect, :x),
-                          () -> Int32(hov_bounds[][1] + content_x))
-    set_cell_computation!(getfield(hover_rect, :y),
-                          () -> Int32(hov_bounds[][2] + content_y))
-    set_cell_computation!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
-    set_cell_computation!(getfield(hover_rect, :h), () -> Int32(hov_bounds[][4]))
-
+    table_w = Cell(@computation Int32(Int(parts[].header_width[]) + Int(parts[].cells_pane.output.w) +
+                                      inset_width))
+    table_h = Cell(@computation Int32(Int(parts[].header_height[]) + Int(parts[].cells_pane.output.h) +
+                                      inset_height))
     # Invisible whole-canvas hit target so a table nested in a container (which
     # gates routing on `hit_element_at`) is hoverable/clickable over the whole
     # box, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
-    set_cell_computation!(getfield(hit_target, :w),
-                          () -> Int32(geometry[].total_w + inset_width))
-    set_cell_computation!(getfield(hit_target, :h),
-                          () -> Int32(geometry[].total_h + inset_height))
-
+    set_cell_computation!(getfield(hit_target, :w), () -> Int32(table_w[]))
+    set_cell_computation!(getfield(hit_target, :h), () -> Int32(table_h[]))
     elements = CellVector(@computation begin
-        geom = geometry[]
-        gim = grid_iomap[]
-        result = Any[]
-        geom.grid_cols == 0 && return result
-        # 0. Whole-canvas hit target (behind everything).
-        push!(result, hit_target)
-        # 1. The box: margin, border, padding and content, from the outside in.
-        #    Transparent and zero-width by default, so it costs nothing.
-        _push_box_parts!(result, box, colors, geom.total_w, geom.total_h)
-        # 2. Header strip backgrounds (behind the grid). The column-header strip
-        #    occupies grid row 1; the row-header strip occupies grid column 1.
-        if geom.has_col_headers
-            push!(result, GraphicsRect(content_x, content_y, geom.total_w, geom.row_y[2]; color = header_row_color))
-        end
-        if geom.has_row_headers
-            push!(result, GraphicsRect(content_x, content_y, geom.col_x[2], geom.total_h; color = header_row_color))
-        end
-        # 3. Hover + selection highlight overlays (persistent; their geometry reads
-        #    the hovered / selected node so this thunk does not), behind the grid
-        #    content and rules. Hover is behind selection.
-        push!(result, hover_rect)
-        push!(result, highlight_rect)
-        # 4. The positioned grid content (from GridLayout), offset by the content
-        #    offset and the grid offset.
-        if gim isa GridLayoutIoMap
-            gcanvas = gim.output
-            if gcanvas isa GraphicsCanvas
-                push!(result, _make_canvas(content_x + geom.grid_off_x, content_y + geom.grid_off_y, Any[gcanvas]))
-            end
-        end
-        # 5. Horizontal rules — at row_y[gr] for gr in 1..grid_rows+1 (top border,
-        #    inner rules, bottom border).
-        for gr in 1:(geom.grid_rows + 1)
-            push!(result, GraphicsRect(content_x, content_y + geom.row_y[gr], geom.total_w, bw;
-                                       color = divider_stroke.color))
-        end
-        # 6. Vertical rules — at col_x[gc] for gc in 1..grid_cols+1.
-        for gc in 1:(geom.grid_cols + 1)
-            push!(result, GraphicsRect(content_x + geom.col_x[gc], content_y, bw, geom.total_h;
-                                       color = divider_stroke.color))
-        end
+        result = Any[hit_target]
+        # The box: margin, border, padding and content, from the outside in.
+        # Transparent and zero-width by default, so it costs nothing.
+        _push_box_parts!(result, box, colors, Int(table_w[]) - inset_width,
+                         Int(table_h[]) - inset_height)
+        append!(result, parts[].regions)
         result
     end)
-
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            Cell(@computation Int32(geometry[].total_w + inset_width)),
-                            Cell(@computation(Int32(geometry[].total_h +
-                                                    inset_height))),
-                            elements, layout_none, true, Cell(nothing))
-    WidgetTableToGraphicsCanvasIoMap(p, w, canvas, grid_iomap, geometry)
+                            table_w, table_h, elements, layout_none, true, Cell(nothing))
+    WidgetTableToGraphicsCanvasIoMap(p, w, canvas, parts, geometry)
 end
 
-_wt_geometry_empty(pad_x::Int, pad_y::Int, bw::Int) =
-    WTGeometry(0, 0, 0, 0, 0, 0, false, false, Int[bw], Int[bw], bw, bw, bw,
-               pad_x, pad_y, bw + pad_x, bw + pad_y)
+# The graphics of a table, in the coordinates of its geometry: the header bands,
+# the bands of the light and of the selection, and the rules.
+#
+# The two bands are persistent rects whose bounds read the row or the column of
+# the mouse target and the selected reference (collapsed to 0×0 when there is
+# none — the renderer skips it), so a caret move changes only their geometry and
+# not these elements (printer-locality dimension A). The band of the light is
+# behind the selection band, so a selected row under the pointer still reads as
+# selected.
+function _wt_make_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable, geom::WTGeometry,
+                           header_row_color, divider_stroke, row_selected_color)
+    result = Any[]
+    geom.grid_cols == 0 && return result
+    if geom.has_col_headers
+        push!(result, GraphicsRect(0, 0, geom.total_w, geom.row_y[2]; color = header_row_color))
+    end
+    if geom.has_row_headers
+        push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h; color = header_row_color))
+    end
+    push!(result, _wt_make_band(() -> _find_wt_lit_reference(get_mouse_target(w)), geom,
+                                p.layer_hovered_color))
+    push!(result, _wt_make_band(() -> w.selection, geom, row_selected_color))
+    # Horizontal rules at row_y[gr] for gr in 1..grid_rows+1 (the top border,
+    # the inner rules, the bottom border), and vertical rules likewise.
+    for gr in 1:(geom.grid_rows + 1)
+        push!(result, GraphicsRect(0, geom.row_y[gr], geom.total_w, geom.bw; color = divider_stroke.color))
+    end
+    for gc in 1:(geom.grid_cols + 1)
+        push!(result, GraphicsRect(geom.col_x[gc], 0, geom.bw, geom.total_h; color = divider_stroke.color))
+    end
+    result
+end
+
+# A band over the row, the column, the cell or the table that `reference()`
+# names, or a 0×0 rect when it names none.
+function _wt_make_band(reference, geom::WTGeometry, color)
+    bounds = Cell(@computation _wt_highlight_bounds(reference(), geom))
+    rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
+    set_cell_computation!(getfield(rect, :x), () -> Int32(bounds[][1]))
+    set_cell_computation!(getfield(rect, :y), () -> Int32(bounds[][2]))
+    set_cell_computation!(getfield(rect, :w), () -> Int32(bounds[][3]))
+    set_cell_computation!(getfield(rect, :h), () -> Int32(bounds[][4]))
+    rect
+end
+
+# ── The parts under a place ──────────────────────────────────────────────────
+
+# The place of the region of a part in the content of the table, and the place
+# of the grid of the part in the coordinates of the geometry.
+function _wt_get_part_places(iomap::WidgetTableToGraphicsCanvasIoMap, pane)
+    parts = iomap.parts
+    geom = iomap.geometry
+    region_x = pane === parts.row_header_pane ? 0 : Int(parts.header_width[])
+    region_y = pane === parts.column_header_pane ? 0 : Int(parts.header_height[])
+    ((region_x, region_y), (region_x + geom.grid_off_x, region_y + geom.grid_off_y))
+end
+
+# A point of the table in the coordinates of its geometry: the table as if it
+# were not scrolled. A point over a part that scrolls moves by the offset that
+# the pane of the cells draws with, which the headers share.
+function _wt_get_unscrolled_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap,
+                                  x::Int, y::Int)
+    parts = iomap.parts
+    content_x, content_y = _content_offset(p, iomap.input)
+    content = _get_part_content(parts.cells_pane)
+    local_x = x - content_x
+    local_y = y - content_y
+    (local_x < Int(parts.header_width[]) ? local_x : local_x - Int(content.x),
+     local_y < Int(parts.header_height[]) ? local_y : local_y - Int(content.y))
+end
+
+# The pane that holds the document a reference starts at, the index of that
+# document in the grid of the pane, the steps from the table to the document,
+# and the rest of the reference: `column_headers[c].…`, `row_headers[r].…` or
+# `rows[r][c].…`. `nothing` for any other reference.
+function _wt_find_part_entry(iomap::WidgetTableToGraphicsCanvasIoMap, reference)
+    parts = iomap.parts
+    reference isa ConcreteReference || return nothing
+    head = reference.head
+    head isa FieldReferenceStep || return nothing
+    tail = reference.tail
+    tail isa ConcreteReference || return nothing
+    step = tail.head
+    (step isa RangeReferenceStep && is_element_reference_step(step)) || return nothing
+    k = step.start + 1
+    if head.name == "column_headers"
+        pane = parts.column_header_pane
+        (pane === nothing || !(1 <= k <= parts.columns)) && return nothing
+        return (pane, k, (FieldReferenceStep("column_headers"), RangeReferenceStep(k - 1, k)), tail.tail)
+    elseif head.name == "row_headers"
+        pane = parts.row_header_pane
+        (pane === nothing || !(1 <= k <= parts.rows)) && return nothing
+        return (pane, k, (FieldReferenceStep("row_headers"), RangeReferenceStep(k - 1, k)), tail.tail)
+    elseif head.name == "rows"
+        split = _wt_cell_split(reference)
+        split === nothing && return nothing
+        r, c, rest = split
+        (1 <= r <= parts.rows && 1 <= c <= parts.columns) || return nothing
+        return (parts.cells_pane, (r - 1) * parts.columns + c, _wt_get_cell_steps(r, c), rest)
+    end
+    nothing
+end
+
+# The IO map of the document in entry `i` of the grid of `pane`, and the place of
+# its canvas in the coordinates of the geometry; `nothing` when it drew none.
+function _wt_find_part_cell(iomap::WidgetTableToGraphicsCanvasIoMap, pane, i::Int)
+    entries = pane.content_iomap.child_iomaps
+    1 <= i <= length(entries) || return nothing
+    (x_cell, y_cell, cim) = entries[i]
+    cim === nothing && return nothing
+    out = cim.output
+    out isa GraphicsCanvas || return nothing
+    _, (grid_x, grid_y) = _wt_get_part_places(iomap, pane)
+    (cim, grid_x + Int(x_cell[]) + Int(out.x), grid_y + Int(y_cell[]) + Int(out.y))
+end
 
 # ── Reference mapping ────────────────────────────────────────────────────────
 # Forward: a cell, a column header or a row header (`rows[r][c].…`,
-# `column_headers[c].…`, `row_headers[r].…`) is a child of the grid that the
-# table lays its cells out with, and the grid maps it; the steps from the table's
-# canvas to the grid's canvas are found by identity, after the parts of the box.
-# The table itself is its own canvas. A whole row has no node of its own, because
-# its band is drawn in place, so it has no image.
+# `column_headers[c].…`, `row_headers[r].…`) is a child of the grid of the part
+# that holds it, and the pane of that part maps it; the steps from the table's
+# canvas to the canvas of the pane are found by identity, after the parts of the
+# box. The table itself is its own canvas. A whole row has no node of its own,
+# because its band is drawn in place, so it has no image.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
-    geom = iomap.geometry
-    gim = iomap.grid_iomap
-    gim isa GridLayoutIoMap || return nothing
-    target = _wt_ref_to_grid_index(reference, geom)
-    target === nothing && return nothing
-    gidx, tail = target
-    grid_ref = ConcreteReference(FieldReferenceStep("children"),
-                ConcreteReference(RangeReferenceStep(gidx - 1, gidx), tail))
-    inner = map_reference_forward(gim.projection, gim, grid_ref)
-    inner === nothing && return nothing
-    outer = find_node_reference(iomap.output, unwrap_cell(gim.output))
-    outer === nothing ? nothing : concat_references(outer, inner)
+    found = _wt_find_part_entry(iomap, reference)
+    found === nothing && return nothing
+    pane, i, _, rest = found
+    _map_part_forward(iomap, pane, ConcreteReference(RangeReferenceStep(i - 1, i), rest))
 end
 
 map_reference_forward(::WidgetTableToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
-# Backward: a grid-domain reference (`children[gidx].…`) maps back to the table
-# domain (`rows[r][c].…` etc.).
-# What the grid of the table holds at `(x, y)` of its canvas, as `_wt_hit_test`
-# answers it: a press on the margin, the border or the padding is clamped into
-# the grid.
+# Backward: a point maps to the part at it. A path into the canvas of a part
+# names no document of the table by itself, so it maps to no path into the table.
+function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
+    point = find_reference_point(reference)
+    point === nothing ? nothing : _map_wt_point(p, iomap, point)
+end
+
+# What the table holds at `(x, y)` of its canvas, as `_wt_hit_test` answers it in
+# the coordinates of the geometry: a place on the margin, the border or the
+# padding is clamped into the grid.
 function _find_wt_hit(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap,
                       x::Int, y::Int)
     geom = iomap.geometry
-    content_x, content_y = _content_offset(p, iomap.input)
-    _wt_hit_test(geom, clamp(x - content_x, 0, max(0, geom.total_w - 1)),
-                       clamp(y - content_y, 0, max(0, geom.total_h - 1)))
+    ux, uy = _wt_get_unscrolled_point(p, iomap, x, y)
+    _wt_hit_test(geom, clamp(ux, 0, max(0, geom.total_w - 1)),
+                       clamp(uy, 0, max(0, geom.total_h - 1)))
 end
 
 # A point maps to the cell, the row header, the column header or the corner at
@@ -8991,113 +9237,40 @@ function _map_wt_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraph
     kind === :col && return ConcreteReference(FieldReferenceStep("column_headers"),
                                 ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2])))
     kind === :cell || return nothing
-    r, c = hit[2], hit[3]
-    ConcreteReference(FieldReferenceStep("rows"),
-        ConcreteReference(RangeReferenceStep(r - 1, r), ConcreteReference(RangeReferenceStep(c - 1, c))))
-end
-
-function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
-    point = find_reference_point(reference)
-    point === nothing || return _map_wt_point(p, iomap, point)
-    geom = iomap.geometry
-    _wt_grid_ref_to_table(reference, geom)
+    _wt_cell_ref(hit[2], hit[3])
 end
 
 map_reference_backward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothing
 
-# Decode a table-domain reference into (grid_index, tail) or nothing.
-function _wt_ref_to_grid_index(reference, geom::WTGeometry)
-    reference isa ConcreteReference || return nothing
-    h = reference.head
-    h isa FieldReferenceStep || return nothing
-    t = reference.tail
-    t isa ConcreteReference || return nothing
-    e = t.head
-    (e isa RangeReferenceStep && is_element_reference_step(e)) || return nothing
-    idx1 = e.start + 1
-    if h.name == "column_headers"
-        (1 <= idx1 <= geom.ncols) || return nothing
-        gr = 1
-        gc = idx1 + geom.col_offset
-        return (_wt_grid_index(gr, gc, geom.grid_cols), t.tail)
-    elseif h.name == "row_headers"
-        (1 <= idx1 <= geom.nrows) || return nothing
-        gr = idx1 + geom.row_offset
-        gc = 1
-        return (_wt_grid_index(gr, gc, geom.grid_cols), t.tail)
-    elseif h.name == "rows"
-        # rows[r][c].<tail>
-        t2 = t.tail
-        t2 isa ConcreteReference || return nothing
-        e2 = t2.head
-        (e2 isa RangeReferenceStep && is_element_reference_step(e2)) || return nothing
-        c = e2.start + 1
-        r = idx1
-        (1 <= r <= geom.nrows && 1 <= c <= geom.ncols) || return nothing
-        gr = r + geom.row_offset
-        gc = c + geom.col_offset
-        return (_wt_grid_index(gr, gc, geom.grid_cols), t2.tail)
-    end
-    return nothing
-end
-
-# Decode a grid-domain reference (`children[gidx].<tail>`) into the table domain.
-function _wt_grid_ref_to_table(reference, geom::WTGeometry)
-    reference isa ConcreteReference || return nothing
-    (reference.head isa FieldReferenceStep && reference.head.name == "children") || return nothing
-    t = reference.tail
-    t isa ConcreteReference || return nothing
-    (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
-    gidx = t.head.start + 1
-    tail = t.tail
-    geom.grid_cols <= 0 && return nothing
-    gr = div(gidx - 1, geom.grid_cols) + 1
-    gc = mod(gidx - 1, geom.grid_cols) + 1
-    header_row = geom.row_offset == 1 && gr == 1
-    header_col = geom.col_offset == 1 && gc == 1
-    if header_row && header_col
-        return nothing
-    elseif header_row
-        c = gc - geom.col_offset
-        return ConcreteReference(FieldReferenceStep("column_headers"),
-                ConcreteReference(RangeReferenceStep(c - 1, c), tail))
-    elseif header_col
-        r = gr - geom.row_offset
-        return ConcreteReference(FieldReferenceStep("row_headers"),
-                ConcreteReference(RangeReferenceStep(r - 1, r), tail))
-    else
-        r = gr - geom.row_offset
-        c = gc - geom.col_offset
-        return ConcreteReference(FieldReferenceStep("rows"),
-                ConcreteReference(RangeReferenceStep(r - 1, r),
-                ConcreteReference(RangeReferenceStep(c - 1, c), tail)))
-    end
-end
+# The steps from the table to the body cell in row `r` and column `c`.
+_wt_get_cell_steps(r::Int, c::Int) =
+    (FieldReferenceStep("rows"), RangeReferenceStep(r - 1, r), RangeReferenceStep(c - 1, c))
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
 # Gesture-aware reader. Left clicks resolve here (header/corner → row/column/
 # table; Alt+click promotes a data cell to a whole cell; a plain click routes
 # into the cell content). Keyboard grid navigation
 # (Alt+arrows, Ctrl+Alt+Home, Shift/Ctrl+Space, Enter) is resolved against the
-# live table. Everything else falls through to per-cell editing via the grid.
+# live table. A turn of the wheel scrolls the parts. Every other event goes to a
+# cell (`_wt_route_event`). An operation from below finds no cell to go to.
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
     g = change.gesture
-    if change.operation === nothing && g isa MouseClick && g.button === :left
-        return Intent(g, _wt_mouse_select(p, iomap, g))
+    change.operation === nothing || return Intent(g, nothing)
+    g isa MouseClick && g.button === :left && return Intent(g, _wt_mouse_select(p, iomap, g))
+    # A crossing, a dwell and a pointer motion do not go into the cells: the part
+    # under the pointer is the backward map of the point.
+    g isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover} && return Intent(g, nothing)
+    if g isa MouseScroll
+        (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
+        content_x, content_y = _content_offset(p, iomap.input)
+        return Intent(g, _read_cells_wheel(iomap.output, iomap.parts.cells_pane,
+                                           content_x + region_x, content_y + region_y, g))
     end
-    # A crossing, a dwell and a pointer motion do not go into the cells.
-    if change.operation === nothing && g isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover}
-        return Intent(g, nothing)
-    end
-    if change.operation === nothing && g isa KeyDown
+    if g isa KeyDown
         op = _wt_key_navigate(iomap, g, iomap.geometry)
         op === nothing || return Intent(g, op)
     end
-    # Fall through: plain editing keys route into the active cell via the grid; an
-    # already-produced operation passes straight through. Use the grid passthrough
-    # directly (not the 3-arg reader) to avoid re-entering this gesture logic.
-    payload = change.operation === nothing ? g : change.operation
-    return Intent(g, _wt_grid_passthrough(p, iomap, payload))
+    Intent(g, _wt_route_event(p, iomap, g))
 end
 
 # Resolve a left click into a selection operation (or nothing). The margin,
@@ -9105,31 +9278,21 @@ end
 # into the grid.
 function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, g::MouseClick)
     geom = iomap.geometry
-    content_x, content_y = _content_offset(p, iomap.input)
-    hit = _find_wt_hit(p, iomap, g.x, g.y)
+    x, y = _wt_get_unscrolled_point(p, iomap, g.x, g.y)
+    x = clamp(x, 0, max(0, geom.total_w - 1))
+    y = clamp(y, 0, max(0, geom.total_h - 1))
+    hit = _wt_hit_test(geom, x, y)
     kind = hit[1]
     if kind === :corner
         return ReplaceSelectionOperation(EmptyReference())
     elseif kind === :row
-        r = hit[2]
-        return ReplaceSelectionOperation(
-            ConcreteReference(FieldReferenceStep("rows"),
-                ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference())))
+        return ReplaceSelectionOperation(_wt_row_ref(hit[2]))
     elseif kind === :col
-        c = hit[2]
-        return ReplaceSelectionOperation(
-            ConcreteReference(FieldReferenceStep("column_headers"),
-                ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
+        return ReplaceSelectionOperation(_wt_col_ref(hit[2]))
     elseif kind === :cell
         r, c = hit[2], hit[3]
-        if g.modifiers.alt
-            return ReplaceSelectionOperation(
-                ConcreteReference(FieldReferenceStep("rows"),
-                    ConcreteReference(RangeReferenceStep(r - 1, r),
-                    ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))))
-        else
-            return _wt_route_cell_click(iomap, geom, r, c, g, content_x, content_y)
-        end
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(r, c))
+        return _wt_route_cell_click(iomap, r, c, g, x, y)
     end
     return nothing
 end
@@ -9167,41 +9330,24 @@ function _find_wt_lit_reference(target)
     nothing
 end
 
-# Route a plain click into a data cell's content sub-pipeline (via the grid
-# child), translating the click into the cell's frame, then wrap the resulting
-# operation back into the table domain.
-function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry,
-                              r::Int, c::Int, g::MouseClick, content_x::Int, content_y::Int)
-    gim = iomap.grid_iomap
-    gim isa GridLayoutIoMap || return nothing
-    gr = r + geom.row_offset
-    gc = c + geom.col_offset
-    gidx = _wt_grid_index(gr, gc, geom.grid_cols)
-    entries = gim.child_iomaps::Vector
-    (1 <= gidx <= length(entries)) || return nothing
-    entry = entries[gidx]
-    entry === nothing && return nothing
-    (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
-    canvas = cim.output
-    canvas isa GraphicsCanvas || return nothing
-    # Child position = the content offset + the grid offset + child wrapper
-    # offset + child canvas offset.
-    cell_x = content_x + geom.grid_off_x + Int(ox_cell[]) + Int(canvas.x)
-    cell_y = content_y + geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
-    local_evt = MouseClick(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
-                           time = g.time)
-    op = read_intent(cim.projection, cim, local_evt)
+# Route a plain click at `(x, y)`, in the coordinates of the geometry, into the
+# content of the cell in row `r` and column `c`, in the coordinates of the
+# cell, and root what it answers under the cell.
+function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int, c::Int, g::MouseClick,
+                              x::Int, y::Int)
+    parts = iomap.parts
+    found = _wt_find_part_cell(iomap, parts.cells_pane, (r - 1) * parts.columns + c)
     # A cell that declines the click — a label has nothing to say to one —
     # leaves it to the row, and the row is selected: a table of text is a
-    # table of rows. A path the cell answers is re-rooted under the cell; any
-    # other operation names its own document and is answered as it is, so a
-    # checkbox in a cell toggles.
+    # table of rows. The answer of the cell is re-rooted under the cell; an
+    # operation that names its own document, such as the toggle of a checkbox,
+    # stays as it is.
+    found === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
+    cim, left, top = found
+    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count, g.modifiers;
+                                                     time = g.time))
     op === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
-    op isa ReplacePathOperation || return op
-    table_ref = _wt_grid_ref_to_table(
-        ConcreteReference(FieldReferenceStep("children"),
-            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), get_operation_path(op))), geom)
-    table_ref === nothing ? nothing : make_path_operation(op, table_ref)
+    reroot_operation(op, _wt_get_cell_steps(r, c))
 end
 
 # Keyboard grid navigation, addressed via rows[r][c].
@@ -9223,7 +9369,7 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
         elseif shape !== nothing && shape[1] === :col
             return ReplaceSelectionOperation(_wt_cell_ref(1, shape[2]))
         elseif cell_rc !== nothing
-            return _wt_enter_cell_content(iomap, geom, cell_rc[1], cell_rc[2])
+            return _wt_enter_cell_content(iomap, cell_rc[1], cell_rc[2])
         end
         return nothing
     end
@@ -9295,51 +9441,90 @@ _wt_cell_ref(r::Int, c::Int) = ConcreteReference(FieldReferenceStep("rows"),
     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
 
 # Place a character cursor at the start of a cell's content.
-function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry, r::Int, c::Int)
-    gim = iomap.grid_iomap
-    gim isa GridLayoutIoMap || return nothing
-    gr = r + geom.row_offset
-    gc = c + geom.col_offset
-    gidx = _wt_grid_index(gr, gc, geom.grid_cols)
-    entries = gim.child_iomaps::Vector
-    (1 <= gidx <= length(entries)) || return nothing
-    entry = entries[gidx]
-    entry === nothing && return nothing
-    cim = entry[3]
+function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int, c::Int)
+    parts = iomap.parts
+    found = _wt_find_part_cell(iomap, parts.cells_pane, (r - 1) * parts.columns + c)
+    found === nothing && return nothing
+    cim = found[1]
     op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true);
                                                   time = time()))
     op isa ReplacePathOperation || return nothing
-    table_ref = _wt_grid_ref_to_table(
-        ConcreteReference(FieldReferenceStep("children"),
-            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), get_operation_path(op))), geom)
-    table_ref === nothing ? nothing : make_path_operation(op, table_ref)
+    reroot_operation(op, _wt_get_cell_steps(r, c))
 end
 
-# 3-arg fall-through form. Reached two ways: (a) the 4-arg gesture reader above
-# delegates plain editing events here; (b) a *parent* container (composite, grid,
-# split pane) routes a raw event to this nested table via the 3-arg call. For (b)
-# we must still run the table's own gesture logic (left-click selection, grid
-# navigation), so a bare MouseClick/KeyDown is lifted into a Intent and handled by
-# the 4-arg reader. Anything else dispatches to the grid and is re-rooted.
+# 3-arg form: a *parent* container (composite, grid, split pane) routes a raw
+# event to this nested table. The table's own gesture logic (left-click
+# selection, grid navigation, the wheel) must still run, so a gesture is lifted
+# into an Intent and handled by the 4-arg reader. An operation finds no cell to
+# go to, and every other event goes to a cell.
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
     _outside_widget(iomap, event) && return nothing
-    if event isa MouseClick || event isa KeyDown ||
+    if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||
        event isa MouseEnter || event isa MouseMove || event isa MouseLeave || event isa MouseHover
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
-    return _wt_grid_passthrough(p, iomap, event)
+    event isa Operation && return nothing
+    return _wt_route_event(p, iomap, event)
 end
 
-# Dispatch a non-gesture event to the grid; the active cell answers and the grid
-# returns a `children[gidx].…` op, which we re-root into the table domain.
-function _wt_grid_passthrough(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
-    gim = iomap.grid_iomap
-    gim isa GridLayoutIoMap || return nothing
+# An event that is not a gesture of the table's own goes to a cell. One with a
+# position goes to the cell under it. One with no position, such as a key or a
+# character, goes to the cell the selection is in.
+function _wt_route_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    _positioned_event(event) && return _wt_route_to_cell_under(p, iomap, event)
+    _wt_route_to_selected_cell(iomap, event)
+end
+
+# A press of another button than the left, a button down or a button up goes
+# to the cell under it, a header as well as a body cell, in the coordinates of
+# the cell, and its answer is re-rooted under the cell.
+function _wt_route_to_cell_under(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
     geom = iomap.geometry
-    op = read_intent(gim.projection, gim, event)
-    op isa ReplacePathOperation || return nothing
-    table_ref = _wt_grid_ref_to_table(get_operation_path(op), geom)
-    table_ref === nothing ? nothing : make_path_operation(op, table_ref)
+    x, y = _wt_get_unscrolled_point(p, iomap, Int(event.x), Int(event.y))
+    hit = _wt_hit_test(geom, x, y)
+    reference = hit[1] === :cell ? _wt_cell_ref(hit[2], hit[3]) :
+                hit[1] === :col  ? _wt_col_ref(hit[2]) :
+                (hit[1] === :row && geom.has_row_headers) ?
+                    ConcreteReference(FieldReferenceStep("row_headers"),
+                                      ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2]),
+                                                        EmptyReference())) :
+                nothing
+    reference === nothing && return nothing
+    found = _wt_find_part_entry(iomap, reference)
+    found === nothing && return nothing
+    pane, i, steps, _ = found
+    cell = _wt_find_part_cell(iomap, pane, i)
+    cell === nothing && return nothing
+    cim, left, top = cell
+    local_event = _wt_translate_event(event, x - left, y - top)
+    local_event === nothing && return nothing
+    reroot_operation(read_intent(cim.projection, cim, local_event), steps)
+end
+
+_wt_translate_event(evt::MouseClick, x::Int, y::Int) =
+    MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time)
+_wt_translate_event(evt::MouseDown, x::Int, y::Int) =
+    MouseDown(evt.button, x, y, evt.modifiers; time = evt.time)
+_wt_translate_event(evt::MouseUp, x::Int, y::Int) =
+    MouseUp(evt.button, x, y, evt.modifiers; time = evt.time)
+_wt_translate_event(evt, x::Int, y::Int) = nothing
+
+# The cell the selection is in reads the event, whether the whole cell is
+# selected or a caret is inside it, and its answer is re-rooted under the cell.
+# A selected row, column or table is in no cell, and the event goes to none.
+function _wt_route_to_selected_cell(iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    geom = iomap.geometry
+    selection = iomap.input.selection
+    shape = _wt_selection_shape(selection, geom)
+    (shape === nothing || shape[1] === :cell) || return nothing
+    found = _wt_find_part_entry(iomap, selection)
+    found === nothing && return nothing
+    pane, i, steps, _ = found
+    entries = pane.content_iomap.child_iomaps
+    1 <= i <= length(entries) || return nothing
+    cim = entries[i][3]
+    cim === nothing && return nothing
+    reroot_operation(read_intent(cim.projection, cim, event), steps)
 end
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
@@ -9545,18 +9730,41 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         band
     end
 
+    # The top of the row of `path` in the open tree, or 0 once the path is not in it.
+    function get_row_top(path)
+        g = geometry[]
+        i = get(g.index, path, nothing)
+        i === nothing ? Int32(0) : Int32(g.rows[i].y0)
+    end
+
+    # The canvas of each row that was drawn, kept by the path of the row. A toggle
+    # computes the rows again, and a row that stays keeps its canvas: the top of
+    # the canvas reads where its path is now. So a partial repaint paints a row
+    # that moved at its old and its new place, and no row that kept its place. The
+    # rows of the open tree are the keys of the list, and a path that leaves the
+    # open tree leaves the cache.
+    kept_rows = Dict{Vector{Int},GraphicsCanvas}()
+    make_row(row::WTreeRow) = get!(() -> make_row_canvas(row), kept_rows, row.path)
+    function get_open_rows()
+        g = geometry[]
+        filter!(entry -> haskey(g.index, entry.first), kept_rows)
+        g.rows
+    end
+
     # One row: a canvas at the place of the row, whose content the renderer reads
     # only when it draws the row. The content reads the node, and whether the node
-    # has children, which for a folder is one read of its listing.
-    function make_row(row::WTreeRow)
+    # has children, which for a folder is one read of its listing. The chevron
+    # reads whether the row is open in a cell of its own, so a toggle changes the
+    # glyph of a chevron and not the content of a row.
+    function make_row_canvas(row::WTreeRow)
         content = CellVector(Computation(function ()
             node = _wtree_node_at(w, row.path)
             result = Any[make_band(row, p.layer_hovered_color, () -> get_mouse_target(w)),
                          make_band(row, row_selected_color, () -> w.selection)]
             x = row.depth * indent
             if _wtree_has_children(node)
-                _push_chevron!(result, x + chevron_column ÷ 2, row_height ÷ 2, chevron_size,
-                               row.path in w.expanded ? :down : :right, chevron_color)
+                _push_open_chevron!(result, x + chevron_column ÷ 2, row_height ÷ 2, chevron_size,
+                                    chevron_color, () -> row.path in w.expanded)
             end
             icon = _tree_icon(node)
             if icon isa Symbol
@@ -9571,7 +9779,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                         x + chevron_column + column[], pad, label_style.color)
             result
         end))
-        GraphicsCanvas(Cell(Int32(0)), Cell(Int32(row.y0)), Cell(@computation Int32(width[])),
+        GraphicsCanvas(Cell(Int32(0)), Cell(@computation get_row_top(row.path)),
+                       Cell(@computation Int32(width[])),
                        Cell(Int32(row.height)), content, layout_none, true, Cell(nothing))
     end
 
@@ -9582,7 +9791,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     rows_canvas = GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)),
                                  Cell(@computation Int32(width[])),
                                  Cell(@computation Int32(geometry[].total_h)),
-                                 CellVector(@computation(geometry[].rows); element = make_row),
+                                 CellVector(@computation(get_open_rows()); element = make_row),
                                  layout_vertical, false, Cell(nothing))
 
     # Whole-canvas transparent hit target. The tree hit-tests by *row band* (a whole

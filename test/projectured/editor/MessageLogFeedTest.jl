@@ -8,8 +8,8 @@ function test_message_log_feed()
         store = MessageLogStore()
         log = MessageLog()
         feed = MessageLogFeed(store = store, log = log)
-        editor = Editor(HeadlessBackend(), log, MessageLogToSyntax(), Device[];
-                        feeds = Feed[feed])
+        editor = Editor(log, MessageLogToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
         previous = Base.CoreLogging.global_logger()
         # The wrapper defers filtering to the logger it wraps, so wrap one
         # that accepts Info and prints nowhere.
@@ -32,8 +32,8 @@ function test_message_log_feed()
         store = MessageLogStore()
         log = MessageLog()
         feed = MessageLogFeed(store = store, log = log)
-        editor = Editor(HeadlessBackend(), log, MessageLogToSyntax(), Device[];
-                        feeds = Feed[feed])
+        editor = Editor(log, MessageLogToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
         producer = @async record_message!(store, "Info", "from another task")
         wait(producer)
         @test length(log.entries) == 0
@@ -45,8 +45,8 @@ function test_message_log_feed()
         store = MessageLogStore(capacity = 3)
         log = MessageLog()
         feed = MessageLogFeed(store = store, log = log)
-        editor = Editor(HeadlessBackend(), log, MessageLogToSyntax(), Device[];
-                        feeds = Feed[feed])
+        editor = Editor(log, MessageLogToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
         for index in 1:5
             record_message!(store, "Info", "line $(index)")
         end

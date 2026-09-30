@@ -52,7 +52,7 @@ function test_kernel()
         test_fault_defaults()
         test_fault_record()
         test_fault_store()
-        test_fault_report()
+        test_fault_cascade()
         test_fault_barrier()
         test_cell()
         test_cell_struct()
@@ -62,21 +62,30 @@ function test_kernel()
         test_printer_context_range()
         test_routed_change()
         test_introduced_path()
+        test_projection_reference_step()
+        test_projection_defaults()
+        test_projection_macro()
         test_document_contract()
         test_document_macro()
         test_reference_builder()
         test_reference_evaluation()
         test_reference_rules()
         test_referenced_document()
+        test_type_reference()
+        test_selection()
         test_rerooting()
         test_inversion()
         test_traversal()
+        test_description()
+        test_intent()
         test_event_module()
         test_gesture_module()
         test_gesture_recognition()
         test_gesture_case()
         test_device_module()
         test_gesture_binding()
+        test_iomap_reconcile()
+        test_iomap_defaults()
         test_headless_backend()
         test_escape_quit()
         test_editor_inbox()
@@ -84,11 +93,19 @@ function test_kernel()
         test_editor_feeds()
         test_editor_wait()
         test_editor_timer()
+        test_build_editor()
+        test_editor_fault_barriers()
+        test_editor_document_edits()
         test_frame_measurements()
-        test_agent_seam()
+        test_editor_frame_performance()
+        test_playback()
+        test_llm_defaults()
+        test_agent_defaults()
+        test_agent_loop()
         test_declared_api()
         test_search_query()
         test_meaning_search()
+        test_relevance_search()
         test_search_answer()
         test_code_execution()
         test_construct_oracle()
@@ -100,18 +117,26 @@ export test_kernel, test_kernel_layering
 export check_layering, get_package_source_root, test_layering_checkers
 # kernel unit suites
 export test_fault_defaults, test_fault_record, test_fault_store,
-       test_fault_report, test_fault_barrier,
-       test_cell, test_cell_struct, test_cell_struct_plan, test_performance_counter, test_clock, test_printer_context_range, test_routed_change, test_introduced_path,
+       test_fault_cascade, test_fault_barrier,
+       test_cell, test_cell_struct, test_cell_struct_plan, test_performance_counter, test_clock, test_printer_context_range,
+       test_routed_change, test_introduced_path,
+       test_projection_reference_step, test_projection_defaults, test_projection_macro,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_evaluation, test_reference_rules, test_referenced_document,
+       test_type_reference, test_selection,
        test_rerooting,
-       test_inversion, test_traversal, test_event_module, test_gesture_module, test_gesture_recognition, test_gesture_case,
+       test_inversion, test_traversal, test_description, test_intent,
+       test_event_module, test_gesture_module, test_gesture_recognition, test_gesture_case,
        test_device_module, test_gesture_binding,
-       test_headless_backend, test_agent_seam,
-       test_declared_api, test_search_query, test_meaning_search, test_search_answer,
+       test_iomap_reconcile, test_iomap_defaults,
+       test_headless_backend, test_llm_defaults, test_agent_defaults, test_agent_loop,
+       test_declared_api, test_search_query, test_meaning_search, test_relevance_search,
+       test_search_answer,
        test_code_execution,
        test_editor_inbox, test_editor_frame_drain, test_editor_feeds,
-       test_editor_wait, test_editor_timer, test_frame_measurements
+       test_editor_wait, test_editor_timer, test_build_editor, test_frame_measurements,
+       test_editor_frame_performance,
+       test_editor_fault_barriers, test_editor_document_edits, test_playback
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
        walk_printer_output, test_printer,

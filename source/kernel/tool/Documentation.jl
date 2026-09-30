@@ -31,10 +31,15 @@ read only the first has been handed a library about the wrong subject.
 """
 function register_guide_root!(directory::AbstractString; prefix::AbstractString = "")
     entry = (String(directory), String(prefix))
-    entry in _EXTRA_GUIDE_ROOTS && return nothing
-    push!(_EXTRA_GUIDE_ROOTS, entry)
-    # The index is built once and cached; a root added after that must be seen.
-    _GUIDE_INDEX[] = nothing
+    # The meaning vectors build the guide index on a task of their own, under this
+    # lock. A root added during that build waits for its end, so the reset below
+    # comes after the build and the next read sees the new root.
+    lock(_INDEX_LOCK) do
+        entry in _EXTRA_GUIDE_ROOTS && return
+        push!(_EXTRA_GUIDE_ROOTS, entry)
+        # The index is built once and cached; a root added after that must be seen.
+        _GUIDE_INDEX[] = nothing
+    end
     nothing
 end
 
@@ -67,8 +72,10 @@ keeps bare names (`concepts`, `getting-started`, …); each slice's folder under
 `documentation/package/` is namespaced by slice (`kernel/reference`,
 `widget/widget`, …) so two slices may both have a guide of one name.
 
-The bare walk skips `documentation/package/`, which its own roots cover. Without
-that, every slice guide would be listed twice under two names.
+The bare walk skips the folders under `documentation/package/`, which their own
+roots cover. Without that, every slice guide would be listed twice under two
+names. A file that sits directly in `documentation/package/` is in no slice, so
+the bare walk names it `package/<name>`.
 """
 function _guide_roots()
     documentation = _get_documentation_directory()
@@ -91,13 +98,15 @@ Every guide as `(guide_name, filepath)`, across every root in `_guide_roots()`.
 """
 function _all_guides()
     guides = Tuple{String,String}[]
+    slices = joinpath("documentation", "package", "")
     for (root, prefix) in _guide_roots()
         isdir(root) || continue
         for (dir, _, files) in walkdir(root)
-            # The per-slice roots below cover documentation/package/, and they
-            # give a guide the namespaced name every citation uses. Walking it
-            # here as well would list each of those guides twice.
-            (prefix == "" && occursin(joinpath("documentation", "package"), dir)) && continue
+            # The per-slice roots below cover the folders of documentation/package/,
+            # and they give a guide the namespaced name every citation uses. Walking
+            # them here as well would list each of those guides twice. The files
+            # directly in documentation/package/ are walked here, as package/<name>.
+            (prefix == "" && occursin(slices, dir)) && continue
             for file in sort(files)
                 endswith(file, ".md") || continue
                 filepath = joinpath(dir, file)
@@ -113,7 +122,8 @@ end
     list_guides() -> String
 
 List all available documentation with a one-paragraph description for each guide.
-Guides are markdown files containing tips and tricks for using ProjecturEd.
+Guides are the markdown files of the documentation: how to use ProjecturEd, and how
+it works.
 """
 function list_guides()
     guides = _all_guides()
@@ -175,6 +185,19 @@ end
 
 _projectured() = parentmodule(@__MODULE__)
 
+# The names of `mod` that a declaration gives, or `nothing` when no declaration
+# narrows the module: an empty API is the whole surface. A module that two
+# entries name gives the names of both.
+function _find_declared_names(mod::Module, api)
+    isempty(api) && return nothing
+    given = Set{Symbol}()
+    for entry in api
+        entry.module_ === mod || continue
+        union!(given, get_api_entry_names(entry))
+    end
+    given
+end
+
 # Is this name one the declaration gives? An empty declaration is the whole
 # surface, where every name of a reachable module is.
 #
@@ -182,9 +205,8 @@ _projectured() = parentmodule(@__MODULE__)
 # learning that it cannot, which is the same waste `_index_declared` avoids by
 # indexing only what is declared.
 function _is_declared(api, mod::Module, name::Symbol)
-    isempty(api) && return true
-    # A module two entries name gives the names of both.
-    any(entry -> entry.module_ === mod && name in get_api_entry_names(entry), api)
+    declared = _find_declared_names(mod, api)
+    declared === nothing || name in declared
 end
 
 # The module the declaration gives `name` in, or `nothing`.
@@ -215,12 +237,13 @@ function _find_module(name::String, api = ApiEntry[])
         String(nameof(entry.module_)) == name && return entry.module_
     end
     isempty(api) || return nothing
-    proj = _projectured()
-    name == string(nameof(proj)) && return proj
-    sym = Symbol(name)
-    isdefined(proj, sym) || return nothing
-    obj = getfield(proj, sym)
-    obj isa Module ? obj : nothing
+    for package in _collect_surface_packages()
+        name == String(nameof(package)) && return package
+    end
+    for (sym, mod) in _collect_surface_modules()
+        name == String(sym) && return mod
+    end
+    nothing
 end
 
 # Render a doc object (as returned by `Base.Docs._doc`) to plain markdown source.
@@ -403,27 +426,16 @@ function _get_catalogue_summary(doc::AbstractString, name::AbstractString)
     isempty(summary) ? "No description." : summary
 end
 
-function _submodules(proj::Module)
-    mods = Pair{Symbol,Module}[]
-    for name in sort!(collect(names(proj; all = true)))
-        isdefined(proj, name) || continue
-        obj = getfield(proj, name)
-        obj isa Module || continue
-        (obj === proj || obj === Base || obj === Core) && continue
-        push!(mods, name => obj)
-    end
-    mods
-end
-
 # True for compiler-generated names that should never surface to a human/AI:
 # gensym'd closure and method types (`#print_document##0#…`, `##BookBook#1`,
 # `#10#11`). They flood the listings with hundreds of meaningless entries.
 _is_gensym_name(sname::AbstractString) = occursin('#', sname)
 
-# True for the `ICFoo` interface type `@document` generates next to each document
-# type `Foo` — internal plumbing the caller should not see. Only treats a name as
-# an interface when the sibling `Foo` actually exists in the module, so legitimate
-# I-prefixed names (`Inset`, …) are kept.
+# True for `IFoo`, the immutable native layout that `@document` can generate next
+# to a document type `Foo`: the prefix `I` means immutable. It is internal plumbing
+# the caller should not see. Only treats a name as such when the sibling `Foo`
+# actually exists in the module, so legitimate I-prefixed names (`Inset`, …) are
+# kept.
 function _is_interface_name(sname::AbstractString, present::Set{Symbol})
     length(sname) > 1 && sname[1] == 'I' && isuppercase(sname[2]) &&
         Symbol(sname[2:end]) in present
@@ -462,40 +474,45 @@ function _module_functions(mod::Module)
     fns
 end
 
+# The modules of a declaration, each once and under its own name, or every module
+# of the whole surface when the declaration is empty.
+function _api_modules(api)
+    isempty(api) && return _collect_surface_modules()
+    modules = unique(entry.module_ for entry in api)
+    Pair{Symbol,Module}[nameof(mod) => mod for mod in modules]
+end
+
+# The types of one module a model may name: the ones the declaration gives, or
+# every type of the module when the declaration is empty. A generated schema
+# variant is no resource and no catalogue entry of its own, as it is no hit.
+function _api_types(api, mod::Module)
+    declared = _find_declared_names(mod, api)
+    [pair for pair in _struct_types(mod)
+     if !_is_schema_variant(mod, first(pair), last(pair)) &&
+        (declared === nothing || first(pair) in declared)]
+end
+
 # ═══════════════════════════════════════════════════════════════════════
 # Documentation readers
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    list_modules() -> String
+    list_modules(; api = ApiEntry[]) -> String
 
-List all modules with one-paragraph documentation for each and a list of its
-top-level types.
+List the modules of `api`, each once, with its one-paragraph documentation and
+the types of it that a model may name: the ones the declaration gives, and no
+generated schema variant. An empty `api` lists the modules of the whole surface.
 """
 function list_modules(; api = ApiEntry[])
     modules_info = String[]
-    for (name, mod) in (isempty(api) ? _submodules(_projectured()) :
-                        [(nameof(e.module_), e.module_) for e in api])
+    for (name, mod) in _api_modules(api)
         summary = _get_catalogue_summary(_doc_string(mod), String(name))
-        structs = [String(n) for (n, _) in _struct_types(mod)]
+        structs = [String(n) for (n, _) in _api_types(api, mod)]
         struct_list = isempty(structs) ? "" : "\n\nTypes: $(join(structs, ", "))"
         push!(modules_info, "**$name**: $summary$struct_list")
     end
     isempty(modules_info) && return "No modules found."
     "Available Modules\n\n" * join(modules_info, "\n\n---\n\n")
-end
-
-# The names of `mod` that a declaration gives, or `nothing` when no declaration
-# narrows the module: an empty API is the whole surface. A module that two
-# entries name gives the names of both.
-function _find_declared_names(mod::Module, api)
-    isempty(api) && return nothing
-    given = Set{Symbol}()
-    for entry in api
-        entry.module_ === mod || continue
-        union!(given, get_api_entry_names(entry))
-    end
-    given
 end
 
 """
@@ -546,7 +563,7 @@ function list_functions(module_name, type_name = nothing; api = ApiEntry[])
 end
 
 """
-    read_module_documentation(module_name) -> String
+    read_module_documentation(module_name; api = ApiEntry[]) -> String
 
 Read the full documentation for a module.
 """
@@ -559,7 +576,7 @@ function read_module_documentation(module_name; api = ApiEntry[])
 end
 
 """
-    read_type_documentation(module_name, type_name) -> String
+    read_type_documentation(module_name, type_name; api = ApiEntry[]) -> String
 
 Read the full documentation for a type within a module. A type with no docstring
 falls back to a listing of its fields, which is more use than nothing.
@@ -584,7 +601,8 @@ function read_type_documentation(module_name, type_name; api = ApiEntry[])
 end
 
 """
-    read_function_documentation(module_name, function_signature, type_name = nothing) -> String
+    read_function_documentation(module_name, function_signature, type_name = nothing;
+                                api = ApiEntry[]) -> String
 
 Read the full documentation for a function within a module.
 """
@@ -597,7 +615,7 @@ function read_function_documentation(module_name, function_signature, type_name 
     _is_declared(api, mod, sym) ||
         return _say_not_declared("Function", func_name, module_name, api, "function")
     # A declaration may have renamed it, and the module knows it by its own name.
-    sym = api_source_name(api, mod, sym)
+    sym = get_api_source_name(api, mod, sym)
     isdefined(mod, sym) ||
         return "Function '$function_signature' not found in module '$module_name'."
     doc = _doc_string(getfield(mod, sym))
@@ -617,7 +635,7 @@ function read_value_documentation(module_name, name; api = ApiEntry[])
     sym = Symbol(name)
     _is_declared(api, mod, sym) ||
         return _say_not_declared("Value", String(name), module_name, api, "value")
-    sym = api_source_name(api, mod, sym)
+    sym = get_api_source_name(api, mod, sym)
     isdefined(mod, sym) || return "Value '$name' not found in module '$module_name'."
     doc = _binding_doc(mod, sym)
     isempty(doc) && return "No documentation available for '$name'."
@@ -671,8 +689,12 @@ function _index_guide_sections()
         content = read(filepath, String)
         heading = ""
         buf = String[]
+        # A line that starts with `#` inside a code fence is a line of the code,
+        # and no heading.
+        fenced = false
         for line in split(content, '\n')
-            if startswith(strip(line), "#")
+            startswith(strip(line), "```") && (fenced = !fenced)
+            if !fenced && startswith(strip(line), "#")
                 body = strip(join(buf, "\n"))
                 (isempty(body) && isempty(heading)) ||
                     push!(sections, _GuideSection(guide_name, heading, body))
@@ -721,18 +743,17 @@ function _rename_signature_paragraph(doc::AbstractString, source::AbstractString
     join(vcat([join(renamed, '\n')], [join(lines, '\n') for lines in paragraphs[2:end]]), "\n\n")
 end
 
-# The index of a declared API: each named module, and the names it exports. It
-# mirrors what the scratch module holds, name for name, because a model that finds
-# a function it cannot call wastes a round and learns to distrust the answer.
 """
     describe_api(api; signatures = true) -> String
 
 Every name a declaration gives, grouped by module: one signature line each, or
 just the names when `signatures` is false.
 
-**It is what a search answers when it matched nothing.** A search that says only
-"no match" costs a round and teaches nothing, and the round after it is a guess.
-The names are short, and they are the answer to "then what may I write?".
+**It is what a search answers when it matched nothing**, while the declaration
+is small. A search that says only "no match" costs a round and teaches nothing,
+and the round after it is a guess. The names are short, and they are the answer
+to "then what may I write?". A declaration of thousands of names is not listed:
+the miss names its modules instead.
 
 **It is not carried in a prompt.** The surface is 43 names and 900 tokens today,
 and it grows with the application; a menu in every round is a cost that never
@@ -748,7 +769,7 @@ function describe_api(api; signatures::Bool = true)
     for entry in entries
         mod = entry.module_
         own = String[]
-        for (source, name) in api_entry_bindings(entry)
+        for (source, name) in get_api_entry_bindings(entry)
             name === nameof(mod) && continue
             isdefined(mod, source) || continue
             text = String(name)
@@ -774,6 +795,10 @@ function describe_api(api; signatures::Bool = true)
     isempty(lines) ? "" : join(lines, "\n")
 end
 
+# A name that opens with an underscore is the module's own business, whatever it
+# exports. A caller does not write one, so a search does not answer one.
+_is_private_name(name::Symbol) = startswith(String(name), "_")
+
 # The names `@document` writes beside a schema: one per storage kind, `ACFoo`,
 # `RCFoo`, `ICFoo`, `MCFoo`, `DCFoo` and `AFoo`, and the struct of the native
 # layout, `MFoo` or `IFoo`. The macro exports them all, so a declaration of a
@@ -792,10 +817,6 @@ const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A", "M", "I")
 # did not change where the golden names ranked, because a name with no words of
 # its own answers no query; what they cost is the work and what a listing of
 # names shows.
-# A name that opens with an underscore is the module's own business, whatever it
-# exports. A caller does not write one, so a search does not answer one.
-_is_private_name(name::Symbol) = startswith(String(name), "_")
-
 function _is_schema_variant(mod::Module, name::Symbol, value)
     value isa Type || return false
     written = String(name)
@@ -808,6 +829,9 @@ function _is_schema_variant(mod::Module, name::Symbol, value)
     false
 end
 
+# The index of a declared API: each named module, and the names it exports. It
+# mirrors what the scratch module holds, name for name, because a model that finds
+# a function it cannot call wastes a round and learns to distrust the answer.
 function _index_declared(api)
     entries = _ApiEntry[]
     indexed = Set{Module}()
@@ -825,7 +849,7 @@ function _index_declared(api)
         # Indexed under the name the MODEL writes, and read from the module by
         # the name the module knows: a renamed entry is found by the word the
         # model would type, and its documentation is still its own.
-        for (source, sym) in api_entry_bindings(declared)
+        for (source, sym) in get_api_entry_bindings(declared)
             sym === nameof(mod) && continue
             isdefined(mod, source) || continue
             _is_private_name(sym) && continue
@@ -848,37 +872,20 @@ function _index_declared(api)
     entries
 end
 
-function _index_api()
-    proj = _projectured()
-    entries = _ApiEntry[]
-    for (mod_sym, mod) in _submodules(proj)
-        mn = String(mod_sym)
-        push!(entries, _make_api_entry("module", mn, _binding_doc(proj, mod_sym)))
-        for (type_sym, type_value) in _struct_types(mod)
-            (_is_private_name(type_sym) || _is_schema_variant(mod, type_sym, type_value)) &&
-                continue
-            push!(entries, _make_api_entry("type", "$mn.$type_sym", _binding_doc(mod, type_sym)))
-        end
-        # A function has no resource of its own: a resource per function fans out
-        # to hundreds, so a hit is read with `read_function_documentation`.
-        for (function_sym, _) in _module_functions(mod)
-            _is_private_name(function_sym) && continue
-            push!(entries, _make_api_entry("function", "$mn.$function_sym",
-                                           _binding_doc(mod, function_sym)))
-        end
-    end
-    entries
-end
+# The index of the whole surface: each of its modules, and the names it exports.
+# The scratch module binds only the exported names, so the index holds no others.
+_index_api() = _index_declared(_collect_surface_api())
 
 # Process-global, deliberately: lazily-built read-only indexes of the project's own
-# guides and API, identical for every editor and derived from sources that do not
-# change at runtime. This is the "state identical for every editor" carve-out
-# PAR-PER-EDITOR-STATE grants (alongside the wall clock).
+# guides and API, identical for every editor. The guides do not change at run time,
+# and the API index holds the whole surface of the packages that are loaded when it
+# is first built. This is the "state identical for every editor" carve-out
+# PAR-PER-EDITOR-STATE grants.
 const _GUIDE_INDEX = Ref{Union{Nothing,Vector{_GuideSection}}}(nothing)
 const _API_INDEX   = Ref{Union{Nothing,Vector{_ApiEntry}}}(nothing)
 # One index per declared list, keyed by the list. Two editors that declare two
-# different lists need two indexes and neither may see the other's
-# (PAR-PER-EDITOR-STATE); the key is what keeps them apart while the carve-out
+# different lists need two indexes and neither may see the other's; the key is
+# what keeps them apart while the carve-out
 # above still holds — every entry is read-only and identical for every editor that
 # declares that list.
 const _DECLARED_INDEX = Dict{Vector{ApiEntry},Vector{_ApiEntry}}()
@@ -904,7 +911,8 @@ end
 
 """
     search_guides(query; mode = "keywords", detail = "summary", limit = nothing,
-                  meaning_model = nothing) -> String
+                  meaning_model = nothing, relevance_model = nothing,
+                  context = nothing) -> String
 
 Search the guides. They are split into sections at their headings, and the hits
 are sections, each with the URI `read_resource` reads it by:
@@ -928,23 +936,61 @@ An answer that is long ends with what to do next.
   twice. Without a meaning model, or when it fails, the words alone rank them,
   and the first line of the answer says why.
 
+With a `relevance_model`, a description or keywords go to it with the first 50
+sections by words and the first 50 by meaning, and it orders them; when it
+fails, the ranks above stand, and the first line says so. A pattern does not go
+to it.
+
+`context` is what the search is asked in, such as the request of the person. The
+meaning vector of the query reads it before the sentence, and the relevance
+model reads it beside the query. A pattern search does not read it.
+
 A query that can not be read answers the reason as text, and never throws.
 """
 function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
-                       detail = "summary", limit = nothing, meaning_model = nothing)
+                       detail = "summary", limit = nothing, meaning_model = nothing,
+                       relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
     haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
+    hit_count = _get_hit_count(level, limit)
+    hit_count >= 1 || return _say_limit_below_one(limit)
     sections = _guide_index()
     ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    by_words = ranked
     note = nothing
+    context_text = _get_context_text(context)
+    by_meaning = nothing
     if read isa _DescriptionQuery
-        by_meaning, note = _rank_guide_sections_by_meaning(read, sections, meaning_model)
+        by_meaning, note = _rank_guide_sections_by_meaning(_add_query_context(read, context_text),
+                                                           sections, meaning_model)
         by_meaning === nothing ||
             (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
+    end
+    # **Keywords are asked of the relevance model too.** A model searches with
+    # keywords far more than with a sentence, and names its intent in them.
+    if relevance_model !== nothing && !(read isa Regex)
+        described = read isa _DescriptionQuery ? read : _DescriptionQuery(String(query))
+        if read isa KeywordQuery
+            fold = _get_query_fold(read)
+            by_meaning, _ = _rank_guide_sections_by_meaning(_add_query_context(described, context_text),
+                                                            sections, meaning_model)
+            by_meaning === nothing ||
+                (by_meaning = filter(section -> _is_passing(read, fold(section.heading),
+                                                            fold(section.body)), by_meaning))
+        end
+        pool = _make_relevance_pool(by_words, something(by_meaning, _GuideSection[]))
+        by_relevance, relevance_note = _rank_guide_sections_by_relevance(described, context_text, pool,
+                                                                         relevance_model)
+        if by_relevance === nothing
+            note = _join_notes(relevance_note, note)
+        elseif !isempty(by_relevance)
+            ranked = by_relevance
+            note = nothing
+        end
     end
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).\n" *
                                                  "A verb may do it: `search_api` with the same words.")
@@ -953,7 +999,7 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     io = IOBuffer()
     note === nothing || println(io, note, "\n")
     println(io, "# Documentation matches for $(repr(query))\n")
-    shown = first(ranked, min(_get_hit_count(level, limit), length(ranked)))
+    shown = first(ranked, min(hit_count, length(ranked)))
     for section in shown
         head = isempty(section.heading) ? "" : " — $(section.heading)"
         if level == "names"
@@ -968,6 +1014,7 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
         end
     end
     body = String(take!(io))
+    isempty(shown) && return body
     body * _make_footer(_get_section_uri(first(shown)), length(body); what = "a section")
 end
 
@@ -994,24 +1041,6 @@ function _rank_guide_sections(query, sections::Vector{_GuideSection})
     sort!(scored; by = x -> (-x[1][1], -x[1][2]))
 end
 
-# Rank: exact name match > name substring > qualified-name substring; doc hits add
-# a little. The exact-name tier only applies to string keywords; a Regex still
-# scores via its name / qualified-name / doc matches.
-# **A hit is ranked on two numbers, not one.** The name score decides first and
-# the prose score only separates entries the name could not. One number let each
-# spoil the other: with them added, a long docstring outranked the verb the person
-# named, and with the prose capped to stop that, a query matching no name at all
-# collapsed into ties that the tie-break then settled by length — "scalars delay
-# table" answered `DataFrames.nrow`. Both were measured, on 2026-09-13.
-#
-# **A stem may not earn a name match.** A term scores against the NAME exactly as
-# the person wrote it, and against the prose in any of its forms. The two halves
-# want opposite things: recall in the prose, where an extra hit is cheap, and
-# precision in the name, where it is not. Measured the same day: with a stem
-# allowed in a name, "stop runs" answered `run_simulations_in_conversation` before
-# `stop_simulations`, because `run` is inside almost every verb of that module.
-#
-# Every text is folded already.
 # The words of an identifier: `open_pane!` is "open" and "pane", `WidgetCard` is
 # "widget" and "card", and `HTTPServer` is "http" and "server".
 function _split_identifier_words(name::AbstractString)
@@ -1031,12 +1060,6 @@ _compute_name_score(written, name::AbstractString, words::Vector{String},
     occursin(written, name) ? 20 :
     occursin(written, qualified) ? 10 : 0
 
-# The entries a query finds, best first, each with its two scores.
-#
-# **A tie goes to the shorter name.** `run_simulations` and
-# `run_simulations_in_conversation` both hold every word of "run simulation", and
-# the first is what the words say; the second says them and more. Length is the
-# whole of that difference, so it is the tie-break.
 # What a word is worth in the prose, by the rule search engines call BM25: a word
 # that few entries hold is worth more than one that most of them hold, a second
 # occurrence in one entry is worth less than the first, and a long text earns no
@@ -1049,6 +1072,33 @@ _compute_name_score(written, name::AbstractString, words::Vector{String},
 const _WORD_SATURATION = 1.2
 const _LENGTH_WEIGHT = 0.75
 
+# The entries a query finds, best first, each with its two scores.
+#
+# Rank: exact name match > name substring > qualified-name substring; doc hits add
+# a little. The exact-name tier only applies to string keywords; a Regex still
+# scores via its name / qualified-name / doc matches.
+#
+# **A hit is ranked on two numbers, not one.** The name score decides first and
+# the prose score only separates entries the name could not. One number let each
+# spoil the other: with them added, a long docstring outranked the verb the person
+# named, and with the prose capped to stop that, a query matching no name at all
+# collapsed into ties that the tie-break then settled by length — "scalars delay
+# table" answered `DataFrames.nrow`. Both were measured, on 2026-09-13.
+#
+# **A stem may not earn a name match.** A term scores against the NAME exactly as
+# the person wrote it, and against the prose in any of its forms. The two halves
+# want opposite things: recall in the prose, where an extra hit is cheap, and
+# precision in the name, where it is not. Measured the same day: with a stem
+# allowed in a name, "stop runs" ranked a verb of a downstream program that starts
+# runs above the verb that stops them, because `run` is inside almost every verb
+# of that module.
+#
+# Every text is folded already.
+#
+# **A tie goes to the shorter name.** `draw_plot` and `draw_plot_in_window` both
+# hold every word of "draw plot", and the first is what the words say; the second
+# says them and more. Length is the whole of that difference, so it is the
+# tie-break.
 function _rank_api_entries(query, entries::Vector{_ApiEntry})
     terms = _get_scored_terms(query)
     fold = _get_query_fold(query)
@@ -1113,7 +1163,16 @@ function _read_search_detail(detail)
     "Unknown search detail " * repr(name) * ". The details are \"names\", \"summary\" and \"full\"."
 end
 
-_get_hit_count(detail::String, limit) = limit === nothing ? _DETAIL_LIMITS[detail] : Int(limit)
+# The number of hits a search shows: the count of the detail level, or the limit
+# a caller gave, rounded to a whole number.
+_get_hit_count(detail::String, limit) =
+    limit === nothing ? _DETAIL_LIMITS[detail] : round(Int, limit)
+
+# What a search answers for a limit that rounds to less than one hit. A search
+# answers text and never throws, so a model reads this and corrects its call.
+_say_limit_below_one(limit) =
+    "A limit of " * repr(limit) * " shows no hit. " *
+    "Give a limit of 1 or more, or leave it out."
 
 # ── What to do next ─────────────────────────────────────────────────────────
 #
@@ -1178,6 +1237,24 @@ function _read_addressed_resource(set::ToolSet, uri::AbstractString)
     nothing
 end
 
+"""
+    read_guide_section(guide_name, heading) -> String
+
+Read one section of a guide: its heading and its text up to the next heading, as
+`read_resource("resource://guide/<guide_name>#<heading>")` reads it. `heading`
+is the heading itself or its slug. A guide or a section that is not there
+answers a sentence that says so, and the sections the guide has.
+
+Use it to put a section of a guide into a text that is made from it, such as the
+system text of an assistant, so the guide stays the one place of that text.
+
+# Example
+
+    read_guide_section("guide/orientation", "Reach what a tab holds")
+"""
+read_guide_section(guide_name::AbstractString, heading::AbstractString) =
+    _read_guide_section(guide_name, heading)
+
 function _read_guide_section(guide::AbstractString, fragment::AbstractString)
     sections = _GuideSection[section for section in _guide_index() if section.guide == guide]
     isempty(sections) && return "Documentation '$guide' not found."
@@ -1230,7 +1307,8 @@ end
 
 """
     search_api(query; mode = "keywords", detail = "summary", kind = nothing, limit = nothing,
-               api = ApiEntry[], meaning_model = nothing) -> String
+               api = ApiEntry[], meaning_model = nothing, relevance_model = nothing,
+               context = nothing) -> String
 
 Search modules, types, and functions by name and docstring. Ranks exact name
 matches above name substrings above docstring matches and returns the top `limit`
@@ -1243,44 +1321,43 @@ long ends with what to do next. Pass `kind` (`"module"`, `"type"`, or
 
 `api` is the declared API of a `ToolSet`. Named, the search sees those modules
 and nothing else — the same names the code the model writes can resolve. Empty, it
-sees the whole project.
+sees the whole surface: every `Projectured` package that was loaded when the
+process built its index, on first use.
 
 `mode` reads the query exactly as in [`search_guides`](@ref): keywords by
 default, a pattern with `"regex"` or a `Regex`, and a sentence with
 `"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
 for a written word only: a pattern ranks by where it matches.
+
+A `relevance_model` ranks a description before the meaning model does, and
+keywords before their words do, unless their words match one name as strongly
+as that name itself would and no other name so: it
+reads the query, the `context` and each entry together. The filters of a
+keyword query (`+word`, `-word`) still say which entries it may rank. It scores
+every entry of a declaration of up to 255, and of a larger one it scores the
+best few of each group of 255 that it chose among by their first sentences.
+When it fails, the meaning model or the words rank, and the first line of the
+answer says why.
+
+`context` is what the search is asked in, such as the request of the person and
+what the window holds. A description and the relevance model read it; a pattern
+search does not.
 """
-function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detail = "summary",
-                    kind = nothing, limit = nothing, api = ApiEntry[], meaning_model = nothing)
+function search_api(query::Union{AbstractString,Regex}; mode = "keywords",
+                    detail = "summary", kind = nothing, limit = nothing, api = ApiEntry[],
+                    meaning_model = nothing, relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
     haskey(_DETAIL_LIMITS, level) || return level
     refusal = _find_query_refusal(read)
     refusal === nothing || return refusal
-    limit = _get_hit_count(level, limit)
+    hit_count = _get_hit_count(level, limit)
+    hit_count >= 1 || return _say_limit_below_one(limit)
     entries = _ApiEntry[entry for entry in _api_index(api)
                         if kind === nothing || entry.kind == kind]
-    scored = _rank_api_entries(read, entries)
-    ranked = _ApiEntry[entry for (_, entry) in scored]
-    note = nothing
-    if read isa _DescriptionQuery
-        # **The meaning decides, and the words only stand in for it.** Merged,
-        # the two ranks were worse than the meaning alone: a sentence's words
-        # are "value", "runs" and "time", and they match a name that means
-        # something else. Measured on the 88 verbs of a downstream IDE, 2026-09-16: of
-        # the five weightings of a rank fusion that were tried, none put a verb
-        # above where the meaning alone put it, and each put three or four of
-        # eight test sentences' verbs below it.
-        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
-        by_meaning === nothing || (ranked = by_meaning)
-        # A sentence names no verb, so only a single hit is a clear answer.
-        alone = length(ranked) == 1
-    else
-        # One hit, or one whose NAME is exactly what was asked while no other's is.
-        alone = length(scored) == 1 ||
-                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
-    end
+    ranked, alone, note = _rank_api_hits(read, entries; query, meaning_model,
+                                         relevance_model, context)
     # **A miss answers what there IS.** A search that says only "no match" costs a
     # round and teaches nothing, and the round after it is a guess. The names of
     # the declaration are short, and they are the answer to "then what may I
@@ -1288,10 +1365,10 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
     # carried in every prompt.
     if isempty(ranked)
         suffix = kind === nothing ? "" : " (kind=$kind)"
-        names = isempty(api) ? "" : describe_api(api; signatures = false)
+        names = isempty(api) ? "" : _describe_api_for_miss(api)
         return _prefix_note(note, "No API matches $(repr(query))$suffix. " *
-                                  "A guide may say it: `search_guides` with the same words." *
-                                  (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
+            "A guide may say it: `search_guides` with the same words." *
+            (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
     end
 
     # **One clear answer is answered in full.** A hit shows its signature and a
@@ -1307,28 +1384,102 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         println(io, "# `", last(split(best.qualname, '.')),
                     "` — the one API match for ", repr(query), "\n")
         println(io, best.full)
-        rest = [entry.qualname for entry in ranked[2:min(limit, length(ranked))]]
+        rest = [entry.qualname for entry in ranked[2:min(hit_count, length(ranked))]]
         isempty(rest) ||
             println(io, "\nAlso matched, by name: " * join(rest, ", ") * ".")
         return String(take!(io))
     end
 
     println(io, "# API matches for $(repr(query))\n")
-    shown = first(ranked, min(limit, length(ranked)))
+    shown = first(ranked, min(hit_count, length(ranked)))
     for entry in shown
         println(io, _format_api_hit(entry, level))
     end
     body = String(take!(io))
+    isempty(shown) && return body
     body * _make_footer(_get_entry_uri(first(shown)), length(body); what = "one")
+end
+
+# The entries a query finds, best first; whether the first is the one clear
+# answer; and the note of a ranking that a model could not do.
+function _rank_api_hits(read, entries::Vector{_ApiEntry}; query, meaning_model,
+                        relevance_model, context)
+    scored = _rank_api_entries(read, entries)
+    ranked = _ApiEntry[entry for (_, entry) in scored]
+    note = nothing
+    if read isa _DescriptionQuery
+        # **The meaning decides, and the words only stand in for it.** Merged,
+        # the two ranks were worse than the meaning alone: a sentence's words
+        # are "value", "runs" and "time", and they match a name that means
+        # something else. Measured on the 88 verbs of a downstream IDE, 2026-09-16:
+        # of the five weightings of a rank fusion that were tried, none put a verb
+        # above where the meaning alone put it, and each put three or four of
+        # eight test sentences' verbs below it.
+        context_text = _get_context_text(context)
+        by_relevance, relevance_note = relevance_model === nothing ? (nothing, nothing) :
+            _rank_api_entries_by_relevance(read, context_text, entries, relevance_model)
+        if by_relevance === nothing
+            by_meaning, note = _rank_api_entries_by_meaning(
+                _add_query_context(read, context_text), entries, meaning_model)
+            by_meaning === nothing || (ranked = by_meaning)
+            note = _join_notes(relevance_note, note)
+        else
+            ranked = by_relevance
+        end
+        # A sentence names no verb, so only a single hit is a clear answer.
+        alone = length(ranked) == 1
+    else
+        # One hit, or one whose NAME is exactly what was asked while no other's is.
+        named = !isempty(scored) && scored[1][1][1] >= 100 &&
+                (length(scored) == 1 || scored[2][1][1] < 100)
+        alone = length(scored) == 1 || named
+        # **Keywords are asked of the relevance model too**, among the entries
+        # their filters let pass, unless they name one entry as `named` says. A
+        # model searches with keywords far more than with a sentence: measured
+        # 2026-09-28, the rehearsals of a study searched only by keywords, with a
+        # context. On 41 such logged searches the classifier put the needed name
+        # first in 35, the words in 26.
+        if relevance_model !== nothing && read isa KeywordQuery && !named
+            fold = _get_query_fold(read)
+            passing = _ApiEntry[entry for entry in entries
+                                if _is_passing(read, fold(entry.qualname), fold(entry.text))]
+            by_relevance, relevance_note = isempty(passing) ? (nothing, nothing) :
+                _rank_api_entries_by_relevance(_DescriptionQuery(String(query)),
+                                               _get_context_text(context), passing,
+                                               relevance_model)
+            if by_relevance === nothing
+                note = relevance_note
+            else
+                ranked = by_relevance
+                alone = length(ranked) == 1
+            end
+        end
+    end
+    (ranked, alone, note)
+end
+
+# The most names a miss lists. An application declares thousands, and a list of
+# them all is some 25,000 tokens: one answer would fill the context of a model.
+const _MISS_NAME_LIMIT = 300
+
+# What a miss says of the declaration: every name, grouped by module, while there
+# are few; the modules alone when there are more.
+function _describe_api_for_miss(api)
+    entries = _api_entries(api)
+    count = sum(length(get_api_entry_bindings(entry)) for entry in entries; init = 0)
+    count <= _MISS_NAME_LIMIT && return describe_api(api; signatures = false)
+    modules = unique(String(nameof(entry.module_)) for entry in entries)
+    "The declaration gives " * string(count) * " names in " * string(length(modules)) *
+    " modules, too many to list. The modules: " * join(modules, ", ") *
+    ". Say in a sentence what you want, with mode \"description\"."
 end
 
 # A hit is two lines: what a caller writes, and what it does.
 #
 # **The signature first, and the name is in it.** A declared name arrives
 # unqualified, and a hit that led with `Module.name` invited a caller to copy
-# that shape: measured 2026-09-13, a model read
-# `CampaignVerbsModule.select_simulations!`, wrote
-# `PaneProgramModule.select_simulations!`, and lost the turn to an
+# that shape: measured 2026-09-13, a model read a qualified name of a downstream
+# program, wrote the name with another module, and lost the turn to an
 # `UndefVarError`. The module follows the kind, as context.
 function _format_api_hit(entry::_ApiEntry, level::String = "summary")
     parts = split(entry.qualname, '.')
@@ -1344,27 +1495,31 @@ end
 
 """
     search_api(set::ToolSet, query; mode = "keywords", detail = "summary", kind = nothing,
-               limit = nothing) -> String
+               limit = nothing, context = nothing) -> String
 
-Search what the tools of `set` search: its declared API, ranked by its meaning
-model when it has one. This is what the `search_api` tool answers, so a call
-from the REPL and a call from a model answer the same text.
+Search what the tools of `set` search: its declared API, ranked by its relevance
+model and its meaning model when it has them. This is what the `search_api` tool
+answers, so a call from the REPL and a call from a model answer the same text.
 """
 search_api(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-           detail = "summary", kind = nothing, limit = nothing) =
+           detail = "summary", kind = nothing, limit = nothing, context = nothing) =
     search_api(query; mode = mode, detail = detail, kind = kind, limit = limit, api = set.api,
-               meaning_model = set.meaning_model)
+               meaning_model = set.meaning_model, relevance_model = set.relevance_model,
+               context = context)
 
 """
-    search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing) -> String
+    search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing,
+                  context = nothing) -> String
 
 Search the guides as the tools of `set` search them, ranked by its meaning model
-when it has one. This is what the `search_guides` tool answers.
+and its relevance model when it has them. This is what the `search_guides` tool
+answers.
 """
 search_guides(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-              detail = "summary", limit = nothing) =
+              detail = "summary", limit = nothing, context = nothing) =
     search_guides(query; mode = mode, detail = detail, limit = limit,
-                  meaning_model = set.meaning_model)
+                  meaning_model = set.meaning_model, relevance_model = set.relevance_model,
+                  context = context)
 
 # ── Tool-argument coercion ─────────────────────────────────────────────────
 # A tool argument arrives from JSON, so it may be a number, a string, or nothing.

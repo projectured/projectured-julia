@@ -1,7 +1,8 @@
 # Fragment of `EventModule` — the contract of the input: the abstract type of an
 # event, and the two generics that every input answers. The concrete events subtype
-# it and add their own `get_modifier_keys` methods, in the fragments after this one;
-# the gesture layer adds the methods of the gestures.
+# it and add their own `get_modifier_keys` methods, in the fragments after this one,
+# and the gesture layer adds the methods of the gestures. The fallback of
+# `get_modifier_keys` and the body of `get_event_time` are in `EventDefaults.jl`.
 
 """
     Event

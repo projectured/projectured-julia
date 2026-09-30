@@ -69,7 +69,7 @@ wire = ProjecturedOllama._wire_messages(request)
 @test occursin("18 degrees", wire[1]["content"])
 
 # ── the token budget is an option, and an empty model is the default ──
-@test OllamaLlm(; model = "").model == default_llm_model(:ollama)
+@test OllamaLlm(; model = "").model == get_default_llm_model(:ollama)
 @test OllamaLlm(; base_url = "http://host:1/").base_url == "http://host:1"
 
 # ── the context window is sent only when a caller asked for a size ──
@@ -145,6 +145,29 @@ evs = _events_of(["""{"error":"model runner has unexpectedly stopped"}"""])
 @test evs[1] isa LlmFailure
 @test occursin("unexpectedly stopped", evs[1].message)
 
+# ── a stream that ends before its `done` line throws, as a dead socket does ──
+request = LlmRequest(messages = [LlmMessage(:user, "Say hello.")])
+first_line = """{"message":{"role":"assistant","content":"Hel"},"done":false}\n"""
+last_line = """{"message":{"role":"assistant","content":""},"done":true}\n"""
+for (body, is_whole) in ((first_line * last_line, true), (first_line, false))
+    server, _ = _serve_json_requests(_ -> HTTP.Response(200, body))
+    try
+        llm = OllamaLlm(; base_url = _get_local_url(server), model = "m",
+                          thinking = false)
+        evs = Any[]
+        record = ev -> push!(evs, ev)
+        if is_whole
+            stream_turn(llm, request; on_event = record)
+            @test evs[end] == LlmTurnEnd(:end_turn)
+        else
+            @test_throws ErrorException stream_turn(llm, request; on_event = record)
+            @test evs[end] == LlmTextDelta("Hel")
+        end
+    finally
+        close(server)
+    end
+end
+
 # ── a line split across two reads is one event, not two ──
 out = Any[]
 handle = ProjecturedOllama._line_handler(ev -> push!(out, ev))
@@ -175,7 +198,7 @@ function test_ollama_backend()
 
 # The package registers itself, so the kernel's factory answers for it.
 @test :ollama in get_llm_backend_names()
-@test default_llm_model(:ollama) == "qwen3.8:27b"
+@test get_default_llm_model(:ollama) == "qwen3.8:27b"
 llm = make_llm(:ollama; model = "mistral:latest", api_key = "ignored")
 @test llm isa OllamaLlm
 @test llm.model == "mistral:latest"
@@ -265,9 +288,9 @@ stream_turn(llm, LlmRequest(system = "Answer in three words.",
 end
 end
 
-# A server on this machine that answers `/api/embed` with `answer(body)`, and
-# keeps every request it was sent.
-function _serve_meaning_requests(answer::Function)
+# A server on this machine that answers each request with `answer(body)`, where
+# `body` is the JSON of the request, and keeps every request it was sent.
+function _serve_json_requests(answer::Function)
     requests = Any[]
     server = HTTP.serve!("127.0.0.1", 0; listenany = true) do request
         body = JSON3.read(request.body)
@@ -299,7 +322,7 @@ prefix = ProjecturedOllama._get_meaning_prefix
 @test prefix("all-minilm", :query) == ""
 
 # ── the request: the model, the texts with their prefix, batches of 64 ──
-server, requests = _serve_meaning_requests(body ->
+server, requests = _serve_json_requests(body ->
     HTTP.Response(200, JSON3.write(Dict("embeddings" => [[1.0, 2.0] for _ in body.input]))))
 try
     llm = OllamaLlm(; base_url = _get_local_url(server))
@@ -322,7 +345,7 @@ finally
 end
 
 # ── a server that answers too few vectors is refused ──
-short, _ = _serve_meaning_requests(body ->
+short, _ = _serve_json_requests(body ->
     HTTP.Response(200, JSON3.write(Dict("embeddings" => [[1.0]]))))
 try
     llm = OllamaLlm(; base_url = _get_local_url(short))
@@ -332,7 +355,7 @@ finally
 end
 
 # ── a model that is not pulled: the error says how to pull it ──
-refusing, _ = _serve_meaning_requests(body ->
+refusing, _ = _serve_json_requests(body ->
     HTTP.Response(404, JSON3.write(Dict(
         "error" => "model \"$(body.model)\" not found, try pulling it first"))))
 try

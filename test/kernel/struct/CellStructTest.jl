@@ -49,6 +49,12 @@ end
     content::A
 end
 
+# A `mutable struct`, and a field that names the mutable kind with no value type.
+@cell_struct mutable struct CsMutable
+    a
+    m::MutableCell
+end
+
 function test_cell_struct()
 @testset "CellStruct" begin
 
@@ -117,6 +123,30 @@ end
     @test getfield(CsImmutable(1, shared, 3), :b) === shared
     # A cell of another type does not fit the field.
     @test_throws MethodError CsImmutable(1, ImmutableCell{Int}(2), 3)
+end
+
+@testset "a mutable struct" begin
+    x = CsMutable(1, 2)
+    @test ismutable(x)
+    cell = getfield(x, :a)
+    @test cell isa Cell
+    # A write goes into the cell of the field, and the field keeps its cell.
+    x.a = 10
+    @test getfield(x, :a) === cell
+    @test cell[] == 10
+    reader = Cell(@computation x.a + 1)
+    @test reader[] == 11
+    x.a = 20
+    @test reader[] == 21
+    x.m = 5
+    @test getfield(x, :m)[] == 5
+end
+
+@testset "a mutable field rejects a written Computation" begin
+    x = CsMutable(1, 0)
+    @test getfield(x, :m) isa MutableCell{Any}
+    @test_throws ArgumentError x.m = @computation 1
+    @test x.m === 0
 end
 
 @testset "the kind of a struct of cells" begin

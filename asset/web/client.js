@@ -582,7 +582,11 @@
   // ── Event capture ──────────────────────────────────────────────────────────
 
   function mods(ev) { return { ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey, meta: ev.metaKey }; }
-  function buttonSym(b) { return b === 1 ? "middle" : b === 2 ? "right" : "left"; }
+  // The name of a button, or null for a side button, which the event layer does not
+  // name: the page sends no event for it.
+  function buttonSym(b) {
+    return b === 0 ? "left" : b === 1 ? "middle" : b === 2 ? "right" : null;
+  }
   function pos(ev, canvas) {
     const r = canvas.getBoundingClientRect();
     return { x: Math.round(ev.clientX - r.left), y: Math.round(ev.clientY - r.top) };
@@ -600,13 +604,17 @@
     const canvas = p.canvas;
 
     canvas.addEventListener("mousedown", (ev) => {
+      const button = buttonSym(ev.button);
+      if (button === null) return;
       const { x, y } = pos(ev, canvas);
-      send({ type: "mousedown", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev),
+      send({ type: "mousedown", window: idFn(), button, x, y, mods: mods(ev),
              t: stamp(ev) });
     });
     canvas.addEventListener("mouseup", (ev) => {
+      const button = buttonSym(ev.button);
+      if (button === null) return;
       const { x, y } = pos(ev, canvas);
-      send({ type: "mouseup", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev),
+      send({ type: "mouseup", window: idFn(), button, x, y, mods: mods(ev),
              t: stamp(ev) });
     });
     canvas.addEventListener("mousemove", (ev) => {
