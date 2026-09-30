@@ -261,8 +261,8 @@ The owner decided these on 2026-09-29.
 | R21 | The licence of the repository and of the packages? | **MPL-2.0** (the owner, 2026-09-29). Other people may build and sell products on ProjecturEd with packages of their own; their changes to the files of ProjecturEd stay MPL and public when they distribute them; the owner can use those changes in his own closed products with no contributor licence agreement. It is OSI-approved, so the packages can go into General. It replaces `LICENCE-PD` and `LICENCE-COMMERCIAL`, and it makes R15 moot. Part L does the change. |
 | R22 | Seven pairs of our names fail the name rule of General. Rename, or ask for manual merges? | Manual merges (the owner, 2026-09-29). |
 | R24 | Do the other two authors agree to MPL-2.0 for their commits? | Yes (the owner, 2026-09-29: "I know them well and they agreed"). Keep their agreement in writing with the release records. |
-| R25 | Guard against a version that skips one? | Yes (the owner, 2026-09-29). Done: `build_package_release!` takes `registry`, and `build_projectured_package_release!` checks General (commit after `507ef1c06`). |
-| R23 | One release repository with 65 subdirectories, or one repository for each package? | One repository for each package, `projectured/<Name>.jl` (the owner, 2026-09-29). Then the URL rule of General passes for every package; the name rule still needs a manual merge for at least 4 (R22); the first registration still goes one level at a time, with 3 days of waiting for each new package. Done in the generator (commit `92b4fa717`). |
+| R25 | Guard against a version that skips one? | Yes (the owner, 2026-09-29). Done: `build_package_release!` takes `registry`, and `build_projectured_package_release!` checks General (commit after `c0dcdc1e1`). |
+| R23 | One release repository with 65 subdirectories, or one repository for each package? | One repository for each package, `projectured/<Name>.jl` (the owner, 2026-09-29). Then the URL rule of General passes for every package; the name rule still needs a manual merge for at least 4 (R22); the first registration still goes one level at a time, with 3 days of waiting for each new package. Done in the generator (commit `6571ceed9`). |
 | R26 | Without the port, which engine does `ProjecturedGraph` use when none is registered? | A new force-directed engine, written from the textbook algorithm and not from the port (the owner, 2026-09-29: option 3). Part G. |
 | R19 | The ten files in `source/graph/cpp/` port the layout engine of OMNeT++, whose headers name OpenSim Ltd. and Andras Varga and the Academic Public License. | Move them out of this repository, into the private downstream repository that uses them (the owner, 2026-09-29). R26 holds what `ProjecturedGraph` uses in their place. The MIT function in `source/domain/Domain.jl` keeps its notice in one comment. |
 | R16 | What to do with the four packages of §2.4 that can not go in as they are? | Skip them: `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`. `ProjecturedExample` and the other example packages stay out by R12, so the registry gives no application; the binary gives it. The registry set is 65 packages. |
@@ -453,7 +453,7 @@ texts) is in `/var/tmp/release-plan/licence/`.
       `XLOCALEDIR` pointing at `share/X11/locale` of the artifact, both
       properties were right. **The fix**: `ProjecturedSdl` names
       `Xorg_libX11_jll`, and its `__init__` sets `XLOCALEDIR` to that folder
-      unless the user set it (commit `1cfea4acc`). The binary carries the
+      unless the user set it (commit `212029014`). The binary carries the
       artifact whole, so the fix holds there too.
 - [x] One commit per fault, each with the narrowest test.
 
@@ -489,7 +489,7 @@ TMPDIR=/var/tmp/projectured-release JULIA_IMAGE_THREADS=2 JULIA_NUM_PRECOMPILE_T
 ```
 
 - [x] The relocation test and the program check pass. **A test build, on
-      2026-09-30** (commit `28ce34357`, `--distribution --filter-stdlibs`),
+      2026-09-30** (commit `fe3eabbcc`, `--distribution --filter-stdlibs`),
       with the stand-in of R3a and the fonts of R17, but not yet the licence
       texts of Julia and its libraries (A2) or the source archive (R18), so
       its archive is not the release one. About 22 minutes. Bundle 1,149 MB
@@ -521,7 +521,7 @@ TMPDIR=/var/tmp/projectured-release JULIA_IMAGE_THREADS=2 JULIA_NUM_PRECOMPILE_T
       `test_builder()` 199.
 - [x] Record in this plan: the wall time, the peak memory, the bundle size, the
       archive size and the SHA-256 digest that the build prints. **The release
-      candidate of 2026-09-30** (commit `731e6bc67`, `bin/build_projectured
+      candidate of 2026-09-30** (commit `8f098d469`, `bin/build_projectured
       --distribution`): with the stand-in and its two kept JLLs, Liberation
       2.1.5, Julia's own `libstdc++` (GCC 15.2.0, `GLIBC_2.17`), the licence
       texts and the source archive. Bundle 1,174 MB; archive 317.4 MB,
@@ -858,7 +858,7 @@ Step A6 do.
 - [ ] The guides say: update all Projectured packages together (R11).
 - [x] [build-guide.md](../../documentation/guide/build-guide.md): a section on
       how to make a package release: generate, commit, register, push. Done on
-      2026-09-29 (commit `2310c84b0`), with the release copy in
+      2026-09-29 (commit `abe2c9557`), with the release copy in
       [builder.md](../../documentation/package/builder/builder.md).
 
 ### Step B6: publish the packages (the owner only)
@@ -935,7 +935,7 @@ package registered an engine for (R26).
       two boxes overlap, an edge is shorter than the mean distance of two
       vertices without one, pins hold exactly, a cluster keeps its offsets, the
       same input gives the same output, an extent bounds it, and a constraint
-      it does not know is refused. Done (commit `071225f08`): 99 assertions in
+      it does not know is refused. Done (commit `0990e7003`): 99 assertions in
       `test/graph/projection/FruchtermanReingoldLayoutTest.jl`, all passing on
       the first run.
 - [x] G2. The default: `make_pure_julia_layout_engine` answers the new engine;
@@ -976,17 +976,17 @@ Facts of G1 and G2 (2026-09-29):
 
       **The landing order**: the first commit downstream (the move) works with
       both the old and the new `ProjecturedGraph`, so it lands first. Then
-      `222b30517` of this repository and the second commit downstream (its test
-      asserts the resolution by size), together. G3 (`047bfa23f`) lands with
+      `35defbe51` of this repository and the second commit downstream (its test
+      asserts the resolution by size), together. G3 (`c7a156547`) lands with
       them or after them, never before the move downstream.
 
-      Checked against `release-plan` at `222b30517`: the moved tests pass (111)
+      Checked against `release-plan` at `35defbe51`: the moved tests pass (111)
       with only the drawing package loaded, after `import ProjecturedAdaptagrams`
       with no shim (103 of 109 before the fix), and with the example package
       loaded; `resolve_layout_engine(DeferredLayout(), n)` gives the
       force-directed engine at 5 and 19 vertices and the spring embedder at 20
       and 25, and a layout records that name. Against the old `main` the second
-      commit downstream fails 5 of 111, which is why it waits for `222b30517`.
+      commit downstream fails 5 of 111, which is why it waits for `35defbe51`.
       Not run: the whole presentation suite downstream.
 
 Facts of G4 (2026-09-29):
@@ -995,12 +995,12 @@ Facts of G4 (2026-09-29):
   topology, not a package of its own; the rules there ask for a package only for
   a new third-party dependency. The ten files are the same code; only their
   first line and three comments changed (checked here with `diff` against
-  `071225f08`). An engine there chooses between the two by the vertex count, as
+  `0990e7003`). An engine there chooses between the two by the vertex count, as
   the rule of 20 did, and its `__init__` registers it.
 - **Same pictures**: the three topologies there (57, 7 and 3 vertices) drew
   byte for byte as before. The moved tests pass (109), and the C++ reference
   programs, built again, print the numbers that the tests assert.
-- **Two faults on this side, found there and fixed here** (commit `222b30517`):
+- **Two faults on this side, found there and fixed here** (commit `35defbe51`):
   - `ProjecturedAdaptagrams` registered from its `__init__` even without its
     shim, and so took the place of the engine registered before it and handed
     every layout to `FruchtermanReingoldLayout`. It registers now only when the
@@ -1020,9 +1020,9 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 
 - [x] R19: the port in `source/graph/cpp/` leaves this repository (Part G), and
       the MIT function in `source/domain/Domain.jl` gets its notice. The notice
-      is done (commit `fa12685a9`): the MIT text of Julia, beside the two
+      is done (commit `004075bff`): the MIT text of Julia, beside the two
       functions that come from `InteractiveUtils.subtypes`. The move is G3
-      (`047bfa23f`), which lands only in the order of Part G.
+      (`c7a156547`), which lands only in the order of Part G.
 - [x] R24: the two other authors agree to MPL-2.0 for their commits (the owner,
       2026-09-29).
 
@@ -1054,6 +1054,21 @@ It comes before Step A7 and Step B6, because both publish under the licence.
 **The licence change lands on `main` and reaches GitHub together with the site
 change**, and not before R3a, R17 and R18 are settled for any binary that is
 published under it.
+
+**Landed on `main` on 2026-09-30**, at the owner's word, so that the licence is
+present before R23 is asked. `main` had 168 new commits; the branch rebased onto
+them with no conflict. Three rules of the new `main` asked for three changes: a
+`using`, not an `import`, for `Xorg_libX11_jll`, which `ProjecturedSdl` does not
+extend; the layout guide names "the layouters of a C++ network simulator", not
+the private product; and `SourceOffer` takes each argument after the version by
+keyword. The lines that the branch adds fit in 90 characters, except four
+`@testset` titles, which the macro keeps on one line. On the rebased branch:
+builder 225, package release 45 and 490, meaning search 69, kernel layering 10,
+graph 371, process 304, fsm 154 and SDL 785 pass. The downstream move landed
+first, and its test after this. The commits that this plan cites are the ones on
+`main`; the builds of Steps A4 and A5 ran on the same commits before the rebase,
+and Step A4 builds again at the release commit (R7). Nothing is pushed: the
+site branch waits for the push of `main`.
 
 MPL-2.0 does not need a notice in each source file: its Exhibit A allows the
 notice in "a LICENSE file in a relevant directory", and each package folder
