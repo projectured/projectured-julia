@@ -14,6 +14,7 @@ using ProjecturedExample
 using ProjecturedKernelTest
 using ProjecturedSubstrateTest
 using ProjecturedJsonTest
+using ProjecturedJsonTest: test_json_content_clicks_clean
 using ProjecturedYamlTest
 using ProjecturedXmlTest
 using ProjecturedMarkdownTest
