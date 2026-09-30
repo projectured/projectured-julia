@@ -1476,10 +1476,15 @@ Each question shows its options and my recommendation, marked **Recommended (min
 
 **L10-13 (part)** (Medium): Does PAR-NO-NESTED-CELL keep its `MethodError` for a nested cell, so that the code changes, or does the rule text say that a cell of any type passes through as the cell of the field?
 
-- **A:** The rule text follows the code: a cell of any type passes through as the cell of the field. The constructor checks the declared type only when it wraps a raw value.
+- **A:** The rule text follows the code: a cell of any type passes through as the cell of the field. The reactive layout checks no declared type. The kind layouts (`ImmutableCell`, `MutableCell`) check a raw value and a write against the declared type.
 - **B:** The code follows the rule in part: the constructor throws when a passed cell can not hold the declared type (a ReactiveCell{String} into a field of Int), and lets a ReactiveCell{Any} through.
 - **C:** The code follows the rule text: only a cell of the cell type of the field passes, so each Cell(x) that the machinery makes must carry its type.
 - **Recommended (mine): A.** The loose bound is a written design (DocumentMacro.jl:96-99): the machinery makes an untyped Cell(x), a ReactiveCell{Any}, and stores it in typed fields. The owner holds that a reactive cell stores Any and that a read narrows to the declared type. C breaks that machinery. B adds a check that a later write to the same Any cell does not make anyway.
+- **Decided by the owner, 2026-09-30: A, for now.** The law states what the code does today. An example on main showed the facts:
+  - `Person` (the reactive layout): a raw `"thirty"`, `Cell("thirty")`, `ReactiveCell{String}("thirty")` and the write `q.age = "thirty"` into `age::Int` all give `"thirty"`.
+  - `MCPerson` and `ICPerson` (the kind layouts): a raw `"thirty"` throws `MethodError`, and so does the write `m.age = "thirty"`. `Cell("thirty")` and `MutableCell{String}("thirty")` pass and give `"thirty"`.
+  - The new text of the rule: "A cell that a constructor gets becomes the cell of the field, whatever type of value it holds. The declared type of a field is the type that the field holds at rest. The reactive layout does not enforce it, because an edit passes through intermediate values, such as a text to parse or a document of another domain that a projection gives meaning to. The kind layouts (`ImmutableCell`, `MutableCell`) check a raw value and a write against the declared type."
+  - The owner wants strict types later, with a boundary type for each intermediate state. That is its own plan: [strict-document-types.md](strict-document-types.md). When it lands, this rule changes again.
 - Cost: S. PAR-NO-NESTED-CELL in architecture-invariants.md, one sentence. No code.
 
 **L11-17** (Medium): For the names that the pane window declares to the assistant (`@reference`, DocumentLocator, get_parent, get_edited_document), does the Use-it-to rule (an example that runs in the window) win over PAR-NO-CONSUMER-DOCS in a kernel docstring?
