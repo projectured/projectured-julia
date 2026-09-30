@@ -182,6 +182,22 @@ and the downstream repositories land in the same landing.
       `ProjecturedPlatform` in place of the internal packages. The 35 internal
       package folders go. `environment/all` follows. The guard of Step 0
       becomes the layering guard of the platform.
+- [ ] **Step 3b, the aggregate modules (the owner, 2026-09-30).** `KernelModule`
+      in the kernel and `PlatformModule` in the platform, each defined after
+      the slices of its package, export every public name of those slices and
+      the names of the slice modules. The code above the platform (the
+      domains, backends, adapters and the umbrella) replaces its 12 to 18
+      `using ..XxxModule` lines with `using ..KernelModule` and
+      `using ..PlatformModule`; the binding loop of the entry files binds the
+      two like the other submodules. The package modules `ProjecturedKernel`
+      and `ProjecturedPlatform` export the same names, so a user writes
+      `using ProjecturedKernel, ProjecturedPlatform`. Conditions: the slices of
+      the kernel and the platform keep naming each module (the aggregate comes
+      after them, and the table of S8 reads their `using` lines); `import
+      ..XxxModule: f` for an extension stays (PAR-QUALIFIED-EXTENSION); the
+      guard of shadowed extensions counts every name of an aggregate, and
+      PAR-QUALIFIED-EXTENSION gets a sentence on the aggregates. The
+      export-collision guard already keeps the aggregate unambiguous.
 - [ ] **Step 4, the test and example packages (F7).** `ProjecturedPlatformTest`
       and `ProjecturedPlatformExample`; the CI matrix (28 jobs); the testing
       guide.
