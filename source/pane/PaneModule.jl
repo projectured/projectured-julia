@@ -99,13 +99,5 @@ include("PaneToWidget.jl")
 include("UserInterfaceFile.jl")
 include("PaneFile.jl")
 
-# A file may name a pane tree, a split, a group or a tab. The registry is
-# runtime state, so the offer is made here and not at the top level.
-function __init__()
-    register_pred_type!(PaneTree)
-    register_pred_type!(PaneSplit)
-    register_pred_type!(PaneGroup)
-    register_pred_type!(PaneTab)
-end
 
 end # module

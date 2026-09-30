@@ -603,6 +603,39 @@ Each step ends with its narrowest test and a commit.
     logs, the help lists, the statistics, the inspectors, the formula, the
     workspace folder and the assistant. A secret, such as the API key of the
     assistant, stays out of a file.
+  - Done 2026-09-30, except Widget's part:
+    - `get_pred_type(name)` reads the names of the loaded subtypes of
+      `Document` from the loaded modules and `Main` when a name is not known
+      yet (40 ms for 1,833 names in the full environment). In the full
+      environment, only test probes share a name.
+    - `register_pred_type!` and `is_pred_type` are gone, and so are the
+      `__init__` functions of Primitive, Domain, Screen, Widget, Pane and
+      Clipboard, which only registered types.
+    - `make_pred_document` builds a type with no keyword constructor from
+      its fields in order, and `PrimitiveString`'s method is gone.
+    - Found: the registry also set the domain of a `.pred` file for the
+      save, so an XML element or a JSON value was foreign and written as a
+      reference to its own file. Now the domain is every document that the
+      domain of no registered format (`get_file_domain`) holds, so the save
+      writes the same references as before.
+    - Primitive, Domain and Screen no longer depend on Serialization; their
+      rows in package-rules.md and the manifest of `environment/all`
+      follow. Tests: file project, user interface file, package graph,
+      substrate layering, text file, window fit, formula file, window shell
+      and clipboard, 1,440 pass.
+    - Found: omnet-julia calls `register_pred_type!` in 7 places and
+      `is_pred_type` in `source/study/StudyFile.jl`, where `_takes_file`
+      decides which documents of a study get a file of their own. These
+      move when this work lands, and `_takes_file` needs a rule of its own.
+  - **Waits for the owner: Widget's part.** (D-a) The notation writes no
+    plain value struct: a `Point2D` (a size, a scroll position) or an
+    `Inset` (a margin) is refused, so "every field that the notation can
+    write" still leaves them out. (D-b) A menu item holds an `Action` whose
+    `callback` is a function: a rule per field writes the item without its
+    callback, so the loaded menu has items that do nothing, and a rule over
+    the whole value would also leave out a window whose content holds one
+    button. Widget keeps its two `pred_arguments` methods and its
+    Serialization dependency until these are decided.
 - [ ] **5. The tabs and `show_document!`.** The screen method opens a
   window. The pane method opens or focuses a tab. Add the `tabs` wrapper.
   - Found: `PaneToWidget` passes the content of a tab through unchanged, so

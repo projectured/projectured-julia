@@ -10,9 +10,9 @@
 #
 # That is the marker language at file scale, so the format is the interpreter
 # beside it and nothing more. Three properties follow. The file cannot execute
-# code, because the restricted subset is its reader. Only a type a package
-# offered with `register_pred_type!` can be constructed, so a file cannot name
-# what the session did not offer. And a cut in the save walk — `file("b.xml")`,
+# code, because the restricted subset is its reader. Only a loaded document type
+# can be constructed, so a file names data and nothing else. And a cut in the
+# save walk — `file("b.xml")`,
 # `node(file("a.json"), "entries[1].value")` — is a call in the same
 # vocabulary, so this format writes its own references.
 #
@@ -36,20 +36,29 @@ Base.show(io::IO, r::PredReference) = print(io, "PredReference(", repr(r.marker)
 """
     PredFile(filename, content)
 
-A `.pred` file: any registered document, written as its own constructor.
-`register_pred_type!` says which types a file may hold.
+A `.pred` file: any document, written as its own constructor.
 """
 @document struct PredFile <: FileDocument
     filename::String
     content::Any = nothing
 end
 
-# What a `.pred` file holds is a document of any registered type, so its domain
-# is that registry rather than one type. A reference it already carries is its
-# own too: a marker naming a file outside the loaded set stays a reference, and
-# the file writes it back as it found it.
+# What a `.pred` file holds is a document of any type that no text format owns.
+# A node of the domain of a format, such as a JSON value or an XML element,
+# belongs to a file of that format, so a `.pred` file that holds one writes a
+# reference to that file. A reference it already carries is its own too: a
+# marker naming a file outside the loaded set stays a reference, and the file
+# writes it back as it found it.
 get_file_domain(::Type{<:PredFile}) = Document
-is_file_domain_node(::PredFile, node) = is_pred_type(typeof(node)) || node isa PredReference
+is_file_domain_node(::PredFile, node) =
+    node isa PredReference || (node isa Document && !_is_format_node(node))
+
+# Whether `node` is in the domain of a registered format other than `.pred`.
+_is_format_node(node) =
+    any(values(_FILE_DOCUMENT_TYPES)) do T
+        domain = get_file_domain(T)
+        domain !== Document && node isa domain
+    end
 
 # A `.pred` file writes the call `pred_arguments` gives and nothing else, so
 # that is what it walks. A field the call leaves out — the live half a document
@@ -111,12 +120,24 @@ end
     make_pred_document(::Type{T}, positional, keywords) -> T
 
 The document a call in a file builds. The default is the constructor itself.
-The inverse of [`pred_arguments`](@ref): a type whose file form is a reduced one
-builds the rest of itself here.
+A type with no keyword constructor, such as a `@document` whose fields have no
+defaults, is built from its fields in their declared order. The inverse of
+[`pred_arguments`](@ref): a type whose file form is a reduced one builds the rest
+of itself here, and a type that a file must not build raises an error here.
 """
-make_pred_document(T::Type, positional, keywords) =
-    isempty(keywords) ? T(positional...) :
-    isempty(positional) ? T(; keywords...) : T(positional...; keywords...)
+function make_pred_document(T::Type, positional, keywords)
+    isempty(keywords) && return T(positional...)
+    isempty(positional) || return T(positional...; keywords...)
+    names = Tuple(first(keyword) for keyword in keywords)
+    hasmethod(T, Tuple{}, names) && return T(; keywords...)
+    values = Dict{Symbol,Any}(keywords)
+    fields = Symbol[name for name in fieldnames(T) if name !== :selection]
+    for name in fields
+        haskey(values, name) ||
+            error("a .pred file builds ", nameof(T), " from its fields, and it gives no ", name)
+    end
+    T((values[name] for name in fields)...)
+end
 
 # ── The reader ───────────────────────────────────────────────────────────────
 
@@ -126,16 +147,15 @@ make_pred_document(T::Type, positional, keywords) =
 Build the document that a saved text describes.
 
 Use it to load what was written to a file: the text is the document written as
-the call that builds it, and this runs that call. A call naming a registered
-type builds one; any other call is a reference, which the load splices once the
+the call that builds it, and this runs that call. A call naming a loaded
+document type builds one; any other call is a reference, which the load splices once the
 whole set is parsed.
 
 # Example
 
     document = parse_pred_text(read("study.pred", String))
 
-See also `print_pred_text`, which writes the text this reads, and
-`register_pred_type!`, which says what a text may name.
+See also `print_pred_text`, which writes the text this reads.
 """
 function parse_pred_text(text::AbstractString)
     expression = _parse_marker_expression(strip(text))
@@ -168,9 +188,8 @@ function _evaluate_pred(e::Expr)
     # load was given, and that is the splice's business, not the parser's.
     _is_type_name(verb) || return PredReference(_canonical_marker(e))
     T = get_pred_type(String(verb))
-    T === nothing && error("a .pred file may not construct a ", verb,
-                           " — a package calls register_pred_type!(", verb,
-                           ") to offer a type a file may name")
+    T === nothing && error("a .pred file names ", verb,
+                           ", and no loaded document type has that name")
     positional = Any[]
     keywords = Pair{Symbol,Any}[]
     for argument in @view e.args[2:end]
@@ -210,7 +229,7 @@ bytes, so two saves of one document must print the same text.
 
 Throws a [`FileCutException`](@ref) naming the field when a value is outside the
 notation: a string, a number, a character, a bool, a symbol, `nothing`, a vector
-of those, a registered document, and a reference are all of it.
+of those, a document, and a reference are all of it.
 """
 function print_pred_text(document)
     io = IOBuffer()
@@ -279,7 +298,6 @@ end
 # One field to a line. A file is read in a diff as much as it is read whole, and
 # a changed field should be a changed line.
 function _print_pred_value(io::IO, document::Document, where, indent)
-    is_pred_type(typeof(document)) || _refuse_pred_value(document, where)
     positional, keywords = pred_arguments(document)
     print(io, nameof(typeof(document)), "(")
     isempty(positional) && isempty(keywords) && return print(io, ")")
@@ -307,7 +325,5 @@ function _refuse_pred_value(value, where)
         "cannot write a " * string(typeof(value)) * at *
         " — the .pred notation holds a string, a number, a character, a bool, " *
         "nothing, a vector of those, a group of them, a mapping of names to " *
-        "them, a registered document, and a reference" *
-        (value isa Document ? "; call register_pred_type!(" * string(nameof(typeof(value))) *
-                              ") to offer this type" : "")))
+        "them, a document, and a reference"))
 end

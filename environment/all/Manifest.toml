@@ -1093,7 +1093,7 @@ uuid = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 version = "0.1.0"
 
 [[deps.ProjecturedDomain]]
-deps = ["ProjecturedKernel", "ProjecturedSerialization"]
+deps = ["ProjecturedKernel"]
 path = "../../package/ProjecturedDomain"
 uuid = "56e9f339-7147-459f-9ae1-7785cace5f24"
 version = "0.1.0"
@@ -1422,7 +1422,7 @@ uuid = "fab29e63-3751-46a0-88a9-22680e33c7d8"
 version = "0.1.0"
 
 [[deps.ProjecturedPrimitive]]
-deps = ["ProjecturedKernel", "ProjecturedSerialization"]
+deps = ["ProjecturedKernel"]
 path = "../../package/ProjecturedPrimitive"
 uuid = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
 version = "0.1.0"
@@ -1482,7 +1482,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedScreen]]
-deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection"]
 path = "../../package/ProjecturedScreen"
 uuid = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 version = "0.1.0"

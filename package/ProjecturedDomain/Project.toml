@@ -9,8 +9,6 @@ authors = []
 
 [deps]
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
-ProjecturedSerialization = {path = "../ProjecturedSerialization"}

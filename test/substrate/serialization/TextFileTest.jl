@@ -164,7 +164,6 @@ function test_text_file()
         # written down. The capital is what tells `TextFile(…)` from `file(…)`,
         # and the registry is what says a file may name this one.
         ctx = FileProject(".", [])
-        register_pred_type!(TextFile)
         built = evaluate_marker("TextFile(\"page.txt\", \"hello\")", ctx)
         @test built isa TextFile
         @test get_filename(built) == "page.txt"

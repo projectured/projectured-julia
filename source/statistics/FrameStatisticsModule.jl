@@ -60,8 +60,6 @@ function __init__()
         FramePlot => ChainingProjection(FramePlotToChart(), ChartToChartPlot(),
                                         ChartPlotToGraphicsCanvas(measure = measure)),
     ])
-    register_pred_type!(FrameStatistics)
-    register_pred_type!(FramePlot)
 end
 
 end # module

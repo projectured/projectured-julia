@@ -41,17 +41,13 @@ include("DocstringSummary.jl")
 include("HelpListToSyntax.jl")
 include("AboutPageToSyntax.jl")
 
-# The rows that let a tab draw what the Help menu opens, and the types a saved
-# window may hold.
+# The rows that let a tab draw what the Help menu opens.
 function __init__()
     register_natural_syntax!(:help, () -> Pair{Type,Any}[
         DocumentTypeList => HelpListToSyntax(),
         ProjectionList   => HelpListToSyntax(),
         AboutPage        => AboutPageToSyntax(),
     ])
-    register_pred_type!(DocumentTypeList)
-    register_pred_type!(ProjectionList)
-    register_pred_type!(AboutPage)
 end
 
 end # module

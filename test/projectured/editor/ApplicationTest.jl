@@ -41,7 +41,6 @@ end
 # One small file of each format in `dir`. `TestRun` is the `.pred` document of
 # FileProjectTest.jl, in this module.
 function _app_write_files(dir)
-    register_pred_type!(TestRun)
     natural = [("a.json", :json, "{\"name\": \"Alice\", \"age\": 30}"),
                ("a.xml",  :xml,  "<a x=\"1\"><b/></a>"),
                ("a.yaml", :yaml, "name: Alice\nage: 30\n"),

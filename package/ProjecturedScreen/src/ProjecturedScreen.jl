@@ -17,7 +17,6 @@ using ProjecturedPrimitive
 # Already in this package's closure through ProjecturedGraphics; named directly
 # because `WindowScene.jl` uses its combinators.
 using ProjecturedProjection
-using ProjecturedSerialization
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
@@ -35,7 +34,6 @@ const BackendModule = ProjecturedKernel.BackendModule
 const EditorModule = ProjecturedKernel.EditorModule
 const FaultModule = ProjecturedKernel.FaultModule
 const FeedModule = ProjecturedKernel.FeedModule
-const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/screen/ScreenModule.jl")
 # One window on one document, for a program rather than for the gallery.

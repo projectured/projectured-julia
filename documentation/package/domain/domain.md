@@ -46,7 +46,7 @@ The `@gestures` tables of the domains call three functions of this package. Each
 
 ## How it fits
 
-`ProjecturedDomain` depends on the kernel and on `ProjecturedSerialization`, from which it takes `register_pred_type!` for `DocumentNothing`. Every domain uses it, and so do `ProjecturedText`, `ProjecturedSyntax`, `ProjecturedClipboard`, `ProjecturedPane`, `ProjecturedFileFormat` and `ProjecturedNatural`.
+`ProjecturedDomain` depends on the kernel only. Every domain uses it, and so do `ProjecturedText`, `ProjecturedSyntax`, `ProjecturedClipboard`, `ProjecturedPane`, `ProjecturedFileFormat` and `ProjecturedNatural`.
 
 ## Design decisions
 

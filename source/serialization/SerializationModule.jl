@@ -38,7 +38,7 @@ export FileDocument, is_file_document,
        save_project!, load_project,
        register_file_document_type!, get_file_document_type, has_file_document_type,
        register_marker_function!, get_marker_function, evaluate_marker,
-       register_pred_type!, get_pred_type, is_pred_type,
+       get_pred_type,
        parse_marker_text, get_document_section
 export FileProject, FileCutException, save_file!, load_file, parse_file_content,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,

@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [cell.md](../kernel/cell.md), [document.md](../kernel/document.md), [domain-anatomy.md](../../design/domain-anatomy.md)
 
-`ProjecturedSerialization` writes documents to disk in two ways: as an exact binary snapshot of one document, and as a set of text files with references between them. It also holds the contract that each file type implements and the `.pred` format, which writes any registered document as its own constructor call. This document says how each way works, what a file type must give, and why a marker never runs code.
+`ProjecturedSerialization` writes documents to disk in two ways: as an exact binary snapshot of one document, and as a set of text files with references between them. It also holds the contract that each file type implements and the `.pred` format, which writes any document as its own constructor call. This document says how each way works, what a file type must give, and why a marker never runs code.
 
 ## How it works
 
@@ -43,10 +43,10 @@ A marker is `<<expr>>`, where `expr` is a call:
 <<node(file("child.json"), "entries[2].value")>>   one node in it, as a reference path
 <<section(file("page.md"), "Title")>>              the part of a page under a heading
 <<definition(file("steps.jl"), "queue_step")>>     one definition in a Julia file
-<<UdpHeader(source_port = 5000)>>                  a document of a registered type
+<<UdpHeader(source_port = 5000)>>                  a document of a loaded type
 ```
 
-**The Julia parser reads a marker, and a small interpreter runs it. Nothing calls `eval`.** The interpreter accepts only a call to a plain name whose arguments are literals, keyword arguments, vectors, tuples, named tuples or such calls. An operator, an assignment, a bare name other than `nothing` and any control flow are not markers. So opening a project can not run code, and a marker stays data that a program can analyse. `file` and `node` belong to the load. A name with a capital letter constructs a type that a package registered with `register_pred_type!`. Any other name must be registered with `register_marker_function!(:name, f)`, and the interpreter calls `f(project, args...)`.
+**The Julia parser reads a marker, and a small interpreter runs it. Nothing calls `eval`.** The interpreter accepts only a call to a plain name whose arguments are literals, keyword arguments, vectors, tuples, named tuples or such calls. An operator, an assignment, a bare name other than `nothing` and any control flow are not markers. So opening a project can not run code, and a marker stays data that a program can analyse. `file` and `node` belong to the load. A name with a capital letter constructs the loaded document type of that name. Any other name must be registered with `register_marker_function!(:name, f)`, and the interpreter calls `f(project, args...)`.
 
 The first registration of a name wins. A second, different function logs a warning and is not used, because otherwise the order of the `__init__` calls would choose the winner. Two formats that need one name share a generic function instead: `section` calls `get_document_section`, and Markdown and RST each add a method for their own root type.
 
@@ -89,7 +89,7 @@ emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
 
 ### The `.pred` format
 
-A `PredFile` holds one document of any registered type, written as its constructor call:
+A `PredFile` holds one document of any type, written as its constructor call:
 
 ```julia
 TestRun(
@@ -99,13 +99,13 @@ TestRun(
 )
 ```
 
-It is the marker language at the scale of a file, read by the same interpreter. `register_pred_type!(T)` adds a type to the list of types that a file can build, by its schema name and by `nameof(T)`. The list is empty by default. `pred_arguments(document)` gives the arguments that the file writes, by default every field as a keyword. `make_pred_document(T, positional, keywords)` is its inverse, by default the constructor. A document that holds state of the session, such as a drag in progress or an API key, writes a reduced form with a method of each. A call in the file that names no type becomes a `PredReference`, which the load replaces.
+It is the marker language at the scale of a file, read by the same interpreter. A file can build any loaded subtype of `Document`, by its schema name or by `nameof(T)`. The reader reads the names from the loaded modules when a name is not known yet, so a package loaded later brings its types, and a name that two loaded types have is an error that names both. `pred_arguments(document)` gives the arguments that the file writes, by default every field as a keyword. `make_pred_document(T, positional, keywords)` is its inverse, by default the constructor; a type with no keyword constructor is built from its fields in their declared order, and a type that a file must not build raises an error in its own method. A document that holds state of the session, such as a drag in progress or an API key, writes a reduced form with a method of each. A call in the file that names no type becomes a `PredReference`, which the load replaces.
 
 `TextFile` holds a raw `String` and has no parser; its domain is `Union{}`, so it holds no document.
 
 ## How it fits
 
-`ProjecturedSerialization` depends only on the kernel and the `Serialization` standard library, and on no domain. `ProjecturedPrimitive` and `ProjecturedDomain` use it for `register_pred_type!` and `make_pred_document`, and `ProjecturedFileFormat` uses it for the binary half of `write_document_file` and `read_document_file`. Each domain with a file type depends on it; [domain-anatomy.md](../../design/domain-anatomy.md) shows where the file type sits in a domain.
+`ProjecturedSerialization` depends only on the kernel and the `Serialization` standard library, and on no domain. `ProjecturedFileFormat` uses it for the binary half of `write_document_file` and `read_document_file`. Each domain with a file type depends on it; [domain-anatomy.md](../../design/domain-anatomy.md) shows where the file type sits in a domain.
 
 Its `__init__` registers the `section` marker, `TextFile` for a path with no extension and for `.txt`, and `PredFile` for `.pred`. The domains register `.json`, `.xml`, `.md`, `.markdown`, `.rst`, `.yaml`, `.yml`, `.math`, `.sql` and `.jl`. `ProjecturedJulia` also registers the marker `definition`.
 
@@ -115,7 +115,7 @@ Its `__init__` registers the `section` marker, `TextFile` for a path with no ext
 - **The binary format is not an exchange format.** It is exact because it follows the structs in memory, so a change of the format must change `_VERSION`.
 - **A reference is written only where the save cuts.** The document holds no storage node, so a projection, an edit and a copy see the real graph. The reason is at the head of `source/serialization/FileCut.jl`.
 - **A marker is data, not code.** The restricted interpreter keeps a project from running code when it opens.
-- **Only registered types can be built.** `register_pred_type!` fills an explicit list, so a file can not build a type that no loaded package registered.
+- **Any loaded document type can be built, and nothing else.** A file names data: a subtype of `Document`, never a function or a type that is not a document. The owner chose this over a list of offered types (plan/pending/packages-compose-by-seams.md, C16), so no package lists its types and a file can hold any document of the session.
 - **The first registration of a marker name wins.** A silent overwrite would let the load order choose the function, and the loser would fail only when a file loads.
 
 ## Usage
@@ -125,7 +125,6 @@ save_document(document, "state.pdoc")
 loaded = load_document("state.pdoc")
 
 register_file_document_type!(".json", JsonFile)          # in the __init__ of a domain
-register_pred_type!(TestRun)
 register_marker_function!(:definition, (project, file, name) -> find_julia_definition(file, name))
 
 project = FileProject("data", Any[JsonFile("a.json", object), XmlFile("b.xml", element)])

@@ -36,7 +36,6 @@ using ..PrimitiveModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
-using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
@@ -58,11 +57,5 @@ include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
 
-# A file may name a screen and a window. The registry is runtime state, so the
-# offer is made here and not at the top level.
-function __init__()
-    register_pred_type!(ScreenDocument)
-    register_pred_type!(WindowDocument)
-end
 
 end # module

@@ -37,7 +37,7 @@ With the packages of the application loaded, the Documents list holds 170 types 
 
 ## How it fits
 
-`ProjecturedHelp` depends on `ProjecturedDomain` for `get_insertion_candidates`, `compute_concrete_subtypes` and `get_insertion_names`; on `ProjecturedSyntax` and `ProjecturedText` for the `SyntaxNode`, `SyntaxLeaf` and `TextString` that the two printers build; on `ProjecturedStyle` for the styles of a list and of the page; on `ProjecturedNatural` for `register_natural_syntax!`; and on `ProjecturedSerialization` for `register_pred_type!` and `pred_arguments`, besides the kernel.
+`ProjecturedHelp` depends on `ProjecturedDomain` for `get_insertion_candidates`, `compute_concrete_subtypes` and `get_insertion_names`; on `ProjecturedSyntax` and `ProjecturedText` for the `SyntaxNode`, `SyntaxLeaf` and `TextString` that the two printers build; on `ProjecturedStyle` for the styles of a list and of the page; on `ProjecturedNatural` for `register_natural_syntax!`; and on `ProjecturedSerialization` for `pred_arguments`, besides the kernel.
 
 Its `__init__` registers the three document types with `register_natural_syntax!(:help, …)`: `HelpListToSyntax` for the two lists, `AboutPageToSyntax` for the page. It registers all three as `.pred` types too, so a saved window can hold a tab of each.
 

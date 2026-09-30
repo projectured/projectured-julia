@@ -19,7 +19,6 @@ using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
-using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
@@ -42,10 +41,5 @@ export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
 include("DocumentCore.jl")
 include("Domain.jl")
 
-# A file may name the empty document every domain falls back to. The registry
-# is runtime state, so the offer is made here and not at the top level.
-function __init__()
-    register_pred_type!(DocumentNothing)
-end
 
 end # module

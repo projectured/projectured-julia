@@ -2899,8 +2899,3 @@ pred_arguments(pane::WidgetScrollPane) = (pane.content,), Pair{Symbol,Any}[]
 # A person sees through a scroll pane to what it shows, which names the pane.
 get_edited_field(::WidgetScrollPane) = :content
 get_document_title(pane::WidgetScrollPane) = get_document_title(pane.content)
-
-function __init__()
-    register_pred_type!(WidgetShell)
-    register_pred_type!(WidgetScrollPane)
-end

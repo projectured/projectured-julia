@@ -43,7 +43,6 @@ end
 end
 
 @testset "a window saved before the bounds still loads" begin
-    register_pred_type!(WindowDocument)
     loaded = parse_pred_text("WindowDocument(\n" *
                              "    id = :saved,\n" *
                              "    title = \"saved\",\n" *

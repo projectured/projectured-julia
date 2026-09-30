@@ -12,12 +12,10 @@ using ..DocumentModule
 using ..OperationModule
 using ..ReferenceModule
 using ..SelectionModule
-using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
 import ..OperationModule: evaluate_operation, reroot_operation, operation_reference, retarget_operation, make_inverse_operation
-import ..SerializationModule: make_pred_document
 
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 export has_only_number_characters
@@ -27,11 +25,5 @@ export ObjectField, get_object_field_value, get_object_field_name
 include("PrimitiveDocument.jl")
 include("ObjectField.jl")
 
-# A file may name a primitive string — the type a tab's title is written in.
-# The registry is runtime state, so the offer is made here and not at the top
-# level.
-function __init__()
-    register_pred_type!(PrimitiveString)
-end
 
 end # module

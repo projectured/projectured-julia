@@ -170,8 +170,8 @@ dependency.
 | --- | --- | --- |
 | `ProjecturedCollection` | Kernel | — |
 | `ProjecturedSerialization` | Kernel | Serialization |
-| `ProjecturedPrimitive` | Serialization | — |
-| `ProjecturedDomain` | Serialization | — |
+| `ProjecturedPrimitive` | Kernel | — |
+| `ProjecturedDomain` | Kernel | — |
 | `ProjecturedStyle` | Kernel | — |
 | `ProjecturedComponent` | Kernel | — |
 | `ProjecturedProjection` | Collection, Primitive | — |
@@ -180,7 +180,7 @@ dependency.
 | `ProjecturedVersioning` | Collection, Domain, Primitive | — |
 | `ProjecturedPlot` | Style | — |
 | `ProjecturedGraphics` | Collection, Projection, Style | — |
-| `ProjecturedScreen` | Collection, Graphics, Primitive, Projection, Serialization | — |
+| `ProjecturedScreen` | Collection, Graphics, Primitive, Projection | — |
 | `ProjecturedLayout` | Collection, Focus, Graphics, Projection | — |
 | `ProjecturedText` | Collection, Domain, Graphics, Primitive, Projection, Style | — |
 | `ProjecturedWidget` | Collection, Domain, Focus, Graphics, Layout, Primitive, Projection, Screen, Serialization, Style, Text | — |
