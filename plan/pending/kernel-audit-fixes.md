@@ -1610,6 +1610,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Rename it to a verb-first phrase, for example `CarryIntentsOperation` or `OfferIntentsOperation`.
 - **C:** Name it alone as a second exception in naming-rules.md.
 - **Recommended (mine): A.** Its evaluation does nothing: it is a carrier, and its docstring takes `CompoundOperation` as its model. It is the answer to the payload `CollectIntents`, which is a verb-first request, and 'collected intents' reads as the answer to 'collect intents'. A verb-first name reads as a second request and claims an action that the evaluation does not do.
+- **Decided by the owner, 2026-09-30: A**, with L13-15.
 - Depends on: L13-15.
 - Cost: S for A: text in naming-rules.md only. B: M (41 uses in 16 code files of projectured-julia, operation.md, system-anatomy.md; no use in omnet-julia or inet-julia).
 
@@ -1690,6 +1691,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** The predicate as in A, and naming-rules.md adds only `WrappingOperation` by name as a second exception.
 - **C:** Rename `WrappingOperation` to a verb-first phrase (for example `WrapOperation`), and add no exception.
 - **Recommended (mine): A.** An abstract supertype and a container name a structure, not an edit, so a verb claims an action that they do not do. A class rule answers `WrappingOperation` and `CollectedIntentsOperation` (L14-2) with one sentence, and it answers the next container too, where a list of names only grows. `operation_travels_unchanged(op)` is a predicate that starts with a noun. `is_self_contained_operation` names the property that its docstring gives: the operation names its subject, not a place. I checked: the name is free.
+- **Decided by the owner, 2026-09-30: A.** It settles L14-2 as A. L13-3 decides only whether the "next hole" operation extends the predicate.
 - Depends on: L13-3. Settles: L14-2.
 - Cost: M. `operation_travels_unchanged`: 30 uses in 18 code files of projectured-julia (12 files extend it) and 6 uses in 2 files of omnet-julia. `WrappingOperation`: no rename. naming-rules.md gets the class rule. No sealed file.
 
