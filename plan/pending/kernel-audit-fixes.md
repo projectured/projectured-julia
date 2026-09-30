@@ -1511,6 +1511,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **A:** One pair registers an operation that carries a path: the catch-all reroot_operation retargets through operation_reference and retarget_operation when the operation reports a reference. The law, the comment of Rerooting.jl and operation.md say so. The methods of reroot_operation for single types in the primitive and text packages go.
 - **B:** Keep three methods (reroot_operation and the pair), and correct the law so that it names all three.
 - **Recommended (mine): A.** The default read_intent already reaches an operation of a higher package only through the pair (ProjectionDefaults.jl:178-187). The second paragraph of the same rule already lets a wrapper register once through two generics. ReplaceTextRangeOperation shows how three methods fail: it has only reroot_operation (TextDocument.jl:1176), so the default reader drops it with no error.
+- **Decided by the owner, 2026-09-30: A.**
 - Cost: S. Rerooting.jl (not sealed); PrimitiveDocument.jl (two methods go); TextDocument.jl (add the pair, remove the reroot method); architecture-invariants.md; operation.md. CollectedIntentsOperation keeps its own method.
 
 **L18-10** (Medium): Does execute_julia_code let the pass-through exceptions pass, or turn an interrupt of model code into an answer as a stated exception to PAR-REPORT-NEVER-THROWS?
