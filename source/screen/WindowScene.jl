@@ -100,6 +100,7 @@ declares an output that is not `:windows`, such as the text of a console.
 - `opened_window_projections` adds rows to those of the other wrappers, for the
   windows that open later.
 """
+# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:window}, layer::Symbol, setting, parts::EditorParts)
     _is_window_backend(parts.backend) || return parts
     parts.document isa ScreenDocument && return parts
