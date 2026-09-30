@@ -1115,7 +1115,7 @@ registration.
 
 ### Step P2: what CI sees
 
-- [ ] Each of the 33 test packages in its own environment, in a fresh clone
+- [x] Each of the 33 test packages in its own environment, in a fresh clone
       of this branch: `Pkg.instantiate()` with the network, then the suite of
       the package without it (`unshare -rn`, so no test reaches a local model
       server), with `SDL_VIDEODRIVER=offscreen`. The umbrella runs its 66
@@ -1162,7 +1162,7 @@ registration.
 
 ### Step P3: the workflow
 
-- [ ] `.github/workflows/CI.yml`, on a push to `main`, on a pull request, and
+- [x] `.github/workflows/CI.yml`, on a push to `main`, on a pull request, and
       by hand; not for a push that changes only `plan/` or Markdown.
   - A job for the static guards: each `test/suite/*.jl` alone, with no
     environment. They take seconds.
@@ -1196,8 +1196,8 @@ registration.
       (`insert_elements!`, `delete_elements!`), and N-3 (`start_application!`,
       `FixedMeasure`), which asks the same question. The owner, on
       2026-09-30: they are settled and made in the kernel audit plan, not here.
-      Until that lands, the guard job and the umbrella job of CI fail on these
-      five.
+      Until that lands, the guard job of CI fails on these five; the umbrella
+      job does not run the guards.
 
       The markers (`cb90a5eef`, `cd9b5114a`), each with a `# @broken:` reason
       and only on the failing examples: the anchor point and the split pane
@@ -1211,7 +1211,13 @@ registration.
       coverage lists its 22 document types with no atom in `_NO_ATOM`, the set
       that the file keeps for that, and marks only `isempty(gap)`, so a new
       type with no atom still fails. Checked part by part: 0 failures, 0
-      errors, no unexpected pass. The umbrella now exports `test_documents`
+      errors, no unexpected pass.
+
+      **The final check (2026-09-30, `5140d33df`, a fresh clone, as CI runs
+      it):** all 33 test jobs pass. `test_integration()`: 1,059,125 pass,
+      1,605 broken, 0 fail, 0 error, in 69 minutes after 5 minutes of
+      instantiate. Substrate: 86,907 pass, 8 broken. Of the five guards, only
+      the argument guard fails, on the five violations above. The umbrella now exports `test_documents`
       and `test_projections`, which the testing guide calls (`5140d33df`).
 
 ### Step P5: the owner's steps
