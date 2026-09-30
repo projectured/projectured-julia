@@ -105,6 +105,23 @@ The owner, 2026-09-30:
   - `make_graphics_projection` answers a different question: it gives the
     projection of the nodes of one type, and the natural renderer asks it
     for each type that it meets.
+- **C15. The display shows only a value that a package gives a document
+  (Q6).** The owner: "I'm not even sure how does a feed come into play wrt.
+  reflection. It was never part of the plan." and, for a value with no
+  document, "raise an error". The display does not depend on Reflection and
+  does not take over `run_value_viewer`. `refresh_document!(document)` keeps
+  its one argument. The owner's direction for a later plan: "on the long
+  term, projectured may need a package for keeping documents in sync because
+  that's also a way of allowing them to be edited (just like in omnet)",
+  with shadow trees made on demand from declarations of shadow types, as
+  omnet-julia does with `copy_document`.
+- **C16. A file builds any document type, and a save keeps as much as it can
+  write (Q7).** The owner: "I thought that all Document constructors can be
+  called from pred files, no?", then "yes, it seems acceptable" to a file that
+  builds any loaded document type, and "in any case, the user should
+  absolutely be able to save the complete state of the UI if possible, at
+  least as complete as possible, so any artificial limitation is in the way".
+  Step 4a does this.
 
 ## 3. What exists now
 
@@ -289,8 +306,8 @@ The order of the fields of `Editor` does not change.
 
 The new package is `ProjecturedDisplay`, with the leaves `ProjecturedDisplayTest`
 and `ProjecturedDisplayExample` (P5). It depends on the kernel, Screen,
-Widget, Reflection, Natural, Text and the stdlib `REPL`. It does not depend on
-Pane, DataFrames or a backend.
+Widget, Natural, Text and the stdlib `REPL`. It does not depend on Pane,
+Reflection, DataFrames or a backend (C15).
 
 - `display_in_editor(value; title, backend = nothing) -> document` shows
   `value`:
@@ -298,21 +315,19 @@ Pane, DataFrames or a backend.
     false)`.
   - A later call uses `show_document!`. A value that is shown already gets
     focus again.
-  - The document is `make_value_document(value)` if that method exists. If
-    not, it is the reflected tree of `run_value_viewer`, with its
-    `ReflectionFeed`.
+  - The document is `make_value_document(value)`. A value that has no
+    method is an error that says that no loaded package shows a value of its
+    type (C15).
 - `EditorDisplay <: AbstractDisplay` is the struct that the data frame
   package calls `ProjecturedDisplay` now. The package pushes no display (D9),
   so `display(EditorDisplay(), value)` is the explicit call.
 - After each REPL input, a hook calls `refresh_document!` on the editor task
   for each shown document that has a method.
-- `run_value_viewer` moves here from `ProjecturedExample`.
 
 The display draws with `NaturalToGraphics`, as the data frame display does
 now. The natural renderer asks `make_graphics_projection` for the type of a
 document before it reads its tables (C7), so a `DataFrameView` draws with the
-projection of the data frame package, and a reflected tree with the
-projection of the reflection package.
+projection of the data frame package.
 
 ### 4.4 The data frame package after the move
 
@@ -440,6 +455,12 @@ below the three that the user names, not 15. Pane uses Serialization for its
 own work, because it saves the user interface to files, so with tabs the
 count is 16, not 17.
 
+Q6 and Q7 are made, differently from both options above (C15, C16, 2026-09-30,
+in the conversation that implements this plan). Q6: the display has no
+fallback, so it needs Reflection for nothing. Q7: no registry and no kernel
+seam, because the register calls and the three methods of the view go away
+(step 4a).
+
 ## 6. Steps
 
 Each step ends with its narrowest test and a commit.
@@ -555,6 +576,33 @@ Each step ends with its narrowest test and a commit.
   - `test_document_composition` in
     `test/substrate/projection/DocumentCompositionTest.jl`. The natural
     tests (the registry, the notation, every atom) and the data frames pass.
+- [ ] **4a. Serialization leaves the view (C16).**
+  - The reader builds any loaded document type by the name that a file
+    writes. It finds the type among the loaded subtypes of `Document`. Two
+    loaded types with one name are an error that names both modules.
+    `register_pred_type!` and its table go, and so do the register calls in
+    the `__init__` of each package.
+  - A type with no keyword constructor is built from its fields in their
+    declared order, so `make_pred_document(::Type{PrimitiveString}, ...)`
+    goes.
+  - The writer writes every field whose value the notation can write. It
+    leaves out a field whose value holds what the notation can not write (a
+    function, a task, a stream), and the reader gives that field its default.
+    So Widget's `pred_arguments` for `WidgetShell` and `WidgetScrollPane`
+    go: a saved user interface keeps the size, the scroll position, the
+    margins and the style, and the menus, which hold callbacks, are left out
+    and built again by the binary.
+  - A type that must not be built from a file overrides
+    `make_pred_document` to raise an error.
+  - `pred_arguments` and `make_pred_document` stay in Serialization,
+    because only the packages that save files themselves extend them.
+  - Primitive, Domain, Screen and Widget no longer depend on Serialization.
+    Check the closure of `ProjecturedDataFrames` with the package graph.
+  - Review the other 14 types that shorten their saved form, one by one,
+    against C16: the clipboard, the pane tree, the pane group, the three
+    logs, the help lists, the statistics, the inspectors, the formula, the
+    workspace folder and the assistant. A secret, such as the API key of the
+    assistant, stays out of a file.
 - [ ] **5. The tabs and `show_document!`.** The screen method opens a
   window. The pane method opens or focuses a tab. Add the `tabs` wrapper.
   - Found: `PaneToWidget` passes the content of a tab through unchanged, so
@@ -577,8 +625,9 @@ Each step ends with its narrowest test and a commit.
     document yet: the display is its one caller, and it uses no such
     wrapper. The editor keeps no list of its wrappers until a caller needs
     it.
-- [ ] **6. `ProjecturedDisplay`.** Waits for Q6. Add `display_in_editor`, `EditorDisplay`,
-  the REPL hook that refreshes, and `run_value_viewer`. Add the package to
+- [ ] **6. `ProjecturedDisplay`.** Add `display_in_editor`, `EditorDisplay`
+  and the REPL hook that refreshes. A value with no document is an error
+  (C15). Add the package to
   `environment/all`, to the table of package-rules.md, and to the naming
   guard. Run `test_package_graph()`.
 - [ ] **7. The data frame package.** Remove the dependencies of §4.4, add
