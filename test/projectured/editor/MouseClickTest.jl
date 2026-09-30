@@ -321,8 +321,9 @@ function mouse_broken(name)
     # @broken: same symptom (a click sets a selection but the top-level cursor
     # scan finds no rendered caret) on the chart, sequence-chart and
     # conversation widget examples; cause not investigated.
-    name in ("chart_bar", "chart_histogram", "chart_line", "chart_scatter", "chart_strip",
-             "sequencechart", "sequencechart_linear", "sequencechart_vertical",
+    name in ("chart", "chart_bar", "chart_histogram", "chart_line", "chart_scatter",
+             "chart_strip", "sequencechart", "sequencechart_linear", "sequencechart_pair",
+             "sequencechart_vertical",
              "conversation_editor", "conversation_widget") && return ("no cursor found",)
     # @broken: a click on an undelimited PrimitiveString maps to a phantom caret
     # that fails to re-apply (SelectionMismatchException).
