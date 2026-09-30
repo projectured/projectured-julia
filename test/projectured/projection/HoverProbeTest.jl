@@ -111,8 +111,9 @@ function test_hover_probe()
         # Mirror the real pipeline: the probe wraps a NestingProjection so the
         # example projection's own recursion is isolated.
         inner = NestingProjection(proj; recursion = IdentityProjection())
+        pointer_at = Ref((7, 9))
         hp = HoverProbeProjection(inner = inner, id = :inspector,
-                                  pointer = () -> (7, 9))
+                                  pointer = () -> pointer_at[])
         hpio = print_document(hp, doc)
 
         # Hover → OpenWindowOperation carrying a ReferenceInspector.
@@ -131,6 +132,14 @@ function test_hover_probe()
                 @test is_reference_equal(mv.content.reference, press.path)
             end
         end
+
+        # A move to the point of the last move finds the same reference with the
+        # pointer at the same place, and issues nothing. With the pointer at
+        # another place, the window follows it.
+        @test read_intent(hp, hpio, MouseMove(cx, cy, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+        pointer_at[] = (8, 9)
+        follow = read_intent(hp, hpio, MouseMove(cx, cy, MouseButtons(), ModifierKeys(); time = 0.0))
+        @test follow isa OpenWindowOperation && follow.x == 8 + 16
 
         # A real click is not intercepted — it still selects through the probe.
         click = read_intent(hp, hpio, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))

@@ -1460,7 +1460,10 @@ _compound(a, b) = a === nothing ? b : b === nothing ? a :
 _write_view_state(plot::ChartPlot, field::AbstractString, value) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(plot, field, value))
 
-_set_view(plot::ChartPlot, view) = _write_view_state(plot, "view", view)
+# A view that the plot holds is not written again, so a move to the point of the
+# last move writes no cell.
+_set_view(plot::ChartPlot, view) =
+    isequal(plot.view, view) ? nothing : _write_view_state(plot, "view", view)
 
 # Scale a window about a fixed data point, so whatever is under the cursor stays
 # under the cursor.
@@ -1509,18 +1512,19 @@ function _drag_start(g, plot::ChartPlot, event::MouseDown)
     _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
     mode = event.modifiers.shift ? :pan : :zoom
     _write_view_state(plot, "drag_anchor",
-                                    (event.x, event.y, mode, resolve_view(plot)))
+                                    (event.x, event.y, mode, resolve_view(plot), g.xs, g.ys))
 end
 
 function _drag_move(g, plot::ChartPlot, event::MouseMove)
     anchor = plot.drag_anchor
     anchor === nothing && return nothing
-    ax, ay, mode, start_view = anchor
+    ax, ay, mode, start_view, xs, ys = anchor
     if mode === :pan
-        # Pan against the window the drag started from, so a slow drag does not
-        # accumulate rounding.
-        dx = (to_data(g.xs, ax) - to_data(g.xs, event.x))
-        dy = (to_data(g.ys, ay) - to_data(g.ys, event.y))
+        # Pan against the window and the scales the drag started from, so a slow
+        # drag does not accumulate rounding, and a move to the point of the last
+        # move gives the same window, which is not written again.
+        dx = (to_data(xs, ax) - to_data(xs, event.x))
+        dy = (to_data(ys, ay) - to_data(ys, event.y))
         return _set_view(plot, _pan_by(start_view, dx, dy))
     end
     _rect_op(plot, (min(ax, event.x), min(ay, event.y),

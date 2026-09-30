@@ -261,7 +261,12 @@ end
     @test get_pane_weights(tree.root)[1] > 0.6        # the left pane took the space
     @test sum(get_pane_weights(tree.root)) ≈ 1.0
 
-    finish = read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys(); time = 0.0))
+    # A move to the point of the last move writes no cell: the weights that the
+    # split holds are not written again.
+    @test read_intent(proj, iomap, MouseMove(300, 150, MouseButtons(:left), ModifierKeys();
+                                             time = 0.0)) === nothing
+
+    finish =read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys(); time = 0.0))
     @test finish isa ReplaceViewStateOperation
     @test get_wrapped_operation(finish) isa EndSplitterDragOperation
     _apply!(editor, finish)

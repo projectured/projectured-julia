@@ -277,8 +277,8 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
-- **Q14. A view that changes under a still pointer.** Settled but for point 3
-  below (found in step 6; the owner, 2026-09-30: "not sure, let's investigate
+- **Q14. A view that changes under a still pointer.** Settled and built
+  (found in step 6; the owner, 2026-09-30: "not sure, let's investigate
   this further"). The
   principle is decided: D41 and D42 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) say
@@ -333,7 +333,7 @@ One at a time, with the owner.
   2. The cost of one move for each changed frame in the window of the pointer
      is accepted. (Owner: "yes accept, I'm pretty sure something is wrong with
      the FSM projection", which takes about a second for one click.)
-  3. Open: with a button held. Claude first proposed to send nothing then;
+  3. With a button held: the move is sent too. Claude first proposed to send nothing then;
      the owner asked why. Claude's revised view: send it with the buttons held,
      because a drag over content that moves (a selection while the view
      scrolls, a drop target that changes) needs it, and the drag readers
@@ -347,14 +347,35 @@ One at a time, with the owner.
      chord recognitions do not read a move. But four readers write again on a
      move to the same point, with no check for an equal value: the split pane
      divider (`_split_drag_read`), the pane weights that it gives
-     (`_read_resize`, a document write, not view state), the pan of the chart
-     (`_drag_move`), and, with no button, the hover probe of the inspector
-     (`_hover_op`). A cell write always invalidates its readers, and the SDL
+     (`_read_resize`), the pan of the chart (`_drag_move`), and, with no
+     button, the hover probe of the inspector (`_hover_op`). A cell write always invalidates its readers, and the SDL
      backend counts a frame with a stale cell as changed. So a re-sent move
      gives the same write, a changed frame, and one more re-sent move: a loop
      at the frame rate while the pointer rests (inference from the code, not
      seen live). The slider, the tab drag, the chart cursor and the zoom
-     rectangle check for an equal value and write nothing. Open for the owner.
+     rectangle check for an equal value and write nothing.
+     The owner (2026-09-30), of (a) each reader checks for an equal value, and
+     (b) the backend sends no move after a frame that its own move caused:
+     "I agree with (a)". So the move is sent with the buttons held, and a
+     reader writes no cell on a move to the point of the last move: the rule
+     `PAR-REPEATED-MOVE-WRITES-NOTHING` of the architecture invariants. (b)
+     was against because the backend does not see the timers of the editor,
+     so an animation under a still pointer would lose the light.
+     Built:
+     - The split pane writes a size and a pin only when it changes, in the
+       evaluation of `ResizeSplitPaneOperation`, not in the reader: the pane
+       tree answers the resize with a weights write and never writes `sizes`,
+       so a check in the reader against `sizes` would drop a move back to the
+       point where the drag started.
+     - The pane tree writes no weights equal to the weights of the split.
+     - The chart writes no view equal to the view it holds. Its pan read the
+       scales of the current geometry, which its own write changes, so a move
+       to the same point gave a window that differed in the last bits; the
+       anchor now keeps the scales of the press.
+     - The hover probe keeps the point of the pointer too, and issues nothing
+       for the same reference at the same point.
+     - The weights write of the pane tree is marked as view state
+       (`PaneReaderTest`), so the check's fear of undo entries does not hold.
   4. The web backend sends no move without a button held, so it changes
      nothing there. (Owner: "yes".)
   5. The display update stays until step 8, for the tracker; the move comes
@@ -817,7 +838,8 @@ already; the sealed selection files do not change (Q4).
   (a row and a column) and a tree. The tests of `hovered` check the mouse target
   now; the test driver of the tracker does what a window does with a move, and
   the test view `MttContactsToWidgets` maps the mouse target forward. The two
-  assertions of D41 are marked broken (Q14).
+  assertions of D41 are marked broken (Q14); they pass since the move after a
+  changed frame (Q14, built).
   Found:
   - A fault of step 5a: the reader of `LayoutConstraintToGraphicsCanvas`
     passed the child's answer up with no `child` step, which its backward map

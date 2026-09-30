@@ -100,6 +100,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-MAPPERS-ARE-INVERSES](#par-mappers-are-inverses) | `print_document` uses `map_reference_forward`; `read_intent` uses `map_reference_backward`, and the two mappers are mutual inverses |
 | [PAR-PREFER-REFERENCE-RETARGET](#par-prefer-reference-retarget) | Write a `read_intent` method only when re-targeting a reference is not enough |
 | [PAR-NO-NEW-SYNTHETIC-EVENT](#par-no-new-synthetic-event) | Add no new `SyntheticEvent` type and no `read_intent` method for a new payload type; the reader chain is not a channel |
+| [PAR-REPEATED-MOVE-WRITES-NOTHING](#par-repeated-move-writes-nothing) | A move to the point of the last move writes no cell |
 | [PAR-GEOMETRY-FREE-IN-DOCUMENT](#par-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
 | [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
 | [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
@@ -554,6 +555,21 @@ precedent for a new one.
 
 When a change seems to need a new event type or a new payload for the reader,
 stop and ask the owner. Do not add it first and report it after.
+
+### PAR-REPEATED-MOVE-WRITES-NOTHING
+
+**A move to the point of the last move writes no cell.** After a frame that
+changed a window, the backend sends a `MouseMove` at the point where the pointer
+is, with the buttons that are held, so that the readers find the part under the
+pointer in the new frame. A cell write invalidates every cell that reads it,
+also when the value is equal, and the backend counts a frame with a stale cell
+as changed. So a reader that writes again on a move to the same point makes a
+changed frame, which sends one more move: a loop at the frame rate while the
+pointer rests. A reader that computes from an anchor or from the point, such as
+a drag, compares the new value with the value that the document holds, and
+writes nothing when they are equal. The check goes where the cell is written: a
+reader whose answer a projection above it can replace compares in the
+evaluation of its operation, not in the reader.
 
 ### PAR-GEOMETRY-FREE-IN-DOCUMENT
 

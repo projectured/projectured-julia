@@ -730,6 +730,9 @@ function _read_resize(tree::PaneTree, iomap::PaneTreeToWidgetIoMap,
     extents = Float64[Float64(widget.sizes[i]) for i in 1:n]
     extents[k] = Float64(operation.new_size_a)
     extents[k + 1] = Float64(operation.new_size_b)
+    # The weights that the split holds are not written again: a move to the point
+    # of the last move writes no cell.
+    get_pane_normalized_weights(extents) == get_pane_weights(split) && return nothing
     make_pane_resize_operation(tree, split, extents)
 end
 

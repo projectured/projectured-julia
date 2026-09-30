@@ -46,7 +46,16 @@ end
     @test _szs(doc) == [270, 330]
     @test sum(_szs(doc)) == 600
 
-    up = _feed(proj, iomap, MouseUp(:left, 270, 50, ModifierKeys(); time = 0.0))
+    # A move to the point of the last move writes no cell, so what reads the
+    # sizes and the pins is not computed again.
+    reader = Cell(@computation (Any[doc.sizes[i] for i in 1:length(doc.sizes)],
+                                Any[doc.pinned[i] for i in 1:length(doc.pinned)]))
+    reader[]
+    _feed(proj, iomap, MouseMove(270, 50, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    @test is_cell_up_to_date(reader)
+    @test _szs(doc) == [270, 330]
+
+    up =_feed(proj, iomap, MouseUp(:left, 270, 50, ModifierKeys(); time = 0.0))
     @test up isa EndSplitterDragOperation
     @test doc.active_splitter == 0
     @test doc.drag_anchor === nothing

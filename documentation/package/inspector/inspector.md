@@ -41,7 +41,7 @@ A function becomes the computation of a cell in the `source` field. So a read of
 3. returns an `OpenWindowOperation` with `style = :tooltip` and a `ReferenceInspector(reference = path, target = document)` as content, at `pointer()` plus `offset`;
 4. returns a `CloseWindowOperation` when the press selects nothing and the window is open.
 
-An open with the same `id` updates the window in place, so the window follows the pointer. `WindowManagingProjection` applies the two operations; see [screen.md](../screen/screen.md). `pointer` is a function that returns the pointer in screen coordinates, so the package has no dependency on a backend. Every other event goes to `inner`, so a real click, a key, a scroll and a drag edit as before.
+An open with the same `id` updates the window in place, so the window follows the pointer. A move that finds the same path with the pointer at the same place returns nothing, so a move to the point of the last move writes no cell. `WindowManagingProjection` applies the two operations; see [screen.md](../screen/screen.md). `pointer` is a function that returns the pointer in screen coordinates, so the package has no dependency on a backend. Every other event goes to `inner`, so a real click, a key, a scroll and a drag edit as before.
 
 The press has no Alt key, so the probe shows the reference that a click makes: a caret in a text, or the selection of a node. A press on a button returns the action of the button, so the probe shows nothing there. The tooltip probe uses an Alt+press instead, because it looks for a document; see [tooltip.md](../tooltip/tooltip.md).
 

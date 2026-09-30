@@ -2518,7 +2518,9 @@ end
 Redistribute space across the splitter after slot `splitter_index`: write
 `sizes[splitter_index] = new_size_a` and `sizes[splitter_index+1] = new_size_b`.
 The reader computes both values so their sum equals the pre-drag total (space is
-conserved) and each stays within its slot's min/max.
+conserved) and each stays within its slot's min/max. A size and a pin that the
+pane already holds are not written again, so a move to the point of the last move
+writes no cell.
 """
 struct ResizeSplitPaneOperation <: Operation
     split::WidgetSplitPane
@@ -2755,14 +2757,14 @@ function evaluate_operation(editor, op::ResizeSplitPaneOperation)
     split = op.split
     sizes = split.sizes
     k = op.splitter_index
-    sizes[k]     = op.new_size_a
-    sizes[k + 1] = op.new_size_b
+    sizes[k] == op.new_size_a || (sizes[k] = op.new_size_a)
+    sizes[k + 1] == op.new_size_b || (sizes[k + 1] = op.new_size_b)
     # Pin both dragged slots so the constrained layout honours their new size
     # exactly instead of redistributing it by weight.
     pinned = split.pinned
     if length(pinned) >= k + 1
-        pinned[k]     = true
-        pinned[k + 1] = true
+        pinned[k] === true     || (pinned[k] = true)
+        pinned[k + 1] === true || (pinned[k + 1] = true)
     end
 end
 

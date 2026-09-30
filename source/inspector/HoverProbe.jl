@@ -19,6 +19,8 @@
 #   `ReferenceInspector(reference, target)` as content, positioned near the
 #   pointer (`pointer()` + `offset`). Re-issuing the open with the same id
 #   updates the window in place, so it follows the mouse and refreshes its text.
+#   A move that finds the same reference at the same pointer position issues
+#   nothing, so a move to the point of the last move writes no cell.
 # - over dead space (the probe yields no `ReplaceSelectionOperation`) →
 #   `CloseWindowOperation`.
 #
@@ -39,6 +41,7 @@ struct HoverProbeProjection <: Projection
     # transient state (Refs so the immutable projection can update them):
     open::Base.RefValue{Bool}
     last::Base.RefValue{Any}
+    last_point::Base.RefValue{Any}
 end
 
 """
@@ -58,7 +61,7 @@ HoverProbeProjection(; inner::Projection,
     HoverProbeProjection(inner, id, pointer,
                          (Int(offset[1]), Int(offset[2])),
                          (Int(size[1]), Int(size[2])), String(title),
-                         Ref(false), Ref{Any}(nothing))
+                         Ref(false), Ref{Any}(nothing), Ref{Any}(nothing))
 
 # Transparent: `output` forwards the child's output through a cell so the IoMap
 # keeps its identity while the child re-derives (PAR-STABLE-IOMAP-IDENTITY).
@@ -102,14 +105,17 @@ function _hover_op(p::HoverProbeProjection, iomap::HoverProbeIoMap, ref)
         if p.open[]
             p.open[] = false
             p.last[] = nothing
+            p.last_point[] = nothing
             return CloseWindowOperation(p.id)
         end
         return nothing
     end
     (px, py) = p.pointer()
+    p.open[] && p.last[] == ref && p.last_point[] == (px, py) && return nothing
     content = ReferenceInspector(reference = ref, target = iomap.input)
     p.open[] = true
     p.last[] = ref
+    p.last_point[] = (px, py)
     return OpenWindowOperation(id = p.id, title = p.title,
                               x = Int(px) + p.offset[1],
                               y = Int(py) + p.offset[2],

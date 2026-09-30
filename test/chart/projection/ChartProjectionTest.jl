@@ -1082,6 +1082,10 @@ function test_chart_projection()
                 MouseMove(x1 - 40, y1, MouseButtons(:left), ModifierKeys(; shift=true); time = 0.0)))
             @test plot.drag_rect === nothing
             @test plot.view !== nothing
+            # A move to the point of the last move writes no cell, though the pan
+            # changed the geometry that the first move read.
+            @test read_intent(proj, iomap,
+                MouseMove(x1 - 40, y1, MouseButtons(:left), ModifierKeys(; shift=true); time = 0.0)) === nothing
             evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1 - 40, y1, ModifierKeys(); time = 0.0)))
         end
 
