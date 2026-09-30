@@ -607,6 +607,40 @@ end
     @test text_x(first_io, "h2") == text_x(first_io, "r1 c2")
 end
 
+@testset "far from the head column, the table moves the head column to the column at the left" begin
+    table = make_wide_table(5, 100_000)
+    io = print_document(rec, nothing, table, context())
+    step = 60 + 2 * io.state.pad_x + io.state.bw
+    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = 0.0))
+    # A turn near the head column moves the columns by one step of the wheel.
+    near = text_x(io, "h2")
+    apply!(table, side(-1))
+    turn = near - text_x(io, "h2")
+    @test turn > 0
+    # Three hundred columns to the side, a turn moves the head column to the
+    # column at the left edge, and the offset by the place of that column:
+    # every column moves by one turn, as it would with no move of the head.
+    # The place of column 301 is where the table put it: the long header of
+    # column 3 widens that column.
+    left = only(t[1] for t in texts(io.output; limit = 400) if t[3] == "h301") -
+           text_x(io, "h1")
+    getfield(table, :scroll_position)[] = Point2D(left, 0)
+    column = ConcreteReference(FieldReferenceStep("column_headers"),
+                 ConcreteReference(RangeReferenceStep(304, 305), EmptyReference()))
+    getfield(table, :selection)[] = column
+    before = only(t[1] for t in texts(io.output; limit = 400) if t[3] == "h305")
+    op = side(-1)
+    @test op isa CompoundOperation
+    rebased = only(o for o in op.operations if o isa ReplaceSelectionOperation)
+    @test rebased.path.tail.head.start + 1 == 305 - 300
+    apply!(table, op)
+    @test table.column_headers.value.content == "h301"
+    @test table.rows.value.value.content == "r1 c301"
+    @test 0 <= Int(table.scroll_position.x[]) < step
+    @test text_x(io, "h305") == before - turn
+    @test text_x(io, "r1 c305") == text_x(io, "h305")
+end
+
 @testset "the bands of the hover and of the selection follow the rows" begin
     table = make_table(make_list(5, texts_of))
     io = print_document(rec, nothing, table, context())

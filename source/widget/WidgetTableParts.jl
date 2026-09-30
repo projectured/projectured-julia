@@ -858,6 +858,8 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
     k = _find_table_row_at(st, y + st.pad_y + st.bw)
     k === nothing && return op
     if abs(k - 1) <= _TABLE_RELOCATION_DISTANCE
+        moved = st.column_list ? _move_head_column(iomap, x, y) : nothing
+        moved === nothing || return moved
         k == w.top_row && return op
         return CompoundOperation(Any[op, _write_view_state(w, "top_row", k)])
     end
@@ -872,6 +874,76 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
     selection = _shift_row_reference(w.selection, k - 1)
     selection === w.selection || push!(moved, ReplaceSelectionOperation(selection))
     CompoundOperation(moved)
+end
+
+# When the column at the left edge of the offset `(x, y)` is more than
+# `_TABLE_RELOCATION_DISTANCE` columns from the head column, the answer that
+# moves the head column to it: `column_headers` and a list alignment written to
+# their nodes of that column, `rows` to a list that mirrors the rows with each
+# row from that column on, the offset less the place of that column, and a
+# selection or a hover of a column or a cell moved by the same number of
+# columns. `nothing` when the column is near the head. A projection that owns
+# the columns turns the write of `column_headers` into an edit of its own.
+function _move_head_column(iomap::WidgetTableListIoMap, x::Int, y::Int)
+    w = iomap.input
+    st = iomap.state
+    c = _find_table_column_at(st, x + st.pad_x + st.bw)
+    (c === nothing || abs(c - 1) <= _TABLE_RELOCATION_DISTANCE) && return nothing
+    header = _find_list_node(w.column_headers, c)
+    span = _get_table_column_span(st, c)
+    (header === nothing || span === nothing) && return nothing
+    moved = Any[_write_view_state(w, "column_headers", header),
+                _write_view_state(w, "rows", _make_advanced_row_node(w.rows, c)),
+                _write_view_state(w, "scroll_position", Point2D(x - span[1], y))]
+    align = w.column_align
+    align isa ListNode && push!(moved, _write_view_state(w, "column_align", _find_list_node(align, c)))
+    hovered = _shift_column_reference(w.hovered, c - 1)
+    hovered === w.hovered || push!(moved, _write_view_state(w, "hovered", hovered))
+    selection = _shift_column_reference(w.selection, c - 1)
+    selection === w.selection || push!(moved, ReplaceSelectionOperation(selection))
+    CompoundOperation(moved)
+end
+
+# The node of a list that mirrors the rows of `row_node`, each row from its
+# column `c` on, counted from the head of the row. A node is built when a walk
+# first reaches it, so a row is walked to its column `c` once, when it shows.
+function _make_advanced_row_node(row_node, c::Int)
+    row_node isa ListNode || return row_node
+    node = ListNode(nothing)
+    set_cell_computation!(getfield(node, :value), () -> _find_list_node(row_node.value, c))
+    set_cell_computation!(getfield(node, :next), () -> begin
+        following = row_node.next
+        following === nothing && return nothing
+        next_node = _make_advanced_row_node(following, c)
+        set_cell_value!(getfield(next_node, :prev), node)
+        next_node
+    end)
+    set_cell_computation!(getfield(node, :prev), () -> begin
+        preceding = row_node.prev
+        preceding === nothing && return nothing
+        prev_node = _make_advanced_row_node(preceding, c)
+        set_cell_value!(getfield(prev_node, :next), node)
+        prev_node
+    end)
+    node
+end
+
+# `column_headers[c]…` and `rows[r][c]…` with `c` counted from a head column
+# `distance` columns further on; any other reference, the same object.
+function _shift_column_reference(reference, distance::Int)
+    reference isa ConcreteReference && reference.head isa FieldReferenceStep || return reference
+    shift(step) = RangeReferenceStep(step.start - distance, step.stop - distance)
+    tail = reference.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
+    if reference.head.name == "column_headers"
+        return ConcreteReference(reference.head, ConcreteReference(shift(tail.head), tail.tail))
+    elseif reference.head.name == "rows"
+        rest = tail.tail
+        (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return reference
+        return ConcreteReference(reference.head,
+            ConcreteReference(tail.head, ConcreteReference(shift(rest.head), rest.tail)))
+    end
+    reference
 end
 
 # Node `k` of a list, counted from `head`, or `nothing` past an end.

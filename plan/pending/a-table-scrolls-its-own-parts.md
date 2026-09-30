@@ -331,7 +331,7 @@ plan.
       from every cell: a list has no index to name one column by. A column
       that is not `Fixed` fails when its width is first read, because the
       policies are built as the walk reaches them.
-    - [x] **1d-b. The table** (this commit) with `column_headers` and the
+    - [x] **1d-b. The table** (`99a7167ee`) with `column_headers` and the
       cells of its rows as lists, in `WidgetTableParts.jl`:
       - `column_headers` a `ListNode` makes the columns a list; the keyword
         constructor takes one, and `column_align` as a list too. Every column
@@ -486,7 +486,18 @@ plan.
     - The eager table writes no `top_row`: all its rows are built.
     - The data frame view does not share `top_row` yet; its scroll bar
       (step 2.4 of the data frame plan) will.
-  - [ ] **3b. The columns**, with the lazy columns of 1d.
+  - [x] **3b. The columns** (this commit). When the column at the left edge
+    of the offset is more than 200 columns from the head column, the answer
+    to a turn of the wheel writes `column_headers` and a list `column_align`
+    to their nodes of that column, `rows` to a list that mirrors the rows
+    with each row from that column on, and the offset less the place of that
+    column; a selection or a hover of a column or a cell moves with it. A
+    plain table cannot move the head of every row, so the mirror walks each
+    row to the new head column once, when the row shows. A projection that
+    owns the columns turns the write of `column_headers` into an edit of its
+    own and builds its rows from its anchors, so it walks nothing. When the
+    rows and the columns are both far, the rows move first, and the columns
+    at the next turn.
 - [x] **4. Selection, keys and bands across the parts.** `test_table_selection`,
   `test_table_navigation`, `test_table_cell_editing`, `test_widget_table`,
   `test_widget_table_list`. The eager table has them since 2b. The table of a
