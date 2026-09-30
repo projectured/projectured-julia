@@ -36,7 +36,8 @@ function bundle_licence_texts!(directory::AbstractString; project::AbstractStrin
                                credits = String[],
                                extra_texts = Pair{String,String}[],
                                julia_thirdparty::AbstractString =
-                                   "https://raw.githubusercontent.com/JuliaLang/julia/v$(VERSION)/THIRDPARTY.md",
+                                   "https://raw.githubusercontent.com/JuliaLang/julia/v" *
+                                   "$(VERSION)/THIRDPARTY.md",
                                stdlib::AbstractString = Sys.STDLIB,
                                depots = DEPOT_PATH)
     licenses = joinpath(directory, "share", "licenses")
@@ -65,19 +66,28 @@ function bundle_licence_texts!(directory::AbstractString; project::AbstractStrin
              "",
              "The program's own licence is beside the program, in the top folder.",
              "",
-             "julia/LICENSE.md is the licence of the Julia runtime, and julia/THIRDPARTY.md",
+             "julia/LICENSE.md is the licence of the Julia runtime, and " *
+             "julia/THIRDPARTY.md",
              "names the licences of the parts that Julia ships with it.",
              "",
-             "The libraries that Julia ships (lib/julia, libexec/julia, share/julia/cert.pem),",
+             "The libraries that Julia ships (lib/julia, libexec/julia, " *
+             "share/julia/cert.pem),",
              "each with its texts in stdlib/<name>/:",
              ""]
     append!(lines, ["  " * name for name in stdlib_names])
-    append!(lines, ["", "The Julia packages compiled into the program, each with its licence files in",
+    append!(lines, ["",
+                    "The Julia packages compiled into the program, each with its " *
+                    "licence files in",
                     "packages/<name>/:", ""])
     for (name, version, files) in packages
-        push!(lines, "  $name $version" * (isempty(files) ? " (it carries no licence file)" : ""))
+        push!(lines,
+              "  $name $version" *
+              (isempty(files) ? " (it carries no licence file)" : ""))
     end
-    append!(lines, ["", "The libraries of the artifacts, each with its texts in the artifact itself:", ""])
+    append!(lines, ["",
+                    "The libraries of the artifacts, each with its texts in the " *
+                    "artifact itself:",
+                    ""])
     append!(lines, ["  $name: $path" for (name, path) in artifacts])
     if !isempty(credits)
         append!(lines, ["", "Credits that these licences ask for:", ""])
@@ -90,7 +100,8 @@ end
 
 # A file by URL or by path.
 function _fetch_licence_file(source::AbstractString, target::AbstractString)
-    if startswith(source, "http://") || startswith(source, "https://") || startswith(source, "file://")
+    if startswith(source, "http://") || startswith(source, "https://") ||
+       startswith(source, "file://")
         run(`curl -sfL --max-time 600 -o $target $source`)
     else
         cp(source, target; force = true)
@@ -100,24 +111,26 @@ end
 
 # The texts of every standard-library JLL, from its artifact for this platform.
 # Answers the names of the folders of texts, sorted.
-function _bundle_stdlib_licences!(target::AbstractString, stdlib::AbstractString, cache::AbstractString)
+function _bundle_stdlib_licences!(target::AbstractString, stdlib::AbstractString,
+                                  cache::AbstractString)
     mkpath(target)
     names = String[]
     for jll in sort(readdir(stdlib))
         toml = joinpath(stdlib, jll, "StdlibArtifacts.toml")
         (endswith(jll, "_jll") && isfile(toml)) || continue
-        for (_, meta) in Pkg.Artifacts.select_downloadable_artifacts(toml;
-                                                                     platform = Base.BinaryPlatforms.HostPlatform())
+        for (_, meta) in Pkg.Artifacts.select_downloadable_artifacts(
+                toml; platform = Base.BinaryPlatforms.HostPlatform())
             place = first(meta["download"])
             tarball = joinpath(cache, place["sha256"] * ".tar.gz")
             isfile(tarball) || _fetch_licence_file(place["url"], tarball)
             digest = bytes2hex(open(sha256, tarball))
             digest == place["sha256"] ||
-                error("bundle_licence_texts!: the artifact of $jll at $(place["url"]) has " *
-                      "SHA-256 $digest, not $(place["sha256"])")
+                error("bundle_licence_texts!: the artifact of $jll at $(place["url"]) " *
+                      "has SHA-256 $digest, not $(place["sha256"])")
             unpacked = mktempdir(get_staging_root())
             try
-                run(ignorestatus(`tar -xzf $tarball -C $unpacked --wildcards '*share/licenses/*'`))
+                run(ignorestatus(`tar -xzf $tarball -C $unpacked
+                                  --wildcards '*share/licenses/*'`))
                 found = joinpath(unpacked, "share", "licenses")
                 isdir(found) || continue
                 for name in readdir(found)
@@ -134,21 +147,24 @@ end
 
 # The licence files of each package of the manifest of `project` that came from
 # a registry, from the depot that holds it. Answers `(name, version, files)`.
-function _bundle_package_licences!(target::AbstractString, project::AbstractString, depots)
+function _bundle_package_licences!(target::AbstractString, project::AbstractString,
+                                   depots)
     manifest = TOML.parsefile(joinpath(project, "Manifest.toml"))
     found = Tuple{String,String,Vector{String}}[]
-    for (name, entries) in sort!(collect(get(manifest, "deps", Dict{String,Any}())); by = first)
+    for (name, entries) in sort!(collect(get(manifest, "deps", Dict{String,Any}()));
+                                 by = first)
         entry = entries[1]
         haskey(entry, "git-tree-sha1") || continue
-        slug = Base.version_slug(Base.UUID(entry["uuid"]), Base.SHA1(entry["git-tree-sha1"]))
+        slug = Base.version_slug(Base.UUID(entry["uuid"]),
+                                 Base.SHA1(entry["git-tree-sha1"]))
         folder = nothing
         for depot in depots
             candidate = joinpath(depot, "packages", name, slug)
             isdir(candidate) && (folder = candidate; break)
         end
         folder === nothing &&
-            error("bundle_licence_texts!: no depot holds $name $(get(entry, "version", "")) " *
-                  "(slug $slug)")
+            error("bundle_licence_texts!: no depot holds $name " *
+                  "$(get(entry, "version", "")) (slug $slug)")
         files = filter(file -> occursin(r"^(licen[cs]e|copying|notice)"i, file) &&
                                isfile(joinpath(folder, file)), readdir(folder))
         isempty(files) || mkpath(joinpath(target, name))

@@ -9,7 +9,7 @@
 # its build applies.
 
 """
-    SourceOffer(name, version, jll, jll_version, url, sha256; recipe, patches, notes)
+    SourceOffer(name, version; jll, jll_version, url, sha256, recipe, patches, notes)
 
 The source of one library that a bundle carries and whose licence asks for its
 source: the tarball of its authors at `url`, whose SHA-256 is `sha256`; the build
@@ -30,7 +30,7 @@ struct SourceOffer
     notes::String
 end
 
-SourceOffer(name, version, jll, jll_version, url, sha256;
+SourceOffer(name, version; jll, jll_version, url, sha256,
             recipe = "", patches = String[], notes = "") =
     SourceOffer(name, version, jll, jll_version, url, sha256, recipe, patches, notes)
 
@@ -52,8 +52,10 @@ function build_source_archive(context::BuildContext; name::AbstractString,
                               version::AbstractString = context.version,
                               offers,
                               output::AbstractString = joinpath(context.root, "build"),
-                              cache::AbstractString = joinpath(context.root, "build", "source-cache"),
-                              project::AbstractString = joinpath(context.root, "build", "app", String(name)),
+                              cache::AbstractString = joinpath(context.root, "build",
+                                                               "source-cache"),
+                              project::AbstractString = joinpath(context.root, "build",
+                                                                 "app", String(name)),
                               stdlib::AbstractString = Sys.STDLIB)
     _check_source_offers(offers, project, stdlib)
     directory = "$(name)-$(version)-sources"
@@ -65,8 +67,10 @@ function build_source_archive(context::BuildContext; name::AbstractString,
         lines = ["The source code of the libraries under the LGPL and the GPL that",
                  "$name $version carries, for exactly the versions it carries.",
                  "",
-                 "Each part is the tarball of its authors, checked against the SHA-256 below,",
-                 "and the patches that its build applies. Each JLL is built by the recipe named",
+                 "Each part is the tarball of its authors, checked against the SHA-256 " *
+                 "below,",
+                 "and the patches that its build applies. Each JLL is built by the " *
+                 "recipe named",
                  "below, from BinaryBuilder's Yggdrasil.",
                  ""]
         for offer in offers
@@ -75,10 +79,12 @@ function build_source_archive(context::BuildContext; name::AbstractString,
             digest = bytes2hex(open(sha256, tarball))
             digest == offer.sha256 ||
                 error("build_source_archive: $(offer.url) has SHA-256 $digest, not " *
-                      "$(offer.sha256); the source of $(offer.name) must be checked again")
+                      "$(offer.sha256); the source of $(offer.name) " *
+                      "must be checked again")
             folder = joinpath(staged, _get_source_folder_name(offer))
             ispath(folder) &&
-                error("build_source_archive: two offers share the folder $(basename(folder))")
+                error("build_source_archive: two offers share the folder " *
+                      "$(basename(folder))")
             mkpath(folder)
             cp(tarball, joinpath(folder, basename(offer.url)))
             for patch in offer.patches
@@ -91,8 +97,10 @@ function build_source_archive(context::BuildContext; name::AbstractString,
                             "  from:    $(offer.url)",
                             "  SHA-256: $(offer.sha256)"])
             isempty(offer.recipe) || push!(lines, "  recipe:  $(offer.recipe)")
-            isempty(offer.patches) || push!(lines, "  patches: " * join(basename.(offer.patches), ", "))
-            isempty(offer.notes) || append!(lines, ["  " * line for line in split(offer.notes, "\n")])
+            isempty(offer.patches) ||
+                push!(lines, "  patches: " * join(basename.(offer.patches), ", "))
+            isempty(offer.notes) ||
+                append!(lines, ["  " * line for line in split(offer.notes, "\n")])
             push!(lines, "")
         end
         write(joinpath(staged, "README"), join(lines, "\n") * "\n")
@@ -114,7 +122,8 @@ _get_source_folder_name(offer::SourceOffer) =
 # Each JLL carries the version that its offer names.
 function _check_source_offers(offers, project::AbstractString, stdlib::AbstractString)
     manifest = isfile(joinpath(project, "Manifest.toml")) ?
-        get(TOML.parsefile(joinpath(project, "Manifest.toml")), "deps", Dict{String,Any}()) :
+        get(TOML.parsefile(joinpath(project, "Manifest.toml")),
+            "deps", Dict{String,Any}()) :
         Dict{String,Any}()
     for offer in offers
         carried = if offer.jll == "julia"
@@ -124,13 +133,13 @@ function _check_source_offers(offers, project::AbstractString, stdlib::AbstractS
         elseif haskey(manifest, offer.jll)
             get(manifest[offer.jll][1], "version", "")
         else
-            error("build_source_archive: the binary carries no $(offer.jll), which the offer " *
-                  "of $(offer.name) names")
+            error("build_source_archive: the binary carries no $(offer.jll), " *
+                  "which the offer of $(offer.name) names")
         end
         carried == offer.jll_version ||
-            error("build_source_archive: the binary carries $(offer.jll) $carried, and the " *
-                  "offer of $(offer.name) is the source of $(offer.jll_version). Find the " *
-                  "source of $carried, and change the offer.")
+            error("build_source_archive: the binary carries $(offer.jll) $carried, and " *
+                  "the offer of $(offer.name) is the source of $(offer.jll_version). " *
+                  "Find the source of $carried, and change the offer.")
     end
     nothing
 end

@@ -23,7 +23,8 @@ const _MEANING_FOLDER = Ref("")
 # or `~/.cache/projectured/meaning`. A binary can be in a folder the user can
 # not write, and the folder of an installed package belongs to Pkg.
 function _get_default_meaning_folder(bundle = _get_bundle_directory(),
-                                     root = normpath(joinpath(@__DIR__, "..", "..", "..")))
+                                     root = normpath(joinpath(@__DIR__, "..", "..",
+                                                              "..")))
     bundle === nothing && isdir(joinpath(root, "package")) &&
         return joinpath(root, "build", "meaning")
     cache = get(ENV, "XDG_CACHE_HOME", "")

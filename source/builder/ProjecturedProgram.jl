@@ -45,49 +45,73 @@ versions it carries. Every URL and SHA-256 was checked by a download on
 another version of one of the JLLs.
 """
 const PROJECTURED_SOURCE_OFFERS = [
-    SourceOffer("alsa-lib", "1.2.15.3", "alsa_jll", "1.2.15+0",
-        "https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.15.3.tar.bz2",
-        "7b079d614d582cade7ab8db2364e65271d0877a37df8757ac4ac0c8970be861e";
-        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree/3af3dd7c1c07c28c28d734f5d42a26c2972da25b/A/alsa",
+    SourceOffer("alsa-lib", "1.2.15.3"; jll = "alsa_jll", jll_version = "1.2.15+0",
+        url = "https://www.alsa-project.org/files/pub/lib/alsa-lib-1.2.15.3.tar.bz2",
+        sha256 = "7b079d614d582cade7ab8db2364e65271d0877a37df8757ac4ac0c8970be861e",
+        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree" *
+                "/3af3dd7c1c07c28c28d734f5d42a26c2972da25b/A/alsa",
         notes = "LGPL-2.1. The build applies no patch."),
-    SourceOffer("GMP", "6.3.0", "GMP_jll", "6.3.0+2",
-        "https://gmplib.org/download/gmp/gmp-6.3.0.tar.bz2",
-        "ac28211a7cfb609bae2e2c8d6058d66c8fe96434f740cf6fe2e47b000d1c20cb";
-        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree/c52e41b25b1d4c30b6024444ad1b0d3a1f051d57/G/GMP/GMP@6.3.0",
-        patches = ["https://raw.githubusercontent.com/JuliaPackaging/Yggdrasil/c52e41b25b1d4c30b6024444ad1b0d3a1f051d57/G/GMP/GMP@6.3.0/bundled/patches/gmp-alloc_overflow.patch",
-                   "https://raw.githubusercontent.com/JuliaPackaging/Yggdrasil/c52e41b25b1d4c30b6024444ad1b0d3a1f051d57/G/GMP/GMP@6.3.0/bundled/patches/gmp-exception.patch"],
+    SourceOffer("GMP", "6.3.0"; jll = "GMP_jll", jll_version = "6.3.0+2",
+        url = "https://gmplib.org/download/gmp/gmp-6.3.0.tar.bz2",
+        sha256 = "ac28211a7cfb609bae2e2c8d6058d66c8fe96434f740cf6fe2e47b000d1c20cb",
+        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree" *
+                "/c52e41b25b1d4c30b6024444ad1b0d3a1f051d57/G/GMP/GMP@6.3.0",
+        patches = ["https://raw.githubusercontent.com/JuliaPackaging/Yggdrasil" *
+                    "/c52e41b25b1d4c30b6024444ad1b0d3a1f051d57/G/GMP/GMP@6.3.0/bundled" *
+                    "/patches/gmp-alloc_overflow.patch",
+                   "https://raw.githubusercontent.com/JuliaPackaging/Yggdrasil" *
+                    "/c52e41b25b1d4c30b6024444ad1b0d3a1f051d57/G/GMP/GMP@6.3.0/bundled" *
+                    "/patches/gmp-exception.patch"],
         notes = "LGPL-3 or GPL-2. The build applies the two patches in patches/."),
-    SourceOffer("MPFR", "4.2.2", "MPFR_jll", "4.2.2+0",
-        "https://www.mpfr.org/mpfr-4.2.2/mpfr-4.2.2.tar.xz",
-        "b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01";
-        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree/4499d58a12fc3a78fa500b8809f943e68f7eec9f/M/MPFR",
+    SourceOffer("MPFR", "4.2.2"; jll = "MPFR_jll", jll_version = "4.2.2+0",
+        url = "https://www.mpfr.org/mpfr-4.2.2/mpfr-4.2.2.tar.xz",
+        sha256 = "b67ba0383ef7e8a8563734e2e889ef5ec3c3b898a01d00fa0a6869ad81c6ce01",
+        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree" *
+                "/4499d58a12fc3a78fa500b8809f943e68f7eec9f/M/MPFR",
         notes = "LGPL-3. The build applies no patch."),
-    SourceOffer("GCC runtime libraries", "15.2.0", "CompilerSupportLibraries_jll", "1.5.5+2",
-        "https://ftp.gnu.org/gnu/gcc/gcc-15.2.0/gcc-15.2.0.tar.xz",
-        "438fd996826b0c82485a29da03a72d71d6e3541a83ec702df4271f6fe025d24e";
-        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree/00967747008623072bd475bb50e8568b07f11035/C/CompilerSupportLibraries/CompilerSupportLibraries@v1.5",
-        notes = "libgcc_s, libstdc++, libgfortran, libgomp, libatomic, libssp and libquadmath: GPL-3 with the\n" *
-                "GCC Runtime Library Exception, libquadmath LGPL-2.1. The libraries name GCC 15.2.0 in their\n" *
-                "own banner. The recipe copies them out of the GCC that Yggdrasil builds by its recipe\n" *
-                "0_RootFS/GCCBootstrap@15, whose bundled/patches/ hold the patches that it applies to GCC."),
-    SourceOffer("libgit2", "0060d9cf5666f015b1067129bd874c6cc4c9c7ac", "LibGit2_jll", "1.9.1+0",
-        "https://github.com/libgit2/libgit2/archive/0060d9cf5666f015b1067129bd874c6cc4c9c7ac.tar.gz",
-        "7efaf8f564c7a2c0f5cf475f80c91fc003e529e66643b07b9265320f55b0664b";
-        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree/717c4da21c7ca5e0b6165738810945dab53265dc/L/LibGit2",
-        notes = "GPL-2 with a linking exception. The build takes this git revision and applies no patch.\n" *
-                "GitHub makes the archive of a revision, and does not promise the same bytes for ever:\n" *
-                "when the SHA-256 differs, `git archive` of the revision is the same source."),
-    SourceOffer("7-Zip", "26.02", "p7zip_jll", "17.8.2+0",
-        "https://github.com/ip7z/7zip/releases/download/26.02/7z2602-src.tar.xz",
-        "cf967c98bca02a4b8b16375f441825a8e141362f14be1969bbec8e1ca0bff9dd";
-        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree/6bcdfadfa59d4facd0fcc96e92a4c3790c73ee1a/P/p7zip/p7zip@17.8",
-        notes = "LGPL-2.1 with BSD parts. p7zip_jll 17.8.2 builds 7-Zip 26.02 of ip7z/7zip, the continuation\n" *
+    SourceOffer("GCC runtime libraries", "15.2.0";
+        jll = "CompilerSupportLibraries_jll", jll_version = "1.5.5+2",
+        url = "https://ftp.gnu.org/gnu/gcc/gcc-15.2.0/gcc-15.2.0.tar.xz",
+        sha256 = "438fd996826b0c82485a29da03a72d71d6e3541a83ec702df4271f6fe025d24e",
+        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree" *
+                "/00967747008623072bd475bb50e8568b07f11035/C/CompilerSupportLibraries" *
+                "/CompilerSupportLibraries@v1.5",
+        notes = "libgcc_s, libstdc++, libgfortran, libgomp, libatomic, libssp and " *
+                "libquadmath: GPL-3 with the\n" *
+                "GCC Runtime Library Exception, libquadmath LGPL-2.1. The libraries " *
+                "name GCC 15.2.0 in their\n" *
+                "own banner. The recipe copies them out of the GCC that Yggdrasil " *
+                "builds by its recipe\n" *
+                "0_RootFS/GCCBootstrap@15, whose bundled/patches/ hold the patches " *
+                "that it applies to GCC."),
+    SourceOffer("libgit2", "0060d9cf5666f015b1067129bd874c6cc4c9c7ac";
+        jll = "LibGit2_jll", jll_version = "1.9.1+0",
+        url = "https://github.com/libgit2/libgit2/archive" *
+            "/0060d9cf5666f015b1067129bd874c6cc4c9c7ac.tar.gz",
+        sha256 = "7efaf8f564c7a2c0f5cf475f80c91fc003e529e66643b07b9265320f55b0664b",
+        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree" *
+                "/717c4da21c7ca5e0b6165738810945dab53265dc/L/LibGit2",
+        notes = "GPL-2 with a linking exception. The build takes this git revision and " *
+                "applies no patch.\n" *
+                "GitHub makes the archive of a revision, and does not promise the same " *
+                "bytes for ever:\n" *
+                "when the SHA-256 differs, `git archive` of the revision is the same " *
+                "source."),
+    SourceOffer("7-Zip", "26.02"; jll = "p7zip_jll", jll_version = "17.8.2+0",
+        url = "https://github.com/ip7z/7zip/releases/download/26.02/7z2602-src.tar.xz",
+        sha256 = "cf967c98bca02a4b8b16375f441825a8e141362f14be1969bbec8e1ca0bff9dd",
+        recipe = "https://github.com/JuliaPackaging/Yggdrasil/tree" *
+                "/6bcdfadfa59d4facd0fcc96e92a4c3790c73ee1a/P/p7zip/p7zip@17.8",
+        notes = "LGPL-2.1 with BSD parts. p7zip_jll 17.8.2 builds 7-Zip 26.02 of " *
+                "ip7z/7zip, the continuation\n" *
                 "of 7-Zip; the build applies no patch."),
-    SourceOffer("Julia", "1.13.0", "julia", "1.13.0",
-        "https://github.com/JuliaLang/julia/releases/download/v1.13.0/julia-1.13.0.tar.gz",
-        "5558c3328cd15c4ef32d1009ccda9aa43401e0436adf1177d1a34ecb0eb5f926";
+    SourceOffer("Julia", "1.13.0"; jll = "julia", jll_version = "1.13.0",
+        url = "https://github.com/JuliaLang/julia/releases/download/v1.13.0" *
+            "/julia-1.13.0.tar.gz",
+        sha256 = "5558c3328cd15c4ef32d1009ccda9aa43401e0436adf1177d1a34ecb0eb5f926",
         recipe = "https://github.com/JuliaLang/julia/tree/v1.13.0",
-        notes = "MIT, with the LGPL-2.1 part src/dl-cache.h in libjulia-internal. The SHA-256 is the one of\n" *
+        notes = "MIT, with the LGPL-2.1 part src/dl-cache.h in libjulia-internal. The " *
+                "SHA-256 is the one of\n" *
                 "julia-1.13.0.sha256 of the Julia project."),
 ]
 
@@ -260,11 +284,14 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
                                           kwargs...)
     # Before the archive, so that a JLL of another version than its offer stops
     # the build before anything is written.
-    sources = build_source_archive(context; name = name, offers = PROJECTURED_SOURCE_OFFERS)
-    build_distribution(context; name = name, bundle = bundle, source_archive = basename(sources),
+    sources = build_source_archive(context; name = name,
+                                   offers = PROJECTURED_SOURCE_OFFERS)
+    build_distribution(context; name = name, bundle = bundle,
+                       source_archive = basename(sources),
                        requirements = PROJECTURED_REQUIREMENTS,
                        licences = PROJECTURED_LICENCES, source = PROJECTURED_SOURCE,
-                       credits = PROJECTURED_CREDITS, extra_texts = PROJECTURED_EXTRA_TEXTS,
+                       credits = PROJECTURED_CREDITS,
+                       extra_texts = PROJECTURED_EXTRA_TEXTS,
                        expect = vcat(["share/projectured/font"], last.(PROJECTURED_ASSETS)),
                        check = check_projectured_copy)
 end
@@ -323,19 +350,23 @@ end
     build_projectured_package_release!(output; context, kwargs...) -> Vector
 
 Write the release copy of the packages of this repository into `output`, the
-folder that holds the repository of each package, `<Name>.jl`. The packages are served by `registry`,
-the General registry, and every version of the last release must be in it. The
+folder that holds the repository of each package, `<Name>.jl`. The packages are served by
+`registry`, the General registry, and every version of the last release must be in it. The
 other keywords go to [`build_package_release!`](@ref).
 """
 function build_projectured_package_release!(output::AbstractString;
-                                              context::BuildContext = make_projectured_build_context(),
-                                              registry::Union{AbstractString,Nothing} = "General",
+                                              context::BuildContext =
+                                                  make_projectured_build_context(),
+                                              registry::Union{AbstractString,Nothing} =
+                                                  "General",
                                               kwargs...)
-    build_package_release!(context; packages = collect_projectured_release_packages(context),
+    build_package_release!(context;
+                           packages = collect_projectured_release_packages(context),
                            output = output, assets = PROJECTURED_PACKAGE_ASSETS,
                            licences = PROJECTURED_LICENCES,
                            readme = _format_projectured_package_readme,
-                           julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry, kwargs...)
+                           julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry,
+                           kwargs...)
 end
 
 # The README of the repository of one released package, which is also its page

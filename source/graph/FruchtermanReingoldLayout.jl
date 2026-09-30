@@ -38,7 +38,8 @@ end
 FruchtermanReingoldLayout(; iterations::Integer = 300, spacing::Real = 20) =
     FruchtermanReingoldLayout(Int(iterations), Float64(spacing))
 
-get_supported_constraint_kinds(::FruchtermanReingoldLayout) = (:pin, :fixed_size, :cluster)
+get_supported_constraint_kinds(::FruchtermanReingoldLayout) =
+    (:pin, :fixed_size, :cluster)
 layout_engine_name(::FruchtermanReingoldLayout) = :fruchterman_reingold
 
 # The angle between two neighbours on a sunflower spiral, in radians.
@@ -117,7 +118,8 @@ function _make_layout_bodies(vertices, widths, heights, pins, clusters)
         id = objectid(vertices[i])
         cluster = get(clusters, id, nothing)
         if haskey(pins, id) || cluster === nothing
-            push!(bodies, _LayoutBody([i], [(0.0, 0.0)], haskey(pins, id), corner(i, (0.0, 0.0))))
+            push!(bodies, _LayoutBody([i], [(0.0, 0.0)], haskey(pins, id),
+                                      corner(i, (0.0, 0.0))))
             body_of[i] = length(bodies)
             continue
         end
@@ -144,7 +146,8 @@ function _place_on_spiral!(x, y, bodies, vertices, widths, heights, pins, k)
     centre = (0.0, 0.0)
     if !isempty(pins)
         pinned = [(p[1] + widths[i]/2, p[2] + heights[i]/2)
-                  for (i, v) in enumerate(vertices) for p in (get(pins, objectid(v), nothing),)
+                  for (i, v) in enumerate(vertices)
+                  for p in (get(pins, objectid(v), nothing),)
                   if p !== nothing]
         centre = (sum(first, pinned) / length(pinned), sum(last, pinned) / length(pinned))
     end
@@ -231,7 +234,8 @@ end
 
 # The centre of each vertex: its body plus its offset.
 function _place_members!(cx, cy, x, y, bodies)
-    for (b, body) in enumerate(bodies), (member, offset) in zip(body.members, body.offsets)
+    for (b, body) in enumerate(bodies),
+        (member, offset) in zip(body.members, body.offsets)
         cx[member] = x[b] + offset[1]
         cy[member] = y[b] + offset[2]
     end
@@ -296,10 +300,14 @@ end
 function _keep_bodies_inside_extent!(x, y, bodies, widths, heights, extent, border)
     for (b, body) in enumerate(bodies)
         body.fixed && continue
-        left = minimum(x[b] + o[1] - widths[i]/2 for (i, o) in zip(body.members, body.offsets))
-        right = maximum(x[b] + o[1] + widths[i]/2 for (i, o) in zip(body.members, body.offsets))
-        top = minimum(y[b] + o[2] - heights[i]/2 for (i, o) in zip(body.members, body.offsets))
-        bottom = maximum(y[b] + o[2] + heights[i]/2 for (i, o) in zip(body.members, body.offsets))
+        left = minimum(x[b] + o[1] - widths[i]/2
+                       for (i, o) in zip(body.members, body.offsets))
+        right = maximum(x[b] + o[1] + widths[i]/2
+                        for (i, o) in zip(body.members, body.offsets))
+        top = minimum(y[b] + o[2] - heights[i]/2
+                      for (i, o) in zip(body.members, body.offsets))
+        bottom = maximum(y[b] + o[2] + heights[i]/2
+                         for (i, o) in zip(body.members, body.offsets))
         # When a body is wider than the room, its left side wins.
         shift_x = min(0.0, extent[1] - border - right)
         left + shift_x < border && (shift_x = border - left)

@@ -174,9 +174,11 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
             Sys.islinux() || return nothing
             signals = zeros(UInt8, 128)             # a `sigset_t`
             ccall(:sigemptyset, Cint, (Ptr{UInt8},), signals)
-            ccall(:sigaddset, Cint, (Ptr{UInt8}, Cint), signals, 15)                   # SIGTERM
-            ccall(:signal, Ptr{Cvoid}, (Cint, Ptr{Cvoid}), 15, C_NULL)                 # SIG_DFL
-            ccall(:pthread_sigmask, Cint, (Cint, Ptr{UInt8}, Ptr{Cvoid}), 1, signals, C_NULL)  # SIG_UNBLOCK
+            # 15 is SIGTERM, C_NULL is SIG_DFL, and 1 is SIG_UNBLOCK.
+            ccall(:sigaddset, Cint, (Ptr{UInt8}, Cint), signals, 15)
+            ccall(:signal, Ptr{Cvoid}, (Cint, Ptr{Cvoid}), 15, C_NULL)
+            ccall(:pthread_sigmask, Cint, (Cint, Ptr{UInt8}, Ptr{Cvoid}), 1, signals,
+                  C_NULL)
             nothing
         end
         """)
@@ -252,13 +254,15 @@ struct StandIn
 end
 
 StandIn(name::AbstractString, uuid::AbstractString; keeps = Pair{String,String}[]) =
-    StandIn(String(name), String(uuid), Pair{String,String}[String(k) => String(v) for (k, v) in keeps])
+    StandIn(String(name), String(uuid),
+            Pair{String,String}[String(k) => String(v) for (k, v) in keeps])
 
 # A package in place of a JLL: the same name and uuid, the dependencies it keeps,
 # and the three bindings that a user of a JLL reads, all empty.
 function _write_stand_in_package(directory, stand_in::StandIn)
     mkpath(joinpath(directory, "src"))
-    project = Dict{String,Any}("name" => stand_in.name, "uuid" => stand_in.uuid, "version" => "0.0.1")
+    project = Dict{String,Any}("name" => stand_in.name, "uuid" => stand_in.uuid,
+                               "version" => "0.0.1")
     isempty(stand_in.keeps) || (project["deps"] = Dict{String,Any}(stand_in.keeps))
     write_if_changed(joinpath(directory, "Project.toml"),
                      sprint(io -> TOML.print(io, project; sorted = true)))

@@ -63,7 +63,8 @@ The engine to use for a graph of this size when nothing is installed:
 
 `orthogonal` is accepted and ignored, because it routes edges as straight lines.
 """
-make_pure_julia_layout_engine(::Integer; orthogonal::Bool = false) = FruchtermanReingoldLayout()
+make_pure_julia_layout_engine(::Integer; orthogonal::Bool = false) =
+    FruchtermanReingoldLayout()
 
 """
     resolve_layout_engine(engine[, vertex_count]) -> GraphLayoutEngine

@@ -32,7 +32,8 @@ is the order in which a registry must take them. `status` is `:new`,
   is already there holds the last release of its package, and one that is a git
   repository must have no uncommitted change: the last release is what its last
   commit holds. The build changes every file of a repository but `.git`.
-- `assets` — `"<package>" => ["<folder of the repository>" => "<folder in the package>", …]`,
+- `assets` —
+  `"<package>" => ["<folder of the repository>" => "<folder in the package>", …]`,
   the folders that a package reads while it runs.
 - `licences` — files of `context.root` that go into every package.
 - `readme` — `nothing`, or a function `readme(name)` whose text goes into the
@@ -69,25 +70,28 @@ function build_package_release!(context::BuildContext; packages,
                                   assets = Dict{String,Vector{Pair{String,String}}}(),
                                   licences = String[],
                                   readme = nothing,
-                                  manifest::AbstractString = joinpath(context.root, "environment",
-                                                                      "all", "Manifest.toml"),
+                                  manifest::AbstractString = joinpath(context.root,
+                                      "environment", "all", "Manifest.toml"),
                                   julia_compat::AbstractString = "1.11",
                                   registry::Union{AbstractString,Nothing} = nothing)
     names = String[String(name) for name in packages]
-    projects = Dict(name => TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))
+    projects = Dict(name => TOML.parsefile(joinpath(get_package_directory(context, name),
+                                                    "Project.toml"))
                     for name in names)
     _check_release_is_closed(context, projects)
     for licence in licences
         isfile(joinpath(context.root, licence)) ||
-            error("build_package_release!: no licence file at $(joinpath(context.root, licence))")
+            error("build_package_release!: no licence file at " *
+                  "$(joinpath(context.root, licence))")
     end
     isfile(manifest) ||
-        error("build_package_release!: no manifest at $manifest, so no package of another " *
-              "registry would get a [compat] bound")
+        error("build_package_release!: no manifest at $manifest, so no package of " *
+              "another registry would get a [compat] bound")
     registered = _read_registered_versions(manifest)
     output = abspath(String(output))
     mkpath(output)
-    foreach(name -> _check_release_is_committed(_get_release_repository(output, name)), names)
+    foreach(name -> _check_release_is_committed(_get_release_repository(output, name)),
+            names)
     registry === nothing || _check_release_is_registered(output, names, registry)
     order = _compute_dependency_order(projects)
     staging = mktempdir(get_staging_root())
@@ -96,22 +100,27 @@ function build_package_release!(context::BuildContext; packages,
         for name in order
             staged = joinpath(staging, name)
             _write_package_content(context, name, staged;
-                                   assets = get(assets, name, Pair{String,String}[]), licences)
+                                   assets = get(assets, name, Pair{String,String}[]),
+                                   licences)
             readme === nothing || write(joinpath(staged, "README.md"), readme(name))
             outside = collect_outside_paths(staged)
             isempty(outside) ||
-                error("build_package_release!: $name reads outside its folder, which an installed " *
+                error("build_package_release!: $name reads outside its folder, which " *
+                      "an installed " *
                       "package can not do:\n" *
-                      join(["  $(relpath(path.file, staged)):$(path.line) → $(path.target)"
+                      join(["  $(relpath(path.file, staged)):$(path.line) → " *
+                            "$(path.target)"
                             for path in outside], "\n"))
         end
         versions = Dict{String,VersionNumber}()
         for name in order
-            staged, released = joinpath(staging, name), _get_release_repository(output, name)
+            staged, released = joinpath(staging, name),
+                               _get_release_repository(output, name)
             status, version = _compute_release_version(staged, released, projects[name])
             versions[name] = version
             status === :unchanged ||
-                _write_release_project(joinpath(staged, "Project.toml"), projects[name], version;
+                _write_release_project(joinpath(staged, "Project.toml"), projects[name],
+                                       version;
                                        versions, registered, julia_compat)
             push!(results, (name = name, status = status, version = version))
         end
@@ -164,7 +173,8 @@ function _collect_outside_paths!(found, expression, folder, file, line)
     if expression.head === :macrocall
         name = _get_macro_name(expression)
         name === Symbol("@__DIR__") && return report("@__DIR__ outside joinpath")
-        name === Symbol("@__FILE__") && return report("@__FILE__ outside joinpath(dirname(…))")
+        name === Symbol("@__FILE__") &&
+            return report("@__FILE__ outside joinpath(dirname(…))")
     end
     if expression.head === :call && !isempty(expression.args)
         callee, arguments = _get_callee_name(expression.args[1]), expression.args[2:end]
@@ -172,17 +182,20 @@ function _collect_outside_paths!(found, expression, folder, file, line)
         if callee === :include && !isempty(arguments)
             literals = _get_literal_path(last(arguments))
             literals === nothing ||
-                _check_release_path!(found, folder, file, line[], joinpath(dirname(file), literals...))
+                _check_release_path!(found, folder, file, line[],
+                                     joinpath(dirname(file), literals...))
             foreach(walk, arguments)
             return found
         end
-        if callee === :joinpath && !isempty(arguments) && _is_source_directory(arguments[1])
+        if callee === :joinpath && !isempty(arguments) &&
+           _is_source_directory(arguments[1])
             literals = String[]
             for argument in arguments[2:end]
                 argument isa String || break
                 push!(literals, argument)
             end
-            _check_release_path!(found, folder, file, line[], joinpath(dirname(file), literals...))
+            _check_release_path!(found, folder, file, line[],
+                                 joinpath(dirname(file), literals...))
             foreach(walk, arguments[2:end])
             return found
         end
@@ -194,7 +207,8 @@ end
 # `include`, `Base.include` → `:include`; anything else that is not a name → `nothing`.
 _get_callee_name(callee::Symbol) = callee
 _get_callee_name(callee::Expr) =
-    callee.head === :. && callee.args[end] isa QuoteNode ? callee.args[end].value : nothing
+    callee.head === :. && callee.args[end] isa QuoteNode ?
+        callee.args[end].value : nothing
 _get_callee_name(_) = nothing
 
 # `@__DIR__` and `Base.@__DIR__` both answer `Symbol("@__DIR__")`.
@@ -203,7 +217,8 @@ _get_macro_name(expression::Expr) = _get_callee_name(expression.args[1])
 # `@__DIR__`, or `dirname(@__FILE__)`: the folder of the file itself.
 function _is_source_directory(expression)
     expression isa Expr || return false
-    expression.head === :macrocall && return _get_macro_name(expression) === Symbol("@__DIR__")
+    expression.head === :macrocall &&
+        return _get_macro_name(expression) === Symbol("@__DIR__")
     expression.head === :call && length(expression.args) == 2 &&
         _get_callee_name(expression.args[1]) === :dirname &&
         expression.args[2] isa Expr && expression.args[2].head === :macrocall &&
@@ -223,8 +238,10 @@ end
 
 function _check_release_path!(found, folder, file, line, target)
     target = normpath(target)
-    inside = target == normpath(folder * "/") || startswith(target, normpath(folder * "/"))
-    (inside && ispath(target)) || push!(found, (file = file, line = line, target = target))
+    inside = target == normpath(folder * "/") ||
+             startswith(target, normpath(folder * "/"))
+    (inside && ispath(target)) ||
+        push!(found, (file = file, line = line, target = target))
     found
 end
 
@@ -232,13 +249,15 @@ end
 # released too.
 function _check_release_is_closed(context::BuildContext, projects)
     missing_packages = String[]
-    for (name, project) in projects, dependency in keys(get(project, "deps", Dict{String,Any}()))
+    for (name, project) in projects,
+        dependency in keys(get(project, "deps", Dict{String,Any}()))
         has_package_directory(context, dependency) && !haskey(projects, dependency) &&
             push!(missing_packages, "$name → $dependency")
     end
     isempty(missing_packages) ||
-        error("build_package_release!: these packages depend on a package that the release " *
-              "leaves out:\n  " * join(sort!(missing_packages), "\n  "))
+        error("build_package_release!: these packages depend on a package that the " *
+              "release leaves out:\n  " *
+              join(sort!(missing_packages), "\n  "))
 end
 
 # The repository of one package: `<Name>.jl`, the name that a registry expects.
@@ -251,7 +270,8 @@ function _check_release_is_committed(repository)
     changes = read(`git -C $repository status --porcelain`, String)
     isempty(changes) ||
         error("build_package_release!: $repository has changes that are not committed. " *
-              "Commit them, and register the version they hold, before the next release:\n" *
+              "Commit them, and register the version they hold, before the next " *
+              "release:\n" *
               changes)
     nothing
 end
@@ -269,21 +289,24 @@ end
 
 # Every package that the last release holds has its version in `registry`.
 function _check_release_is_registered(output, names, registry::AbstractString)
-    released = filter(name -> isfile(joinpath(_get_release_repository(output, name), "Project.toml")),
+    released = filter(name -> isfile(joinpath(_get_release_repository(output, name),
+                                              "Project.toml")),
                       names)
     isempty(released) && return nothing
     instance = _find_registry(registry)
     missing_versions = String[]
     for name in released
-        project = TOML.parsefile(joinpath(_get_release_repository(output, name), "Project.toml"))
+        project = TOML.parsefile(joinpath(_get_release_repository(output, name),
+                                          "Project.toml"))
         entry = get(instance.pkgs, Base.UUID(project["uuid"]), nothing)
         version = VersionNumber(project["version"])
         (entry !== nothing && version in _collect_registered_versions(instance, entry)) ||
             push!(missing_versions, "$name $version")
     end
     isempty(missing_versions) ||
-        error("build_package_release!: the last release holds versions that $registry does " *
-              "not, and the next version of each would skip one. Register them first:\n  " *
+        error("build_package_release!: the last release holds versions that $registry " *
+              "does not, and the next version of each would skip one. Register them " *
+              "first:\n  " *
               join(missing_versions, "\n  "))
     nothing
 end
@@ -294,8 +317,8 @@ function _find_registry(registry::AbstractString)
     for instance in Pkg.Registry.reachable_registries()
         instance.name == registry && return instance
     end
-    error("build_package_release!: Pkg reaches no registry called $registry, and no folder " *
-          "has that path")
+    error("build_package_release!: Pkg reaches no registry called $registry, and no " *
+          "folder has that path")
 end
 
 # `Pkg.Registry.registry_info` takes the registry too from Julia 1.13 on.
@@ -326,7 +349,8 @@ function _compute_release_version(staged, released, project)
         return :new, VersionNumber(project["version"])
     previous = TOML.parsefile(joinpath(released, "Project.toml"))
     version = VersionNumber(previous["version"])
-    _compute_content_digest(staged, project) == _compute_content_digest(released, previous) &&
+    _compute_content_digest(staged, project) ==
+        _compute_content_digest(released, previous) &&
         return :unchanged, version
     :changed, VersionNumber(version.major, version.minor, version.patch + 1)
 end
@@ -337,11 +361,13 @@ function _collect_tracked_files(context::BuildContext, folder::AbstractString)
     listing = read(`git -C $(context.root) ls-files -z -- $folder`, String)
     tracked = filter(!isempty, split(listing, '\0'))
     isempty(tracked) &&
-        error("build_package_release!: git tracks no file under $(joinpath(context.root, folder))")
+        error("build_package_release!: git tracks no file under " *
+              "$(joinpath(context.root, folder))")
     String.(tracked)
 end
 
-function _copy_tracked_files(context::BuildContext, from::AbstractString, to::AbstractString)
+function _copy_tracked_files(context::BuildContext, from::AbstractString,
+                             to::AbstractString)
     for path in _collect_tracked_files(context, from)
         destination = joinpath(to, relpath(path, from))
         mkpath(dirname(destination))
@@ -351,7 +377,8 @@ end
 
 # The files of one package folder. Its `Project.toml` is the one of the
 # repository until `_write_release_project` writes the released one.
-function _write_package_content(context::BuildContext, name, destination; assets, licences)
+function _write_package_content(context::BuildContext, name, destination;
+                                assets, licences)
     package = relpath(get_package_directory(context, name), context.root)
     mkpath(destination)
     for path in _collect_tracked_files(context, joinpath(package, "src"))
@@ -359,11 +386,13 @@ function _write_package_content(context::BuildContext, name, destination; assets
         for match in eachmatch(r"include\(\"\.\./\.\./\.\./source/([A-Za-z0-9_]+)/", text)
             slice = match.captures[1]
             target = joinpath(destination, "source", slice)
-            isdir(target) || _copy_tracked_files(context, joinpath("source", slice), target)
+            isdir(target) ||
+                _copy_tracked_files(context, joinpath("source", slice), target)
         end
         target = joinpath(destination, relpath(path, package))
         mkpath(dirname(target))
-        write(target, replace(text, "include(\"../../../source/" => "include(\"../source/"))
+        write(target, replace(text,
+                              "include(\"../../../source/" => "include(\"../source/"))
     end
     for (from, to) in assets
         _copy_tracked_files(context, from, joinpath(destination, to))
@@ -371,7 +400,8 @@ function _write_package_content(context::BuildContext, name, destination; assets
     for licence in licences
         cp(joinpath(context.root, licence), joinpath(destination, basename(licence)))
     end
-    cp(joinpath(context.root, package, "Project.toml"), joinpath(destination, "Project.toml"))
+    cp(joinpath(context.root, package, "Project.toml"),
+       joinpath(destination, "Project.toml"))
 end
 
 # A digest of what a user of the package gets: every file but those of `.git`,
@@ -382,7 +412,8 @@ function _compute_content_digest(folder, project)
     for (directory, _, files) in walkdir(folder), file in sort(files)
         path = joinpath(directory, file)
         relative = relpath(path, folder)
-        (relative == "Project.toml" || startswith(relative, ".git" * Base.Filesystem.path_separator)) &&
+        (relative == "Project.toml" ||
+         startswith(relative, ".git" * Base.Filesystem.path_separator)) &&
             continue
         bytes = read(path)
         write(content, relative, "\n", string(length(bytes)), "\n", bytes)
@@ -411,8 +442,10 @@ end
 const _PROJECT_KEY_ORDER = Dict("name" => 1, "uuid" => 2, "version" => 3, "authors" => 4,
                                 "deps" => 5, "compat" => 6)
 
-function _write_release_project(path, project, version; versions, registered, julia_compat)
-    released = Dict{String,Any}(key => value for (key, value) in project if key != "sources")
+function _write_release_project(path, project, version;
+                                versions, registered, julia_compat)
+    released = Dict{String,Any}(key => value for (key, value) in project
+                                if key != "sources")
     released["version"] = string(version)
     compat = Dict{String,Any}(get(project, "compat", Dict{String,Any}()))
     for dependency in keys(get(project, "deps", Dict{String,Any}()))
@@ -425,6 +458,7 @@ function _write_release_project(path, project, version; versions, registered, ju
     haskey(compat, "julia") || (compat["julia"] = String(julia_compat))
     released["compat"] = compat
     open(path, "w") do io
-        TOML.print(io, released; sorted = true, by = key -> (get(_PROJECT_KEY_ORDER, key, 99), key))
+        TOML.print(io, released; sorted = true,
+                   by = key -> (get(_PROJECT_KEY_ORDER, key, 99), key))
     end
 end
