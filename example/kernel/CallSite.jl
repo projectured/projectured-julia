@@ -88,7 +88,7 @@ function _collect_source_call_sites!(found::Vector{CallSite}, source::AbstractSt
         return found
     end
     lines = split(source, '\n')
-    function visit(node, parent_kind, index, caller)
+    function visit(node, parent_kind; index, caller)
         _JS.is_leaf(node) && return
         kind = _JS.kind(node)
         signature = _get_definition_signature(node)
@@ -106,10 +106,10 @@ function _collect_source_call_sites!(found::Vector{CallSite}, source::AbstractSt
             end
         end
         for (position, child) in enumerate(children)
-            visit(child, kind, position, caller)
+            visit(child, kind; index = position, caller)
         end
     end
-    visit(tree, _JS.K"toplevel", 0, "")
+    visit(tree, _JS.K"toplevel"; index = 0, caller = "")
     found
 end
 
