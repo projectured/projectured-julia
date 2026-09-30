@@ -36,18 +36,8 @@ knows whether the chart is drawn horizontally or vertically.
 """
 module SequenceChartModule
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..EventModule
-using ..GestureModule
-using ..GraphicsModule
-using ..IoMapModule
-using ..OperationModule
-using ..PlotModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..StyleModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent

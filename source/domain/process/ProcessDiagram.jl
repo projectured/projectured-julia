@@ -20,10 +20,8 @@
 # ovals a flowchart draws. They are **picture, not semantics** — the document
 # tree has no node behind them, which is why they live here rather than in
 # `ProcessModule`, and why they are opted out of the insertion candidates.
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..DomainModule
+using ..KernelModule
+using ..PlatformModule
 
 
 

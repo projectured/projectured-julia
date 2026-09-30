@@ -51,10 +51,8 @@
 # that is what makes the threading model safe (an embedder's own refresh
 # hook is the precedent). Pause latency is one refresh, which buys a
 # design with no locks and no races.
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..DomainModule
+using ..KernelModule
+using ..PlatformModule
 
 
 

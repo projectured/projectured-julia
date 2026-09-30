@@ -435,6 +435,13 @@ exports. Such a definition reads as an extension and is a new function.
 function shadowed_extension_violations(root::AbstractString)
     files_of = _module_files(root)
     exports = Dict(name => _exported(root, files) for (name, files) in files_of)
+    # An aggregate exports every name of the modules of its group, which it
+    # gathers with a loop that this guard can not read.
+    for (aggregate, group) in (("KernelModule", "kernel"), ("PlatformModule", "platform"))
+        members = [m for (m, files) in files_of if m != aggregate &&
+                   all(f -> startswith(f, joinpath("source", group) * "/"), files)]
+        exports[aggregate] = union(Set{String}(), (exports[m] for m in members)...)
+    end
     out = String[]
     for (name, files) in sort(collect(files_of), by = first)
         imported = _imported(root, files)

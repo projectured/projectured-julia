@@ -912,6 +912,8 @@ function check_slice_edges(src_root, top_files, allowed; below_files = String[],
         for file in top_files
             append!(entries, walk_includes(file, src_root)[2])
         end
+        # A file at the root of `src_root` is no slice: the aggregate of the group.
+        entries = filter(entry -> !isempty(layer_of(entry[1])), entries)
         @test sort(unique(layer_of(entry[1]) for entry in entries)) ==
               sort(collect(keys(allowed)))
         below = Set{Symbol}(entry[2] for file in below_files

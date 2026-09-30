@@ -24,22 +24,8 @@ rather than this file guessing.
 """
 module ChartModule
 
-using ..CellModule
-using ..CellStructModule
-using ..CollectionModule
-using ..DocumentModule
-using ..EventModule
-using ..FrameStatisticsModule
-using ..GestureModule
-using ..GraphicsModule
-using ..IoMapModule
-using ..NaturalModule
-using ..OperationModule
-using ..PlotModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..StyleModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

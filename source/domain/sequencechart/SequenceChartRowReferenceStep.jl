@@ -16,9 +16,7 @@
 # `match_reference_step` seams. What a row *evaluates* to depends on which table
 # holds it, so the sequence chart domain supplies `evaluate_reference_step` rather
 # than this file guessing.
-using ..CellModule
-using ..CellStructModule
-using ..ReferenceModule
+using ..KernelModule
 
 
 """

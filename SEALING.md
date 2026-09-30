@@ -205,3 +205,5 @@ include order — the source files state their dependencies, never their index.
 - **Layer 23 — playback** (`playback/`)
   - ⬜ `playback/PlaybackModule.jl`
   - ⬜ `playback/Playback.jl`
+- **The aggregate** (the root of `source/kernel/`, in no layer; included last)
+  - ⬜ `KernelModule.jl`

@@ -40,24 +40,10 @@ specified in `documentation/package/domain/process/process.md`.
 """
 module ProcessModule
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..DomainModule
-using ..EventModule
-using ..GestureBindingModule
 using ..GraphModule
-using ..IoMapModule
 using ..JuliaModule
-using ..NaturalModule
-using ..OperationModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..SelectionModule
-using ..StyleModule
-using ..SyntaxModule
-using ..TextModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward

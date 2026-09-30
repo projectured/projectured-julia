@@ -15,20 +15,8 @@ module DataFramesModule
 
 using DataFrames
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..EditorModule
-using ..EventModule
-using ..GestureBindingModule
-using ..IoMapModule
-using ..LayoutModule
-using ..OperationModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..StyleModule
-using ..WidgetModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent

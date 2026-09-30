@@ -18,10 +18,7 @@ implement the methods (e.g. the `RawDatabaseResult` target).
 """
 module DatabaseModule
 
-using ..CellModule
-using ..DocumentModule
-using ..OperationModule
-using ..ReferenceModule
+using ..KernelModule
 
 export DatabaseDocument, UpdateDatabaseCellOperation, InsertDatabaseRowOperation
 export DatabaseInstanceDocument

@@ -28,12 +28,8 @@ written.
 """
 module PdfBackendModule
 
-using ..CellModule
-using ..GraphicsModule
-using ..IoMapModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..StyleModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document

@@ -15,26 +15,11 @@ A slot that can be absent holds `nothing` when it is absent and a
 """
 module MathModule
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..EventModule
-using ..EventModule
-using ..GestureModule
-using ..GraphicsModule
-using ..IoMapModule
-using ..NaturalModule
-using ..OperationModule
-using ..PrimitiveModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..SerializationModule
+using ..KernelModule
+using ..PlatformModule
 import ..SerializationModule: get_file_domain, is_file_domain_node, parse_file_content, emit_text
-using ..ReferenceModule
-using ..SelectionModule
-using ..StyleModule
-using ..SyntaxModule
-using ..TextModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

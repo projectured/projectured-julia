@@ -28,15 +28,10 @@
 # data, not navigable structure, and per-row cells would cost far more than they
 # buy. Reassigning a column is what repaints, which is also how a live producer
 # feeds a growing chart.
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..OperationModule
-using ..SelectionModule
-using ..DomainModule
+using ..KernelModule
+using ..PlatformModule
 
-using ..EventModule
-using ..GestureBindingModule
+using ..KernelModule
 
 
 

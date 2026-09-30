@@ -25,6 +25,8 @@ const StyleModule = ProjecturedPlatform.StyleModule
 const StyleModule = ProjecturedPlatform.StyleModule
 const StyleModule = ProjecturedPlatform.StyleModule
 
+const KernelModule = ProjecturedKernel.KernelModule
+const PlatformModule = ProjecturedPlatform.PlatformModule
 include("../../../source/backend/pdf/PdfBackendModule.jl")
 
 end # module ProjecturedPdf

@@ -36,11 +36,10 @@ itself does not resolve the selection or emit a reverse-video attribute).
 """
 module ConsoleBackendModule
 
-using ..BackendModule
+using ..KernelModule
 import ..EditorModule: get_backend_name, get_backend_output
-using ..EventModule
-using ..StyleModule
-using ..TextModule
+using ..KernelModule
+using ..PlatformModule
 
 export ConsoleBackend, render_console
 

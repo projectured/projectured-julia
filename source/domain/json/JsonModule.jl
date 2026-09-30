@@ -22,23 +22,8 @@ that starts at the syntax rung.
 """
 module JsonModule
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..DomainModule
-using ..EventModule
-using ..GestureBindingModule
-using ..NaturalModule
-using ..OperationModule
-using ..PrimitiveModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..SelectionModule
-using ..SerializationModule
-using ..StyleModule
-using ..SyntaxModule
-using ..TextModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..FileFormatModule: make_document_seed

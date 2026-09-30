@@ -48,5 +48,6 @@ include("../../../source/kernel/agent/AgentModule.jl")               # layer 20 
 include("../../../source/kernel/feed/FeedModule.jl")                 # layer 21 — the registered inflows of an editor
 include("../../../source/kernel/editor/EditorModule.jl")             # layer 22 — the read-eval-print loop
 include("../../../source/kernel/playback/PlaybackModule.jl")         # layer 23 — scripted live playback
+include("../../../source/kernel/KernelModule.jl")                    # every module above, in one
 
 end # module ProjecturedKernel

@@ -16,14 +16,8 @@
 # - **XY** (`ChartAxis` on x) carries `ChartLineSeries`, `ChartScatterSeries`,
 #   `ChartHistogramSeries` and `ChartStripSeries`, which may be mixed on one chart.
 # - **Category** (`ChartCategoryAxis` on x) carries `ChartBarSeries`.
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
-using ..OperationModule
-using ..SelectionModule
-using ..EventModule
-using ..GestureBindingModule
-using ..DomainModule
+using ..KernelModule
+using ..PlatformModule
 
 
 

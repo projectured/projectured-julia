@@ -1176,6 +1176,16 @@ add the methods.
   others. The list is short by construction, so a reader sees at the header
   which contracts this code implements.
 
+**Above the platform, two aggregates stand for their groups.** A domain, a
+backend or an adapter writes `using ..KernelModule` and `using ..PlatformModule`
+in place of a bare `using` for each module of the kernel and of the platform:
+each aggregate exports every module of its group and every name those modules
+export. An extension still imports its names from the module that owns them,
+`import ..SyntaxModule: print_document`, so the header still shows which
+contracts a file implements. The kernel and the platform themselves never use
+the aggregates: each of their modules names the modules it uses, because their
+layering guard and the table of the edges between the slices read those lines.
+
 A definition may qualify instead of import: `XxxModule.f(…) = …`. Both reach the
 owner's generic. Qualification is the better form where the extension is rare or
 the file is long, and the only form a macro can emit, by interpolating the

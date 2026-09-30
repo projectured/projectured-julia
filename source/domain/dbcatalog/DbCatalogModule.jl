@@ -8,18 +8,9 @@ No global state — constructors are plain wrappers with no side effects.
 """
 module DbCatalogModule
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..IoMapModule
-using ..OperationModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
+using ..KernelModule
+using ..PlatformModule
 using ..SqlModule
-using ..StyleModule
-using ..SyntaxModule
-using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

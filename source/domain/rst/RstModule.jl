@@ -26,24 +26,8 @@ string too: the set of roles is open (a document defines its own with
 """
 module RstModule
 
-using ..BackendModule
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..IntentModule
-using ..IoMapModule
-using ..LayoutModule
-using ..NaturalModule
-using ..OperationModule
-using ..PrimitiveModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..SerializationModule
-using ..StyleModule
-using ..SyntaxModule
-using ..TextModule
-using ..WidgetModule
+using ..KernelModule
+using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!, set_cell_value!

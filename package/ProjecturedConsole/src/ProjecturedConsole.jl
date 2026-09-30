@@ -22,6 +22,8 @@ const StyleModule = ProjecturedPlatform.StyleModule
 const StyleModule = ProjecturedPlatform.StyleModule
 const TextModule = ProjecturedPlatform.TextModule
 
+const KernelModule = ProjecturedKernel.KernelModule
+const PlatformModule = ProjecturedPlatform.PlatformModule
 include("../../../source/backend/console/ConsoleBackendModule.jl")
 
 end # module ProjecturedConsole

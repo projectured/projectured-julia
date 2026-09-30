@@ -8,25 +8,10 @@ environment; other formulas cite each other by identity.
 """
 module FormulaModule
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..IoMapModule
 using ..JuliaModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..SelectionModule
-using ..StyleModule
-using ..SyntaxModule
-using ..TextModule
-using ..NaturalModule
-using ..SerializationModule
+using ..KernelModule
 using ..MathModule
-using ..PrimitiveModule
-using ..LayoutModule
-using ..WidgetModule
-using ..ProjectionAlgebraModule
+using ..PlatformModule
 import ..SerializationModule: pred_arguments, make_pred_document
 
 # Imported to extend: this module adds a method to each of these.

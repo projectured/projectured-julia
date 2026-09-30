@@ -20,6 +20,8 @@ for _src in _SOURCES
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
         (_m isa Module && _m !== _src && _reexport(_src, _m)) || continue
+        # An aggregate repeats the modules and the names that this loop binds.
+        nameof(_m) in (:KernelModule, :PlatformModule) && continue
 
         # 1) alias the submodule so `Projectured.XxxModule.foo` keeps resolving
         Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))

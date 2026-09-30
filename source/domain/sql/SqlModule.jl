@@ -7,20 +7,8 @@ against a `DatabaseInstance`.
 """
 module SqlModule
 
-using ..CellModule
-using ..CollectionModule
-using ..DocumentModule
-using ..DomainModule
-using ..IoMapModule
-using ..NaturalModule
-using ..OperationModule
-using ..ProjectionAlgebraModule
-using ..ProjectionModule
-using ..ReferenceModule
-using ..SerializationModule
-using ..StyleModule
-using ..SyntaxModule
-using ..TextModule
+using ..KernelModule
+using ..PlatformModule
 using ..ReferenceModule   # `@document` injects the implicit `selection::Union{Nothing, Reference}` field
 
 # Imported to extend: this module adds a method to each of these.

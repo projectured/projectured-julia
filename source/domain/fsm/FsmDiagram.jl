@@ -22,9 +22,8 @@
 # re-stroked edge. Both are drawn from these fields alone, never from a state's
 # rendered content, so a transition arriving mid-run repaints the overlay without
 # re-running the layout engine.
-using ..DocumentModule
-using ..CollectionModule
-using ..ReferenceModule
+using ..KernelModule
+using ..PlatformModule
 
 
 

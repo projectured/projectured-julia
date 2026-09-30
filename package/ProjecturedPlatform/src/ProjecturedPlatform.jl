@@ -62,6 +62,7 @@ include("../../../source/platform/log/MessageLogModule.jl")
 include("../../../source/platform/statistics/FrameStatisticsModule.jl")
 include("../../../source/platform/shell/ShellModule.jl")
 include("../../../source/platform/undo/UndoModule.jl")
+include("../../../source/platform/PlatformModule.jl")
 
 # The rungs of the natural notation that the text gives, and the fallback of the
 # syntax.

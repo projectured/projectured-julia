@@ -82,6 +82,8 @@ for _src in _SOURCES
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
         (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        # An aggregate repeats the modules and the names that this loop binds.
+        nameof(_m) in (:KernelModule, :PlatformModule) && continue
         Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
         _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
         isempty(_syms) && continue
