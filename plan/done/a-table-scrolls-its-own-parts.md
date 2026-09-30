@@ -1,9 +1,11 @@
 # A table scrolls its own parts
 
-> **Kind:** plan · **Status:** pending, 2026-09-29. Nothing is implemented. The
-> owner accepted the plan with the recommendations of §5. · **Stands on:**
+> **Kind:** plan · **Status:** done, 2026-09-30, on the branch `data-frame`, which
+> is not on `main`. Every phase is implemented, and §4 records what the
+> implementation found. The owner accepted the plan with the recommendations of
+> §5. · **Stands on:**
 > [widget.md](../../documentation/package/widget/widget.md),
-> [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
+> [view-and-edit-a-data-frame.md](../pending/view-and-edit-a-data-frame.md),
 > [widget-sizing-rules.md](../done/widget-sizing-rules.md),
 > [one-table-widget.md](../done/one-table-widget.md)
 
@@ -17,7 +19,7 @@ them.
 ## 1. The request
 
 The owner, 2026-09-29, while phase 2 of
-[view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) needed the row at
+[view-and-edit-a-data-frame.md](../pending/view-and-edit-a-data-frame.md) needed the row at
 the top of a pane for a scroll bar and for a relocation of the rows:
 
 - "the graphics image of the row already has a height, no?"
@@ -528,10 +530,10 @@ plan.
     example.
   - The comments of `Sdl.jl`, `DirtyRectTest` and `is_infinite_canvas`, and
     sdl.md, name the regions of a table where they named a frozen pane.
-- [ ] **6. The callers.** The data frame view drops its pane, shares the offset
+- [x] **6. The callers.** The data frame view drops its pane, shares the offset
   of the table, and gets lazy columns. `omnet-julia` builds, and
   `WatchExampleTest` and `IdeSelectAndPasteTest` pass there (P7).
-  - [x] **6a. The data frame view** (this commit). It dropped its pane and
+  - [x] **6a. The data frame view** (`1dd1a1459`). It dropped its pane and
     shares its offset in 2a. A frame of more than 64 columns now draws its
     columns as a list from the column `column_anchor`, a new field of the view:
     each column is 120 pixels wide and at least as wide as its header, and each
@@ -546,9 +548,17 @@ plan.
     as it is far from the head: at most about 200 in each direction, because
     the table moves its heads there. A test that walks 400 columns of 100 rows
     took six minutes; the test of the wide frame has three rows.
-  - [ ] **6b. `omnet-julia`.** Its four tables in a `WidgetScrollPane` work
+  - [x] **6b. `omnet-julia`.** Its four tables in a `WidgetScrollPane` work
     as they are: the pane gives the table its size, and the table fills it
-    and scrolls. The check of its build and tests runs.
+    and scrolls, so they keep their pane and this changes P7 for them. The
+    check (2026-09-30, `omnet-julia` at `ecfbb8a2`): a scratch environment of
+    its `environment/all` with the projectured packages at the worktree
+    builds, and the watch tests of `WatchExampleTest` and
+    `test_select_and_paste` give 377 pass, 3 fail and 2 errors, the same as
+    the same environment at `main`: `test_adaptive_search` (2 errors),
+    `test_topology_card` (2 fail) and `test_sim_control_panel` (1 fail).
+    `test_parallel_sim_dashboard_panel` hangs at the stop of its parallel
+    engine with two threads, and draws no table; the check leaves it out.
 
 The substrate suite must stay at its baseline: 3 fail and 2 error in the split
 pane drag, and 2 errors in `test_anchor_point()`, as on `main`.
