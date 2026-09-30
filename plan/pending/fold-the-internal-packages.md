@@ -91,11 +91,17 @@ package folder of the release.
 | --- | --- |
 | `source/kernel/` | kernel |
 | `source/platform/` (34) | collection, component, serialization, style, domain, focus, plot, primitive, projection, versioning, dragging, graphics, layout, screen, text, clipboard, tooltip, widget, natural, pane, reflection, inspector, syntax, fault, fileformat, gesturehelp, gesturelog, assistant, conversation, shell, help, log, statistics, undo |
-| `source/domain/` (19) | json, yaml, xml, markdown, rst, book, math, julia, sql, database, filesystem, graph, chart, sequencechart, dbcatalog, formula, fsm, process, dataframes |
+| `source/domain/` (18) | json, yaml, xml, markdown, rst, book, math, julia, sql, database, filesystem, graph, chart, sequencechart, dbcatalog, formula, fsm, process |
 | `source/backend/` (5) | console, pdf, sdl, web, video |
-| `source/adapter/` (7) | anthropic, ollama, openrouter, mcp, odbc, tulip, adaptagrams |
+| `source/adapter/` (8) | anthropic, ollama, openrouter, mcp, odbc, tulip, adaptagrams, dataframes |
 | `source/tool/` (2), proposed | builder, repl: developer tools that no release carries |
 | `source/projectured/` | the umbrella, as today |
+
+More decisions of the owner, the same day: `dataframes` is an adapter, as its
+docstring says (it owns a third-party dependency). No third folder level inside
+the platform for now. `conversation` stays in the platform, and its docstring,
+which calls it "the conversation domain", changes with the move: the assistant
+is a capability of the platform.
 
 `source/domain/` exists today as the slice of the domain protocol
 (`DomainModule`); that slice moves to `source/platform/domain/` first.
