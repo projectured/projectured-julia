@@ -1117,6 +1117,37 @@ registration.
       integration parts, each in its own testset. Scripts and logs:
       `/var/tmp/release-plan/ci/`.
 
+      **Result on `ae3a64618` (2026-09-30).** The instantiate of a test package
+      takes seconds when the depot holds its dependencies; `environment/all`
+      took 5 minutes. Five test packages name siblings that their `[sources]`
+      do not list (`ProjecturedTest`, `ProjecturedSdlTest`,
+      `ProjecturedTulipTest`, `ProjecturedVideoTest`, `ProjecturedOdbcTest`), so
+      they load through `environment/all`, as the testing guide says.
+
+      | Suite | Result |
+      | --- | --- |
+      | 27 of the 32 per-package suites | pass (Kernel 2, Anthropic 1, OpenRouter 1, Yaml 2 `@test_broken`) |
+      | SDL (offscreen driver), Tulip, Video, ODBC | pass: 785, 14, 41, 41 |
+      | Substrate | 3 fail, 4 errors: the split-pane drag and the anchor point, known on `main` |
+      | Conversation | 1 fail: the layering guard, known on `main` |
+      | Umbrella, 66 parts in 70 minutes | 13 parts fail, below |
+
+      The umbrella parts that fail: `test_arguments` (6) and `test_exports` (2),
+      the guards; `test_position_navigations_complete` (449, all in the `text`
+      examples); `test_mouse_clicks` (10: charts, sequence charts, the
+      conversation); `test_typeins` (6), `test_text_navigation_invariants_all`
+      (6), `test_assistant_mvp` (4), `test_projections` (3 and 2 errors, the
+      split pane again), `test_position_navigations` (3), `test_catalog_coverage`
+      (2), `test_catalog_typeins` (2), `test_application` (2 errors) and
+      `test_json_content_clicks_clean_all` (1 error: it calls
+      `test_json_content_clicks_clean`, which no file defines).
+
+      Two failures came from the first setup and went away: a new network
+      namespace has its loopback down (Anthropic), and `unshare -r` runs the
+      test as root, which reads a folder of mode `000` (FileSystem). The run
+      uses a second user namespace that maps the own user ID back, with the
+      loopback up.
+
 ### Step P3: the workflow
 
 - [ ] `.github/workflows/CI.yml`, on a push to `main`, on a pull request, and
