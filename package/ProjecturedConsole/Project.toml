@@ -8,10 +8,8 @@ authors = []
 
 [deps]
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
-ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
-ProjecturedStyle = {path = "../ProjecturedStyle"}
-ProjecturedText = {path = "../ProjecturedText"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

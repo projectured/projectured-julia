@@ -19,7 +19,7 @@ function make_introspection_document(document, projection; title="content")
     ])
 end
 
-# Dragging's two helpers moved into `ProjecturedDragging`, where the types they
+# Dragging's two helpers moved into `ProjecturedPlatform`, where the types they
 # name live, so a program can drag without this package's 52 dependencies. The
 # gallery re-exports them from there; see `DraggingModule`.
 

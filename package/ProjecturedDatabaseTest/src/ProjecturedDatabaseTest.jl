@@ -14,39 +14,14 @@ import ProjecturedDatabase
 import ProjecturedKernel
 import ProjecturedPdf
 import ProjecturedConsole
-import ProjecturedNatural
-import ProjecturedFileFormat
-import ProjecturedGestureLog
-import ProjecturedGestureHelp
-import ProjecturedInspector
-import ProjecturedTooltip
-import ProjecturedClipboard
-import ProjecturedPane
-import ProjecturedSyntax
-import ProjecturedWidget
-import ProjecturedText
-import ProjecturedLayout
-import ProjecturedScreen
-import ProjecturedGraphics
-import ProjecturedPlot
-import ProjecturedVersioning
-import ProjecturedFocus
-import ProjecturedDragging
-import ProjecturedReflection
-import ProjecturedProjection
-import ProjecturedComponent
-import ProjecturedStyle
-import ProjecturedSerialization
-import ProjecturedDomain
-import ProjecturedPrimitive
-import ProjecturedCollection
-using ProjecturedKernelExample
-using ProjecturedSubstrateExample
-using ProjecturedKernelTest
-using ProjecturedSubstrateTest
+import ProjecturedPlatform
 using ProjecturedDatabaseExample
+using ProjecturedKernelExample
+using ProjecturedKernelTest
+using ProjecturedSubstrateExample
+using ProjecturedSubstrateTest
 
-const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedDatabase, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedDatabase, ProjecturedKernel, ProjecturedPdf)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

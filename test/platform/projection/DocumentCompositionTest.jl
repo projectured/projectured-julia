@@ -6,10 +6,10 @@ import ProjecturedKernel.DocumentModule: Document
 import ProjecturedKernel.ProjectionModule: Projection
 import ProjecturedKernel.IoMapModule: SimpleIoMap
 import ProjecturedKernel.EditorModule: make_document_projection
-import ProjecturedWidget.WidgetModule: make_graphics_projection,
+import ProjecturedPlatform.WidgetModule: make_graphics_projection,
                                        collect_graphics_projection_types
-import ProjecturedNatural.NaturalModule: NaturalToGraphics
-import ProjecturedStyle.StyleModule: FontFileMeasure
+import ProjecturedPlatform.NaturalModule: NaturalToGraphics
+import ProjecturedPlatform.StyleModule: FontFileMeasure
 
 # A kind of document with a projection of its own, and one member of the kind
 # with a projection of its own too.

@@ -7,7 +7,7 @@ evaluated, so load order between packages cannot turn a marker into text.
 """
 
 using Test
-using ProjecturedSerialization.SerializationModule
+using ProjecturedPlatform.SerializationModule
 
 "A project of every file in `d`: the context a marker is evaluated in."
 _ml_project(d) = load_project(d, readdir(d))

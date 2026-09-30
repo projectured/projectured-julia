@@ -310,7 +310,7 @@ function test_fault_catching()
     end
 
     @testset "a person opens the session's log, and a window fills it" begin
-        domain = ProjecturedFault.DomainModule
+        domain = ProjecturedPlatform.DomainModule
         log = get_session_fault_log()
         # `Ctrl+T` and `faults` give the one log of the session, never a fresh
         # one that nothing fills.
@@ -318,7 +318,7 @@ function test_fault_catching()
         @test "faults" in domain.get_insertion_names(FaultLog)
         @test get_document_title(log) == "Faults"
         # A saved window keeps the capacity of the log and none of its faults.
-        @test ProjecturedFault.SerializationModule.pred_arguments(log) ==
+        @test ProjecturedPlatform.SerializationModule.pred_arguments(log) ==
               ((), Pair{Symbol,Any}[:capacity => log.capacity])
 
         store = FaultStore()

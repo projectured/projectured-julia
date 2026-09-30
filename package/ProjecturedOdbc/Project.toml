@@ -1,30 +1,24 @@
+authors = []
 name = "ProjecturedOdbc"
 uuid = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 version = "0.1.0"
-authors = []
 
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
-ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
 ProjecturedDbCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
-ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
-ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [sources]
-ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedDatabase = {path = "../ProjecturedDatabase"}
 ProjecturedDbCatalog = {path = "../ProjecturedDbCatalog"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
-ProjecturedProjection = {path = "../ProjecturedProjection"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedSql = {path = "../ProjecturedSql"}
-ProjecturedSyntax = {path = "../ProjecturedSyntax"}
-ProjecturedText = {path = "../ProjecturedText"}
 
 [compat]
 DBInterface = "2.6.1"

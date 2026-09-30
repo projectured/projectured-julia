@@ -16,7 +16,7 @@ end
 # shape. The dragging printer is transparent, so the content renders as usual;
 # its reader turns press → drag → drop into a MoveRangeOperation. Pairs with
 # `make_dragging_document`; the domain-specific twin is
-# `make_dragging_projection_example`. Both are `ProjecturedDragging`'s — see
+# `make_dragging_projection_example`. Both are `ProjecturedPlatform`'s — see
 # `GalleryWrapperDocumentExample.jl`.
 
 # Render a WidgetShell and the content it frames: the shell's own bands are

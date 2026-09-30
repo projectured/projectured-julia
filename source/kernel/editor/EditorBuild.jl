@@ -131,7 +131,7 @@ function build_editor(document::Document; keywords...)
     hasmethod(make_document_projection, Tuple{typeof(document)}) ||
         error("No projection is given for a document of type $(typeof(document)), and no ",
               "loaded package makes one. Pass a projection, or load a package that adds a ",
-              "method of `make_document_projection`, such as ProjecturedNatural.")
+              "method of `make_document_projection`, such as ProjecturedPlatform.")
     build_editor(document, make_document_projection(document); keywords...)
 end
 

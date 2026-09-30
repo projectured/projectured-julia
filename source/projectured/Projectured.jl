@@ -1,35 +1,15 @@
-const _SOURCES = (ProjecturedKernel,
-                  ProjecturedCollection, ProjecturedPrimitive, ProjecturedDomain,
-                  ProjecturedSerialization, ProjecturedStyle, ProjecturedComponent,
-                  ProjecturedProjection, ProjecturedReflection, ProjecturedDragging,
-                  ProjecturedFocus, ProjecturedGestureTracking, ProjecturedVersioning,
-                  ProjecturedPlot,
-                  ProjecturedGraphics, ProjecturedMouseTargetTracking, ProjecturedScreen,
-                  ProjecturedLayout,
-                  ProjecturedText, ProjecturedWidget, ProjecturedSyntax,
-                  ProjecturedPane, ProjecturedClipboard, ProjecturedTooltip,
-                  ProjecturedInspector, ProjecturedGestureHelp, ProjecturedGestureLog,
-                  ProjecturedFault,
-                  ProjecturedLog, ProjecturedStatistics, ProjecturedHelp, ProjecturedShell,
-                  ProjecturedFileFormat, ProjecturedNatural, ProjecturedConsole,
-                  ProjecturedPdf,
-                  ProjecturedDisplay,
-                  ProjecturedJson, ProjecturedYaml, ProjecturedXml,
-                  ProjecturedMarkdown, ProjecturedRst, ProjecturedBook,
-                  ProjecturedMath, ProjecturedJulia, ProjecturedSql,
-                  ProjecturedDatabase, ProjecturedFileSystem, ProjecturedGraph,
-                  ProjecturedChart, ProjecturedSequenceChart,
-                  ProjecturedDbCatalog, ProjecturedFormula, ProjecturedFsm,
-                  ProjecturedProcess, ProjecturedConversation,
-                  ProjecturedAssistant, ProjecturedUndo)
+const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole,
+                  ProjecturedPdf, ProjecturedJson, ProjecturedYaml, ProjecturedXml,
+                  ProjecturedMarkdown, ProjecturedRst, ProjecturedBook, ProjecturedMath,
+                  ProjecturedJulia, ProjecturedSql, ProjecturedDatabase, ProjecturedGraph,
+                  ProjecturedChart, ProjecturedSequenceChart, ProjecturedDbCatalog,
+                  ProjecturedFormula, ProjecturedFsm, ProjecturedProcess)
 
 # A binding is re-exported when it is a submodule this source defines, or a
-# submodule of a package this source reaches but the list does not name. The
-# second case is a concrete domain that already left `ProjecturedDomain` for its
-# own package: `ProjecturedDomain` binds it, so it arrives here through that
-# binding and is bound exactly once. A module whose parent IS in the list is
-# skipped, so a kernel module aliased in visual and domain is not bound three
-# times. A package module itself (parent `Main`) is not a submodule at all.
+# submodule of a package this source reaches but the list does not name. A module
+# whose parent IS in the list is skipped, so a module of the kernel that the
+# platform binds is bound once. A package module itself (parent `Main`) is not a
+# submodule at all.
 _reexport(_src, _m) =
     parentmodule(_m) === _src ||
     (parentmodule(_m) !== Main && !(parentmodule(_m) in _SOURCES))

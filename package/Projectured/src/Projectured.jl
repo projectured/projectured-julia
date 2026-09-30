@@ -24,41 +24,9 @@ are no name collisions between the submodules (verified by
 module Projectured
 
 import ProjecturedKernel
-import ProjecturedCollection
-import ProjecturedPrimitive
-import ProjecturedDomain
-import ProjecturedSerialization
-import ProjecturedStyle
-import ProjecturedComponent
-import ProjecturedProjection
-import ProjecturedReflection
-import ProjecturedDragging
-import ProjecturedFocus
-import ProjecturedGestureTracking
-import ProjecturedVersioning
-import ProjecturedPlot
-import ProjecturedGraphics
-import ProjecturedMouseTargetTracking
-import ProjecturedScreen
-import ProjecturedLayout
-import ProjecturedText
-import ProjecturedWidget
-import ProjecturedSyntax
-import ProjecturedPane
-import ProjecturedClipboard
-import ProjecturedTooltip
-import ProjecturedInspector
-import ProjecturedGestureHelp
-import ProjecturedGestureLog
-import ProjecturedFault
-import ProjecturedLog
-import ProjecturedStatistics
-import ProjecturedShell
-import ProjecturedFileFormat
-import ProjecturedNatural
+import ProjecturedPlatform
 import ProjecturedConsole
 import ProjecturedPdf
-import ProjecturedDisplay
 
 # The concrete domains, in dependency order: the ones that need no other domain,
 # then the ones that build on them, then the application on top.
@@ -72,7 +40,6 @@ import ProjecturedMath
 import ProjecturedJulia
 import ProjecturedSql
 import ProjecturedDatabase
-import ProjecturedFileSystem
 import ProjecturedGraph
 import ProjecturedChart
 import ProjecturedSequenceChart
@@ -80,10 +47,6 @@ import ProjecturedDbCatalog
 import ProjecturedFormula
 import ProjecturedFsm
 import ProjecturedProcess
-import ProjecturedConversation
-import ProjecturedAssistant
-import ProjecturedUndo
-import ProjecturedHelp
 
 include("../../../source/projectured/Projectured.jl")
 

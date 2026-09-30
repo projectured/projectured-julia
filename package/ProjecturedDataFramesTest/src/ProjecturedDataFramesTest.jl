@@ -11,12 +11,12 @@ module ProjecturedDataFramesTest
 
 using Test
 using DataFrames
-using ProjecturedCollection.CollectionModule
+using ProjecturedPlatform.CollectionModule
 using ProjecturedDataFrames
 using ProjecturedDataFrames.DataFramesModule
 using ProjecturedDataFramesExample
-using ProjecturedDisplay
-using ProjecturedGraphics.GraphicsModule
+using ProjecturedPlatform
+using ProjecturedPlatform.GraphicsModule
 using ProjecturedKernel
 using ProjecturedKernel.AgentModule
 using ProjecturedKernel.BackendModule
@@ -26,11 +26,11 @@ using ProjecturedKernel.IntentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.ProjectionModule
 using ProjecturedKernelTest
-using ProjecturedLayout.LayoutModule
-using ProjecturedNatural.NaturalModule
-using ProjecturedPane.PaneModule
-using ProjecturedStyle.StyleModule
-using ProjecturedWidget.WidgetModule
+using ProjecturedPlatform.LayoutModule
+using ProjecturedPlatform.NaturalModule
+using ProjecturedPlatform.PaneModule
+using ProjecturedPlatform.StyleModule
+using ProjecturedPlatform.WidgetModule
 
 import ProjecturedKernelTest: check_layering, get_package_source_root
 

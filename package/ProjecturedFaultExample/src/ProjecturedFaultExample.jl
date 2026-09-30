@@ -8,7 +8,7 @@ category, so a person can watch each barrier work from the REPL. See
 module ProjecturedFaultExample
 
 using Projectured
-using ProjecturedFault
+using ProjecturedPlatform
 # The module aliases the umbrella binds are constants, not exports; the
 # extensions below name their generics through them.
 import Projectured: ProjectionModule, OperationModule, BackendModule

@@ -7,13 +7,13 @@ that was loaded and saved keeps it verbatim.
 """
 
 using Test
-using ProjecturedSerialization.SerializationModule
+using ProjecturedPlatform.SerializationModule
 using ProjecturedJulia.JuliaModule
 import ProjecturedJson
 using ProjecturedJson.JsonModule
 using ProjecturedMarkdown.MarkdownModule
 using ProjecturedJulia.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
-using ProjecturedNatural.NaturalModule: print_natural_text
+using ProjecturedPlatform.NaturalModule: print_natural_text
 
 "A project of every source and page in `d`: the context a marker is evaluated in."
 _mv_project(d) = load_project(d, filter(f -> endswith(f, ".jl") || endswith(f, ".md"), readdir(d)))

@@ -17,21 +17,12 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedProcess
 
-using ProjecturedCollection
-using ProjecturedDomain
-using ProjecturedFileFormat
-using ProjecturedNatural
 using ProjecturedGraph
 using ProjecturedJulia
 using ProjecturedKernel
-using ProjecturedProjection
-using ProjecturedStyle
-using ProjecturedSyntax
-using ProjecturedText
-using ProjecturedJulia
-using ProjecturedGraph
+using ProjecturedPlatform
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedGraph, ProjecturedNatural, ProjecturedJulia, ProjecturedKernel, ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
+for _src in (ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPlatform)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

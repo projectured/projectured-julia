@@ -11,19 +11,19 @@
 # `make_tracking_screen`, and passes it.
 #
 # It lives here because a window on a screen is what this package is about, and
-# it costs nothing: `ProjecturedProjection` was already in this package's closure
-# through `ProjecturedGraphics`, so naming it directly adds no package to any
+# it costs nothing: `ProjecturedPlatform` was already in this package's closure
+# through `ProjecturedPlatform`, so naming it directly adds no package to any
 # image.
 #
 # A wrapper can open a window of its own, such as the gesture help that F1
 # opens. That wrapper, or the caller, names what draws the content of that
 # window in `opened_window_projections`, because this package does not know the
 # wrapper.
-using ProjecturedProjection.ProjectionAlgebraModule: ReferenceDispatchingProjection
-using ProjecturedProjection.ProjectionAlgebraModule: NestingProjection
-using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
-using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
-using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: ReferenceDispatchingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: NestingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: TypeDispatchingProjection
 
 
 """

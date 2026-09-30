@@ -25,35 +25,7 @@ module ProjecturedSubstrateTest
 
 using Test
 import ProjecturedKernel
-import ProjecturedCollection
-import ProjecturedPrimitive
-import ProjecturedDomain
-import ProjecturedSerialization
-import ProjecturedStyle
-import ProjecturedComponent
-import ProjecturedProjection
-import ProjecturedReflection
-import ProjecturedDragging
-import ProjecturedFocus
-import ProjecturedGestureTracking
-import ProjecturedVersioning
-import ProjecturedPlot
-import ProjecturedGraphics
-import ProjecturedMouseTargetTracking
-import ProjecturedScreen
-import ProjecturedLayout
-import ProjecturedText
-import ProjecturedWidget
-import ProjecturedSyntax
-import ProjecturedPane
-import ProjecturedClipboard
-import ProjecturedTooltip
-import ProjecturedInspector
-import ProjecturedGestureHelp
-import ProjecturedGestureLog
-import ProjecturedFault
-import ProjecturedFileFormat
-import ProjecturedNatural
+import ProjecturedPlatform
 import ProjecturedConsole
 import ProjecturedPdf
 using ProjecturedKernelTest
@@ -63,72 +35,43 @@ using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.ProjectionModule: PrinterContext
-using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
-using ProjecturedCollection.CollectionModule
-using ProjecturedPrimitive.PrimitiveModule
-using ProjecturedProjection.ProjectionAlgebraModule
-using ProjecturedProjection.ProjectionAlgebraModule: FocusingProjection, ReplaceFocusPartOperation
-using ProjecturedProjection.ProjectionAlgebraModule: ReversingProjection
-using ProjecturedProjection.ProjectionAlgebraModule: FilteringProjection
-using ProjecturedProjection.ProjectionAlgebraModule: SearchingProjection
-using ProjecturedProjection.ProjectionAlgebraModule: SortingProjection
-using ProjecturedProjection.ProjectionAlgebraModule: SwitchingProjection
-using ProjecturedProjection.ProjectionAlgebraModule: WindowInputUnwrappingProjection
-using ProjecturedPrimitive.PrimitiveModule: PrimitiveString
+using ProjecturedPlatform.CollectionModule
+using ProjecturedPlatform.PrimitiveModule
+using ProjecturedPlatform.ProjectionAlgebraModule
+using ProjecturedPlatform.ProjectionAlgebraModule: FocusingProjection, ReplaceFocusPartOperation
+using ProjecturedPlatform.ProjectionAlgebraModule: ReversingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: FilteringProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: SearchingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: SortingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: SwitchingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: WindowInputUnwrappingProjection
+using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedKernel.ProjectionModule: map_reference_backward
 using ProjecturedKernel.ProjectionModule: map_reference_forward
 using ProjecturedKernel.EventModule: KeyDown
 using ProjecturedKernel.EventModule: ModifierKeys
-using ProjecturedReflection.ReflectionModule
-using ProjecturedReflection.ReflectionModule
+using ProjecturedPlatform.ReflectionModule
+using ProjecturedPlatform.ReflectionModule
 using ProjecturedKernel.CellStructModule: get_cell_struct_kind
-using ProjecturedVersioning.VersioningModule
-using ProjecturedVersioning.VersioningModule: VersioningToAnyProjection
-using ProjecturedDomain.DomainModule: DocumentNothing
+using ProjecturedPlatform.VersioningModule
+using ProjecturedPlatform.VersioningModule: VersioningToAnyProjection
+using ProjecturedPlatform.DomainModule: DocumentNothing
 using ProjecturedKernel.IntentModule: Intent
 using ProjecturedKernel.OperationModule: ReplaceSelectionOperation, ReplaceReferencedValueOperation
 using ProjecturedKernel.OperationModule: ReplaceMouseTargetOperation, ReplacePathOperation,
     get_operation_path, replace_mouse_target!, reroot_operation, describe_operation,
     make_inverse_operation, DoNothingOperation, evaluate_operation
-using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
-using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: TypeDispatchingProjection
 
-using ProjecturedReflection.ReflectionModule
-using ProjecturedReflection.ReflectionModule
-using ProjecturedReflection.ReflectionModule
+using ProjecturedPlatform.ReflectionModule
+using ProjecturedPlatform.ReflectionModule
+using ProjecturedPlatform.ReflectionModule
 using ProjecturedKernel.OperationModule: ReplaceReferencedValueOperation
 
-const _SOURCES = (ProjecturedKernel,
-                  ProjecturedCollection,
-                  ProjecturedPrimitive,
-                  ProjecturedDomain,
-                  ProjecturedSerialization,
-                  ProjecturedStyle,
-                  ProjecturedComponent,
-                  ProjecturedProjection,
-                  ProjecturedReflection,
-                  ProjecturedDragging,
-                  ProjecturedFocus, ProjecturedGestureTracking,
-                  ProjecturedVersioning,
-                  ProjecturedPlot,
-                  ProjecturedGraphics, ProjecturedMouseTargetTracking,
-                  ProjecturedScreen,
-                  ProjecturedLayout,
-                  ProjecturedText,
-                  ProjecturedWidget,
-                  ProjecturedSyntax,
-                  ProjecturedPane,
-                  ProjecturedClipboard,
-                  ProjecturedTooltip,
-                  ProjecturedInspector,
-                  ProjecturedGestureHelp,
-                  ProjecturedGestureLog,
-                  ProjecturedFault,
-                  ProjecturedFileFormat,
-                  ProjecturedNatural,
-                  ProjecturedConsole,
-                  ProjecturedPdf)
+const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole, ProjecturedPdf)
 # The tests were written against the flat `Projectured` namespace. Build the
 # same namespace over the packages above — one mechanical pass, exactly like the
 # umbrella's re-export loop, but without re-exporting: alias every submodule and

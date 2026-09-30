@@ -5,7 +5,7 @@ write gate, and recreation after an external deletion.
 """
 
 using Test
-using ProjecturedSerialization.SerializationModule
+using ProjecturedPlatform.SerializationModule
 using ProjecturedKernel.DocumentModule: @document
 
 """

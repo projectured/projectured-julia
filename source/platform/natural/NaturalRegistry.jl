@@ -26,7 +26,7 @@
 #
 # The third is the **fallback**: what to draw for a document no row claimed. It is
 # registered like the others and nothing registers it by default, so a renderer
-# draws what it was taught and an error message for the rest. `ProjecturedSyntax`
+# draws what it was taught and an error message for the rest. `ProjecturedPlatform`
 # is what registers the reflection tail, and a session that never loads it never
 # carries it.
 #
@@ -101,7 +101,7 @@ end
 Teach the natural renderer what to do with a document no row above it claimed.
 
 `factory(; measure, font, wrap)` returns rows, so what a fallback covers is the
-fallback's own decision — `ProjecturedSyntax` registers the reflection tail under
+fallback's own decision — `ProjecturedPlatform` registers the reflection tail under
 `Any`, and the placeholder types that only its leaves can draw.
 
 **Nothing is registered by default, and that is the point.** With no fallback the

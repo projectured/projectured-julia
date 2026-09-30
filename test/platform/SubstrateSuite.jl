@@ -10,7 +10,13 @@ function test_substrate_layering()
     for pkg in _SOURCES
         pkg === ProjecturedKernel && continue
         main = get_package_source_root(pkg)
-        check_layering(main, pathof(pkg); name = String(nameof(pkg)))
+        # The modules that the entry file binds with a loop, which the guard can not
+        # read from the file: those of the packages below.
+        aliases = Set{Symbol}(n for n in names(pkg; all = true)
+                              if isdefined(pkg, n) && getfield(pkg, n) isa Module &&
+                                 getfield(pkg, n) !== pkg &&
+                                 parentmodule(getfield(pkg, n)) !== pkg)
+        check_layering(main, pathof(pkg); name = String(nameof(pkg)), extra_aliases = aliases)
     end
 end
 

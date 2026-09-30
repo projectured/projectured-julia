@@ -252,13 +252,40 @@ and the downstream repositories land in the same landing.
       the assistant; the kernel guides keep their names, and no code or corpus
       names a guide of a slice. The static guards pass, but for the argument
       and export violations of `main`.
-- [ ] **Step 3, the fold.** `package/ProjecturedPlatform/`: a `Project.toml`
+- [x] **Step 3, the fold.** `package/ProjecturedPlatform/`: a `Project.toml`
       with the outside dependencies of the 35 packages, and an entry file that
       includes the 35 slice modules in the order of the table of Step 0. The
       domains, backends, adapters and the umbrella use `ProjecturedKernel` and
       `ProjecturedPlatform` in place of the internal packages. The 35 internal
       package folders go. `environment/all` follows. The guard of Step 0
       becomes the layering guard of the platform.
+      Done: `ProjecturedPlatform`, uuid `b21cb890-5227-4e91-ae0e-8ab4d844f9f7`,
+      version 0.1.0; its entry file binds the kernel's modules with the loop of
+      the domains, includes the 38 slices in a topological order of the table,
+      holds the two `__init__` bodies of `ProjecturedNatural` and
+      `ProjecturedSyntax`, and exports the three names of the display at the
+      package level. A script (`fold_platform.py` in the session scratchpad)
+      put `ProjecturedPlatform` in place of each of the 38 names in 214 files,
+      and each `Project.toml` names it once; the repeated `using`/`import`
+      lines and the tuples of the binding loops were merged and sorted. By
+      hand: `PackageGraphTest.jl` (`FileSystem` and `Conversation` leave
+      `DOMAIN_EDGES`; `SUBSTRATE` became `BELOW_THE_DOMAINS`, the platform, the
+      console and the PDF backend; and `_source_dir` reads the includes, which
+      also mends a gap of Step 2, where it found no folder for most packages
+      and so checked less), the comment of the umbrella's re-export pass, the
+      manifest of `environment/all` (the 38 entries out, the platform's in,
+      then `Pkg.resolve`), the layering guard of the platform (the kernel's
+      modules as aliases, because the loop binds them), and
+      `ProjecturedDataFrames`, which imported and exported three names that its
+      module no longer defines (the warnings on `main`). **Left for Step 6:**
+      the prose that the name rule made wrong or awkward, which
+      `git grep -n ProjecturedPlatform -- '*.jl'` lists in comments and
+      docstrings (for example a list that now names the platform twice, or "it
+      must not name `ProjecturedPlatform`"). Tests: the layering guard and the
+      edge table of the platform, the package graph, the export collisions,
+      JSON and DataFrames pass, but for the scroll bar of the baseline.
+      `test_display()` fails 8 times on `main` too (`get_wrapped_document`
+      not in scope of its test package): it joins the baseline.
 - [ ] **Step 3b, the aggregate modules (the owner, 2026-09-30).** `KernelModule`
       in the kernel and `PlatformModule` in the platform, each defined after
       the slices of its package, export every public name of those slices and

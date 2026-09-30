@@ -12,16 +12,15 @@ relative `..XxxModule` references.
 module ProjecturedConsole
 
 using ProjecturedKernel
-using ProjecturedStyle
-using ProjecturedText
+using ProjecturedPlatform
 
 const BackendModule = ProjecturedKernel.BackendModule
 const EditorModule = ProjecturedKernel.EditorModule
 const EventModule = ProjecturedKernel.EventModule
 const GestureModule = ProjecturedKernel.GestureModule
-const StyleModule = ProjecturedStyle.StyleModule
-const StyleModule = ProjecturedStyle.StyleModule
-const TextModule = ProjecturedText.TextModule
+const StyleModule = ProjecturedPlatform.StyleModule
+const StyleModule = ProjecturedPlatform.StyleModule
+const TextModule = ProjecturedPlatform.TextModule
 
 include("../../../source/backend/console/ConsoleBackendModule.jl")
 

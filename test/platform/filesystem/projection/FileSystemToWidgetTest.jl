@@ -3,7 +3,7 @@
 # formula — each have their own, so a person reads the folder at a glance.
 function test_filesystem_to_widget()
 @testset "FileSystemToWidget glyphs" begin
-    icon(name) = ProjecturedFileSystem.FileSystemModule._fs_icon(FileSystemFile("/study/" * name))
+    icon(name) = ProjecturedPlatform.FileSystemModule._fs_icon(FileSystemFile("/study/" * name))
     glyphs = Dict(name => icon(name) for name in
                   ("study.pred", "MM1K.ned", "omnetpp.ini", "closed.math",
                    "script.jl", "study.md", "data.json", "result.sca"))
@@ -21,7 +21,7 @@ function test_filesystem_to_widget()
                                  "script.jl", "study.md", "data.json")]
     @test allunique(named)
     # Every kind is an icon the widget layer draws.
-    @test all(name -> ProjecturedFileSystem.WidgetModule.find_icon_character(name) !== nothing,
+    @test all(name -> ProjecturedPlatform.WidgetModule.find_icon_character(name) !== nothing,
               values(glyphs))
     # The case of the extension does not matter.
     @test icon("NETWORK.NED") === :hexagon
@@ -88,8 +88,8 @@ end
         @test is_listing_read(full) && is_listing_read(folder.elements[2])
         @test !is_listing_read(full.elements[2])            # `inner`, not shown
 
-        node(path) = ProjecturedFileSystem.WidgetModule._wtree_node_at(tree, path)
-        has_children(path) = ProjecturedFileSystem.WidgetModule._wtree_has_children(node(path))
+        node(path) = ProjecturedPlatform.WidgetModule._wtree_node_at(tree, path)
+        has_children(path) = ProjecturedPlatform.WidgetModule._wtree_has_children(node(path))
         @test [node([1, k]).label for k in 1:3] == ["full", "none", "top.jl"]
         @test [1] in tree.expanded && !([1, 1] in tree.expanded)
         # A folder with entries has a chevron, and an empty folder has none.

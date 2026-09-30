@@ -12,19 +12,18 @@ relative `..XxxModule` references.
 module ProjecturedPdf
 
 using ProjecturedKernel
-using ProjecturedGraphics
-using ProjecturedStyle
+using ProjecturedPlatform
 
 const CellModule = ProjecturedKernel.CellModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const GraphicsModule = ProjecturedGraphics.GraphicsModule
-const StyleModule = ProjecturedStyle.StyleModule
-const StyleModule = ProjecturedStyle.StyleModule
-const StyleModule = ProjecturedStyle.StyleModule
-const StyleModule = ProjecturedStyle.StyleModule
-const StyleModule = ProjecturedStyle.StyleModule
+const GraphicsModule = ProjecturedPlatform.GraphicsModule
+const StyleModule = ProjecturedPlatform.StyleModule
+const StyleModule = ProjecturedPlatform.StyleModule
+const StyleModule = ProjecturedPlatform.StyleModule
+const StyleModule = ProjecturedPlatform.StyleModule
+const StyleModule = ProjecturedPlatform.StyleModule
 
 include("../../../source/backend/pdf/PdfBackendModule.jl")
 

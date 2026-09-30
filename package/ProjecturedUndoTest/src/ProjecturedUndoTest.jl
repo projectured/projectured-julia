@@ -1,7 +1,7 @@
 """
     ProjecturedUndoTest
 
-The suite of `ProjecturedUndo`, aggregated by `test_undo()`.
+The suite of `ProjecturedPlatform`, aggregated by `test_undo()`.
 
 It holds no domain and no example: the documents it edits are declared in the
 suite itself, and the content projection it drives through is the identity. So
@@ -11,10 +11,10 @@ slice owns.
 module ProjecturedUndoTest
 
 using Test
-import ProjecturedUndo
+import ProjecturedPlatform
 # The shared static layering guard lives at the bottom of the test-package DAG.
 using ProjecturedKernelTest: check_layering, get_package_source_root
-using ProjecturedCollection.CollectionModule
+using ProjecturedPlatform.CollectionModule
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.EventModule
@@ -24,8 +24,8 @@ using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.SelectionModule
 using ProjecturedKernel.ToolModule
-using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
-using ProjecturedUndo.UndoModule
+using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
+using ProjecturedPlatform.UndoModule
 
 include("../../../test/platform/undo/UndoBufferTest.jl")
 include("../../../test/platform/undo/UndoSuite.jl")

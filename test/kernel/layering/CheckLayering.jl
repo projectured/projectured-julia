@@ -3,7 +3,7 @@
 #
 # The shared static layered-architecture guard. Each main package
 # (`ProjecturedKernel`, `ProjecturedBase`, `ProjecturedVisual`,
-# `ProjecturedDomain`) keeps its top module file as a hand-maintained
+# `ProjecturedPlatform`) keeps its top module file as a hand-maintained
 # topological sort: every top-level `include("…")` must appear *after* the
 # files defining every `..XxxModule` it imports. `check_layering` enforces the
 # discipline **statically, without loading the package**, in ~1s, so a

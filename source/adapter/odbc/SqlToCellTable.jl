@@ -1,15 +1,15 @@
 # Fragment of `OdbcModule`.
 #
 import ProjecturedKernel.CellModule: Cell, Computation, @computation
-import ProjecturedCollection.CollectionModule: CellVector, CellTable
+import ProjecturedPlatform.CollectionModule: CellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, Projection, find_introduced_path
 import ProjecturedSql.SqlModule: SqlSelectStatement
 import ProjecturedSql.SqlModule: SqlToSyntax
-import ProjecturedSyntax.SyntaxModule: SyntaxToText
-import ProjecturedText.TextModule: TextToString
-import ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
-import ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
+import ProjecturedPlatform.SyntaxModule: SyntaxToText
+import ProjecturedPlatform.TextModule: TextToString
+import ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection
+import ProjecturedPlatform.ProjectionAlgebraModule: ChainingProjection
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance
 import ProjecturedDatabase.DatabaseModule: RawDatabaseResult, execute_db_raw
 import ProjecturedKernel.IoMapModule: SimpleIoMap

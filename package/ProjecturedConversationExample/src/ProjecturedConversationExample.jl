@@ -13,38 +13,11 @@ loop below rebuilds that namespace over this package's sources.
 """
 module ProjecturedConversationExample
 
-import ProjecturedAssistant
-import ProjecturedConversation
+import ProjecturedPlatform
 import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedPdf
 import ProjecturedConsole
-import ProjecturedNatural
-import ProjecturedFileFormat
-import ProjecturedGestureLog
-import ProjecturedGestureHelp
-import ProjecturedInspector
-import ProjecturedTooltip
-import ProjecturedClipboard
-import ProjecturedPane
-import ProjecturedSyntax
-import ProjecturedWidget
-import ProjecturedText
-import ProjecturedLayout
-import ProjecturedScreen
-import ProjecturedGraphics
-import ProjecturedPlot
-import ProjecturedVersioning
-import ProjecturedFocus
-import ProjecturedDragging
-import ProjecturedReflection
-import ProjecturedProjection
-import ProjecturedComponent
-import ProjecturedStyle
-import ProjecturedSerialization
-import ProjecturedDomain
-import ProjecturedPrimitive
-import ProjecturedCollection
 import ProjecturedMarkdown
 using ProjecturedJuliaExample
 using ProjecturedMarkdownExample
@@ -52,13 +25,13 @@ import ProjecturedJson
 import ProjecturedXml
 import ProjecturedYaml
 using ProjecturedJsonExample
-using ProjecturedXmlExample
-using ProjecturedYamlExample
 using ProjecturedKernelExample
 using ProjecturedSubstrateExample
+using ProjecturedXmlExample
+using ProjecturedYamlExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedAssistant, ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedConversation, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedMarkdown, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget, ProjecturedXml, ProjecturedYaml)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedPdf, ProjecturedXml, ProjecturedYaml)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

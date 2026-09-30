@@ -20,15 +20,15 @@ record_video(doc, proj; gestures, filename = "out.mp4")`.
 """
 module ProjecturedVideo
 
-using ProjecturedGraphics
 using ProjecturedKernel
+using ProjecturedPlatform
 using ProjecturedSdl
 import FFMPEG
 
 using ProjecturedKernel.BackendModule: Backend
-using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon,
+using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon,
        GraphicsRect, GraphicsText
-using ProjecturedGraphics.StyleModule: StyleColor, color_black, color_white,
+using ProjecturedPlatform.StyleModule: StyleColor, color_black, color_white,
        color_transparent, color_solarized_orange, color_solarized_red,
        font_dejavu_monospace_bold_16
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
@@ -41,7 +41,7 @@ using ProjecturedKernel.ReferenceModule: EmptyReference
 using ProjecturedKernel.EventModule: WindowInput, WindowQuit,
        MouseDown, MouseUp, MouseMove, MouseScroll
 using ProjecturedKernel.GestureModule: MouseClick
-using ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
+using ProjecturedPlatform.ScreenModule: ScreenDocument, WindowDocument
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
                        _make_offscreen_paint_state, _render_canvas_offscreen_partial!,

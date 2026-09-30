@@ -1,6 +1,6 @@
 # Fragment of `OdbcModule`.
 #
-import ProjecturedCollection.CollectionModule: CellVector
+import ProjecturedPlatform.CollectionModule: CellVector
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance, DatabaseCredentials
 import ProjecturedDbCatalog.DbCatalogModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn

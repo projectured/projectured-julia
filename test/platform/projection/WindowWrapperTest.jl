@@ -7,7 +7,7 @@ import ProjecturedKernel.BackendModule: Backend, initialize_backend!, quit_backe
                                         get_display_size
 import ProjecturedKernel.EditorModule: get_backend_output, build_editor
 import ProjecturedKernel.DeviceModule: Device
-import ProjecturedScreen.ScreenModule: ScreenDocument, make_window_scene,
+import ProjecturedPlatform.ScreenModule: ScreenDocument, make_window_scene,
                                        make_window_scene_projection
 
 # A backend that declares no output, as a recorder and a test double do, and one

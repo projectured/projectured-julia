@@ -110,10 +110,10 @@ end
 end
 
 @testset "every built-in icon is a glyph the icon font has, drawn in its box" begin
-    registry = ProjecturedWidget.WidgetModule.ICON_REGISTRY
+    registry = ProjecturedPlatform.WidgetModule.ICON_REGISTRY
     font = load_truetype_font(font_lucide_icons_20.filename)
     color = StyleColor(0.1, 0.2, 0.3, 1.0)
-    for (name, codepoint) in ProjecturedWidget.WidgetModule.LUCIDE_ICON_GLYPHS
+    for (name, codepoint) in ProjecturedPlatform.WidgetModule.LUCIDE_ICON_GLYPHS
         # A code point the font does not have draws nothing, or a box.
         @test get_glyph_id(font, UInt32(codepoint)) != 0
         @test find_icon_character(name) == Char(codepoint)

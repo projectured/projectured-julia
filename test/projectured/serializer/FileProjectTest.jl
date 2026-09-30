@@ -1,5 +1,5 @@
 using Test
-using ProjecturedSerialization.SerializationModule
+using ProjecturedPlatform.SerializationModule
 using ProjecturedJson.JsonModule
 using ProjecturedXml.XmlModule
 using Projectured.MarkdownModule

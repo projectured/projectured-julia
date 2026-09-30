@@ -3,7 +3,7 @@ using Sockets
 import HTTP
 using ProjecturedMcp
 using ProjecturedKernel.ToolModule
-using ProjecturedAssistant.AssistantModule: SubmitJuliaOperation, SubmitProseOperation, _eval_result
+using ProjecturedPlatform.AssistantModule: SubmitJuliaOperation, SubmitProseOperation, _eval_result
 
 function test_list_guides()
     @testset "list_guides" begin

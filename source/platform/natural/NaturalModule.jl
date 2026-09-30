@@ -27,7 +27,7 @@ highest one the document offers.
 # Which rungs live where
 
 This module owns `text → graphics` and `text → string`, because this package
-already names the text package. It must not name `ProjecturedSyntax` — that
+already names the text package. It must not name `ProjecturedPlatform` — that
 package names this one, and the arrow cannot turn — so `syntax → text` is
 registered from outside, by whoever can supply it. A session that never loads a
 syntax package has no `syntax → text` rung, and a document that only speaks

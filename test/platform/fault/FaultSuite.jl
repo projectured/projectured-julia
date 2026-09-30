@@ -1,18 +1,18 @@
 """
     test_fault_layering()
 
-Static layered-architecture guard for `ProjecturedFault`.
+Static layered-architecture guard for `ProjecturedPlatform`.
 """
 function test_fault_layering()
-    main = get_package_source_root(ProjecturedFault)
-    check_layering(main, pathof(ProjecturedFault);
+    main = get_package_source_root(ProjecturedPlatform)
+    check_layering(main, pathof(ProjecturedPlatform);
                    name = "fault",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedFault; all = true)
-                         if isdefined(ProjecturedFault, n) &&
-                            getfield(ProjecturedFault, n) isa Module &&
-                            getfield(ProjecturedFault, n) !== ProjecturedFault &&
-                            parentmodule(getfield(ProjecturedFault, n)) !== ProjecturedFault))
+                       n for n in names(ProjecturedPlatform; all = true)
+                         if isdefined(ProjecturedPlatform, n) &&
+                            getfield(ProjecturedPlatform, n) isa Module &&
+                            getfield(ProjecturedPlatform, n) !== ProjecturedPlatform &&
+                            parentmodule(getfield(ProjecturedPlatform, n)) !== ProjecturedPlatform))
 end
 
 """
@@ -22,7 +22,7 @@ Run this package's whole suite: the layering guard, the barrier inside a
 pipeline, the safe mode, and the one call a program makes to wire it all up.
 """
 function test_fault()
-    @testset "ProjecturedFault" begin
+    @testset "ProjecturedPlatform" begin
         test_fault_layering()
         test_fault_catching()
         test_fault_safe_mode()

@@ -46,11 +46,11 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 using ProjecturedKernel.CellModule: Cell, Computation
-using ProjecturedCollection.CollectionModule: CellVector
-using ProjecturedStyle.StyleModule: StyleFont
-using ProjecturedText.TextModule: TextString, TextBlock, TextDocument, TextGraphics, get_flat_string
+using ProjecturedPlatform.CollectionModule: CellVector
+using ProjecturedPlatform.StyleModule: StyleFont
+using ProjecturedPlatform.TextModule: TextString, TextBlock, TextDocument, TextGraphics, get_flat_string
 using ProjecturedKernel.OperationModule: CompoundOperation, ReplaceReferencedValueOperation
-using ProjecturedSyntax.SyntaxModule: SyntaxNode, SyntaxLeaf
+using ProjecturedPlatform.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
 #

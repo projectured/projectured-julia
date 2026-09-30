@@ -7,7 +7,7 @@ docstring a search reads, and a search finds the widget a sentence means.
 using Test
 using ProjecturedKernel.ToolModule
 using ProjecturedKernel.ToolModule: _binding_doc
-using ProjecturedPane.PaneModule: make_pane_api, make_interface_api
+using ProjecturedPlatform.PaneModule: make_pane_api, make_interface_api
 
 # The name a hit line opens with: the word its signature starts with.
 _interface_hit_names(answer) =

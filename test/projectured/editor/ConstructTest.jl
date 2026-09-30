@@ -32,17 +32,17 @@ using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
 using ProjecturedKernel.GestureModule: GesturePattern
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedKernel.CellModule: Cell, Computation
-using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
-using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
-using ProjecturedText.TextModule: TextToString
-using ProjecturedSyntax.SyntaxModule: SyntaxLeaf
-using ProjecturedDomain.DomainModule: get_nothing_document, get_domain_insertion, get_insertion_root
+using ProjecturedPlatform.ProjectionAlgebraModule: ChainingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection
+using ProjecturedPlatform.TextModule: TextToString
+using ProjecturedPlatform.SyntaxModule: SyntaxLeaf
+using ProjecturedPlatform.DomainModule: get_nothing_document, get_domain_insertion, get_insertion_root
 using ProjecturedKernel.DocumentModule: Document, is_element_collection, is_walk_opaque, is_view_state_field
 using ProjecturedKernel.CellModule: unwrap_cell
 using ProjecturedKernel.ReferenceModule: extend_reference, FieldReferenceStep, ElementReferenceStep,
                                          try_evaluate_reference, PositionReferenceStep,
                                          annotate_reference_types
-using ProjecturedCollection.CollectionModule: CellVector
+using ProjecturedPlatform.CollectionModule: CellVector
 using ProjecturedJson.JsonModule: JsonNull, JsonBool, JsonNumber, JsonString, JsonArray,
                                     JsonObject, JsonObjectEntry, JsonInsertion
 using ProjecturedYaml.YamlModule: YamlNull, YamlBool, YamlNumber, YamlString, YamlSequence,

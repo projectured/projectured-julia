@@ -17,7 +17,7 @@ BackendModule.read_from_devices(::_DisplayProbeBackend, devices) = nothing
 BackendModule.write_to_devices(::_DisplayProbeBackend, devices, output) = nothing
 BackendModule.quit_backend!(::_DisplayProbeBackend) = nothing
 
-_display_session() = ProjecturedDisplay.DisplayModule._SESSION[]
+_display_session() = ProjecturedPlatform.DisplayModule._SESSION[]
 
 _count_tabs(editor) = run_on_editor_task!(() -> sum(length(group.tabs) for group in
     get_pane_groups(get_wrapped_document(editor.document).windows[1].content)), editor)

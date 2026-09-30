@@ -9,16 +9,16 @@ Everything is aggregated by `test_display()`.
 module ProjecturedDisplayTest
 
 using Test
-using ProjecturedDisplay
-using ProjecturedDisplay.DisplayModule
+using ProjecturedPlatform
+using ProjecturedPlatform.DisplayModule
 using ProjecturedKernel
 using ProjecturedKernel.AgentModule
 using ProjecturedKernel.BackendModule
 using ProjecturedKernelTest
-using ProjecturedPane.PaneModule
-using ProjecturedPrimitive.PrimitiveModule
-using ProjecturedScreen.ScreenModule
-using ProjecturedWidget.WidgetModule
+using ProjecturedPlatform.PaneModule
+using ProjecturedPlatform.PrimitiveModule
+using ProjecturedPlatform.ScreenModule
+using ProjecturedPlatform.WidgetModule
 
 import ProjecturedKernelTest: check_layering, get_package_source_root
 

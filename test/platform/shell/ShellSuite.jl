@@ -1,18 +1,18 @@
 """
     test_shell_layering()
 
-Static layered-architecture guard for `ProjecturedShell`.
+Static layered-architecture guard for `ProjecturedPlatform`.
 """
 function test_shell_layering()
-    main = get_package_source_root(ProjecturedShell)
-    check_layering(main, pathof(ProjecturedShell);
+    main = get_package_source_root(ProjecturedPlatform)
+    check_layering(main, pathof(ProjecturedPlatform);
                    name = "shell",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedShell; all = true)
-                         if isdefined(ProjecturedShell, n) &&
-                            getfield(ProjecturedShell, n) isa Module &&
-                            getfield(ProjecturedShell, n) !== ProjecturedShell &&
-                            parentmodule(getfield(ProjecturedShell, n)) !== ProjecturedShell))
+                       n for n in names(ProjecturedPlatform; all = true)
+                         if isdefined(ProjecturedPlatform, n) &&
+                            getfield(ProjecturedPlatform, n) isa Module &&
+                            getfield(ProjecturedPlatform, n) !== ProjecturedPlatform &&
+                            parentmodule(getfield(ProjecturedPlatform, n)) !== ProjecturedPlatform))
 end
 
 """
@@ -28,7 +28,7 @@ here. This asserts the suite runs what the slice defines.
 """
 function test_shell_completeness()
     @testset "the suite runs every test of this slice, once" begin
-        directory = joinpath(get_package_source_root(ProjecturedShell), "..", "..", "..",
+        directory = joinpath(get_package_source_root(ProjecturedPlatform), "..", "..", "..",
                              "test", "platform", "shell")
         defined = Set{String}()
         for name in readdir(directory)
@@ -64,7 +64,7 @@ end
 Run this package's whole suite: the layering guard and the window wrap.
 """
 function test_shell()
-    @testset "ProjecturedShell" begin
+    @testset "ProjecturedPlatform" begin
         test_shell_layering()
         test_shell_completeness()
         test_window_wrap()

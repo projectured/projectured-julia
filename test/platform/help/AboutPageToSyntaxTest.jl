@@ -6,7 +6,7 @@ function test_about_page_to_syntax()
     @test lines[1] == "ProjecturEd"
     @test startswith(lines[2], "A generic-purpose projectional editor")
     @test lines[3] == ""
-    @test lines[4] == "Version " * string(pkgversion(ProjecturedHelp))
+    @test lines[4] == "Version " * string(pkgversion(ProjecturedPlatform))
     @test lines[5] == "Julia " * string(VERSION)
     @test lines[6] == "https://projectured.org"
     # A host gives its own page, and a field it leaves empty has no line.

@@ -17,8 +17,7 @@ const _PACKAGE_ROOT = normpath(joinpath(@__DIR__, "..", ".."))
 # domain package -> the other domain packages it may depend on.
 # An edge here is one domain holding or making another domain's documents: a
 # state machine guard is a Julia expression, a catalog prints as SQL statements,
-# and the code of a formula is a Julia tree or a math tree. A conversation part
-# parses through the natural registry, so the conversation names no domain.
+# and the code of a formula is a Julia tree or a math tree.
 const DOMAIN_EDGES = Dict(
     "ProjecturedJson"          => String[],
     "ProjecturedYaml"          => String[],
@@ -30,7 +29,6 @@ const DOMAIN_EDGES = Dict(
     "ProjecturedJulia"         => String[],
     "ProjecturedSql"           => String[],
     "ProjecturedDatabase"      => String[],
-    "ProjecturedFileSystem"    => String[],
     "ProjecturedGraph"         => String[],
     "ProjecturedChart"         => String[],
     "ProjecturedSequenceChart" => String[],
@@ -38,27 +36,14 @@ const DOMAIN_EDGES = Dict(
     "ProjecturedFormula"       => ["ProjecturedJulia", "ProjecturedMath"],
     "ProjecturedFsm"           => ["ProjecturedGraph", "ProjecturedJulia"],
     "ProjecturedProcess"       => ["ProjecturedGraph", "ProjecturedJulia"],
-    "ProjecturedConversation"  => String[],
 )
 
-# The kernel is the one package every other package may reach. The substrate is
-# the twenty-nine packages between it and the domains; a domain may depend on
-# any of them, and none of them may depend on a domain.
+# The kernel is the one package every other package may reach. Below the
+# domains are the platform and the two backends that need no outside library; a
+# domain may depend on any of them, and none of them may depend on a domain.
 const KERNEL = "ProjecturedKernel"
 
-const SUBSTRATE = [
-    "ProjecturedCollection", "ProjecturedPrimitive", "ProjecturedDomain",
-    "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedComponent",
-    "ProjecturedProjection", "ProjecturedReflection", "ProjecturedDragging",
-    "ProjecturedFocus", "ProjecturedVersioning", "ProjecturedPlot",
-    "ProjecturedGraphics", "ProjecturedScreen", "ProjecturedLayout",
-    "ProjecturedText", "ProjecturedWidget", "ProjecturedSyntax",
-    "ProjecturedPane", "ProjecturedClipboard", "ProjecturedTooltip",
-    "ProjecturedInspector", "ProjecturedGestureHelp", "ProjecturedGestureLog",
-    "ProjecturedFault",
-    "ProjecturedFileFormat", "ProjecturedNatural", "ProjecturedConsole",
-    "ProjecturedPdf",
-]
+const BELOW_THE_DOMAINS = ["ProjecturedPlatform", "ProjecturedConsole", "ProjecturedPdf"]
 
 
 """
@@ -90,12 +75,23 @@ _is_main_package(name) = !endswith(name, "Test") && !endswith(name, "Example")
     _source_dir(name) -> Union{String,Nothing}
 
 Where a package's source lives, or `nothing` when it has none — an umbrella and
-a one-file package keep everything in the root file the package holds.
+a one-file package keep everything in the root file the package holds. It is the
+common folder of the files under `source/` that the root file includes: the
+folder of a slice, such as `source/domain/json`, or of a group, `source/platform`.
 """
 function _source_dir(name)
-    slice = lowercase(replace(name, "Projectured" => ""))
-    isempty(slice) && return nothing
-    dir = joinpath(_PACKAGE_ROOT, "source", slice)
+    top = joinpath(_PACKAGE_ROOT, "package", name, "src", name * ".jl")
+    isfile(top) || return nothing
+    folders = [splitpath(dirname(normpath(joinpath(dirname(top), found.captures[1]))))
+               for found in eachmatch(r"^include\(\"([^\"]*source/[^\"]+)\"\)"m,
+                                      read(top, String))]
+    isempty(folders) && return nothing
+    depth = 0
+    while all(parts -> length(parts) > depth && parts[depth + 1] == folders[1][depth + 1],
+              folders)
+        depth += 1
+    end
+    dir = joinpath(folders[1][1:depth]...)
     isdir(dir) ? dir : nothing
 end
 
@@ -283,8 +279,8 @@ function test_package_graph()
             end
         end
 
-        @testset "no kernel or substrate package depends on a domain" begin
-            for e in vcat([KERNEL], SUBSTRATE)
+        @testset "no package below the domains depends on a domain" begin
+            for e in vcat([KERNEL], BELOW_THE_DOMAINS)
                 haskey(graph, e) || continue
                 for dep in graph[e]
                     haskey(DOMAIN_EDGES, dep) &&

@@ -11,22 +11,22 @@ would wander.
 
 using Test
 using ProjecturedKernel.CellModule: Cell, AbstractCell, set_cell_value!
-using ProjecturedLayout.LayoutModule: AnchoredLayout, AnchoredEntry, VerticalLayout,
+using ProjecturedPlatform.LayoutModule: AnchoredLayout, AnchoredEntry, VerticalLayout,
     compute_anchored_positions
-using ProjecturedLayout.LayoutModule: LayoutToGraphics
-using ProjecturedWidget.WidgetModule: WidgetLabel, Point2D
-using ProjecturedWidget.WidgetModule: WidgetToGraphics
-using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
-using ProjecturedStyle.StyleModule: color_black
-using ProjecturedCollection.CollectionModule: CellVector
-using ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
+using ProjecturedPlatform.LayoutModule: LayoutToGraphics
+using ProjecturedPlatform.WidgetModule: WidgetLabel, Point2D
+using ProjecturedPlatform.WidgetModule: WidgetToGraphics
+using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
+using ProjecturedPlatform.StyleModule: color_black
+using ProjecturedPlatform.CollectionModule: CellVector
+using ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
 import ProjecturedKernel.ProjectionModule: print_document, map_reference_forward
 using ProjecturedKernel.ProjectionModule: Projection
 using ProjecturedKernel.IoMapModule: SimpleIoMap
 using ProjecturedKernel.ReferenceModule: var"@reference"
 using ProjecturedKernel.ReferenceModule: var"@reference_case"
-using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
-using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: TypeDispatchingProjection
 
 _al_measure = FixedMeasure(10, 15, 5, 0)
 

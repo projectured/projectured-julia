@@ -4,7 +4,7 @@
 Reading and writing a document **as a file** — `import_document` /
 `export_document` — and the two editor operations that do it.
 
-What a natural notation *is* lives in `ProjecturedNatural`: a domain declares the
+What a natural notation *is* lives in `ProjecturedPlatform`: a domain declares the
 rung it starts at, the format it is written in, the extension that names that
 format back, and how to read the text in again. This module is the file half
 alone: it picks a parser by the extension of a path, and it writes what

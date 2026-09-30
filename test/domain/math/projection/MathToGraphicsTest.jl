@@ -207,7 +207,7 @@ end
     path = ConcreteReference(FieldReferenceStep("denominator"), EmptyReference())
     image = map_reference_forward(iomap.projection, iomap, path)
     @test image !== nothing
-    box = ProjecturedGraphics.GraphicsModule.find_reference_box(iomap.output, image)
+    box = ProjecturedPlatform.GraphicsModule.find_reference_box(iomap.output, image)
     @test (box.x, box.y) == _at(iomap.output, 2)
     # And a point inside the box maps back to the same reference.
     back = map_reference_backward(iomap.projection, iomap,

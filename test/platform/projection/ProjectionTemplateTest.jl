@@ -15,8 +15,8 @@ module _ProjectionTemplateHygieneProbe
     import ProjecturedKernel.ProjectionModule: Projection
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
-    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf
-    import ProjecturedText.TextModule: TextString
+    import ProjecturedPlatform.SyntaxModule: SyntaxLeaf
+    import ProjecturedPlatform.TextModule: TextString
     # print_document intentionally NOT imported.
 
     @document struct ProbeDoc <: Document
@@ -54,10 +54,10 @@ module _FixedChildrenBlueprintProbe
     import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionModule: var"@projection_template", bound
-    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDocument
-    import ProjecturedText.TextModule: TextString
-    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
-    import ProjecturedStyle.StyleModule: color_default
+    import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDocument
+    import ProjecturedPlatform.TextModule: TextString
+    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Pair2 <: Document
         a::String
@@ -104,10 +104,10 @@ module _ConditionalChildrenProbe
     import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
-    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxConcatenation
-    import ProjecturedText.TextModule: TextString
-    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
-    import ProjecturedStyle.StyleModule: color_default
+    import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxConcatenation
+    import ProjecturedPlatform.TextModule: TextString
+    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Word <: Document
         text::String
@@ -172,9 +172,9 @@ module _GestureDescentProbe
     import ProjecturedKernel.ProjectionModule: Projection, print_document, read_intent
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
-    import ProjecturedCollection.CollectionModule: CellVector
-    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode
-    import ProjecturedText.TextModule: TextString
+    import ProjecturedPlatform.CollectionModule: CellVector
+    import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxNode
+    import ProjecturedPlatform.TextModule: TextString
 
     @document struct Item <: Document
         text::String
@@ -226,11 +226,11 @@ module _ReconciledChildrenProbe
     import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
-    import ProjecturedCollection.CollectionModule: CellVector
-    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode
-    import ProjecturedText.TextModule: TextString
-    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
-    import ProjecturedStyle.StyleModule: color_default
+    import ProjecturedPlatform.CollectionModule: CellVector
+    import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxNode
+    import ProjecturedPlatform.TextModule: TextString
+    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Item <: Document
         text::String
@@ -307,10 +307,10 @@ module _ValueFieldProbe
     import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
-    import ProjecturedSyntax.SyntaxModule: SyntaxNode
-    import ProjecturedText.TextModule: TextString
-    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
-    import ProjecturedStyle.StyleModule: color_default
+    import ProjecturedPlatform.SyntaxModule: SyntaxNode
+    import ProjecturedPlatform.TextModule: TextString
+    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Named <: Document
         x::String
@@ -362,11 +362,11 @@ module _TemplateWiringsProbe
     import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
-    import ProjecturedCollection.CollectionModule: CellVector
-    import ProjecturedSyntax.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
-    import ProjecturedText.TextModule: TextString
-    import ProjecturedStyle.StyleModule: font_ubuntu_monospace_regular_20
-    import ProjecturedStyle.StyleModule: color_default
+    import ProjecturedPlatform.CollectionModule: CellVector
+    import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
+    import ProjecturedPlatform.TextModule: TextString
+    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Word <: Document
         text::String

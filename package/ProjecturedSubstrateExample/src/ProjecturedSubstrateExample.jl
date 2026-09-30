@@ -21,35 +21,7 @@ The tier's registry slice is `substrate_examples`; the global interleaved
 module ProjecturedSubstrateExample
 
 import ProjecturedKernel
-import ProjecturedCollection
-import ProjecturedPrimitive
-import ProjecturedDomain
-import ProjecturedSerialization
-import ProjecturedStyle
-import ProjecturedComponent
-import ProjecturedProjection
-import ProjecturedReflection
-import ProjecturedDragging
-import ProjecturedFocus
-import ProjecturedGestureTracking
-import ProjecturedVersioning
-import ProjecturedPlot
-import ProjecturedGraphics
-import ProjecturedMouseTargetTracking
-import ProjecturedScreen
-import ProjecturedLayout
-import ProjecturedText
-import ProjecturedWidget
-import ProjecturedSyntax
-import ProjecturedPane
-import ProjecturedClipboard
-import ProjecturedTooltip
-import ProjecturedInspector
-import ProjecturedGestureHelp
-import ProjecturedGestureLog
-import ProjecturedFault
-import ProjecturedFileFormat
-import ProjecturedNatural
+import ProjecturedPlatform
 import ProjecturedConsole
 import ProjecturedPdf
 using ProjecturedKernelExample
@@ -60,36 +32,7 @@ import ProjecturedKernelExample: Example
 # one mechanical pass, exactly like the `Projectured` umbrella's re-export
 # loop (but without re-exporting): alias every submodule and `using` its
 # exported names into scope.
-const _SOURCES = (ProjecturedKernel,
-                  ProjecturedCollection,
-                  ProjecturedPrimitive,
-                  ProjecturedDomain,
-                  ProjecturedSerialization,
-                  ProjecturedStyle,
-                  ProjecturedComponent,
-                  ProjecturedProjection,
-                  ProjecturedReflection,
-                  ProjecturedDragging,
-                  ProjecturedFocus, ProjecturedGestureTracking,
-                  ProjecturedVersioning,
-                  ProjecturedPlot,
-                  ProjecturedGraphics, ProjecturedMouseTargetTracking,
-                  ProjecturedScreen,
-                  ProjecturedLayout,
-                  ProjecturedText,
-                  ProjecturedWidget,
-                  ProjecturedSyntax,
-                  ProjecturedPane,
-                  ProjecturedClipboard,
-                  ProjecturedTooltip,
-                  ProjecturedInspector,
-                  ProjecturedGestureHelp,
-                  ProjecturedGestureLog,
-                  ProjecturedFault,
-                  ProjecturedFileFormat,
-                  ProjecturedNatural,
-                  ProjecturedConsole,
-                  ProjecturedPdf)
+const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole, ProjecturedPdf)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

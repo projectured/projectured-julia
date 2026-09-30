@@ -11,7 +11,7 @@ appeared in a real file and stopped the whole file from parsing, since
 
 using Test
 using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel
-using ProjecturedNatural.NaturalModule: print_natural_text
+using ProjecturedPlatform.NaturalModule: print_natural_text
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
 # form, so leading and trailing whitespace is not part of what is asserted.

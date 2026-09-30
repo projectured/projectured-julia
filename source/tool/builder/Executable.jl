@@ -408,9 +408,9 @@ bundle a file a package opens through a path relative to its own source
 directory, and the fonts are exactly that: a `StyleFont` carries the path
 `asset/font` had in the projectured-julia checkout when the style package was
 compiled — every caller of this builder gets its fonts from there, whichever
-repository it builds in, because that is where `ProjecturedStyle` lives.
+repository it builds in, because that is where `ProjecturedPlatform` lives.
 
-`share/projectured/font` is where `ProjecturedStyle.font_file` looks when the
+`share/projectured/font` is where `ProjecturedPlatform.font_file` looks when the
 compiled-in path is not there, relative to the executable. The two have to agree
 about the name, and this comment and that function are where they say so.
 

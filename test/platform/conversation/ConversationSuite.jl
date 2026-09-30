@@ -1,18 +1,18 @@
 """
     test_conversation_layering()
 
-Static layered-architecture guard for `ProjecturedConversation`.
+Static layered-architecture guard for `ProjecturedPlatform`.
 """
 function test_conversation_layering()
-    main = get_package_source_root(ProjecturedConversation)
-    check_layering(main, pathof(ProjecturedConversation);
+    main = get_package_source_root(ProjecturedPlatform)
+    check_layering(main, pathof(ProjecturedPlatform);
                    name = "conversation",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedConversation; all = true)
-                         if isdefined(ProjecturedConversation, n) &&
-                            getfield(ProjecturedConversation, n) isa Module &&
-                            getfield(ProjecturedConversation, n) !== ProjecturedConversation &&
-                            parentmodule(getfield(ProjecturedConversation, n)) !== ProjecturedConversation))
+                       n for n in names(ProjecturedPlatform; all = true)
+                         if isdefined(ProjecturedPlatform, n) &&
+                            getfield(ProjecturedPlatform, n) isa Module &&
+                            getfield(ProjecturedPlatform, n) !== ProjecturedPlatform &&
+                            parentmodule(getfield(ProjecturedPlatform, n)) !== ProjecturedPlatform))
 end
 
 """
@@ -21,7 +21,7 @@ end
 Run this package's whole suite: the layering guard and every conversation test.
 """
 function test_conversation()
-    @testset "ProjecturedConversation" begin
+    @testset "ProjecturedPlatform" begin
         test_conversation_layering()
         test_conversation_editor()
         test_conversation_transcript()

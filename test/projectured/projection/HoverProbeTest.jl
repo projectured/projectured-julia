@@ -14,7 +14,7 @@
 # ProjecturedTest module scope; included after it).
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedText.TextModule: TextBlock, TextString
+using ProjecturedPlatform.TextModule: TextBlock, TextString
 
 _inspector_text(ref, target) =
     print_document(ReferenceInspectorToText(),

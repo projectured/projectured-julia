@@ -1,18 +1,18 @@
 """
     test_help_layering()
 
-Static layered-architecture guard for `ProjecturedHelp`.
+Static layered-architecture guard for `ProjecturedPlatform`.
 """
 function test_help_layering()
-    main = get_package_source_root(ProjecturedHelp)
-    check_layering(main, pathof(ProjecturedHelp);
+    main = get_package_source_root(ProjecturedPlatform)
+    check_layering(main, pathof(ProjecturedPlatform);
                    name = "help",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedHelp; all = true)
-                         if isdefined(ProjecturedHelp, n) &&
-                            getfield(ProjecturedHelp, n) isa Module &&
-                            getfield(ProjecturedHelp, n) !== ProjecturedHelp &&
-                            parentmodule(getfield(ProjecturedHelp, n)) !== ProjecturedHelp))
+                       n for n in names(ProjecturedPlatform; all = true)
+                         if isdefined(ProjecturedPlatform, n) &&
+                            getfield(ProjecturedPlatform, n) isa Module &&
+                            getfield(ProjecturedPlatform, n) !== ProjecturedPlatform &&
+                            parentmodule(getfield(ProjecturedPlatform, n)) !== ProjecturedPlatform))
 end
 
 """
@@ -22,7 +22,7 @@ Run this package's whole suite: the layering guard, the description of a type,
 the two lists and the page about the program.
 """
 function test_help()
-    @testset "ProjecturedHelp" begin
+    @testset "ProjecturedPlatform" begin
         test_help_layering()
         test_docstring_summary()
         test_help_list_to_syntax()

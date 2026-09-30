@@ -7,7 +7,7 @@ import ProjecturedKernel.LlmModule: LlmMessage, LlmText, LlmThinking,
                                     LlmRedactedThinking, LlmToolUse, LlmToolResult
 # The form a call's text becomes, so a replay test can build one the way the
 # agent loop does.
-import ProjecturedAssistant.AssistantModule: _eval_form_doc
+import ProjecturedPlatform.AssistantModule: _eval_form_doc
 
 function test_conversation_serialization()
     @testset "Conversation serialization (Stage 4)" begin

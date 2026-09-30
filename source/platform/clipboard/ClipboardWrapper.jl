@@ -1,7 +1,7 @@
 # Fragment of `ClipboardModule` — the wrapper a host puts around its content to
 # get copy, cut, note and paste: the clipboard document and the projection that
 # goes with it.
-using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection, NestingProjection,
+using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection, NestingProjection,
                                                      RecursiveProjection, TypeDispatchingProjection
 
 """

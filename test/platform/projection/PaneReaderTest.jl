@@ -455,7 +455,7 @@ end
     content = HorizontalLayout(Any[inner])
     group = PaneGroup(PaneTab[PaneTab("page", content)])
     tree = PaneTree(group)
-    select = ProjecturedPane.PaneModule._select_page_content
+    select = ProjecturedPlatform.PaneModule._select_page_content
     path_of(steps) = foldr(ConcreteReference, steps; init = EmptyReference())
     # What the widget layer answered: a press inside the tab's page.
     page_press = ReplaceSelectionOperation(path_of(Any[

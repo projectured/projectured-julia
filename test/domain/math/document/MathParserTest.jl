@@ -9,9 +9,9 @@ using ProjecturedMath.MathModule: MathDocument, MathVariable, MathSymbol, MathTe
                                   MathParenthesized, MathFraction, MathScript, MathRadical,
                                   MathBigOperator, MathDifferential, MathDerivative, MathFunction,
                                   MathAccent, MathMatrix, MathCase, MathCases, MathInsertion
-using ProjecturedNatural.NaturalModule: print_natural_text
-using ProjecturedSerialization.SerializationModule: save_file!, load_file, get_file_content, emit_text
-using ProjecturedPrimitive.PrimitiveModule: PrimitiveNumber
+using ProjecturedPlatform.NaturalModule: print_natural_text
+using ProjecturedPlatform.SerializationModule: save_file!, load_file, get_file_content, emit_text
+using ProjecturedPlatform.PrimitiveModule: PrimitiveNumber
 import ProjecturedMathExample
 
 _linear(tree) = print_natural_text(tree)

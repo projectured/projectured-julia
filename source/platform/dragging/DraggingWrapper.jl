@@ -6,7 +6,7 @@
 # order where later sits further out. These two are dragging's half of that, and
 # they live here rather than in the gallery because the types they name are this
 # package's, so a program can drag without the whole example tier for two lines.
-using ProjecturedProjection.ProjectionAlgebraModule: NestingProjection
+using ProjecturedPlatform.ProjectionAlgebraModule: NestingProjection
 
 
 """

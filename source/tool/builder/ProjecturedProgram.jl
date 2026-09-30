@@ -317,7 +317,7 @@ the code that reads it needs no change.
 """
 const PROJECTURED_PACKAGE_ASSETS = Dict(
     "ProjecturedKernel" => ["documentation" => "documentation"],
-    "ProjecturedStyle" => ["asset/font" => "asset/font"],
+    "ProjecturedPlatform" => ["asset/font" => "asset/font"],
     "ProjecturedWeb" => ["asset/web" => "asset/web", "asset/font" => "asset/font"])
 
 """

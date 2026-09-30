@@ -8,20 +8,12 @@ authors = []
 # slice is tested on its own and in an environment that holds no domain.
 
 [deps]
-ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
-ProjecturedHelp = "054ae1ca-906b-4e99-b707-58959c3973f3"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
-ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
-ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
-ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
-ProjecturedDomain = {path = "../ProjecturedDomain"}
-ProjecturedHelp = {path = "../ProjecturedHelp"}
-ProjecturedProjection = {path = "../ProjecturedProjection"}
-ProjecturedSyntax = {path = "../ProjecturedSyntax"}
-ProjecturedText = {path = "../ProjecturedText"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

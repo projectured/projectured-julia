@@ -16,19 +16,10 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedChart
 
-using ProjecturedCollection
-using ProjecturedDomain
-using ProjecturedGraphics
 using ProjecturedKernel
-using ProjecturedNatural
-using ProjecturedPlot
-using ProjecturedProjection
-using ProjecturedStatistics
-using ProjecturedStyle
+using ProjecturedPlatform
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedGraphics, ProjecturedKernel,
-             ProjecturedNatural, ProjecturedPlot, ProjecturedProjection, ProjecturedStatistics,
-             ProjecturedStyle)
+for _src in (ProjecturedKernel, ProjecturedPlatform)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

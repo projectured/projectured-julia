@@ -11,7 +11,7 @@ declare a type rather than decorate one.
 using Test
 using ProjecturedJulia.JuliaModule: parse_julia
 using ProjecturedJulia.JuliaModule: find_julia_definition
-using ProjecturedNatural.NaturalModule: print_natural_text
+using ProjecturedPlatform.NaturalModule: print_natural_text
 
 # What the marker gets back when it asks a source file for one definition.
 _definition_text(source::AbstractString, name::AbstractString) =

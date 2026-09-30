@@ -15,41 +15,16 @@ import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedPdf
 import ProjecturedConsole
-import ProjecturedNatural
-import ProjecturedFileFormat
-import ProjecturedGestureLog
-import ProjecturedGestureHelp
-import ProjecturedInspector
-import ProjecturedTooltip
-import ProjecturedClipboard
-import ProjecturedPane
-import ProjecturedSyntax
-import ProjecturedWidget
-import ProjecturedText
-import ProjecturedLayout
-import ProjecturedScreen
-import ProjecturedGraphics
-import ProjecturedPlot
-import ProjecturedVersioning
-import ProjecturedFocus
-import ProjecturedDragging
-import ProjecturedReflection
-import ProjecturedProjection
-import ProjecturedComponent
-import ProjecturedStyle
-import ProjecturedSerialization
-import ProjecturedDomain
-import ProjecturedPrimitive
-import ProjecturedCollection
-using ProjecturedKernelExample
-using ProjecturedSubstrateExample
-using ProjecturedKernelTest
-using ProjecturedSubstrateTest
+import ProjecturedPlatform
 using ProjecturedFormulaExample
+using ProjecturedKernelExample
+using ProjecturedKernelTest
+using ProjecturedSubstrateExample
+using ProjecturedSubstrateTest
 import ProjecturedMath
 import ProjecturedMathExample
 
-const _SOURCES = (ProjecturedClipboard, ProjecturedCollection, ProjecturedComponent, ProjecturedConsole, ProjecturedDomain, ProjecturedDragging, ProjecturedFileFormat, ProjecturedFocus, ProjecturedFormula, ProjecturedGestureHelp, ProjecturedGestureLog, ProjecturedGraphics, ProjecturedInspector, ProjecturedJulia, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural, ProjecturedPane, ProjecturedPdf, ProjecturedPlot, ProjecturedPrimitive, ProjecturedProjection, ProjecturedReflection, ProjecturedScreen, ProjecturedSerialization, ProjecturedStyle, ProjecturedSyntax, ProjecturedText, ProjecturedTooltip, ProjecturedVersioning, ProjecturedWidget)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedFormula, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

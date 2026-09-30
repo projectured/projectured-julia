@@ -26,7 +26,7 @@ DocumentModule.has_document_duplicate(::_ClipboardTool) = true
 @document struct _ClipboardFrame <: Document
     shown::Any
 end
-ProjecturedClipboard.ClipboardModule.find_clipboard_document(frame::_ClipboardFrame) = frame.shown
+ProjecturedPlatform.ClipboardModule.find_clipboard_document(frame::_ClipboardFrame) = frame.shown
 
 # A document that only another of its kind may replace.
 @document struct _ClipboardKeeper <: Document
@@ -621,11 +621,11 @@ end
     copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)).operations[1])
     @test copied isa PrimitiveString && copied !== shown
     @test _rd_val(read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0)).operations[1]) === shown
-    @test ProjecturedClipboard.ClipboardModule.find_clipboard_document(42) === nothing
+    @test ProjecturedPlatform.ClipboardModule.find_clipboard_document(42) === nothing
 end
 
 @testset "a copy and a note reach a widget a projection drew, and a paste leaves it" begin
-    focus = ProjecturedFocus.FocusModule
+    focus = ProjecturedPlatform.FocusModule
     owner = _ClipboardPair(PrimitiveString("a"), PrimitiveString("b"))
     drawn = _ClipboardKeeper(PrimitiveString("drawn"))
     slice = ClipboardSlice(_ClipboardPair(owner, PrimitiveString("c")), PrimitiveString("stored"))

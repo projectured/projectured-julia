@@ -2,18 +2,15 @@
     Web
 
 Opt-in package: the HTTP/WebSocket web backend (browser-rendered editor). Depends
-on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedKernel`,
-`ProjecturedScreen`, `ProjecturedStyle` + HTTP/JSON3; `using ProjecturedWeb`
+on `ProjecturedPlatform`, `ProjecturedPlatform`, `ProjecturedKernel`,
+`ProjecturedPlatform`, `ProjecturedPlatform` + HTTP/JSON3; `using ProjecturedWeb`
 exports `WebBackend` (construct it directly). SDL-free — reuses the pure-Julia
 TrueType text metrics.
 """
 module ProjecturedWeb
 
-using ProjecturedCollection
-using ProjecturedGraphics
 using ProjecturedKernel
-using ProjecturedScreen
-using ProjecturedStyle
+using ProjecturedPlatform
 
 using HTTP
 using JSON3
@@ -24,21 +21,21 @@ using Base64: base64encode
 # name, so the extension sites read BackendModule.*.
 using ProjecturedKernel.BackendModule
 import ProjecturedKernel.EditorModule: get_backend_name, get_backend_output
-import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
+import ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
-import ProjecturedCollection.CollectionModule: ListNode, CellVector
-import ProjecturedStyle.StyleModule: StyleColor
-import ProjecturedStyle.StyleModule: AffineTransform, affine_identity
-import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, compute_text_extent,
+import ProjecturedPlatform.CollectionModule: ListNode, CellVector
+import ProjecturedPlatform.StyleModule: StyleColor
+import ProjecturedPlatform.StyleModule: AffineTransform, affine_identity
+import ProjecturedPlatform.StyleModule: StyleFont, font_logical_size, compute_text_extent,
                                     compute_caret_offsets, FontFileMeasure, get_fallback_font_files
 import ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 import ProjecturedKernel.DocumentModule: is_view_state_field
 import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus,
                                WindowLeave
-import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
+import ProjecturedPlatform.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll
 

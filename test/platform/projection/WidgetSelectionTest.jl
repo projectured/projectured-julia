@@ -272,7 +272,7 @@ function test_widget_selection()
         @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
     end
     @testset "a selection can name a widget a projection drew for a document" begin
-        focus = ProjecturedFocus.FocusModule
+        focus = ProjecturedPlatform.FocusModule
         owner = PrimitiveString("form")
         t = _selection_tree()
         output_path = ConcreteReference(FieldReferenceStep("elements"),
@@ -329,7 +329,7 @@ function test_widget_selection()
 
     @testset "only a plain left down moves the focus" begin
         projection = _selection_projection()
-        focus = ProjecturedFocus.FocusModule
+        focus = ProjecturedPlatform.FocusModule
         box = WidgetCheckbox(false)
         down = MouseDown(:left, 1, 1, ModifierKeys(); time = 0.0)
         @test focus.is_focusing_press(down)

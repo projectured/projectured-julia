@@ -9,7 +9,7 @@
 # maps backward through the containers, and the mouse target reaches the table).
 
 using ProjecturedKernel.CellModule: Cell, Computation
-using ProjecturedCollection.CollectionModule: ListNode
+using ProjecturedPlatform.CollectionModule: ListNode
 
 function test_widget_table()
 @testset "WidgetTable hover" begin

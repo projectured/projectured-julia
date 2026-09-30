@@ -21,7 +21,7 @@ function test_help_list_to_syntax()
     # A list is a document type too, and a person reaches it by its alias.
     list = only(entry for entry in entries if entry.name == "DocumentTypeList")
     @test "documents" in list.typed
-    @test list.package == "ProjecturedHelp"
+    @test list.package == "ProjecturedPlatform"
     about = only(entry for entry in entries if entry.name == "AboutPage")
     @test startswith(about.summary, "What a program says about itself")
 end
@@ -32,7 +32,7 @@ end
     @test sort(names; by = lowercase) == names
     @test issetequal(names, [String(nameof(T)) for T in compute_concrete_subtypes(Projection)])
     chaining = only(entry for entry in entries if entry.name == "ChainingProjection")
-    @test chaining.package == "ProjecturedProjection"
+    @test chaining.package == "ProjecturedPlatform"
     @test isempty(chaining.typed)
     @test startswith(chaining.summary, "A compound higher-order projection")
     # A projection with no docstring has no description.
@@ -45,11 +45,11 @@ end
     @test lines[1] == "$count document types. Type one of the names in an empty tab to make a document of that type."
     # An entry is a blank line, the name line and the description line.
     @test length(lines) == 1 + 3count
-    at = findfirst(==("AboutPage   ProjecturedHelp   type: about page, about"), lines)
+    at = findfirst(==("AboutPage   ProjecturedPlatform   type: about page, about"), lines)
     @test at !== nothing
     @test startswith(lines[at + 1], "    What a program says about itself")
     lines = split(_draw_help_text(HelpListToSyntax(), ProjectionList()), "\n")
-    at = findfirst(==("HelpListToSyntax   ProjecturedHelp"), lines)
+    at = findfirst(==("HelpListToSyntax   ProjecturedPlatform"), lines)
     @test at !== nothing
     @test lines[at + 1] == "    no description"
 end

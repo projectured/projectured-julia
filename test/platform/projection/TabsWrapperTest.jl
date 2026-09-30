@@ -8,15 +8,15 @@ import ProjecturedKernel.BackendModule: Backend, initialize_backend!, quit_backe
 import ProjecturedKernel.EditorModule: build_editor
 import ProjecturedKernel.DeviceModule: Device
 import ProjecturedKernel.ProjectionModule: Projection
-import ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection,
+import ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection,
                                                      TypeDispatchingProjection
-import ProjecturedScreen.ScreenModule: ScreenDocument, show_document!
-import ProjecturedPane.PaneModule: PaneTree, PaneGroup, PaneTab, get_pane_groups,
+import ProjecturedPlatform.ScreenModule: ScreenDocument, show_document!
+import ProjecturedPlatform.PaneModule: PaneTree, PaneGroup, PaneTab, get_pane_groups,
                                    make_tabs_projection
-import ProjecturedWidget.WidgetModule: WidgetLabel
-import ProjecturedNatural.NaturalModule: NaturalToGraphics
-import ProjecturedStyle.StyleModule: FontFileMeasure
-import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsViewport
+import ProjecturedPlatform.WidgetModule: WidgetLabel
+import ProjecturedPlatform.NaturalModule: NaturalToGraphics
+import ProjecturedPlatform.StyleModule: FontFileMeasure
+import ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsViewport
 import ProjecturedKernel.IoMapModule: get_iomap_output
 
 # A backend that declares no output, so the window wrapper puts the root in a

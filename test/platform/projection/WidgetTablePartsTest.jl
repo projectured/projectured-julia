@@ -7,7 +7,7 @@
 
 using ProjecturedKernel.CellModule: Cell, Computation, set_cell_computation!,
                                     set_cell_value!
-using ProjecturedCollection.CollectionModule: ListNode
+using ProjecturedPlatform.CollectionModule: ListNode
 
 # A weighted column with no minimum is at least as wide as its header. Wide, each
 # column is its header and an equal share of what is left; narrow, each keeps
