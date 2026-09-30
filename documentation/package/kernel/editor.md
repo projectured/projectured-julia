@@ -324,57 +324,86 @@ edit from a pane tree to the root; see
 
 ## Running an editor
 
-The entry point is the bootstrap overload
-`run_editor!(backend, projection, document; mcp=false, mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing, devices=…, feeds=…, fault_policy=…)`:
+Three functions make an editor, and they differ in what they decide for the
+caller:
+
+- `make_editor(document, projection; backend, devices, feeds, fault_policy)`
+  decides nothing. The caller names the backend, and no wrapper is applied. A
+  test and a program that wants exact control call it.
+- `build_editor(document, projection; backend = nothing, devices, feeds,
+  fault_policy, wrappers...)` chooses the backend when none is given, applies
+  the wrappers, and then calls `make_editor`. `build_editor(document; ...)`
+  takes the projection from `make_document_projection(document)`.
+- `run_editor!(document, projection; keywords...)` and
+  `run_editor!(document; keywords...)` are `build_editor` and then the loop.
 
 ```julia
 using Projectured
 
-backend  = SdlBackend()
 document = JsonString("hello world")
-proj     = ChainingProjection(
+projection = ChainingProjection(
     JsonToSyntax(),
     SyntaxToText(),
     TextToGraphics(measure = FontFileMeasure()),
 )
 
-run_editor!(backend, proj, document)
+run_editor!(document, projection)                          # the one loaded backend
+run_editor!(document, projection; backend = WebBackend())  # a browser
 ```
 
-The backend is pluggable: swap `SdlBackend()` for `WebBackend()` to run the same
-editor in a browser instead of a native window (see the
-[devices and backends guide](devices-and-backends.md#webbackend)), or
-`ConsoleBackend()` for the terminal. Nothing else changes.
+**The choice of the backend.** A backend package declares its type with two
+seams: `get_backend_name(::Type{SdlBackend}) = :sdl`, and
+`get_backend_output(::Type{SdlBackend}) = :windows`. With no `backend`,
+`make_default_backend(:windows)` takes the one loaded type that draws windows.
+With none, or with more than one, it raises an error that names the loaded
+backends, because an order of preference would change the backend of a program
+when one more package is loaded. A backend with no method of
+`get_backend_output`, such as a recorder or a test double, is never chosen.
 
-This overload is `make_editor(backend, projection, document; devices, feeds,
-fault_policy)` and then `run_editor!(editor)`. `make_editor` calls
-`initialize_backend!(backend)`, takes a `Vector{Device}` (default `Display()`,
-`Keyboard()`, `Mouse()`), populates their physical properties from the backend
-with `configure_devices!`, opens the native windows with `open_native_windows!`,
-constructs the `Editor`, and prints it once. The windows
-are opened before the first frame, and the document is corrected to the geometry
-the window system granted: a manager may grant less than it is asked for, and it
-answers only once the window exists, so a document projected first is projected
-at a size the window never has and computes a second time when the answer
-arrives. A window a projection opens later — a tooltip, a popup — is still
-opened on demand, by `write_to_devices` against the `ScreenDocument` output (the
-pipeline is expected to end in one).
+**The wrappers.** A wrapper is a keyword of `build_editor`, such as
+`dragging = true`. A package declares it with methods for `Val{keyword}`:
+
+| Seam | What it answers |
+|---|---|
+| `wrap_editor!(::Val{k}, layer, setting, parts::EditorParts)` | changes the document, the projection, the feeds and the start steps of the editor that is made |
+| `get_wrapper_layers(::Val{k})` | the layers it acts in, each with a number that orders it in the layer, as `(:document => 70,)` |
+| `get_excluded_wrappers(::Val{k})` | the keywords that can not be on with it; none by default |
+| `is_wrapper_default(::Val{k})` | whether it is on when the caller does not name it; off by default |
+
+The layers are `:document`, `:container`, `:window` and `:screen`, from the
+inside out. The value of a keyword is its setting: `true` for the defaults, a
+`NamedTuple` of settings, or `false` to turn off a wrapper that is on by
+default. A keyword that no loaded package declares is an error when it is on,
+and is ignored when it is off.
+
+`make_editor` calls `initialize_backend!(backend)`, takes a `Vector{Device}`
+(default `Display()`, `Keyboard()`, `Mouse()`), populates their physical
+properties from the backend with `configure_devices!`, opens the native windows
+with `open_native_windows!`, constructs the `Editor`, and prints it once. The
+windows are opened before the first frame, and the document is corrected to the
+geometry the window system granted: a manager may grant less than it is asked
+for, and it answers only once the window exists, so a document projected first
+is projected at a size the window never has and computes a second time when the
+answer arrives. A window a projection opens later — a tooltip, a popup — is
+still opened on demand, by `write_to_devices` against the `ScreenDocument`
+output (the pipeline is expected to end in one).
 `run_editor!(editor)` runs the loop, and calls `quit_backend!(editor.backend)` in
 a `finally` block when the loop ends. `make_editor` quits the backend too when the
-build or the print throws. Pass
-`mcp=true` to start an MCP server alongside the loop, and `mcp_instructions` to
-override the text the MCP server's `initialize` response sends a connecting
-client (see [MCP server](#mcp-server)) — omitted, the server uses its own
-default. `mcp_host` and `mcp_port` say where the server listens, and each one
-that is omitted keeps the server's default, `127.0.0.1` and `9876`. A backend
-that drives a different channel passes its own `devices` (the `ConsoleBackend`
-uses `devices = Device[Keyboard()]` — no `Display`/`Mouse`).
+build or the print throws. Pass `mcp=true` to `run_editor!(editor)` to start an
+MCP server alongside the loop, and `mcp_instructions` to override the text the
+MCP server's `initialize` response sends a connecting client (see
+[MCP server](#mcp-server)) — omitted, the server uses its own default.
+`mcp_host` and `mcp_port` say where the server listens, and each one that is
+omitted keeps the server's default, `127.0.0.1` and `9876`. A backend that
+drives a different channel passes its own `devices` (the `ConsoleBackend` uses
+`devices = Device[Keyboard()]` — no `Display`/`Mouse`).
 
 A caller with work to do before the loop calls the two halves itself. It gets the
-editor from `make_editor`, does its work, and then runs the loop:
+editor from `make_editor` or `build_editor`, does its work, and then runs the
+loop:
 
 ```julia
-editor = make_editor(backend, proj, document)
+editor = make_editor(document, projection; backend)
 attach_fault_target!(editor.faults, log)   # hand the editor on
 @async drive(editor)                       # a driver that posts its work
 focus_pane!(editor, reference)             # an edit through the readers
@@ -395,7 +424,7 @@ session plays out on a real window while the user watches (and can still
 interact — real input is polled every frame, and Escape / window-close quits).
 
 ```julia
-play_live!(backend, projection, document, timeline;
+play_live!(document, projection, timeline; backend,
            window_id::Symbol, initial_hold=0.5,
            op_prefix=EmptyReference())
 ```

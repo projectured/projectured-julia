@@ -19,10 +19,11 @@ draws in the browser, and `VideoBackend` draws the frames of a video file. The
 test double `HeadlessBackend` keeps its output in memory. The section
 [Backends](#backends) describes each one.
 
-Every backend is a drop-in: `run_editor!` takes the backend as an argument, so switching
-is just e.g. `run_editor!(WebBackend(), projection, document)` instead of
-`run_editor!(SdlBackend(), projection, document)` — nothing in the editor loop,
-projection pipeline, or domains changes.
+Every backend is a drop-in: `run_editor!` takes the backend as a keyword, so switching
+is just e.g. `run_editor!(document, projection; backend = WebBackend())` instead of
+`run_editor!(document, projection; backend = SdlBackend())` — nothing in the editor
+loop, projection pipeline, or domains changes. With no `backend`, the one loaded
+backend that draws windows runs the editor.
 
 ## Devices
 
@@ -377,8 +378,9 @@ instead.
    keyword constructor whose defaults describe common hardware.
 2. If a backend can find the properties of the hardware, fill them in its
    `configure_devices!`.
-3. Add the device to the default `devices` of `make_editor(backend, projection,
-   document)` in `editor/EditorLoop.jl` (`Device[Display(), Keyboard(), Mouse()]`).
+3. Add the device to `_make_default_devices()` in `editor/EditorLoop.jl`
+   (`Device[Display(), Keyboard(), Mouse()]`), the default `devices` of
+   `make_editor` and of `build_editor`.
 4. If it emits novel events, declare backend-agnostic event structs in
    `source/kernel/event/` so projection readers can match on them.
 

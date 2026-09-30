@@ -267,14 +267,19 @@ function _make_mcp_server(editor::Editor, instructions, host, port)
                        if value !== nothing)...)
 end
 
+# The devices of an editor when the caller names none: a display, a keyboard
+# and a mouse, made new for each editor.
+_make_default_devices() = Device[Display(), Keyboard(), Mouse()]
+
 """
-    make_editor(backend::Backend, projection, document::Document;
+    make_editor(document::Document, projection; backend::Backend,
                 devices = Device[Display(), Keyboard(), Mouse()], feeds = Feed[],
                 fault_policy = FaultPolicy()) -> Editor
 
 Start `backend`, open the native windows of `document`, build the `Editor`, and
 print it once, so the editor has its iomap and the window shows the document.
-It runs no frame, so it reads no input.
+It runs no frame, so it reads no input. It applies no wrapper and chooses no
+backend: [`build_editor`](@ref) does both and then calls this function.
 
 Use it when there is work to do before the loop runs: attach a log, declare an
 API, start a driver, or work on the document with a verb that reads through the
@@ -283,7 +288,7 @@ the backend when the loop ends.
 
 # Example
 
-    editor = make_editor(backend, projection, document)
+    editor = make_editor(document, projection; backend)
     attach_fault_target!(editor.faults, log)
     run_editor!(editor)
 
@@ -300,8 +305,8 @@ a fault; the one print runs under it already. Pass `make_strict_fault_policy()`
 to stop at the first fault. When the build or the print fails, the backend is
 quit and the error goes on to the caller, also when the quit throws.
 """
-function make_editor(backend::Backend, projection, document::Document;
-                     devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
+function make_editor(document::Document, projection; backend::Backend,
+                     devices::Vector{Device}=_make_default_devices(),
                      feeds::Vector{Feed}=Feed[],
                      fault_policy::FaultPolicy=FaultPolicy())
     initialize_backend!(backend)
@@ -325,32 +330,17 @@ function make_editor(backend::Backend, projection, document::Document;
 end
 
 """
-    run_editor!(backend::Backend, projection, document; mcp = false,
-                mcp_instructions = nothing, mcp_host = nothing, mcp_port = nothing,
-                devices, feeds, fault_policy)
+    run_editor!(document::Document, projection; keywords...)
+    run_editor!(document::Document; keywords...)
 
-The one call for a caller with no work before the loop: [`make_editor`](@ref),
-then the loop above. The pipeline is expected to produce a `ScreenDocument` so
-the backend can reconcile native windows against it; pipelines whose output is
-a bare `GraphicsCanvas` go unrendered.
-
-Pass `mcp=true` to start an MCP server alongside the loop, and `mcp_host` and
-`mcp_port` to say where it listens. `devices`, `feeds` and `fault_policy` go to
-`make_editor`.
-
-A caller with work to do before the loop — a driver that posts its work, a
-watcher, a tool it declares — calls `make_editor`, does that work with the
-editor, and then calls `run_editor!(editor)`.
+The one call for a caller with no work before the loop: [`build_editor`](@ref)
+with `keywords`, then the loop above. A caller with work to do before the loop
+— a driver that posts its work, a watcher, a tool it declares — calls
+`build_editor` or `make_editor`, does that work with the editor, and then calls
+`run_editor!(editor)`.
 """
-function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
-              mcp_instructions::Union{AbstractString,Nothing}=nothing,
-              mcp_host::Union{AbstractString,Nothing}=nothing,
-              mcp_port::Union{Integer,Nothing}=nothing,
-              devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
-              feeds::Vector{Feed}=Feed[],
-              fault_policy::FaultPolicy=FaultPolicy())
-    editor = make_editor(backend, projection, document;
-                         devices = devices, feeds = feeds, fault_policy = fault_policy)
-    run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions,
-                mcp_host=mcp_host, mcp_port=mcp_port)
-end
+run_editor!(document::Document, projection; keywords...) =
+    run_editor!(build_editor(document, projection; keywords...))
+
+run_editor!(document::Document; keywords...) =
+    run_editor!(build_editor(document; keywords...))

@@ -316,7 +316,7 @@ composes with any higher-order projection.
 
 | Module | Role |
 |---|---|
-| `EditorModule.jl` | REPL loop: read → eval → print; `run_editor!(backend, projection, document)` entry point |
+| `EditorModule.jl` | REPL loop: read → eval → print; `make_editor(document, projection; backend)`, `build_editor` and `run_editor!` entry points |
 | `sdl/Sdl.jl` (opt-in `ProjecturedSdl`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
 | `console/Console.jl` (substrate `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
 | `web/Web.jl` (opt-in `ProjecturedWeb`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [asset/web/](../../asset/web) |

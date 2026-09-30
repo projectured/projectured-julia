@@ -221,7 +221,7 @@ function test_editor_inbox()
         backend = InboxQuitBackend(0, ErrorException("the windows did not open"),
                                    ErrorException("the quit failed"))
         @test_throws "the windows did not open" make_editor(
-            backend, InboxProbeProjection(), InboxProbe(); devices = Device[])
+            InboxProbe(), InboxProbeProjection(); backend, devices = Device[])
         @test backend.quits == 1
     end
 

@@ -42,8 +42,8 @@ function test_playback()
 
     @testset "play_live! starts the backend in the order of make_editor" begin
         backend = PbRecordingBackend(Symbol[])
-        @test (play_live!(backend, NamedTuple[]; projection = PbUnusedProjection(),
-                          document = PbProbe(), window_id = :probe,
+        @test (play_live!(PbProbe(), PbUnusedProjection(), NamedTuple[];
+                          backend = backend, window_id = :probe,
                           initial_hold = 0.0); true)
         # The backend starts before the loop and quits after it, also when the
         # loop throws.

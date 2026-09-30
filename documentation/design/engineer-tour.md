@@ -306,8 +306,8 @@ is the platform that drives the devices: `SdlBackend`, `ConsoleBackend`,
 and renders the output document.
 
 ```julia
-run_editor!(SdlBackend(), projection, document)   # a native window
-run_editor!(WebBackend(), projection, document)   # the same editor in a browser
+run_editor!(document, projection; backend = SdlBackend())   # a native window
+run_editor!(document, projection; backend = WebBackend())   # the same editor in a browser
 run_console_example(interactive=true)             # the terminal
 ```
 

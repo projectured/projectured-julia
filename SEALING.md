@@ -196,6 +196,8 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `editor/SafeMode.jl`
   - ⬜ `editor/FaultBarriers.jl`
   - ⬜ `editor/EditorLoop.jl`
+  - ⬜ `editor/BackendChoice.jl`
+  - ⬜ `editor/EditorBuild.jl`
 - **Layer 23 — playback** (`playback/`)
   - ⬜ `playback/PlaybackModule.jl`
   - ⬜ `playback/Playback.jl`

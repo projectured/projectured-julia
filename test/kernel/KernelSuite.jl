@@ -89,6 +89,7 @@ function test_kernel()
         test_editor_frame_drain()
         test_editor_feeds()
         test_editor_wait()
+        test_build_editor()
         test_editor_fault_barriers()
         test_editor_document_edits()
         test_frame_measurements()
@@ -128,7 +129,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_search_answer,
        test_code_execution,
        test_editor_inbox, test_editor_frame_drain, test_editor_feeds,
-       test_editor_wait, test_frame_measurements, test_editor_frame_performance,
+       test_editor_wait, test_build_editor, test_frame_measurements, test_editor_frame_performance,
        test_editor_fault_barriers, test_editor_document_edits, test_playback
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,

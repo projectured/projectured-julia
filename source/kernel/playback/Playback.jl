@@ -101,7 +101,7 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
 end
 
 """
-    play_live!(backend::Backend, timeline; projection, document, window_id,
+    play_live!(document::Document, projection, timeline; backend::Backend, window_id,
                initial_hold=0.5)
 
 Bootstrap overload: start the backend as `make_editor` does (`initialize_backend!`,
@@ -112,7 +112,7 @@ produce a `ScreenDocument` so the backend opens a real window; `window_id` is th
 first frame, so a recording does not start with the document reflowing to the
 size the window system granted.
 """
-function play_live!(backend::Backend, timeline; projection, document,
+function play_live!(document::Document, projection, timeline; backend::Backend,
                     window_id::Symbol, initial_hold::Real=0.5,
                     op_prefix::Reference=EmptyReference())
     initialize_backend!(backend)

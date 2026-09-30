@@ -102,7 +102,7 @@ Both repaint every window in full.
 ## Usage
 
 ```julia
-run_editor!(SdlBackend(), projection, document)
+run_editor!(document, projection; backend = SdlBackend())
 backend = SdlBackend(; partial_render = true, debug_dirty = true)
 write_image(document, projection, "snapshot.png")
 projection = TextToGraphics(measure = FontFileMeasure())

@@ -454,7 +454,7 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
                                    content_unwrap::Vector{Symbol}=Symbol[],
                                    feeds::Vector{Feed}=Feed[])
     screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
-    make_editor(backend, compose(projs, backend), screen; feeds=feeds)
+    make_editor(screen, compose(projs, backend); backend = backend, feeds = feeds)
 end
 
 # Run the loop of `editor`, under the profiler when `profile` is set.
@@ -684,7 +684,8 @@ function run_console_example(; document=make_json_document_example(),
         # that lands on the rendered screen and corrupts it (the console owns the
         # display). Discard those logs for the duration of the interactive loop.
         Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-            run_editor!(backend, projection, document; devices=Device[Keyboard()])
+            run_editor!(make_editor(document, projection; backend = backend,
+                                     devices = Device[Keyboard()]))
         end
     else
         backend = ConsoleBackend(; ansi=ansi, clear=something(clear, false))

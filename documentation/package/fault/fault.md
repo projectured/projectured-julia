@@ -31,7 +31,7 @@ The package has [the shared shape](../gesturelog/gesturelog.md#the-shared-shape)
 `Editor(…)` starts with `make_strict_fault_policy()`: no barrier catches, so a broken projection fails its test. `make_editor` turns the barriers on: it gives the editor `FaultPolicy()`, because a loop that a person sits in front of must survive. `run_editor!` keeps the policy of its editor, and its keyword `fault_policy` replaces it. `print!` puts the policy of the editor in the printer context under `:fault_policy`, beside the store under `:fault_store`, so a barrier in a chain follows the same policy as the barriers of the editor. A context with no policy, such as one that a test makes by hand, counts as the strict policy.
 
 ```julia
-editor = make_editor(backend, projection, document)            # barriers on
+editor = make_editor(document, projection; backend)            # barriers on
 run_editor!(editor)                                             # barriers stay on
 run_editor!(editor; fault_policy = make_strict_fault_policy())  # barriers off
 ```
@@ -49,7 +49,7 @@ ChainingProjection(
 
 ```julia
 projection, log = make_fault_tolerant_projection(composed)
-editor = make_editor(backend, projection, document)
+editor = make_editor(document, projection; backend)
 attach_fault_target!(editor.faults, log)
 run_editor!(editor)
 ```

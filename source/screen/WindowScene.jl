@@ -141,12 +141,11 @@ function make_editor(document, projection, title::AbstractString;
         height = something(height, display_height)
     end
     scene = make_window_scene(document, title; width = width, height = height)
-    make_editor(backend,
+    make_editor(scene,
                 make_window_scene_projection(projection;
                     opened_window_projections = opened_window_projections,
-                    screen_wrap = screen_wrap),
-                scene;
-                feeds = feeds, fault_policy = fault_policy)
+                    screen_wrap = screen_wrap);
+                backend = backend, feeds = feeds, fault_policy = fault_policy)
 end
 
 """

@@ -227,7 +227,7 @@ function test_editor_wait()
 
     @testset "make_editor prints once and reads nothing, and the loop quits the backend" begin
         backend = ProbeLifeBackend()
-        editor = make_editor(backend, WaitProbeProjection(), WaitProbe(); devices = Device[])
+        editor = make_editor(WaitProbe(), WaitProbeProjection(); backend, devices = Device[])
         @test backend.starts == 1 && backend.quits == 0
         # Printed once, so a verb that reads through the readers has an iomap.
         @test editor.iomap !== nothing
@@ -239,7 +239,7 @@ function test_editor_wait()
 
     @testset "the loop quits the backend also when it throws" begin
         backend = ProbeLifeBackend()
-        editor = make_editor(backend, WaitProbeProjection(), WaitProbe(); devices = Device[],
+        editor = make_editor(WaitProbe(), WaitProbeProjection(); backend, devices = Device[],
                              fault_policy = make_strict_fault_policy())
         post_operation!(editor, ProbeFailOperation())
         @test_throws Exception run_editor!(editor)

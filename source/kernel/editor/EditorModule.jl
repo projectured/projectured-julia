@@ -7,7 +7,7 @@ to the document via evaluate!, call print! and render the updated canvas.
 The latest IoMap is retained between frames so the reader has access to
 the current coordinate mapping.
 
-The module lives in eight fragments that share this namespace:
+The module lives in ten fragments that share this namespace:
 
 - [`Editor.jl`](Editor.jl) — `Editor`, its constructor, the invalidation of its
   projection, the editor as the start of a reference, and its fault store.
@@ -26,6 +26,10 @@ The module lives in eight fragments that share this namespace:
   an operation that failed.
 - [`EditorLoop.jl`](EditorLoop.jl) — the counter log, `run_frame!`,
   `get_frame_clock_time`, `run_editor!` and `make_editor`.
+- [`BackendChoice.jl`](BackendChoice.jl) — the seams by which a backend type
+  says what it is, and `make_default_backend`.
+- [`EditorBuild.jl`](EditorBuild.jl) — `EditorParts`, the seams of a wrapper,
+  `make_document_projection` and `build_editor`.
 """
 module EditorModule
 
@@ -58,7 +62,10 @@ export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!
        get_consecutive_fault_limit,
        is_editor_in_safe_mode, enter_safe_mode!, leave_safe_mode!,
        report_frame_faults!,
-       InboxFeed, wake_editor!, drain_feeds!
+       InboxFeed, wake_editor!, drain_feeds!,
+       get_backend_name, get_backend_output, collect_backend_types, make_default_backend,
+       EditorParts, EDITOR_WRAPPER_LAYERS, wrap_editor!, get_wrapper_layers,
+       get_excluded_wrappers, is_wrapper_default, make_document_projection, build_editor
 
 include("Editor.jl")
 include("Inbox.jl")
@@ -68,5 +75,7 @@ include("DocumentEdits.jl")
 include("SafeMode.jl")
 include("FaultBarriers.jl")
 include("EditorLoop.jl")
+include("BackendChoice.jl")
+include("EditorBuild.jl")
 
 end # module
