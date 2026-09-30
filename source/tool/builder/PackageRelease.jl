@@ -375,6 +375,16 @@ function _copy_tracked_files(context::BuildContext, from::AbstractString,
     end
 end
 
+# The longest folder that each of `folders` starts with, such as `source/platform`.
+function _get_common_folder(folders)
+    parts = [split(folder, "/") for folder in folders]
+    depth = 0
+    while all(p -> length(p) > depth && p[depth + 1] == parts[1][depth + 1], parts)
+        depth += 1
+    end
+    join(parts[1][1:depth], "/")
+end
+
 # The files of one package folder. Its `Project.toml` is the one of the
 # repository until `_write_release_project` writes the released one.
 function _write_package_content(context::BuildContext, name, destination;
@@ -383,11 +393,14 @@ function _write_package_content(context::BuildContext, name, destination;
     mkpath(destination)
     for path in _collect_tracked_files(context, joinpath(package, "src"))
         text = read(joinpath(context.root, path), String)
-        for match in eachmatch(r"include\(\"\.\./\.\./\.\./source/([A-Za-z0-9_]+)/", text)
-            slice = match.captures[1]
-            target = joinpath(destination, "source", slice)
-            isdir(target) ||
-                _copy_tracked_files(context, joinpath("source", slice), target)
+        # The source of a package is the common folder of the files that its entry
+        # file includes: one slice, or a whole group for the platform.
+        included = [dirname(found.captures[1]) for found in
+                    eachmatch(r"include\(\"\.\./\.\./\.\./(source/[^\"]+)\"\)", text)]
+        if !isempty(included)
+            folder = _get_common_folder(included)
+            target = joinpath(destination, folder)
+            isdir(target) || _copy_tracked_files(context, folder, target)
         end
         target = joinpath(destination, relpath(path, package))
         mkpath(dirname(target))
