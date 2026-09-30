@@ -1767,6 +1767,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Tool(handler, name; description, parameters, result_mime_type), so that a do block writes the handler.
 - **C:** A # @positional: marker for the four positional arguments. §4 then needs a new kind of exception, because a constructor of four fields is none of the four kinds.
 - **Recommended (mine): A.** Resource, the next type of Tool.jl, has the shape Resource(uri, name; description, provider, mime_type) from plan/done/keyword-arguments.md, and call_tool took keywords in the same plan. One shape then serves the types of the file. The Tool constructor came in commit 2224b9d8, after that plan closed.
+- **Decided by the owner, 2026-09-30: A.**
 - Depends on: POLICY-3.
 - Cost: S. Tool.jl, DefaultTools.jl (6 calls), UndoDocument.jl (2), FaultExamples.jl (1), and about 14 calls in 8 test files. No call in omnet-julia or inet-julia.
 
