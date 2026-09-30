@@ -186,7 +186,7 @@ dependency.
 | `ProjecturedWidget` | Collection, Domain, Focus, Graphics, Layout, Primitive, Projection, Screen, Serialization, Style, Text | — |
 | `ProjecturedReflection` | Collection, Widget | — |
 | `ProjecturedClipboard` | Collection, Domain, Primitive, Projection, Serialization, Text | — |
-| `ProjecturedPane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Serialization, Widget | — |
+| `ProjecturedPane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Screen, Serialization, Style, Widget | — |
 | `ProjecturedTooltip` | Screen | — |
 | `ProjecturedNatural` | Collection, Domain, Layout, Primitive, Projection, Style, Text, Widget | — |
 | `ProjecturedSyntax` | Collection, Domain, Natural, Primitive, Projection, Style, Text | — |

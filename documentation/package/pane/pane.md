@@ -195,6 +195,14 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 `make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
 
+### The tabs of an editor
+
+The wrapper `tabs` of `build_editor` puts the root document in the one tab of a pane tree. It is on by default, so an editor that is built with this package loaded shows its documents as tabs, and `tabs = false` turns it off. A root that is a `PaneTree` or a `ScreenDocument` already is left as it is. Its setting `(; title, font, measure)` names the tab and gives the font and the measure of the pane's widgets.
+
+`make_tabs_projection(projection)` draws the tree. `PaneToWidget` makes the widgets and leaves the content of each tab as it is. The stage after it draws every widget and layout with the widget renderer, and every other document with `projection`. So the tabs work with a projection that draws no widget, and a content that is itself a widget draws as a widget. A content can not be told by its place, because the widget printers hand their own context to a child.
+
+`show_document!(editor, document; title)` of the screen package shows a later document. For a window whose content is a `PaneTree`, this package's method opens a tab named `title`, or focuses the tab that shows `document` already.
+
 ### Save and load of the whole editor
 
 `save_user_interface(editor, path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`, only when that file is a file of the project, and it aborts on any other. So the function finds each reachable file tab with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file. `load_user_interface(path)` returns the document, with each file tab read back from its file.

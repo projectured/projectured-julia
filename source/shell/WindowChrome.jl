@@ -205,7 +205,7 @@ never opens a tool that stays empty in one of them.
 
     run_with_window_tools() do feeds, start
         editor = build_editor(document, projection; backend = backend, feeds = feeds,
-                              window = (; title = "Title"))
+                              tabs = false, window = (; title = "Title"))
         start(editor)
         run_editor!(editor)
     end

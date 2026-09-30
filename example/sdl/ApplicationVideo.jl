@@ -93,6 +93,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
     try
         run_with_window_tools() do feeds, start
             editor = build_editor(document, projection; backend = backend, feeds = feeds,
+                                  tabs = false,
                                   window = (; title, width, height,
                                             opened_window_projections =
                                                 make_opened_window_projections(;

@@ -48,7 +48,7 @@ export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-export make_window_scene, make_window_scene_projection
+export make_window_scene, make_window_scene_projection, show_document!
 export ScreenDocument, WindowDocument
 
 
@@ -56,6 +56,7 @@ include("ScreenDocument.jl")
 include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
+include("DocumentShow.jl")
 
 
 end # module

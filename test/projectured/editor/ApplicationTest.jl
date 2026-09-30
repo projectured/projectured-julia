@@ -443,6 +443,7 @@ function test_application()
                 document, projection = make_application_window(paths[1:2]; root = dir,
                                                                assistant = nothing)
                 editor = build_editor(document, projection; backend = HeadlessBackend(),
+                                      tabs = false,
                                       window = (; title = "ProjecturEd", width = 1600,
                                                 height = 1000,
                                                 opened_window_projections =

@@ -11,7 +11,7 @@ function _make_referenced_application(directory; paths = nothing)
         paths = [joinpath(directory, "people.json")]
     end
     document, projection = make_application_window(paths; root = directory, assistant = nothing)
-    editor = build_editor(document, projection; backend = HeadlessBackend(),
+    editor = build_editor(document, projection; backend = HeadlessBackend(), tabs = false,
                           window = (; title = "ProjecturEd", width = 1280, height = 720,
                                     opened_window_projections = make_opened_window_projections(;
                                         content = make_application_content_projections())))

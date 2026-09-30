@@ -427,8 +427,10 @@ function run_application(paths::AbstractString...;
     # capture of the Julia logger and a feed, the statistics by a feed, and the
     # fault log by the store of the editor. The shell gives all of them.
     run_with_window_tools() do feeds, start
+        # The window is the application's own pane tree inside its shell, so
+        # it has no tabs around it.
         editor = build_editor(document, projection;
-                              backend = backend,
+                              backend = backend, tabs = false,
                               feeds = push!(copy(feeds), tooltip_feed),
                               fault_policy = fault_policy,
                               # A tooltip holds a document of one of this

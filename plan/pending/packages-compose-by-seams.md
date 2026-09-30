@@ -636,7 +636,7 @@ Each step ends with its narrowest test and a commit.
     the whole value would also leave out a window whose content holds one
     button. Widget keeps its two `pred_arguments` methods and its
     Serialization dependency until these are decided.
-- [ ] **5. The tabs and `show_document!`.** The screen method opens a
+- [x] **5. The tabs and `show_document!`.** The screen method opens a
   window. The pane method opens or focuses a tab. Add the `tabs` wrapper.
   - Found: `PaneToWidget` passes the content of a tab through unchanged, so
     the stage after it must draw the pane's widgets and also each content.
@@ -658,6 +658,26 @@ Each step ends with its narrowest test and a commit.
     document yet: the display is its one caller, and it uses no such
     wrapper. The editor keeps no list of its wrappers until a caller needs
     it.
+  - Done 2026-09-30. Screen: `show_document!(editor, document; title)` in
+    `DocumentShow.jl`; its fallback opens a window beside the first one and
+    as large as it. Pane: `PaneTabsWrapper.jl` with the `tabs` wrapper (on by
+    default, setting `(; title, font, measure)`, it lifts the selection) and
+    the `PaneTree` method of `show_document!` (it opens a tab or focuses the
+    tab that shows the document). Pane names Screen and Style directly.
+  - Found: the widget printers hand their own context to a child, so every
+    reference in the stage after `PaneToWidget` is `∅`, and a content can
+    not be told by its place. `make_tabs_projection` dispatches by type, as
+    Q3 (a) says: widgets and layouts draw with the widget renderer, and
+    every other document with the caller's projection. A content that is a
+    widget draws as a widget.
+  - Found: the tabs run before the window, so they also leave a root that
+    is a `ScreenDocument` as it is.
+  - `tabs = false` in the callers with a root of their own: the
+    application, the application video, their tests, the window wrapper
+    test and the kernel test of `build_editor`.
+  - `test_tabs_wrapper` in `test/substrate/projection/TabsWrapperTest.jl`.
+    Found: a widget prints its children when its output is read, so the
+    test reads the whole output.
 - [ ] **6. `ProjecturedDisplay`.** Add `display_in_editor`, `EditorDisplay`
   and the REPL hook that refreshes. A value with no document is an error
   (C15). Add the package to

@@ -246,6 +246,7 @@ include("../../../test/substrate/projection/TooltipProjectionTest.jl")
 include("../../../test/substrate/projection/WindowFitTest.jl")
 include("../../../test/substrate/projection/WindowWrapperTest.jl")
 include("../../../test/substrate/projection/DocumentCompositionTest.jl")
+include("../../../test/substrate/projection/TabsWrapperTest.jl")
 # Widget/screen route decorators exercised on visual example fixtures
 # (make_widget_split_pane_* / make_widget_popup_* live in ProjecturedVisualExample).
 include("../../../test/substrate/projection/SplitPaneDragTest.jl")
