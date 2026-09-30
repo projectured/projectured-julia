@@ -394,7 +394,7 @@ The points as they were put:
 
 Each step ends with its narrowest test and a commit.
 
-- [ ] **1. The kernel.** Add `EditorParts`, the wrapper seams, the backend
+- [x] **1. The kernel.** Add `EditorParts`, the wrapper seams, the backend
   seams and the choice of the backend. Add `build_editor`, the two forms of
   `run_editor!`, and `wait = false`. Change `make_editor`, `Editor` and
   `play_live!` to the order of C13, and move their callers. Remove
@@ -536,6 +536,31 @@ Each step ends with its narrowest test and a commit.
 - [ ] **8. The gallery.** Each keyword of `make_example_editor` becomes a
   wrapper in the package of §4.5. `run_example` keeps its signature. The
   selection lift moves into the wrappers.
+  - Found before the work, four points for the owner:
+  - **S1. Several documents.** The gallery opens several documents side by
+    side, each with the same wrappers of the `:document` layer, but
+    `build_editor` takes one document. (a) The editor keeps the wrappers
+    that are on with their settings, and `show_document!` applies the
+    `:document` layer to each later document; the gallery builds the first
+    and shows the others, and the display gets the same for a value shown
+    later. (b) `build_editor` takes a vector of documents. (c) The gallery
+    keeps its own scene and calls the wrappers through a kernel helper.
+    My recommendation: (a), because the display needs it too.
+  - **S2. A wrapper in two layers needs state.** The gesture log draws an
+    overlay on each document and records at the root, and both use one log.
+    My recommendation: `EditorParts` gets a field `wrapper_state`, a
+    `Dict{Symbol,Any}` by keyword, for what one wrapper shares between its
+    layers and its start step.
+  - **S3. The tooltip changes the screen projection.** Its composer adds
+    rows for `TooltipSource` and for the text of the tooltip window. My
+    recommendation: the tooltip wrapper wraps the document in a
+    `TooltipSource`, dispatches `TooltipSource` to its decorator in the
+    projection, and adds the rows of its window to
+    `opened_window_projections`.
+  - **S4. The inspector.** C9 says no inspector wrapper, but main still has
+    the inspector. My recommendation: while it exists, `inspector = true`
+    makes the gallery build its scene itself with `make_editor`, as now, and
+    every other keyword goes through `build_editor`.
 - [ ] **9. The shell.** `make_window_wrap` and `run_with_window_tools` become
   wrappers. Move `make_application_window`.
 - [ ] **10. The builder.** The generated `main` loads the backend packages
