@@ -321,9 +321,9 @@ function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceString
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
-function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── MarkdownStyledInline (rendered Strong/Emphasis/Heading/Link) ───────────────
@@ -408,9 +408,9 @@ for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
     end
 end
 
-function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplacePathOperation)
     r = map_reference_backward(p, iomap, op.path)
-    r === nothing ? nothing : ReplaceSelectionOperation(r)
+    r === nothing ? nothing : make_path_operation(op, r)
 end
 
 function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
@@ -483,9 +483,9 @@ function map_reference_backward(::MarkdownImageToStyledNode, iomap::SimpleIoMap,
     end
 end
 
-function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplacePathOperation)
     r = map_reference_backward(p, iomap, op.path)
-    r === nothing ? nothing : ReplaceSelectionOperation(r)
+    r === nothing ? nothing : make_path_operation(op, r)
 end
 function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
@@ -562,9 +562,9 @@ function map_reference_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMa
     end
 end
 
-function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     r = map_reference_backward(p, iomap, op.path)
-    r === nothing ? nothing : ReplaceSelectionOperation(r)
+    r === nothing ? nothing : make_path_operation(op, r)
 end
 function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)

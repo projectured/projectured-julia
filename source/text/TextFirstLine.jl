@@ -105,10 +105,10 @@ map_reference_backward(p::TextFirstLine, iomap::TextFirstLineIoMap, reference) =
     _map_selection_over_runs(_reverse_flat_runs(_make_first_line_runs(iomap.info, iomap.input, iomap.output)),
                              iomap.output, reference)
 
-function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # A range edit on the first line maps back to the identical span/range (indices

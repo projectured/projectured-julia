@@ -113,10 +113,10 @@ map_reference_backward(p::TextLineNumbering, iomap::SimpleIoMap, reference) =
     _map_selection_over_runs(_reverse_flat_runs(_make_numbering_runs(iomap.input, iomap.output)),
                              iomap.output, reference)
 
-function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # A key reaches this stage only when the stages after it gave no operation, or one

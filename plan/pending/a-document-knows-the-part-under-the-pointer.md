@@ -450,7 +450,8 @@ already; the sealed selection files do not change (Q4).
   example no longer throws, and `filesystem` and `navigator` seed a caret, so
   their broken markers go. In the graph example the corner of a vertex is on the
   `{` that the object prints, so the point names that brace (Q12), where it named
-  the vertex before. "Lands where it landed before" was checked by the rendered
+  the vertex before (owner 2026-09-30: "Yes, I accept"). "Lands where it landed
+  before" was checked by the rendered
   caret places of every reached state, old code against new: the three SQL
   documents and `book` reach every place of the old code, and the nested SQL
   document 7 more (the old code had two names for some carets).
@@ -468,7 +469,7 @@ already; the sealed selection files do not change (Q4).
   documentation check has its notes. The domain documents (FSM, math, XML, SQL),
   the projection system guide, the testing guide and the reference document
   state the rule.
-- [ ] 3b. **The backward map of every kind of path** (Q7, option (a)). The 75
+- [x] 3b. **The backward map of every kind of path** (Q7, option (a)). The 75
   readers in 33 files that take `ReplaceSelectionOperation` by type, and the 7
   places of omnet, take `ReplacePathOperation` and answer
   `make_path_operation(operation, path)`; a reader that only does what the
@@ -479,6 +480,39 @@ already; the sealed selection files do not change (Q4).
   selection. Tests: a mouse target at a text caret of the JSON chain arrives at
   the JSON document as the path of the number, and the pointer on the inner
   `[` of `[1, [2, 3]]` leaves `‹.open{0}›` in the inner array.
+  Built: 67 readers in projectured take `ReplacePathOperation` and answer
+  `make_path_operation(op, path)`, with the kernel default reader, the rule
+  reader, the disambiguation of the recursive projection and
+  `_annotate_operation`. Of the 29 `isa` checks, 18 re-root or map a path and
+  take the supertype (the graph's click and key routers, the table list's cell
+  click, entry and pass-through, the table's cell click, entry and grid
+  pass-through, `_retarget_op` of the widgets and of the assistant, `_prefix_op`
+  of the screen and of the versioning, the workspace readers, the tab prefix,
+  the control bar of the configuring projection) and the default filter of
+  the gesture log, which drops every kind of path as noise; 11 belong to a
+  press and keep the selection (the Alt+press whole selection, the click
+  resolution of the syntax, the Alt+click inside a page, the click in a part
+  of a conversation, the whole-selection press of omnet's filter, and the
+  probes that make a click of their own: the hover probe, the context menu
+  probe, dragging). `ObjectToWidget` and `ReflectionToWidget` decline every
+  kind, as they declined the selection. In omnet the form and the embed map
+  every kind; the catalog shell and the workflow turn a selection into an
+  action (open a page, select a run), so they keep that method and get one
+  more that only maps any other kind; the result frame maps nothing. The
+  readers that only map were kept, not deleted: a catch-all of their
+  projection hides the default reader in most of them (SQL), and a deletion
+  adds a dispatch risk for no function. Tests: `test_every_kind_of_path()`
+  (on `[1, [2, 3]]` through the collection and the text stage, because the
+  substrate tests can not use the JSON package: every caret maps a mouse target
+  back to the path of the selection and keeps its kind; the pointer on the
+  inner `[` leaves the inner array holding its own step at `.open`, and the
+  outer array `[2]` and the rest).
+  Checks: the wide sweep and the suites of step 3a have the counts of the 3a
+  sweep in all 46 suites, with 410 more passes in the substrate (the new test);
+  the repl sweep in a fresh process has its baseline (23172 and 5 broken); the
+  omnet tests pass; the naming guard passes, and the documentation check has
+  its notes. The kernel docstrings of the default reader, the projection
+  system guide, and the undo and gesture log documents name every kind of path.
 - [ ] 4. **The forward wiring** (M4, Q4). One kernel helper wires every kind of
   path of an output document from the forward map of the place, a dormant
   selection as one; the places that wire the output selection call it. A view

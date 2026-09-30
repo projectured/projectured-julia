@@ -78,9 +78,9 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
 end
 
 function read_intent(p::CollectionCellVectorToSyntax, iomap::ChildrenIoMap,
-                     op::ReplaceSelectionOperation)
+                     op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── CollectionListNodeToSyntax ───────────────────────────────────────────────

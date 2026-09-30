@@ -43,9 +43,9 @@ end
 # non-operation "operation".
 function read_intent(p::WorkspaceFolderToFileSystemDirectory, iomap, op)
     op isa Operation || return nothing
-    op isa ReplaceSelectionOperation || return op
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    op isa ReplacePathOperation || return op
+    path = map_reference_backward(p, iomap, get_operation_path(op))
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── WorkspaceToFileSystemDirectory (projects children via recursion) ─────────
@@ -92,13 +92,13 @@ function map_reference_backward(::WorkspaceToFileSystemDirectory, iomap, referen
     @reference ::Workspace.folders::CellVector[1].^(inner)
 end
 
-# A selection from the view maps back onto the workspace. Anything else that is
+# A path from the view (the selection, or any other kind) maps back onto the workspace. Anything else that is
 # an operation passes as it is, and a raw gesture is declined, as for a folder.
 function read_intent(p::WorkspaceToFileSystemDirectory, iomap, op)
     op isa Operation || return nothing
-    op isa ReplaceSelectionOperation || return op
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    op isa ReplacePathOperation || return op
+    path = map_reference_backward(p, iomap, get_operation_path(op))
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # An Alt+press selects the workspace as a whole. The row under the pointer is a

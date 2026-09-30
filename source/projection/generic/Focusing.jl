@@ -54,10 +54,10 @@ function evaluate_operation(editor, op::ReplaceFocusPartOperation)
     op.projection.part = op.part
 end
 
-function read_intent(p::FocusingProjection, iomap::SimpleIoMap, event::ReplaceSelectionOperation)
+function read_intent(p::FocusingProjection, iomap::SimpleIoMap, event::ReplacePathOperation)
     input_selection = map_reference_backward(p, iomap, event.path)
     input_selection === nothing && return nothing
-    return ReplaceSelectionOperation(input_selection)
+    return make_path_operation(event, input_selection)
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table so the firing path (via

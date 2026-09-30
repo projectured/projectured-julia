@@ -63,7 +63,7 @@ end
 read_intent(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
     read_intent(rp, nothing, Intent(evt), iomap).operation
 
-read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceSelectionOperation) =
+read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplacePathOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation
 
 # Disambiguation for RecursiveProjection over RuleIoMap.

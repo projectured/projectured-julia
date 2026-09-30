@@ -184,10 +184,10 @@ function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, ref
     f === nothing ? nothing : _flat_caret(f)
 end
 
-function read_intent(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # Translate a `ReplaceStringRangeOperation` from the filtered output domain back

@@ -557,8 +557,8 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     op = read_intent(cim.projection, cim, MouseClick(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
                                                      time = g.time))
     op === nothing && return row
-    op isa ReplaceSelectionOperation || return op
-    ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
+    op isa ReplacePathOperation || return op
+    make_path_operation(op, _wtl_cell_reference(k, c, get_operation_path(op)))
 end
 
 # The row of the place that `route` names, written to `hovered`, only when it
@@ -628,8 +628,8 @@ function _wtl_enter_cell(iomap::WidgetTableListIoMap, k::Int, c::Int)
     cim === nothing && return nothing
     op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl = true);
                                                   time = time()))
-    op isa ReplaceSelectionOperation || return nothing
-    ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
+    op isa ReplacePathOperation || return nothing
+    make_path_operation(op, _wtl_cell_reference(k, c, get_operation_path(op)))
 end
 
 # An event that is not a gesture of the table's own goes to the cell the
@@ -645,8 +645,8 @@ function _wtl_passthrough(iomap::WidgetTableListIoMap, event)
     cim = entries[c][3]
     cim === nothing && return nothing
     op = read_intent(cim.projection, cim, event)
-    op isa ReplaceSelectionOperation || return op
-    ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
+    op isa ReplacePathOperation || return op
+    make_path_operation(op, _wtl_cell_reference(k, c, get_operation_path(op)))
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableListIoMap)

@@ -211,18 +211,18 @@ _value_path(range::RangeReferenceStep) =
 
 # ── Reader ───────────────────────────────────────────────────────────────────
 
-function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     # A caret in the rendered value span backward-maps to the value cursor; a
     # caret on the label/hint spans becomes an introduced caret on the whole
     # insertion; a raw input-vocabulary `value{k}` op passes through.
     mapped = map_reference_backward(p, iomap, op.path)
-    mapped !== nothing && return ReplaceSelectionOperation(mapped)
+    mapped !== nothing && return make_path_operation(op, mapped)
     path = op.path
     path isa ConcreteReference || return nothing
     h = path.head
     h isa FieldReferenceStep || return nothing
     h.name == "value" ? op :
-        ReplaceSelectionOperation(make_introduced_reference(p, iomap, path))
+        make_path_operation(op, make_introduced_reference(p, iomap, path))
 end
 
 # A text edit lowered onto the buffer's rendered value span (the pipeline turns a

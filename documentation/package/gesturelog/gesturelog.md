@@ -22,7 +22,7 @@ The document also opens in a tab: a natural syntax row draws it, and its inserti
 
 It belongs at the root of the composed projection, because every operation passes there: an operation of the content, of a window and of a nested application. The editor makes the readability zoom operation only after the chain returned no operation, so the log does not hold it.
 
-`default_gesture_log_filter` drops `nothing`, `DoNothingOperation` and `ReplaceSelectionOperation`. A selection follows almost every click and arrow key, and it would fill the buffer.
+`default_gesture_log_filter` drops `nothing`, `DoNothingOperation` and every `ReplacePathOperation`. A selection follows almost every click and arrow key, and the part under the pointer follows every move of the pointer, and they would fill the buffer.
 
 ### The entry
 

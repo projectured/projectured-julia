@@ -321,8 +321,8 @@ _reroot_into_child(document, op, index::Integer) =
 
 _annotate_operation(::Any, ::Nothing) = nothing
 _annotate_operation(::Any, op) = op
-_annotate_operation(document, op::ReplaceSelectionOperation) =
-    ReplaceSelectionOperation(annotate_reference_types(document, op.path))
+_annotate_operation(document, op::ReplacePathOperation) =
+    make_path_operation(op, annotate_reference_types(document, get_operation_path(op)))
 _annotate_operation(document, op::CompoundOperation) =
     CompoundOperation(Any[_annotate_operation(document, o) for o in op.operations])
 _annotate_operation(document, op::WrappingOperation) =

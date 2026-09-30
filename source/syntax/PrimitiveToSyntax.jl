@@ -44,9 +44,9 @@ function print_document(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBoo
     iomap
 end
 
-function read_intent(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
@@ -85,9 +85,9 @@ function print_document(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveN
     iomap
 end
 
-function read_intent(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
@@ -129,9 +129,9 @@ function print_document(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveS
     iomap
 end
 
-function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # String character-editing (insert / Backspace / Delete) is reified once as

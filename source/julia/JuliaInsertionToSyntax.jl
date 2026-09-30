@@ -166,9 +166,9 @@ end
 
 # Only the structural selection mapping lives here; raw key input has no method and
 # falls through to the generic `read_gesture` fallback → `@gestures JuliaInsertion`.
-function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # Commit the buffer via `_julia_commit` (keyword scaffold or `parse_julia`); the

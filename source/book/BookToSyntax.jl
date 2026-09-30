@@ -197,9 +197,9 @@ function map_reference_backward(p::BookBookToSyntaxNode,
 end
 
 function read_intent(p::BookBookToSyntaxNode,
-                          iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+                          iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
@@ -374,9 +374,9 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
 end
 
 function read_intent(p::BookChapterToSyntaxNode,
-                          iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+                          iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
@@ -504,9 +504,9 @@ function map_reference_backward(p::BookListToSyntaxNode,
 end
 
 function read_intent(p::BookListToSyntaxNode,
-                          iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+                          iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # Type-in: each bullet wraps its element at `.children[i].content`; the edit
@@ -586,9 +586,9 @@ end
 # (that position is simply not selectable), which keeps navigation bounded.
 # Everything else — the printer, both reference mappers, and the type-in reader —
 # comes from the template.
-function read_intent(p::BookPictureToSyntaxLeaf, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::BookPictureToSyntaxLeaf, iomap::RuleIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result !== nothing ? ReplaceSelectionOperation(result) : nothing
+    result !== nothing ? make_path_operation(op, result) : nothing
 end
 
 # ── Compound convenience constructor ─────────────────────────────────────────

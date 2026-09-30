@@ -209,16 +209,19 @@ parent handed this projection the bare event, or an `Operation` another
 projection already produced — and the method returns an `Operation` in *this*
 projection's input domain, or `nothing`.
 
-The default method (in `ProjectionModule`) handles `ReplaceSelectionOperation`
-by mapping its path with `map_reference_backward`, so a projection that only
-moves the cursor needs **no** `read_intent` method. When you do write one,
+The default method (in `ProjectionModule`) handles every `ReplacePathOperation`
+(the selection, the part under the pointer) by mapping its path with
+`map_reference_backward` and making the same kind with `make_path_operation`, so
+a projection that only moves the cursor needs **no** `read_intent` method. When you do write one,
 these are the moves available — from the lightest touch to the most involved:
 
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from the output domain to the input
   domain with `map_reference_backward` — rewrite the `.reference` of a
-  text- or number-range replace operation, or the `.path`
-  of a `ReplaceSelectionOperation` (what the default does), then rebuild the op.
+  text- or number-range replace operation, or the path of a
+  `ReplacePathOperation` (what the default does), then rebuild the op. A reader
+  for a path takes `ReplacePathOperation` and answers
+  `make_path_operation(op, path)`, so it maps every kind of path.
 - **Convert to a different operation.** It is perfectly valid to turn the
   incoming operation into a *completely different* one — retype it (e.g. a
   projection over a numeric leaf turns an incoming text-range replace

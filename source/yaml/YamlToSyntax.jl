@@ -207,10 +207,10 @@ function map_reference_backward(p::YamlSequenceToBlockSyntaxNode, iomap::Childre
     end
 end
 
-function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
-    ReplaceSelectionOperation(result)
+    make_path_operation(op, result)
 end
 
 function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)

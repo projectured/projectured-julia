@@ -204,9 +204,9 @@ function map_reference_backward(p::TextToGraphics, iomap, reference)
     _find_caret_at_element_point(p, iomap, reference)
 end
 
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # KeyPress producer: the character-insert mapping is geometry-free, so it lives

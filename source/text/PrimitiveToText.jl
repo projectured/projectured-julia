@@ -102,10 +102,10 @@ function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx
     SimpleIoMap(p, b, out)
 end
 
-function read_intent(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplacePathOperation)
     input_path = _backward_bool(op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
@@ -126,10 +126,10 @@ function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber,
     SimpleIoMap(p, n, out)
 end
 
-function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplacePathOperation)
     input_path = _backward_number(op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # ── PrimitiveStringToTextBlock ────────────────────────────────────────────────────
@@ -163,10 +163,10 @@ function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveSt
     SimpleIoMap(p, s, out)
 end
 
-function read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplacePathOperation)
     input_path = _backward_string(op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # Extract a `.value[range]` selection on a PrimitiveString as a RangeReferenceStep.

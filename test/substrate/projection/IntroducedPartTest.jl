@@ -60,3 +60,52 @@ function test_introduced_part_round_trip()
     end
 end
 end # test_introduced_part_round_trip
+
+# Every kind of path maps back as the selection does: a mouse target at a text
+# caret arrives at the collection as the same path, and it stays a mouse target.
+function test_every_kind_of_path()
+@testset "every kind of path maps back as the selection does" begin
+    document = CellVector([PrimitiveNumber(1),
+                           CellVector([PrimitiveNumber(2), PrimitiveNumber(3)])])
+    to_syntax = RecursiveProjection(TypeDispatchingProjection(
+        CellVector      => CollectionCellVectorToSyntax(),
+        PrimitiveNumber => PrimitiveNumberToSyntaxLeaf()))
+    chain = ChainingProjection(to_syntax, RecursiveProjection(SyntaxToText()))
+    iomap = print_document(chain, document)
+    caret(k) = ConcreteReference(RangeReferenceStep(k, k), EmptyReference())
+    select(k) = read_intent(chain, iomap, ReplaceSelectionOperation(caret(k)))
+    point(k) = read_intent(chain, iomap, ReplaceMouseTargetOperation(caret(k)))
+
+    compared = 0
+    for k in 0:200
+        selection = select(k)
+        selection isa ReplaceSelectionOperation || continue
+        target = point(k)
+        @test target isa ReplaceMouseTargetOperation
+        target isa ReplaceMouseTargetOperation || continue
+        @test _ip_strip(get_operation_path(target)) == _ip_strip(get_operation_path(selection))
+        compared += 1
+    end
+    @test compared > 10
+
+    @testset "the pointer on the inner bracket" begin
+        is_inner_bracket(path) = begin
+            path = _ip_strip(path)
+            path isa ConcreteReference && path.head == ElementReferenceStep(2) &&
+                path.tail isa ConcreteReference && path.tail.head isa ProjectionReferenceStep &&
+                get_reference_head(path.tail.head.output_path) == FieldReferenceStep("open")
+        end
+        k = findfirst(k -> (op = select(k); op isa ReplaceSelectionOperation && is_inner_bracket(op.path)), 0:200)
+        @test k !== nothing
+        k === nothing && return
+        evaluate_operation((document = document,), point(k - 1))
+        inner = document[2]
+        @test _ip_strip(document.mouse_target).head == ElementReferenceStep(2)
+        @test inner.mouse_target isa ConcreteReference
+        @test inner.mouse_target.head isa ProjectionReferenceStep
+        @test inner.mouse_target.head.projection isa CollectionCellVectorToSyntax
+        @test document[1].mouse_target === nothing
+        @test inner[1].mouse_target === nothing
+    end
+end
+end # test_every_kind_of_path

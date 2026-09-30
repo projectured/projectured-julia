@@ -288,10 +288,10 @@ function _backward_flat(iomap::WordWrappingIoMap, flat::Int)
     nothing
 end
 
-function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # Translate a `ReplaceStringRangeOperation` from the wrapped output domain

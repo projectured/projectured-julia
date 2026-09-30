@@ -904,9 +904,9 @@ function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRange
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
-function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceSelectionOperation)
+function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── RstStyledInline (rendered Strong / Emphasis) ──────────────────────────────
@@ -1111,10 +1111,10 @@ function map_reference_backward(p::RstEnumeratedListToStyledNode, iomap::Childre
     end
 end
 
-function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
-    ReplaceSelectionOperation(result)
+    make_path_operation(op, result)
 end
 
 function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)

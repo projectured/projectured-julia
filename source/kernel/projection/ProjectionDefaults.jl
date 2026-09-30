@@ -98,7 +98,8 @@ end
 
 Default implementation for projection operation reading. Re-targets any
 operation that carries a reference from output space to input space using
-`map_reference_backward`: the path/reference of `ReplaceSelectionOperation` and
+`map_reference_backward`: the path of a `ReplacePathOperation` (the selection,
+the part under the pointer), the reference of
 the text- and number-range replace operations, plus each member
 of a `CompoundOperation` recursively (so edits flow back through
 structure-preserving generic projections without a bespoke reader), and the one
@@ -141,10 +142,11 @@ function read_intent(projection::Projection, iomap, operation)
         input_ref = map_reference_backward(projection, iomap, operation.reference)
         (input_ref === nothing || has_introduced_step(input_ref)) && return nothing
         return ReplaceReferencedValueOperation(nothing, input_ref, operation.value)
-    elseif operation isa ReplaceSelectionOperation
-        input_selection = map_reference_backward(projection, iomap, operation.path)
-        input_selection === nothing && return nothing
-        return ReplaceSelectionOperation(input_selection)
+    elseif operation isa ReplacePathOperation
+        # The selection, the part under the pointer, and any later kind of path.
+        input_path = map_reference_backward(projection, iomap, get_operation_path(operation))
+        input_path === nothing && return nothing
+        return make_path_operation(operation, input_path)
     # The text-/number-range replace operations live in a higher package, so the
     # kernel cannot name them. They reach the `operation_reference` /
     # `retarget_operation` seam in the `else` branch below.

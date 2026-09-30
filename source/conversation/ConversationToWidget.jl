@@ -498,9 +498,9 @@ for P in (ConversationConversationToWidgetComposite,
         ReplaceSelectionOperation(EmptyReference())
     # A click that DID name something: say which part it named. The widget path
     # comes up from below and goes down the walk above.
-    @eval function read_intent(p::$P, iomap, op::ReplaceSelectionOperation)
+    @eval function read_intent(p::$P, iomap, op::ReplacePathOperation)
         inner = map_reference_backward(p, iomap, op.path)
-        ReplaceSelectionOperation(inner === nothing ? EmptyReference() : inner)
+        make_path_operation(op, inner === nothing ? EmptyReference() : inner)
     end
     # A transcript is READ. An edit that reaches it is declined by its exact
     # type, so an operation this file does not know about still travels.

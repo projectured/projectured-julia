@@ -1423,9 +1423,9 @@ end
 
 # A caret on a part that a node printed maps back to the node's own introduced step,
 # which the backward map makes.
-function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::Projection, iomap::RuleIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────

@@ -1430,9 +1430,9 @@ _route_downup_to_children(child_entries::Vector, evt) =
 # Returns `nothing` if the backward mapping rejects the reference.
 function _retarget_op(p, iomap, op)
     op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
-        new_ref = map_reference_backward(p, iomap, op.path)
-        return new_ref === nothing ? nothing : ReplaceSelectionOperation(new_ref)
+    if op isa ReplacePathOperation
+        new_ref = map_reference_backward(p, iomap, get_operation_path(op))
+        return new_ref === nothing ? nothing : make_path_operation(op, new_ref)
     elseif op isa ReplaceStringRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
         return new_ref === nothing ? nothing : ReplaceStringRangeOperation(new_ref, op.replacement)
@@ -4732,14 +4732,15 @@ end
 # it unconditionally is the correct path, and it would need the decoder changed
 # in the same commit.
 #
-# A selection of the whole page takes the step too, whatever the page holds. A
+# A path of the whole page (a selection, or the part under the pointer) takes the
+# step too, whatever the page holds. A
 # bare `selector_element_pairs[i]` is what a click on the tab strip answers, and
 # the page as a whole is a different thing: the document the tab holds.
 function _tab_prefix(res, widget)
     res === nothing && return nothing
     op, idx = res
     steps = (FieldReferenceStep("selector_element_pairs"), RangeReferenceStep(idx - 1, idx))
-    whole_page = op isa ReplaceSelectionOperation && op.path isa EmptyReference
+    whole_page = op isa ReplacePathOperation && get_operation_path(op) isa EmptyReference
     reroot_operation(op, (whole_page || _descends_into_page(widget, idx)) ?
                          (steps..., FieldReferenceStep("element")) : steps)
 end
@@ -8914,15 +8915,15 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     op = read_intent(cim.projection, cim, local_evt)
     # A cell that declines the click — a label has nothing to say to one —
     # leaves it to the row, and the row is selected: a table of text is a
-    # table of rows. A selection the cell answers is re-rooted under the cell;
-    # any other operation names its own document and is answered as it is, so
-    # a checkbox in a cell toggles.
+    # table of rows. A path the cell answers is re-rooted under the cell; any
+    # other operation names its own document and is answered as it is, so a
+    # checkbox in a cell toggles.
     op === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
-    op isa ReplaceSelectionOperation || return op
+    op isa ReplacePathOperation || return op
     table_ref = _wt_grid_ref_to_table(
         ConcreteReference(FieldReferenceStep("children"),
-            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
-    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), get_operation_path(op))), geom)
+    table_ref === nothing ? nothing : make_path_operation(op, table_ref)
 end
 
 # Keyboard grid navigation, addressed via rows[r][c].
@@ -9029,11 +9030,11 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::W
     cim = entry[3]
     op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true);
                                                   time = time()))
-    op isa ReplaceSelectionOperation || return nothing
+    op isa ReplacePathOperation || return nothing
     table_ref = _wt_grid_ref_to_table(
         ConcreteReference(FieldReferenceStep("children"),
-            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
-    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), get_operation_path(op))), geom)
+    table_ref === nothing ? nothing : make_path_operation(op, table_ref)
 end
 
 # 3-arg fall-through form. Reached two ways: (a) the 4-arg gesture reader above
@@ -9058,9 +9059,9 @@ function _wt_grid_passthrough(p::WidgetTableToGraphicsCanvas, iomap::WidgetTable
     gim isa GridLayoutIoMap || return nothing
     geom = iomap.geometry
     op = read_intent(gim.projection, gim, event)
-    op isa ReplaceSelectionOperation || return nothing
-    table_ref = _wt_grid_ref_to_table(op.path, geom)
-    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+    op isa ReplacePathOperation || return nothing
+    table_ref = _wt_grid_ref_to_table(get_operation_path(op), geom)
+    table_ref === nothing ? nothing : make_path_operation(op, table_ref)
 end
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────

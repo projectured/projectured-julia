@@ -177,9 +177,9 @@ end
 # A click that named no pane is still a click on the card, and the card takes it
 # rather than letting it fall through to whatever the card is embedded in.
 function read_intent(p::AssistantToWidgetCard, iomap::SimpleIoMap,
-                     op::ReplaceSelectionOperation)
+                     op::ReplacePathOperation)
     inner = map_reference_backward(p, iomap, op.path)
-    ReplaceSelectionOperation(inner === nothing ? EmptyReference() : inner)
+    make_path_operation(op, inner === nothing ? EmptyReference() : inner)
 end
 
 # Assistant → vertical WidgetSplitPane(conversation | input), each a scroll pane.
@@ -251,9 +251,9 @@ _same_step(::Any, ::Any) = false
 # dropped.
 function _retarget_panel_op(p, iomap, op)
     op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
-        new_path = map_reference_backward(p, iomap, op.path)
-        return new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+    if op isa ReplacePathOperation
+        new_path = map_reference_backward(p, iomap, get_operation_path(op))
+        return new_path === nothing ? nothing : make_path_operation(op, new_path)
     elseif op isa ReplaceStringRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
         return new_ref === nothing ? nothing : ReplaceStringRangeOperation(new_ref, op.replacement)

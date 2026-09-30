@@ -115,10 +115,10 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     SimpleIoMap(p, leaf, TextBlock(CellVector(@computation _leaf_spans(leaf)), sel))
 end
 
-function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
-    return ReplaceSelectionOperation(input_path)
+    return make_path_operation(op, input_path)
 end
 
 # Gesture-aware reader, the leaf half of what `SyntaxCompoundToText` does for a
@@ -895,10 +895,10 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     gesture.modifiers.alt ? ReplaceSelectionOperation(EmptyReference()) : nothing
 end
 
-function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
-    return ReplaceSelectionOperation(input_path)
+    return make_path_operation(op, input_path)
 end
 
 # Keyboard fold (`Ctrl+.`): the operation arrives from below carrying no

@@ -271,7 +271,7 @@ end
 # output. The control caret is a derived view (pinned to the text end), so there is
 # no object-domain selection to set; consume it rather than letting it reach the
 # object (which has no widget-shaped reference path).
-read_intent(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplaceSelectionOperation) = nothing
+read_intent(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplacePathOperation) = nothing
 
 # Everything else (including ToggleCollapseOperation, whose target is the output
 # card itself) passes straight through to the editor.

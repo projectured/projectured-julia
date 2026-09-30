@@ -276,8 +276,8 @@ function _prefix_op(op, steps::Tuple)
         return ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
     elseif op isa ReplaceNumberRangeOperation
         return ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceSelectionOperation
-        return ReplaceSelectionOperation(_prepend(steps, op.path))
+    elseif op isa ReplacePathOperation
+        return make_path_operation(op, _prepend(steps, get_operation_path(op)))
     elseif op isa ReplaceReferencedValueOperation
         return op.document === nothing ?
             ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op

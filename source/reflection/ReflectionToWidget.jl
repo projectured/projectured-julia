@@ -152,7 +152,7 @@ function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
 end
 
 # A row click selects; there is no reflected-domain cursor to move it to.
-read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, ::ReplaceSelectionOperation) = nothing
+read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, ::ReplacePathOperation) = nothing
 
 read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, op) = op
 

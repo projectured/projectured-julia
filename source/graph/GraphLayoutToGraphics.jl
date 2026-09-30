@@ -315,16 +315,16 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     cim === nothing && return nothing
     local_evt = MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time)
     op = read_intent(cim.projection, cim, local_evt)
-    # A selection is re-rooted into the graph's own space, because WHERE it
-    # points is a place inside a node and the graph is what knows where that
-    # node is. An operation that carries its own subject has nothing to
+    # A path (the selection, or any other kind) is re-rooted into the graph's
+    # own space, because WHERE it points is a place inside a node and the graph
+    # is what knows where that node is. An operation that carries its own subject has nothing to
     # re-root, so it travels — which is what `operation_travels_unchanged`
     # says and what a node meaning "go into me" needs. Anything else is
     # dropped, as before: a node that answers an operation nobody can place
     # is worse than a node that declines.
-    op isa ReplaceSelectionOperation ||
+    op isa ReplacePathOperation ||
         return op !== nothing && operation_travels_unchanged(op) ? op : nothing
-    return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(op.path))
+    return make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(get_operation_path(op)))
 end
 
 # Dispatch a coordless event to every node's content reader; the active node (the
@@ -336,8 +336,8 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         (entry === nothing || entry[3] === nothing) && continue
         cim = entry[3]
         op = read_intent(cim.projection, cim, event)
-        if op isa ReplaceSelectionOperation
-            return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(op.path))
+        if op isa ReplacePathOperation
+            return make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(get_operation_path(op)))
         elseif op !== nothing && operation_travels_unchanged(op)
             return op
         end

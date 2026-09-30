@@ -237,8 +237,8 @@ _collected_intents(::Any) = nothing
 
 function _prefix_op(op, steps::Tuple)
     op === nothing && return nothing
-    if op isa ReplaceSelectionOperation
-        ReplaceSelectionOperation(_prepend(steps, op.path))
+    if op isa ReplacePathOperation
+        make_path_operation(op, _prepend(steps, get_operation_path(op)))
     elseif op isa ReplaceStringRangeOperation
         ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
     elseif op isa ReplaceNumberRangeOperation

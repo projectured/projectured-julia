@@ -216,9 +216,9 @@ read_intent(::MarkdownRootToVerticalLayout, iomap, op::ToggleCollapseOperation) 
 # this layout. Re-rooted here into the page's own elements, exactly as
 # `map_reference_backward` does for any other reference; without this a click on
 # the card lands on nothing and every key goes to the prose above.
-function read_intent(p::MarkdownRootToVerticalLayout, iomap, op::ReplaceSelectionOperation)
+function read_intent(p::MarkdownRootToVerticalLayout, iomap, op::ReplacePathOperation)
     inner = map_reference_backward(p, iomap, op.path)
-    inner === nothing ? nothing : ReplaceSelectionOperation(inner)
+    inner === nothing ? nothing : make_path_operation(op, inner)
 end
 
 # ── Natural-projection registration ─────────────────────────────────────────

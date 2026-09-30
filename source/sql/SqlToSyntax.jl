@@ -165,9 +165,9 @@ function map_reference_backward(p::SqlSubqueryFromItemToSyntaxNode, iomap::Child
     end
 end
 
-function read_intent(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -254,9 +254,9 @@ function map_reference_backward(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function read_intent(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -334,9 +334,9 @@ function map_reference_backward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenI
     end
 end
 
-function read_intent(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -440,9 +440,9 @@ function map_reference_backward(p::SqlJoinedFromItemToSyntaxNode, iomap::Childre
     end
 end
 
-function read_intent(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -504,9 +504,9 @@ function map_reference_backward(p::SqlJoinOnConditionToSyntaxNode, iomap::Childr
     end
 end
 
-function read_intent(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -622,9 +622,9 @@ function map_reference_backward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap
     end
 end
 
-function read_intent(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -694,9 +694,9 @@ function map_reference_backward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function read_intent(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -758,9 +758,9 @@ function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::C
     end
 end
 
-function read_intent(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -830,9 +830,9 @@ function map_reference_backward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIo
     end
 end
 
-function read_intent(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -951,9 +951,9 @@ function map_reference_backward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function read_intent(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1039,9 +1039,9 @@ function map_reference_backward(p::SqlBooleanBinaryToSyntaxNode, iomap::Children
     end
 end
 
-function read_intent(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1104,9 +1104,9 @@ function map_reference_backward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, ref
     end
 end
 
-function read_intent(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1206,9 +1206,9 @@ function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function read_intent(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── SqlInsertStatementToSyntaxNode ────────────────────────────────────────────
@@ -1350,9 +1350,9 @@ function map_reference_backward(p::SqlInsertStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function read_intent(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1435,9 +1435,9 @@ function map_reference_backward(p::SqlUpdateAssignmentToSyntaxNode, iomap::Child
     end
 end
 
-function read_intent(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1574,9 +1574,9 @@ function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function read_intent(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1642,9 +1642,9 @@ function map_reference_backward(p::SqlColumnDefinitionToSyntaxNode, iomap::Child
     end
 end
 
-function read_intent(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1757,9 +1757,9 @@ function map_reference_backward(p::SqlCreateTableStatementToSyntaxNode, iomap::C
     end
 end
 
-function read_intent(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1813,9 +1813,9 @@ function map_reference_backward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::
     end
 end
 
-function read_intent(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
@@ -1907,9 +1907,9 @@ function map_reference_backward(p::SqlStatementListToSyntaxNode, iomap::Children
     end
 end
 
-function read_intent(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 read_intent(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing

@@ -217,10 +217,10 @@ function map_reference_backward(p::SelectionInverting, iomap::SelectionInverting
     nothing
 end
 
-function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
-    ReplaceSelectionOperation(input_path)
+    make_path_operation(op, input_path)
 end
 
 # Translate a `ReplaceStringRangeOperation` from the split output domain back to

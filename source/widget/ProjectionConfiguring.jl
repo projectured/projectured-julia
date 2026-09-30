@@ -96,10 +96,11 @@ function read_intent(p::ProjectionConfiguringProjection, recursion,
         end
     end
 
-    # 3. A click in the control bar (ReplaceSelectionOperation under the control
-    #    slot) is consumed — the control caret is derived, so there is no input
-    #    selection to set, and it must not fall through to the document.
-    if op isa ReplaceSelectionOperation && _strip_control_slot(op.path) !== nothing
+    # 3. A path under the control slot (a click in the control bar, or the part
+    #    under the pointer there) is consumed — the control caret is derived, so
+    #    there is no input path to set, and it must not fall through to the
+    #    document.
+    if op isa ReplacePathOperation && _strip_control_slot(get_operation_path(op)) !== nothing
         return Intent(change.gesture, nothing)
     end
 

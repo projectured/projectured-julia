@@ -66,9 +66,9 @@ function print_document(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable,
     iomap
 end
 
-function read_intent(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : ReplaceSelectionOperation(path)
+    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
@@ -161,9 +161,9 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
     ChildrenIoMap(p, m, node, Cell(@computation [left_iomap[], right_iomap[]]))
 end
 
-function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
@@ -227,9 +227,9 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
     ChildrenIoMap(p, m, node, content_iomap)
 end
 
-function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
@@ -321,9 +321,9 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
     ChildrenIoMap(p, m, node, Cell(@computation [target_iomap[], value_iomap[]]))
 end
 
-function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : ReplaceSelectionOperation(result)
+    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── Shared styles for the template rules ─────────────────────────────────────

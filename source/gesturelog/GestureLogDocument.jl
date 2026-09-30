@@ -70,15 +70,16 @@ end
 """
     default_gesture_log_filter(gesture, operation) -> Bool
 
-The filter that the overlay uses when the caller names no other one. It drops a
-selection operation, because a selection follows almost every click and almost
-every arrow key and would fill the whole buffer. It also drops the operations
-that change nothing.
+The filter that the overlay uses when the caller names no other one. It drops an
+operation that replaces a path, because a selection follows almost every click
+and almost every arrow key, and the part under the pointer follows every move,
+and they would fill the whole buffer. It also drops the operations that change
+nothing.
 """
 default_gesture_log_filter(gesture, operation) =
     !(operation === nothing ||
       operation isa DoNothingOperation ||
-      operation isa ReplaceSelectionOperation)
+      operation isa ReplacePathOperation)
 
 _operation_kind(::Nothing) = :Nothing
 _operation_kind(operation) = nameof(typeof(operation))

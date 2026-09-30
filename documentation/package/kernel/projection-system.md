@@ -216,9 +216,10 @@ lightest touch to the most involved:
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from output to input coordinates
   with `map_reference_backward` — rewrite the `.reference` of a
-  `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or the `.path`
-  of a `ReplaceSelectionOperation` (this is what the default already does for
-  you), then rebuild the op.
+  `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or the path of
+  a `ReplacePathOperation` (this is what the default already does for you, for
+  the selection and for the part under the pointer alike), then rebuild the op
+  with `make_path_operation(op, path)`.
 - **Convert to a different operation.** It is perfectly valid to turn the
   incoming operation into a *completely different* one — retype it (e.g.
   `JsonNumberToSyntaxLeaf` turns a `ReplaceStringRangeOperation` into a

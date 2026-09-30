@@ -63,10 +63,10 @@ function map_reference_backward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMa
     make_introduced_reference(p, iomap, caret)
 end
 
-function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
-    ReplaceSelectionOperation(result)
+    make_path_operation(op, result)
 end
 
 # The basename is derived display text, not an editable field, so a text-range
@@ -166,10 +166,10 @@ function map_reference_backward(p::FileSystemDirectoryToSyntaxNode, iomap::Child
     end
 end
 
-function read_intent(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
+function read_intent(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing && return nothing
-    ReplaceSelectionOperation(result)
+    make_path_operation(op, result)
 end
 
 # ── Marker eligibility ──────────────────────────────────────────────────────────
