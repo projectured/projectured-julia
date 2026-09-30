@@ -1715,6 +1715,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Only the file name changes. The two getters keep their names, and the verb table says that a short walk is a trivial computation.
 - **C:** No change.
 - **Recommended (mine): A.** The first function walks the supertype chain and gathers the table of each level, which is the row of `collect_` ('it gathers from several places'). The second filters a list with a predicate, which is a loop, so `compute_`. `find_` does not fit, because the answer is a list and never `nothing`. `_own` reads one table at a known place, so it keeps `get_`. The layer-17 file defines `read_projection_gesture` and the default of `get_projection_gesture_bindings`, so `ProjectionGestureBindings.jl` names it, and it no longer differs from binding/GestureBinding.jl by one letter. I checked: the three names are free.
+- **Decided by the owner, 2026-09-30: A**, with L17-21.
 - Settles: L17-21.
 - Cost: M. `get_document_gesture_bindings` 32 uses in 8 code files, `get_applicable_gesture_bindings` 7 in 4. No code use in omnet-julia or inet-julia (their precompile assets hold `_own`, which does not change). The file rename changes the include in ProjectionModule.jl and the prose that names the file (34 lines in 14 files, most of them in plan/done, which keeps its history). naming-rules.md uses the pair as its example of a qualifier suffix, so that example changes. No sealed file.
 
@@ -1732,6 +1733,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** As A, but `withhold_offer` becomes `with_withheld_offer`, which keeps the word 'offer' of the layout text.
 - **C:** The engine word is `rule`: `@projection_template` becomes `@projection_rule`, and the other template names follow.
 - **Recommended (mine): A.** `withhold_offer` returns a copy of the context, and the rules name a copy `with_<stem>`. The copy has one axis free (no minimum and no maximum), so `with_free_axis` stands beside `with_exact_size` and `with_bounded_size`. The public macro, the file and its plan use `template`, and `rule` is the word of the first version of the engine (the branch `projection-rule-macro`). So `template` changes the fewer names and the less visible ones. `print_template_document` follows the protocol shape of `print_document`. I checked: the new names are free.
+- **Decided by the owner, 2026-09-30: A**, with L15-12. The engine word is `template`.
 - Cost: M. `withhold_offer`: 22 uses in 6 code files (the callers in layout and widget). `RuleIoMap`: 50 uses in 10 code files of projectured-julia and 3 uses in 2 files of omnet-julia (legacy NED and INI); the precompile assets of the three repositories. `print_template_rule`: 8 uses in 3 files (RstToSyntax.jl among them). No sealed file.
 
 **L22-27** (Low): Which names replace `perf!` and `_zoom_operation` (decide with L02-5, the other name of the counters)?
