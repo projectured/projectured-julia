@@ -81,6 +81,7 @@ jobs:
           - {package: ProjecturedAnthropicTest, run: test_anthropic}
           - {package: ProjecturedOllamaTest, run: test_ollama}
           - {package: ProjecturedOpenRouterTest, run: test_openrouter}
+          - {package: ProjecturedDataFramesTest, run: test_dataframes}
           - {package: ProjecturedSdlTest, run: test_sdl, project: environment/all}
           - {package: ProjecturedTulipTest, run: test_tulip, project: environment/all}
           - {package: ProjecturedVideoTest, run: test_video, project: environment/all}
