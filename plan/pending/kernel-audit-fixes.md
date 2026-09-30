@@ -1641,6 +1641,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** `make_same_kind_cell(c, v)`. It names the kept property, but it reads less well.
 - **C:** `make_cell_like(c, v)`. It reads well, but it ends in a preposition, which the rules drop.
 - **Recommended (mine): A.** The function makes a new cell with the kind and the value type of `c`. It copies neither the value nor the computation of `c`. `make_` is the verb for a new object, and the word for the thing made (`cell`) goes last. `similar` is the Julia word for this relation (`similar(array)`), so a Julia reader can guess the name. I checked: the name is free.
+- **Decided by the owner, 2026-09-30: A.** The permission for the three sealed files of the cell layer is asked when the work starts.
 - Cost: S. 23 uses in 8 code files of projectured-julia. Sealed (permission needed): CellInterface.jl, CellDefaults.jl, CellModule.jl. Other files: DocumentDefaults.jl, DocumentCopy.jl, CellVector.jl, FileCut.jl, CellTest.jl; prose in cell.md. No use in omnet-julia or inet-julia.
 
 **L06-10** (Low): Do you want EventPattern.jl (521 lines) split into two fragments now, and what is the name of the new fragment?
