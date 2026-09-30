@@ -55,58 +55,42 @@ documentation are then the same in both.
 
 The result is about 32 packages instead of 66, in about 6 dependency levels.
 
-## 3b. The folder shape (the owner, 2026-09-30: the folders change with the packages)
+## 3b. The folder shape (the owner, 2026-09-30)
 
-The code of each package moves into its package folder: `source/<slice>/`,
-`test/<slice>/` and `example/<slice>/` go under `package/<Name>/`. Then each
-package folder holds all that it reads, and **the development repository is
-the repository that is registered**: no release copy, no generator of package
-repositories, and the CI of the repository is the CI of the registered
-packages, as the maintainers ask.
+The top-level layout stays: `source/`, `test/`, `example/`. The slices of a
+folded package go into one folder of that package's name, in each of them:
 
 ```
-package/
-├── ProjecturedKernel/
-│   ├── Project.toml, README.md, LICENSE
-│   ├── src/ProjecturedKernel.jl, src/cell/ …      ← source/kernel/
-│   ├── test/runtests.jl, test/ …                  ← test/kernel/
-│   └── example/ …                                 ← example/kernel/
-├── ProjecturedToolkit/                            (the name is F2)
-│   ├── src/ProjecturedToolkit.jl
-│   ├── src/collection/, src/syntax/, … 27 slices  ← source/<slice>/
-│   ├── test/ …, example/ …                        ← test/<slice>/, example/<slice>/
-│   └── asset/font/                                ← asset/font/
-├── ProjecturedJson/
-│   ├── src/ …, test/ …, example/ …                ← source/json/, test/json/, example/json/
-└── … 33 packages
-documentation/      one Documenter site (stays at the root)
-test/suite/         the static guards of the repository (stay at the root)
-environment/, plan/, tool/, bin/
+source/kernel/                  as today
+source/<name>/collection/       ← source/collection/
+source/<name>/style/            ← source/style/
+source/<name>/syntax/           ← source/syntax/
+…                               the 27 slices of the package of internals
+source/projectured/<slice>/     the parts of the application, in the umbrella
+source/json/, source/sql/, …    the domains, backends and adapters, as today
+test/<name>/style/, example/<name>/style/, …   the same, for the tests and examples
+package/Projectured<Name>/      one package folder: Project.toml and the entry file
 ```
 
-The `*Test` and `*Example` packages go: their content moves into `test/` and
-`example/` of each package. The size of the move: 492 files of `source/`, 360
-of `test/`, 147 of `example/`, with `git mv`; 92 documents and 131 entry files
-name those paths.
+The release copy stays as it is today: it copies `source/<name>/**` into the
+package folder of the release.
 
 ## 4. Open questions
 
 | # | Question | Recommendation (mine, not decided) |
 | --- | --- | --- |
 | F1 | Does the kernel stay a package of its own, or does it join the core package? | Of its own: it is the smallest base, and its seals are per file. |
-| F2 | The name of the package of the 27 internals. | Not `ProjecturedCore`: the owner finds that it sounds like the kernel (2026-09-30). Candidates: `ProjecturedToolkit` (what it is for a user: the documents, projections and widgets to build views with); `ProjecturedSubstrate` (the name of the layer in `system-anatomy.md` and of its test package, but jargon to a user); `ProjecturedStandard` (a standard library of documents and projections). Mine: `ProjecturedToolkit`. |
+| F2 | The name of the package of the 27 internals, and so of the folders `source/<name>/`. | Not `Core`: it sounds like the kernel (the owner). Candidates: `System` (the owner's idea: the kernel and the system, as in an operating system; but the documentation uses "system" 184 times for the whole of ProjecturEd), `Platform` (what the domains are built on; 14 uses), `Toolkit` (the owner is not sure), `Framework`, `Substrate` (the word of `system-anatomy.md`, jargon to a user). Open. |
 | F3 | Do the parts of the application go into the umbrella, or into a package of their own? | The umbrella, so that `using Projectured` gives the application. |
 | F4 | `Pdf` and `Console` are in the substrate today. Backends of their own? | Yes: a user picks a backend. |
 | F5 | `Mcp`: an adapter of its own, or part of the umbrella? | Open: it has no dependency but the kernel, and the binary uses it. |
 | F6 | `Plot`: the core, or the chart domains? | The core: `Chart`, `SequenceChart` and `Statistics` all use it. |
 | F7 | The test packages follow the packages: one test package for each registered package. | Yes: `ProjecturedSubstrateTest` becomes the test package of the core. |
 | F8 | The order against the rename of R29 (acronyms in capitals; deferred by the owner) and the local registry of R27. | Decide this grouping first, and rename only the packages that stay, so that no package is renamed and then folded. The fold itself can come after the first release to the local registry: it changes no name that a user types. |
-| S1 | Where the package folders live: `package/` as today, `lib/` (the convention of SciML), or the root. | `package/`, as today. |
-| S2 | Where the examples go: `example/` in each package, which the tests include and `using` does not load, or into `test/`. | `example/` in each package. The gallery and the application go to the umbrella. |
-| S3 | The test harness of `ProjecturedKernelTest` (`test_printer`, `test_reader`, the walkers) serves the tests of every package, and a registered test can use only registered packages. Where does it go? | A package extension of the kernel on `Test`: it loads only when a test loads `Test`. The other ways: a registered package of test tools, or a copy in each package. |
-| S4 | The 54 sealed files of the kernel move from `source/kernel/` to `package/ProjecturedKernel/src/`. Their text does not change, but `SEALING.md` says that no sealed file changes without the owner's permission for that file. | The owner gives the permission for the move alone, once, for all of them. |
-| S5 | The fonts: the toolkit reads them, and so does `ProjecturedWeb`. | The toolkit holds them; `ProjecturedWeb` reads them through `pkgdir(ProjecturedToolkit)`. |
+| S3 | For R30 (a `test/runtests.jl` in each package of the release): the test harness of `ProjecturedKernelTest` (`test_printer`, `test_reader`, the walkers) serves the tests of every package, and a registered test can use only registered packages. Where does it go? | A package extension of the kernel on `Test`: it loads only when a test loads `Test`. The other ways: a registered package of test tools, or a copy in each package. |
 | S6 | The downstream repositories name internal packages 1,005 times in 128 files (omnet-julia 935 in 122, inet-julia 70 in 6). | One mechanical change in each, in the same landing. |
+| S7 | Do the documents of the slices follow: `documentation/package/<name>/<slice>/`? | Yes, the same shape in every folder. |
+| S8 | The rules and guards that name the shape `source/<slice>/` (`naming-rules.md`, `test/suite/tree.jl`, the layering guards) learn the level `source/<package>/<slice>/`. | Part of the same change. |
 
 ## 5. Steps
 
