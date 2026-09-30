@@ -1088,6 +1088,68 @@ MPL-2.0 does not need a notice in each source file: its Exhibit A allows the
 notice in "a LICENSE file in a relevant directory", and each package folder
 has one.
 
+## Part P: the LLM policy of General
+
+The owner, on 2026-09-30: "Fix the llm policy, add statement to readme, add CI
+too." §3.3 lists what the policy asks. Part P comes before Step B6, because the
+maintainers of General read the repository when they review the first
+registration.
+
+### Step P1: the statement in the README
+
+- [ ] A section "How the code is made" in `README.md`, short, with the facts
+      that the repository shows: the Lisp original, written by hand from 2013;
+      the Julia port since 2026-05-26, most of it written by Claude Code under
+      the direction of the author; the design and the decisions in
+      `documentation/rule/` and `plan/`; the guards, the tests and CI; the
+      kernel files that the author sealed after a review (`SEALING.md`: 52 of
+      128 on 2026-09-30).
+- [ ] The owner checks each sentence about the author's own work. Only the
+      owner knows how much of the code that is not sealed was read by hand, and
+      the policy asks for that fact.
+
+### Step P2: what CI sees
+
+- [ ] Each of the 33 test packages in its own environment, in a fresh clone
+      of this branch: `Pkg.instantiate()` with the network, then the suite of
+      the package without it (`unshare -rn`, so no test reaches a local model
+      server), with `SDL_VIDEODRIVER=offscreen`. The umbrella runs its 66
+      integration parts, each in its own testset. Scripts and logs:
+      `/var/tmp/release-plan/ci/`.
+
+### Step P3: the workflow
+
+- [ ] `.github/workflows/CI.yml`, on a push to `main`, on a pull request, and
+      by hand; not for a push that changes only `plan/` or Markdown.
+  - A job for the static guards: each `test/suite/*.jl` alone, with no
+    environment. They take seconds.
+  - A job for each test package, in its own environment, on the latest release
+    of Julia. The umbrella is split if one job takes too long (P2 gives the
+    times).
+  - Coverage: `--code-coverage=@.` for the code of this repository only,
+    `julia-actions/julia-processcoverage`, and an upload to Codecov that does
+    not fail the job while no token exists.
+
+### Step P4: CI passes
+
+- [ ] Each failure that P2 finds is fixed, or marked `@test_broken` with a
+      `# @broken:` comment, as the testing guide says. The owner decides which,
+      for each failure.
+
+### Step P5: the owner's steps
+
+- [ ] Sign in to Codecov with GitHub, turn on the repository, and add the
+      token as the secret `CODECOV_TOKEN`.
+- [ ] Land and push; read the first run.
+
+### Open
+
+- The policy asks for the documentation to be built in CI "where appropriate".
+  The documentation is Markdown that GitHub shows as it is, so there is nothing
+  to build now.
+- The policy asks for a short README. `README.md` has 145 lines; the owner
+  judges whether that is short.
+
 ## Step C: close
 
 - [x] Update documentation-rewrite.md Step 11 (R2). Done on 2026-09-29: its
