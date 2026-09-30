@@ -452,7 +452,11 @@ function test_text_navigation_invariants_all()
                               # caret, so it is not a chain — an unmarkable
                               # `result.cycle === nothing` failure, not a walk
                               # error. Tracked with the introduced-token-caret work.
-                              "sql_nested_syntax") && continue
+                              "sql_nested_syntax",
+                              # the FSM example prints 4432 characters, and a walk
+                              # prints the whole text again for each of them (half
+                              # an hour); fsm_toggle walks the same notation.
+                              "fsm") && continue
             @testset "$(example.name)" begin
                 # Walk a FRESH document, not the cached `example.document`: the
                 # repl sweep mutates the shared instance in place, and a mutated
