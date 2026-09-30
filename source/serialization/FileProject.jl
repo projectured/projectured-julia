@@ -257,9 +257,21 @@ _is_type_name(name::Symbol) =
 # A file names a document by the name of its schema, the name written after
 # `struct`, and the reader builds the type that the schema's module binds to
 # that name, because that is the type a programmer calls. Every loaded subtype
-# of `Document` may be named, so no package lists its types. The names are read
-# from the loaded modules when a name is not known yet, because a package that
-# is loaded later brings types of its own.
+# of `Document` may be named, so no package lists its types, and a type that is
+# data but not a document may be named when its package says so with
+# `is_pred_constructible`. The names are read from the loaded modules when a
+# name is not known yet, because a package that is loaded later brings types of
+# its own.
+
+"""
+    is_pred_constructible(::Type) -> Bool
+
+Whether a file may name a type and have one built. `true` for a `Document`, and
+`false` for anything else unless the package that owns the type adds a method,
+as a wire format that is data does. A type that must not be built from a file
+says so in its method of [`make_pred_document`](@ref).
+"""
+is_pred_constructible(::Type{T}) where {T} = T <: Document
 
 # The name of each loaded document type, to its constructor, or to every
 # constructor when two loaded types have one name.
@@ -269,9 +281,10 @@ const _PRED_NAMES_LOCK = ReentrantLock()
 """
     get_pred_type(name) -> Type or nothing
 
-The loaded document type that a file names with `name`, or `nothing` when no
-loaded document type has that name. A name that two loaded document types have
-is an error that names both, because a file can not say which one it means.
+The loaded type that a file names with `name`, or `nothing` when no loaded type
+that [`is_pred_constructible`](@ref) has that name. A name that two such types
+have is an error that names both, because a file can not say which one it
+means.
 """
 function get_pred_type(name::AbstractString)
     key = String(name)
@@ -280,7 +293,7 @@ function get_pred_type(name::AbstractString)
         get(_PRED_NAMES, key, nothing)
     end
     found isa Vector || return found
-    error("the name ", key, " names more than one loaded document type: ",
+    error("the name ", key, " names more than one loaded type that a file may build: ",
           join((string(parentmodule(T), ".", nameof(T)) for T in found), " and "),
           ", so a file can not say which one it means")
 end
@@ -305,7 +318,8 @@ function _collect_pred_names!(m::Module, seen::Set{Module})
         value = getfield(m, name)
         if value isa Module
             value !== m && parentmodule(value) === m && _collect_pred_names!(value, seen)
-        elseif (value isa DataType || value isa UnionAll) && value <: Document
+        elseif (value isa DataType || value isa UnionAll) && value !== Union{} &&
+               is_pred_constructible(value)
             constructor = _get_schema_type(value)
             _add_pred_name!(String(nameof(value)), constructor)
             _add_pred_name!(String(get_document_schema_name(value)), constructor)

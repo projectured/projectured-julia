@@ -236,7 +236,7 @@ function _evaluate_splice(project, index, e::Expr)
         # is a data structure, and its constructor is how one is written down.
         T = get_pred_type(String(verb))
         T === nothing &&
-            error("marker: ", verb, " names no loaded document type")
+            error("marker: ", verb, " names no loaded type that a file may build")
         return make_pred_document(T, positional, keywords)
     end
     f = get_marker_function(verb)

@@ -62,6 +62,18 @@ end
     value::String
 end
 
+"A value that is data but not a document; the test lets a file build it."
+struct TestWire
+    port::Int
+end
+TestWire(; port) = TestWire(port)
+SerializationModule.is_pred_constructible(::Type{TestWire}) = true
+
+"A value that is not a document, and that no method lets a file build."
+struct TestNotWire
+    port::Int
+end
+
 # Two loaded document types with one name, in two modules.
 module PredTwinFirst
 import ProjecturedKernel.DocumentModule: Document
@@ -441,6 +453,11 @@ function test_file_project()
             @test loaded isa TestBare && loaded.value == "hi"
             @test parse_pred_text(print_pred_text(loaded)).value == "hi"
             @test_throws "gives no value" parse_pred_text("TestBare(other = 1)")
+        end
+
+        @testset "a type that is not a document is built only when its package allows it" begin
+            @test parse_pred_text("TestWire(port = 5000)") == TestWire(5000)
+            @test get_pred_type("TestNotWire") === nothing
         end
 
         @testset "a name that two loaded document types have is an error that names both" begin

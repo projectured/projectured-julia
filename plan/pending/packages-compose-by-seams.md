@@ -653,6 +653,17 @@ Each step ends with its narrowest test and a commit.
   - Found: `ProjecturedDisplay` is newer than the fold plan, whose list of
     34 slices does not name it. It is a slice with no third-party
     dependency, so it would fold into the platform too.
+  - Found at the second landing: inet-julia's catalog page lets a file build
+    `Fields`, a wire format that is data but not a document, and it did so
+    through omnet-julia's `offer_doctypes_to_files!`, which called
+    `register_pred_type!`. **Decided** (the owner, 2026-09-30: "Yes", to the
+    recommendation): the seam `is_pred_constructible(::Type)` in
+    Serialization, `true` for a `Document`; the reader looks for a name among
+    the loaded types for which it is `true`, and inet-julia adds the method
+    for `Fields`. omnet-julia's `offer_doctypes_to_files!` is gone.
+  - `is_pred_document(document)` says whether a `.pred` file holds a
+    document itself. The save uses it, and omnet-julia's study uses it for
+    which documents get a file of their own, so prose still does not.
 - [x] **5. The tabs and `show_document!`.** The screen method opens a
   window. The pane method opens or focuses a tab. Add the `tabs` wrapper.
   - Found: `PaneToWidget` passes the content of a tab through unchanged, so

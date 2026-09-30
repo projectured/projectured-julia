@@ -50,8 +50,16 @@ end
 # marker naming a file outside the loaded set stays a reference, and the file
 # writes it back as it found it.
 get_file_domain(::Type{<:PredFile}) = Document
-is_file_domain_node(::PredFile, node) =
-    node isa PredReference || (node isa Document && !_is_format_node(node))
+is_file_domain_node(::PredFile, node) = node isa PredReference || is_pred_document(node)
+
+"""
+    is_pred_document(document) -> Bool
+
+Whether a `.pred` file holds `document` itself: a document that the domain of no
+registered text format owns. A JSON value or an XML element belongs to a file of
+its format, and a `.pred` file writes a reference to that file.
+"""
+is_pred_document(document) = document isa Document && !_is_format_node(document)
 
 # Whether `node` is in the domain of a registered format other than `.pred`.
 _is_format_node(node) =
@@ -189,7 +197,7 @@ function _evaluate_pred(e::Expr)
     _is_type_name(verb) || return PredReference(_canonical_marker(e))
     T = get_pred_type(String(verb))
     T === nothing && error("a .pred file names ", verb,
-                           ", and no loaded document type has that name")
+                           ", and no loaded type that a file may build has that name")
     positional = Any[]
     keywords = Pair{Symbol,Any}[]
     for argument in @view e.args[2:end]
