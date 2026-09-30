@@ -277,8 +277,9 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
-- **Q14. A view that changes under a still pointer.** Open (found in step 6;
-  the owner, 2026-09-30: "not sure, let's investigate this further"). The
+- **Q14. A view that changes under a still pointer.** Settled but for point 3
+  below (found in step 6; the owner, 2026-09-30: "not sure, let's investigate
+  this further"). The
   principle is decided: D41 and D42 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) say
   that after a frame that changed the display, the target is found again at
@@ -313,6 +314,36 @@ One at a time, with the owner.
     window must clear it, which the screen does once for all windows today.
   - (d) The dwell recognizer keeps the point for this too. Against: a scroll
     clears it, and it mixes the dwell with the target.
+  The owner (2026-09-30): "I'm not sure I like any of your suggestions ... I'm
+  not sure why would it not be a good idea to send a mouse move event down even
+  if it does not move at all, or move by a large margin relative to previous
+  mouse target in the case of a popup window being shown and removed while the
+  mouse was moved significantly." **The way chosen:** after the backend shows a
+  frame that changed a window, it sends a `MouseMove` at the point where the
+  pointer is now (SDL answers `SDL_GetMouseState`), in the window under the
+  pointer. D3 forbids a type of synthetic event, not this move: it is a true
+  record of where the pointer is, and every reader reads it as it reads a move.
+  It covers a popup that opens or closes, also after the pointer moved over the
+  popup; each reader of a part runs, so a cursor readout follows and a button
+  gets its leave; it answers Q11 too; and it stops by itself, because the
+  second move finds the same part and changes no pixel. Settled with it:
+  1. A move to the same point is no motion (D4), so it keeps the dwell
+     running; otherwise a view that changes on every frame never shows a
+     tooltip. (Owner: "yes".)
+  2. The cost of one move for each changed frame in the window of the pointer
+     is accepted. (Owner: "yes accept, I'm pretty sure something is wrong with
+     the FSM projection", which takes about a second for one click.)
+  3. Open: with a button held. Claude first proposed to send nothing then;
+     the owner asked why. Claude's revised view: send it with the buttons held,
+     because a drag over content that moves (a selection while the view
+     scrolls, a drop target that changes) needs it, and the drag readers
+     compute from an anchor or a point, so a move to the same point changes
+     nothing. To check first: no reader starts something on any held move with
+     no distance.
+  4. The web backend sends no move without a button held, so it changes
+     nothing there. (Owner: "yes".)
+  5. The display update stays until step 8, for the tracker; the move comes
+     beside it. (Owner: "agreed".)
 - **Q13. A drag.** Open in part. Under M6 and M7 alone, a dragged part (a
   slider thumb) gets only the first move off it: then the mouse target follows
   the pointer and the part is on no path. Claude's options were a capture (the
