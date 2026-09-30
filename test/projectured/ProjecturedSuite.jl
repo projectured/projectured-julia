@@ -529,7 +529,8 @@ function test_table()
     end
 end
 
-export test_all, test_integration, test_domain_examples, test_package_graph, test_tree, test_naming,
+export test_all, test_integration, test_documents, test_projections, test_domain_examples,
+       test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
