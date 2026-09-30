@@ -140,11 +140,11 @@ Forks and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) says how
 
 ## How the code is made
 
-ProjecturEd began in Common Lisp in 2013. We wrote that version by hand, and it is still available as [projectured-lisp](https://github.com/projectured/projectured-lisp). This Julia version is a port of it, which I started in May 2026. Most of the code is written by Claude Code, an AI coding tool, but the design and the decisions are mine.
+ProjecturEd began in Common Lisp in 2013. I wrote that version by hand, and it is still available as [projectured-lisp](https://github.com/projectured/projectured-lisp). This Julia version is a port of it, which I started in May 2026. Most of the code is written by Claude Code, an AI coding tool, but the design and the decisions are mine.
 
 I work plan first. Each change starts from a written plan in [plan/](plan/), and I refine the plan with the tool until I agree with each decision in it: the concepts, the alternatives, the risks and the order of the work. There are more than 400 plans so far. A typical plan went through several rounds of refinement, and the larger ones through dozens; about half of the more than 4,000 commits change a plan. The rules that every change must keep are in [documentation/rule/](documentation/rule/). Static guards check the rules that a program can check, the test suites check the behaviour, and [CI](.github/workflows/CI.yml) runs both.
 
-I review the kernel file by file against its [architecture invariants](documentation/rule/architecture-invariants.md), and I seal each file after the review. [SEALING.md](SEALING.md) lists the sealed files. When I seal a file, I read all its types and the interface of each public function, but I do not check the implementation of every function. Outside the sealed files, I read the parts that I am interested in.
+I review the code file by file against its [architecture invariants](documentation/rule/architecture-invariants.md), and I seal each file after the review. [SEALING.md](SEALING.md) lists the sealed files. So far I sealed only files of the kernel; the other packages will follow. When I seal a file, I read all its types and the interface of each public function, but I do not check the implementation of every function. Outside the sealed files, I read the parts that I am interested in.
 
 ## Licence, author and contact
 
