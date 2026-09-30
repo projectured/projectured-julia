@@ -40,11 +40,16 @@ function _data_frame_texts(node, ox = 0, oy = 0, found = Tuple{Int,Int,String}[]
     found
 end
 
+# The IO maps of the steps of the row of a view: the view, which holds the table
+# and the scroll bar, and the grid that places them.
+_data_frame_view_iomap(io) = io.step_iomaps[1][]
+_data_frame_grid_iomap(io) = io.step_iomaps[end][]
+
 # The viewport of the cells: the rows as they are drawn under the header row.
-# The region of the cells is the last element of the table, and it holds the
-# graphics of the rows and the pane of the cells.
+# The table is the first cell of the grid; the region of the cells is its last
+# element, and it holds the graphics of the rows and the pane of the cells.
 function _data_frame_body(io)
-    cells = io.output.elements[end]
+    cells = _data_frame_grid_iomap(io).child_iomaps[1][3].output.elements[end]
     pane = only(e for e in cells.elements if e isa GraphicsCanvas)
     only(e for e in pane.elements if e isa GraphicsViewport)
 end
@@ -181,6 +186,33 @@ function test_data_frame_view()
             @test view.anchor == 1
             after = x_of("c305 :: Int64")
             @test 0 < before - after < step
+        end
+
+        @testset "the scroll bar shows the row at the top, and a press on it jumps" begin
+            count = 10_000
+            view = DataFrameView(DataFrame(id = collect(1:count)))
+            io = print_document(projection, nothing, view, context())
+            bar = _data_frame_view_iomap(io).bar
+            @test bar.value == 0.0
+            @test 0 < bar.thumb_size < 0.01
+            # Ctrl+End shows the last row at the bottom: the thumb is at the end.
+            evaluate_operation(nothing, _read_data_frame_key(projection, io, :end))
+            @test bar.value == 1.0
+            # A press in the middle of the bar jumps to the middle of the frame.
+            (x_cell, y_cell, cim) = _data_frame_grid_iomap(io).child_iomaps[2]
+            x = Int(x_cell[]) + Int(cim.output.w) ÷ 2
+            y = Int(y_cell[]) + Int(cim.output.h) ÷ 2
+            press = read_intent(projection, nothing,
+                                Intent(MousePress(:left, x, y, ModifierKeys(); time = 0.0), nothing), io)
+            evaluate_operation(nothing, press.operation)
+            @test abs(view.anchor - count ÷ 2) < count ÷ 50
+            @test abs(bar.value - 0.5) < 0.02
+            # A turn of the wheel moves the thumb with the row at the top.
+            before = bar.value
+            evaluate_operation(nothing, read_intent(projection, nothing,
+                Intent(MouseScroll(0, -5, 100, 150; time = 0.0), nothing), io).operation)
+            @test view.top_row > 1
+            @test bar.value > before
         end
 
         @testset "a frame with no rows draws its header" begin

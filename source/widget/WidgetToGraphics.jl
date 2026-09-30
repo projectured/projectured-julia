@@ -982,6 +982,7 @@ WidgetToolbarToGraphicsCanvas(theme::WidgetTheme; measure,
     track_color::StyleColor       # rail fill
     thumb_color::StyleColor       # thumb fill
     minimum_thumb_length::Int
+    thickness::Int                # across the bar, where nothing sizes it
 end
 
 WidgetScrollBarToGraphicsCanvas(theme::WidgetTheme;
@@ -989,9 +990,10 @@ WidgetScrollBarToGraphicsCanvas(theme::WidgetTheme;
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
                                 track_color = theme.muted, thumb_color = theme.border,
-                                minimum_thumb_length = 8) =
+                                minimum_thumb_length = 8, thickness = 12) =
     WidgetScrollBarToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                    content_color, track_color, thumb_color, minimum_thumb_length)
+                                    content_color, track_color, thumb_color, minimum_thumb_length,
+                                    thickness)
 
 # ── IoMap for WidgetScrollPane ─────────────────────────────────────────────
 
@@ -5395,36 +5397,73 @@ read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
-function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, _)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pos = w.position
-    sz  = w.size
-    px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
-    py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
-    bw = sz  isa Point2D ? Int(sz.x[])  : 0
-    bh = sz  isa Point2D ? Int(sz.y[])  : 0
+# The extent of a scroll bar on one axis: its authored size, else the extent
+# that its parent offers, else its thickness across and nothing along.
+function _get_scroll_bar_extent(authored::Int, offered, along::Bool, thickness::Int)
+    authored > 0 && return authored
+    offered === nothing || return Int(offered[])
+    along ? 0 : thickness
+end
+
+# The track of a scroll bar and its thumb inside it, as `(x, y, w, h)` in the
+# canvas of the bar, from the extent of the bar and its value.
+function _get_scroll_bar_thumb(p::WidgetScrollBarToGraphicsCanvas, w::WidgetScrollBar,
+                               width::Int, height::Int)
     cox, coy = _content_offset(p, w)
     tx, ty = _inset_total(p, w)
-    cw = max(1, bw - tx)
-    ch = max(1, bh - ty)
-    elems = Any[]
-    _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), cw, ch)
-    trad = min(cw, ch) ÷ 2
+    cw = max(1, width - tx)
+    ch = max(1, height - ty)
+    value = clamp(Float64(w.value), 0.0, 1.0)
+    thumb_size = clamp(Float64(w.thumb_size), 0.05, 1.0)
+    if w.orientation === :horizontal
+        tw = min(cw, max(p.minimum_thumb_length, Int(round(thumb_size * cw))))
+        ((cox, coy, cw, ch), (cox + Int(round(value * (cw - tw))), coy, tw, ch))
+    else
+        th = min(ch, max(p.minimum_thumb_length, Int(round(thumb_size * ch))))
+        ((cox, coy, cw, ch), (cox, coy + Int(round(value * (ch - th))), cw, th))
+    end
+end
+
+# A scroll bar is as long as its parent offers and as thick as its theme says,
+# unless it authors a size. Its track and its thumb read the value in cells, so
+# a scroll moves the thumb and prints nothing again.
+function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    pos = w.position
+    px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
+    py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
+    sz = w.size
+    horizontal = w.orientation === :horizontal
+    offered_w = ctx === nothing ? nothing : get_exact_width(ctx)
+    offered_h = ctx === nothing ? nothing : get_exact_height(ctx)
+    width = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.x[]) : 0,
+                                                           offered_w, horizontal, p.thickness)))
+    height = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.y[]) : 0,
+                                                            offered_h, !horizontal, p.thickness)))
+    parts = Cell(@computation _get_scroll_bar_thumb(p, w, Int(width[]), Int(height[])))
     track_color = _get_part_color(w, :track_color, p.track_color)
     thumb_color = _get_part_color(w, :thumb_color, p.thumb_color)
-    push!(elems, GraphicsRect(cox, coy, cw, ch; color = track_color, radius = trad))
-    value    = clamp(Float64(w.value),     0.0, 1.0)
-    thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
-    if w.orientation === :horizontal
-        tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
-        tx_pos = cox + Int(round(value * (cw - tw)))
-        push!(elems, GraphicsRect(tx_pos, coy, tw, ch; color = thumb_color, radius = ch ÷ 2))
-    else
-        th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
-        ty_pos = coy + Int(round(value * (ch - th)))
-        push!(elems, GraphicsRect(cox, ty_pos, cw, th; color = thumb_color, radius = cw ÷ 2))
+    function make_rect(part::Int, color)
+        rect = GraphicsRect(0, 0, 0, 0; color)
+        for (k, field) in enumerate((:x, :y, :w, :h))
+            set_cell_computation!(getfield(rect, field), () -> Int32(parts[][part][k]))
+        end
+        for corner in (:radius_tl, :radius_tr, :radius_br, :radius_bl)
+            set_cell_computation!(getfield(rect, corner),
+                                  () -> Int32(min(parts[][part][3], parts[][part][4]) ÷ 2))
+        end
+        rect
     end
-    SimpleIoMap(p, w, _make_canvas(px, py, elems))
+    elems = Any[]
+    tx, ty = _inset_total(p, w)
+    _push_following_box_bands!(elems, _get_box_insets(p, w), _get_box_colors(p, w),
+                               Cell(@computation Int32(max(1, Int(width[]) - tx))),
+                               Cell(@computation Int32(max(1, Int(height[]) - ty))))
+    push!(elems, make_rect(1, track_color))
+    push!(elems, make_rect(2, thumb_color))
+    SimpleIoMap(p, w, GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
+                                     CellVector(Cell[Cell(e) for e in elems]),
+                                     layout_none, true, Cell(nothing)))
 end
 
 function map_reference_forward(::WidgetScrollBarToGraphicsCanvas, iomap, reference)
@@ -5435,27 +5474,24 @@ function map_reference_backward(::WidgetScrollBarToGraphicsCanvas, iomap, refere
     return nothing
 end
 
+# A press, a button down, or a move with the left button held puts the middle
+# of the thumb under the pointer, and writes the value there.
 function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
-    evt isa MousePress || return nothing
+    (evt isa MousePress || evt isa MouseDown || (evt isa MouseMove && evt.buttons.left)) ||
+        return nothing
     w = iomap.input
     w isa WidgetScrollBar || return nothing
-    sz  = w.size
-    bw = sz isa Point2D ? Int(sz.x[]) : 0
-    bh = sz isa Point2D ? Int(sz.y[]) : 0
-    cox, coy = _content_offset(p, w)
-    tx, ty = _inset_total(p, w)
-    cw = max(1, bw - tx)
-    ch = max(1, bh - ty)
-    thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
-    if w.orientation === :horizontal
-        tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
-        new_value = clamp(Float64(evt.x - cox - div(tw, 2)) / max(1, cw - tw), 0.0, 1.0)
+    canvas = iomap.output
+    track, thumb = _get_scroll_bar_thumb(p, w, Int(canvas.w), Int(canvas.h))
+    new_value = if w.orientation === :horizontal
+        clamp(Float64(evt.x - Int(canvas.x) - track[1] - thumb[3] ÷ 2) / max(1, track[3] - thumb[3]),
+              0.0, 1.0)
     else
-        th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
-        new_value = clamp(Float64(evt.y - coy - div(th, 2)) / max(1, ch - th), 0.0, 1.0)
+        clamp(Float64(evt.y - Int(canvas.y) - track[2] - thumb[4] ÷ 2) / max(1, track[4] - thumb[4]),
+              0.0, 1.0)
     end
-    # new_value is already clamped to [0,1] above.
+    new_value == Float64(w.value) && return nothing
     ReplaceReferencedValueOperation(w, "value", new_value)
 end
 

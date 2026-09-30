@@ -734,7 +734,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     `get_frozen_elements` lets a content say what the held strip draws; the
     list table answers its header.
   - [x] **2.3 The horizontal clamp** (`773abcb75`), found in phase 1.
-  - [ ] **2.4 The scroll bar and the re-anchor.** They need the row at the
+  - [x] **2.4 The scroll bar and the re-anchor.** They need the row at the
     top of the pane. Each row is a canvas with its own height, and the pane
     reads those heights in its walk from the head, but the view is a
     projection above the widgets and must not read the state of another
@@ -755,6 +755,31 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     this is a plan of its own before the rest of phase 2. Both yes (the
     owner, 2026-09-29): [a-table-scrolls-its-own-parts.md](../done/a-table-scrolls-its-own-parts.md)
     comes first, and it also gives the lazy columns of §4.2.
+    Done (this commit), after the table plan:
+    - **The re-anchor** is the relocation of the table (phase 3 of the table
+      plan): at 200 rows from the head, where §3.5 said about 500, the table
+      writes `rows`, and the view turns it into its `anchor`. A wide frame
+      moves its `column_anchor` the same way.
+    - **The row at the top.** `DataFrameView` has the field `top_row`, which
+      it shares with the table (P5 of the table plan); `jump_to_row` writes it
+      back to 1.
+    - **The scroll bar.** The view draws a `GridLayout` of one row: the table,
+      which fills, and a vertical `WidgetScrollBar` 12 pixels wide. Its value
+      is `(anchor + top_row - 2) / (rows - visible)`, and its thumb the share
+      `visible / rows`, where `visible` is the offered height in rows less the
+      header row. A row is a line of the font with the padding of a cell and a
+      rule, `row_step`, which `make_data_frame_view_projection` measures; the
+      natural renderer draws the table with its own theme, so the count of the
+      visible rows is an estimate. A write of the value of the bar is a jump
+      to the row at that value.
+    - **`WidgetScrollBar`** takes the extent that its parent offers along it
+      and the `thickness` of its projection across it, unless it authors a
+      size; its track and its thumb read the value in cells, so a scroll
+      moves the thumb and prints nothing again; and a button down or a move
+      with the left button held moves the thumb as a press does. It writes
+      nothing when the value does not change. Test: `test_widget_scroll_bar`.
+    - The second step of the natural row of the view is the printer of a grid,
+      which prints the table and the bar through the recursion.
   - [x] **2.5 The display** (`00c20f7eb`). The editor task is pinned to one
     thread with the internal `jl_set_task_tid`, as `Threads.@threads :static`
     does (the owner, 2026-09-29: "(a)"). A test fails when a release of
