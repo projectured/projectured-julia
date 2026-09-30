@@ -301,6 +301,32 @@ function topo_errors(entries, aliases = Set{Symbol}())
     errs
 end
 
+"""
+    slice_edge_errors(entries, allowed) -> Vector{String}
+
+Every import that crosses from one slice to another where `allowed` does not
+permit it. `entries` are module files as `walk_includes` answers them, with
+paths relative to the folder that holds the slice folders, so the first folder
+of a path is the slice of its module. `allowed` maps a slice to the slices that
+it may use. An import of a module that no entry defines, such as a module of a
+package below that the entry file binds, is not checked here.
+"""
+function slice_edge_errors(entries, allowed)
+    slice_of = Dict{Symbol, String}(entry[2] => layer_of(entry[1]) for entry in entries)
+    errs = String[]
+    for (rel, mod, deps) in entries
+        slice = layer_of(rel)
+        for dep in deps
+            other = get(slice_of, dep, nothing)
+            (other === nothing || other == slice) && continue
+            other in get(allowed, slice, String[]) ||
+                push!(errs, "$rel ($mod) uses ..$dep of the slice $other, which the table " *
+                            "does not allow for the slice $slice")
+        end
+    end
+    errs
+end
+
 # ── layer checker ──────────────────────────────────────────────────────────
 
 """Return the top-level folder name for a relpath (`"cell/CellModule.jl"` → `"cell"`).
@@ -849,6 +875,31 @@ function check_layering(src_root, top_file; name = "package",
     end
 end
 
+"""
+    check_slice_edges(src_root, top_files, allowed; name = "package")
+
+The static guard of the edges between the slices of one package, whose module
+files sit in slice folders under `src_root`. It walks the include tree of each
+of `top_files`, and fails for each import that crosses from one slice to
+another where `allowed`, a map from a slice to the slices that it may use, does
+not permit it. The slices that the include trees reach are exactly the keys of
+`allowed`, so a new slice needs its row in the table.
+"""
+function check_slice_edges(src_root, top_files, allowed; name = "package")
+    @testset "$name edges between slices" begin
+        entries = Tuple{String, Symbol, Vector{Symbol},
+                        Vector{Pair{Symbol, Vector{Symbol}}}, Vector{Symbol}}[]
+        for file in top_files
+            append!(entries, walk_includes(file, src_root)[2])
+        end
+        @test sort(unique(layer_of(entry[1]) for entry in entries)) ==
+              sort(collect(keys(allowed)))
+        for err in slice_edge_errors(entries, allowed)
+            @test err == ""
+        end
+    end
+end
+
 # ── self-tests for the checkers ────────────────────────────────────────────
 
 """
@@ -1205,5 +1256,15 @@ function test_layering_checkers()
         # An exempt file that is not on disk is itself an error — the set must not go stale.
         @test occursin("not on disk",
                        only(mktempdir(root -> relative_import_errors(root, Set(["gone.jl"])))))
+    end
+
+    @testset "slice_edge_errors allows only the edges of the table" begin
+        entries = [("a/AModule.jl", :AModule, Symbol[]),
+                   ("b/BModule.jl", :BModule, [:AModule, :KernelLikeModule]),
+                   ("b/BHelperModule.jl", :BHelperModule, [:BModule])]
+        # An edge inside a slice, and one to a module that no entry defines, pass.
+        @test isempty(slice_edge_errors(entries, Dict("a" => String[], "b" => ["a"])))
+        errs = slice_edge_errors(entries, Dict("a" => String[], "b" => String[]))
+        @test length(errs) == 1 && occursin("..AModule of the slice a", only(errs))
     end
 end

@@ -151,17 +151,42 @@ docstrings, and a name that a `using` brings is checked by hand):
 | S7 | The documentation folders. | **Decided:** the same groups, `documentation/package/<group>/<slice>/`; `llm/` goes to `documentation/package/kernel/llm/`. |
 | S8 | The rules and guards; the edges between the slices of the platform. | **Decided:** `naming-rules.md` and `test/suite/tree.jl` learn `source/<group>/<slice>/`. Before the fold, a table of the allowed edges between the slices is generated from today's `Project.toml` files, and the layering guard of the platform checks it, so the rules between the slices stay as they are. |
 
+## 4b. Facts found at the start of the work (2026-10-01, `main` at `e7962bdaa`)
+
+- The owner landed the open branches, deleted `window-leave`, and keeps
+  `history-substrate-scaffold` (37 commits, the last on 2026-08-01); that
+  branch must rebase onto the moves of Step 2 when it is taken up again.
+- **Three packages are new since the grouping:** `ProjecturedGestureTracking`
+  (the click count, the key chord and the dwell, from the device events; it
+  uses only the kernel), `ProjecturedMouseTargetTracking` (the part under the
+  pointer, and its crossings; the kernel and graphics) and
+  `ProjecturedDisplay` (a value shown in an editor beside the REPL; the kernel,
+  natural, screen, style and widget). The two trackers go to the platform:
+  `screen`, a slice of the platform, uses them. Where `display` goes is the
+  owner's question.
+- `ProjecturedDataFrames` imports `display_in_editor`, `ProjecturedDisplay` and
+  `close_data_frame_editor!` from `DataFramesModule`, which no longer defines
+  them; Julia warns "undeclared at import time" while it compiles. This is on
+  `main`, outside the fold.
+
 ## 5. Steps (a draft for the owner's review)
 
 Each step is a commit or a few, on a branch in a worktree, and the suites of
 the change pass after each step. Nothing lands on `main` before the last step,
 and the downstream repositories land in the same landing.
 
-- [ ] **Step 0, the baseline.** Measure the precompilation and the load of
+- [x] **Step 0, the baseline.** Measure the precompilation and the load of
       `environment/all` and the time of each CI job, for the comparison of
       Step 9. Generate the table of the allowed edges between the 35 slices
       from today's `Project.toml` files (S8), and a guard that checks the code
       against it. The guard passes on today's code.
+      Done: `check_slice_edges` and `slice_edge_errors` in
+      `test/kernel/layering/CheckLayering.jl` (a unit test in
+      `test_layering_checkers`); `PLATFORM_SLICE_EDGES` (37 slices, from the
+      `[deps]` of their packages on `e7962bdaa`) and `test_platform_slice_edges`
+      in the substrate suite, which `test_substrate` runs. It walks the entry
+      file of each package whose source is a slice of the platform, and checks
+      that the slices it reaches are exactly the rows. The times: see below.
 - [ ] **Step 1, the frame times (F9).** With `julia-rename.jl`: `FramePlot` →
       `FrameTimeSeries`, and the other names of F9. `FrameTimeSeriesToChart.jl`
       and its registration move to `source/chart/`; `ProjecturedStatistics`

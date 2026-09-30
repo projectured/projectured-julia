@@ -15,6 +15,100 @@ function test_substrate_layering()
 end
 
 """
+    PLATFORM_SLICE_EDGES
+
+The slices of the platform, each with the slices of the platform that it may
+use; each may also use the kernel. The table is the rule of the edges inside the
+platform, which the `Project.toml` of each package no longer states once the
+slices share one package. A new edge is a change of this table.
+"""
+const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
+    "collection" => [],
+    "component" => [],
+    "serialization" => [],
+    "style" => [],
+    "domain" => [],
+    "focus" => ["collection"],
+    "plot" => ["style"],
+    "primitive" => [],
+    "projection" => ["collection", "primitive"],
+    "versioning" => ["collection", "domain", "primitive"],
+    "dragging" => ["collection", "projection"],
+    "graphics" => ["collection", "projection", "style"],
+    "layout" => ["collection", "focus", "graphics", "projection", "style"],
+    "screen" => ["collection", "gesturetracking", "graphics", "mousetargettracking",
+                 "primitive", "projection"],
+    "text" => ["collection", "domain", "graphics", "primitive", "projection", "style"],
+    "clipboard" => ["collection", "domain", "primitive", "projection", "serialization",
+                    "text"],
+    "tooltip" => ["graphics", "screen"],
+    "widget" => ["collection", "domain", "focus", "graphics", "layout", "primitive",
+                 "projection", "screen", "serialization", "style", "text", "tooltip"],
+    "natural" => ["collection", "domain", "graphics", "layout", "primitive", "projection",
+                  "style", "text", "tooltip", "widget"],
+    "pane" => ["clipboard", "collection", "domain", "dragging", "focus", "layout",
+               "primitive", "projection", "screen", "serialization", "style", "widget"],
+    "reflection" => ["collection", "widget"],
+    "inspector" => ["domain", "natural", "projection", "screen", "serialization", "style",
+                    "text"],
+    "syntax" => ["collection", "domain", "natural", "primitive", "projection", "style",
+                 "text"],
+    "fault" => ["collection", "domain", "focus", "graphics", "natural", "projection",
+                "serialization", "style", "syntax", "text", "tooltip", "widget"],
+    "fileformat" => ["collection", "domain", "layout", "natural", "primitive",
+                     "projection", "serialization", "style", "syntax", "text", "widget"],
+    "filesystem" => ["collection", "domain", "fileformat", "focus", "natural", "pane",
+                     "primitive", "projection", "serialization", "style", "syntax",
+                     "text", "widget"],
+    "gesturehelp" => ["collection", "graphics", "projection", "screen", "style", "syntax",
+                      "text"],
+    "gesturelog" => ["collection", "domain", "graphics", "natural", "projection",
+                     "serialization", "style", "syntax", "text"],
+    "assistant" => ["collection", "conversation", "domain", "layout", "natural",
+                    "primitive", "projection", "serialization", "style", "text",
+                    "widget"],
+    "conversation" => ["collection", "domain", "focus", "layout", "natural", "primitive",
+                       "projection", "style", "text", "widget"],
+    "shell" => ["assistant", "clipboard", "conversation", "domain", "fault", "fileformat",
+                "filesystem", "focus", "gesturehelp", "gesturelog", "help", "inspector",
+                "log", "pane", "projection", "screen", "statistics", "style", "tooltip",
+                "widget"],
+    "help" => ["domain", "natural", "serialization", "style", "syntax", "text"],
+    "log" => ["collection", "domain", "natural", "serialization", "style", "syntax",
+              "text"],
+    "statistics" => ["collection", "domain", "natural", "projection", "serialization",
+                     "style", "syntax", "text"],
+    "undo" => ["collection", "graphics", "projection", "style", "syntax", "text"],
+    "gesturetracking" => [],
+    "mousetargettracking" => ["graphics"],
+)
+
+"""
+    test_platform_slice_edges()
+
+Each slice of the platform uses only the slices that `PLATFORM_SLICE_EDGES`
+allows it, besides the kernel.
+"""
+function test_platform_slice_edges()
+    root = normpath(joinpath(@__DIR__, "..", ".."))
+    check_slice_edges(joinpath(root, "source"), _find_platform_entry_files(root),
+                      PLATFORM_SLICE_EDGES; name = "platform")
+end
+
+# The entry file of each package whose source is a slice of the platform.
+function _find_platform_entry_files(root)
+    files = String[]
+    for package in readdir(joinpath(root, "package"))
+        file = joinpath(root, "package", package, "src", package * ".jl")
+        isfile(file) || continue
+        slice = match(r"include\(\"\.\./\.\./\.\./source/(\w+)/", read(file, String))
+        slice !== nothing && haskey(PLATFORM_SLICE_EDGES, slice.captures[1]) &&
+            push!(files, file)
+    end
+    files
+end
+
+"""
     test_substrate()
 
 Run the whole substrate suite: the layering guard of every package, every unit
@@ -23,6 +117,7 @@ test, and the printer walk over the tier's own examples.
 function test_substrate()
     @testset "ProjecturedSubstrate" begin
         test_substrate_layering()
+        test_platform_slice_edges()
         test_substrate_examples()
         test_collection()
         test_mouse_target_field()
@@ -182,6 +277,7 @@ function test_substrate_examples()
 end
 
 export test_substrate, test_substrate_layering, test_substrate_examples
+export PLATFORM_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity
 export test_collection, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting

@@ -114,7 +114,7 @@ end
 
 export test_kernel, test_kernel_layering
 # layering guard (shared by base/visual/domain test packages)
-export check_layering, get_package_source_root, test_layering_checkers
+export check_layering, check_slice_edges, get_package_source_root, test_layering_checkers
 # kernel unit suites
 export test_fault_defaults, test_fault_record, test_fault_store,
        test_fault_cascade, test_fault_barrier,
