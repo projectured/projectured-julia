@@ -1521,6 +1521,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** The code tool acts as the Julia REPL: an exception raised in model code is the answer of the call, also an interrupt and a stack overflow. A QuitEditorException and an OutOfMemoryError pass. The law states the exception.
 - **Recommended (mine): C.** The code tool is a REPL for the model. In the Julia REPL and in a notebook kernel, an interrupt ends the evaluation and the session goes on, and a stack overflow of user code is an error message. With A, an endless loop or a deep recursion that the model wrote ends the whole editor. A quit is a request to stop, and a heap that ran out is a state that the call can not repair, so both pass. In every option, _notify_evaluation and the arms of MeaningSearch.jl rethrow each pass-through exception, because they run no model code.
 - POLICY-1 (A) makes this the one exception that the law can name: A, B or C remains.
+- **Decided by the owner, 2026-09-30: C.** It is the one exception to POLICY-1 that the law names.
 - Depends on: L01-8, L18-9, L20-2.
 - Cost: S. ToolModule.jl (using ..FaultModule), CodeExecution.jl, MeaningSearch.jl (not sealed). One sentence of PAR-REPORT-NEVER-THROWS. test_code_execution: an interrupt sent into a long evaluation gives an answer, and a QuitEditorException passes.
 - **Risk:** Option C is wider than the question: B lets only an interrupt of model code become the answer.
