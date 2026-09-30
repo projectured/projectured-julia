@@ -228,6 +228,10 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
                nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display())
 
+# SDL draws a screen of windows, and `--backend=sdl` names it.
+get_backend_name(::Type{SdlBackend}) = :sdl
+get_backend_output(::Type{SdlBackend}) = :windows
+
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
 # Populated lazily by `_get_font`; freed by `quit_backend!`.

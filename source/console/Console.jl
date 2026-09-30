@@ -23,6 +23,11 @@ ConsoleBackend(; io::IO=stdout, input::IO=stdin, ansi::Bool=true, clear::Bool=tr
     ConsoleBackend(io, input, ansi, clear, UInt8[], false, nothing,
                    Base.Event(true), nothing, false)
 
+# The console draws a block of text, so it is chosen only for an editor whose
+# output is text, and never beside a backend that draws windows.
+get_backend_name(::Type{ConsoleBackend}) = :console
+get_backend_output(::Type{ConsoleBackend}) = :text
+
 # ── Backend interface ────────────────────────────────────────────────────
 
 # Put a real terminal into raw mode (no line buffering, no echo) so individual

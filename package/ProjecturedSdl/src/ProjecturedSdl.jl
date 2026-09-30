@@ -30,6 +30,7 @@ using Xorg_libX11_jll: Xorg_libX11_jll
 # DeviceModule supplies the `Device` type used in the render signatures.
 using ProjecturedKernel.BackendModule
 using ProjecturedKernel.DeviceModule
+import ProjecturedKernel.EditorModule: get_backend_name, get_backend_output
 using ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect,
                          GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
                          GraphicsSpline, GraphicsViewport, GraphicsImage, GraphicsFence,

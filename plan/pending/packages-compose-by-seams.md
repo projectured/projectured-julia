@@ -244,7 +244,7 @@ The steps of `build_editor`:
 - `feeds`;
 - `start_steps`, the functions `editor -> nothing` that run after the editor
   exists, for example `attach_fault_target!` of the fault log;
-- `opened_projections`, the projections for the documents that a wrapper opens
+- `opened_window_projections`, the projections for the documents that a wrapper opens
   later in a window of their own, for example the gesture map of F1.
 
 The editor keeps the wrappers that are on and their settings, so
@@ -351,7 +351,35 @@ that pair.
 
 ## 5. Points that wait for the owner
 
-P1, P2 and P3 are made (C10, C11 and C12).
+P1, P2 and P3 are made (C10, C11 and C12). P4, P5 and P6 are made as
+recommended below (the owner, 2026-09-30: "I agree, let's start"). P7 is
+made (C14).
+
+**Found in step 1.** The code quality rules say "A definition takes at most
+one optional positional argument, and never one beside a keyword argument"
+and "More than five keyword arguments is a type that is missing".
+- `build_editor(document, projection = nothing; ...)` breaks the first rule.
+  So there are two methods, `build_editor(document; ...)` and
+  `build_editor(document, projection; ...)`, and the same for `run_editor!`.
+- A wrapper changes the parts in place, so the seam is `wrap_editor!`, with
+  the `!` of the naming rules.
+- **Q1, for the owner.** `Editor(document, projection; backend, devices,
+  clock, tools, faults, fault_policy, feeds)` has seven keywords. The rule
+  for a constructor says: "A constructor takes what the document is, and
+  names its chrome." My recommendation: `Editor(document, projection,
+  backend, devices; clock, tools, faults, fault_policy, feeds)`, with the
+  `@positional` marker. The document and the projection come first, as C13
+  says, and the backend and the devices stay positional, because they are
+  part of what an editor is.
+- **Q2, for the owner.** `run_editor!(editor; wait, mcp, mcp_instructions,
+  mcp_host, mcp_port, fault_policy)` has six keywords. My recommendation: one
+  keyword `mcp`, whose setting is `false`, `true` or a `NamedTuple` of
+  `instructions`, `host` and `port`, as the setting of a wrapper is. Then
+  `run_editor!(editor; wait, mcp, fault_policy)` has three.
+
+Step 1 leaves the `Editor` constructor and `wait` for these answers.
+
+The points as they were put:
 - **P4.** `make_value_document`, `make_graphics_projection` and
   `refresh_document!` go in Widget. Widget is the lowest package that both
   the data frame package and the display load. My recommendation: Widget.
@@ -361,8 +389,6 @@ P1, P2 and P3 are made (C10, C11 and C12).
   omnet-julia in a worktree of its own, and test that worktree against this
   branch in a scratch environment. Move the callers in inet-julia that
   compile now. List the two broken ones for the owner, and do not fix them.
-
-P7 is made (C14).
 
 ## 6. Steps
 
@@ -374,9 +400,39 @@ Each step ends with its narrowest test and a commit.
   `play_live!` to the order of C13, and move their callers. Remove
   `run_editor!(backend, projection, document)`. Test with doubles in
   `ProjecturedKernelTest`.
-- [ ] **2. The backends declare themselves.** SDL, Web and Console. Test the
+  - [x] 1a (2026-09-30). Two new fragments of `EditorModule`:
+    `BackendChoice.jl` (`get_backend_name`, `get_backend_output`,
+    `collect_backend_types`, `make_default_backend`) and `EditorBuild.jl`
+    (`EditorParts`, `EDITOR_WRAPPER_LAYERS`, `wrap_editor!`,
+    `get_wrapper_layers`, `get_excluded_wrappers`, `is_wrapper_default`,
+    `make_document_projection`, the two methods of `build_editor`), both ⬜ in
+    SEALING.md. `make_editor(document, projection; backend, ...)`, the two
+    methods of `run_editor!(document, ...)`, and `play_live!(document,
+    projection, timeline; backend, ...)`. `run_editor!(backend, projection,
+    document)` is gone. `_make_default_devices()` is the one list of the
+    default devices. The callers and seven documents follow.
+    `test_build_editor` in `test/kernel/editor/BuildEditorTest.jl`.
+    - The candidates are read from the method table of `get_backend_output`,
+      and a known keyword is `hasmethod(get_wrapper_layers, Tuple{Val{k}})`.
+    - A keyword that is off and that no package declares is ignored, so a
+      program can say `tabs = false` when the pane package is not loaded.
+    - The test doubles use outputs and keywords that no package uses, because
+      a method stays for the rest of the process: a double that drew
+      `:windows` would be a second candidate for every later test.
+  - [ ] 1b. The `Editor` constructor (Q1) and `wait` (Q2).
+  - [ ] 1c. The docstring of `make_strict_fault_policy` in the sealed
+    `source/kernel/fault/FaultPolicy.jl` shows the old order of
+    `make_editor`. It waits for the owner's permission.
+- [x] **2. The backends declare themselves.** SDL, Web and Console. Test the
   choice: one candidate, two, none, and a `:text` backend beside a `:windows`
-  one.
+  one. Done 2026-09-30: `:sdl` and `:web` draw `:windows`, `:console` draws
+  `:text`; each package imports the two seams it extends.
+  `test_backend_choice` in `test/projectured/backend/BackendChoiceTest.jl`
+  runs with every backend package loaded: SDL and Web make a caller name its
+  backend, and the console is the one backend for text. The run of steps 1a
+  and 2 passed 338 tests (build, wait, inbox, playback, the kernel layering
+  guard, the referenced document in the application, the console, the choice
+  of a backend, and the gallery's editor).
 - [ ] **3. The window wrapper.** Move `make_window_scene` into the method of
   `window`. Remove `make_editor(document, projection, title)` and
   `run_window_editor`, and move their callers to `build_editor` and

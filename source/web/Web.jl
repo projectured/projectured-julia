@@ -63,6 +63,10 @@ function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
                Dict{Symbol,WebWindowState}(), Symbol[], false)
 end
 
+# The browser draws a screen of windows, and `--backend=web` names it.
+get_backend_name(::Type{WebBackend}) = :web
+get_backend_output(::Type{WebBackend}) = :windows
+
 """
     get_web_asset_directory(name, bindir = Sys.BINDIR) -> String
 

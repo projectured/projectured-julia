@@ -23,6 +23,7 @@ using Base64: base64encode
 # qualification below. A bare `using` of an alias binds the module's *real*
 # name, so the extension sites read BackendModule.*.
 using ProjecturedKernel.BackendModule
+import ProjecturedKernel.EditorModule: get_backend_name, get_backend_output
 import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
