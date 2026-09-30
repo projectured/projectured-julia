@@ -1197,8 +1197,22 @@ registration.
       `FixedMeasure`), which asks the same question. The owner, on
       2026-09-30: they are settled and made in the kernel audit plan, not here.
       Until that lands, the guard job and the umbrella job of CI fail on these
-      five. The markers of the failing tests: a Sonnet agent, checked
-      suite by suite.
+      five.
+
+      The markers (`cb90a5eef`, `cd9b5114a`), each with a `# @broken:` reason
+      and only on the failing examples: the anchor point and the split pane
+      (citing `kernel-audit-fixes.md`); the `text` example of the complete
+      navigation (449 positions); three seeds of the position navigation; ten
+      mouse-click examples ("no cursor found"); the collapsed navigator of
+      `test_application`; the size of the assistant card; the Backspace at the
+      start of a string and the two bare text atoms of the type-in; the three
+      JSON examples of the text navigation invariants, with a new gate
+      `:moved_right` / `:moved_left` in the round-trip driver. The catalog
+      coverage lists its 22 document types with no atom in `_NO_ATOM`, the set
+      that the file keeps for that, and marks only `isempty(gap)`, so a new
+      type with no atom still fails. Checked part by part: 0 failures, 0
+      errors, no unexpected pass. The umbrella now exports `test_documents`
+      and `test_projections`, which the testing guide calls (`5140d33df`).
 
 ### Step P5: the owner's steps
 
