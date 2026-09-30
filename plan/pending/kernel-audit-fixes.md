@@ -1631,6 +1631,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Rename it to `measure_performance(f)`. The verb is in the verb table, but the function returns the value of `f`, not a measure.
 - **C:** Keep the name, and write it in naming-rules.md as an exception to the `with_<stem>` rule.
 - **Recommended (mine): A.** The function binds a scope and runs `f`. It makes no copy, so `with_` does not apply. The repository already uses this shape: `run_with_window_tools(run)` in the shell package, and the fault plan chose `run_fault_barrier!` over `with_fault_barrier` for the same reason. The name takes no `!`, because the function changes no state outside the new store. I checked: no name `run_with_performance_counters` exists in the three repositories.
+- **Decided by the owner, 2026-09-30: A.** The name uses the `run_` row of the verb table from L22-13. The permission for the two sealed files of the performance layer is asked when the work starts.
 - Settles: L22-27.
 - Cost: S. 17 uses in 6 code files of projectured-julia: EditorLoop.jl, 3 test files and the two sealed files PerformanceCounter.jl and PerformanceModule.jl (permission needed). No code use in omnet-julia or inet-julia (1 plan text in omnet-julia). Prose: cell.md, editor.md, system-anatomy.md, architecture-invariants.md, plan/pending/font-zoom-per-editor.md.
 
@@ -1729,6 +1730,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** `perf!` becomes `_log_performance_counters!`. `_zoom_operation` becomes `_find_zoom_operation`, because it can return `nothing`.
 - **C:** Keep both names.
 - **Recommended (mine): A.** I recommend A if L22-23 takes its option C, and B if the function stays. `perf!` writes the counters to the log, which is an external effect, so the name takes a verb, the full word `performance` and a `!`. It is not exported, so it takes the leading underscore of a private name, as L10-23 gave to the private helpers of the document layer. With L02-5, the counter family reads `run_with_performance_counters`, `get_performance_counters` and `_log_performance_counters!`. I checked: both new names are free.
+- **Decided by the owner, 2026-09-30:** `perf!` becomes `_log_performance_counters!`. `_zoom_operation` follows L22-23: it goes if the zoom keys move into a binding table (A), and it becomes `_find_zoom_operation` if the function stays (B).
 - Depends on: L02-5, L22-23.
 - Cost: S. `perf!`: 8 uses in 4 code files (EditorLoop.jl and comments in test/kernel/editor/), PAR-PROFILE-WITH-COUNTERS in architecture-invariants.md, editor.md, plan/pending/a-present-that-is-a-timeout.md. `_zoom_operation`: 3 uses in ReadEvaluatePrint.jl. No sealed file. omnet-julia: text in 1 plan.
 
