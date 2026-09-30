@@ -38,7 +38,10 @@ function print_document(p::ChartToChartPlot, recursion,
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, chart.selection)
-        end))
+        end),
+        Cell(@computation map_mouse_target_forward(chart, path -> let im = iomap_cell[]
+            im === nothing ? nothing : map_reference_forward(p, im, path)
+        end)))
     iomap = ChartToChartPlotIoMap(p, chart, plot)
     iomap_cell[] = iomap
     iomap

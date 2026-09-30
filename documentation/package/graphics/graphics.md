@@ -55,6 +55,17 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 `shift_event_position(event, dx, dy)` moves a pointer event or gesture into the frame of a child, and `shift_operation_position` moves the answer of the child back. A widget reads a point in the frame of its own canvas, so a container moves the event by the place of the child before it hands it down.
 
+### The part under the pointer
+
+A move of the pointer with no button held names the part under the pointer, and every container gives it to two children: first to the child that the pointer leaves, then to the child that it is on. Three functions serve every container, in the layout, the widget, the graph and the screen packages:
+
+- `read_child_move(child_iomap, move)` is the answer of the child under the pointer. When the child names no part under the pointer, its own backward map of the point names it, and a child that maps the point to no part is the part itself. So a list names its row, and a text names the place of the point, with no code of their own.
+- `compute_part_at_point(iomap, x, y)` is that backward map: the path of the part at the point, with the types that the map gives it. A point step at the end of the path is dropped.
+- `read_child_leave(child_iomap, event, dx, dy)` is the answer of the child that the pointer leaves, whose frame lies at `(dx, dy)`. The child gets the move at `(-1, -1)` of its own frame, a point off it and off each part in it, because a part that a pane clips, or a child under another child, can be at the real point. So the child names no part. It gives the move on to the part that it holds, and each part on the old path answers the leave: a button clears `pressed`.
+- `get_child_frame_offset(entry)` is the place of the frame of a child, from the `(x, y, child_iomap)` entry that a container keeps.
+
+The container finds the child that the pointer leaves from its own mouse target (`get_mouse_target` of the kernel), and joins the two answers with `join_move_answers`, the answer of the child that the pointer leaves first.
+
 ### The box of a part
 
 `find_reference_box(document, reference; measure, visible)` reads the box `(x, y, width, height)` of the node that a reference reaches in a printed document, in the frame of the document's place. Each node on the way moves the frame by its place, and a viewport moves its content by its transform too. A text has the box of what it draws, measured with `measure`, and `text{a:b}` the box of those characters. A `RegionReferenceStep` is its box. A canvas with no size of its own on an axis has the bounds of what it draws there (`get_canvas_content_bounds`), except over a lazy list, which can have no end. With `visible = true`, each viewport on the way cuts the box to its own, and a box that no viewport shows is `nothing`.

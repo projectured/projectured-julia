@@ -167,8 +167,16 @@ object under the pointer wins, and a control under it does not act.
 A left button down with no modifier on a drawn part of the child answers with
 `convert_to_focus_selection`: a focusable child that answers nothing is selected
 as a whole, so a key after the click goes to it.
+
+A move with no button held answers with `read_child_move`: when the child names no
+part under the pointer, its own backward map of the point names it, such as a row
+of a list, and a child that maps the point to no part is the part itself. A
+container calls this only for the child under the point; the child that the
+pointer leaves gets the move through its reader alone (`read_child_leave`), so
+it names no part.
 """
 function read_child_event(child_iomap, event)
+    is_move_without_button(event) && return read_child_move(child_iomap, event)
     answer = read_intent(child_iomap.projection, child_iomap, event)
     child = get_iomap_input(child_iomap)
     is_focusing_press(event) && _is_event_on_child(child_iomap, event) &&
@@ -256,6 +264,18 @@ function _find_child_point(entry, x::Int, y::Int; bounded::Bool)
     (0 <= lx < w && 0 <= ly < h) ? (lx, ly) : nothing
 end
 
+# A move with no button held: the child that the pointer leaves, then the child it
+# is on (`route` finds that one), each re-rooted into its own `children[i]`.
+function _read_layout_move(document, entries::Vector, evt::MouseMove, route)
+    new = route(entries, evt)
+    new_answer = new === nothing ? nothing : _reroot_into_child(document, new...)
+    old = _get_target_layout_slot(document, length(entries))
+    (old == 0 || (new !== nothing && new[2] == old) || entries[old] === nothing) &&
+        return new_answer
+    old_answer = read_child_leave(last(entries[old]), evt, get_child_frame_offset(entries[old])...)
+    join_move_answers(_reroot_into_child(document, old_answer, old), new_answer)
+end
+
 _route_scroll(entries, evt::MouseScroll) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
@@ -293,13 +313,18 @@ end
 # Which child slot the layout's `selection` points at (a leading `children[i]`
 # step), or 0 if none — mirror of `_selected_composite_slot` for the `children`
 # field every layout document carries.
-function _selected_layout_slot(doc, n::Int)
-    hasproperty(doc, :selection) || return 0
-    sel = getfield(doc, :selection)[]
-    sel = sel
-    sel isa ConcreteReference || return 0
-    (sel.head isa FieldReferenceStep && sel.head.name == "children") || return 0
-    t = sel.tail
+_selected_layout_slot(doc, n::Int) =
+    hasproperty(doc, :selection) ? _get_children_slot(getfield(doc, :selection)[], n) : 0
+
+# Which child slot the layout's own mouse target names, or 0: the child that the
+# pointer was on.
+_get_target_layout_slot(doc, n::Int) = _get_children_slot(get_mouse_target(doc), n)
+
+# The slot `i` of a path that begins `children[i]`, or 0.
+function _get_children_slot(path, n::Int)
+    path isa ConcreteReference || return 0
+    (path.head isa FieldReferenceStep && path.head.name == "children") || return 0
+    t = path.tail
     (t isa ConcreteReference && t.head isa RangeReferenceStep) || return 0
     slot = t.head.start + 1
     1 <= slot <= n ? slot : 0
@@ -386,6 +411,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         end
         return _layout_tab(iomap.input, entries, evt)
     end
+    is_move_without_button(evt) && return _read_layout_move(iomap.input, entries, evt, _route_move)
     res = @gesture_case evt begin
         MouseClick  => _route_click(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
@@ -1744,6 +1770,10 @@ _route_click_reverse(entries, evt::MouseClick) =
     _route_to_children_reverse(entries, evt.x, evt.y,
         (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
+_route_move_reverse(entries, evt::MouseMove) =
+    _route_to_children_reverse(entries, evt.x, evt.y,
+        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
+
 function _route_stack_event(iomap::ChildrenIoMap, evt)
     entries = getfield(iomap, :child_iomaps)[]::Vector
     # Tab traversal: distributed focus advance, handled before the selection-only
@@ -1751,6 +1781,8 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     if evt isa KeyDown && evt.key === :tab
         return _layout_tab(iomap.input, entries, evt)
     end
+    is_move_without_button(evt) &&
+        return _read_layout_move(iomap.input, entries, evt, _route_move_reverse)
     res = @gesture_case evt begin
         MouseClick  => _route_click_reverse(entries, evt)
         MouseScroll => _route_scroll_reverse(entries, evt)

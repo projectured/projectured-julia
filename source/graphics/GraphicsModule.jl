@@ -31,6 +31,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export PointReferenceStep, RegionReferenceStep, find_reference_point, find_reference_box,
        find_node_reference
+export compute_part_at_point, read_child_move, read_child_leave, get_child_frame_offset
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        set_cell_computation!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
        is_point_near_polyline, is_point_in_polygon
@@ -50,6 +51,7 @@ include("GraphicsToGraphics.jl")
 include("SelectionRing.jl")
 include("OperationPosition.jl")
 include("EventPosition.jl")
+include("ChildMove.jl")
 include("ReferenceBox.jl")
 
 end # module

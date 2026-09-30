@@ -277,6 +277,7 @@ map_reference_backward(::GraphLayoutToGraphicsCanvas, iomap, reference) = nothin
 # Route a left click into the node whose content box contains it. Coordinates are
 # translated into the content canvas's local frame (mirrors TableToGraphics).
 function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
+    is_move_without_button(event) && return _read_graph_move(iomap, event)
     if event isa MouseClick && event.button === :left
         op = _route_click(iomap, event)
         op === nothing || return op
@@ -308,6 +309,70 @@ function _find_vertex_at(iomap::GraphLayoutToGraphicsCanvasIoMap, px, py)
     nothing
 end
 
+# A move with no button held. The content of the vertex that the graph's own mouse
+# target is in gets it first, when the point is not on that content: for that
+# content the move is the leave of the pointer. Then the part at the point answers:
+# the content of a vertex reads the move itself, and a point in the box of a vertex
+# but off its content is the vertex.
+function _read_graph_move(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseMove)
+    hit = _find_vertex_at(iomap, event.x, event.y)
+    new_answer = nothing
+    new_vertex = 0
+    if hit !== nothing
+        (i, cim, x, y) = hit
+        canvas = cim === nothing ? nothing : cim.output
+        if canvas isa GraphicsCanvas && hit_element_at(canvas, x, y) !== nothing
+            move = MouseMove(x, y, event.buttons, event.modifiers; time = event.time)
+            answer = shift_operation_position(read_child_move(cim, move), event.x - x, event.y - y)
+            new_answer = _reroot_vertex_answer(answer, i, cim.input)
+            new_vertex = i
+        else
+            new_answer = ReplaceMouseTargetOperation(@reference iomap.input vertex_layouts[i].vertex)
+        end
+    end
+    old = _get_target_vertex(iomap)
+    (old == 0 || old == new_vertex) && return new_answer
+    entry = iomap.child_iomaps[old]
+    (entry === nothing || entry[3] === nothing) && return new_answer
+    cim = entry[3]
+    vl = iomap.input.vertex_layouts[old]
+    canvas = cim.output
+    dx = Int(vl.x) + (canvas isa GraphicsCanvas ? Int(canvas.x) : 0)
+    dy = Int(vl.y) + (canvas isa GraphicsCanvas ? Int(canvas.y) : 0)
+    left = read_child_leave(cim, event, dx, dy)
+    join_move_answers(_reroot_vertex_answer(left, old, cim.input), new_answer)
+end
+
+# The answer of `content`, the content of vertex `i`, in the graph's own space. A
+# path gets the typed steps to the content, because it points to a place inside a
+# node and only the graph holds the place of that node. A widget that holds its
+# parts answers a path without types, which gets them from the content. An
+# operation that carries its own subject travels, and any other operation is
+# dropped: an operation that no reader can place is worse than no answer.
+_reroot_vertex_answer(::Nothing, i::Int, content) = nothing
+_reroot_vertex_answer(op::CompoundOperation, i::Int, content) =
+    join_move_answers((_reroot_vertex_answer(member, i, content) for member in op.operations)...)
+function _reroot_vertex_answer(op, i::Int, content)
+    op isa ReplacePathOperation || return operation_travels_unchanged(op) ? op : nothing
+    path = get_operation_path(op)
+    is_fully_typed_reference(path) ||
+        (path = annotate_reference_types(content, strip_reference_types(path)))
+    make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(path))
+end
+
+# The vertex `i` whose content holds the part that the graph's own mouse target
+# names, a path that begins `vertex_layouts[i].vertex.content`, or 0.
+function _get_target_vertex(iomap::GraphLayoutToGraphicsCanvasIoMap)
+    steps = get_reference_steps(something(get_mouse_target(iomap.input), EmptyReference()))
+    length(steps) >= 4 || return 0
+    (steps[1] isa FieldReferenceStep && steps[1].name == "vertex_layouts" &&
+     steps[2] isa RangeReferenceStep && steps[3] isa FieldReferenceStep &&
+     steps[3].name == "vertex" && steps[4] isa FieldReferenceStep &&
+     steps[4].name == "content") || return 0
+    i = steps[2].stop
+    1 <= i <= length(iomap.child_iomaps) ? i : 0
+end
+
 function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     hit = _find_vertex_at(iomap, g.x, g.y)
     hit === nothing && return nothing
@@ -315,16 +380,9 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     cim === nothing && return nothing
     local_evt = MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time)
     op = read_intent(cim.projection, cim, local_evt)
-    # A path (the selection, or any other kind) is re-rooted into the graph's
-    # own space, because WHERE it points is a place inside a node and the graph
-    # is what knows where that node is. An operation that carries its own subject has nothing to
-    # re-root, so it travels — which is what `operation_travels_unchanged`
-    # says and what a node meaning "go into me" needs. Anything else is
-    # dropped, as before: a node that answers an operation nobody can place
-    # is worse than a node that declines.
     op isa ReplacePathOperation ||
         return op !== nothing && operation_travels_unchanged(op) ? op : nothing
-    return make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(get_operation_path(op)))
+    _reroot_vertex_answer(op, i, cim.input)
 end
 
 # Dispatch a coordless event to every node's content reader; the active node (the

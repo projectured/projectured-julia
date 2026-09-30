@@ -94,7 +94,7 @@ The capture is removed when the window closes, also when it throws, so the logge
 
 ### The pointer in a shell
 
-The shell hands a press, a down, an up, a move, a scroll and a crossing to the band under the pointer, in that band's frame. **A drag keeps the band it started in**: the band that takes a `MouseDown` gets every move with a button held and the next `MouseUp`, wherever the pointer is. So a divider dragged across the status line keeps moving, and its release is not lost. A split pane reads a drag in progress before it checks its own bounds for the same reason.
+The shell hands a press, a down, an up, a move, a scroll and a crossing to the band under the pointer, in that band's frame. A move with no button held goes first to the band or the content that the pointer leaves. **A drag keeps the band it started in**: the band that takes a `MouseDown` gets every move with a button held and the next `MouseUp`, wherever the pointer is. So a divider dragged across the status line keeps moving, and its release is not lost. A split pane reads a drag in progress before it checks its own bounds for the same reason.
 
 A hover, a held button, a tab drag in flight and a divider drag are **view state**. The readers that write them mark the write with `ReplaceViewStateOperation`, and a history does not record it, so Ctrl+Z after a hover takes back the edit before it.
 

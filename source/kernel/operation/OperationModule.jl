@@ -22,8 +22,9 @@ The module lives in six fragments that share this namespace:
 - [`Operations.jl`](Operations.jl) — the concrete operations, the `splice_*`
   text-edit helpers, and the `child_reference_steps` traversal seam.
 - [`PathChain.jl`](PathChain.jl) — `replace_path_chain!`, which writes a kind of
-  path other than the selection into each document on it, and
-  `replace_mouse_target!`.
+  path other than the selection into each document on it, `replace_mouse_target!`,
+  `get_mouse_target`, and the answers to a move: `add_mouse_target`,
+  `has_mouse_target` and `join_move_answers`.
 - [`Rerooting.jl`](Rerooting.jl) — the reference-rewrite seams
   (`reroot_operation`, `operation_reference`, `retarget_operation`) and
   `reroot_reference`.
@@ -60,7 +61,8 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        splice_string, splice_number, splice_value!,
        child_reference_steps,
        # from PathChain.jl
-       replace_path_chain!, replace_mouse_target!,
+       replace_path_chain!, replace_mouse_target!, get_mouse_target, add_mouse_target,
+       has_mouse_target, join_move_answers,
        # from Rerooting.jl
        reroot_reference, reroot_operation, operation_reference, retarget_operation,
        operation_travels_unchanged,

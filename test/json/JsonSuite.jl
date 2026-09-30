@@ -26,6 +26,7 @@ function test_json()
         test_json_parser()
         test_json_document()
         test_json_placeholder_navigation()
+        test_json_mouse_target()
         test_json_to_syntax()
         test_json_to_syntax_reader()
         test_json_gesture_collection()
@@ -34,5 +35,5 @@ end
 
 export test_json, test_json_layering, test_json_document
 export test_json_parser
-export test_json_placeholder_navigation, test_json_to_syntax
+export test_json_placeholder_navigation, test_json_to_syntax, test_json_mouse_target
 export test_json_to_syntax_reader, test_json_gesture_collection

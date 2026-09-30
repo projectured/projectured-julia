@@ -54,11 +54,15 @@ make_nested() = CellVector([PrimitiveNumber(1),
 @testset "the pointer on the 2" begin
     outer = make_nested()
     replace_mouse_target!(outer, _mt_path(2, 1))
-    @test outer.mouse_target == _mt_path(2, 1)
-    @test outer[2].mouse_target == _mt_path(1)
-    @test outer[2][1].mouse_target == EmptyReference()
-    @test outer[1].mouse_target === nothing
-    @test outer[2][2].mouse_target === nothing
+    @test get_mouse_target(outer) == _mt_path(2, 1)
+    @test get_mouse_target(outer[2]) == _mt_path(1)
+    @test get_mouse_target(outer[2][1]) == EmptyReference()
+    @test get_mouse_target(outer[1]) === nothing
+    @test get_mouse_target(outer[2][2]) === nothing
+    # Each document holds its path typed against itself, as a forward map with a
+    # typed `@reference` needs.
+    @test is_fully_typed_reference(outer.mouse_target)
+    @test is_fully_typed_reference(outer[2].mouse_target)
 end
 
 @testset "the same path again writes no cell" begin
@@ -77,34 +81,34 @@ end
     inner_reader = Cell(@computation getfield(outer[2], :mouse_target)[])
     inner_reader[]
     replace_mouse_target!(outer, _mt_path(2, 2))
-    @test outer[2].mouse_target == _mt_path(2)
-    @test outer[2][1].mouse_target === nothing
-    @test outer[2][2].mouse_target == EmptyReference()
+    @test get_mouse_target(outer[2]) == _mt_path(2)
+    @test get_mouse_target(outer[2][1]) === nothing
+    @test get_mouse_target(outer[2][2]) == EmptyReference()
     replace_mouse_target!(outer, _mt_path(1))
-    @test outer.mouse_target == _mt_path(1)
-    @test outer[1].mouse_target == EmptyReference()
-    @test outer[2].mouse_target === nothing
-    @test outer[2][2].mouse_target === nothing
+    @test get_mouse_target(outer) == _mt_path(1)
+    @test get_mouse_target(outer[1]) == EmptyReference()
+    @test get_mouse_target(outer[2]) === nothing
+    @test get_mouse_target(outer[2][2]) === nothing
     @test !is_cell_up_to_date(inner_reader)
     replace_mouse_target!(outer, nothing)
-    @test outer.mouse_target === nothing
-    @test outer[1].mouse_target === nothing
+    @test get_mouse_target(outer) === nothing
+    @test get_mouse_target(outer[1]) === nothing
 end
 
 @testset "the path is kept without its types" begin
     outer = make_nested()
     typed = ConcreteReference(CellVector, ElementReferenceStep(2), _mt_path(1))
     replace_mouse_target!(outer, typed)
-    @test outer.mouse_target == _mt_path(2, 1)
-    @test outer[2][1].mouse_target == EmptyReference()
+    @test get_mouse_target(outer) == _mt_path(2, 1)
+    @test get_mouse_target(outer[2][1]) == EmptyReference()
 end
 
 @testset "a path to a part that is gone stops at the last document" begin
     outer = make_nested()
     replace_mouse_target!(outer, _mt_path(5, 1))
-    @test outer.mouse_target == _mt_path(5, 1)
-    @test outer[1].mouse_target === nothing
-    @test outer[2].mouse_target === nothing
+    @test get_mouse_target(outer) == _mt_path(5, 1)
+    @test get_mouse_target(outer[1]) === nothing
+    @test get_mouse_target(outer[2]) === nothing
 end
 
 @testset "the operation writes at the root, keeps its kind and is no edit" begin
@@ -113,8 +117,8 @@ end
     @test operation isa ReplacePathOperation
     @test get_operation_path(operation) == _mt_path(1)
     evaluate_operation((document = outer,), operation)
-    @test outer.mouse_target == _mt_path(1)
-    @test outer[1].mouse_target == EmptyReference()
+    @test get_mouse_target(outer) == _mt_path(1)
+    @test get_mouse_target(outer[1]) == EmptyReference()
     rerooted = reroot_operation(ReplaceMouseTargetOperation(_mt_path(1)),
                                 (ElementReferenceStep(2),))
     @test rerooted isa ReplaceMouseTargetOperation

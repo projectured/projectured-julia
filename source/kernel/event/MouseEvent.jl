@@ -105,6 +105,15 @@ MouseMove(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time::
     MouseMove(x, y, buttons, modifiers, Float64(time))
 
 """
+    is_move_without_button(event) -> Bool
+
+Whether `event` is a move of the pointer with no button held. A container gives
+such a move first to the part that the pointer leaves, the child that its own mouse
+target names, and then to the part that the pointer is on.
+"""
+is_move_without_button(event) = event isa MouseMove && event.buttons == MouseButtons()
+
+"""
     MouseScroll(dx, dy, x, y[, modifiers]; time)
     MouseScroll(dx, dy, x, y, modifiers, time)
 

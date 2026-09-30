@@ -277,6 +277,33 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
+- **Q13. A drag.** Open in part. Under M6 and M7 alone, a dragged part (a
+  slider thumb) gets only the first move off it: then the mouse target follows
+  the pointer and the part is on no path. Claude's options were a capture (the
+  mouse target stays on the pressed part while a button is held) and no capture
+  (the containers keep their drag fallbacks). The owner's model (2026-09-30):
+  "The dragging projection could store the path to the drag start and route the
+  move there. It's s legitimate global control ... so the mouse target would be
+  unaffected and still light what's under the mouse." Then: "there are two
+  kinds of drags, local and global. A local drag is one where only one document
+  part is affected, it should not need the dragging projection but could still
+  share functios to avoid reinventing the wheel. A global drag is when multiple
+  documents are affected, like dragging a pane in the tree, or during dragging
+  one document part into another part which accepts it. This needs a bit more
+  thinking." And: "I don't like storing the drag target in the gesture
+  recogniser." Settled so far:
+  1. A local drag keeps its path in the close parent that the drag is local to,
+     not along the whole chain and not in the mouse target (owner: "the local
+     drag is usually local to some close parent, so the path should be stored
+     there").
+  2. A part says that it accepts a dragged thing through a function (owner:
+     "why not a function simply?"), not through a probe.
+  3. A drag that starts local and becomes global is not supported now.
+  So step 5 is two steps: 5a routes a move with no button held (the old part,
+  then the new part); a move with a button held keeps today's routing, so no
+  move reaches a part twice and no drag breaks. 5b is the drag, once its design
+  is settled; it replaces the routing of a held button and the containers'
+  drag fallbacks.
 - ~~**Q12. The step 3 scope and an introduced part.**~~ **Settled** (owner
   2026-09-29). Step 3 found 75 readers in 33 files that take the selection by
   type, 29 `isa` checks in 17 files, and 7 places in omnet, where the plan had
@@ -563,8 +590,9 @@ already; the sealed selection files do not change (Q4).
   Left: omnet's views (about 15 places). Several of them keep a selection as
   state, such as the chosen type of the catalog list, and do not map a path
   forward, so each needs a small design of its own; they follow with step 6,
-  when it is known which of their widgets light.
-- [ ] 5. **The move** (M6, M7). A container hands a `MouseMove` first to the
+  when it is known which of their widgets light (owner 2026-09-30: "Yes, I
+  agree").
+- [ ] 5. **The move** (M6, M7; 5a now, 5b the drag, Q13). A container hands a `MouseMove` first to the
   child that its own mouse target names, along the old path, with the point in
   that child's frame, and then to the child at the point; when both are the
   same child, once. `read_child_event` makes a move that the child answered
@@ -578,6 +606,81 @@ already; the sealed selection files do not change (Q4).
   answers the empty path, the screen itself (Q6). Tests: moves across the JSON
   document, across a composite of buttons and across two windows write the
   chains of step 2; a press held on a button and moved off clears `pressed`.
+
+  **5a, a move with no button held: done.** Built:
+  - The shared pieces. `is_move_without_button` is in the event module of the
+    kernel. `get_mouse_target`, `add_mouse_target(answer, path)`,
+    `has_mouse_target` and `join_move_answers` are in `PathChain.jl`.
+    `compute_part_at_point`, `read_child_move`, `read_child_leave` and
+    `get_child_frame_offset` are in the new graphics fragment `ChildMove.jl`: the
+    point step lives in graphics, and the screen, the layout, the widgets and
+    the graph all use them.
+  - A child that the pointer leaves gets the move at `(-1, -1)` of its own
+    frame, as the old window does. The first version gave it the real point in
+    its frame, and the review found two faults: a pane that clips its content
+    gave the content a point on a part scrolled out of view, and in a stack a
+    child under another child took the point as its own, so two paths reached
+    the root.
+    `read_child_event` gives a move to `read_child_move`.
+  - The part readers need no code of their own. When the child under the point
+    names no part, its own backward map of the point names it
+    (`compute_part_at_point`), the map that the tracker uses today. So the maps
+    that exist name a row of a list, a table, a tree and a table list, a cell of
+    a widget table, and a place in a text. The text names the caret position
+    nearest the point, `{k}`, the place that a click there selects, not a range
+    of one character.
+  - The containers: the layouts (the flow and the stack), the composite, the
+    card, the accordion (a header is its item `items[i]`), the scroll pane and
+    the transform pane (the view, and a hit on the content), the tabbed pane (a
+    header is its `selector`), the split pane (a splitter is the pane itself),
+    the context menu, and one generic reader for the tooltip, the menu, the
+    title pane, the toolbar, the dialog and the shell. The generic reader finds
+    a child by identity (`_find_child_steps`) and takes the topmost child at the
+    point, as a point maps back. The graph layout gives the move to the content
+    of a vertex, and a point in the box of a vertex but off its content is the
+    vertex. The graph pipeline matches typed paths only, so the graph types a
+    widget's path against the content of the vertex.
+  - The screen. A move in another window, and the leave of the window that the
+    pointer is in, give the old window a move to `(-1, -1)`, a point off it. The
+    backend does not say where the pointer is after a leave, and windows can
+    overlap (a popup over the main window), so a point in the frame of the old
+    window can still be on it. After the leave the screen holds the empty path;
+    a late leave of another window changes nothing. A window whose content
+    names no part is the part itself, after the content's own point map.
+  - The button clears `pressed` when a move off it reaches it. The chart and
+    the sequence chart keep their own hover until step 6, and a move off them
+    clears it.
+  - Step 4 missed eight views that map the selection forward: the graph layout,
+    the two stages of the FSM and of the process diagram, the collection
+    layout, the chart and the sequence chart. Without the mouse target in their
+    output, no container in the output finds the child that the pointer leaves.
+    Each now wires it with `map_mouse_target_forward`, beside its selection.
+  - A mouse target in a tabbed pane always takes the `.element` step, so the
+    chain write reaches the document of a page that is a widget. The selection
+    keeps its old form, which the pane also reads.
+  - The chain write of step 2 kept each path without its types. A forward map
+    builds a typed `@reference` from the mouse target, and the map of the
+    assistant failed in the repl sweep. So each document now holds its path
+    typed against itself (`annotate_reference_types`), and a write compares
+    the paths without their types.
+  Tests: `test_mouse_target_move()` (a composite of buttons, the leave of a
+  pressed button, a card with a layout, a list, the split pane, the tabbed pane
+  and the shell in a window, and two windows) and `test_json_mouse_target()`
+  (`[1, [2, 3]]`: the `2`, the `1`, and the bracket that opens the inner array,
+  which is a part of that array). The move test also covers a scroll pane that
+  clips its content, a stack where one child lies over another, and a page of a
+  tabbed pane that is a widget. The tooltip test now expects a move to answer
+  the part under the pointer, and the test driver of the tracker writes the
+  mouse target at its root, as the editor does.
+  Checks: the wide sweep has the counts of step 4 with the new tests (substrate
+  +56, JSON +12); the repl sweep in a fresh process has its baseline; the domain
+  suites and the omnet tests pass as in step 4; the naming guard passes, and the
+  documentation check has its notes. A review of the diff found the faults that
+  the bullets on the leave, the tab path and the eight views describe.
+  Left: the new tests apply the answers with `evaluate_operation`, not through
+  an editor; step 6 tests the light through a real editor. The click route of
+  the graph now also types a widget's path against the content of the vertex,
+  which no test covers.
 - [ ] 6. **The light** (M9). The button, the menu item and the toolbar item
   light while their mouse target is set; the list, the table, the table list and
   the tree light the row that their mouse target names; the chart and the

@@ -112,6 +112,9 @@ _mtt_apply!(driver, operation::CompoundOperation) =
 _mtt_apply!(driver, operation::SetTimerOperation) =
     (driver.timers[operation.name] = operation.time; nothing)
 _mtt_apply!(driver, ::Nothing) = nothing
+# A move names the part under the pointer, which the editor writes at its root.
+_mtt_apply!(driver, operation::ReplaceMouseTargetOperation) =
+    (replace_mouse_target!(driver.state, operation.path); nothing)
 _mtt_apply!(driver, operation) = (evaluate_operation(nothing, operation); nothing)
 
 # Read one input, then every crossing that waits.

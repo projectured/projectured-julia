@@ -23,16 +23,21 @@ end
 
 function print_document(p::CellVectorToVerticalLayout, recursion, cv::CellVector, ctx)
     # Reuse the input's element cells (no transform here — the layout renderer
-    # recurses them). The deferred-iomap trick wires the output selection.
+    # recurses them). The deferred-iomap trick wires the output selection and the
+    # part under the pointer.
     iomap_cell = Cell(nothing)
     sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, cv.selection)
     end)
+    target = Cell(@computation map_mouse_target_forward(cv, path -> begin
+        im = iomap_cell[]
+        im === nothing ? nothing : map_reference_forward(p, im, path)
+    end))
     out = VerticalLayout(CellVector(getfield(cv, :elements), Cell(nothing)),
                          Cell(p.horizontal_align), Cell(p.gap),
-                         Cell(nothing), Cell(nothing), sel)
+                         Cell(nothing), Cell(nothing), sel, target)
     iomap = SimpleIoMap(p, cv, out)
     iomap_cell[] = iomap
     iomap

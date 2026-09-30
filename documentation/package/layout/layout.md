@@ -60,6 +60,7 @@ Every layout reader goes through one router:
 - Tab goes to the selected child first; if it returns nothing, the focus moves to the next focusable sibling with the functions of `ProjecturedFocus`.
 - An Alt+press selects the innermost document under the pointer as a whole (`read_child_event`).
 - A left button down with no modifier on a focusable child that answers nothing selects that child as a whole, so a key after the click goes to it (`read_child_event`).
+- A move with no button held goes first to the child that the mouse target of the layout names, when the point is not on that child, and then to the child under the pointer, which names the part under it (`read_child_event`, [graphics.md](../graphics/graphics.md#the-part-under-the-pointer)).
 
 The router roots the operation of a child under `children[i]` and adds the type checkpoints of the path, so a container above can use the reference.
 

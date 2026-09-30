@@ -160,7 +160,10 @@ function print_document(p::FsmDiagramToGraph, recursion,
     graph = GraphGraph(vertices, edges, highlight_vertex, highlight_edge,
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, diagram.selection)
-        end))
+        end),
+        Cell(@computation map_mouse_target_forward(diagram, path -> let im = iomap_cell[]
+            im === nothing ? nothing : map_reference_forward(p, im, path)
+        end)))
 
     iomap = FsmDiagramToGraphIoMap(p, diagram, graph)
     iomap_cell[] = iomap

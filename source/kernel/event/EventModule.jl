@@ -16,8 +16,9 @@ The module lives in nine fragments that share this namespace:
   event holds.
 - [`KeyboardEvent.jl`](KeyboardEvent.jl) — the key events `KeyDown`, `KeyUp` and
   `KeyPress`.
-- [`MouseEvent.jl`](MouseEvent.jl) — `MouseButtons`, and the mouse events
-  `MouseDown`, `MouseUp`, `MouseMove` and `MouseScroll`.
+- [`MouseEvent.jl`](MouseEvent.jl) — `MouseButtons`, the mouse events
+  `MouseDown`, `MouseUp`, `MouseMove` and `MouseScroll`, and the predicate
+  `is_move_without_button`.
 - [`WindowEvent.jl`](WindowEvent.jl) — `WindowQuit`, `WindowClose`, `WindowResize`,
   `WindowDefocus` and `WindowLeave`.
 - [`TimerEvent.jl`](TimerEvent.jl) — `TimerExpire`, the event of a timer that a
@@ -35,7 +36,7 @@ module EventModule
 export Event, get_modifier_keys, get_event_time
 export ModifierKeys
 export KeyDown, KeyUp, KeyPress
-export MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll
+export MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll, is_move_without_button
 export WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave
 export TimerExpire, DisplayUpdate
 export WindowInput

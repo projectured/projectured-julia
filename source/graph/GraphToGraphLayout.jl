@@ -138,7 +138,10 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         Cell(@computation placed[][3]),
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
-        end))
+        end),
+        Cell(@computation map_mouse_target_forward(graph, path -> let im = iomap_cell[]
+            im === nothing ? nothing : map_reference_forward(p, im, path)
+        end)))
 
     iomap = GraphGraphToGraphLayoutIoMap(p, graph, layout, child_iomaps)
     iomap_cell[] = iomap

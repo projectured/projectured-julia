@@ -41,7 +41,9 @@ end
 @testset "open on trigger" begin
     show[] = true
     op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
-    @test !(op isa Operation)
+    # The window manager applies the window operations itself, and the move
+    # answers only the part under the pointer.
+    @test op isa ReplaceMouseTargetOperation
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2          # output mirrors input
     tt_idx = findfirst(i -> screen.windows[i].id === source_id, 1:length(screen.windows))
@@ -56,7 +58,7 @@ end
 
 @testset "no-op when already open" begin
     op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
-    @test !(op isa Operation)
+    @test op isa ReplaceMouseTargetOperation
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
 end
@@ -64,7 +66,7 @@ end
 @testset "close on trigger off" begin
     show[] = false
     op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
-    @test !(op isa Operation)
+    @test op isa ReplaceMouseTargetOperation
     @test length(screen.windows) == 1
     @test length(iomap.output.windows) == 1
     @test screen.windows[1].id === :default
@@ -73,7 +75,7 @@ end
 @testset "re-open after close" begin
     show[] = true
     op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
-    @test !(op isa Operation)
+    @test op isa ReplaceMouseTargetOperation
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
     @test screen.windows[2].id === source_id

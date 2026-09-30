@@ -158,6 +158,17 @@ function _get_content_place(iomap::ScreenWindowIoMap)
     (_wval(getfield(output, :x)), _wval(getfield(output, :y)))
 end
 
+# Whether the point of `event`, in the frame of the root canvas of the content, is
+# on that canvas. A canvas with no size leaves the decision to the content.
+function _is_event_on_content(iomap::ScreenWindowIoMap, event)
+    output = unwrap_cell(get_iomap_output(iomap.content_iomap))
+    (output isa GraphicsDocument && hasproperty(output, :w) && hasproperty(output, :h)) ||
+        return true
+    width, height = _wval(getfield(output, :w)), _wval(getfield(output, :h))
+    (width <= 0 || height <= 0) && return true
+    0 <= event.x < width && 0 <= event.y < height
+end
+
 # `content` followed by a point of the window, with the point in the frame of the
 # root canvas of the content.
 function _move_content_point(iomap::ScreenWindowIoMap, reference)
@@ -191,21 +202,70 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
     end
     window_input = change.gesture
     if window_input isa WindowInput
-        ims = iomap.window_iomaps
-        for (i, wim) in enumerate(ims)
-            win_in = wim.input
-            win_in isa WindowDocument || continue
-            win_in.id === window_input.window_id || continue
-            inner = read_intent(wim.projection, recursion, change, wim)
-            op = _prefix_op(inner.operation, (FieldReferenceStep("windows"), ElementReferenceStep(i)))
-            return Intent(change.gesture, op)
+        event = window_input.event
+        index = _find_window_index(iomap, window_input.window_id)
+        op = nothing
+        if index != 0
+            wim = iomap.window_iomaps[index]
+            op = read_intent(wim.projection, recursion, change, wim).operation
+            # A window that names no part under the pointer is that part itself.
+            is_move_without_button(event) && (op = add_mouse_target(op))
+            op = _prefix_op(op, (FieldReferenceStep("windows"), ElementReferenceStep(index)))
         end
-        return Intent(change.gesture, nothing)
+        if is_move_without_button(event) || event isa WindowLeave
+            op = _read_window_leave(recursion, iomap, index, event, op)
+        end
+        return Intent(change.gesture, op)
     end
     # Non-window-input change (operation threaded up, or coordless gesture):
     # fall back to the generic per-reference mapping (selection/edit retarget).
     payload = change.operation === nothing ? change.gesture : change.operation
     return Intent(change.gesture, read_intent(p, iomap, payload))
+end
+
+# The 1-based index of the window whose id is `id`, or 0.
+function _find_window_index(iomap::ScreenToScreenIoMap, id)
+    for (index, wim) in enumerate(iomap.window_iomaps)
+        window = wim.input
+        window isa WindowDocument && window.id === id && return index
+    end
+    0
+end
+
+# The pointer leaves the window that the screen's mouse target names, when a move
+# comes in window `index`, another window, or when that window reports the leave
+# of the pointer. That window gets a move to a point off it, `(-1, -1)`: the backend
+# does not say where the pointer is, and a point off the window reaches only the
+# parts that the pointer leaves. Its answer comes before `answer`, the answer of the
+# window that the event came in. After a leave the pointer is over no window, and
+# the screen itself is the part under it.
+function _read_window_leave(recursion, iomap::ScreenToScreenIoMap, index::Int, event, answer)
+    target = get_mouse_target(iomap.input)
+    old = _get_window_step_index(target, length(iomap.window_iomaps))
+    if event isa WindowLeave
+        (old != 0 && old == index) || return answer
+    else
+        (old == 0 || old == index) && return answer
+    end
+    wim = iomap.window_iomaps[old]
+    modifiers = event isa MouseMove ? event.modifiers : ModifierKeys()
+    move = MouseMove(-1, -1, MouseButtons(), modifiers; time = get_event_time(event))
+    left = read_intent(wim.projection, recursion, Intent(WindowInput(wim.input.id, move), nothing),
+                       wim).operation
+    left = _prefix_op(left, (FieldReferenceStep("windows"), ElementReferenceStep(old)))
+    event isa WindowLeave || return join_move_answers(left, answer)
+    join_move_answers(left, answer, ReplaceMouseTargetOperation(EmptyReference()))
+end
+
+# The window `i` of a path that begins `windows[i]`, or 0.
+function _get_window_step_index(path, n::Int)
+    path isa ConcreteReference || return 0
+    head = get_reference_head(path)
+    (head isa FieldReferenceStep && head.name == "windows") || return 0
+    rest = get_reference_tail(path)
+    (rest isa ConcreteReference && get_reference_head(rest) isa RangeReferenceStep) || return 0
+    index = get_reference_head(rest).stop
+    1 <= index <= n ? index : 0
 end
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenWindowIoMap)
@@ -224,7 +284,14 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         event = window_input.event
         event isa Union{Event, Gesture} && (event = shift_event_position(event, -x, -y))
         inner = read_intent(cim.projection, recursion, Intent(event, nothing), cim)
-        op = _prefix_op(shift_operation_position(inner.operation, x, y), (FieldReferenceStep("content"),))
+        operation = inner.operation
+        # When the content names no part under the pointer and the point is on it,
+        # its own backward map of the point names the part.
+        if is_move_without_button(event) && _is_event_on_content(iomap, event) &&
+           !has_mouse_target(operation)
+            operation = add_mouse_target(operation, compute_part_at_point(cim, event.x, event.y))
+        end
+        op = _prefix_op(shift_operation_position(operation, x, y), (FieldReferenceStep("content"),))
         return Intent(change.gesture, _open_popup_windows(op, iomap.input))
     end
     payload = change.operation === nothing ? change.gesture : change.operation
