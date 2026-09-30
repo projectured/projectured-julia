@@ -1663,6 +1663,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Rename all 10 `describe_` functions (`describe_operation`, `describe_document`, `describe_value`, `describe_gesture` and the others) to `format_`.
 - **C:** Keep `describe_event_pattern`, and add a row for `describe_` to the verb table: it makes words for a person that say what a thing is or does. `format_` stays for a value in a fixed text form (`format_tick`).
 - **Recommended (mine): C.** `describe_` is an established family of 10 functions: 168 uses in 32 code files here and 42 uses in 10 files of omnet-julia. A splits the family, and B is a large change for a name that reads as English. The rules say that English wins where a rule gives a phrase that nobody says: a person describes an operation and formats a number. The text of these functions ('Ctrl+x', 'zoom in') is a description for a person, not a format.
+- **Decided by the owner, 2026-09-30: C.** The row: `describe_` makes words for a person that say what a thing is or does; `format_` puts the fields of a thing into a fixed text form (`format_tick`, `format_fault_label`).
 - Cost: S for C: one row in naming-rules.md and no code change. A: S (13 uses in 8 files; sealed EventPattern.jl and EventModule.jl). B: L (168 uses in 32 files here and 42 in 10 files of omnet-julia).
 
 **L09-15** (Low): Do the four backend generics with an external effect take a !, and which name does read_from_devices take?
