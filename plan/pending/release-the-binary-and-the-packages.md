@@ -1097,16 +1097,21 @@ registration.
 
 ### Step P1: the statement in the README
 
-- [ ] A section "How the code is made" in `README.md`, short, with the facts
+- [x] A section "How the code is made" in `README.md`, short, with the facts
       that the repository shows: the Lisp original, written by hand from 2013;
       the Julia port since 2026-05-26, most of it written by Claude Code under
       the direction of the author; the design and the decisions in
       `documentation/rule/` and `plan/`; the guards, the tests and CI; the
       kernel files that the author sealed after a review (`SEALING.md`: 52 of
       128 on 2026-09-30).
-- [ ] The owner checks each sentence about the author's own work. Only the
+- [x] The owner checks each sentence about the author's own work. Only the
       owner knows how much of the code that is not sealed was read by hand, and
-      the policy asks for that fact.
+      the policy asks for that fact. The owner, on 2026-09-30: the seal of a
+      file reads all its types and the interface of each public function, not
+      the implementation of every function; outside the sealed files, only the
+      parts of interest. The README says so. The policy asks that a person
+      understands all the generated code, so the maintainers of General can
+      ask about it.
 
 ### Step P2: what CI sees
 
@@ -1172,7 +1177,13 @@ registration.
 
 - [ ] Each failure that P2 finds is fixed, or marked `@test_broken` with a
       `# @broken:` comment, as the testing guide says. The owner decides which,
-      for each failure.
+      for each failure. **The owner chose on 2026-09-30:** fix the two faults of
+      one line (the import of `test_json_content_clicks_clean`, and the
+      `import` in `ConversationModule.jl`); mark each other failing test
+      `@test_broken` with its reason and the plan that owns it; put
+      `HelpModule` on the list of the export guard of modules that are not
+      migrated (`export-block-rule.md` owns it); and fix the six argument
+      violations in their files.
 
 ### Step P5: the owner's steps
 
