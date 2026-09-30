@@ -117,7 +117,8 @@ end
 # The navigator lists the example project of the repository, and its README is
 # open, so the window has a wide pane of files and the Evaluator button opens its
 # tab there. The take reads the project and writes nothing into it.
-const PROJECT = normpath(joinpath(@__DIR__, "..", "..", "example", "filesystem", "fixture", "project"))
+const PROJECT = normpath(joinpath(@__DIR__, "..", "..", "example", "platform", "filesystem", "fixture",
+                                   "project"))
 
 function _record(timeline, output; kwargs...)
     record_application_video([joinpath(PROJECT, "README.md")], timeline, output;

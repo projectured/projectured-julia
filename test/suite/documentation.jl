@@ -291,6 +291,28 @@ documentation_violations(root::AbstractString) =
 const _PERSON_VERBS = ["knows", "wants", "asks for", "decides", "refuses",
                        "offers", "promises", "tells", "believes", "thinks"]
 
+# The folders of a group under `source/`; each folder in one is a slice. The
+# kernel and the umbrella are slices of their own.
+const _SLICE_GROUPS = ("platform", "domain", "backend", "adapter", "tool")
+
+# Every slice folder under `source/`, as `source/<group>/<slice>` or
+# `source/<slice>`.
+function _collect_slice_folders(root::AbstractString)
+    out = String[]
+    for entry in sort(readdir(joinpath(root, "source")))
+        isdir(joinpath(root, "source", entry)) || continue
+        if entry in _SLICE_GROUPS
+            for slice in sort(readdir(joinpath(root, "source", entry)))
+                isdir(joinpath(root, "source", entry, slice)) &&
+                    push!(out, "source/$entry/$slice")
+            end
+        else
+            push!(out, "source/$entry")
+        end
+    end
+    out
+end
+
 """
     documentation_report(root) -> Vector{String}
 
@@ -312,10 +334,10 @@ function documentation_report(root::AbstractString)
     named = join([read(joinpath(root, document), String)
                   for document in collect_documents(root)
                   if startswith(document, "documentation")], "\n")
-    for slice in sort(readdir(joinpath(root, "source")))
-        isdir(joinpath(root, "source", slice)) || continue
-        occursin("source/" * slice, named) || occursin("`" * slice * "`", named) ||
-            push!(out, "no guide under documentation/ names the slice source/$slice")
+    for folder in _collect_slice_folders(root)
+        slice = basename(folder)
+        occursin(folder, named) || occursin("`" * slice * "`", named) ||
+            push!(out, "no guide under documentation/ names the slice $folder")
     end
     out
 end
