@@ -47,7 +47,7 @@ came from [widget-sizing-rules.md](../done/widget-sizing-rules.md) (`67c08360b`)
 drawn in four regions (`_pane_frozen_region`): the corner, the top strip, the
 left strip and the body. The eager table declares the extent of its header row
 and header column; the list table declares its header height, and with
-`get_frozen_elements` (`71c55b297`) it keeps its header apart from its rows.
+`get_frozen_elements` (`529d326d2`) it keeps its header apart from its rows.
 `_get_frozen_height` feeds the clamp of a list. Only tables declare an extent.
 The dirty-rectangle walk of SDL keys a record partly on its placement, because
 "the four regions of a frozen pane share their content"
@@ -272,7 +272,7 @@ plan.
   `GridLayout` draw a `ListNode` of children lazily in their axes (§3.3), with
   the clamp at the ends. Tests with lists of ten million children in each
   direction, and a grid lazy in both.
-  - [x] **1a. The linear layouts** (`99e573f3c`). A `VerticalLayout` or a
+  - [x] **1a. The linear layouts** (`39a760f34`). A `VerticalLayout` or a
     `HorizontalLayout` whose `children` is a `ListNode` draws the children
     that a viewport shows, each after its neighbour, in `LayoutList.jl`. The
     main axis takes no weight; the cross axis takes a `Fixed` policy or the
@@ -282,13 +282,13 @@ plan.
     document; the printer picks the list form when `children` is a list. The
     scroll pane stops at the ends of a list in either direction
     (`_find_list_canvas`, `_clamp_to_list_ends` with an axis, `_pane_scroll_x`).
-  - [x] **1b. The grid with lazy rows** (`4023af1ac`). A `GridLayout` whose
+  - [x] **1b. The grid with lazy rows** (`b02ba2a7b`). A `GridLayout` whose
     `children` is a `ListNode` of rows, each a vector of the cells of its
     columns, in `GridList.jl`. Every column is `Fixed` or a weight of the
     offered width; a row is `Fixed` or as tall as its cells. A press is rooted
     at `children[k][c]`. `GridLayoutListIoMap` gives the placed rows and the
     column edges, for the graphics of a container.
-  - [x] **1c. A layout positions and draws nothing** (`2901bd42e`), written as
+  - [x] **1c. A layout positions and draws nothing** (`6fb4644d4`), written as
     a design decision in [layout.md](../../documentation/package/layout/layout.md).
   - [ ] **1d. The grid with lazy columns.** Moved to just before phase 6: the
     table of phase 2 needs lazy rows and a lazy header column, and only a very
@@ -326,7 +326,7 @@ plan.
     Alt+click selects the cell, the hover names a row, and the keys move over
     rows and cells. They read the geometry that the grids report, shifted by
     the offset.
-  - [x] **2a. The table of a list** (`b04592aec`). `WidgetTableParts.jl`
+  - [x] **2a. The table of a list** (`a94a5700e`). `WidgetTableParts.jl`
     replaces `WidgetTableList.jl`; the eager table prints as before until 2b.
     Facts and decisions of the implementation:
     - **The kind of a policy is read with `peek`.** Both grid printers read
@@ -366,7 +366,7 @@ plan.
     - The data frame view draws the table with no pane and shares its
       `scroll_position` with the table. The test is
       `WidgetTablePartsTest.jl`.
-  - [x] **2b. The eager table** (`cebf44cf4`), on the same parts, with a
+  - [x] **2b. The eager table** (`2dfd33453`), on the same parts, with a
     header column, and `row_offers` on `GridLayout` (P9). Facts and decisions:
     - **The readers keep the geometry of the whole table**, `WTGeometry`, as
       if it were not scrolled: the widths from the grid of the cells (of the
@@ -415,7 +415,7 @@ plan.
       right, because a pane clamps `x` only as it scrolls.
 - [ ] **3. Relocation** in both directions (§3.6), and the row at the top
   (§3.7).
-  - [x] **3a. The rows** (`af9ec9bb3`). Facts and decisions:
+  - [x] **3a. The rows** (`05f16b96f`). Facts and decisions:
     - `WidgetTable` has the field `top_row`, view state (P5): the row at the
       top of the cells, counted from the head of the list. The list table
       writes it with the answer to a turn of the wheel when it changes. The
@@ -437,7 +437,7 @@ plan.
 - [x] **4. Selection, keys and bands across the parts.** `test_table_selection`,
   `test_table_navigation`, `test_table_cell_editing`, `test_widget_table`,
   `test_widget_table_list`. The eager table has them since 2b. The table of a
-  list (`9f5e86693`):
+  list (`ec8a2392d`):
   - A selected or hovered column, and the selected table, band the header row
     and every row; a row and a cell band their own row. The pointer over the
     header row hovers its column, as in the eager table.
@@ -450,7 +450,7 @@ plan.
     in both tables.
 - [x] **5. The pane loses its frozen regions.** §3.10, the frozen example,
   `test_frozen_table_headers` becomes a test of the table,
-  `DirtyRectTest`, `WidgetColorTest`, widget.md, sdl.md. Done (this commit):
+  `DirtyRectTest`, `WidgetColorTest`, widget.md, sdl.md. Done (`7fad18a5f`):
   - `get_frozen_extent`, `get_frozen_elements`, `_pane_frozen_region` and
     `_get_frozen_height` are gone, and so are the parameter of the frozen
     strip of `_pane_scroll_y` and `_clamp_to_list_ends`, the export, and the
