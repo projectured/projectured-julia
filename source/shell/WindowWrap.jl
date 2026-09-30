@@ -25,7 +25,7 @@ projection)` that a window entry applies before it opens.
   knows where the pointer is, and `tooltip_feed`, a `TooltipFeed` from
   `make_tooltip_feed`. A tooltip opens once the pointer has rested, and a resting
   pointer sends nothing, so the time comes from the loop: the entry hands the same
-  feed to `run_window_editor(feeds = …)`, and the feed wakes the loop when the
+  feed to `build_editor(feeds = …)`, and the feed wakes the loop when the
   rest is long enough.
 - `shell`: the window's chrome. It is `(document) -> (menu_bar, toolbar,
   status_bar, context_menu, size)`, so a host says what its window offers and
@@ -133,8 +133,8 @@ end
                                    measure::TextMeasure = FontFileMeasure()) -> Vector
 
 What draws the content of a window that a wrapper of [`make_window_wrap`](@ref)
-opens. It is the value of the `opened_window_projections` keyword of
-`run_window_editor`.
+opens. It is the value of the `opened_window_projections` setting of the
+`window` wrapper of `build_editor`.
 
 **A window whose content type is named by no row draws nothing.** The help
 window holds a `GestureMap`, which this function names. A tooltip holds whatever

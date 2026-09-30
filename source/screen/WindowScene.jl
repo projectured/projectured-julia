@@ -1,28 +1,22 @@
 # Fragment of `ScreenModule`.
 #
-# ── One window on one document, and the loop that drives it ─────────────────
+# ── One window on one document ──────────────────────────────────────────────
 #
-# `ProjecturedExample.run_example` opens the development gallery: one window per
-# example, with options for introspection, the tooltip, the inspector, the
-# clipboard, the gesture log and the profiler. Behind it stand the twenty-one
-# domain example packages its umbrella registers, because a registry of every
-# domain must depend on every domain.
-#
-# **A product opens one window.** This file builds that window and calls
-# `run_editor!`, the kernel's own loop — the same loop the gallery ends in. What
-# is left out is every option a person developing a projection wants and a person
-# using the program does not.
+# **The wrapper `window`.** `build_editor` puts the root document in one window
+# of a screen when the backend draws windows. The wrapper is on by default, and
+# a caller turns it off with `window = false`. `make_editor` applies no wrapper,
+# so a caller that wants a screen of its own builds it with `make_window_scene`
+# and `make_window_scene_projection`, and passes it.
 #
 # It lives here because a window on a screen is what this package is about, and
 # it costs nothing: `ProjecturedProjection` was already in this package's closure
 # through `ProjecturedGraphics`, so naming it directly adds no package to any
-# image. Nothing optional is named — a wrapper such as dragging or the clipboard
-# is applied by the caller, so a program holds the wrappers it asked for and no
-# others.
+# image.
 #
 # A wrapper can open a window of its own, such as the gesture help that F1
-# opens. The caller names what draws the content of that window, because this
-# package does not know the wrapper.
+# opens. That wrapper, or the caller, names what draws the content of that
+# window in `opened_window_projections`, because this package does not know the
+# wrapper.
 using ProjecturedProjection.ProjectionAlgebraModule: ReferenceDispatchingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: NestingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
@@ -68,14 +62,9 @@ later. Each entry is `ContentType => projection`, for example
 The content of the first window is chosen by its place before any entry by type,
 so an entry for a type that the first window's content also has, such as a
 widget, draws only the windows opened later.
-
-`screen_wrap` wraps the screen printer, inside the manager. It is how a caller
-puts a reader on the window route without this package naming that reader. The
-default changes nothing.
 """
 function make_window_scene_projection(projection;
-                                      opened_window_projections = Pair{Type,Any}[],
-                                      screen_wrap = identity)
+                                      opened_window_projections = Pair{Type,Any}[])
     target = @reference ::ScreenDocument.windows::CellVector[1]::WindowDocument.content::Document
     # A window carries a `WindowDocument` of its own, and it recurses through
     # `ScreenToScreen`. The content of a window opened later is drawn by the entry
@@ -91,94 +80,54 @@ function make_window_scene_projection(projection;
                                            strip_reference_types(target)) &&
             return NestingProjection(projection; recursion = IdentityProjection())
         reference isa EmptyReference &&
-            return WindowManagingProjection(inner = screen_wrap(ScreenToScreen()))
+            return WindowManagingProjection(inner = ScreenToScreen())
         opened
     end))
 end
 
 """
-    make_editor(document, projection, title; backend, width, height,
-                opened_window_projections, screen_wrap, feeds, fault_policy) -> Editor
+    window = true | (; title, width, height, opened_window_projections)
 
-Open a window that holds `document`, drawn through `projection`, and answer its
-editor, printed once, before its loop runs.
+The wrapper of `build_editor` that puts the root document in one window of a
+screen, drawn with [`make_window_scene_projection`](@ref). It is on by default.
+It does nothing when the root is a `ScreenDocument` already, or when the backend
+declares an output that is not `:windows`, such as the text of a console.
 
-Use it when there is work to do before the loop: attach a log, declare an API,
-start a driver, or open or focus a pane with a verb. Then run the loop with
-`run_editor!(editor)`, which quits the backend when the loop ends.
-
-# Example
-
-    editor = make_editor(document, projection, "Campaign"; backend = SdlBackend())
-    declare_api!(editor.tools, api)
-    run_editor!(editor; mcp = true)
-
-`width` and `height` default to the display the backend reports, which is what a
-window opened with no size wants.
-
-`backend` is a CONSTRUCTED backend, so this package depends on none of them: the
-caller loads the one it draws on. There is no reflection over the loaded backends
-here — that is `ProjecturedExample`'s, and naming it would bring the example
-umbrella back.
-
-`opened_window_projections` and `screen_wrap` go to
-[`make_window_scene_projection`](@ref). `feeds` and `fault_policy` go to the
-kernel's `make_editor`; pass `make_strict_fault_policy()` to stop at the first
-fault instead of surviving it.
+- `title` names the window and gives its id. The default is the title of the
+  document, else "ProjecturEd".
+- `width` and `height` default to the size of the display that the backend
+  reports.
+- `opened_window_projections` adds rows to those of the other wrappers, for the
+  windows that open later.
 """
-function make_editor(document, projection, title::AbstractString;
-                     backend, width = nothing, height = nothing,
-                     opened_window_projections = Pair{Type,Any}[],
-                     feeds::Vector{Feed} = Feed[],
-                     screen_wrap = identity,
-                     fault_policy::FaultPolicy = FaultPolicy())
-    backend === nothing &&
-        error("make_editor: name the backend to draw on, " *
-              "for example `backend = SdlBackend()`")
+function wrap_editor!(::Val{:window}, layer::Symbol, setting, parts::EditorParts)
+    _is_window_backend(parts.backend) || return parts
+    parts.document isa ScreenDocument && return parts
+    options = setting === true ? (;) : setting
+    title = get(options, :title, nothing)
+    title === nothing &&
+        (title = something(get_document_title(parts.document), "ProjecturEd"))
+    width = get(options, :width, nothing)
+    height = get(options, :height, nothing)
     if width === nothing || height === nothing
-        display_width, display_height = get_display_size(backend)
+        display_width, display_height = get_display_size(parts.backend)
         width = something(width, display_width)
         height = something(height, display_height)
     end
-    scene = make_window_scene(document, title; width = width, height = height)
-    make_editor(scene,
-                make_window_scene_projection(projection;
-                    opened_window_projections = opened_window_projections,
-                    screen_wrap = screen_wrap);
-                backend = backend, feeds = feeds, fault_policy = fault_policy)
+    append!(parts.opened_window_projections,
+            get(options, :opened_window_projections, Pair{Type,Any}[]))
+    parts.document = make_window_scene(parts.document, string(title);
+                                       width = width, height = height)
+    parts.projection = make_window_scene_projection(parts.projection;
+        opened_window_projections = parts.opened_window_projections)
+    parts
 end
 
-"""
-    run_window_editor(document, projection, title; backend, width, height,
-                      mcp, mcp_instructions, mcp_host, mcp_port,
-                      opened_window_projections, screen_wrap, fault_policy)
+get_wrapper_layers(::Val{:window}) = (:window => 0,)
+is_wrapper_default(::Val{:window}) = true
 
-Open the window and run the loop until the person closes it: [`make_editor`](@ref)
-with the same arguments, then `run_editor!`. A caller with work to do before the
-loop calls `make_editor`, does that work, and then calls `run_editor!(editor)`.
-
-`mcp` starts an MCP server beside the loop, so an external client drives the
-same editor with the same tools; `mcp_instructions` is the prompt that server
-gives the client, and the server's own generic one answers when it is `nothing`.
-`mcp_host` and `mcp_port` say where the server listens; each one that is
-`nothing` takes the server's default, `127.0.0.1` and `9876`. The server needs
-`ProjecturedMcp` loaded, which registers it.
-"""
-function run_window_editor(document, projection, title::AbstractString;
-                           backend, width = nothing, height = nothing,
-                           mcp::Bool = false,
-                           mcp_instructions::Union{AbstractString,Nothing} = nothing,
-                           mcp_host::Union{AbstractString,Nothing} = nothing,
-                           mcp_port::Union{Integer,Nothing} = nothing,
-                           opened_window_projections = Pair{Type,Any}[],
-                           feeds::Vector{Feed} = Feed[],
-                           screen_wrap = identity,
-                           fault_policy::FaultPolicy = FaultPolicy())
-    editor = make_editor(document, projection, title;
-                         backend = backend, width = width, height = height,
-                         opened_window_projections = opened_window_projections,
-                         feeds = feeds, screen_wrap = screen_wrap,
-                         fault_policy = fault_policy)
-    run_editor!(editor; mcp = mcp, mcp_instructions = mcp_instructions,
-                mcp_host = mcp_host, mcp_port = mcp_port)
-end
+# A backend that declares no output, such as a recorder or a test double, draws
+# what the editor gives it, and a screen of windows is what an editor gives.
+_is_window_backend(backend::Backend) =
+    !hasmethod(get_backend_output, Tuple{Type{typeof(backend)}}) ||
+    get_backend_output(typeof(backend)) === :windows

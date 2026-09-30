@@ -55,7 +55,7 @@ idle window sleeps. At the deadline it reads a [`PointerRest`](@ref) through the
 editor's projection and posts the operation that comes back.
 
 Make it with [`make_tooltip_feed`](@ref) and hand the same feed to the fold and
-to `run_window_editor(feeds = …)`.
+to `build_editor(feeds = …)`.
 """
 struct TooltipFeed <: Feed
     rest::TooltipRest

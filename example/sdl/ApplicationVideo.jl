@@ -92,12 +92,12 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                            debug_dirty = debug_dirty, debug_dirty_hold = debug_dirty_hold)
     try
         run_with_window_tools() do feeds, start
-            editor = make_editor(document, projection, title; backend = backend,
-                                 width = width, height = height, feeds = feeds,
-                                 opened_window_projections =
-                                     make_opened_window_projections(;
-                                         content = make_application_content_projections(measure = measure),
-                                         measure = measure))
+            editor = build_editor(document, projection; backend = backend, feeds = feeds,
+                                  window = (; title, width, height,
+                                            opened_window_projections =
+                                                make_opened_window_projections(;
+                                                    content = make_application_content_projections(measure = measure),
+                                                    measure = measure)))
             backend.editor = editor
             start(editor)
             start_application!(editor, false, assistant, model)

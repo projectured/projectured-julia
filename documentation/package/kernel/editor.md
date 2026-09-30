@@ -413,8 +413,9 @@ run_editor!(editor)
 The editor from `make_editor` has printed once, so `editor.iomap` exists, and an
 edit that reads through the readers (`read_rooted_operation`, the pane verbs)
 works before the loop. `make_editor` reads no input: only the loop reads the
-backend. The screen package has the same pair for a window:
-`make_editor(document, projection, title; backend, …)` and `run_window_editor`.
+backend. The `window` wrapper of the screen package puts the document in one
+window when the backend draws windows, and `window = (; title, width, height)`
+gives it a title and a size.
 
 ## Scripted live playback
 

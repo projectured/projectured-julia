@@ -15,7 +15,7 @@ bin/projectured --mcp notes.md
 From your own code, the same editor takes a keyword:
 
 ```julia
-run_window_editor(document, projection, "My data"; backend = SdlBackend(), mcp = true)
+run_editor!(document, projection; window = (; title = "My data"), mcp = true)
 ```
 
 By default, the server listens at `http://127.0.0.1:9876/mcp`, on the loopback address only. `ProjecturedMcp` must be loaded; the application holds it already.

@@ -75,8 +75,8 @@ Julia, pass the policy to the loop:
 
 ```julia
 julia> run_application(; fault_policy = make_strict_fault_policy())
-julia> run_window_editor(document, projection, "Title";
-                         backend = SdlBackend(), fault_policy = make_strict_fault_policy())
+julia> run_editor!(document, projection; window = (; title = "Title"),
+                   fault_policy = make_strict_fault_policy())
 ```
 
 A `FaultCatchingProjection` in the pipeline reads the same policy, so it raises

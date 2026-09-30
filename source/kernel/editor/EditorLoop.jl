@@ -330,17 +330,28 @@ function make_editor(document::Document, projection; backend::Backend,
 end
 
 """
-    run_editor!(document::Document, projection; keywords...)
-    run_editor!(document::Document; keywords...)
+    run_editor!(document::Document, projection; mcp = false, mcp_instructions = nothing,
+                mcp_host = nothing, mcp_port = nothing, keywords...)
+    run_editor!(document::Document; ...)
 
 The one call for a caller with no work before the loop: [`build_editor`](@ref)
-with `keywords`, then the loop above. A caller with work to do before the loop
-— a driver that posts its work, a watcher, a tool it declares — calls
-`build_editor` or `make_editor`, does that work with the editor, and then calls
-`run_editor!(editor)`.
+with `keywords`, then the loop above with the `mcp` keywords. A caller with work
+to do before the loop — a driver that posts its work, a watcher, a tool it
+declares — calls `build_editor` or `make_editor`, does that work with the
+editor, and then calls `run_editor!(editor)`.
 """
-run_editor!(document::Document, projection; keywords...) =
-    run_editor!(build_editor(document, projection; keywords...))
+function run_editor!(document::Document, projection; mcp::Bool = false,
+                     mcp_instructions::Union{AbstractString,Nothing} = nothing,
+                     mcp_host::Union{AbstractString,Nothing} = nothing,
+                     mcp_port::Union{Integer,Nothing} = nothing, keywords...)
+    run_editor!(build_editor(document, projection; keywords...);
+                mcp, mcp_instructions, mcp_host, mcp_port)
+end
 
-run_editor!(document::Document; keywords...) =
-    run_editor!(build_editor(document; keywords...))
+function run_editor!(document::Document; mcp::Bool = false,
+                     mcp_instructions::Union{AbstractString,Nothing} = nothing,
+                     mcp_host::Union{AbstractString,Nothing} = nothing,
+                     mcp_port::Union{Integer,Nothing} = nothing, keywords...)
+    run_editor!(build_editor(document; keywords...);
+                mcp, mcp_instructions, mcp_host, mcp_port)
+end

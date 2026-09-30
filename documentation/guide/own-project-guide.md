@@ -51,10 +51,10 @@ using Projectured, ProjecturedSdl
 
 document = parse_natural_text(:json, "{\"name\": \"Alice\"}")
 projection = NaturalToGraphics(measure = FontFileMeasure())
-run_window_editor(document, projection, "My data"; backend = SdlBackend())
+run_editor!(document, projection; window = (; title = "My data"))
 ```
 
-`run_window_editor` puts the view in a window of the title you give, and returns when the window closes. `mcp = true` starts the MCP server beside it, so an external client can drive the same editor ([mcp-guide.md](mcp-guide.md)).
+`run_editor!` puts the view in a window of the title you give, and returns when the window closes. SDL is the one loaded backend that draws windows, so the call needs no `backend`. `mcp = true` starts the MCP server beside it, so an external client can drive the same editor ([mcp-guide.md](mcp-guide.md)).
 
 `NaturalToGraphics` is the general renderer: it draws a document of any domain, and a struct of your own through reflection. A projection you wrote yourself goes in its place.
 
@@ -68,8 +68,10 @@ The same document and projection go to another backend with no other change:
 
 ```julia
 using ProjecturedWeb
-run_window_editor(document, projection, "My data"; backend = WebBackend())
+run_editor!(document, projection; backend = WebBackend(), window = (; title = "My data"))
 ```
+
+With SDL and Web both loaded, the call must name its backend.
 
 The browser then shows the same window at `http://127.0.0.1:8080`.
 

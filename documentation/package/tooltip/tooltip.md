@@ -17,7 +17,7 @@
 3. it calls `compute_tooltip(document)` on that document;
 4. it opens a window with the answer next to the pointer, or nothing when the answer is `nothing`.
 
-The press has the Alt key because a plain press is the action gesture of a widget: it would press a button. An Alt+press only selects. The probe and the feed share one `TooltipRest`, so the host hands the same feed to the probe and to `run_window_editor(feeds = …)`.
+The press has the Alt key because a plain press is the action gesture of a widget: it would press a button. An Alt+press only selects. The probe and the feed share one `TooltipRest`, so the host hands the same feed to the probe and to `build_editor(feeds = …)`.
 
 `compute_tooltip` is a generic function of `ProjecturedDomain`, and a document gives its own tooltip: a widget returns the text in its `tooltip` field, and a `JuliaFunction` returns its signature. The host gives the generic to the probe as a function value, so this package needs no dependency on the domains that answer it. [shell.md](../shell/shell.md) describes how the shell puts the probe and its twin, the context menu probe, into the window.
 
@@ -45,7 +45,7 @@ probe = TooltipProbeProjection(; inner = content_projection,
                                compute_tooltip = compute_tooltip,
                                pointer = () -> get_pointer_position(backend),
                                feed = feed)
-run_window_editor(document, probe, "Title"; backend = backend, feeds = Feed[feed])
+run_editor!(document, probe; backend = backend, feeds = Feed[feed], window = (; title = "Title"))
 ```
 
 **The window fits what it says.** The probe gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of the probe. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut.

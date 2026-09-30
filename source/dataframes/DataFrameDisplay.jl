@@ -125,8 +125,8 @@ function _make_data_frame_editor(view::DataFrameView, title::String, backend)
     tree = PaneTree(PaneGroup([PaneTab(title, view)]))
     projection = ChainingProjection(RecursiveProjection(PaneToWidget()),
                                     NaturalToGraphics(; measure = FontFileMeasure()))
-    make_editor(tree, projection, "Data frames";
-                backend = something(backend, SdlBackend()), width = 1000, height = 600)
+    build_editor(tree, projection; backend = something(backend, SdlBackend()),
+                 window = (; title = "Data frames", width = 1000, height = 600))
 end
 
 function _show_in_session!(session::_EditorSession, frame::AbstractDataFrame, title::String)

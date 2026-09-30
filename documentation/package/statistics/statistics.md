@@ -48,8 +48,8 @@ The package registers two natural rows. The syntax row `:statistics` draws a `Fr
 ## Usage
 
 ```julia
-run_window_editor(document, projection, "Title"; backend = SdlBackend(),
-                  feeds = Feed[FrameStatisticsFeed()])
+run_editor!(document, projection; window = (; title = "Title"),
+            feeds = Feed[FrameStatisticsFeed()])
 ```
 
 Then open a tab and type `statistics` or `frame plot`, or press the toolbar button. To keep the frames, evaluate `write_frame_measurements!("frames.csv", editor.frame_measurements)`. `example/projectured/FeedExamples.jl` builds the table view with `FrameStatisticsToSyntax()`.

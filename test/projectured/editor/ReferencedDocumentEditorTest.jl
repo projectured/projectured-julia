@@ -11,10 +11,10 @@ function _make_referenced_application(directory; paths = nothing)
         paths = [joinpath(directory, "people.json")]
     end
     document, projection = make_application_window(paths; root = directory, assistant = nothing)
-    editor = make_editor(document, projection, "ProjecturEd"; backend = HeadlessBackend(),
-                         width = 1280, height = 720,
-                         opened_window_projections = make_opened_window_projections(;
-                             content = make_application_content_projections()))
+    editor = build_editor(document, projection; backend = HeadlessBackend(),
+                          window = (; title = "ProjecturEd", width = 1280, height = 720,
+                                    opened_window_projections = make_opened_window_projections(;
+                                        content = make_application_content_projections())))
     start_application!(editor, false, :none, "")
     run_frame!(editor)
     editor

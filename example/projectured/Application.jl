@@ -427,17 +427,19 @@ function run_application(paths::AbstractString...;
     # capture of the Julia logger and a feed, the statistics by a feed, and the
     # fault log by the store of the editor. The shell gives all of them.
     run_with_window_tools() do feeds, start
-        editor = make_editor(document, projection, "ProjecturEd";
-                             backend = backend, width = width, height = height,
-                             feeds = push!(copy(feeds), tooltip_feed),
-                             # A tooltip holds a document of one of this
-                             # application's own domains, so the window a wrapper
-                             # opens draws with the rows a pane draws with.
-                             opened_window_projections =
-                                 make_opened_window_projections(;
-                                     content = make_application_content_projections(measure = measure),
-                                     measure = measure),
-                             fault_policy = fault_policy)
+        editor = build_editor(document, projection;
+                              backend = backend,
+                              feeds = push!(copy(feeds), tooltip_feed),
+                              fault_policy = fault_policy,
+                              # A tooltip holds a document of one of this
+                              # application's own domains, so the window a
+                              # wrapper opens draws with the rows a pane draws
+                              # with.
+                              window = (; title = "ProjecturEd", width, height,
+                                        opened_window_projections =
+                                            make_opened_window_projections(;
+                                                content = make_application_content_projections(measure = measure),
+                                                measure = measure)))
         start(editor)
         start_application!(editor, mcp, assistant, model)
         run_editor!(editor; mcp = mcp, mcp_host = mcp_host, mcp_port = mcp_port)
