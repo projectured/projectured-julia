@@ -322,6 +322,17 @@ plan.
       line. The graphics of a row are a list to the side too, one piece for
       each column with its rules and bands, so only the visible columns have
       graphics.
+    - [x] **1d-a. The grid** (`2f5f7d735`), in `GridColumnList.jl`: a grid
+      whose `column_policies` is a `ListNode` draws its columns as a list, and
+      each row is a `ListNode` of cells. `get_grid_list_column_head` and
+      `find_grid_list_cell` give the columns and one cell to a container. The
+      cells of a row whose columns are a list are all offered the width of
+      their column, unless `column_offers` holds one `false`, which keeps it
+      from every cell: a list has no index to name one column by. A column
+      that is not `Fixed` fails when its width is first read, because the
+      policies are built as the walk reaches them.
+    - [ ] **1d-b. The table** with `column_headers` and the cells of its rows
+      as lists.
 - [x] **2. The table of layouts.** Implementation design, 2026-09-30:
   - **The parts.** The cells are a `GridLayout` over `rows` (a flat vector
     of the cells for an eager table, the list of rows for a lazy one), with
