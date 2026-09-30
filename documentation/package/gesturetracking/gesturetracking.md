@@ -17,7 +17,7 @@ A time comes as an input: at the deadline, the recognition reads a `TimerExpire`
 
 - `ChordRecognition(chords)` holds a key that continues a sequence of its chord table, and gives a `KeyChord` in place of the key that completes it. A key that breaks the sequence gives back the kept keys and itself, in order. The table is empty by default.
 - `ClickRecognition()` gives a `MouseClick` with its count after a `MouseUp` inside the click window of the `MouseDown` of its button.
-- `DwellRecognition(; delay = 0.5)` gives a `MouseDwell` when the pointer does not move for `delay` seconds after a motion with no button held. A motion with a button, a down, a click, a scroll and the leave of the window stop the wait. A key does not, because a dwell is no motion of the mouse.
+- `DwellRecognition(; delay = 0.5)` gives a `MouseDwell` when the pointer does not move for `delay` seconds after a motion with no button held. A motion with a button, a down, a click, a scroll and the leave of the window stop the wait. A key does not, because a dwell is no motion of the mouse. A move to the point of the last move, in the same window, is no motion either: it keeps the wait as it is and starts no new one. The SDL backend sends such a move after each frame that changed a window, so a view that changes on every frame still gets its dwell, and a pointer that rests gets one dwell, and none after a press, until it moves.
 
 ## How the projection works
 

@@ -106,6 +106,26 @@ function test_gesture_recognition()
                       (KeyDown(:a, ModifierKeys(); time = 1.1), :win), timer]) == 1
     end
 
+    @testset "a move to the same point is no motion" begin
+        recognition = DwellRecognition(; delay = 0.5)
+        dwells(inputs) = count(i -> i.event isa MouseDwell, last(_gr_read(recognition, inputs)))
+        move(x, t; window = :win) = (MouseMove(x, 40; time = t), window)
+        timer(t) = (TimerExpire(:dwell, t), nothing)
+        # It keeps the wait of the motion before it, with no new deadline.
+        step, _ = _gr_read(recognition, [move(30, 1.0), move(30, 1.3)])
+        @test step.deadline === nothing && step.state.time == 1.0
+        @test dwells([move(30, 1.0), move(30, 1.3), timer(1.5)]) == 1
+        # It starts no second dwell after the first, and none after a press.
+        @test dwells([move(30, 1.0), timer(1.5), move(30, 1.6), timer(2.1)]) == 1
+        @test dwells([move(30, 1.0), _gr_down(:left, 30, 40, 1.1), move(30, 1.2), timer(1.5),
+                      timer(1.7)]) == 0
+        # A drag that ends where the pointer rests gives no dwell there.
+        @test dwells([(MouseMove(30, 40, MouseButtons(:left), ModifierKeys(); time = 1.0), :win),
+                      move(30, 1.1), timer(1.6)]) == 0
+        # The same point in another window is a motion.
+        @test dwells([move(30, 1.0), timer(1.5), move(30, 1.6; window = :other), timer(2.1)]) == 2
+    end
+
     @testset "the standard list: the chord, the click, the dwell" begin
         @test [typeof(r) for r in make_standard_recognitions()] ==
               [ChordRecognition, ClickRecognition, DwellRecognition]

@@ -46,6 +46,8 @@ The offscreen renderer paints the same way for `VideoBackend(...; partial_render
 
 The walk runs in both modes, because it also tells whether a frame differs from the one before. A window that shows such a frame gets a `DisplayUpdate`: `write_to_devices` queues `WindowInput(id, DisplayUpdate(; time))` in `display_updates`, one for each window, `read_from_devices` answers the queued updates before it polls SDL, and `wait_for_input` does not block while one waits. A frame with no change queues nothing, so the loop can sleep. A full frame still repaints and presents the whole window, whatever the walk found: the full mode does not depend on the walk to draw right, only to report.
 
+A frame that changed a window can put another part under a pointer that does not move: a list scrolls, a popup opens or closes. So after a write in which a window showed a changed frame or closed, `write_to_devices` also queues a `MouseMove` at the point where the pointer is now (`SDL_GetMouseState`), in the window that SDL reports under the pointer (`SDL_GetMouseFocus`), with the buttons that are held now. The move waits in `pending_motion`, after the `DisplayUpdate`, so a newer motion from SDL replaces it, and the rate limit of idle motion applies to it. Every reader reads it as it reads a move: the part under the pointer is found in the new frame, a cursor readout follows, and a part that the pointer left gets its leave. The next frame shows no new pixel when the move finds the same part, so the moves stop by themselves. A pointer on no window of the backend gives no move.
+
 ### Events in
 
 `read_from_devices` polls SDL and returns one `WindowInput`:

@@ -340,10 +340,44 @@ One at a time, with the owner.
      compute from an anchor or a point, so a move to the same point changes
      nothing. To check first: no reader starts something on any held move with
      no distance.
+     The check (2026-09-30): no reader starts something on a held move of zero
+     distance. Every drag starts on a `MouseDown`; the dragging projection
+     needs 5 pixels from its anchor; the split pane, the chart and the pane
+     tab drag compute from their anchor or from the point; the click and the
+     chord recognitions do not read a move. But four readers write again on a
+     move to the same point, with no check for an equal value: the split pane
+     divider (`_split_drag_read`), the pane weights that it gives
+     (`_read_resize`, a document write, not view state), the pan of the chart
+     (`_drag_move`), and, with no button, the hover probe of the inspector
+     (`_hover_op`). A cell write always invalidates its readers, and the SDL
+     backend counts a frame with a stale cell as changed. So a re-sent move
+     gives the same write, a changed frame, and one more re-sent move: a loop
+     at the frame rate while the pointer rests (inference from the code, not
+     seen live). The slider, the tab drag, the chart cursor and the zoom
+     rectangle check for an equal value and write nothing. Open for the owner.
   4. The web backend sends no move without a button held, so it changes
      nothing there. (Owner: "yes".)
   5. The display update stays until step 8, for the tracker; the move comes
      beside it. (Owner: "agreed".)
+  Built (2026-09-30):
+  - `write_to_devices` of the SDL backend queues a `MouseMove` after a write in
+    which a window showed a changed frame or closed: at `SDL_GetMouseState`, in
+    the window of `SDL_GetMouseFocus`, with the buttons held now. It waits in
+    `pending_motion`, after the `DisplayUpdate`, so a newer motion replaces it
+    and the rate limit of idle motion applies. A pointer on no window of the
+    backend gives no move.
+  - The dwell: a move to the point of the last move, in the same window, keeps
+    the state as it is (point 1). So the state keeps the point after the wait
+    ends too: after the dwell, after a press, a click or a scroll, and after a
+    move with a button held. Otherwise the move that follows the frame of a
+    click would start a new wait, and a tooltip would come 0.5 s after each
+    click under a still pointer. (Claude's choice from D4; for the owner to
+    confirm.)
+  - The two assertions of D41 pass: the test plays the move that the backend
+    sends after the frame of the scroll.
+  - Found: `Sdl.jl` called `is_view_state_field` with no import since step 1
+    (`ca0e04648`), so the walk of the changed parts of a window failed in
+    `_node_dirty` on its first element. `test_native_window` found it; the import is added.
 - **Q13. A drag.** Open in part. Under M6 and M7 alone, a dragged part (a
   slider thumb) gets only the first move off it: then the mouse target follows
   the pointer and the part is on no path. Claude's options were a capture (the

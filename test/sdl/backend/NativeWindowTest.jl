@@ -144,8 +144,16 @@ end
         write_to_devices(backend, devices, screen)   # nothing changed
         @test isempty(backend.display_updates)
         x[] = 50
+        backend.pending_motion = nothing
         write_to_devices(backend, devices, screen)   # the rectangle moved
         @test length(backend.display_updates) == 1
+        # A move at the point of the pointer follows the frame, in the window
+        # under the pointer, and none when the pointer is on no window of the
+        # backend. The pointer of the display is where the person left it.
+        pointed = ProjecturedSdl._find_pointer_window(backend)
+        motion = backend.pending_motion
+        @test pointed === nothing ? motion === nothing :
+              motion.window_id === pointed && motion.event isa MouseMove
     end
     foreach(quit_backend!, reverse(backends))
 end

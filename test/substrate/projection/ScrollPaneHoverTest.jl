@@ -51,19 +51,19 @@ function test_scroll_pane_hover()
         @test last_row(press_unscrolled) == ElementReferenceStep(hover_unscrolled)
 
         # Scroll by whole rows under the still pointer: the new frame finds the
-        # row that is now under it (D41).
+        # row that is now under it (D41). After a frame that changed a window,
+        # the backend sends a move at the point where the pointer is.
         getfield(pane, :scroll_position)[] = Point2D(0, 120)
         _mtt_play!(driver, WindowInput(:win, DisplayUpdate(1.1)))
+        _mtt_move!(driver, 20, y, 1.1)
         press_scrolled = row_of(MouseClick(:left, 20, y; time = 0.0))
         hover_scrolled = WidgetModule._widget_element_selected(get_mouse_target(list), "items")
 
         # Scrolling has to change what is under the pointer …
-        # @broken: only a move writes the mouse target; D41 and D42 need it found again after the frame; plan/pending/a-document-knows-the-part-under-the-pointer.md
-        @test_broken hover_scrolled > hover_unscrolled
+        @test hover_scrolled > hover_unscrolled
         @test press_scrolled != press_unscrolled
         # … and the light must agree with the press.
-        # @broken: only a move writes the mouse target; D41 and D42 need it found again after the frame; plan/pending/a-document-knows-the-part-under-the-pointer.md
-        @test_broken last_row(press_scrolled) == ElementReferenceStep(hover_scrolled)
+        @test last_row(press_scrolled) == ElementReferenceStep(hover_scrolled)
     end
 
     # A pane that follows the end draws its end, and its `scroll_position`

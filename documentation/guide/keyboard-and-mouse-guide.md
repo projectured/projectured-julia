@@ -23,6 +23,8 @@ A key press goes to the view under the selection, and each view says which keys 
 
 A selection is a path into the data, so it survives a filter, a sort and a change somewhere else in the document.
 
+The part under the pointer is lit. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves.
+
 ## Change
 
 | Key | What it does |

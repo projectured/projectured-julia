@@ -3407,6 +3407,9 @@ Idle motion (no button held) is still rate-limited to one sample per
 and dropping its last sample would leave the highlight one step behind for as
 long as the pointer rests there. A held sample is answered anyway when another
 event waits behind it, because order outranks the rate limit.
+
+The move that `write_to_devices` queues after a frame that changed a window waits
+as a motion sample too, after the `DisplayUpdate` of that frame.
 """
 function BackendModule.read_from_devices(backend::SdlBackend, devices)
     # What a previous call owes: the event that ended a motion run.
@@ -3703,6 +3706,13 @@ matching `WindowDocument.content` canvas.
 
 Each window is drawn at the device pixel ratio of the `Display` of `backend`,
 which `configure_devices!` sets. The reconciler does not read `devices`.
+
+A frame that changed a window, and a window that closed, can put another part
+under a pointer that does not move. So after such a write the backend queues a
+`MouseMove` at the point where the pointer is now, in the window under it, with
+the buttons that are held now. The readers read it as any move, and find the part
+under the pointer in the new frame. A move to the same point changes no part and
+no pixel, so the next frame queues no more.
 """
 function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
     ratio = get_device_pixel_ratio(backend.display)
@@ -3712,13 +3722,16 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
         push!(desired_ids, w.id)
     end
 
-    # Close windows whose document disappeared.
+    # Close windows whose document disappeared. A window that closes changes
+    # what the pointer is on.
+    changed = false
     for id in collect(keys(backend.windows))
         if !(id in desired_ids)
             res = backend.windows[id]
             delete!(backend.window_ids, res.sdl_id)
             _close_native_window!(res)
             delete!(backend.windows, id)
+            changed = true
         end
     end
 
@@ -3742,8 +3755,13 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             _adopt_native_position!(res, w)
             _update_window_geometry!(res, w, ratio)
         end
-        _render_window!(backend, res, canvas) && _queue_display_update!(backend, w.id)
+        if _render_window!(backend, res, canvas)
+            _queue_display_update!(backend, w.id)
+            changed = true
+        end
     end
+    changed && _queue_pointer_move!(backend)
+    nothing
 end
 
 # Report that window `id` shows a frame that differs from the one before. One
@@ -3754,6 +3772,30 @@ function _queue_display_update!(backend::SdlBackend, id::Symbol)
     index === nothing ? push!(backend.display_updates, update) :
                         (backend.display_updates[index] = update)
     nothing
+end
+
+# Queue a move at the point where the pointer is now, in the window under it, with
+# the buttons that are held now. A frame that changed a window can put another
+# part under a pointer that does not move, and the readers find it by this move.
+# It waits as a motion sample, so a newer motion replaces it. A pointer on no
+# window of this backend gives no move.
+function _queue_pointer_move!(backend::SdlBackend)
+    id = _find_pointer_window(backend)
+    id === nothing && return nothing
+    ratio = get_device_pixel_ratio(backend.display)
+    x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
+    buttons = _get_held_mouse_buttons(UInt32(SDL_GetMouseState(x_ref, y_ref)))
+    backend.pending_motion = WindowInput(id,
+        MouseMove(_to_logical(Int(x_ref[]), ratio), _to_logical(Int(y_ref[]), ratio),
+                  buttons, _current_modifiers(); time = time()))
+    nothing
+end
+
+# The id of the window of this backend that the pointer is on, or `nothing`.
+function _find_pointer_window(backend::SdlBackend)
+    focus = SDL_GetMouseFocus()
+    focus == C_NULL && return nothing
+    get(backend.window_ids, UInt32(SDL_GetWindowID(focus)), nothing)
 end
 
 """
