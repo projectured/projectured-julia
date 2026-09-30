@@ -20,8 +20,8 @@ an `objectid`, which keeps the call free of any reactive cell so
 
 `extent` is the box the caller has room for and `border` is the inset kept
 inside it. They are arguments rather than engine fields because the same graph,
-shown in two panes, needs two different layouts. OMNeT++ takes the same pair as
-`GraphLayouter::setSize(width, height, border)`.
+shown in two panes, needs two different layouts. The layouters of a C++ network
+simulator take the same pair, as `setSize(width, height, border)`.
 
 This package has no notion of what a domain is. An engine is told **what to satisfy**,
 never **why**: that a module pinned by a display string must not move is the
@@ -95,7 +95,8 @@ A `GraphConstraint` wraps a vertex with a `kind` and a `payload`.
 
 `:cluster` is how a vector of modules is laid out: 57 vertices and one anchor
 point, so the row or the ring keeps its shape while the whole family finds its
-place. OMNeT++ has the same pair as `addAnchoredNode` and `addFixedNode`.
+place. Those C++ layouters have the same pair, as `addAnchoredNode` and
+`addFixedNode`.
 
 **An engine that does not implement a kind raises an error naming it**, and
 the error lists what it does implement. That is deliberate: a caller cannot tell a satisfied pin from
