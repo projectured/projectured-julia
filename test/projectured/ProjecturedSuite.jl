@@ -379,20 +379,19 @@ end
 """
     test_all()
 
-The full suite: the three engine test packages and the twenty domain test
-packages, then the umbrella's full-stack integration tests (examples, editor
-loop, SDL/Tulip/Video-coupled suites, live-DB-optional checks).
+The full suite: the static guards, the three engine test packages and the twenty
+domain test packages, then [`test_integration`](@ref).
 """
 function test_all()
     @testset "Projectured" begin
-    # The per-package suites: the kernel unit tests, the substrate documents and
-    # projections, every domain, and the layering guard of each package.
+    # The static guards of the rules that a program can check.
     test_tree()
     test_naming()
     test_arguments()
     test_exports()
     test_documentation()
-    test_package_graph()
+    # The per-package suites: the kernel unit tests, the substrate documents and
+    # projections, every domain, and the layering guard of each package.
     test_kernel()
     test_substrate()
     test_json()
@@ -419,6 +418,20 @@ function test_all()
     test_anthropic()
     test_ollama()
     test_dataframes()
+    test_integration()
+    end
+end
+
+"""
+    test_integration()
+
+The umbrella's full-stack integration tests: the package graph, the examples,
+the editor loop, the SDL, Tulip and Video suites of the umbrella, and the checks
+that need no live database. CI runs it in a job of its own.
+"""
+function test_integration()
+    @testset "integration" begin
+    test_package_graph()
     # Every concrete-domain example through the printer.
     test_domain_examples()
     # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
@@ -515,7 +528,7 @@ function test_table()
     end
 end
 
-export test_all, test_domain_examples, test_package_graph, test_tree, test_naming,
+export test_all, test_integration, test_domain_examples, test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
