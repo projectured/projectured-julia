@@ -170,6 +170,18 @@ docstrings, and a name that a `using` brings is checked by hand):
   `close_data_frame_editor!` from `DataFramesModule`, which no longer defines
   them; Julia warns "undeclared at import time" while it compiles. This is on
   `main`, outside the fold.
+- **The baseline run on `main` (`e7962bdaa`, CI-like, a fresh clone):** the
+  argument guard (5, the kernel audit's) and the export guard (4, in
+  `EventModule.jl` and `GestureModule.jl`) fail, and 15 test sites in 5 jobs:
+  DataFrames (the scroll bar, `DataFrameViewTest.jl:191`), the kernel
+  (`DocumentMacroTest.jl:275` and `:434`, `FrameDrainTest.jl:170`), the shell
+  (a saved user interface, `WindowShellTest.jl:417`), the substrate
+  (`WidgetTablePartsTest.jl:56`, `WidgetRoundTripTest.jl:121`) and the
+  umbrella (the JSON string of `TableCellEditingTest.jl`, the catalog coverage
+  with four new types, `UserInterfaceFileTest.jl:47`, `HistorySweepTest.jl:115`
+  twice, and an unexpected pass of the JSON markers of
+  `ClickRoundtripTest.jl:323`). All came with the landings; the fold is
+  measured against this list, not against a clean run.
 
 ## 5. Steps (a draft for the owner's review)
 
