@@ -1185,6 +1185,19 @@ registration.
       migrated (`export-block-rule.md` owns it); and fix the six argument
       violations in their files.
 
+      Done: the two faults of one line (`935e047f5`, `1dbf6cd7e`). `HelpModule`
+      is fixed, not listed: its block exported the five types that `@document`
+      and `@projection` already export, and `export-block-rule.md` does not
+      name it (`59e19afc4`). `visit` in `example/kernel/CallSite.jl` names its
+      index and caller (`5307526c0`).
+
+      Open: the other five argument violations are the open questions of the
+      kernel audit plan: POLICY-3 with L18-3 (`Tool`) and L22-1
+      (`insert_elements!`, `delete_elements!`), and N-3 (`start_application!`,
+      `FixedMeasure`), which asks the same question. They wait for the owner's
+      answer there. The markers of the failing tests: a Sonnet agent, checked
+      suite by suite.
+
 ### Step P5: the owner's steps
 
 - [ ] Sign in to Codecov with GitHub, turn on the repository, and add the
