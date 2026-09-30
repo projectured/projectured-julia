@@ -176,17 +176,33 @@ function suite_violations(root::AbstractString)
         stem = entry[length("Projectured")+1:end-length("Test")]
         isempty(stem) && continue                       # the umbrella is named apart
         slice = lowercase(stem)
-        dir = joinpath(root, "test", slice)
-        isdir(dir) || continue
+        # The folder of the suite is the common folder of the test files that the
+        # package includes: `test/<group>/<slice>`, or `test/<group>` for a group.
+        top = joinpath(packages, entry, "src", entry * ".jl")
+        isfile(top) || continue
+        folders = [splitpath(dirname(normpath(joinpath(dirname(top), found.captures[1]))))
+                   for found in eachmatch(r"^include\(\"([^\"]*/test/[^\"]+)\"\)"m,
+                                          read(top, String))]
+        if isempty(folders)
+            push!(out, "$entry includes no file under test/")
+            continue
+        end
+        depth = 0
+        while all(parts -> length(parts) > depth && parts[depth + 1] == folders[1][depth + 1],
+                  folders)
+            depth += 1
+        end
+        dir = joinpath(folders[1][1:depth]...)
+        isdir(dir) || (push!(out, "$entry includes from $dir, which is no folder"); continue)
         suite = joinpath(dir, stem * "Suite.jl")
         isfile(suite) ||
-            push!(out, "test/$slice holds no $(stem)Suite.jl for $entry")
+            push!(out, "$(relpath(dir, root)) holds no $(stem)Suite.jl for $entry")
         code = join((_naming_code(root, relpath(joinpath(dir, f), root))
                      for f in readdir(dir) if endswith(f, ".jl")), "\n")
         occursin(Regex("function\\s+test_$(slice)\\s*\\("), code) ||
-            push!(out, "test/$slice defines no test_$(slice)() for $entry")
+            push!(out, "$(relpath(dir, root)) defines no test_$(slice)() for $entry")
         occursin(Regex("function\\s+test_$(slice)_layering\\s*\\("), code) ||
-            push!(out, "test/$slice defines no test_$(slice)_layering() for $entry")
+            push!(out, "$(relpath(dir, root)) defines no test_$(slice)_layering() for $entry")
     end
     out
 end
