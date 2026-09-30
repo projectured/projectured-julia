@@ -1757,6 +1757,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** A fifth kind of exception: an editor verb that mirrors an operation builder may put the editor before the arguments of the builder. A marker may also excuse optional positional arguments.
 - **C:** No policy: decide each signature alone.
 - **Recommended (mine): A.** Each question of the group has an answer inside §4 as it is written. Tool is a constructor, and Resource in the same file already has the keyword shape. The editor verbs can name their index. copy_document and sync_document! are already on the protocol list of test/suite/arguments.jl, so only their defaults break §4. Each of the four kinds of today has a structural reason (a protocol, a tuple, a port, a table of painters); a kind for two verbs weakens a rule that a guard checks.
+- **Decided by the owner, 2026-09-30: A.**
 - Settles: L18-3, L22-1, L10-8.
 - Cost: S to M in total: the three items below, and the two sites of N-3 (outside the questions) that the guard also reports.
 
