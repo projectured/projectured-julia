@@ -75,18 +75,46 @@ package/Projectured<Name>/      one package folder: Project.toml and the entry f
 The release copy stays as it is today: it copies `source/<name>/**` into the
 package folder of the release.
 
+## 3c. The owner's decisions (2026-09-30)
+
+- **The package of the internals is `ProjecturedPlatform`**, in
+  `source/platform/`.
+- **The groups of `source/`:** `source/kernel/`, `source/platform/`,
+  `source/domain/`, `source/backend/`, and `source/adapter/` for the other
+  connections to programs and services outside ProjecturEd. The backends stay
+  a group of their own, because they are essential, not like the other
+  adapters.
+- **The parts of the application go into the platform**, not into the
+  umbrella: assistant, conversation, shell, help, log, statistics, undo.
+
+| Group | Slices |
+| --- | --- |
+| `source/kernel/` | kernel |
+| `source/platform/` (34) | collection, component, serialization, style, domain, focus, plot, primitive, projection, versioning, dragging, graphics, layout, screen, text, clipboard, tooltip, widget, natural, pane, reflection, inspector, syntax, fault, fileformat, gesturehelp, gesturelog, assistant, conversation, shell, help, log, statistics, undo |
+| `source/domain/` (19) | json, yaml, xml, markdown, rst, book, math, julia, sql, database, filesystem, graph, chart, sequencechart, dbcatalog, formula, fsm, process, dataframes |
+| `source/backend/` (5) | console, pdf, sdl, web, video |
+| `source/adapter/` (7) | anthropic, ollama, openrouter, mcp, odbc, tulip, adaptagrams |
+| `source/tool/` (2), proposed | builder, repl: developer tools that no release carries |
+| `source/projectured/` | the umbrella, as today |
+
+`source/domain/` exists today as the slice of the domain protocol
+(`DomainModule`); that slice moves to `source/platform/domain/` first.
+`test/substrate/` and `example/substrate/` become `test/platform/` and
+`example/platform/`; `test/suite/` and `test/bench/` stay.
+
 ## 4. Open questions
 
 | # | Question | Recommendation (mine, not decided) |
 | --- | --- | --- |
 | F1 | Does the kernel stay a package of its own, or does it join the core package? | Of its own: it is the smallest base, and its seals are per file. |
-| F2 | The name of the package of the 27 internals, and so of the folders `source/<name>/`. | Not `Core`: it sounds like the kernel (the owner). Candidates: `System` (the owner's idea: the kernel and the system, as in an operating system; but the documentation uses "system" 184 times for the whole of ProjecturEd), `Platform` (what the domains are built on; 14 uses), `Toolkit` (the owner is not sure), `Framework`, `Substrate` (the word of `system-anatomy.md`, jargon to a user). Open. |
-| F3 | Do the parts of the application go into the umbrella, or into a package of their own? | The umbrella, so that `using Projectured` gives the application. |
-| F4 | `Pdf` and `Console` are in the substrate today. Backends of their own? | Yes: a user picks a backend. |
-| F5 | `Mcp`: an adapter of its own, or part of the umbrella? | Open: it has no dependency but the kernel, and the binary uses it. |
+| F2 | The name of the package of the internals. | **Decided:** `ProjecturedPlatform`, in `source/platform/`. |
+| F3 | Where the parts of the application go. | **Decided:** the platform. |
+| F4 | `Pdf` and `Console`. | **Decided:** in `source/backend/`, packages of their own. |
+| F5 | `Mcp`. | **Decided:** in `source/adapter/`, a package of its own. |
 | F6 | `Plot`: the core, or the chart domains? | The core: `Chart`, `SequenceChart` and `Statistics` all use it. |
 | F7 | The test packages follow the packages: one test package for each registered package. | Yes: `ProjecturedSubstrateTest` becomes the test package of the core. |
 | F8 | The order against the rename of R29 (acronyms in capitals; deferred by the owner) and the local registry of R27. | Decide this grouping first, and rename only the packages that stay, so that no package is renamed and then folded. The fold itself can come after the first release to the local registry: it changes no name that a user types. |
+| F9 | Shell depends on the domain `FileSystem` (the navigator), and Statistics on the domain `Chart` (the frame statistics). In the platform, below the domains, they make a cycle. | Open. The ways: (a) the two stay above the domains, in the umbrella; (b) the platform stops naming the two domains: the navigator and the statistics take their document types and projections from what the umbrella registers, so the dependency turns round; (c) `FileSystem` and `Chart` join the platform. |
 | S3 | For R30 (a `test/runtests.jl` in each package of the release): the test harness of `ProjecturedKernelTest` (`test_printer`, `test_reader`, the walkers) serves the tests of every package, and a registered test can use only registered packages. Where does it go? | A package extension of the kernel on `Test`: it loads only when a test loads `Test`. The other ways: a registered package of test tools, or a copy in each package. |
 | S6 | The downstream repositories name internal packages 1,005 times in 128 files (omnet-julia 935 in 122, inet-julia 70 in 6). | One mechanical change in each, in the same landing. |
 | S7 | Do the documents of the slices follow: `documentation/package/<name>/<slice>/`? | Yes, the same shape in every folder. |
