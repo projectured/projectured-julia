@@ -212,24 +212,24 @@ end
     @test popup.content === submenu
 end
 
-# ── Hover feedback (Qt-gap Part F) ─────────────────────────────────────────
-@testset "hovering a menu item sets its hovered flag and draws a surface" begin
+# ── Light feedback (Qt-gap Part F) ─────────────────────────────────────────
+@testset "a move onto a menu item makes it the part under the pointer, and draws a surface" begin
     item = WidgetMenuItem("New")
     menu = WidgetMenu([item, WidgetMenuItem("Open")])
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     # A point on the item maps backward to it, so the mouse target tracking
-    # gives it the enter, which flips `hovered`.
+    # writes the item's own mouse target.
     _mtt_move!(MttDriver(proj, menu), xy[1] + 2, xy[2] + 2, 1.0)
-    @test item.hovered === true
+    @test get_mouse_target(item) !== nothing
 
-    # A hovered item renders an extra (hover surface) element vs an un-hovered one.
+    # A lit item renders an extra (hover surface) element vs an un-lit one.
     plain = print_document(proj, WidgetMenuItem("New"))
-    hov   = WidgetMenuItem("New"); hov.hovered = true
+    hov   = WidgetMenuItem("New"); getfield(hov, :mouse_target)[] = EmptyReference()
     hovio = print_document(proj, hov)
     @test length(collect(hovio.output.elements)) > length(collect(plain.output.elements))
-    # A disabled hovered item shows no surface (same element count as plain).
-    dis = WidgetMenuItem("New"; enabled=false); dis.hovered = true
+    # A disabled lit item shows no surface (same element count as plain).
+    dis = WidgetMenuItem("New"; enabled=false); getfield(dis, :mouse_target)[] = EmptyReference()
     @test length(collect(print_document(proj, dis).output.elements)) ==
           length(collect(plain.output.elements))
 end

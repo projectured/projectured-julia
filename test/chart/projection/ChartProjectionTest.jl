@@ -680,13 +680,20 @@ function test_chart_projection()
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.legend::ChartLegend))
             # Hovering one still moves the crosshair — an inside legend sits over
-            # the plot — but it names no series, so nothing gets veiled.
+            # the plot — but it names no series, so nothing gets veiled. A move
+            # writes only the cursor now; the mouse target that the veil reads
+            # comes from the mouse target tracking, so this forces it to what
+            # that point maps to and checks that it names no series.
             plot = iomap.step_iomaps[1][].output
+            stage = iomap.step_iomaps[2][]
             hover = read_intent(proj, iomap,
                                 MouseMove(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2,
                                           MouseButtons(), ModifierKeys(); time = 0.0))
             hover === nothing || evaluate_operation(nothing, hover)
-            @test plot.hovered === nothing
+            target = map_reference_backward(stage.projection, stage,
+                PointReferenceStep(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2))
+            getfield(plot, :mouse_target)[] = target
+            @test ChartModule._reference_series_index(chart, get_mouse_target(plot)) == 0
 
             op = read_intent(proj, iomap,
                              MouseClick(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2; time = 0.0))
@@ -795,19 +802,23 @@ function test_chart_projection()
             @test op.document === chart.series[index]
             @test op.value == false
 
-            # Hovering one names it, so the frame can veil the others.
+            # A move over the legend item writes the cursor; the mouse target
+            # that drives the veil is written by the mouse target tracking, at
+            # the root, so this sets it directly to the series the item stands
+            # for and checks that the frame veils the others.
             op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
-            @test plot.hovered !== nothing
+            @test plot.cursor !== nothing
+            getfield(plot, :mouse_target)[] = get_chart_series_reference(index, plot)
             veiled = [e for e in _series_elements(iomap.output) if e isa GraphicsPolyline]
             @test veiled[1].color.alpha != veiled[2].color.alpha
 
-            # Leaving clears both hover fields.
+            # Leaving clears the cursor.
             op = read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys(); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
-            @test plot.hovered === nothing && plot.cursor === nothing
+            @test plot.cursor === nothing
         end
 
         @testset "part selection" begin

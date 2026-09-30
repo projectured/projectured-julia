@@ -72,6 +72,7 @@ include("../../../test/shell/ContextMenuProbeTest.jl")
 include("../../../test/shell/WindowShellTest.jl")
 include("../../../test/shell/FileDialogTest.jl")
 include("../../../test/shell/TrackingScreenTest.jl")
+include("../../../test/shell/PointerLightTest.jl")
 
 include("../../../test/shell/ShellSuite.jl")
 

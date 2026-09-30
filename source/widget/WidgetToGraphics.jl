@@ -483,17 +483,14 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
     push!(elems, rect)
 end
 
-# ── Hover feedback ───────────────────────────────────────────────────────────
-# The shared convention: an actionable widget carries a `hovered` cell, which the
-# MouseEnter and the MouseLeave of the mouse target tracking set by route, and draws
-# the layer of the hovered state over its surface while hovered and enabled. A
-# disabled widget never hovers.
+# ── The light under the pointer ─────────────────────────────────────────────
+# An actionable widget draws the layer of the light over its surface while the
+# pointer is on it or on a part inside it, and while it is enabled. Its mouse
+# target says where the pointer is; no reader writes a state for the light. A
+# disabled widget never lights.
 
-# A widget's reader falls through to this for crossing events: it writes the
-# `hovered` state, or `nothing` for any other event.
-_hover_state_op(w, evt) =
-    evt isa MouseEnter ? _write_view_state(w, "hovered", true) :
-    evt isa MouseLeave ? _write_view_state(w, "hovered", false) : nothing
+# Whether the pointer is on `w` or on a part inside it.
+_is_under_pointer(w) = get_mouse_target(w) !== nothing
 
 # Whether a crossing with `route` is for the widget that reads it, and not for a
 # part inside it.
@@ -1489,8 +1486,8 @@ _route_click_to_children(child_entries::Vector, evt::MouseClick) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
-# Route pointer motion to the hit child (coordinate-translated), so a hovered
-# widget nested in a band container still sees MouseMove.
+# Route pointer motion to the hit child (coordinate-translated), so a widget
+# nested in a band container still sees the move.
 _route_move_to_children(child_entries::Vector, evt::MouseMove) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
@@ -2034,16 +2031,16 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         button_height = _resolve_height(ctx, Int(authored_size.y[]), content_height + inset_height)
         inner_width, inner_height = button_width - inset_width, button_height - inset_height
         corner_radius = _sc(p.corner_radius)
-        # State-driven surface. The reader keeps the widget's transient
-        # `pressed`/`hovered` cells current; reading them here ties the rendered
-        # layer to that state reactively. A hovered or a pressed button draws a
-        # translucent layer over its surface, so the state shows over any surface
-        # color. A disabled button (or one bound to a disabled command) ignores
-        # that state entirely: its own muted surface and label, no shadow (its
-        # reader also never sets pressed/hovered).
+        # State-driven surface. The reader keeps the transient `pressed` cell
+        # current, and the mouse target says whether the pointer is on the button;
+        # reading them here ties the rendered layer to both reactively. A lit or a
+        # pressed button draws a translucent layer over its surface, so the state
+        # shows over any surface color. A disabled button (or one bound to a
+        # disabled command) ignores both: its own muted surface and label, no
+        # shadow (its reader also never sets `pressed`).
         enabled = _button_enabled(w)
         pressed = enabled && w.pressed === true
-        hovered = enabled && w.hovered === true
+        lit = enabled && _is_under_pointer(w)
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         # The rect of the border: the box without its margin.
@@ -2061,7 +2058,7 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         end
         _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
                          radius = corner_radius)
-        _push_state_layer!(elements, pressed ? p.layer_pressed_color : hovered ? p.layer_hovered_color : nothing,
+        _push_state_layer!(elements, pressed ? p.layer_pressed_color : lit ? p.layer_hovered_color : nothing,
                            margin_left, margin_top, border_box_width, border_box_height; radius = corner_radius)
         # Lay out icon + label as one centered group; the icon tints to the label color
         # (so it mutes with the button), the label sits to its right.
@@ -2083,11 +2080,8 @@ function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference
     return nothing
 end
 
-# The button owns ALL of its own state transitions. The mouse target tracking
-# decides *when* the pointer crosses this button's boundary and delivers a
-# MouseEnter / MouseLeave by route; the button decides what that means for its
-# state (hovered/pressed). A click invokes the action; press/release drive the
-# held-down look. A move with no button held also reaches the button when the
+# The button owns the transitions of its `pressed` state. A click invokes the
+# action; press/release drive the held-down look. A move with no button held also reaches the button when the
 # pointer leaves it; every other pointer event reaches it only when the parent
 # hit-tested the pointer onto it.
 function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
@@ -2112,11 +2106,9 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
         MouseClick(button, x, y) => button === :left ? _button_primary_op(w) : nothing
         MouseDown(button, x, y)  => button === :left ? _write_view_state(w, "pressed", true) : nothing
         MouseUp(button, x, y)    => button === :left ? _write_view_state(w, "pressed", false) : nothing
-        MouseEnter               => _write_view_state(w, "hovered", true)
-        # Leaving clears hover *and* any in-progress press (the release may land
-        # off the button when dragged away).
-        MouseLeave               => CompoundOperation(Any[_write_view_state(w, "hovered", false),
-                                                          _write_view_state(w, "pressed", false)])
+        # A leave that the mouse target tracking routes while a button is held ends
+        # the press, because the release can land off the button.
+        MouseLeave               => w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
         # Enter / Space with no modifier activate the focused button (key reaches
         # it via selection routing). `:tab` is intentionally not matched, so it
         # falls through to `nothing` and focus traversal can claim it.
@@ -2557,7 +2549,6 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         inset_width, inset_height = _inset_total(p, w)
         command = _menu_item_command(w)
         enabled = _menu_item_enabled(w)
-        hovered = enabled && w.hovered === true
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         # A bound command's label overrides the content; otherwise the content is the
@@ -2586,7 +2577,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             cw += icon_w + gap
         end
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
-         hovered, elements = elems, child_iomaps)
+         elements = elems, child_iomaps)
     end)
     build = Cell(@computation begin
         needed = measured[]
@@ -2597,9 +2588,11 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
         _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
                          control_w - needed.inset_width, control_h - needed.inset_height)
-        # The hover layer, only when hovered + enabled, drawn over the box and
-        # under the content.
-        _push_state_layer!(final, needed.hovered ? p.layer_hovered_color : nothing,
+        # The light, only while the pointer is on the item and it is enabled, drawn
+        # over the box and under the content. The measure does not read it, so a
+        # light changes no extent.
+        lit = _menu_item_enabled(w) && _is_under_pointer(w)
+        _push_state_layer!(final, lit ? p.layer_hovered_color : nothing,
                            0, 0, control_w, control_h)
         append!(final, needed.elements)
         (width=control_w, height=control_h, elements=final, child_iomaps=needed.child_iomaps)
@@ -2650,20 +2643,8 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         invoke = InvokeActionOperation(command)
         return CompoundOperation(Any[invoke, CloseWindowOperation(:widget_popup)])
     end
-    (evt isa MouseEnter || evt isa MouseLeave) && return _hover_state_op(w, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
-end
-
-# The item holds child IoMaps, so the kernel default passes a routed change on to
-# a child. A crossing that the mouse target tracking routes to the item itself is
-# the item's own, and its reader above reads it.
-function read_intent(p::WidgetMenuItemToGraphicsCanvas, recursion, change::Intent,
-                     iomap::WidgetMenuItemToGraphicsCanvasIoMap)
-    g = change.gesture
-    change.operation === nothing && g isa Union{MouseEnter,MouseLeave} &&
-        _is_route_at_place(change.route) && return Intent(g, read_intent(p, iomap, g))
-    invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
 end
 
 # Open the item's `submenu` as a popup just below the item: a position in
@@ -2716,7 +2697,7 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
                          content_width, content_height)
-        _push_state_layer!(drawn, enabled && w.hovered === true ? p.layer_hovered_color : nothing,
+        _push_state_layer!(drawn, enabled && _is_under_pointer(w) ? p.layer_hovered_color : nothing,
                            0, 0, width, height)
         append!(drawn, elements)
         (width = width, height = height, elements = drawn)
@@ -2726,8 +2707,8 @@ end
 map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = nothing
 
-# A left press on an enabled item invokes its action; a crossing sets `hovered`,
-# which draws the surface. The item's own gestures come first, as on a button.
+# A left press on an enabled item invokes its action. The item's own gestures come
+# first, as on a button.
 #
 # Alt and a left press select the item as a whole, as they select any widget, so
 # the item declines that press and the layers above select it. The tooltip probe
@@ -2747,7 +2728,6 @@ function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, ev
         (evt.button === :left && enabled) || return nothing
         return InvokeActionOperation(_toolbar_item_command(w))
     end
-    (evt isa MouseEnter || evt isa MouseLeave) && return _hover_state_op(w, evt)
     nothing
 end
 
@@ -4737,13 +4717,12 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
         end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
     end
-    # Coordinate-bearing events (drags + hover crossings) target the *visible* tab
+    # Coordinate-bearing events (drags and crossings) target the *visible* tab
     # regardless of selection: a splitter drag inside the active tab must keep
     # receiving motion even when the pane carries no selection (the bootstrap case
-    # the SplitPaneDrag tests cover), and a hover crossing must reach whatever the
-    # pointer is over — routing to the *selected* tab (as coordless events do) left
-    # a hovered widget inside a tab unlit. `_route_active_tab` translates coords into
-    # the tab's frame (hit-gating the crossings so the tab strip is excluded).
+    # the SplitPaneDrag tests cover), and a crossing must reach whatever the
+    # pointer is over, not the selected tab. `_route_active_tab` translates coords
+    # into the tab's frame (hit-gating the crossings so the tab strip is excluded).
     # A left button down on a tab of a `draggable` pane is a grab. The strip
     # resolves which tab; the projection that owns the tabs runs the drag from
     # there, because only it knows where a tab may be dropped. A down on the close
@@ -6445,9 +6424,9 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
                                      time = evt.time))
 end
 # Pointer events route into the card's content by coordinate, so an interactive
-# widget nested in a card (a button, a hovered row) still sees hover crossings, the
-# pointer motion behind them, and the raw press-down/release that drive its
-# `hovered`/`pressed` feedback. The scroll wheel is still the card's own concern
+# widget nested in a card (a button, a row of a list) still sees the crossings, the
+# pointer motion, and the raw press-down/release that drive its `pressed`
+# feedback. The scroll wheel is still the card's own concern
 # to decline (nothing).
 #
 # A coordless keyboard event has no coordinate to hit-test, so it routes into the
@@ -7952,7 +7931,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         radius = _sc(p.corner_radius)
         sel = get_widget_list_selected(w)
         enabled = !(w.enabled === false)
-        hov = enabled ? w.hovered : 0
+        lit_row = enabled ? _widget_element_selected(get_mouse_target(w), "items") : 0
         row_selected_color = _get_state_color(p, w, :row; state = :selected)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
@@ -7961,9 +7940,10 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         rows = Any[]
         for (i, it) in enumerate(items)
             row = Any[]
-            # The hover tint sits UNDER the selection band, so hovering the
-            # selected row does not repaint it — same tint the tree and table use.
-            if i == hov && i != sel
+            # The light of the row under the pointer sits UNDER the selection band,
+            # so the pointer on the selected row does not repaint it — the same
+            # tint that the tree and the table use.
+            if i == lit_row && i != sel
                 _push_state_layer!(row, p.layer_hovered_color, 0, 0, content_width, row_height)
             end
             if i == sel
@@ -8040,25 +8020,6 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
         when(KeyDown(k), _is_plain_key(evt, :up))   => pick(sel <= 1 ? 1 : sel - 1)
         _ => nothing
     end
-end
-
-# The mouse target tracking gives the list its crossings by route. A `MouseHover`
-# lights the row that its route names, and no row when the route names none; a
-# `MouseLeave` of the list itself, or of the lit row, turns the light off. A view
-# that shows a part of its input as a row sends the leave of that part to the
-# row. The light is written only when it changes, or every motion would
-# invalidate the canvas.
-function read_intent(p::WidgetListToGraphicsCanvas, recursion, change::Intent,
-                     iomap::WidgetListToGraphicsCanvasIoMap)
-    g = change.gesture
-    change.operation === nothing && g isa Union{MouseHover,MouseLeave} ||
-        return Intent(g, read_intent(p, iomap, change.operation === nothing ? g : change.operation))
-    w = iomap.input
-    w.enabled === false && return Intent(g, nothing)
-    named = _widget_element_selected(change.route, "items")
-    row = g isa MouseHover ? named :
-          _is_route_at_place(change.route) || named == w.hovered ? 0 : w.hovered
-    Intent(g, row == w.hovered ? nothing : _write_view_state(w, "hovered", row))
 end
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
@@ -8896,11 +8857,12 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     set_cell_computation!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
     set_cell_computation!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
 
-    # Persistent hover-band overlay: same pattern as the selection band but reading
-    # `w.hovered` (the row / column-header under the pointer) in the fainter hover
-    # colour. Drawn behind the selection band so a selected+hovered row still reads
-    # as selected.
-    hov_bounds = Cell(@computation _wt_highlight_bounds(w.hovered, geometry[]))
+    # The light: the same pattern as the selection band, for the row or the column
+    # header that the mouse target of the table names, in the fainter colour of the
+    # light. Drawn behind the selection band, so a selected row under the pointer
+    # still reads as selected.
+    hov_bounds = Cell(@computation _wt_highlight_bounds(_find_wt_lit_reference(get_mouse_target(w)),
+                                                        geometry[]))
     hover_rect = GraphicsRect(0, 0, 0, 0; color = p.layer_hovered_color, radius = _WT_ROW_RADIUS)
     set_cell_computation!(getfield(hover_rect, :x),
                           () -> Int32(hov_bounds[][1] + content_x))
@@ -9121,19 +9083,8 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     if change.operation === nothing && g isa MouseClick && g.button === :left
         return Intent(g, _wt_mouse_select(p, iomap, g))
     end
-    # The crossings come by route from the mouse target tracking and drive the
-    # hover band: a MouseHover lights the row or the column that its route names,
-    # a MouseLeave of the table itself, or of the lit row or column, clears it. A
-    # pointer motion does not go into the cells.
-    if change.operation === nothing && g isa MouseHover
-        return Intent(g, _wt_hover_set(iomap, _find_wt_hover_at(change.route)))
-    end
-    if change.operation === nothing && g isa MouseLeave &&
-       (_is_route_at_place(change.route) ||
-        _find_wt_hover_at(change.route) == iomap.input.hovered)
-        return Intent(g, _wt_hover_clear(iomap))
-    end
-    if change.operation === nothing && g isa Union{MouseEnter,MouseLeave,MouseMove}
+    # A crossing, a dwell and a pointer motion do not go into the cells.
+    if change.operation === nothing && g isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover}
         return Intent(g, nothing)
     end
     if change.operation === nothing && g isa KeyDown
@@ -9200,32 +9151,18 @@ function _wt_hit_test(geom::WTGeometry, x::Int, y::Int)
     end
 end
 
-# ── Hover (whole-row) ────────────────────────────────────────────────────────
-# The hover band highlights the *row* of a place in the table (a body cell or a
-# row header → that row); a column header → its column; the corner → none.
-# Returns the `hovered` reference for the place that `route` names, or nothing.
-function _find_wt_hover_at(route)
-    row = _widget_element_selected(route, "rows")
+# ── The light (whole row) ────────────────────────────────────────────────────
+# The light marks the *row* of a place in the table (a body cell or a row header →
+# that row); a column header → its column; the corner → none. The reference of the
+# row or the column of the place that `target` names, or nothing.
+function _find_wt_lit_reference(target)
+    row = _widget_element_selected(target, "rows")
     row > 0 && return _wt_row_ref(row)
-    row = _widget_element_selected(route, "row_headers")
+    row = _widget_element_selected(target, "row_headers")
     row > 0 && return _wt_row_ref(row)
-    column = _widget_element_selected(route, "column_headers")
+    column = _widget_element_selected(target, "column_headers")
     column > 0 && return _wt_col_ref(column)
     nothing
-end
-
-# Set `hovered` to `reference`, only when it changes. No reference (the corner)
-# keeps the light as it is.
-function _wt_hover_set(iomap::WidgetTableToGraphicsCanvasIoMap, reference)
-    w = iomap.input
-    (reference === nothing || w.hovered == reference) && return nothing
-    _write_view_state(w, "hovered", reference)
-end
-
-function _wt_hover_clear(iomap::WidgetTableToGraphicsCanvasIoMap)
-    w = iomap.input
-    w.hovered === nothing && return nothing
-    _write_view_state(w, "hovered", nothing)
 end
 
 # Route a plain click into a data cell's content sub-pipeline (via the grid
@@ -9612,7 +9549,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     function make_row(row::WTreeRow)
         content = CellVector(Computation(function ()
             node = _wtree_node_at(w, row.path)
-            result = Any[make_band(row, p.layer_hovered_color, () -> w.hovered),
+            result = Any[make_band(row, p.layer_hovered_color, () -> get_mouse_target(w)),
                          make_band(row, row_selected_color, () -> w.selection)]
             x = row.depth * indent
             if _wtree_has_children(node)
@@ -9806,31 +9743,6 @@ function _wtree_toggle_expanded(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Ve
     next = copy(w.expanded)
     path in next ? delete!(next, path) : push!(next, path)
     _write_view_state(w, "expanded", next)
-end
-
-# The mouse target tracking gives the tree its crossings by route. A `MouseHover`
-# lights the row of the node that its route names, and keeps the light when the
-# route names no node; a `MouseLeave` of the tree itself, or of the lit node,
-# turns the light off. The light is written only when the row changes.
-function read_intent(p::WidgetTreeToGraphicsCanvas, recursion, change::Intent,
-                     iomap::WidgetTreeToGraphicsCanvasIoMap)
-    g = change.gesture
-    change.operation === nothing && g isa Union{MouseHover,MouseLeave} ||
-        return Intent(g, read_intent(p, iomap, change.operation === nothing ? g : change.operation))
-    path = change.route === nothing ? nothing : _wtree_ref_path(change.route)
-    w = iomap.input
-    if g isa MouseLeave
-        lit = path !== nothing && path == _wtree_ref_path(w.hovered)
-        return Intent(g, _is_route_at_place(change.route) || lit ? _wtree_hover_clear(iomap) : nothing)
-    end
-    (path === nothing || _wtree_ref_path(w.hovered) == path) && return Intent(g, nothing)
-    Intent(g, _write_view_state(w, "hovered", _wtree_path_ref(path)))
-end
-
-function _wtree_hover_clear(iomap::WidgetTreeToGraphicsCanvasIoMap)
-    w = iomap.input
-    w.hovered === nothing && return nothing
-    _write_view_state(w, "hovered", nothing)
 end
 
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)

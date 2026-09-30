@@ -341,12 +341,12 @@ end
     (rx, ry) = place_of("Run")
     (px, py) = place_of("Press")
     move!(rx + 2, ry + 2)
-    @test command.hovered == true
+    @test get_mouse_target(command) !== nothing
     move!(px + 2, py + 2)
-    @test command.hovered == false
-    @test press.hovered == true
+    @test get_mouse_target(command) === nothing
+    @test get_mouse_target(press) !== nothing
     move!(390, 290)
-    @test press.hovered == false
+    @test get_mouse_target(press) === nothing
 end
 
 @testset "the status bar says where the person is" begin

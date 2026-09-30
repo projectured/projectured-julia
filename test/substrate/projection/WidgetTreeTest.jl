@@ -1,10 +1,10 @@
-# WidgetTree hover feedback + click-to-collapse/expand.
+# WidgetTree light feedback + click-to-collapse/expand.
 #
-# The tree renders a faint hover band behind the row under the pointer (driven by
-# the `MouseHover` and the `MouseLeave` that the mouse target tracking gives by
-# route: the route of a hover names the node under the pointer) and toggles a
-# parent's children when its chevron is clicked. Here we drive the WidgetTree
-# projection directly with a deterministic text measure so row geometry is exact.
+# The tree renders a faint band behind the row that its own mouse target names: a
+# move writes the path of the part under the pointer, and the band follows
+# whatever row that path resolves to. It also toggles a parent's children when
+# its chevron is clicked. Here we drive the WidgetTree projection directly with a
+# deterministic text measure so row geometry is exact.
 
 using ProjecturedKernel.CellModule: Cell, Computation
 
@@ -73,40 +73,28 @@ end
     @test geom.rows[2].chevron_x0 == 22                # indented one level
 end
 
-@testset "a hover lights the row that its route names; a leave of the tree clears it" begin
+@testset "a move onto a row makes it the part under the pointer; moving off it clears it" begin
     w, io = _fresh()
-    # A hover is view state, and marked so that no history records it.
-    @test _readop_marked(io, _hover, _node([1])) isa ReplaceViewStateOperation
-    op = _readop(io, _hover, _node([1]))
-    @test op isa ReplaceReferencedValueOperation && op.value == _node([1])
-    getfield(w, :hovered)[] = op.value
-
-    # The leave of another node changes nothing; the leave of the lit node, which
-    # a view sends for the part that the row shows, turns the light off.
-    @test _readop(io, _leave, _node([2])) === nothing
-    op = _readop(io, _leave, _node([1]))
-    @test op isa ReplaceReferencedValueOperation && op.value === nothing
-    op = _readop(io, _leave, EmptyReference())
-    @test op isa ReplaceReferencedValueOperation && op.value === nothing
-    getfield(w, :hovered)[] = op.value
-    @test w.hovered === nothing
-    # A leave with nothing already hovered is a no-op.
-    @test _readop(io, _leave, EmptyReference()) === nothing
-end
-
-@testset "a hover writes only when the row changes, and a motion lights nothing" begin
-    w, io = _fresh()
+    driver = MttDriver(_treeproj, w)
     r1 = io.geometry.rows[1]
-    getfield(w, :hovered)[] = _readop(io, _hover, _node([1])).value
-    # Same row again → nothing (no churn).
+    r2 = io.geometry.rows[2]
+
+    _mtt_move!(driver, r1.chevron_x1 + 5, r1.y0 + 2, 1.0)
+    @test WidgetModule._wtree_ref_path(get_mouse_target(w)) == [1]
+
+    # A different row becomes the part under the pointer instead.
+    _mtt_move!(driver, r2.chevron_x1 + 5, r2.y0 + 2, 1.1)
+    @test WidgetModule._wtree_ref_path(get_mouse_target(w)) == [1, 1]
+
+    # The tree's own reader never answers a crossing or a motion: the light
+    # comes only from the mouse target that the tracking writes.
     @test _readop(io, _hover, _node([1])) === nothing
-    # A route that names no node keeps the light.
-    @test _readop(io, _hover, EmptyReference()) === nothing
-    # Different row → a fresh write.
-    op = _readop(io, _hover, _node([1, 1]))
-    @test op isa ReplaceReferencedValueOperation && op.value == _node([1, 1])
-    # The tree does not read a motion: the light comes by route.
+    @test _readop(io, _leave, _node([1])) === nothing
     @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) === nothing
+
+    # The leave of the window clears it.
+    _mtt_leave!(driver, 1.2)
+    @test get_mouse_target(w) === nothing
 end
 
 @testset "clicking a chevron collapses/expands; clicking a label selects" begin
@@ -135,13 +123,13 @@ end
     @test op isa ReplaceSelectionOperation
 end
 
-@testset "each row draws its hover band and its selection band" begin
+@testset "each row draws its light band and its selection band" begin
     w, io = _fresh()
     bands = _bands(io, 1)
-    @test length(bands) == 2                            # hover + selection bands
+    @test length(bands) == 2                            # light + selection bands
     @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
-    # Hover row 1 → one of its bands gains the row's height.
-    getfield(w, :hovered)[] = _readop(io, _hover, _node([1])).value
+    # Row 1 the part under the pointer → one of its bands gains the row's height.
+    getfield(w, :mouse_target)[] = _node([1])
     @test any(Int(r.h[]) == 24 for r in _bands(io, 1))
     @test all(Int(r.h[]) == 0 for r in _bands(io, 2))   # the next row stays dark
 end
@@ -172,7 +160,7 @@ end
         time = 0.0
         for x in xs, y in ys
             _mtt_move!(driver, x, y, time += 0.01)
-            tree.hovered !== nothing && (lit += 1)
+            get_mouse_target(tree) !== nothing && (lit += 1)
             cp = read_intent(_full, nothing, Intent(MouseClick(:left, x, y, _mods; time = 0.0), nothing), io)
             op = cp isa Intent ? cp.operation : cp
             op isa ReplaceSelectionOperation && (clicks += 1)

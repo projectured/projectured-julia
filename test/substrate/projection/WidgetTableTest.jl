@@ -1,12 +1,12 @@
-# WidgetTable whole-row hover.
+# WidgetTable whole-row light.
 #
-# Hovering a body cell (or row header) highlights that row; a column header
-# highlights its column; the corner / empty space clears. Hover is transient state
-# (`WidgetTable.hovered`) rendered as a faint band, mirroring the selection band.
-# Driven by the MouseHover and the MouseLeave that the mouse target tracking gives
-# by route: the route of a hover names the place under the pointer. Must also work
-# when the table is nested in a layout / tabbed pane / shell (a point maps backward
-# through the containers, and the route reaches the table).
+# The pointer over a body cell (or row header) lights that row; over a column
+# header it lights the column; the corner or empty space lights nothing. The
+# light is a faint band, mirroring the selection band, and it is driven by the
+# table's own mouse target: a move writes the path of the part under the
+# pointer, and the light follows whatever row or column that path names. Must
+# also work when the table is nested in a layout / tabbed pane / shell (a point
+# maps backward through the containers, and the mouse target reaches the table).
 
 using ProjecturedKernel.CellModule: Cell, Computation
 using ProjecturedCollection.CollectionModule: ListNode
@@ -50,55 +50,55 @@ function _rects(io)
     out
 end
 
-@testset "a hover by route lights the whole row; a leave of the table clears it" begin
+@testset "a move over a body cell lights its whole row; a leave clears it" begin
     w = _mktable(); io = print_document(_rec, w); g = io.geometry
-    # A hover of a body cell → its whole row.
-    # A hover is view state, and marked so that no history records it.
-    @test _rd_marked(io, _hover, _cell(1, 2)) isa ReplaceViewStateOperation
-    op = _rd(io, _hover, _cell(1, 2))
-    @test op isa ReplaceReferencedValueOperation && op.document === w && op.value !== nothing
-    getfield(w, :hovered)[] = op.value
-    row1 = op.value
-    # Another cell of the same row → no churn.
+    driver = MttDriver(_rec, w)
+    # A move onto a body cell → its whole row lights.
+    _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.0)
+    row1 = WidgetModule._find_wt_lit_reference(get_mouse_target(w))
+    @test row1 == WidgetModule._wt_row_ref(1)
+    # Another cell of the same row → the same light.
+    _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.1)
+    @test WidgetModule._find_wt_lit_reference(get_mouse_target(w)) == row1
+    # Another row → a different light.
+    _mtt_move!(driver, _bx(g), _rowy(g, 2), 1.2)
+    row2 = WidgetModule._find_wt_lit_reference(get_mouse_target(w))
+    @test row2 !== nothing && row2 != row1
+    # The table's own reader never answers a crossing or a motion: the light
+    # comes only from the mouse target that the tracking writes.
     @test _rd(io, _hover, _cell(1, 1)) === nothing
-    # A motion lights nothing: the light comes by route.
-    @test _rd(io, MouseMove(_bx(g), _rowy(g, 2), MouseButtons(), _mods; time = 0.0)) === nothing
-    # Another row → a fresh, different write.
-    op2 = _rd(io, _hover, _cell(2, 1))
-    @test op2 isa ReplaceReferencedValueOperation && op2.value !== nothing && op2.value != row1
-    getfield(w, :hovered)[] = op2.value
-    # The leave of another row changes nothing; the leave of a cell of the lit
-    # row turns the light off.
     @test _rd(io, _leave, _cell(1, 1)) === nothing
-    lit = _rd(io, _leave, _cell(2, 1))
-    @test lit isa ReplaceReferencedValueOperation && lit.value === nothing
-    # Leave → clear.
-    op3 = _rd(io, _leave, EmptyReference())
-    @test op3 isa ReplaceReferencedValueOperation && op3.value === nothing
+    @test _rd(io, MouseMove(_bx(g), _rowy(g, 2), MouseButtons(), _mods; time = 0.0)) === nothing
+    # The leave of the window clears the light.
+    _mtt_leave!(driver, 1.3)
+    @test get_mouse_target(w) === nothing
 end
 
-@testset "column header hovers the column; a click still selects" begin
+@testset "a move over a column header lights the column; a click still selects" begin
     w = _mktable(); io = print_document(_rec, w); g = io.geometry
     chy = (g.row_y[1] + g.row_y[2]) ÷ 2    # grid row 1 = the column-header strip
-    op = _rd(io, _hover, _column(1))
-    @test op isa ReplaceReferencedValueOperation && op.value !== nothing
-    hov = op.value
-    # Clicking the column header still selects the column (hover didn't shadow the
-    # click path). A body cell here holds a WidgetLabel, whose click routes into the
-    # non-interactive label, so we assert on the header instead.
+    driver = MttDriver(_rec, w)
+    _mtt_move!(driver, _bx(g), chy, 1.0)
+    lit = WidgetModule._find_wt_lit_reference(get_mouse_target(w))
+    @test lit == WidgetModule._wt_col_ref(1)
+    # Clicking the column header still selects the column (the light does not
+    # shadow the click path). A body cell here holds a WidgetLabel, whose click
+    # routes into the non-interactive label, so we assert on the header instead.
     @test _rd(io, MouseClick(:left, _bx(g), chy, _mods; time = 0.0)) isa ReplaceSelectionOperation
-    # The hovered column ref differs from a hovered body row.
-    @test hov != _rd(io, _hover, _cell(1, 1)).value
+    # A lit column differs from a lit body row.
+    _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.1)
+    @test WidgetModule._find_wt_lit_reference(get_mouse_target(w)) != lit
 end
 
-@testset "hover band renders (faint overlay follows w.hovered)" begin
+@testset "the light band renders (faint overlay follows the mouse target)" begin
     w = _mktable(); io = print_document(_rec, w); g = io.geometry
     _ = _rects(io)
-    # The hover band is the faint (alpha≈0x20) translucent rect; before hovering it
-    # is collapsed to 0 height.
+    # The light band is the faint (alpha≈0x20) translucent rect; before the
+    # pointer arrives it is collapsed to 0 height.
     _hover_band(io) = only(r for r in _rects(io) if 0.1 < r.color.alpha[] < 0.2)
     @test Int(_hover_band(io).h[]) == 0
-    getfield(w, :hovered)[] = _rd(io, _hover, _cell(1, 1)).value
+    driver = MttDriver(_rec, w)
+    _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.0)
     b = _hover_band(io)
     @test Int(b.h[]) > 0                       # gained the row's height
     @test Int(b.y[]) == g.row_y[1 + g.row_offset]
@@ -113,7 +113,7 @@ end
         time = 0.0
         for x in xs, y in ys
             _mtt_move!(driver, x, y, time += 0.01)
-            table.hovered !== nothing && (e += 1)
+            get_mouse_target(table) !== nothing && (e += 1)
             op = _rd(io, MouseClick(:left, x, y, _mods; time = 0.0))
             op isa ReplaceSelectionOperation && (c += 1)
         end

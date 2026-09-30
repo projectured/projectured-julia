@@ -57,7 +57,8 @@ end
 
     # A crossing comes by route from the mouse target tracking, which already
     # found the widget, and a leave is outside by definition — judging it would
-    # suppress the very event that clears the hover.
+    # suppress the very event that ends a press held on the button.
+    button.pressed = true
     @test read_intent(proj, iomap, MouseLeave(900, 500, MouseButtons(), ModifierKeys(); time = 0.0)) !== nothing
 end
 
@@ -103,37 +104,40 @@ end
     @test button.pressed == false
 end
 
-@testset "an enter sets the hovered flag of the button, as view state" begin
+@testset "a move onto a button makes it the part under the pointer" begin
     button, _ = _button_doc()
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
-    op = read_intent(proj, iomap, MouseEnter(10, 10, MouseButtons(), ModifierKeys(); time = 0.0))
-    @test _view_state_write(op) isa ReplaceReferencedValueOperation
-    @test _view_state_write(op).document === button && _view_state_write(op).value == true
-    evaluate_operation(_WidgetButtonMockEditor(button), op)
-    @test button.hovered == true
-    # A motion alone lights nothing: the enter comes from the mouse target tracking.
+    # A motion alone answers no operation: the button's own reader has no case
+    # for a crossing or a move, only the mouse target tracking marks the part
+    # under the pointer.
+    @test read_intent(proj, iomap, MouseEnter(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+
+    driver = MttDriver(proj, button)
+    @test get_mouse_target(button) === nothing
+    _mtt_move!(driver, 10, 10, 1.0)
+    @test get_mouse_target(button) !== nothing
 end
 
-@testset "the mouse target tracking clears the previously-hovered button on leave" begin
+@testset "the mouse target tracking clears the previous button's mouse target on leave" begin
     # Two buttons side by side inside a composite.
     a = WidgetButton("A"; size = Point2D(100, 40), action = (_e) -> nothing)
     b = WidgetButton("B"; position = Point2D(120, 0), size = Point2D(100, 40), action = (_e) -> nothing)
     driver = MttDriver(_proj(), WidgetComposite(Any[a, b]))
 
     _mtt_move!(driver, 10, 10, 1.0)
-    @test a.hovered == true
+    @test get_mouse_target(a) !== nothing
 
-    # Move onto B: the tracker clears A (hover + press) and sets B.
+    # Move onto B: the tracker clears A (mouse target + press) and sets B.
     getfield(a, :pressed)[] = true
     _mtt_move!(driver, 130, 10, 1.1)
-    @test a.hovered == false && a.pressed == false
-    @test b.hovered == true
+    @test get_mouse_target(a) === nothing && a.pressed == false
+    @test get_mouse_target(b) !== nothing
 
-    # Move into dead space: B clears, nothing new hovered.
+    # Move into dead space: B clears, nothing new is the part under the pointer.
     _mtt_move!(driver, 300, 300, 1.2)
-    @test b.hovered == false
+    @test get_mouse_target(b) === nothing
 end
 
 @testset "button click inside a composite still reaches the action" begin
@@ -203,7 +207,7 @@ end
     @test read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
     @test fired[] == false
-    @test btn.hovered == false && btn.pressed == false
+    @test get_mouse_target(btn) === nothing && btn.pressed == false
 end
 
 @testset "a disabled checkbox swallows the toggle click" begin
@@ -501,7 +505,7 @@ end
     cx = bx + bw ÷ 2; cy = by + bh ÷ 2
 
     _mtt_move!(MttDriver(proj, card), cx, cy, 1.0)
-    @test button.hovered == true
+    @test get_mouse_target(button) !== nothing
     dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys(); time = 0.0))
     @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true
     # And a click still reaches the action through the card.

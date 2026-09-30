@@ -1,8 +1,8 @@
 # Fragment of `ChartModule`.
 #
 # The chart's presentation document: a `Chart` plus everything about *looking at*
-# it — the zoom window, the pointer position, what is hovered, an in-progress
-# drag.
+# it — the zoom window, the pointer position, an in-progress drag. The part under
+# the pointer is its mouse target.
 #
 # None of that is chart content. A saved chart should not remember where someone
 # had scrolled to, and the same chart shown in two panes should be able to be
@@ -53,7 +53,6 @@ A chart together with how it is currently being looked at.
 - `chart` — the semantic `Chart`, held by identity so selections round-trip.
 - `view` — `nothing` to fit the data, otherwise a `ChartView` window.
 - `cursor` — the pointer in data coordinates, or `nothing`; drives the crosshair.
-- `hovered` — a `Reference` naming the hovered series or legend item.
 - `drag_anchor` / `drag_rect` — pixel state while a rubber-band zoom or a pan is
   in progress, cleared when it commits or cancels.
 """
@@ -61,7 +60,6 @@ A chart together with how it is currently being looked at.
     chart::Any
     view::Any = nothing
     cursor::Any = nothing
-    hovered::Any = nothing
     drag_anchor::Any = nothing
     drag_rect::Any = nothing
 end

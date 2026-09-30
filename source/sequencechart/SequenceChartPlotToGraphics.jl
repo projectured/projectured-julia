@@ -717,7 +717,8 @@ const _HOVER = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.45)
 function _overlay_rows(g, plot)
     chart = g.chart
     chart isa SequenceChart || return (0, 0, 0, 0)
-    (_row_of(plot.hovered, :events), _row_of(plot.hovered, :arrows),
+    target = getfield(plot, :mouse_target)[]
+    (_row_of(target, :events), _row_of(target, :arrows),
      _row_of(plot.selection, :events), _row_of(plot.selection, :arrows))
 end
 
@@ -731,17 +732,17 @@ function _row_of(reference, table::Symbol)
 end
 
 function _overlay_elements!(out, g, plot)
-    hovered_event, hovered_arrow, selected_event_row, selected_arrow_row =
+    lit_event, lit_arrow, selected_event_row, selected_arrow_row =
         _overlay_rows(g, plot)
 
     # A selected occurrence gets a ring around it rather than a different fill:
     # the mark's own colour carries its kind, and overwriting that to say
     # "selected" would cost the reader the very thing they selected it to see.
-    for (row, color) in ((selected_event_row, _SELECTION), (hovered_event, _HOVER))
+    for (row, color) in ((selected_event_row, _SELECTION), (lit_event, _HOVER))
         row == 0 && continue
         _event_ring!(out, g, row, color)
     end
-    for (row, color) in ((selected_arrow_row, _SELECTION), (hovered_arrow, _HOVER))
+    for (row, color) in ((selected_arrow_row, _SELECTION), (lit_arrow, _HOVER))
         row == 0 && continue
         _arrow_highlight!(out, g, row, color)
     end
@@ -1178,9 +1179,9 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
     nothing
 end
 
-# Hovering names what is under the pointer and reads the time there. Both are
-# overlay state: they are written to the plot, and only the element pass reads
-# them, so a pointer move never re-runs the layout.
+# A move reads the time under the pointer. The readout is overlay state: it is
+# written to the plot, and only the element pass reads it, as it reads the mouse
+# target of the plot, so a pointer move never re-runs the layout.
 function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
                      gesture::MouseMove)
     g = iomap.geometry
@@ -1189,35 +1190,24 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
     chart = plot.chart
     x, y = gesture.x, gesture.y
 
-    hovered = _in_body(g, x, y) ? _find_sequence_chart_part(g, plot, x, y) : nothing
-
     cursor = nothing
     if _in_body(g, x, y) && chart.gutter.cursor_readout
         flow, _ = _local_flow_cross(g, plot, x, y)
         cursor = convert_coordinate_to_time(g.times, g.coordinates, to_data(g.scale, flow))
     end
-
-    operations = Any[]
-    isequal(plot.hovered, hovered) ||
-        push!(operations, _write_view_state(plot, "hovered", hovered))
-    isequal(plot.cursor, cursor) ||
-        push!(operations, _write_view_state(plot, "cursor", cursor))
-    isempty(operations) && return nothing
-    length(operations) == 1 ? operations[1] : CompoundOperation(operations)
+    isequal(plot.cursor, cursor) ? nothing : _write_view_state(plot, "cursor", cursor)
 end
 
-# Leaving clears both, so a stale readout never outlives the pointer.
+# Leaving clears the readout, so a stale readout never outlives the pointer.
 function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::MouseLeave)
     plot = iomap.input
-    (plot.hovered === nothing && plot.cursor === nothing) && return nothing
-    CompoundOperation(Any[
-        _write_view_state(plot, "hovered", nothing),
-        _write_view_state(plot, "cursor", nothing)])
+    plot.cursor === nothing && return nothing
+    _write_view_state(plot, "cursor", nothing)
 end
 
 # The window, the lane offset and the pointer are the state of the view, not of
 # the trace: a write of one is marked as view state, so a history does not record
-# a zoom, a scroll of the lanes or a hover.
+# a zoom, a scroll of the lanes or a readout.
 _write_view_state(plot::SequenceChartPlot, field::AbstractString, value) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(plot, field, value))
 

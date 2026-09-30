@@ -178,10 +178,10 @@ end
     button(; kw...) = WidgetButton("Save"; style = red_surface, kw...)
     @test _has_color(_drawn_colors(render(default_projection, button())), red)
     @test !_has_color(_drawn_colors(render(default_projection, button(enabled = false))), red)
-    # A hovered button draws its layer over the surface that the override gives.
-    hovered = button()
-    hovered.hovered = true
-    colors = _drawn_colors(render(default_projection, hovered))
+    # A lit button draws its layer over the surface that the override gives.
+    lit = button()
+    getfield(lit, :mouse_target)[] = EmptyReference()
+    colors = _drawn_colors(render(default_projection, lit))
     @test _has_color(colors, red) && _has_color(colors, theme.hover_layer)
     # The override of the normal state does not reach the checked state, and
     # the override of the checked state does.

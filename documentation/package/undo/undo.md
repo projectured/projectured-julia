@@ -40,10 +40,10 @@ Three questions have three separate mechanisms:
 
 | Reader | Writes marked as view state |
 | --- | --- |
-| widgets | `hovered`, `pressed`, `dragging`; a scroll (`scroll_position`, `follow_end`, `tab_scroll`, `transform`); a tree fold (`collapsed`); an accordion section (`expanded`) |
+| widgets | `pressed`, `dragging`; a scroll (`scroll_position`, `follow_end`, `tab_scroll`, `transform`); a tree fold (`collapsed`); an accordion section (`expanded`) |
 | split pane, pane tree | the grab, each move and the release of a divider; the `drag` of a tab |
 | configuring projection | the `visible` of the control bar |
-| chart, sequence chart | the zoom window (`view`), the lane offset (`cross_offset`), the pointer (`cursor`, `hovered`), the rubber band (`drag_anchor`, `drag_rect`) |
+| chart, sequence chart | the zoom window (`view`), the lane offset (`cross_offset`), the pointer (`cursor`), the rubber band (`drag_anchor`, `drag_rect`) |
 
 A fold is dropped by its kind instead: `ToggleCollapseOperation` is the flip of a fold that a reader made of a click on a chevron. `test_history_sweep()` presses the gestures that change no document in the application window and moves the pointer over every example, and it fails when a history grows.
 

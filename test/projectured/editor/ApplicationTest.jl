@@ -1354,12 +1354,12 @@ function test_application()
                 # The file is the target, and the chain carries the hover on to
                 # the row of the tree that the navigator's view makes for it.
                 navigator = only(_app_find_view_trees(pointer.iomap))
-                @test navigator.hovered !== nothing
+                @test get_mouse_target(navigator) !== nothing
                 hover!(100, y + 40, 1.1)
                 @test steps() == before
                 # Off the navigator, the leave of the file turns the row off.
                 hover!(900, 500, 1.2)
-                @test navigator.hovered === nothing
+                @test get_mouse_target(navigator) === nothing
 
                 # The divider between the navigator and the files follows the
                 # pointer, and the history does not grow: a drag is view state.

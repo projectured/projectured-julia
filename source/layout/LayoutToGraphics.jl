@@ -538,10 +538,13 @@ function map_reference_backward(::LayoutConstraintToGraphicsCanvas, iomap::Conte
     annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("child"), answer))
 end
 
+# A path that the child answers continues past the `child` step, as the backward
+# map says, with the types that the constraint gives it.
 function read_intent(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, evt)
     inner = iomap.inner_iomap
     inner === nothing && return nothing
-    read_intent(inner.projection, inner, evt)
+    answer = read_intent(inner.projection, inner, evt)
+    _annotate_operation(iomap.input, reroot_operation(answer, (FieldReferenceStep("child"),)))
 end
 
 """

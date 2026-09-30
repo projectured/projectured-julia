@@ -129,7 +129,7 @@ The paths of a transcript name its objects, and the path of a draft names a plac
 
 ## Limits
 
-- A part under the pointer does not light up. The ring of a selected object works; the `hovered` cell on a card, from stage 6 of [plan/pending/conversation-flat-transcript.md](../../../plan/pending/conversation-flat-transcript.md), does not exist.
+- A card does not light up under the pointer. The ring of a selected object works; the light of a card, from stage 6 of [plan/pending/conversation-flat-transcript.md](../../../plan/pending/conversation-flat-transcript.md), is not done.
 - The draft has no frame, no focus ring, no `+` button and no hint line. Stage 4 of the same plan puts them on the pane that holds the draft, and they are not done.
 - The chooser makes an insertion that takes the whole source as text. A structural key, such as `[` for a JSON array, does not start a document.
 - The arguments of a tool call print one `key: value` line each. A nested value prints as its Julia `string`.

@@ -277,6 +277,20 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
+- **Q14. A view that changes under a still pointer.** Open in part (found in
+  step 6). The principle is decided: D41 and D42 of
+  [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) say
+  that after a frame that changed the display, the target is found again at
+  the last position of the pointer, and D3 does not allow a made-up move. Only
+  a move writes the mouse target now, so after a scroll under a still pointer
+  the old row stays lit until the next move; the tracker, which found the
+  target again on the `DisplayUpdate`, goes in step 8. What is open is where
+  the last position is kept and who reads it. Claude's recommendation: the
+  screen keeps the window and the point of the last move as view state, and on
+  the `DisplayUpdate` of that window it answers the part at that point by the
+  backward map of the point (`compute_part_at_point`), which is no move. The
+  two assertions of `ScrollPaneHoverTest` that check D41 are marked broken
+  until then.
 - **Q13. A drag.** Open in part. Under M6 and M7 alone, a dragged part (a
   slider thumb) gets only the first move off it: then the mouse target follows
   the pointer and the part is on no path. Claude's options were a capture (the
@@ -687,6 +701,55 @@ already; the sealed selection files do not change (Q4).
   sequence chart light the part that their mouse target names. `hovered` goes
   from every document and every writer. Tests: the light of each widget,
   through a real editor.
+  Built so far (projectured):
+  - `_is_under_pointer(w)` reads the mouse target of a widget. The button, the
+    menu item and the toolbar item light from it; the menu item reads it where
+    it builds its surface, not in its measure, so a light changes no extent.
+  - The list lights the row `items[i]` of its mouse target, the table the row
+    or the column of `_find_wt_lit_reference(target)`, the table list the whole
+    row of `_find_wtl_lit_row(target)`, and the tree the node path of its mouse
+    target. A point that names no row lights no row: the tree and the table
+    kept the old light on such a point before, and the light no longer has a
+    state that could keep it.
+  - The chart computes the lit series in its element pass, which each move of
+    the cursor runs already, and not in its layout. A series lights, and the
+    others are veiled, when the pointer is on its line or on a sample of it, as
+    on its legend item; before, only the legend item did this. The sequence
+    chart lights the event or the arrow of its mouse target. Both readers write
+    only the cursor on a move.
+  - `hovered` is gone from the six widgets and the two plots, with their
+    constructors and the three views that pass every field. The readers of
+    `MouseEnter`, `MouseLeave` and `MouseHover` that wrote it are gone; the
+    button still ends its press on a `MouseLeave`, which a drag needs until
+    step 5b.
+  - The style parameter `layer_hovered_color` keeps its name: it names a colour
+    of the theme, not a state of a document.
+  Tests: `test_pointer_light()` (in the shell tests, which drive a headless
+  editor) counts the rects that a real editor draws in the colour of the light
+  for a button, a disabled button, a menu item, a toolbar item, a list, a table
+  (a row and a column) and a tree. The tests of `hovered` check the mouse target
+  now; the test driver of the tracker does what a window does with a move, and
+  the test view `MttContactsToWidgets` maps the mouse target forward. The two
+  assertions of D41 are marked broken (Q14).
+  Found:
+  - A fault of step 5a: the reader of `LayoutConstraintToGraphicsCanvas`
+    passed the child's answer up with no `child` step, which its backward map
+    adds. So a path from inside a constraint skipped a step, and the chain
+    write stopped at the constraint. The reader now adds the step.
+  - A widget that a hand-written view makes lights only when the view maps the
+    mouse target forward into it. The reader of such a view maps the part under
+    the pointer back to an introduced part (Q12), and the forward map must
+    answer that part with the path inside the output (`find_introduced_path`),
+    as the Q12 rule asks. Step 3a gave this arm to the rule templates; about 8
+    hand-written views in projectured (the assistant, the conversation, the
+    evaluator, the pane, the file system, the markdown and rst layouts) and
+    about 7 in omnet lack it. The omnet runner (the filter view) now passes
+    `forward_mouse_target` to its walk and wires its table, but its forward map
+    still answers no introduced part, so its button and its table do not light
+    yet; `test_campaign_hover` and the IDE test of the Run button fail. The
+    other omnet views need the wiring of the mouse target as well: the catalog
+    list, the tables and the lists of the workflow, the optimization table, the
+    batch buttons, the embed toolbar, and the three syntax views.
 - [ ] 7. **The dwell and the right click by position** (M3, D76). The outward
   reading of the gesture tables (D64) runs in the helpers that hand a pointer
   gesture to the child at its point; `_read_dwell` of the tracker and the walk

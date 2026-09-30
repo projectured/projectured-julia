@@ -2,8 +2,8 @@
 #
 # The chart document domain: a `Chart` holds a list of data series, two axes, a
 # legend and a style. This file is **pure semantic content** — everything here
-# serializes. Transient view state (the zoom window, the hovered item, an
-# in-progress drag) lives on `ChartPlot` in `ChartPlot.jl`, which is projection
+# serializes. Transient view state (the zoom window, the cursor, an in-progress
+# drag) lives on `ChartPlot` in `ChartPlot.jl`, which is projection
 # output, exactly as `GraphLayout` holds geometry outside `GraphGraph`.
 #
 # Series data is held as whole column vectors, one reactive cell per column: a

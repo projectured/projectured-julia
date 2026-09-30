@@ -28,25 +28,17 @@ function _read_routed(projection, iomap, gesture, route)
     change isa Intent ? change.operation : change
 end
 
-@testset "an enter with a route lights the button it names, and no other" begin
+@testset "a leave with a route ends the press of the button it names, and no other" begin
     split, other, button, projection, iomap = _routed_scene()
+    button.pressed = true
+    other.pressed = true
     # The position is far from both buttons: the route alone names the part.
-    op = _read_routed(projection, iomap, MouseEnter(5, 5; time = 0.0), _route_to_button())
+    op = _read_routed(projection, iomap, MouseLeave(590, 5; time = 0.0), _route_to_button())
     @test op isa ReplaceViewStateOperation
     @test _plain(op).document === button
     evaluate_operation(nothing, op)
-    @test button.hovered == true
-    @test other.hovered == false
-end
-
-@testset "a leave with a route clears the button, wherever the pointer is" begin
-    split, other, button, projection, iomap = _routed_scene()
-    evaluate_operation(nothing, _read_routed(projection, iomap, MouseEnter(5, 5; time = 0.0),
-                                             _route_to_button()))
-    @test button.hovered == true
-    op = _read_routed(projection, iomap, MouseLeave(590, 5; time = 0.0), _route_to_button())
-    evaluate_operation(nothing, op)
-    @test button.hovered == false
+    @test button.pressed == false
+    @test other.pressed == true
 end
 
 @testset "a route that names nothing the containers print answers nothing" begin

@@ -238,7 +238,7 @@ function test_sequencechart_projection()
             iomap = _sequencechart_iomap(_sc_chart())
             before = _geometry_of(iomap)
             plot = _plot_of(iomap)
-            plot.hovered = get_event_reference(plot.chart, 2)
+            getfield(plot, :mouse_target)[] = get_event_reference(plot.chart, 2)
             plot.cursor = 1.0
             @test _geometry_of(iomap) === before
 
@@ -436,17 +436,15 @@ function test_sequencechart_projection()
             op = read_intent(stage2.projection, stage2, move)
             @test op !== nothing
             _sc_apply(plot, op)
-            @test plot.hovered !== nothing
             @test plot.cursor !== nothing
 
             # Repeating the same move says nothing new, so it declines rather
             # than writing a value that would invalidate cells for no reason.
             @test read_intent(stage2.projection, stage2, move) === nothing
 
-            # Leaving clears both, so no stale readout outlives the pointer.
+            # Leaving clears the readout, so no stale readout outlives the pointer.
             leave = read_intent(stage2.projection, stage2, MouseLeave(0, 0; time = 0.0))
             _sc_apply(plot, leave)
-            @test plot.hovered === nothing
             @test plot.cursor === nothing
         end
 
@@ -484,7 +482,7 @@ function test_sequencechart_projection()
             @test only(_geometry_of(iomap).shapes).split === nothing
         end
 
-        @testset "the overlay marks what is selected and hovered" begin
+        @testset "the overlay marks what is selected and what is under the pointer" begin
             chart = _sc_chart()
             iomap = _sequencechart_iomap(chart)
             plot = _plot_of(iomap)
@@ -500,11 +498,11 @@ function test_sequencechart_projection()
             @test length(rings) == 1
             @test Int(rings[1].radius) > chart.style.event_radius
 
-            # Hovering an arrow re-strokes it thicker.
+            # The arrow that the mouse target names is re-stroked thicker.
             plot.selection = nothing
-            plot.hovered = lift_sequence_chart_reference(plot, get_arrow_reference(chart, 1))
-            hovered = _sc_flatten(iomap.output)
-            @test any(e -> e isa GraphicsPolyline && Int(e.width) == 3, hovered)
+            getfield(plot, :mouse_target)[] = lift_sequence_chart_reference(plot, get_arrow_reference(chart, 1))
+            lit = _sc_flatten(iomap.output)
+            @test any(e -> e isa GraphicsPolyline && Int(e.width) == 3, lit)
         end
 
         @testset "selecting the document marks the picture" begin
@@ -626,7 +624,7 @@ function test_sequencechart_scale()
             before = stage2.timeline
             plot = _plot_of(iomap)
             plot.view = SequenceChartView(1, 0.0, 5.0)
-            plot.hovered = get_event_reference(big, 5)
+            getfield(plot, :mouse_target)[] = get_event_reference(big, 5)
             @test stage2.timeline === before
 
             # Changing the data does redo it, since that is what it derives.

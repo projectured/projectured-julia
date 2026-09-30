@@ -98,11 +98,11 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     roots = CellVector(@computation Any[_fs_node(doc, p.open_file)])
     # Positional, so every declared field is named here in order and the paths
     # come last: position, roots, visible, margin, border, padding, style,
-    # hovered, expanded, gestures, tooltip, selection, mouse target. The root row
-    # is open, and each folder under it is closed until a person opens it.
+    # expanded, gestures, tooltip, selection, mouse target. The root row is open,
+    # and each folder under it is closed until a person opens it.
     tree = WidgetTree(Cell(p.position), roots, Cell(true),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
-                      Cell(nothing), Cell(Set([[1]])),
+                      Cell(Set([[1]])),
                       Cell(GestureBinding[]), Cell(nothing), paths.selection, paths.mouse_target)
     # No size of its own: the pane takes the extent its parent offers, and on an
     # axis with no offer it is as large as the tree and clips nothing.

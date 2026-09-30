@@ -42,7 +42,7 @@ end
 
 @testset "button: an instance binding shadows the default left-click" begin
     shadow = GestureBinding(MouseClickPattern(:left),
-                            (doc, evt) -> ReplaceReferencedValueOperation(doc, "hovered", true);
+                            (doc, evt) -> ReplaceReferencedValueOperation(doc, "pressed", true);
                             applicable = _always, description = "custom left",
                             domain = "test")
     fired = Ref(false)

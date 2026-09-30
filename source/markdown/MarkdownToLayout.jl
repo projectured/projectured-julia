@@ -137,7 +137,6 @@ function _make_page_table(table::MarkdownTable)
                          Cell(@computation _make_column_align(table.alignments)),
                          Cell(true),                       # visible
                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
-                         Cell(nothing),                    # hovered
                          Cell(nothing))                    # tooltip
     set_output_path_computations!(widget, table, _map_table_path_forward)
     widget

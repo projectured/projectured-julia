@@ -106,12 +106,12 @@ _wtl_child_w(cim) = (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim
 _wtl_child_h(cim) = (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim.output.h) : 0
 
 # The band under a row: the whole row when the row is named, the one cell when
-# a cell is, and nothing when neither. `kind` is `:hover` or `:selection`, and
+# a cell is, and nothing when neither. `kind` is `:light` or `:selection`, and
 # the rect reads the document itself, so a caret move rebuilds no row.
 function _wtl_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, k::Int, st::WidgetTableListState,
                    height::Cell, kind::Symbol)
     bounds = Cell(@computation begin
-        reference = kind === :hover ? w.hovered : w.selection
+        reference = kind === :light ? _find_wtl_lit_row(get_mouse_target(w)) : w.selection
         named = _wtl_named(reference)
         named === nothing && return (0, 0)
         row, column = named
@@ -121,7 +121,7 @@ function _wtl_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, k::Int, st::W
         (1 <= column <= length(edges) - 1) || return (0, 0)
         (edges[column], edges[column + 1] - edges[column])
     end)
-    color = kind === :hover ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
+    color = kind === :light ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
     rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
     set_cell_computation!(getfield(rect, :x), () -> Int32(bounds[][1]))
     set_cell_computation!(getfield(rect, :y), () -> Int32(st.bw))
@@ -169,7 +169,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
         # A transparent rect the size of the row, so a click on the empty part
         # of a cell reaches the table through a container that gates on a hit.
         push!(out, GraphicsRect(0, 0, total_w, Int(height[]); color = color_transparent, radius = 0))
-        push!(out, _wtl_band(p, w, k, st, height, :hover))
+        push!(out, _wtl_band(p, w, k, st, height, :light))
         push!(out, _wtl_band(p, w, k, st, height, :selection))
         for c in 1:st.ncols
             (x_cell, y_cell, cim) = entries[c]
@@ -561,20 +561,11 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     make_path_operation(op, _wtl_cell_reference(k, c, get_operation_path(op)))
 end
 
-# The row of the place that `route` names, written to `hovered`, only when it
-# changes. A place that is in no row (a column header) has no row to hover.
-function _wtl_hover(iomap::WidgetTableListIoMap, route)
-    w = iomap.input
-    k = _widget_element_selected(route, "rows")
-    reference = k > 0 ? _wtl_row_reference(k) : nothing
-    reference == w.hovered && return nothing
-    _write_view_state(w, "hovered", reference)
-end
-
-# Whether `route` names the row that the table lights.
-function _is_wtl_lit_row(iomap::WidgetTableListIoMap, route)
-    k = _widget_element_selected(route, "rows")
-    k > 0 && _wtl_row_reference(k) == iomap.input.hovered
+# The whole row of the place that `target` names, the row that the light marks, or
+# nothing. A place that is in no row (a column header) lights no row.
+function _find_wtl_lit_row(target)
+    k = _widget_element_selected(target, "rows")
+    k > 0 ? _wtl_row_reference(k) : nothing
 end
 
 function _wtl_key_navigate(iomap::WidgetTableListIoMap, evt::KeyDown)
@@ -654,15 +645,9 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     if change.operation === nothing && g isa MouseClick && g.button === :left
         return Intent(g, _wtl_click(p, iomap, g))
     end
-    # The crossings come by route from the mouse target tracking: a MouseHover
-    # lights the row that its route names, a MouseLeave of the table, or of the lit
-    # row, clears it.
-    change.operation === nothing && g isa MouseHover && return Intent(g, _wtl_hover(iomap, change.route))
-    change.operation === nothing && g isa MouseLeave &&
-        (_is_route_at_place(change.route) || _is_wtl_lit_row(iomap, change.route)) &&
-        return Intent(g, iomap.input.hovered === nothing ? nothing :
-                         _write_view_state(iomap.input, "hovered", nothing))
-    change.operation === nothing && g isa Union{MouseEnter,MouseLeave,MouseMove} && return Intent(g, nothing)
+    # A crossing, a dwell and a pointer motion do not go into the cells.
+    change.operation === nothing && g isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover} &&
+        return Intent(g, nothing)
     if change.operation === nothing && g isa KeyDown
         op = _wtl_key_navigate(iomap, g)
         op === nothing || return Intent(g, op)

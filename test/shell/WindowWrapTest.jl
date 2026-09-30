@@ -130,7 +130,8 @@ end
     editor = Editor(backend, tracked, tracking, Device[Keyboard(), Mouse()])
     run_frame!(editor)
     move!(window, x, y, time) = (push_event!(backend, WindowInput(window, MouseMove(x, y; time))); run_frame!(editor))
-    lit() = [item.action.label for item in menu.elements if item.hovered]
+    lit() = [item.action.label for item in menu.elements if get_mouse_target(item) !== nothing]
+    lit_row() = WidgetModule._widget_element_selected(get_mouse_target(list), "items")
 
     move!(:widget_popup, 5, 30, 1.0)
     @test lit() == ["Beta"]
@@ -138,11 +139,11 @@ end
     @test lit() == ["Alpha"]
     # Into the first window: the item goes off, and the row lights.
     move!(:shell, 5, 45, 1.2)
-    @test isempty(lit()) && list.hovered == 2
+    @test isempty(lit()) && lit_row() == 2
     # The leave of the window of the pointer turns every light off (H3).
     push_event!(backend, WindowInput(:shell, WindowLeave(; time = 1.3)))
     run_frame!(editor)
-    @test list.hovered == 0
+    @test lit_row() == 0
     @test isempty(editor.timers)
 end
 

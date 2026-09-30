@@ -57,7 +57,15 @@ struct MttContactsToWidgets <: Projection end
 function ProjectionModule.print_document(p::MttContactsToWidgets, recursion, input::MttContacts, ctx)
     list = WidgetList(Any[person.name for person in input.people]; width = 200)
     button = WidgetButton("Delete"; size = Point2D(80, 30), position = Point2D(0, 150))
-    SimpleIoMap(p, input, WidgetComposite(Any[list, button]))
+    composite = WidgetComposite(Any[list, button])
+    iomap = SimpleIoMap(p, input, composite)
+    # The view maps the part under the pointer forward into what it makes, as a view
+    # maps its selection: a person to its row, and the button of the view to the
+    # button. The view has no selection to map.
+    follow_output_selection!(composite, () -> nothing;
+        forward_mouse_target = () -> map_mouse_target_forward(input,
+            path -> map_reference_forward(p, iomap, path)))
+    iomap
 end
 
 # The steps of the path of a row, `elements[1].items[k]`, before its index.
@@ -127,8 +135,46 @@ function _mtt_play!(driver::MttDriver, input)
     end
 end
 
-_mtt_move!(driver, x, y, t) = _mtt_play!(driver, WindowInput(:win, MouseMove(x, y; time = t)))
-_mtt_leave!(driver, t) = _mtt_play!(driver, WindowInput(:win, WindowLeave(; time = t)))
+# A move and a leave of the window, as the screen reads them. A content that draws
+# and has no windows is the view of the window itself, so the driver does what the
+# window does: the content reads the move, or the leave when the point is off it,
+# and the part under the pointer is written at the root. The tracker then reads
+# the input for its crossings. A content that is a screen reads the input itself.
+function _mtt_move!(driver, x, y, t)
+    move = MouseMove(x, y; time = t)
+    if _mtt_is_window_view(driver)
+        content = driver.iomap.child_iomap
+        in_content(operation) = reroot_operation(operation, (FieldReferenceStep("content"),))
+        _mtt_apply!(driver, _mtt_is_on_view(content, x, y) ?
+            in_content(read_child_move(content, move)) :
+            join_move_answers(in_content(read_child_leave(content, move, 0, 0)),
+                              ReplaceMouseTargetOperation(EmptyReference())))
+    end
+    _mtt_play!(driver, WindowInput(:win, move))
+end
+
+function _mtt_leave!(driver, t)
+    if _mtt_is_window_view(driver)
+        leave = MouseMove(-1, -1; time = t)
+        _mtt_apply!(driver, join_move_answers(
+            reroot_operation(read_child_leave(driver.iomap.child_iomap, leave, 0, 0),
+                             (FieldReferenceStep("content"),)),
+            ReplaceMouseTargetOperation(EmptyReference())))
+    end
+    _mtt_play!(driver, WindowInput(:win, WindowLeave(; time = t)))
+end
+
+_mtt_is_window_view(driver) = !hasproperty(driver.state.content, :windows) &&
+    unwrap_cell(get_iomap_output(driver.iomap.child_iomap)) isa GraphicsDocument
+
+# Whether `(x, y)` is on the canvas that `iomap` draws; a canvas with no size
+# leaves it to the content.
+function _mtt_is_on_view(iomap, x, y)
+    canvas = unwrap_cell(get_iomap_output(iomap))
+    canvas isa GraphicsCanvas || return true
+    (Int(canvas.w) <= 0 || Int(canvas.h) <= 0) && return true
+    0 <= x < Int(canvas.w) && 0 <= y < Int(canvas.h)
+end
 _mtt_path(names...) = extend_reference(EmptyReference(), (FieldReferenceStep(n) for n in names)...)
 
 # The crossings the content read, as `(kind, route)`, from `start` on.
@@ -238,11 +284,11 @@ function test_mouse_target_tracking()
         driver = MttDriver(projection, state, print_document(projection, state), Any[],
                            Dict{Symbol,Float64}())
         _mtt_move!(driver, 5, 5, 1.0)
-        @test one.hovered == true && two.hovered == false
+        @test get_mouse_target(one) !== nothing && get_mouse_target(two) === nothing
         _mtt_move!(driver, 5, 45, 1.1)
-        @test one.hovered == false && two.hovered == true
+        @test get_mouse_target(one) === nothing && get_mouse_target(two) !== nothing
         _mtt_leave!(driver, 1.2)
-        @test one.hovered == false && two.hovered == false
+        @test get_mouse_target(one) === nothing && get_mouse_target(two) === nothing
     end
 
     @testset "a widget that a view makes lights: a row of a part, and a button of the view" begin
@@ -257,20 +303,21 @@ function test_mouse_target_tracking()
         rows = Int[]
         for (k, y) in enumerate(ys)
             _mtt_move!(driver, 20, y, 1.0 + k / 100)
-            push!(rows, list.hovered)
+            push!(rows, WidgetModule._widget_element_selected(get_mouse_target(list), "items"))
         end
         @test unique(filter(>(0), rows)) == [1, 2, 3]
         _mtt_move!(driver, 20, ys[findfirst(==(2), rows)], 2.0)
         @test strip_reference_types(driver.state.target) ==
               extend_reference(EmptyReference(), FieldReferenceStep("people"), ElementReferenceStep(2))
-        @test list.hovered == 2
+        @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 2
         # Onto the button: the leave of the person turns its row off, and the
         # button, a part through the introduced reference, gets its enter.
         _mtt_move!(driver, 5, 160, 2.1)
         @test is_introduced_reference(driver.state.target)
-        @test list.hovered == 0 && button.hovered == true
+        @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 0 &&
+              get_mouse_target(button) !== nothing
         _mtt_leave!(driver, 2.2)
-        @test button.hovered == false
+        @test get_mouse_target(button) === nothing
     end
 
     @testset "a row of a list lights, the light follows the pointer, and goes off" begin
@@ -284,21 +331,23 @@ function test_mouse_target_tracking()
         rows = Int[]
         for (k, y) in enumerate(ys)
             _mtt_move!(driver, 20, y, 1.0 + k / 100)
-            push!(rows, list.hovered)
+            push!(rows, WidgetModule._widget_element_selected(get_mouse_target(list), "items"))
         end
         @test unique(filter(>(0), rows)) == [1, 2, 3]
         @test issorted(rows[1:findlast(>(0), rows)])
         # Onto another widget: the row goes off, and the widget lights.
         first_row = ys[findfirst(==(1), rows)]
         _mtt_move!(driver, 20, first_row, 2.0)
-        @test list.hovered == 1
+        @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 1
         _mtt_move!(driver, 10, 210, 2.1)
-        @test list.hovered == 0 && other.hovered == true
+        @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 0 &&
+              get_mouse_target(other) !== nothing
         # The leave of the window turns every light off.
         _mtt_move!(driver, 20, first_row, 2.2)
-        @test list.hovered == 1 && other.hovered == false
+        @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 1 &&
+              get_mouse_target(other) === nothing
         _mtt_leave!(driver, 2.3)
-        @test list.hovered == 0
+        @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 0
     end
 
     @testset "a light changes the layout of no widget" begin
@@ -307,14 +356,15 @@ function test_mouse_target_tracking()
         driver = MttDriver(make_widget_projection_example(measure = FixedMeasure(10, 18, 6, 0)),
                            WidgetComposite(Any[list, button]))
         before = _mtt_layout(_mtt_value(driver.iomap.output))
+        lit_row() = WidgetModule._widget_element_selected(get_mouse_target(list), "items")
         for (k, y) in enumerate(2:2:60)
-            list.hovered > 0 && break
+            lit_row() > 0 && break
             _mtt_move!(driver, 20, y, 1.0 + k / 100)
         end
-        @test list.hovered > 0
+        @test lit_row() > 0
         @test _mtt_layout(_mtt_value(driver.iomap.output)) == before
         _mtt_move!(driver, 10, 210, 1.1)
-        @test button.hovered == true
+        @test get_mouse_target(button) !== nothing
         @test _mtt_layout(_mtt_value(driver.iomap.output)) == before
     end
 end

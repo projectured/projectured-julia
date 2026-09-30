@@ -54,11 +54,11 @@ const _VEIL = 0.25
 _veiled(color::StyleColor, on::Bool) =
     on ? StyleColor(color.red, color.green, color.blue, color.alpha * _VEIL) : color
 
-# The colour a series draws in: its own or the cycle's, faded when some *other*
-# series is being hovered.
+# The colour a series draws in: its own or the cycle's, faded when the pointer is
+# on some *other* series.
 function _draw_color(g, index::Int, own)
     color = get_series_color(own, index, g.style.color_cycle)
-    _veiled(color, g.hovered_index != 0 && g.hovered_index != index)
+    _veiled(color, g.lit_index != 0 && g.lit_index != index)
 end
 
 """
@@ -281,7 +281,7 @@ function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font
     end
 end
 
-# Which series a reference points into, or 0. Used for both the hover veil and
+# Which series a reference points into, or 0. Used for both the veil of the light and
 # the selection highlight; a `ChartPlot`-rooted reference (what the reader
 # produces) and a `Chart`-rooted one (what the document holds) both resolve.
 function _reference_series_index(chart::Chart, reference)
@@ -432,13 +432,13 @@ function _legend_elements!(out, g)
     for (k, (index, x, y, item_w, row_h)) in enumerate(rects)
         _, label, color = plan.items[k]
         cy = y + row_h ÷ 2
-        # The legend is where a selected or hovered series is called out: it is
+        # The legend is where a selected or lit series is called out: it is
         # the one place every series has a fixed, findable spot. An entry that
         # names no series has nothing to call out.
         if index != 0
             if index == g.selected_index
                 push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = _SELECTION, radius = 3))
-            elseif index == g.hovered_index
+            elseif index == g.lit_index
                 push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = _HOVER, radius = 3))
             end
         end
@@ -561,7 +561,6 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     xs = AxisScale(view.x_min, view.x_max, plot_x, plot_x + plot_w; log=xlog)
     ys = AxisScale(view.y_min, view.y_max, plot_y + plot_h, plot_y; log=ylog)
 
-    hovered_index = _reference_series_index(chart, plot.hovered)
     selected_index = _reference_series_index(chart, chart.selection)
     selected_part = get_chart_part_index(chart, chart.selection)
     whole_selected = chart.selection isa EmptyReference
@@ -578,7 +577,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
         for (i, s) in series if s isa ChartStripSeries && haskey(strip_rows, i))
 
     (; w, h, chart, style, view, series, legend,
-       hovered_index, selected_index, selected_part, whole_selected,
+       selected_index, selected_part, whole_selected,
        measure_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        point_cache, strip_spans, strip_rows, strip_count, strip_only,
@@ -1044,7 +1043,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     height = max(bottom - top, 1)
     spans = _strip_spans(g, index)
     cycle = g.style.color_cycle
-    veiled = g.hovered_index != 0 && g.hovered_index != index
+    veiled = g.lit_index != 0 && g.lit_index != index
 
     for (l, r, code) in spans
         color = _veiled(strip_state_color(s, code, cycle), veiled)
@@ -1242,6 +1241,10 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
     elements = CellVector(@computation begin
         g = geometry[]
         g === nothing && return _empty_elements(p, plot, ctx)
+        # The series that the pointer is on lights, and the others are veiled. The
+        # element pass reads it, which each move of the cursor runs, and the
+        # layout does not.
+        g = merge(g, (lit_index = _reference_series_index(g.chart, getfield(plot, :mouse_target)[]),))
         out = Any[]
         _frame_elements!(out, g)
 
@@ -1406,10 +1409,10 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         return _key_intent(g, plot, event)
     elseif event isa MouseMove
         plot.drag_anchor === nothing || return _drag_move(g, plot, event)
-        return _hover_intent(g, plot, event.x, event.y)
+        return _track_cursor(g, plot, event.x, event.y)
     elseif event isa MouseLeave
         # A drag that leaves the chart is abandoned, not committed halfway.
-        return _compound(_cancel_drag(plot), _clear_hover(plot))
+        return _compound(_cancel_drag(plot), _clear_cursor(plot))
     elseif event isa MouseClick && event.button === :left
         # A double click anywhere in the plot means "show me everything again".
         if event.count >= 2 && _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
@@ -1452,7 +1455,7 @@ _compound(a, b) = a === nothing ? b : b === nothing ? a :
 
 # The window, the pointer and the rubber band are the state of the view, not of
 # the chart: a write of one is marked as view state, so a history does not record
-# a zoom, a hover or a drag. The visibility of a series is the chart's own, and a
+# a zoom, a readout or a drag. The visibility of a series is the chart's own, and a
 # legend click writes it as an edit.
 _write_view_state(plot::ChartPlot, field::AbstractString, value) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(plot, field, value))
@@ -1580,28 +1583,17 @@ function _key_intent(g, plot::ChartPlot, event::KeyPress)
     nothing
 end
 
-# Hovering sets two fields: the pointer in data coordinates (the crosshair reads
-# it) and a reference to whatever is under it (the frame veils everything else).
-function _hover_intent(g, plot::ChartPlot, x::Integer, y::Integer)
-    ops = Operation[]
-    index = _legend_hit(g, x, y)
-    hovered = index isa Int && index > 0 ? get_chart_series_reference(index, plot) : nothing
-    isequal(plot.hovered, hovered) ||
-        push!(ops, _write_view_state(plot, "hovered", hovered))
-
+# A move writes the pointer in data coordinates, which the crosshair reads, only
+# when it changes. What is under the pointer is the mouse target of the plot.
+function _track_cursor(g, plot::ChartPlot, x::Integer, y::Integer)
     inside = _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
     cursor = inside ? (to_data(g.xs, x), to_data(g.ys, y)) : nothing
-    isequal(plot.cursor, cursor) ||
-        push!(ops, _write_view_state(plot, "cursor", cursor))
-
-    isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops)
+    isequal(plot.cursor, cursor) ? nothing : _write_view_state(plot, "cursor", cursor)
 end
 
-function _clear_hover(plot::ChartPlot)
-    (plot.hovered === nothing && plot.cursor === nothing) && return nothing
-    CompoundOperation(Operation[
-        _write_view_state(plot, "hovered", nothing),
-        _write_view_state(plot, "cursor", nothing)])
+function _clear_cursor(plot::ChartPlot)
+    plot.cursor === nothing && return nothing
+    _write_view_state(plot, "cursor", nothing)
 end
 
 # The series nearest a click inside the plot area. Line and scatter series are

@@ -39,7 +39,7 @@ end
     driver = MttDriver(proj, tb)
     for (i, c) in enumerate(wrappers)
         _mtt_move!(driver, Int(c.x) + 6, Int(c.y) + Int(c.h[]) ÷ 2, 1.0 + i)
-        @test [item.action.label for item in tb.elements if item.hovered] == [labels[i]]
+        @test [item.action.label for item in tb.elements if get_mouse_target(item) !== nothing] == [labels[i]]
     end
 end
 
@@ -100,7 +100,7 @@ end
     for (i, c) in enumerate(items)
         x, y = _centre(c)
         _mtt_move!(driver, x, y, 1.0 + i)
-        @test [item.action.label for item in tb.elements if item.hovered] == [labels[i]]
+        @test [item.action.label for item in tb.elements if get_mouse_target(item) !== nothing] == [labels[i]]
         # A left press invokes the action of that item, and only reads it: the
         # reader answers the operation and runs nothing.
         op = _press(io, (x, y))

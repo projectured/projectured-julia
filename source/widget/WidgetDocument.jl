@@ -226,10 +226,8 @@ hits, and Up and Down move the selection.
 
     open_pane!(editor, WidgetList(["Fifo", "TandemQueue"]; selected = 1, width = 200); title = "Configurations")
 
-`hovered` is the 1-based row under the pointer (`0` = none). Like a button's
-`hovered` it is **transient UI state**, not content: the reader writes it from
-pointer motion and nothing else reads it back. It is an `Int` rather than the
-shared `Bool` because a list hovers per ROW, not as a whole.
+The row under the pointer lights. The list reads that row from its mouse target,
+`items[i]`, which a move writes; the list holds no state of its own for it.
 
 Selection lives in the standard macro-injected `selection` field, as a reference
 `items[i-1:i]` — the same representation [`WidgetTable`](@ref) uses for its rows,
@@ -251,7 +249,6 @@ opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
     border::Inset
     padding::Inset
     style::Any
-    hovered::Int
     tooltip::Any
 end
 
@@ -292,7 +289,7 @@ function WidgetList(items::Vector; position::Point2D=Point2D(0, 0),
                     margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
                Cell(Int(width)), Cell(visible), Cell(enabled),
-               Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(0), Cell(tooltip),
+               Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip),
                Cell(make_widget_list_selection(selected)))
 end
 
@@ -395,13 +392,12 @@ and Resume, say. The button is as wide as the widest of them and of its current
 label, so the row it stands in does not move when the label changes. Empty (the
 default) means the current label alone.
 
-`hovered` and `pressed` are **transient UI state** holding the pointer
-interaction: `hovered` is `true` while the pointer is inside the button,
-`pressed` is `true` while the left button is held down on it. The printer reads
-them to pick the surface fill, so changing them re-renders only this button.
-They are written by the `WidgetButton` reader (a `ReplaceReferencedValueOperation` into the
-`hovered` / `pressed` cell) and are not part of the document's content — they
-are not meant to be serialised.
+`pressed` is **transient UI state**: it is `true` while the left button is held
+down on the button. The printer reads it, and the mouse target of the button,
+which says whether the pointer is on it, to pick the surface fill, so a change of
+either re-renders only this button. The `WidgetButton` reader writes `pressed` (a
+`ReplaceReferencedValueOperation` into its cell); it is not part of the
+document's content and is not meant to be serialised.
 
 See also `Action`, `WidgetSwitch` for a state that stays, and `WidgetToggleGroup`
 for one choice among several.
@@ -418,7 +414,6 @@ for one choice among several.
     border::Inset
     padding::Inset
     style::Any
-    hovered::Bool
     pressed::Bool
     labels::Any
     tooltip::Any
@@ -447,7 +442,7 @@ function WidgetButton(content; position::Point2D=Point2D(0, 0), size::Union{Noth
                  Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                  Cell(style),
-                 Cell(false), Cell(false), Cell(labels), Cell(tooltip))
+                 Cell(false), Cell(labels), Cell(tooltip))
 end
 
 # The reactive-label channel: make this button's label computed. The label lives
@@ -666,7 +661,6 @@ disabled command) is inert.
     border::Inset
     padding::Inset
     style::Any
-    hovered::Bool
     tooltip::Any
 end
 
@@ -683,7 +677,7 @@ function WidgetMenuItem(content;
     # item's `Action`.
     WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
-                   Cell(style), Cell(false), Cell(tooltip))
+                   Cell(style), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 
@@ -718,7 +712,6 @@ bound to a disabled action, is inert.
     border::Inset
     padding::Inset
     style::Any
-    hovered::Bool
     tooltip::Any
 end
 
@@ -732,7 +725,7 @@ function WidgetToolbarItem(content;
                            style=nothing, tooltip=nothing)
     WidgetToolbarItem(Cell(resolve_action(content, icon, action)), Cell(gestures),
                       Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
-                      Cell(style), Cell(false), Cell(tooltip))
+                      Cell(style), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetToolbarItem) = w.gestures
 
@@ -2244,7 +2237,6 @@ See also `make_result_table` and `WidgetList` for one column.
     border::Inset
     padding::Inset
     style::Any
-    hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
     tooltip::Any
 end
 
@@ -2335,7 +2327,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
                 Cell(collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(nothing), Cell(tooltip))
+                Cell(tooltip))
 end
 
 """
@@ -2419,13 +2411,12 @@ an expand chevron; an icon (when present) is drawn in its own column before the
 label; children are indented. (A widget-styled counterpart to the file-system /
 navigator trees.)
 
-`hovered` and `expanded` are **transient UI state** (like [`WidgetButton`](@ref)'s
-`hovered`): `hovered` holds the node-path reference of the row under the pointer
-(or `nothing`), written by the reader from the `MouseHover` and the `MouseLeave`
-that the mouse target tracking gives by route; `expanded` is the set of node paths (1-based index chains) whose
-children show, toggled by clicking a parent's chevron. A node is closed until its
-path is in `expanded`, so the owner of a tree names the nodes it opens at the
-start. Neither is part of the tree's content.
+`expanded` is **transient UI state** (like [`WidgetButton`](@ref)'s `pressed`):
+the set of node paths (1-based index chains) whose children show, toggled by
+clicking a parent's chevron. A node is closed until its path is in `expanded`,
+so the owner of a tree names the nodes it opens at the start. It is not part of
+the tree's content. The row under the pointer lights: the tree reads its node
+path from the mouse target of the tree.
 
 `margin`, `border` and `padding` are `nothing` or an `Inset`, each `nothing`
 taking the projection's default (transparent, zero width); `style` is `nothing`,
@@ -2439,7 +2430,6 @@ a `WidgetStyle`, or a `WidgetTreeStyle`, overriding one color of the projection.
     border::Inset
     padding::Inset
     style::Any
-    hovered::Union{Nothing, Reference}           # transient: node-path ref of the row under the pointer, or nothing
     expanded::Set{Vector{Int}}   # transient: node paths whose children show
     gestures::Any                # per-instance tree-level gesture bindings
     tooltip::Any
@@ -2449,7 +2439,7 @@ WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            expanded=Set{Vector{Int}}(), gestures=GestureBinding[], tooltip=nothing) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
                Cell(margin), Cell(border), Cell(padding), Cell(style),
-               Cell(nothing), Cell(Set{Vector{Int}}(expanded)), Cell(gestures), Cell(tooltip))
+               Cell(Set{Vector{Int}}(expanded)), Cell(gestures), Cell(tooltip))
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each
 # `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_bound_gesture`.
@@ -2704,7 +2694,7 @@ OperationModule.operation_travels_unchanged(::Union{
 """
     _write_view_state(widget, field, value) -> ReplaceViewStateOperation
 
-The write of a widget's pointer state — `hovered`, `pressed`, a slider's
+The write of a widget's pointer state — `pressed`, a slider's
 `dragging` — marked as view state, so a history never records it.
 """
 _write_view_state(widget, field::AbstractString, value) =

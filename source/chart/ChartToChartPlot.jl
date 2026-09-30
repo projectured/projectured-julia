@@ -35,7 +35,7 @@ function print_document(p::ChartToChartPlot, recursion,
     iomap_cell = Cell(nothing)
     plot = ChartPlot(
         Cell(chart),
-        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
+        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
         Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, chart.selection)
         end),

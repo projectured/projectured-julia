@@ -1,8 +1,8 @@
 # Fragment of `SequenceChartModule`.
 #
 # The sequence chart's presentation document: a `SequenceChart` plus everything
-# about *looking at* one — the window onto the timeline, where the pointer is,
-# what is hovered.
+# about *looking at* one — the window onto the timeline and where the pointer is.
+# The part under the pointer is its mouse target.
 #
 # None of that is chart content. A saved chart should not remember where someone
 # had scrolled to, and the same trace shown in two panes should be able to be
@@ -68,7 +68,6 @@ A sequence chart together with how it is currently being looked at.
   them than fit. A pure translation, so it moves the picture without disturbing
   the layout.
 - `cursor` — the pointer, driving the gutter's time readout.
-- `hovered` — a `Reference` naming the hovered event, arrow or lane.
 """
 @document struct SequenceChartPlot <: SequenceChartDocument
     chart::Any
@@ -76,7 +75,6 @@ A sequence chart together with how it is currently being looked at.
     follow_end::Bool = false
     cross_offset::Int = 0
     cursor::Any = nothing
-    hovered::Any = nothing
 end
 
 """
