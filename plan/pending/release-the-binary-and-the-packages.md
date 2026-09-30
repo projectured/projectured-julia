@@ -1194,8 +1194,10 @@ registration.
       Open: the other five argument violations are the open questions of the
       kernel audit plan: POLICY-3 with L18-3 (`Tool`) and L22-1
       (`insert_elements!`, `delete_elements!`), and N-3 (`start_application!`,
-      `FixedMeasure`), which asks the same question. They wait for the owner's
-      answer there. The markers of the failing tests: a Sonnet agent, checked
+      `FixedMeasure`), which asks the same question. The owner, on
+      2026-09-30: they are settled and made in the kernel audit plan, not here.
+      Until that lands, the guard job and the umbrella job of CI fail on these
+      five. The markers of the failing tests: a Sonnet agent, checked
       suite by suite.
 
 ### Step P5: the owner's steps
