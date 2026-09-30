@@ -23,7 +23,7 @@ using ProjecturedStyle
 using SimpleDirectMediaLayer
 using SimpleDirectMediaLayer.LibSDL2
 # The locale data of Xlib, which SDL needs to give a window its title.
-import Xorg_libX11_jll
+using Xorg_libX11_jll: Xorg_libX11_jll
 # The backend + device contracts (PAR-QUALIFIED-EXTENSION): bare `using`,
 # extended by qualification below. A bare `using` of an alias binds the
 # module's *real* name, so the extension sites read BackendModule.*;
