@@ -14,9 +14,7 @@ costs the rows that the table shows.
 module DataFramesModule
 
 using DataFrames
-using ProjecturedSdl: SdlBackend
 
-using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
@@ -25,30 +23,27 @@ using ..EventModule
 using ..GestureBindingModule
 using ..IoMapModule
 using ..LayoutModule
-using ..NaturalModule
 using ..OperationModule
-using ..PaneModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
-using ..ScreenModule
 using ..StyleModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent
+import ..WidgetModule: make_value_document, make_graphics_projection
 
 export DataFrameView, jump_to_row, make_data_frame_cell
 export DataFrameViewToWidget, make_data_frame_view_projection
-export ProjecturedDisplay, display_in_editor, close_data_frame_editor!
 
 include("DataFrameView.jl")
 include("DataFrameViewToWidget.jl")
-include("DataFrameDisplay.jl")
 
-function __init__()
-    register_natural_graphics!(:dataframes,
-        (; measure) -> Pair{Type,Any}[DataFrameView => make_data_frame_view_projection(; measure)])
-end
+# A data frame shows as a `DataFrameView`: in the display of a value, and inside
+# any document that the natural renderer draws.
+make_value_document(frame::AbstractDataFrame) = DataFrameView(frame)
+make_graphics_projection(::Type{DataFrameView}; measure) =
+    make_data_frame_view_projection(; measure)
 
 end # module DataFramesModule

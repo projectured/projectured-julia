@@ -856,7 +856,13 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     2026-09-30). The registries and the run function of D13, then
     `ProjecturedDataFrames` without `ProjecturedSdl`, `ProjecturedScreen` and
     `ProjecturedPane` where D13 allows it. D13 is made; the work is the plan
-    [packages-compose-by-seams.md](packages-compose-by-seams.md).
+    [packages-compose-by-seams.md](packages-compose-by-seams.md). Its steps
+    1 to 7 are done (2026-09-30): the package depends on DataFrames,
+    Collection, Kernel, Layout, Primitive, Projection, Style and Widget; the
+    display moved to `ProjecturedDisplay` as `display_in_editor(value)` and
+    `EditorDisplay`; the natural row is the method of
+    `make_graphics_projection`. Serialization leaves the closure with
+    Widget's part of step 4a, which waits for the owner.
 - [ ] **3. Refresh.** The three levels of §4.3, as the method of
   `refresh_document!` for `DataFrameView`. The triggers A, B and D, with no
   busy flag. C is a keyword that is off by default (D3).

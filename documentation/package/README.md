@@ -49,6 +49,7 @@ The packages below every domain. [package-rules.md](../rule/package-rules.md) ha
 | `ProjecturedFault` | [fault.md](fault/fault.md) | the fault barrier, the fault log and the safe mode |
 | `ProjecturedConsole` | [console.md](console/console.md) | the terminal backend |
 | `ProjecturedPdf` | [pdf.md](pdf/pdf.md) | the export to a vector PDF |
+| `ProjecturedDisplay` | [display.md](display/display.md) | a value shown in an editor beside the REPL |
 
 ## The domains
 

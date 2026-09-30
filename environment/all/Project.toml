@@ -26,6 +26,8 @@ ProjecturedDatabaseTest = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
 ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 ProjecturedDataFramesExample = "61ad9eff-ea91-43c8-867c-8ad08b1239de"
 ProjecturedDataFramesTest = "b1aceadc-a635-48bd-837b-c4a6ec3ad7cd"
+ProjecturedDisplay = "fb900e08-66ca-48ad-b9eb-abb635762358"
+ProjecturedDisplayTest = "51ef65a5-9e62-497a-84a5-2e72c5561989"
 ProjecturedDbCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
 ProjecturedDbCatalogExample = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
 ProjecturedDbCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
@@ -162,6 +164,8 @@ ProjecturedDatabaseTest = {path = "../../package/ProjecturedDatabaseTest"}
 ProjecturedDataFrames = {path = "../../package/ProjecturedDataFrames"}
 ProjecturedDataFramesExample = {path = "../../package/ProjecturedDataFramesExample"}
 ProjecturedDataFramesTest = {path = "../../package/ProjecturedDataFramesTest"}
+ProjecturedDisplay = {path = "../../package/ProjecturedDisplay"}
+ProjecturedDisplayTest = {path = "../../package/ProjecturedDisplayTest"}
 ProjecturedDbCatalog = {path = "../../package/ProjecturedDbCatalog"}
 ProjecturedDbCatalogExample = {path = "../../package/ProjecturedDbCatalogExample"}
 ProjecturedDbCatalogTest = {path = "../../package/ProjecturedDbCatalogTest"}

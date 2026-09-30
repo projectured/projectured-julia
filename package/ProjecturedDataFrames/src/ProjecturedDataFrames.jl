@@ -17,18 +17,13 @@ using DataFrames
 using ProjecturedCollection
 using ProjecturedKernel
 using ProjecturedLayout
-using ProjecturedNatural
-using ProjecturedPane
 using ProjecturedPrimitive
 using ProjecturedProjection
-using ProjecturedScreen
-using ProjecturedSdl
 using ProjecturedStyle
 using ProjecturedWidget
 
-for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedLayout, ProjecturedNatural,
-             ProjecturedPane, ProjecturedPrimitive, ProjecturedProjection, ProjecturedScreen,
-             ProjecturedStyle, ProjecturedWidget)
+for _src in (ProjecturedCollection, ProjecturedKernel, ProjecturedLayout, ProjecturedPrimitive,
+             ProjecturedProjection, ProjecturedStyle, ProjecturedWidget)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

@@ -11,6 +11,7 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 ProjecturedDataFramesExample = "61ad9eff-ea91-43c8-867c-8ad08b1239de"
+ProjecturedDisplay = "fb900e08-66ca-48ad-b9eb-abb635762358"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
@@ -25,6 +26,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedDataFrames = {path = "../ProjecturedDataFrames"}
 ProjecturedDataFramesExample = {path = "../ProjecturedDataFramesExample"}
+ProjecturedDisplay = {path = "../ProjecturedDisplay"}
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}

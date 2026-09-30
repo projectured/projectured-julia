@@ -678,14 +678,49 @@ Each step ends with its narrowest test and a commit.
   - `test_tabs_wrapper` in `test/substrate/projection/TabsWrapperTest.jl`.
     Found: a widget prints its children when its output is read, so the
     test reads the whole output.
-- [ ] **6. `ProjecturedDisplay`.** Add `display_in_editor`, `EditorDisplay`
+- [x] **6. `ProjecturedDisplay`.** Add `display_in_editor`, `EditorDisplay`
   and the REPL hook that refreshes. A value with no document is an error
   (C15). Add the package to
   `environment/all`, to the table of package-rules.md, and to the naming
   guard. Run `test_package_graph()`.
-- [ ] **7. The data frame package.** Remove the dependencies of §4.4, add
+  - Done 2026-09-30. `package/ProjecturedDisplay` and
+    `source/display/{DisplayModule,EditorDisplay}.jl`: `EditorDisplay`,
+    `display_in_editor(value; title, backend, tabs = true)` and
+    `close_display_editor!()`. It depends on Kernel, Natural, Screen, Style
+    and Widget. `ProjecturedDisplayTest` holds its layering guard and
+    `test_editor_display`; `test_all` runs `test_display()`, and the umbrella
+    imports the package, which is the thirtieth of the substrate in
+    package-rules.md. `documentation/package/display/display.md` describes it.
+  - The session keeps the title and the document of each value, so it needs
+    no pane verb to find a tab or to make a title unique.
+  - `tabs = true` is the keyword that C5 promised. The display passes
+    `tabs = (; title)` only when the tabs wrapper is loaded, because an
+    unknown keyword that is on is an error.
+  - A window that opens later draws with a `NaturalToGraphics` of its own,
+    through `opened_window_projections`, because a renderer keeps state.
+  - Not done: the REPL hook that refreshes after each input. It comes with
+    the first method of `refresh_document!`, the refresh of a
+    `DataFrameView` (phase 3 of the data frame plan). Found: the REPL has
+    no hook after an input. A transform in `ast_transforms` runs before the
+    input; a wrapper after it would change the value of `ans` or break a
+    top-level form. One way is a task that the transform starts and that
+    waits until `Base.active_repl_backend.in_eval` is false, which is an
+    internal field of the REPL. This is a point for the owner then.
+- [x] **7. The data frame package.** Remove the dependencies of §4.4, add
   its methods, and move `DataFrameDisplayTest.jl` to the display test
   package. Run `test_data_frame_view()` and the layering guard.
+  - Done 2026-09-30. `DataFrameDisplay.jl` is gone. The package adds
+    `make_value_document(::AbstractDataFrame)` and
+    `make_graphics_projection(::Type{DataFrameView}; measure)`, and its
+    `__init__` is gone. It depends on DataFrames, Collection, Kernel,
+    Layout, Primitive, Projection, Style and Widget. Its closure is 13
+    Projectured packages; with the display and SDL, 14 under the three
+    that a user names. Serialization is the one it does not need, and it
+    comes through Widget until Widget's part of step 4a.
+  - `test/dataframes/DataFrameDisplayTest.jl` now tests a frame through
+    the seams and the display; the test package depends on
+    `ProjecturedDisplay`. The display tests 24, the data frames 53, the
+    package graph, the export collisions and the naming guard pass.
 - [ ] **8. The gallery.** Each keyword of `make_example_editor` becomes a
   wrapper in the package of §4.5. `run_example` keeps its signature. The
   selection lift moves into the wrappers.

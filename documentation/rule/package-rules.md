@@ -164,7 +164,7 @@ the packages its own source names — no more and no less.
 The kernel depends on nothing. A row names it only where it is the one
 dependency.
 
-### The twenty-nine packages of the substrate
+### The thirty packages of the substrate
 
 | package | depends on | third-party |
 | --- | --- | --- |
@@ -197,6 +197,7 @@ dependency.
 | `ProjecturedFault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `ProjecturedConsole` | Style, Text | — |
 | `ProjecturedPdf` | Graphics, Style | — |
+| `ProjecturedDisplay` | Natural, Screen, Style, Widget | — |
 
 ### The twenty-one domains
 
@@ -217,7 +218,7 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 | `ProjecturedSdl` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
 | `ProjecturedWeb` | Collection, Graphics, Kernel, Screen, Style | Base64, HTTP, JSON3 |
 | `ProjecturedOdbc` | Collection, Database, DbCatalog, Kernel, Projection, Sql, Syntax, Text | DBInterface, ODBC, Tables |
-| `ProjecturedDataFrames` | Collection, Kernel, Layout, Natural, Pane, Primitive, Projection, Screen, Sdl, Style, Widget | DataFrames |
+| `ProjecturedDataFrames` | Collection, Kernel, Layout, Primitive, Projection, Style, Widget | DataFrames |
 
 ### The aggregate and the leaves
 

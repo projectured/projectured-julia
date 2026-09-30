@@ -1,0 +1,26 @@
+name = "ProjecturedDisplayTest"
+uuid = "51ef65a5-9e62-497a-84a5-2e72c5561989"
+version = "0.1.0"
+authors = []
+
+# The display tier of the test-package DAG: the layering guard, and a value
+# shown in an editor that runs beside the caller, with tabs and without.
+
+[deps]
+ProjecturedDisplay = "fb900e08-66ca-48ad-b9eb-abb635762358"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
+ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
+ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
+ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedDisplay = {path = "../ProjecturedDisplay"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPane = {path = "../ProjecturedPane"}
+ProjecturedPrimitive = {path = "../ProjecturedPrimitive"}
+ProjecturedScreen = {path = "../ProjecturedScreen"}
+ProjecturedWidget = {path = "../ProjecturedWidget"}

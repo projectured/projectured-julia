@@ -8,12 +8,8 @@ DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
-ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
-ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 ProjecturedPrimitive = "a792d3c9-f446-49ae-a65b-985afeeb5ba4"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
-ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
-ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 
@@ -21,12 +17,8 @@ ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedLayout = {path = "../ProjecturedLayout"}
-ProjecturedNatural = {path = "../ProjecturedNatural"}
-ProjecturedPane = {path = "../ProjecturedPane"}
 ProjecturedPrimitive = {path = "../ProjecturedPrimitive"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
-ProjecturedScreen = {path = "../ProjecturedScreen"}
-ProjecturedSdl = {path = "../ProjecturedSdl"}
 ProjecturedStyle = {path = "../ProjecturedStyle"}
 ProjecturedWidget = {path = "../ProjecturedWidget"}
 

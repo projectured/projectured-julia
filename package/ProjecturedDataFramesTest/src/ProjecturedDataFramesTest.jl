@@ -3,7 +3,7 @@
 
 The DataFrames tier of the test-package DAG: the layering guard, the shape of
 `make_data_frame_example`, the view of a data frame drawn through the natural
-renderer, and the display in an editor that runs beside the caller.
+renderer, and a data frame shown through the seams of the display.
 
 Everything is aggregated by `test_dataframes()`.
 """
@@ -15,6 +15,7 @@ using ProjecturedCollection.CollectionModule
 using ProjecturedDataFrames
 using ProjecturedDataFrames.DataFramesModule
 using ProjecturedDataFramesExample
+using ProjecturedDisplay
 using ProjecturedGraphics.GraphicsModule
 using ProjecturedKernel
 using ProjecturedKernel.AgentModule

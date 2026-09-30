@@ -56,6 +56,7 @@ import ProjecturedFileFormat
 import ProjecturedNatural
 import ProjecturedConsole
 import ProjecturedPdf
+import ProjecturedDisplay
 
 # The concrete domains, in dependency order: the ones that need no other domain,
 # then the ones that build on them, then the application on top.

@@ -21,7 +21,7 @@ end
     test_dataframes()
 
 Run this package's whole suite: the layering guard, the shape of the example
-factory, the view of a data frame, and its display in an editor.
+factory, the view of a data frame, and a frame shown through the display.
 """
 function test_dataframes()
     @testset "ProjecturedDataFrames" begin

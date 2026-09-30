@@ -115,6 +115,7 @@ using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
 # The suite of the data frame view. It prints its views without a window.
 using ProjecturedDataFramesTest
+using ProjecturedDisplayTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
                    ConcreteReference, EmptyReference, Reference,
@@ -419,6 +420,7 @@ function test_all()
     test_anthropic()
     test_ollama()
     test_dataframes()
+    test_display()
     test_integration()
     end
 end
