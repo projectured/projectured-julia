@@ -169,7 +169,7 @@ Two call sites in inet-julia do not compile against the API now:
 | `show_document!(editor, content, document; title)` | Screen, with the method for `Any` that opens a new window | Pane: opens a tab in a `PaneTree`, or focuses the tab that shows `document` |
 | `make_document_projection(document)` | kernel, editor layer | Natural: one method for `Document`, which makes `NaturalToGraphics` (C14) |
 | `make_value_document(value)` | Widget | DataFrames: a `DataFrameView` |
-| `make_graphics_projection(document; measure)` | Widget | DataFrames, for `DataFrameView`. Reflection, for `AReflectedNode`. |
+| `make_graphics_projection(::Type{T}; measure)` | Widget | DataFrames, for `DataFrameView` (step 4 found that the seam is keyed by type) |
 | `refresh_document!(document)` | Widget | DataFrames, for `DataFrameView` (phase 3 of the data frame plan) |
 
 The backend files of the kernel are 🔒 in [SEALING.md](../../SEALING.md). So
@@ -433,18 +433,68 @@ Each step ends with its narrowest test and a commit.
   and 2 passed 338 tests (build, wait, inbox, playback, the kernel layering
   guard, the referenced document in the application, the console, the choice
   of a backend, and the gallery's editor).
-- [ ] **3. The window wrapper.** Move `make_window_scene` into the method of
+- [x] **3. The window wrapper.** Move `make_window_scene` into the method of
   `window`. Remove `make_editor(document, projection, title)` and
   `run_window_editor`, and move their callers to `build_editor` and
   `run_editor!`: Application, ApplicationVideo, the tests, and the data frame
   display for now.
-- [ ] **4. The widget seams.** Add `make_value_document`,
+  - Written 2026-09-30. `wrap_editor!(::Val{:window}, ...)` in
+    `WindowScene.jl` takes `(; title, width, height,
+    opened_window_projections)`. The default title is the title of the
+    document, else "ProjecturEd", and the default size is the display's.
+  - The wrapper acts unless the backend declares an output that is not
+    `:windows`. So a recorder and a test double, which declare no output, get
+    a window, as they did from the screen's `make_editor`.
+  - `screen_wrap` is gone, because nothing passed it.
+  - `run_editor!(document, ...)` takes the `mcp` keywords of the loop, so a
+    caller of `run_window_editor` moves to one call.
+  - `test_window_wrapper` in `test/substrate/projection/WindowWrapperTest.jl`.
+    Fourteen documents follow. The run of 2026-09-30: the window wrapper 8
+    of 8; `test_application` 337 pass and 2 errors, which main gives too
+    (the navigator scroll test); the referenced document in the application
+    101; the export collisions; the data frames 66.
+- [x] **4. The widget seams.** Add `make_value_document`,
   `make_graphics_projection` and `refresh_document!`. The natural renderer
   asks `make_graphics_projection` before its tables, and Natural adds the
   method of `make_document_projection` (C14). Reflection adds its method of
   `make_graphics_projection`.
+  - Found: the natural renderer builds one table by type when it is made, and
+    `TypeDispatchingProjection` reads only a fixed table. So the seam is keyed
+    by type, `make_graphics_projection(::Type{T}; measure)`, and the renderer
+    adds a row for each type in the method table, before the rows of
+    `register_natural_graphics!`. `collect_graphics_projection_types` puts a
+    type before its supertypes, so the first match is the most specific.
+  - Found: the reflection package depends on neither Style nor Projection, so
+    it can not build the chain of `ReflectionToWidget` and `WidgetToGraphics`
+    with a font. The display adds that row itself with the `extra` keyword of
+    `NaturalToGraphics`, which is there for a caller's own rows. So
+    Reflection adds no method.
+  - Found: a method for `Type{<:T}` keeps its `where` inside the tuple of its
+    signature, so the collection unwraps the argument too.
+  - `test_document_composition` in
+    `test/substrate/projection/DocumentCompositionTest.jl`. The natural
+    tests (the registry, the notation, every atom) and the data frames pass.
 - [ ] **5. The tabs and `show_document!`.** The screen method opens a
   window. The pane method opens or focuses a tab. Add the `tabs` wrapper.
+  - Found: `PaneToWidget` passes the content of a tab through unchanged, so
+    the stage after it must draw the pane's widgets and also each content.
+    The data frame display chains it before `NaturalToGraphics`, which draws
+    both. A caller with a projection of its own, such as the chain of JSON,
+    has a projection that draws no widget, so a `tabs` wrapper that is on by
+    default would break it.
+  - **Q3, for the owner.** (a) The tabs wrapper draws its widgets itself,
+    with the rows of `WidgetToGraphics` and `LayoutToGraphics`, and sends
+    every other document to the caller's projection. `ProjecturedPane` then
+    names `ProjecturedStyle` and `ProjecturedText` for the font and the
+    measure. Both are in its closure through Widget already, so no package
+    joins an image. (b) The tabs wrapper chains `PaneToWidget` before the
+    caller's projection and needs one that draws widgets; a caller whose
+    projection does not passes `tabs = false`. My recommendation: (a),
+    because a wrapper that is on by default must work with any projection.
+  - `show_document!` applies no wrapper of the `:document` layer to a new
+    document yet: the display is its one caller, and it uses no such
+    wrapper. The editor keeps no list of its wrappers until a caller needs
+    it.
 - [ ] **6. `ProjecturedDisplay`.** Add `display_in_editor`, `EditorDisplay`,
   the REPL hook that refreshes, and `run_value_viewer`. Add the package to
   `environment/all`, to the table of package-rules.md, and to the naming

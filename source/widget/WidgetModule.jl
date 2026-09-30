@@ -84,6 +84,8 @@ export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
 export ContextMenuProbeProjection, ContextMenuProbeIoMap
+export make_value_document, make_graphics_projection, collect_graphics_projection_types,
+       refresh_document!
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action
 export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
        WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,
@@ -103,5 +105,6 @@ include("CellTableToWidgetTable.jl")
 include("WidgetHoverTracking.jl")
 include("ProjectionConfiguring.jl")
 include("ContextMenuProbe.jl")
+include("DocumentComposition.jl")
 
 end # module

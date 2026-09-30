@@ -135,7 +135,10 @@ function NaturalToGraphics(; measure::TextMeasure,
         # is spliced one type at a time (not as one dispatching projection) so
         # every child re-enters *this* renderer — which is what lets a diagram
         # node be a widget, a page hold a live card, and a number inside a
-        # formula render through the shared primitive path.
+        # formula render through the shared primitive path. The rows of the
+        # seam `make_graphics_projection` come first.
+        Pair{Type,Any}[type => make_graphics_projection(type; measure = measure)
+                       for type in collect_graphics_projection_types()],
         get_natural_graphics_entries(measure = measure),
         # A fallback's own rows: the placeholders only it can draw. They name
         # exact types, so they come before the abstract rows below — a
@@ -170,3 +173,9 @@ function NaturalToGraphics(; measure::TextMeasure,
 
     RecursiveProjection(TypeDispatchingProjection(table))
 end
+
+# The projection of an editor on a document when the caller names none: the
+# natural renderer, which draws a document of almost any domain. This package
+# adds the one method of the seam, so a session that loads it opens any document
+# with no projection named.
+make_document_projection(::Document) = NaturalToGraphics(measure = FontFileMeasure())

@@ -64,6 +64,7 @@ using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document
+import ..EditorModule: make_document_projection
 
 export register_natural_domain!, register_natural_notation!, register_natural_format!,
        register_natural_parser!, register_natural_expression!, register_natural_rung!,
