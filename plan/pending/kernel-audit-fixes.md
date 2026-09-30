@@ -1540,6 +1540,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **A:** Yes. PAR-ONE-BASED-INDEXING states the rule of the boundary: a string in the syntax of an outside format keeps the count of that format, and its parser converts to the 1-based count at the boundary. ref"…" is the spelling of a configuration key, and such a key counts from 0.
 - **B:** No exception. ref"…" becomes 1-based as @reference is, and the reader of a configuration file converts the index itself.
 - **Recommended (mine): A.** The owner decided the shift in step 9 of plan/done/reference-pattern-vocabulary.md, and the law must say what the code does (PAR-HONEST-DOCS). The shift is at a boundary between two counts, where the rule already asks for an explicit conversion. B reverses a recorded decision and moves the conversion into the configuration reader of omnet-julia.
+- **Decided by the owner, 2026-09-30: A.** The string spelling exists in every option of L11-10, and L11-24 changes only the name in the sentence.
 - Depends on: L11-10, L11-24.
 - Cost: S. One sentence in architecture-invariants.md. No code.
 
