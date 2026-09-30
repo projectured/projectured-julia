@@ -1440,6 +1440,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **A:** One rule for each catch-all arm in every layer: the arm asks is_passthrough_exception first and rethrows when it answers true. The law names each exception to this rule. The only exception that this file proposes is the model code of the code tool (L18-10).
 - **B:** Each layer decides for its own arms, and the law lists each layer that catches an exception that means stop.
 - **Recommended (mine): A.** The seam is in layer 1 (FaultInterface.jl), so every layer can ask it with no new dependency. The barrier, the inbox and the agent loop already ask it (FaultBarrier.jl:56, FaultBarriers.jl:114, Inbox.jl:110, AgentLoop.jl:92). A catch-all arm that does not ask it loses a Ctrl+C of the person, as L01-8, L10-10, L11-5 and L18-10 show in four layers.
+- **Decided by the owner, 2026-09-30: A.** The permission for the sealed files of the fault layer is asked when the work starts.
 - Settles: L01-8, L10-10, L11-5, L18-10.
 - Cost: S for each arm. The three sealed files of the fault layer need permission (L01-8). The other arms are in files that are not sealed.
 
@@ -1448,6 +1449,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **A:** The pass-through sentence wins. Each catch arm of the report path (about ten arms in FaultCascade.jl, FaultStore.jl and FaultRecord.jl) rethrows when is_passthrough_exception answers true. The law says that 'a report never throws' is about an ordinary exception.
 - **B:** 'A report never throws' wins. The arms stay as they are, and the law states that the report path also catches an exception that means stop.
 - **Recommended (mine): A.** Each sentence has its own purpose. 'Never throws' keeps one broken frame from a dead editor. An exception that means stop asks for a stopped editor, so to let it pass does not break the first purpose. An InterruptException that arrives while the frame writes a console line is a Ctrl+C of the person, and B loses it. The seam is in the same layer, so the change adds no import.
+- **Decided by the owner, 2026-09-30: A**, by POLICY-1.
 - Settles: L10-10, L11-5, L18-10.
 - Cost: S. Three sealed files need permission: FaultCascade.jl, FaultStore.jl, FaultRecord.jl. One sentence of PAR-REPORT-NEVER-THROWS. One test for each kind of arm (the cascade, the drain, the format).
 
@@ -1466,6 +1468,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Rethrow an exception that means stop, and let an ordinary exception from the predicate go to the caller (no catch).
 - **C:** Keep the catch-all arm and state an exception to PAR-REPORT-NEVER-THROWS.
 - **Recommended (mine): A.** The walk visits objects of every type, so a predicate that reads a field of one type throws on the others. 'Counts as no match' is what makes such a predicate usable, and search_documents gives it to the model. An interrupt or a stack overflow is not a fault of the predicate. is_passthrough_exception is in layer 1, below the document layer.
+- POLICY-1 (A) leaves out C: A or B remains.
 - Depends on: L01-8.
 - Cost: S. DocumentWalk.jl and DocumentModule.jl (using ..FaultModule). Both files are not sealed now (SEALING.md). One test: a predicate that throws InterruptException ends the walk.
 
@@ -1490,6 +1493,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Rethrow an exception that means stop, and a MethodError whose function is evaluate_reference_step itself (a step type with no method). Answer the default for every other exception. The docstring of try_evaluate_reference says so.
 - **C:** Keep the catch-all arms and state the exception in the law.
 - **Recommended (mine): B.** Every method of evaluate_reference_step takes an untyped document (ReferenceStep.jl, ProjectionReferenceStep.jl, and the steps of the text, graphics, chart and focus packages). So a MethodError of that function comes only from a step type with no method, which is a fault of the program and not a path that does not resolve. A stale path throws other errors (BoundsError, a field that does not exist, ReferenceTypeMismatchException), and those still give the default. The promise of the docstring is for a path that does not resolve, so B keeps the promise and corrects its words.
+- POLICY-1 (A) leaves out C: A or B remains.
 - Depends on: L01-8.
 - Cost: S. ReferenceEvaluation.jl and ReferenceModule.jl (not sealed). Tests of the three walkers.
 
@@ -1506,6 +1510,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** A stated exception for an interrupt only: an InterruptException raised in model code ends that call, and its text is the answer. A quit, a stack overflow and an out-of-memory error pass.
 - **C:** The code tool acts as the Julia REPL: an exception raised in model code is the answer of the call, also an interrupt and a stack overflow. A QuitEditorException and an OutOfMemoryError pass. The law states the exception.
 - **Recommended (mine): C.** The code tool is a REPL for the model. In the Julia REPL and in a notebook kernel, an interrupt ends the evaluation and the session goes on, and a stack overflow of user code is an error message. With A, an endless loop or a deep recursion that the model wrote ends the whole editor. A quit is a request to stop, and a heap that ran out is a state that the call can not repair, so both pass. In every option, _notify_evaluation and the arms of MeaningSearch.jl rethrow each pass-through exception, because they run no model code.
+- POLICY-1 (A) makes this the one exception that the law can name: A, B or C remains.
 - Depends on: L01-8, L18-9, L20-2.
 - Cost: S. ToolModule.jl (using ..FaultModule), CodeExecution.jl, MeaningSearch.jl (not sealed). One sentence of PAR-REPORT-NEVER-THROWS. test_code_execution: an interrupt sent into a long evaluation gives an answer, and a QuitEditorException passes.
 - **Risk:** Option C is wider than the question: B lets only an interrupt of model code become the answer.
