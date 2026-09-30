@@ -136,20 +136,74 @@ docstrings, and a name that a `using` brings is checked by hand):
 
 | # | Question | Recommendation (mine, not decided) |
 | --- | --- | --- |
-| F1 | Does the kernel stay a package of its own, or does it join the core package? | Of its own: it is the smallest base, and its seals are per file. |
+| F1 | Is the kernel a package of its own? | **Decided:** yes. omnet-julia uses the kernel alone (`environment/kernel`), and the seals are per file of `source/kernel/`, which does not move. |
 | F2 | The name of the package of the internals. | **Decided:** `ProjecturedPlatform`, in `source/platform/`. |
 | F3 | Where the parts of the application go. | **Decided:** the platform. |
 | F4 | `Pdf` and `Console`. | **Decided:** in `source/backend/`, packages of their own. |
 | F5 | `Mcp`. | **Decided:** in `source/adapter/`, a package of its own. |
 | F6 | `Plot`: the core, or the chart domains? | The core: `Chart`, `SequenceChart` and `Statistics` all use it. |
-| F7 | The test packages follow the packages: one test package for each registered package. | Yes: `ProjecturedSubstrateTest` becomes the test package of the core. |
+| F7 | The test and example packages follow the packages. | **Decided:** `SubstrateTest`, `FaultTest`, `FileSystemTest`, `ConversationTest`, `HelpTest`, `ShellTest` and `UndoTest` become `ProjecturedPlatformTest`; `SubstrateExample`, `FaultExample`, `FileSystemExample` and `ConversationExample` become `ProjecturedPlatformExample`. The others stay. 34 test packages become 28, 26 example packages become 23; the folders are `test/platform/<slice>/` and `example/platform/<slice>/`. |
 | F8 | The order against the rename of R29 (acronyms in capitals; deferred by the owner) and the local registry of R27. | Decide this grouping first, and rename only the packages that stay, so that no package is renamed and then folded. The fold itself can come after the first release to the local registry: it changes no name that a user types. |
 | F9 | The cycle: the platform named two domains. With `filesystem` in the platform, only Statistics was left: it uses `Chart` in `FramePlotToChart.jl` and in the line of `FrameStatisticsModule.jl` that registers it. | **Decided (the owner, 2026-09-30):** the projection and its registration move to the `Chart` domain, and they get names that say what the data is. The document stays in the platform's statistics. No package extension (the owner does not want one). The renames, with `julia-rename.jl`, as part of the fold: `FramePlot` → `FrameTimeSeries`; `FramePlotToChart` → `FrameTimeSeriesToChart` (the file too); `get_session_frame_plot` → `get_session_frame_time_series`; `flush_frame_plot!` → `flush_frame_time_series!`; the title "Frame plot" → "Frame times"; the alias "frame plot" → "frame times"; the registry key `:frame_plot` → `:frame_time_series`. A session saved with a `FramePlot` does not load under the new name; the document starts empty after a load anyway. |
-| S3 | For R30 (a `test/runtests.jl` in each package of the release): the test harness of `ProjecturedKernelTest` (`test_printer`, `test_reader`, the walkers) serves the tests of every package, and a registered test can use only registered packages. Where does it go? | No package extension (the owner does not want one). Mine: the release copy copies the harness files into the `test/` of each package that needs them, as it copies the slices today. The other way: a registered package of test tools. |
-| S6 | The downstream repositories name internal packages 1,005 times in 128 files (omnet-julia 935 in 122, inet-julia 70 in 6). | One mechanical change in each, in the same landing. |
-| S7 | Do the documents of the slices follow: `documentation/package/<name>/<slice>/`? | Yes, the same shape in every folder. |
-| S8 | The rules and guards that name the shape `source/<slice>/` (`naming-rules.md`, `test/suite/tree.jl`, the layering guards) learn the level `source/<package>/<slice>/`. | Part of the same change. |
+| F10 | Where the application program goes: `run_application_command` is in `ProjecturedExample`, which no release carries. | **Decided:** the umbrella `Projectured`, which alone depends on every domain. `using Projectured` then gives a user the application. |
+| S3 | The test helpers for the release tests (R30). | **Decided:** the release copy copies the helper files into the `test/` of each package that needs them, as it copies the slices. No package extension. |
+| S6 | The downstream repositories: omnet-julia names internal packages 935 times in 122 files (23 `Project.toml`), inet-julia 70 times in 6. | **Decided:** a script maps each old package name to `ProjecturedPlatform`, in the same landing as the fold. The umbrella's paths `Projectured.XModule` do not change. |
+| S7 | The documentation folders. | **Decided:** the same groups, `documentation/package/<group>/<slice>/`; `llm/` goes to `documentation/package/kernel/llm/`. |
+| S8 | The rules and guards; the edges between the slices of the platform. | **Decided:** `naming-rules.md` and `test/suite/tree.jl` learn `source/<group>/<slice>/`. Before the fold, a table of the allowed edges between the slices is generated from today's `Project.toml` files, and the layering guard of the platform checks it, so the rules between the slices stay as they are. |
 
-## 5. Steps
+## 5. Steps (a draft for the owner's review)
 
-Not yet written. They follow the answers of section 4.
+Each step is a commit or a few, on a branch in a worktree, and the suites of
+the change pass after each step. Nothing lands on `main` before the last step,
+and the downstream repositories land in the same landing.
+
+- [ ] **Step 0, the baseline.** Measure the precompilation and the load of
+      `environment/all` and the time of each CI job, for the comparison of
+      Step 9. Generate the table of the allowed edges between the 35 slices
+      from today's `Project.toml` files (S8), and a guard that checks the code
+      against it. The guard passes on today's code.
+- [ ] **Step 1, the frame times (F9).** With `julia-rename.jl`: `FramePlot` →
+      `FrameTimeSeries`, and the other names of F9. `FrameTimeSeriesToChart.jl`
+      and its registration move to `source/chart/`; `ProjecturedStatistics`
+      loses its dependency on `ProjecturedChart`, and `ProjecturedChart` gains
+      one on `ProjecturedStatistics`.
+- [ ] **Step 2, the folders.** First `source/domain/` (the slice of the domain
+      protocol) moves to `source/platform/domain/`. Then each slice moves to
+      `source/<group>/<slice>/`, and the same in `test/`, `example/` and
+      `documentation/package/`. The packages do not change in this step: the
+      entry files change only their include paths. **The commits of the move
+      hold only moves**, so git sees each file as a rename and the open
+      branches can rebase onto them; the paths in the entry files, the guards,
+      `naming-rules.md` and the documents change in the commits after.
+- [ ] **Step 3, the fold.** `package/ProjecturedPlatform/`: a `Project.toml`
+      with the outside dependencies of the 35 packages, and an entry file that
+      includes the 35 slice modules in the order of the table of Step 0. The
+      domains, backends, adapters and the umbrella use `ProjecturedKernel` and
+      `ProjecturedPlatform` in place of the internal packages. The 35 internal
+      package folders go. `environment/all` follows. The guard of Step 0
+      becomes the layering guard of the platform.
+- [ ] **Step 4, the test and example packages (F7).** `ProjecturedPlatformTest`
+      and `ProjecturedPlatformExample`; the CI matrix (28 jobs); the testing
+      guide.
+- [ ] **Step 5, the application (F10).** `run_application_command` and what it
+      needs move from `ProjecturedExample` to the umbrella; the builder of the
+      binary follows.
+- [ ] **Step 6, the words.** The docstrings of `conversation` and `filesystem`
+      stop calling them domains; `system-anatomy.md` and the other documents
+      describe the kernel, the platform, the domains, the backends and the
+      adapters.
+- [ ] **Step 7, the release copy.** The list of the release packages, the
+      assets (the fonts go with `ProjecturedPlatform`), the exclusions
+      (`source/tool/`), and the test helpers of S3.
+- [ ] **Step 8, downstream (S6).** The script of the package names in
+      omnet-julia and inet-julia, and their `Project.toml` files, on branches
+      of their own; their suites pass against the branch of this plan.
+- [ ] **Step 9, the check and the landing.** The CI-like run from a fresh clone
+      (`/var/tmp/release-plan/ci3/`), the times of Step 0 again, then the
+      landing of this repository and the downstream ones together, with the
+      owner's word.
+
+**Risk: the open branches.** Step 2 moves about 1,000 files. Each branch of
+another session that is open then must rebase onto it. The pure-move commits
+keep that to a rename that git follows; a branch that adds a new file in an old
+folder must move that file itself.
