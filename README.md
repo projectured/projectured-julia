@@ -138,6 +138,12 @@ A package and its code do not share a directory. `package/ProjecturedJson/` is a
 
 Forks and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) says how the repository is organised, what a change must keep, and how to add a domain of your own. If you are an AI assistant working in this repository, read [CLAUDE.md](CLAUDE.md) and [SEALING.md](SEALING.md) first.
 
+## How the code is made
+
+ProjecturEd began in Common Lisp in 2013. Its authors wrote that version by hand, and it is still available as [projectured-lisp](https://github.com/projectured/projectured-lisp). This Julia version is a port of it, started in May 2026. Most of its code is written by Claude Code, an AI coding tool, under the direction of the author.
+
+The author makes the design and the decisions: the concepts, the rules in [documentation/rule/](documentation/rule/), and each choice in the plans in [plan/](plan/). Each change starts from a written plan. Static guards check the rules that a program can check, the test suites check the behaviour, and [CI](.github/workflows/CI.yml) runs both. The author audits the kernel file by file against its [architecture invariants](documentation/rule/architecture-invariants.md), and seals each file after the review. [SEALING.md](SEALING.md) lists the sealed files.
+
 ## Licence, author and contact
 
 ProjecturEd is under the [Mozilla Public License 2.0](LICENSE). You can use it, change it and build products on it, commercial ones included. A change to a file of ProjecturEd stays under the MPL, and its source must be available to the people you give it to; files of your own, such as a package that extends ProjecturEd, can be under any licence.
