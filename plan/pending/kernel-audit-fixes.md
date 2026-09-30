@@ -1651,6 +1651,9 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Split when the event layer changes next (the chord pattern of plan/pending/key-chords-from-bindings.md adds to this file).
 - **D:** Keep one file, and write an exception to the budget of 500 lines.
 - **Recommended (mine): A.** The file has 540 lines now (the fixes added 19), and its two parts serve two kinds of reader. `EventCase.jl` holds `@event_case` as `ReferenceCase.jl` holds `@reference_case` in the reference layer. The test file `EventCaseTest.jl` then names a real file; step 4.6 of the fixes plan held the rename of that test for this decision. A move with no other change is easy to review while the audit is fresh, and the next change of the layer (a chord pattern) makes the file larger. I checked: no file `EventCase.jl` exists.
+- **Decided by the owner, 2026-09-30: D, and the rule is relaxed.** "The rule should be relaxed, don't split unless there's a good boundary." EventPattern.jl stays one file. code-quality-rules.md §5 changes: 500 lines is a reason to look for a boundary, not a limit. Split a file only at a good boundary, a part with its own concept and its own readers and a small interface to the rest; where no such boundary exists, the file stays whole. The sentence "Do not sweep them. When you next work in one, take one section out into its own fragment" goes. The budget of 60 lines for a function does not change.
+  - Consequence: `EventCaseTest.jl` tests `EventPattern.jl`, so the rule of test names (`<Thing>Test.jl`, naming-rules.md) makes it `EventPatternTest.jl`. The rename that step 4.6 held for this decision can go ahead.
+  - The scheme of fragment names (`<Concept><Part>.jl`) is not decided. A split at a good boundary names its fragment when it happens.
 - Settles: L10-21, L17-19, L18-23 (parts).
 - Cost: S. Sealed (permission needed): EventPattern.jl and EventModule.jl (the include list). No name changes, so no caller changes. Prose that names EventPattern.jl for the parser: event.md and the header comment of binding/Gestures.jl.
 
@@ -1679,6 +1682,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Split each file when it changes next (the advice of the audit for ProjectionTemplate.jl).
 - **D:** Keep the files, and write an exception to the budget of 500 lines for an engine file.
 - **Recommended (mine): A.** Two files are three times over the budget (1516 and 1546 lines), and the third has 793 lines. None of the three is sealed, so a split needs no permission. A split that only moves code keeps every name, so no caller changes. The scheme `<Concept><Part>.jl` puts the parts of one engine side by side in a file list and in a stack trace, and the part with the public entry keeps the old name, so the links of the guides still land. EventCase.jl (L06-10) is the one exception: it takes the name of the macro that it holds, as ReferenceCase.jl does. I checked: none of the proposed file names exists.
+- **Decided by the owner, 2026-09-30: D**, with L06-10: the three files stay whole, and the relaxed rule of §5 has no exception for an engine file. The splits of L11-22 follow the same rule.
 - Depends on: L06-10.
 - Cost: M. Three unsealed files and their module files (DocumentModule.jl, ProjectionModule.jl, ToolModule.jl) for the include lists; the export blocks follow plan/pending/export-block-rule.md. No name changes, so no caller in projectured-julia, omnet-julia or inet-julia changes. The guides that link to a moved function by file and line change.
 
