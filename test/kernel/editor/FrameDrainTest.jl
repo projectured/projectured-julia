@@ -78,7 +78,8 @@ end
 
 function _frame_editor(log)
     backend = HeadlessBackend()
-    editor = Editor(backend, FrameDrainProbe(), FrameDrainProjection(log), Device[])
+    editor = Editor(FrameDrainProbe(), FrameDrainProjection(log);
+                    backend = backend, devices = Device[])
     EditorModule.print!(editor)          # a reader is only reached once an iomap exists
     (editor, backend)
 end

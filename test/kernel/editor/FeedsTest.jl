@@ -67,8 +67,8 @@ evaluate_operation(::Editor, operation::ProbeFeedOperation) =
     (push!(operation.log, (:inbox, current_task())); nothing)
 
 _feed_editor(feeds::Vector{Feed} = Feed[]) =
-    Editor(HeadlessBackend(), FeedProbe(), FeedProbeProjection(), Device[];
-           feeds = feeds)
+    Editor(FeedProbe(), FeedProbeProjection(); backend = HeadlessBackend(),
+           devices = Device[], feeds = feeds)
 
 function test_editor_feeds()
 @testset "the editor's feeds" begin
@@ -171,8 +171,8 @@ ProjectionModule.print_document(::FrameMeasurementProbeProjection, recursion, in
 function test_editor_frame_performance()
 @testset "the frame performance of the editor" begin
     @testset "the editor records its frame time as a time" begin
-        editor = Editor(HeadlessBackend(), FrameMeasurementProbe(),
-                        FrameMeasurementProbeProjection(), Device[])
+        editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
+                        backend = HeadlessBackend(), devices = Device[])
         EditorModule.record_frame_performance!(editor, 0.016)
         summary = compute_frame_measurement_summary(editor.frame_measurements,
                                                     :frame_time)
@@ -183,8 +183,8 @@ function test_editor_frame_performance()
 
     if PERFORMANCE_COUNTERS_ENABLED
         @testset "the editor records every counter, with its unit" begin
-            editor = Editor(HeadlessBackend(), FrameMeasurementProbe(),
-                            FrameMeasurementProbeProjection(), Device[])
+            editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
+                            backend = HeadlessBackend(), devices = Device[])
             # A time that no list names reaches the store all the same.
             with_performance_counters() do
                 @measure_performance_time :probe_time (1 + 2)

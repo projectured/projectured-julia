@@ -103,7 +103,8 @@ function make_rehearsal_editor(directory, llm)
     scene = make_window_scene(document, "ProjecturEd"; width = WIDTH, height = HEIGHT)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
-    editor = Editor(ConsoleBackend(), scene, composed, Device[Display(), Keyboard(), Mouse()])
+    editor = Editor(scene, composed; backend = ConsoleBackend(),
+                    devices = Device[Display(), Keyboard(), Mouse()])
     editor.iomap = print_document(composed, nothing, scene,
                                   PrinterContext(EmptyReference(), Cell(WIDTH), Cell(HEIGHT),
                                                  Dict{Symbol,Any}(), Clock()))

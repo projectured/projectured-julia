@@ -43,7 +43,8 @@ function ProjectionModule.read_intent(::EscapeClaimingProjection, recursion, cha
 end
 
 function _escape_editor(projection)
-    editor = Editor(HeadlessBackend(), EscapeProbe(), projection, Device[])
+    editor = Editor(EscapeProbe(), projection;
+                    backend = HeadlessBackend(), devices = Device[])
     EditorModule.print!(editor)                       # the loop skips the pipeline with no iomap
     editor
 end

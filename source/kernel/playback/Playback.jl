@@ -120,7 +120,7 @@ function play_live!(document::Document, projection, timeline; backend::Backend,
         devices = Device[Display(), Keyboard(), Mouse()]
         configure_devices!(backend, devices)
         open_native_windows!(backend, document)
-        editor = Editor(backend, document, projection, devices)
+        editor = Editor(document, projection; backend = backend, devices = devices)
         play_live!(editor, timeline; window_id=window_id, initial_hold=initial_hold,
                    op_prefix=op_prefix)
     finally

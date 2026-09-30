@@ -139,7 +139,8 @@ evaluate_operation(::Editor, operation::ProbeWaitOperation) =
     (push!(operation.log, operation.tag); nothing)
 
 _wait_editor(backend; feeds::Vector{Feed} = Feed[]) =
-    Editor(backend, WaitProbe(), WaitProbeProjection(), Device[]; feeds = feeds)
+    Editor(WaitProbe(), WaitProbeProjection(); backend = backend, devices = Device[],
+           feeds = feeds)
 
 function test_editor_wait()
 @testset "the editor's wait" begin
@@ -218,8 +219,8 @@ function test_editor_wait()
         feed = FrameCountFeed(0)
         log = Int[]
         backend = HeadlessBackend()
-        editor = Editor(backend, WaitProbe(), WaitKeyProjection(log, feed), Device[];
-                        feeds = Feed[feed])
+        editor = Editor(WaitProbe(), WaitKeyProjection(log, feed); backend = backend,
+                        devices = Device[], feeds = Feed[feed])
         push_event!(backend, :key)
         run_editor!(editor)
         @test log == [1]

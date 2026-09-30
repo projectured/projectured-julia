@@ -71,7 +71,9 @@ BackendModule.read_from_devices(::InboxQuitBackend, devices) = nothing
 BackendModule.write_to_devices(::InboxQuitBackend, devices, output) = nothing
 BackendModule.wait_for_input(::InboxQuitBackend, devices, timeout_seconds) = nothing
 
-_inbox_editor() = Editor(HeadlessBackend(), InboxProbe(), InboxProbeProjection(), Device[])
+_inbox_editor() =
+    Editor(InboxProbe(), InboxProbeProjection();
+           backend = HeadlessBackend(), devices = Device[])
 
 function test_editor_inbox()
 @testset "the editor's operation inbox" begin
@@ -190,7 +192,8 @@ function test_editor_inbox()
 
     @testset "the loop quits its backend when a call at its end throws an interrupt" begin
         backend = InboxQuitBackend(0, nothing, nothing)
-        editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
+        editor = Editor(InboxProbe(), InboxProbeProjection();
+                        backend = backend, devices = Device[])
         post_operation!(editor, QuitEditorOperation())
         # A call that no task waits for, still in the inbox when the loop ends.
         post_operation!(editor, RunFunctionOperation(() -> throw(InterruptException()),
@@ -204,14 +207,16 @@ function test_editor_inbox()
     # exception of a step at its end. Every step runs.
     @testset "an exception of the loop goes on when the quit of the backend throws" begin
         backend = InboxQuitBackend(0, nothing, ErrorException("the quit failed"))
-        editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
+        editor = Editor(InboxProbe(), InboxProbeProjection();
+                        backend = backend, devices = Device[])
         post_operation!(editor, RunFunctionOperation(() -> throw(InterruptException()),
                                                      nothing))
         @test_throws InterruptException run_editor!(editor)
         @test backend.quits == 1
 
         backend = InboxQuitBackend(0, nothing, ErrorException("the quit failed"))
-        editor = Editor(backend, InboxProbe(), InboxProbeProjection(), Device[])
+        editor = Editor(InboxProbe(), InboxProbeProjection();
+                        backend = backend, devices = Device[])
         post_operation!(editor, QuitEditorOperation())
         @test_throws "the quit failed" run_editor!(editor)
         @test backend.quits == 1

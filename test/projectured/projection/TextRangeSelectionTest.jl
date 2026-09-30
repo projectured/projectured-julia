@@ -8,8 +8,8 @@ const _TR_NONE = ModifierKeys()
 function _tr_editor(document, projection)
     backend = HeadlessBackend()
     scene = make_window_scene(document, "W"; width = 1200, height = 800)
-    editor = Editor(backend, scene, make_window_scene_projection(projection),
-                    Device[Keyboard(), Mouse()])
+    editor = Editor(scene, make_window_scene_projection(projection);
+                    backend = backend, devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     (editor, backend)
 end

@@ -238,8 +238,8 @@ end
 
 # An editor with no loop, on the assistant, for an operation to be evaluated in.
 _mvp_editor(a::Assistant) =
-    Editor(HeadlessBackend(), a, make_assistant_projection_example(), Device[];
-           tools = register_default_tools!(ToolSet()))
+    Editor(a, make_assistant_projection_example(); backend = HeadlessBackend(),
+           devices = Device[], tools = register_default_tools!(ToolSet()))
 
 function _mvp_test_submit_while_streaming()
     @testset "Return while a turn streams does nothing" begin
@@ -307,8 +307,8 @@ function _mvp_test_turn_writes_on_editor_task()
                                    (target, args) -> (push!(ran_on, current_task()); "marked")))
         a = Assistant(; llm = ScriptedLlm([_tool_use_script("tu_1", "mark", Dict{String,Any}()),
                                             _final_text_script("Done.")]))
-        editor = Editor(HeadlessBackend(), a, make_assistant_projection_example(), Device[];
-                        tools = tools)
+        editor = Editor(a, make_assistant_projection_example(); backend = HeadlessBackend(),
+                        devices = Device[], tools = tools)
         editor.loop_task = current_task()
         _mvp_type!(a, "Hello")
         evaluate_operation(editor, SubmitDraftTurnOperation(a))

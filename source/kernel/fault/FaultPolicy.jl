@@ -42,7 +42,7 @@ than be survived.
 
 # Example
 
-    editor = make_editor(backend, projection, document;
+    editor = make_editor(document, projection; backend,
                          fault_policy = make_strict_fault_policy())
 
 See also [`FaultPolicy`](@ref).

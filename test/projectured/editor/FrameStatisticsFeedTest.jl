@@ -15,8 +15,8 @@ function test_frame_statistics_feed()
     @testset "unwatched, the feed neither flushes nor asks for a deadline" begin
         statistics = FrameStatistics()
         feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot())
-        editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
-                        Device[]; feeds = Feed[feed])
+        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
         EditorModule.record_frame_performance!(editor, 0.016)
         @test compute_wake_deadline(feed, editor) === nothing
         @test drain_feeds!(editor) == 0
@@ -26,8 +26,8 @@ function test_frame_statistics_feed()
     @testset "a subscribed view turns the flush on, and off once flushed" begin
         statistics = FrameStatistics()
         feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot())
-        editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
-                        Device[]; feeds = Feed[feed])
+        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
         # Subscribe the way a view does: read `frame_count` in a computation.
         view = Cell(@computation statistics.frame_count)
         view[]
@@ -109,8 +109,8 @@ function test_frame_statistics_feed()
         statistics = FrameStatistics()
         plot = FramePlot()
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot)
-        editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
-                        Device[]; feeds = Feed[feed])
+        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
         # Subscribe the way a plot view does: read `names` in a computation.
         view = Cell(@computation length(plot.names))
         view[]
@@ -127,8 +127,8 @@ function test_frame_statistics_feed()
         statistics = FrameStatistics()
         plot = FramePlot()
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot)
-        editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
-                        Device[]; feeds = Feed[feed])
+        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
         table_view = Cell(@computation statistics.frame_count)
         table_view[]
         EditorModule.record_frame_performance!(editor, 0.016)

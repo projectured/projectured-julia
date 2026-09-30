@@ -1,9 +1,9 @@
 # Fragment of `DataFramesModule`.
 #
 # A data frame shown in an editor window beside the REPL. The editor runs on a
-# thread of the default pool that is not the thread of the REPL, pinned to it,
-# because SDL answers only the thread that started it. So the REPL keeps its
-# speed, and the window stays live while an input runs.
+# task of its own, which `run_editor!(...; wait = false)` pins to a thread that
+# is not the thread of the REPL. So the REPL keeps its speed, and the window
+# stays live while an input runs.
 #
 # The loop of the editor keeps the world of its start: a function that the REPL
 # defines later is too new for it. So every call that this file posts to the
@@ -100,33 +100,16 @@ function _close_session!(session::_EditorSession)
     nothing
 end
 
+# The editor with one window of tabs, the first of which shows `view`, built and
+# run on a task of its own.
 function _start_session(view::DataFrameView, title::String, backend)
-    made = Channel{Any}(1)
-    function run_loop()
-        editor = try
-            _make_data_frame_editor(view, title, backend)
-        catch exception
-            put!(made, exception)
-            return
-        end
-        put!(made, editor)
-        run_editor!(editor)
-    end
-    thread = _find_editor_thread()
-    loop = thread === nothing ? (@async run_loop()) : _spawn_pinned(run_loop, thread)
-    errormonitor(loop)
-    editor = take!(made)
-    editor isa Exception && throw(editor)
-    _EditorSession(editor, loop, IdDict{AbstractDataFrame,Pair{String,DataFrameView}}())
-end
-
-# The editor with one window of tabs, the first of which shows `view`.
-function _make_data_frame_editor(view::DataFrameView, title::String, backend)
     tree = PaneTree(PaneGroup([PaneTab(title, view)]))
     projection = ChainingProjection(RecursiveProjection(PaneToWidget()),
                                     NaturalToGraphics(; measure = FontFileMeasure()))
-    build_editor(tree, projection; backend = something(backend, SdlBackend()),
-                 window = (; title = "Data frames", width = 1000, height = 600))
+    editor = run_editor!(tree, projection; wait = false,
+                         backend = something(backend, SdlBackend()),
+                         window = (; title = "Data frames", width = 1000, height = 600))
+    _EditorSession(editor, editor.loop_task, IdDict{AbstractDataFrame,Pair{String,DataFrameView}}())
 end
 
 function _show_in_session!(session::_EditorSession, frame::AbstractDataFrame, title::String)
@@ -155,27 +138,4 @@ function _make_unique_title(session::_EditorSession, title::String)
         number += 1
     end
     string(title, " (", number, ")")
-end
-
-# ── The thread of the editor ─────────────────────────────────────────────────
-
-# A thread of the default pool that is not the thread of the caller, or
-# `nothing` when the process has no such thread. Without one the editor runs on
-# the thread of the caller, and the REPL reads each key after a wait slice of
-# the backend.
-function _find_editor_thread()
-    current = Threads.threadid()
-    candidates = [thread for thread in Threads.threadpooltids(:default) if thread != current]
-    isempty(candidates) ? nothing : last(candidates)
-end
-
-# Run `f` in a task that never moves from thread `thread`: a sticky task, pinned
-# with the internal call that `Threads.@threads :static` makes.
-function _spawn_pinned(f, thread::Int)
-    task = Task(f)
-    task.sticky = true
-    ccall(:jl_set_task_tid, Cint, (Any, Cint), task, thread - 1) == 1 ||
-        error("The editor task could not be pinned to thread ", thread, ".")
-    schedule(task)
-    task
 end

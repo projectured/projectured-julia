@@ -669,7 +669,8 @@ function _find_free_mcp_port()
     Int(port)
 end
 
-_mcp_editor() = Editor(HeadlessBackend(), JsonString("x"), IdentityProjection(), Device[])
+_mcp_editor() = Editor(JsonString("x"), IdentityProjection(); backend = HeadlessBackend(),
+                       devices = Device[])
 
 # One request of the protocol, and the text of its answer. `params` is the JSON
 # text of the parameters.
@@ -764,7 +765,7 @@ function test_mcp_server()
                     end
                     post_operation!(editor, QuitEditorOperation())
                 end
-                run_editor!(editor; mcp = true, mcp_host = "127.0.0.1", mcp_port = port)
+                run_editor!(editor; mcp = (; host = "127.0.0.1", port = port))
                 @test occursin("\"execute_julia_code\"", listing[])
                 @test occursin("\"probe_declared\"", listing[])
                 # The call ran on the task of the loop, which is this one.

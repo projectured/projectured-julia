@@ -41,7 +41,8 @@ OperationModule.evaluate_operation(::Editor, operation::RecordKeyOperation) =
 _tolerant_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 function _failing_editor()
-    editor = Editor(HeadlessBackend(), SafeModeProbe(), AlwaysFailingProjection(), Device[])
+    editor = Editor(SafeModeProbe(), AlwaysFailingProjection();
+                    backend = HeadlessBackend(), devices = Device[])
     editor.fault_policy = _tolerant_policy()
     editor
 end
@@ -105,8 +106,8 @@ function test_fault_safe_mode()
     @testset "the input behind the Escape out of the safe mode waits for a paint" begin
         is_broken = Ref(true)
         log = Any[]
-        editor = Editor(HeadlessBackend(), SafeModeProbe(),
-                        RecoveringProjection(is_broken, log), Device[])
+        editor = Editor(SafeModeProbe(), RecoveringProjection(is_broken, log);
+                        backend = HeadlessBackend(), devices = Device[])
         editor.fault_policy = _tolerant_policy()
         for _ in 1:get_consecutive_fault_limit(:print)
             run_frame!(editor)
@@ -127,8 +128,8 @@ function test_fault_safe_mode()
     end
 
     @testset "a strict editor never enters the safe mode" begin
-        editor = Editor(HeadlessBackend(), SafeModeProbe(),
-                        AlwaysFailingProjection(), Device[])
+        editor = Editor(SafeModeProbe(), AlwaysFailingProjection();
+                        backend = HeadlessBackend(), devices = Device[])
         @test_throws Exception run_frame!(editor)
         @test !is_editor_in_safe_mode(editor)
     end
@@ -152,7 +153,8 @@ function test_fault_tolerant_projection()
 
     @testset "a program that wires it survives its own broken pipeline" begin
         projection, log = make_fault_tolerant_projection(AlwaysFailingProjection())
-        editor = Editor(HeadlessBackend(), SafeModeProbe(), projection, Device[])
+        editor = Editor(SafeModeProbe(), projection;
+                        backend = HeadlessBackend(), devices = Device[])
         editor.fault_policy = _tolerant_policy()
         attach_fault_target!(editor.faults, log)
         for _ in 1:3
@@ -167,7 +169,8 @@ function test_fault_tolerant_projection()
 
     @testset "the panel is not there while nothing has failed" begin
         projection, log = make_fault_tolerant_projection(IdentityProjection())
-        editor = Editor(HeadlessBackend(), SafeModeProbe(), projection, Device[])
+        editor = Editor(SafeModeProbe(), projection;
+                        backend = HeadlessBackend(), devices = Device[])
         editor.fault_policy = _tolerant_policy()
         attach_fault_target!(editor.faults, log)
         run_frame!(editor)

@@ -1,13 +1,14 @@
 # Fragment of `EditorModule` — the `Editor`, its constructor, and the hooks it answers.
 
 """
-    Editor(backend, document, projection, devices;
-           clock = Clock(), tools = ToolSet(), feeds = Feed[])
+    Editor(document, projection; backend, devices = Device[Display(), Keyboard(), Mouse()],
+           clock = Clock(), tools = ToolSet(), faults = FaultStore(),
+           fault_policy = make_strict_fault_policy(), feeds = Feed[])
 
 Holds the state for a read-eval-print loop:
-  - `backend`    — the display/input backend
   - `document`   — the reactive document being edited
   - `projection` — the projection (or a chaining projection)
+  - `backend`    — the display/input backend
   - `devices`    — input/output devices (e.g. display, keyboard)
   - `clock`      — this editor's private animation clock (fresh `Clock()` by
                    default); `run_editor!` ticks it once per frame from OS
@@ -78,9 +79,15 @@ end
 # not build a queue of syncs that are stale by the time they are applied.
 const INBOX_CAPACITY = 64
 
-# @positional: what an editor is made of, in the order of the layers: the backend,
-# the document, the projection it draws through, and the devices it reads.
-function Editor(backend, document, projection, devices;
+# The devices of an editor when the caller names none: a display, a keyboard
+# and a mouse, made new for each editor.
+_make_default_devices() = Device[Display(), Keyboard(), Mouse()]
+
+# The document and the projection are what the editor edits and how it shows
+# it, as in `make_editor`; the backend, the devices and the services of the
+# editor take names.
+function Editor(document, projection; backend::Backend,
+                devices::Vector{Device} = _make_default_devices(),
                 clock::Clock = Clock(), tools::ToolSet = ToolSet(),
                 faults::FaultStore = FaultStore(),
                 fault_policy::FaultPolicy = make_strict_fault_policy(),

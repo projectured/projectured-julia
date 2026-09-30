@@ -149,7 +149,8 @@ function test_json_build_live()
     document = live.example.make_document()
     projection = live.example.make_projection()
     set_selection!(document, EmptyReference())
-    editor = Editor(ConsoleBackend(), document, projection, Device[Display(), Keyboard(), Mouse()])
+    editor = Editor(document, projection; backend = ConsoleBackend(),
+                    devices = Device[Display(), Keyboard(), Mouse()])
     reprint!() = editor.iomap = print_document(projection, nothing, editor.document,
         PrinterContext(EmptyReference(), Cell(live.width), Cell(live.height), Dict{Symbol,Any}(), Clock()))
     reprint!()

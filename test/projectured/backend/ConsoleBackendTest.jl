@@ -11,7 +11,7 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
     doc = make_json_document_example()
     proj = make_json_console_projection_example()
     backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
-    editor = Editor(backend, doc, proj, Device[Keyboard()])
+    editor = Editor(doc, proj; backend = backend, devices = Device[Keyboard()])
     sels = String[]
     # The editor logs every applied operation via @info; quiet it for the test.
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
@@ -36,7 +36,7 @@ function _drive_console_doc(bytes::Vector{UInt8}, steps::Int)
     doc = make_json_document_example()
     proj = make_json_console_projection_example()
     backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
-    editor = Editor(backend, doc, proj, Device[Keyboard()])
+    editor = Editor(doc, proj; backend = backend, devices = Device[Keyboard()])
     sels = String[]
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
         _ED.print!(editor)
@@ -186,8 +186,9 @@ function test_console_backend()
     @testset "escape quits the editor" begin
         function read_operation(bytes)
             backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
-            editor = Editor(backend, make_json_document_example(),
-                            make_json_console_projection_example(), Device[Keyboard()])
+            editor = Editor(make_json_document_example(),
+                            make_json_console_projection_example();
+                            backend = backend, devices = Device[Keyboard()])
             Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
                 _ED.print!(editor)
                 _ED.read!(editor)

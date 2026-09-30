@@ -334,8 +334,17 @@ caller:
   fault_policy, wrappers...)` chooses the backend when none is given, applies
   the wrappers, and then calls `make_editor`. `build_editor(document; ...)`
   takes the projection from `make_document_projection(document)`.
-- `run_editor!(document, projection; keywords...)` and
-  `run_editor!(document; keywords...)` are `build_editor` and then the loop.
+- `run_editor!(document, projection; wait = true, mcp = false, keywords...)` and
+  `run_editor!(document; ...)` are `build_editor` and then the loop. With
+  `wait = false` the call returns the editor at once, and the editor is built
+  and runs on a task pinned to another thread of the default pool, because a
+  backend such as SDL answers only the thread that started it. The task is
+  `editor.loop_task` until the loop ends.
+
+The raw constructor has the same shape:
+`Editor(document, projection; backend, devices, clock, tools, faults,
+fault_policy, feeds)`. It builds the state and does nothing else: it starts no
+backend and prints nothing, and its fault policy is strict.
 
 ```julia
 using Projectured
@@ -389,12 +398,12 @@ still opened on demand, by `write_to_devices` against the `ScreenDocument`
 output (the pipeline is expected to end in one).
 `run_editor!(editor)` runs the loop, and calls `quit_backend!(editor.backend)` in
 a `finally` block when the loop ends. `make_editor` quits the backend too when the
-build or the print throws. Pass `mcp=true` to `run_editor!(editor)` to start an
-MCP server alongside the loop, and `mcp_instructions` to override the text the
-MCP server's `initialize` response sends a connecting client (see
-[MCP server](#mcp-server)) — omitted, the server uses its own default.
-`mcp_host` and `mcp_port` say where the server listens, and each one that is
-omitted keeps the server's default, `127.0.0.1` and `9876`. A backend that
+build or the print throws. Pass `mcp = true` to `run_editor!(editor)` to start
+an MCP server alongside the loop. The setting can also be a `NamedTuple`:
+`instructions` overrides the text the MCP server's `initialize` response sends a
+connecting client (see [MCP server](#mcp-server)), and `host` and `port` say
+where the server listens. A field that is left out keeps the server's default:
+its own text, `127.0.0.1` and `9876`. A backend that
 drives a different channel passes its own `devices` (the `ConsoleBackend` uses
 `devices = Device[Keyboard()]` — no `Display`/`Mouse`).
 
@@ -495,7 +504,7 @@ In the example packages this is wired up for you — see `play_live_example` and
 
 When `run_editor!` starts with `mcp=true`, it constructs an `McpServer` bound to
 the editor when the loop starts, so the server serves the tools that a caller
-registers between `make_editor` and `run_editor!`. It launches the server at `mcp_host` and `mcp_port`,
+registers between `make_editor` and `run_editor!`. It launches the server at the `host` and `port` of the setting,
 `http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
 seam (see
 [source/kernel/agent/AgentInterface.jl](../../../source/kernel/agent/AgentInterface.jl)). The server

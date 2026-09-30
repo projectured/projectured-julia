@@ -288,11 +288,13 @@ function test_fault_catching()
                                     substitute = FaultToSyntax()))
         # An editor starts strict, so the barrier catches nothing and a test sees
         # the fault.
-        strict = Editor(HeadlessBackend(), _probe_branch(2), projection, Device[])
+        strict = Editor(_probe_branch(2), projection;
+                        backend = HeadlessBackend(), devices = Device[])
         print!(strict)
         @test_throws ErrorException _drawn_children(strict.iomap.output)
         # The policy of a loop that a person sits in front of turns it on.
-        tolerant = Editor(HeadlessBackend(), _probe_branch(2), projection, Device[])
+        tolerant = Editor(_probe_branch(2), projection;
+                          backend = HeadlessBackend(), devices = Device[])
         tolerant.fault_policy = FaultPolicy(is_console_enabled = false,
                                             is_sound_enabled = false)
         print!(tolerant)

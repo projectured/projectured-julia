@@ -152,7 +152,8 @@ _quiet_barrier_policy() =
 function _barrier_editor(; feeds::Vector{Feed} = Feed[])
     backend = BarrierProbeBackend()
     log = Any[]
-    editor = Editor(backend, BarrierProbe(), BarrierProbeProjection(log), Device[];
+    editor = Editor(BarrierProbe(), BarrierProbeProjection(log);
+                    backend = backend, devices = Device[],
                     fault_policy = _quiet_barrier_policy(), feeds = feeds)
     EditorModule.print!(editor)
     (editor, backend, log)

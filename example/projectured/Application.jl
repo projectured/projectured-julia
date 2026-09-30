@@ -442,7 +442,7 @@ function run_application(paths::AbstractString...;
                                                 measure = measure)))
         start(editor)
         start_application!(editor, mcp, assistant, model)
-        run_editor!(editor; mcp = mcp, mcp_host = mcp_host, mcp_port = mcp_port)
+        run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
     end
 end
 
@@ -607,8 +607,8 @@ function warm_application()
         composed = make_window_scene_projection(projection;
             opened_window_projections = make_opened_window_projections(;
                 content = make_application_content_projections()))
-        editor = Editor(ConsoleBackend(), scene, composed,
-                        Device[Display(), Keyboard(), Mouse()])
+        editor = Editor(scene, composed; backend = ConsoleBackend(),
+                        devices = Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, scene)
         _force_reactive!(editor.iomap)
         for event in events

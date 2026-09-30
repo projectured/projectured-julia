@@ -27,7 +27,7 @@ bin/projectured --mcp=9900 notes.md            # http://127.0.0.1:9900/mcp
 bin/projectured --mcp=localhost:9900 notes.md  # the host by its name
 ```
 
-From code, the keywords are `mcp_host` and `mcp_port`, and each one that you do not give keeps its default.
+From code, `mcp = (; host, port)` says where the server listens, and a field that you do not give keeps its default.
 
 **One server, one editor.** The server drives the editor it was started with. To serve two editors on one machine, give each one its own port.
 

@@ -82,7 +82,8 @@ function make_editor()
                                                   measure = FontFileMeasure()) :
                             example.make_projection()
     set_selection!(document, EmptyReference())
-    editor = Editor(ConsoleBackend(), document, projection, Device[Display(), Keyboard(), Mouse()])
+    editor = Editor(document, projection; backend = ConsoleBackend(),
+                    devices = Device[Display(), Keyboard(), Mouse()])
     editor.iomap = print_document(projection, nothing, document,
                                   PrinterContext(EmptyReference(), Cell(WIDTH), Cell(HEIGHT),
                                                  Dict{Symbol,Any}(), Clock()))

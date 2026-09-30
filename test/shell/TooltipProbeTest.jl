@@ -195,8 +195,8 @@ function test_tooltip_feed()
     feed = make_tooltip_feed(; delay = 0.5, now = () -> clock[])
     scene, composed, _ = _tooltip_scene(; feed = feed)
     backend = HeadlessBackend()
-    editor = Editor(backend, scene, composed, Device[Keyboard(), Mouse()];
-                    feeds = Feed[feed])
+    editor = Editor(scene, composed; backend = backend,
+                    devices = Device[Keyboard(), Mouse()], feeds = Feed[feed])
     run_frame!(editor)
     press!(event) = (push_event!(backend, WindowInput(:shell, event)); run_frame!(editor))
 

@@ -118,9 +118,7 @@ get_frame_clock_time(backend, wall_time) = wall_time
 # ── Main loop ──────────────────────────────────────────────────────────
 
 """
-    run_editor!(editor::Editor; mcp = false, mcp_instructions = nothing,
-                mcp_host = nothing, mcp_port = nothing,
-                fault_policy = editor.fault_policy)
+    run_editor!(editor::Editor; mcp = false, fault_policy = editor.fault_policy)
 
 Execute the read-eval-print loop. Between frames the editor sleeps in
 `wait_for_input`, and three things end the sleep: an input event, a
@@ -140,10 +138,10 @@ A backend without a real wait sleeps one 10 ms poll slice per call (the
 that does not wait, because a wake is pending or a deadline is due, yields once
 for the same reason.
 
-When `mcp=true`, an MCP server is started alongside the loop so external
-clients can drive the editor; off by default. `mcp_instructions`, `mcp_host` and
-`mcp_port` go to the server, and each one that is `nothing` takes the server's
-own default.
+`mcp` starts an MCP server alongside the loop, so external clients can drive
+the editor; off by default. Its setting is `true` for the server's own defaults,
+or a `NamedTuple` of `instructions`, `host` and `port`, and a field that is left
+out takes the server's default.
 
 When the loop ends, it answers the calls that wait in the inbox, stops the server
 and quits the backend it ran on. Each of these steps runs also when the loop or a
@@ -153,10 +151,7 @@ the loop, or else the first exception of a step.
 made already prints under the policy of its loop, and an editor a test builds
 with `Editor(…)` stays strict.
 """
-function run_editor!(editor::Editor; mcp::Bool=false,
-              mcp_instructions::Union{AbstractString,Nothing}=nothing,
-              mcp_host::Union{AbstractString,Nothing}=nothing,
-              mcp_port::Union{Integer,Nothing}=nothing,
+function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
               fault_policy::FaultPolicy=editor.fault_policy)
     server = nothing
     has_quit = false
@@ -171,8 +166,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         # The server renders the tool set when it starts, so it starts here:
         # a tool that the caller declares between `make_editor` and this call
         # reaches a client too.
-        server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) :
-                       nothing
+        server = mcp === false ? nothing : _make_mcp_server(editor, mcp)
         server === nothing || start_agent_server!(server)
         # An editor that has no IoMap prints once before its first frame, because
         # `read!` drops an input that no IoMap can read.
@@ -258,18 +252,19 @@ function _end_editor_loop!(editor::Editor, server)
     first_exception
 end
 
-# The server gets the settings the caller gave, and a setting that is `nothing` is
-# left out, so the server's own default answers for it.
-function _make_mcp_server(editor::Editor, instructions, host, port)
-    settings = (; instructions, host, port)
+# The server gets the settings the caller gave. A setting that is left out, or
+# that is `nothing`, takes the server's own default.
+function _make_mcp_server(editor::Editor, mcp::Union{Bool,NamedTuple})
+    settings = mcp === true ? (;) : mcp
+    for name in keys(settings)
+        name in (:instructions, :host, :port) ||
+            error("The setting `mcp` has no field `$(name)`. Its fields are instructions, ",
+                  "host and port.")
+    end
     make_agent_server(:mcp, editor;
                       (name => value for (name, value) in pairs(settings)
                        if value !== nothing)...)
 end
-
-# The devices of an editor when the caller names none: a display, a keyboard
-# and a mouse, made new for each editor.
-_make_default_devices() = Device[Display(), Keyboard(), Mouse()]
 
 """
     make_editor(document::Document, projection; backend::Backend,
@@ -313,7 +308,7 @@ function make_editor(document::Document, projection; backend::Backend,
     try
         configure_devices!(backend, devices)
         open_native_windows!(backend, document)
-        editor = Editor(backend, document, projection, devices;
+        editor = Editor(document, projection; backend = backend, devices = devices,
                         feeds = feeds, fault_policy = fault_policy)
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do
             print!(editor)
@@ -330,28 +325,74 @@ function make_editor(document::Document, projection; backend::Backend,
 end
 
 """
-    run_editor!(document::Document, projection; mcp = false, mcp_instructions = nothing,
-                mcp_host = nothing, mcp_port = nothing, keywords...)
+    run_editor!(document::Document, projection; wait = true, mcp = false, keywords...)
     run_editor!(document::Document; ...)
 
 The one call for a caller with no work before the loop: [`build_editor`](@ref)
-with `keywords`, then the loop above with the `mcp` keywords. A caller with work
-to do before the loop — a driver that posts its work, a watcher, a tool it
-declares — calls `build_editor` or `make_editor`, does that work with the
-editor, and then calls `run_editor!(editor)`.
+with `keywords`, then the loop above with `mcp`. A caller with work to do before
+the loop — a driver that posts its work, a watcher, a tool it declares — calls
+`build_editor` or `make_editor`, does that work with the editor, and then calls
+`run_editor!(editor)`.
+
+With `wait = false` the call returns the editor at once, and the editor runs on
+a task of its own: a task pinned to a thread of the default pool that is not the
+thread of the caller, or an `@async` task when the process has no such thread.
+The task builds the editor too, because a backend such as SDL answers only the
+thread that started it. The loop's task is `editor.loop_task`, from the moment
+the call returns until the loop ends. The loop keeps the world of its start, so a
+function that the caller defines later is too new for it: a call that the caller
+posts with `run_on_editor_task!` goes through `Base.invokelatest`.
 """
-function run_editor!(document::Document, projection; mcp::Bool = false,
-                     mcp_instructions::Union{AbstractString,Nothing} = nothing,
-                     mcp_host::Union{AbstractString,Nothing} = nothing,
-                     mcp_port::Union{Integer,Nothing} = nothing, keywords...)
-    run_editor!(build_editor(document, projection; keywords...);
-                mcp, mcp_instructions, mcp_host, mcp_port)
+function run_editor!(document::Document, projection; wait::Bool = true,
+                     mcp::Union{Bool,NamedTuple} = false, keywords...)
+    make = () -> build_editor(document, projection; keywords...)
+    wait ? run_editor!(make(); mcp) : _start_editor_task(make, mcp)
 end
 
-function run_editor!(document::Document; mcp::Bool = false,
-                     mcp_instructions::Union{AbstractString,Nothing} = nothing,
-                     mcp_host::Union{AbstractString,Nothing} = nothing,
-                     mcp_port::Union{Integer,Nothing} = nothing, keywords...)
-    run_editor!(build_editor(document; keywords...);
-                mcp, mcp_instructions, mcp_host, mcp_port)
+function run_editor!(document::Document; wait::Bool = true,
+                     mcp::Union{Bool,NamedTuple} = false, keywords...)
+    make = () -> build_editor(document; keywords...)
+    wait ? run_editor!(make(); mcp) : _start_editor_task(make, mcp)
+end
+
+# Build the editor with `make` on a task of its own and run its loop there, and
+# answer the editor once it is built. An error of the build goes to the caller.
+function _start_editor_task(make, mcp)
+    made = Channel{Any}(1)
+    function run_loop()
+        editor = try
+            make()
+        catch exception
+            put!(made, exception)
+            return
+        end
+        editor.loop_task = current_task()
+        put!(made, editor)
+        run_editor!(editor; mcp)
+    end
+    thread = _find_editor_thread()
+    task = thread === nothing ? (@async run_loop()) : _spawn_pinned(run_loop, thread)
+    errormonitor(task)
+    editor = take!(made)
+    editor isa Exception && throw(editor)
+    editor
+end
+
+# A thread of the default pool that is not the thread of the caller, or `nothing`
+# when the process has no such thread.
+function _find_editor_thread()
+    current = Threads.threadid()
+    candidates = [thread for thread in Threads.threadpooltids(:default) if thread != current]
+    isempty(candidates) ? nothing : last(candidates)
+end
+
+# Run `f` in a task that never moves from thread `thread`: a sticky task, pinned
+# with the internal call that `Threads.@threads :static` makes.
+function _spawn_pinned(f, thread::Int)
+    task = Task(f)
+    task.sticky = true
+    ccall(:jl_set_task_tid, Cint, (Any, Cint), task, thread - 1) == 1 ||
+        error("The editor task could not be pinned to thread ", thread, ".")
+    schedule(task)
+    task
 end

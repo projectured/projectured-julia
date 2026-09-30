@@ -458,29 +458,28 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
 end
 
 # Run the loop of `editor`, under the profiler when `profile` is set.
-function _run_editor_profiled(editor; profile::Bool=false, mcp::Bool=false,
-                              mcp_host=nothing, mcp_port=nothing)
+function _run_editor_profiled(editor; profile::Bool=false,
+                              mcp::Union{Bool,NamedTuple}=false)
     if profile
         Profile.clear()
         try
-            Profile.@profile run_editor!(editor; mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
+            Profile.@profile run_editor!(editor; mcp=mcp)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run_editor!(editor; mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
+        run_editor!(editor; mcp=mcp)
     end
 end
 
 # Make the editor of a window scene and run its loop. The tail of `run_file_editor`.
 function _run_window_scene(docs, projs, names; width, height, backend,
                            compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
-                           mcp::Bool=false, mcp_host=nothing, mcp_port=nothing,
-                           feeds::Vector{Feed}=Feed[])
+                           mcp::Union{Bool,NamedTuple}=false, feeds::Vector{Feed}=Feed[])
     editor = _make_window_scene_editor(docs, projs, names; width=width, height=height,
                                        backend=backend, compose=compose,
                                        content_unwrap=content_unwrap, feeds=feeds)
-    _run_editor_profiled(editor; profile=profile, mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
+    _run_editor_profiled(editor; profile=profile, mcp=mcp)
 end
 
 # Build a projection that projects the screen down to each

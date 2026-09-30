@@ -253,8 +253,8 @@ function warm_file_editor(domain::Symbol)
         # skip `write_to_devices`, so no window opens. The backend is only a field
         # here — `evaluate_operation` dispatches on the operation, not the backend —
         # so the window-free console backend is enough.
-        editor = Editor(ConsoleBackend(), screen, composed,
-                        Device[Display(), Keyboard(), Mouse()])
+        editor = Editor(screen, composed; backend = ConsoleBackend(),
+                        devices = Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, screen)
         _force_reactive!(editor.iomap)
         for event in _WARMUP_EVENTS

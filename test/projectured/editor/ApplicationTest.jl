@@ -79,7 +79,8 @@ end
 # An editor over that scene, for a case that presses a button of the window or
 # opens a file: those post their edit, and only an editor has the inbox.
 function _app_make_editor(scene, composed, iomap)
-    editor = Editor(ConsoleBackend(), scene, composed, Device[Display(), Keyboard(), Mouse()])
+    editor = Editor(scene, composed; backend = ConsoleBackend(),
+                    devices = Device[Display(), Keyboard(), Mouse()])
     editor.iomap = iomap
     editor
 end
@@ -399,8 +400,8 @@ function test_application()
                 @test level(document.content) == ".content.content" * path
                 @test level(document.content.content) == ".content" * path
                 # So Ctrl+C copies what the focus names, with no verb called first.
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 copy = _app_fire(composed, iomap, KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0))
                 copy isa Operation && evaluate_operation(editor, copy)
@@ -412,8 +413,8 @@ function test_application()
 
             @testset "a verb focuses a pane through the readers, and every level holds its part" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 files = find_pane_reference(editor, "Files")
                 @test evaluate_reference(scene, files) isa PaneTab
@@ -777,8 +778,8 @@ function test_application()
                 # A real editor, because an evaluation reads the tools of the editor.
                 # The iomap stands, as it does in a live editor, so what is drawn
                 # is what the cells follow and not what a fresh print shows.
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
@@ -840,8 +841,8 @@ function test_application()
 
             @testset "Up and Down in the evaluator recall its history through the window" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
@@ -888,8 +889,8 @@ function test_application()
 
             @testset "a structured form takes keys through the window, and Enter evaluates it" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
@@ -933,8 +934,8 @@ function test_application()
 
             @testset "a noted object pasted into a form runs as itself, and its tab draws the change" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
@@ -996,8 +997,8 @@ function test_application()
                 set_os_clipboard_backend!(read = () -> buffer[], write = text -> (buffer[] = text; true))
                 try
                     document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                    editor = Editor(ConsoleBackend(), scene, composed,
-                                    Device[Display(), Keyboard(), Mouse()])
+                    editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                    devices = Device[Display(), Keyboard(), Mouse()])
                     editor.iomap = iomap
                     press!(event) = begin
                         operation = _app_fire(composed, editor.iomap, event)
@@ -1050,8 +1051,8 @@ function test_application()
 
             @testset "a noted circle, pasted into code, draws the change the code makes" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 fire!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
@@ -1128,8 +1129,8 @@ function test_application()
 
             @testset "an evaluated form draws as Julia, and a form with a comment as typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                editor = Editor(ConsoleBackend(), scene, composed,
-                                Device[Display(), Keyboard(), Mouse()])
+                editor = Editor(scene, composed; backend = ConsoleBackend(),
+                                devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)

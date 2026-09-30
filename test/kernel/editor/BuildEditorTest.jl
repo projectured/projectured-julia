@@ -2,13 +2,16 @@
 # declare outputs and keywords that no real package uses, so a backend or a
 # wrapper of this file never joins an editor that another test builds.
 
+import ProjecturedKernel
 using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.DeviceModule
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend
-import ProjecturedKernel.EditorModule: Editor, get_backend_name, get_backend_output,
+import ProjecturedKernel.OperationModule: QuitEditorOperation
+import ProjecturedKernel.EditorModule: Editor, post_operation!, run_editor!,
+                                       get_backend_name, get_backend_output,
                                        collect_backend_types, make_default_backend,
                                        EditorParts, wrap_editor!, get_wrapper_layers,
                                        get_excluded_wrappers, is_wrapper_default,
@@ -148,12 +151,47 @@ function test_build_editor()
             devices = Device[], build_probe_excluding = true, build_probe_inner = true)
     end
 
+    @testset "a pinned task stays on its thread" begin
+        # The pinning call is internal to Julia, so this test fails when a
+        # release changes it.
+        thread = last(Threads.threadpooltids(:default))
+        seen = Int[]
+        task = ProjecturedKernel.EditorModule._spawn_pinned(thread) do
+            for _ in 1:50
+                push!(seen, Threads.threadid())
+                yield()
+            end
+        end
+        wait(task)
+        @test task.sticky
+        @test all(==(thread), seen)
+    end
+
+    @testset "with wait = false, the editor is built and runs on a task of its own" begin
+        backend = BuildProbeBackend()
+        editor = run_editor!(BuildProbe(), BuildProbeProjection(); wait = false,
+                             backend, devices = Device[])
+        task = editor.loop_task
+        @test task isa Task && task !== current_task()
+        @test backend.starts == 1
+        post_operation!(editor, QuitEditorOperation())
+        wait(task)
+        @test istaskdone(task) && editor.loop_task === nothing
+    end
+
     @testset "with no projection, the document's default projection is used" begin
         editor = build_editor(BuildProjectedProbe(); backend = BuildProbeBackend(),
                               devices = Device[])
         @test editor.projection isa BuildProbeProjection
-        @test_throws "No projection is given for a document of type" build_editor(
-            BuildProbe(); backend = BuildProbeBackend(), devices = Device[])
+        # A package that draws any document, such as Natural, gives every
+        # document a default, so the error needs a process without one.
+        if hasmethod(make_document_projection, Tuple{BuildProbe})
+            @test build_editor(BuildProbe(); backend = BuildProbeBackend(),
+                               devices = Device[]) isa Editor
+        else
+            @test_throws "No projection is given for a document of type" build_editor(
+                BuildProbe(); backend = BuildProbeBackend(), devices = Device[])
+        end
     end
 end
 end

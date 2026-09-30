@@ -419,10 +419,41 @@ Each step ends with its narrowest test and a commit.
     - The test doubles use outputs and keywords that no package uses, because
       a method stays for the rest of the process: a double that drew
       `:windows` would be a second candidate for every later test.
-  - [ ] 1b. The `Editor` constructor (Q1) and `wait` (Q2).
-  - [ ] 1c. The docstring of `make_strict_fault_policy` in the sealed
-    `source/kernel/fault/FaultPolicy.jl` shows the old order of
-    `make_editor`. It waits for the owner's permission.
+  - [x] 1b. The `Editor` constructor (Q1) and `wait` (Q2). The owner,
+    2026-09-30: "More than five is not a hard limit, there may be
+    exceptions, especially if it's only few functions. Let's be reasonable,
+    how would we define it if there was no such rule?" and "MCP may need a
+    parameter structure though, we should certainly not add several keywords
+    for a single thing."
+    - `Editor(document, projection; backend, devices, clock, tools, faults,
+      fault_policy, feeds)`: the shape of C13, with the default devices of
+      `make_editor`. `_make_default_devices` moved to `Editor.jl`.
+    - `mcp` is one setting: `false`, `true`, or `(; instructions, host,
+      port)`, as the setting of a wrapper is. A field that the server does
+      not know is an error. The gallery and the value viewer take the one
+      setting; `run_application` keeps its `mcp_host` and `mcp_port` until
+      step 10, and passes them as one setting.
+    - Found: `wait = false` belongs to the forms that build the editor,
+      `run_editor!(document, ...)`, and not to `run_editor!(editor)`: a
+      backend such as SDL answers only the thread that started it, so the
+      task of the loop must build the editor too. The call returns the
+      editor, and `editor.loop_task` is its task until the loop ends. The
+      pinned thread code (`_find_editor_thread`, `_spawn_pinned`) moved from
+      the data frame display into `EditorLoop.jl`, and the display calls
+      `run_editor!(...; wait = false)`.
+    - The calls of the constructor follow (a Sonnet subagent moved 41 calls
+      in 22 files, and I moved those in the files of the `mcp` change).
+    - The run of 2026-09-30: the kernel suite, the fault, shell, console,
+      feed, value viewer, MCP server, application, video and data frame
+      tests, 4946 pass. The failures are those of main: the navigator scroll
+      test (2 errors) and "the assistant card fills its page" (4 fails).
+      The one kernel failure was the test: in a process that loads Natural,
+      every document has a default projection, so the test now asks
+      `hasmethod` first; alone, the kernel test passes 23 of 23.
+  - [x] 1c. The docstring of `make_strict_fault_policy` in
+    `source/kernel/fault/FaultPolicy.jl` shows the new order. The owner gave
+    the permission ("I give permissions to unseal"), so the file is ⬜ in
+    SEALING.md and needs an audit before it is sealed again.
 - [x] **2. The backends declare themselves.** SDL, Web and Console. Test the
   choice: one candidate, two, none, and a `:text` backend beside a `:windows`
   one. Done 2026-09-30: `:sdl` and `:web` draw `:windows`, `:console` draws

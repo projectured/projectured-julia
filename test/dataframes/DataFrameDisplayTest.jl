@@ -20,27 +20,11 @@ _display_session() = ProjecturedDataFrames.DataFramesModule._SESSION[]
 """
     test_data_frame_display()
 
-`display_in_editor` starts an editor on a thread of its own, pinned to it, shows
-each frame in a tab of its own, and shows a frame that has a tab in that tab.
-The pinning call is internal to Julia, so its test fails when a release changes
-it.
+`display_in_editor` starts an editor on a thread of its own, shows each frame in
+a tab of its own, and shows a frame that has a tab in that tab.
 """
 function test_data_frame_display()
     @testset "a data frame shown in an editor beside the caller" begin
-        @testset "a pinned task stays on its thread" begin
-            thread = last(Threads.threadpooltids(:default))
-            seen = Int[]
-            task = ProjecturedDataFrames.DataFramesModule._spawn_pinned(thread) do
-                for _ in 1:50
-                    push!(seen, Threads.threadid())
-                    yield()
-                end
-            end
-            wait(task)
-            @test task.sticky
-            @test all(==(thread), seen)
-        end
-
         close_data_frame_editor!()
         backend = _DisplayProbeBackend()
         first_frame = make_data_frame_example(rows = 3)
