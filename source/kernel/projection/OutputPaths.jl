@@ -3,14 +3,15 @@
 # of path of the input.
 
 """
-    make_output_path_cells(input, map_forward) -> NamedTuple
+    make_output_path_cells(input, map_forward; dormant = true) -> NamedTuple
 
 The cells of every kind of path of the output document that a printer makes from
 `input`, as keyword arguments for the constructor of the output: `selection` and
 `mouse_target`. Each cell holds the forward image of the same kind of path of
 `input`, through `map_forward(path)`, which answers the path in the output or
 `nothing`. The selection carries a dormant selection as one
-(`map_selection_forward`); the part under the pointer maps as it is.
+(`map_selection_forward`); with `dormant = false` it maps only a live one, for an
+output that routes keys by its selection. The part under the pointer maps as it is.
 
 Use it wherever a printer wires the selection of its output: the one forward map of
 the place then wires every kind of path, and a later kind needs no code there.
@@ -25,27 +26,29 @@ the place then wires every kind of path, and a later kind needs no code there.
     end)
     output = TextBlock(elements; paths...)
 """
-make_output_path_cells(input, map_forward) =
-    map(compute -> Cell(@computation(compute())), _get_output_path_computations(input, map_forward))
+make_output_path_cells(input, map_forward; dormant::Bool = true) =
+    map(compute -> Cell(@computation(compute())),
+        _get_output_path_computations(input, map_forward, dormant))
 
 """
-    set_output_path_computations!(output, input, map_forward) -> output
+    set_output_path_computations!(output, input, map_forward; dormant = true) -> output
 
 Set the computation of every path cell of `output`, which a printer built already,
 as [`make_output_path_cells`](@ref) makes them: each holds the forward image of the
 same kind of path of `input` through `map_forward`. A field that `output` does not
 have is left out.
 """
-function set_output_path_computations!(output, input, map_forward)
-    for (name, compute) in pairs(_get_output_path_computations(input, map_forward))
+function set_output_path_computations!(output, input, map_forward; dormant::Bool = true)
+    for (name, compute) in pairs(_get_output_path_computations(input, map_forward, dormant))
         hasfield(typeof(output), name) && set_cell_computation!(getfield(output, name), compute)
     end
     output
 end
 
 # One computation for each kind of path of an output document, by field name.
-_get_output_path_computations(input, map_forward) =
-    (selection = () -> map_selection_forward(input, map_forward),
+_get_output_path_computations(input, map_forward, dormant::Bool) =
+    (selection = dormant ? () -> map_selection_forward(input, map_forward) :
+                           () -> (is_live_selection(input) ? map_selection_forward(input, map_forward) : nothing),
      mouse_target = () -> map_mouse_target_forward(input, map_forward))
 
 """

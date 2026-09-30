@@ -79,11 +79,6 @@ function _backward_string(reference)
     end
 end
 
-# Translates a PrimitiveDocument's `.value[k]` / `.value[range]` selection
-# into the single-span TextBlock: a caret `.elements[1].content[k]`, a range the
-# flat `{s:e}`.
-_value_selection_to_text(prim) = _forward_value(getfield(prim, :selection)[])
-
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
 @projection struct PrimitiveBoolToText
@@ -97,8 +92,9 @@ map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
 
 function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
     span = TextString(() -> string(b.value), p.style)
+    paths = make_output_path_cells(b, _forward_value)
     out = TextBlock(CellVector(@computation TextDocument[span]),
-                   Cell(@computation _value_selection_to_text(b)))
+                   paths.selection, paths.mouse_target)
     SimpleIoMap(p, b, out)
 end
 
@@ -121,8 +117,9 @@ map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
 
 function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
     span = TextString(() -> string(something(n.value, "")), p.style)
+    paths = make_output_path_cells(n, _forward_value)
     out = TextBlock(CellVector(@computation TextDocument[span]),
-                   Cell(@computation _value_selection_to_text(n)))
+                   paths.selection, paths.mouse_target)
     SimpleIoMap(p, n, out)
 end
 
@@ -158,8 +155,9 @@ function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveSt
     # selection (mapped to `elements[1].content`) tracks `s.value` either way.
     placeholder_span = TextString(p.placeholder, p.placeholder_style)
     show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
+    paths = make_output_path_cells(s, _forward_value)
     out = TextBlock(CellVector(@computation TextDocument[show_placeholder() ? placeholder_span : value_span]),
-                   Cell(@computation _value_selection_to_text(s)))
+                   paths.selection, paths.mouse_target)
     SimpleIoMap(p, s, out)
 end
 

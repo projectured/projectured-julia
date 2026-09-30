@@ -144,22 +144,21 @@ function _follow_fold!(card::WidgetCard, read_flag::Function)
     card
 end
 
-# A widget that follows the selection of the node that printed it. Its selection
-# cell holds the node's selection mapped forward, with the steps that lead from
-# the printed output to the widget taken off, and nothing when the image does
-# not pass through the widget. A container draws its selection ring from that
-# cell. `lead` are those steps, without node types.
+# A widget that follows the paths (the selection, the mouse target) of the node
+# that printed it. Each path cell holds the node's path mapped forward, with the
+# steps that lead from the printed output to the widget taken off, and nothing
+# when the image does not pass through the widget. A container draws its
+# selection ring from that cell, and routes keys by it, so it follows only a live
+# selection. `lead` are those steps, without node types.
 function _follow_selection!(widget, node, projection, iomap, lead::Vector)
-    set_cell_computation!(getfield(widget, :selection), () -> begin
-        selection = node.selection
-        selection === nothing && return nothing
-        image = map_reference_forward(projection, iomap, selection)
+    set_output_path_computations!(widget, node, path -> begin
+        image = map_reference_forward(projection, iomap, path)
         image isa Reference || return nothing
         steps = get_reference_steps(strip_reference_types(image))
         length(steps) >= length(lead) || return nothing
         all(i -> steps[i] == lead[i], eachindex(lead)) || return nothing
         _from_steps(steps[(length(lead) + 1):end])
-    end)
+    end; dormant = false)
     widget
 end
 

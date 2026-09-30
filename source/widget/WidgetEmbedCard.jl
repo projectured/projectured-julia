@@ -16,16 +16,14 @@
     make_embed_card(document, title) -> WidgetCard
 
 A foldable card whose body is `document` and whose header says `title`. The
-card's selection is the document's own, under the card's `content` step, so a
-key the page routes to the card reaches the document.
+card's paths (its selection, its mouse target) are the document's own, under the
+card's `content` step, so a key the page routes to the card reaches the document.
 """
 function make_embed_card(document, title::AbstractString)
     card = WidgetCard(; title = WidgetLabel(String(title)),
                       content = document, collapsible = true)
-    set_cell_computation!(getfield(card, :selection), () -> begin
-        inner = hasproperty(document, :selection) ? getfield(document, :selection)[] : nothing
-        inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), inner)
-    end)
+    set_output_path_computations!(card, document,
+                                  path -> ConcreteReference(FieldReferenceStep("content"), path))
     card
 end
 

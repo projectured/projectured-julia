@@ -149,13 +149,17 @@ end
 # the routing prefix unless the caller says more.
 function _forward_selection!(widget, source, projection, iomap, get_routing = _index_prefix)
     source_selection = getfield(source, :selection)
+    map_forward(path) = map_reference_forward(projection, iomap, get_routing(path))
     set_cell_computation!(getfield(widget, :selection), () -> begin
         # The stored path, live or dormant: a group that lost the focus still shows
         # the tab it was showing, so its widget image must name that tab.
         selection = _get_stored_selection_value(source_selection[])
         selection === nothing && return nothing
-        map_reference_forward(projection, iomap, get_routing(selection))
+        map_forward(selection)
     end)
+    hasfield(typeof(widget), :mouse_target) &&
+        set_cell_computation!(getfield(widget, :mouse_target),
+                              () -> map_mouse_target_forward(source, map_forward))
 end
 
 # ── PaneTree ───────────────────────────────────────────────────────────────
@@ -187,15 +191,16 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
     # as a whole — and rings it — only when the tree's root is selected whole;
     # otherwise its selection is the image of the step the root takes, which is
     # all the routing reads and all the forward maps below take.
-    set_cell_computation!(getfield(composite, :selection), () -> begin
-        selection = get_selection(tree)
-        selection isa ConcreteReference || return nothing
-        rest = _after_field(selection, "root")
+    map_forward(path) = begin
+        path isa ConcreteReference || return nothing
+        rest = _after_field(path, "root")
         rest === nothing && return nothing
         rest isa EmptyReference && return _PANE_LAYER
-        map_reference_forward(p, iomap,
-            ConcreteReference(selection.type, selection.head, _index_prefix(rest)))
-    end)
+        map_reference_forward(p, iomap, ConcreteReference(path.type, path.head, _index_prefix(rest)))
+    end
+    set_cell_computation!(getfield(composite, :selection), () -> map_forward(get_selection(tree)))
+    set_cell_computation!(getfield(composite, :mouse_target),
+                          () -> map_mouse_target_forward(tree, map_forward))
     iomap
 end
 

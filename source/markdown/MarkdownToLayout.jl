@@ -25,13 +25,12 @@ end
 
 function print_document(p::MarkdownRootToVerticalLayout, recursion, root::MarkdownRoot, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(root, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing && return nothing
-        map_reference_forward(p, iomap, root.selection)
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
     # The page's own element cells are reused, not copied: the layout's
-    # children share the root's element storage (only the selection cell is
+    # children share the root's element storage (only the path cells are
     # the layout's own), and the layout renderer recurses each element.
     #
     # Every block fills the width of the page (`child_width = Fill`), which is
@@ -51,7 +50,7 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     children = CellVector(@computation Any[block_of(element) for element in elements])
     out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
-                         Cell(Fill), Cell(nothing), sel)
+                         Cell(Fill), Cell(nothing), paths.selection, paths.mouse_target)
     iomap = SimpleIoMap(p, root, out)
     iomap_cell[] = iomap
     iomap
@@ -140,10 +139,7 @@ function _make_page_table(table::MarkdownTable)
                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
                          Cell(nothing),                    # hovered
                          Cell(nothing))                    # tooltip
-    set_cell_computation!(getfield(widget, :selection), () -> begin
-        inner = getfield(table, :selection)[]
-        inner === nothing ? nothing : _map_table_path_forward(inner)
-    end)
+    set_output_path_computations!(widget, table, _map_table_path_forward)
     widget
 end
 

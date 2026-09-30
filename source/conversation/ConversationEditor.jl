@@ -567,11 +567,11 @@ function _body_selection(c, s::Int, e::Int)
     _body_range_selection(_value_span(c), clamp(s, 0, n), clamp(e, 0, n))
 end
 
-# A widget that follows the draft's selection. Its selection cell holds the
-# draft's selection mapped forward, less the `lead` steps that lead to the
-# widget, and nothing when the image does not pass through it. `dormant` keeps a
-# dormant selection, which a text layer draws pale; a card routes keys by its
-# selection, so it follows only a live one.
+# A widget that follows the draft's paths (the selection, the mouse target). Each
+# path cell holds the draft's path mapped forward, less the `lead` steps that lead
+# to the widget, and nothing when the image does not pass through it. `dormant`
+# keeps a dormant selection, which a text layer draws pale; a card routes keys by
+# its selection, so it follows only a live one.
 function _follow_draft!(widget, d::ConversationDraft, p, iomap_ref::Ref, lead::Vector;
                         dormant::Bool)
     function image_of(path)
@@ -582,9 +582,7 @@ function _follow_draft!(widget, d::ConversationDraft, p, iomap_ref::Ref, lead::V
         all(k -> steps[k] == lead[k], eachindex(lead)) || return nothing
         _from_steps(steps[(length(lead) + 1):end])
     end
-    set_cell_computation!(getfield(widget, :selection), dormant ?
-        (() -> map_selection_forward(d, image_of)) :
-        (() -> (path = d.selection; path === nothing ? nothing : image_of(path))))
+    set_output_path_computations!(widget, d, image_of; dormant)
     widget
 end
 
@@ -640,11 +638,12 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
         Cell(:left), Cell(_GAP), Cell(Fill), Cell(Content), Cell(nothing))
     iomap = SimpleIoMap(p, d, body)
     iomap_ref[] = iomap
-    # The selection, carried down. A key is routed by selection and stops at the
-    # first container that has none, so the stack of part cards, the active card
-    # and its body each say where the draft's selection is.
-    set_cell_computation!(getfield(body, :selection),
-                       () -> map_reference_forward(p, iomap, getfield(d, :selection)[]))
+    # The paths, carried down. A key is routed by selection and stops at the first
+    # container that has none, so the stack of part cards, the active card and its
+    # body each say where the draft's selection is; the body follows only a live
+    # one.
+    set_output_path_computations!(body, d, path -> map_reference_forward(p, iomap, path);
+                                  dormant = false)
     iomap
 end
 

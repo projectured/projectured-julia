@@ -79,15 +79,11 @@ function print_document(p::DatabaseInstanceToDbCatalog,
                           recursion, inst::DatabaseInstance, ctx)
     rdbms = DbCatalogRdbms(inst.host, inst.port, _build_databases(p.pool, inst))
     iomap = SimpleIoMap(p, inst, rdbms)
-    # Forward-project the DatabaseInstance's selection onto the freshly-built
-    # catalog tree so DbCatalogToSyntax can render a cursor after set_selection!.
-    # The instance stores its selection in DbCatalog-domain coordinates wrapped
-    # as proj(p, …) (see map_reference_backward); the forward map unwraps it.
-    set_cell_computation!(getfield(rdbms, :selection), () -> begin
-        sel = inst.selection
-        sel === nothing && return nothing
-        map_reference_forward(p, iomap, sel)
-    end)
+    # Forward-project the DatabaseInstance's paths onto the freshly-built catalog
+    # tree so DbCatalogToSyntax can render a cursor after set_selection!. The
+    # instance stores its paths in DbCatalog-domain coordinates wrapped as
+    # proj(p, …) (see map_reference_backward); the forward map unwraps them.
+    set_output_path_computations!(rdbms, inst, path -> map_reference_forward(p, iomap, path))
     iomap
 end
 

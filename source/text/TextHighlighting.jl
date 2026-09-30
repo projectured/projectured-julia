@@ -73,8 +73,9 @@ function print_document(p::TextHighlighting, recursion, text::TextBlock, ctx)
     both = Cell(@computation _highlight(text, _effective_pattern(pattern_cell[], ci_cell[]), color))   # (elements, segs)
     elements_cv = CellVector(@computation both[][1])
     segs_cell = Cell(@computation both[][2])
-    out_selection = Cell(@computation _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
-    output = TextBlock(elements_cv, out_selection)
+    paths = make_output_path_cells(text, path ->
+        _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), path))
+    output = TextBlock(elements_cv, paths.selection, paths.mouse_target)
     TextHighlightingIoMap(p, text, output, segs_cell)
 end
 

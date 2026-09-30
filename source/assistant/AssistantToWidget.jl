@@ -72,9 +72,9 @@ function print_document(projection::AssistantToWidgetSplitPane,
     ])
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
-    # assistant's selection names.
-    set_cell_computation!(getfield(column, :selection),
-                       () -> map_reference_forward(projection, iomap, getfield(a, :selection)[]))
+    # assistant's selection names. The part under the pointer follows the same map.
+    set_output_path_computations!(column, a, path -> map_reference_forward(projection, iomap, path);
+                                  dormant = false)
     iomap
 end
 
@@ -108,20 +108,21 @@ function print_document(p::AssistantToWidgetCard,
     # and the cell has to carry one or the key stops at the first that does not.
     # There are four here, and each sees the same path with its own prefix
     # already spent — the same suffix walk a catalog shell does for its panes.
-    full() = map_reference_forward(p, iomap, getfield(a, :selection)[])
-    suffix(n) = () -> begin
-        r = full()
+    # The part under the pointer is carried down the same way.
+    image(path) = map_reference_forward(p, iomap, path)
+    suffix(n) = path -> begin
+        r = image(path)
         r === nothing && return nothing
         steps = get_reference_steps(r)
         length(steps) > n ? _steps_to_reference(steps[(n + 1):end]) : nothing
     end
-    set_cell_computation!(getfield(column, :selection), full)
-    set_cell_computation!(getfield(card, :selection), suffix(2))
-    set_cell_computation!(getfield(card.content, :selection), suffix(3))
-    # Only the pane the path names carries a selection. Both panes sit at the
-    # same depth, so a bare suffix would tell each of them it held the caret.
-    pane_suffix(i) = () -> begin
-        r = full()
+    set_output_path_computations!(column, a, image; dormant = false)
+    set_output_path_computations!(card, a, suffix(2); dormant = false)
+    set_output_path_computations!(card.content, a, suffix(3); dormant = false)
+    # Only the pane the path names carries a path. Both panes sit at the same
+    # depth, so a bare suffix would tell each of them it held the caret.
+    pane_suffix(i) = path -> begin
+        r = image(path)
         r === nothing && return nothing
         steps = get_reference_steps(r)
         length(steps) > 5 || return nothing
@@ -129,8 +130,8 @@ function print_document(p::AssistantToWidgetCard,
         (step isa RangeReferenceStep && step.start + 1 == i) || return nothing
         _steps_to_reference(steps[6:end])
     end
-    set_cell_computation!(getfield(transcript, :selection), pane_suffix(1))
-    set_cell_computation!(getfield(cell, :selection), pane_suffix(2))
+    set_output_path_computations!(transcript, a, pane_suffix(1); dormant = false)
+    set_output_path_computations!(cell, a, pane_suffix(2); dormant = false)
     iomap
 end
 

@@ -63,32 +63,37 @@ function find_output_path(reference, owner)
 end
 
 """
-    follow_output_selection!(root, forward; is_followed = node -> true) -> root
+    follow_output_selection!(root, forward; forward_mouse_target = nothing,
+                             is_followed = node -> true) -> root
 
 Make each document of the output tree `root` hold the part of the path
 `forward()` answers that lies below it, and nothing when the path does not pass
 through it. `forward()` answers a path from `root`, or `nothing`. So every
 container holds its own part of the selection and rings the child that the part
-names as a whole.
+names as a whole. `forward_mouse_target()`, when given, answers the path of the
+part under the pointer, and each document holds its part of it in the same way.
 
 The walk leaves out a node for which `is_followed` answers `false`, and what is
 below it: a document of the domain that the projection put into a widget, or a
 table whose rows are built on demand.
 """
-function follow_output_selection!(root, forward::Function; is_followed = node -> true)
-    _follow_output!(root, (), forward, is_followed, IdDict{Any,Bool}())
+function follow_output_selection!(root, forward::Function; forward_mouse_target = nothing,
+                                  is_followed = node -> true)
+    _follow_output!(root, (), :selection, forward, is_followed, IdDict{Any,Bool}())
+    forward_mouse_target === nothing ||
+        _follow_output!(root, (), :mouse_target, forward_mouse_target, is_followed, IdDict{Any,Bool}())
     root
 end
 
-function _follow_output!(node, prefix::Tuple, forward, is_followed, seen)
+function _follow_output!(node, prefix::Tuple, field::Symbol, forward, is_followed, seen)
     (haskey(seen, node) || !is_followed(node)) && return
     seen[node] = true
-    if hasproperty(node, :selection) && getfield(node, :selection) isa ReactiveCell
-        set_cell_computation!(getfield(node, :selection),
+    if hasfield(typeof(node), field) && getfield(node, field) isa ReactiveCell
+        set_cell_computation!(getfield(node, field),
                            () -> _get_output_part(forward(), prefix))
     end
     for (steps, child) in _child_document_refs(node)
-        _follow_output!(child, (prefix..., steps...), forward, is_followed, seen)
+        _follow_output!(child, (prefix..., steps...), field, forward, is_followed, seen)
     end
 end
 

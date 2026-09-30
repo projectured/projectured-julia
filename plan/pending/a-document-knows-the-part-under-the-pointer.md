@@ -513,13 +513,57 @@ already; the sealed selection files do not change (Q4).
   omnet tests pass; the naming guard passes, and the documentation check has
   its notes. The kernel docstrings of the default reader, the projection
   system guide, and the undo and gesture log documents name every kind of path.
-- [ ] 4. **The forward wiring** (M4, Q4). One kernel helper wires every kind of
+- [x] 4. **The forward wiring** (M4, Q4). One kernel helper wires every kind of
   path of an output document from the forward map of the place, a dormant
   selection as one; the places that wire the output selection call it. A view
   that makes a widget for a part of a domain wires the widget's mouse target
   from the part's, as the tree of the workspace wires its selection; the step
   finds those views first. Tests: the mouse target of a file lights its row in
   the tree of the workspace.
+  Built: `make_output_path_cells(input, map_forward; dormant = true)` in the new
+  kernel fragment `OutputPaths.jl` gives the cells of every kind of path from the
+  one forward map of a printer, as keywords for the output's constructor, and
+  `set_output_path_computations!` sets them on an output that is built already;
+  `map_mouse_target_forward` serves a printer whose selection cell is its own.
+  `dormant = false` maps only a live selection, for a widget that routes keys
+  by its selection (the conversation cards, the draft body, the assistant).
+  About 70 places wired a selection, not the ten the facts counted: the rule
+  template (seven builders and the key leaves, through `_with_output_paths`),
+  28 hand-written domain printers, the leaves, the screen, the copy, sort,
+  filter and search projections, the text stage (the syntax leaf maps the path
+  it gets, `_leaf_cursor(leaf, path)`; the compound keeps its composed selection
+  and maps the mouse target with cases 1 to 3 of the composer, because the
+  chain write gives it the whole path), the five text transformations, the
+  primitive text, and the views (the workspace, the file system tree, the
+  database instance, the embed card, the markdown and rst layouts and table,
+  the conversation, the pane, the assistant, the object field, the widget's
+  plain text view). The math, book and pane selection cells stay their own; the
+  pane keeps a dormant path as a plain one on purpose. A printer that passed a
+  live selection now carries a dormant one, as `map_selection_forward` intends,
+  except where keys route by selection. `follow_output_selection!` takes a
+  `forward_mouse_target`. omnet's views (about 15 places) follow in a commit of
+  their own.
+  Found: the text navigation invariants skip the collection examples ("lacks
+  read_intent") and `sql_nested_syntax` (a revisit of an introduced caret) for
+  faults that step 3a can have removed; to check later, with a fresh document.
+  With the dispatch fix of FSM and process (55378d751), the large `fsm` example
+  takes half an hour in a text walk and hours in the click round trip, so both
+  sweeps skip it; `fsm_toggle` covers the notation.
+  Tests: `test_output_paths()` (the syntax node of each array of `[1, [2, 3]]`
+  holds the part under the pointer in its own terms), a check of the rule
+  template in `test_json_to_syntax()`, and the workspace tree in
+  `test_workspace_to_filesystem()`: the pointer on the row of `sub/c.jl` maps
+  back to the folder, and the tree holds that row. The light is step 6. Checks:
+  the wide sweep has the counts of step 3b, with the new tests and the FSM
+  fix's changes; the repl sweep in a fresh process has its baseline; the omnet
+  tests pass; the naming guard passes, and the documentation check has its
+  notes. The substrate example sweep counts 287 cells fewer when other suites
+  run before it in a different order; the per-example counts of step 3b, 4a
+  and 4c are equal (88774) when each example runs alone.
+  Left: omnet's views (about 15 places). Several of them keep a selection as
+  state, such as the chosen type of the catalog list, and do not map a path
+  forward, so each needs a small design of its own; they follow with step 6,
+  when it is known which of their widgets light.
 - [ ] 5. **The move** (M6, M7). A container hands a `MouseMove` first to the
   child that its own mouse target names, along the old path, with the point in
   that child's frame, and then to the child at the point; when both are the

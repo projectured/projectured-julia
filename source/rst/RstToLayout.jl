@@ -32,10 +32,9 @@ end
 
 function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(root, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing && return nothing
-        map_reference_forward(p, iomap, root.selection)
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
     # The page's blocks, each in its own domain; an embedded file stands in a
     # card, built once for the block (see `_rst_block`).
@@ -44,7 +43,7 @@ function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ct
     children = CellVector(@computation Any[_rst_block(element, cards) for element in elements])
     out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
-                         Cell(nothing), Cell(nothing), sel)
+                         Cell(nothing), Cell(nothing), paths.selection, paths.mouse_target)
     iomap = SimpleIoMap(p, root, out)
     iomap_cell[] = iomap
     iomap
@@ -66,10 +65,9 @@ end
 
 function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSection, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(section, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing && return nothing
-        map_reference_forward(p, iomap, section.selection)
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
     # The title line, then the section's own blocks — which keep their cells, so
     # each block renders in its own domain and an embed reaches the widget
@@ -81,7 +79,7 @@ function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSe
         stack
     end)
     out = VerticalLayout(children, Cell(p.horizontal_align), Cell(p.gap),
-                         Cell(nothing), Cell(nothing), sel)
+                         Cell(nothing), Cell(nothing), paths.selection, paths.mouse_target)
     iomap = SimpleIoMap(p, section, out)
     iomap_cell[] = iomap
     iomap

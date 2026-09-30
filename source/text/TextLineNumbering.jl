@@ -60,11 +60,11 @@ function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
         end
         result
     end)
-    out_selection = Cell(@computation begin
+    paths = make_output_path_cells(text, path -> begin
         numbered = TextBlock(elements_cv, Cell(nothing))
-        _map_selection_over_runs(_make_numbering_runs(text, numbered), text, text.selection)
+        _map_selection_over_runs(_make_numbering_runs(text, numbered), text, path)
     end)
-    SimpleIoMap(p, text, TextBlock(elements_cv, out_selection))
+    SimpleIoMap(p, text, TextBlock(elements_cv, paths.selection, paths.mouse_target))
 end
 
 function _line_numbering_span(original::TextString, content::AbstractString)

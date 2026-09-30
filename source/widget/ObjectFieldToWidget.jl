@@ -132,6 +132,10 @@ function _text_control(p::ObjectFieldToWidget, field::ObjectField)
         inside === nothing ?
             _end_cursor(length(_as_string(get_object_field_value(field)))) : inside
     end)
+    # The part under the pointer is decoded the same way, with no caret of its own
+    # at the end of the text.
+    set_cell_computation!(getfield(tt, :mouse_target),
+                          () -> map_mouse_target_forward(field, _caret_in_content))
     WidgetText(tt)
 end
 

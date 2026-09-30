@@ -90,23 +90,20 @@ end
 # ── Printer ───────────────────────────────────────────────────────────────────
 
 function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDocument, ctx)
-    # The tree's selection is the node path of the document selection.
-    sel = Cell(@computation begin
-        path = doc.selection
-        path === nothing && return nothing
-        _map_tree_reference_forward(path)
-    end)
+    # The tree's paths (its selection, its mouse target) are the node paths of the
+    # document's.
+    paths = make_output_path_cells(doc, _map_tree_reference_forward)
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `print_document`.
     roots = CellVector(@computation Any[_fs_node(doc, p.open_file)])
-    # Positional, so every declared field is named here in order and the
-    # selection comes last: position, roots, visible, margin, border, padding,
-    # style, hovered, expanded, gestures, tooltip, selection. The root row is
-    # open, and each folder under it is closed until a person opens it.
+    # Positional, so every declared field is named here in order and the paths
+    # come last: position, roots, visible, margin, border, padding, style,
+    # hovered, expanded, gestures, tooltip, selection, mouse target. The root row
+    # is open, and each folder under it is closed until a person opens it.
     tree = WidgetTree(Cell(p.position), roots, Cell(true),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       Cell(nothing), Cell(Set([[1]])),
-                      Cell(GestureBinding[]), Cell(nothing), sel)
+                      Cell(GestureBinding[]), Cell(nothing), paths.selection, paths.mouse_target)
     # No size of its own: the pane takes the extent its parent offers, and on an
     # axis with no offer it is as large as the tree and clips nothing.
     SimpleIoMap(p, doc, WidgetScrollPane(tree))

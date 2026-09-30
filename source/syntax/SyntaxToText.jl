@@ -106,13 +106,14 @@ end
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     # The state travels with the image: a dormant selection maps forward as a
     # dormant one, so the painter downstream can draw it pale.
-    sel = Cell(@computation(map_selection_forward(leaf, path -> begin
-        leaf_sel = strip_reference_types(path)             # canonical → plain skeleton
-        leaf_sel isa EmptyReference && return @reference()
-        c = _leaf_cursor(leaf)
+    paths = make_output_path_cells(leaf, path -> begin
+        leaf_path = strip_reference_types(path)            # canonical → plain skeleton
+        leaf_path isa EmptyReference && return @reference()
+        c = _leaf_cursor(leaf, leaf_path)
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)
-    end)))
-    SimpleIoMap(p, leaf, TextBlock(CellVector(@computation _leaf_spans(leaf)), sel))
+    end)
+    SimpleIoMap(p, leaf, TextBlock(CellVector(@computation _leaf_spans(leaf)),
+                                   paths.selection, paths.mouse_target))
 end
 
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplacePathOperation)
@@ -569,7 +570,11 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
         # node holds no selection of its own, so this hop must map an absent one too.
         Cell(@computation(map_selection_forward(node,
             path -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[], path);
-            map_missing = true))))
+            map_missing = true))),
+        # The part under the pointer needs no promotion from a child: the chain write
+        # gives this node the whole path, so the forward map alone places it.
+        Cell(@computation(map_mouse_target_forward(node,
+            path -> _map_node_path_forward(p, iomap_cell[], path)))))
 
     iomap = SyntaxCompoundToTextIoMap(p, node, output,
         child_iomaps,
@@ -764,6 +769,16 @@ end
 # path; (4) otherwise the first child whose composed selection is a plain cursor
 # element path, shifted by its splice base — a child returning ∅ or a TextRect is
 # skipped, not promoted; (5) none.
+# The image of a path of the node itself: the whole node, or the forward map. These
+# are cases 1 to 3 of `_compose_node_selection`, without the promotion of a child's
+# caret.
+function _map_node_path_forward(p::SyntaxCompoundToText, iomap, path)
+    iomap === nothing && return nothing
+    node_path = strip_reference_types(path)
+    node_path isa EmptyReference && return @reference()
+    node_path isa Reference ? map_reference_forward(p, iomap, node_path) : nothing
+end
+
 function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, iomap, cims,
                                 selection = node.selection)
     iomap === nothing && return nothing
@@ -1295,14 +1310,15 @@ function _ellipsis_len(p::SyntaxCompoundToText, node::SyntaxCompound)
     length(get_syntax_children(node)) > 0 ? length(p.ellipsis_text.content::AbstractString) : 0
 end
 
-# Reads leaf.selection[] (.open[k], .value[k], .close[k], or PS variants) and
-# converts it to a flat character offset within open ++ value ++ close.
-# Returns -1 if the selection does not point to a cursor position inside this leaf.
-function _leaf_cursor(leaf::SyntaxLeaf)
-    # Selections are canonical (carry TypeReferenceStep checkpoints); strip them so
+# Reads a path of the leaf (.open[k], .value[k], .close[k]), such as its selection
+# or its mouse target, and converts it to a flat character offset within open ++
+# value ++ close. Returns -1 if the path does not point to a cursor position inside
+# this leaf.
+function _leaf_cursor(leaf::SyntaxLeaf, path)
+    # Paths are canonical (carry TypeReferenceStep checkpoints); strip them so
     # the raw .open/.value/.close{k} structural match below sees the plain
     # skeleton (otherwise sel.head is a TypeReferenceStep and no cursor is found).
-    sel = strip_reference_types(leaf.selection)
+    sel = strip_reference_types(path)
     sel isa EmptyReference && return -1
     sel isa ConcreteReference || return -1
     h = sel.head

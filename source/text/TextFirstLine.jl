@@ -50,11 +50,11 @@ function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
     both = Cell(@computation _first_line(text))
     elements_cv = CellVector(@computation both[][1])
     info_cell = Cell(@computation both[][2])
-    out_selection = Cell(@computation begin
+    paths = make_output_path_cells(text, path -> begin
         kept = TextBlock(elements_cv, Cell(nothing))
-        _map_selection_over_runs(_make_first_line_runs(info_cell[], text, kept), text, text.selection)
+        _map_selection_over_runs(_make_first_line_runs(info_cell[], text, kept), text, path)
     end)
-    output = TextBlock(elements_cv, out_selection)
+    output = TextBlock(elements_cv, paths.selection, paths.mouse_target)
     TextFirstLineIoMap(p, text, output, info_cell)
 end
 

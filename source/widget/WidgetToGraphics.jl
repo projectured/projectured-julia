@@ -1660,6 +1660,8 @@ function _make_plain_text_view(w, style::StyleText)
     view = TextBlock(span)
     set_cell_computation!(getfield(view, :selection),
                           () -> _get_plain_text_caret(w.selection))
+    set_cell_computation!(getfield(view, :mouse_target),
+                          () -> _get_plain_text_caret(w.mouse_target))
     view
 end
 

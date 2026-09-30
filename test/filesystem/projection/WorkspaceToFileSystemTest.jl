@@ -37,6 +37,18 @@ function test_workspace_to_filesystem()
         # the selection leaves, so the folder holds nothing either.
         replace_selection!(workspace, EmptyReference())
         @test tree.selection === nothing
+
+        # The part under the pointer takes the same way: the pointer on the row of
+        # `sub/c.jl` maps back to the folder, and the tree holds that row.
+        row = @reference(pane, content.roots[1].children[3].children[1])
+        target = read_intent(projection, iomap, ReplaceMouseTargetOperation(row))
+        @test target isa ReplaceMouseTargetOperation
+        @test shown(target.path) == shown(operation.path)
+        replace_mouse_target!(workspace, target.path)
+        @test shown(tree.mouse_target) == ".roots[1].children[3].children[1]"
+        @test tree.selection === nothing
+        replace_mouse_target!(workspace, EmptyReference())
+        @test tree.mouse_target === nothing
     end
 end
 end

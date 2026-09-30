@@ -65,9 +65,9 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     both = Cell(@computation _wrap(text, Int(wrap_w_cell[]), measure_fn))
     elements_cv = CellVector(@computation both[][1])
     segs_cell = Cell(@computation both[][2])
-    out_selection = Cell(@computation(_forward_wrapped(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)),
-                                                       text.selection)))
-    output = TextBlock(elements_cv, out_selection)
+    paths = make_output_path_cells(text, path ->
+        _forward_wrapped(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), path))
+    output = TextBlock(elements_cv, paths.selection, paths.mouse_target)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
 
