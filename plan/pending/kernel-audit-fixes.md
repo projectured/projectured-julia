@@ -1558,6 +1558,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** No carve-out: the template walk builds each output node with its final values (a new node through its wrapper) and writes no cell inside a computation.
 - **C:** Carve-out in the text only, with no change of the code.
 - **Recommended (mine): A.** The write completes the construction of a node that no cell reads yet. With peek it invalidates nothing, which is the one harm that the rule prevents. B rewrites the patch steps of ProjectionTemplate.jl (1516 lines, seven setproperty! calls). C keeps the edge from a fresh cell to the parent computation that the report found.
+- **Decided by the owner, 2026-09-30: A.** The words follow L01-17: a new cell with no dependent and no tracked reader.
 - Depends on: L01-17.
 - Cost: S. ProjectionTemplate.jl (not sealed): the tracked reads of the blueprint become peek (_carries_marker, the _find_ helpers, the children computation of the inline print). architecture-invariants.md, one paragraph. The suites of the template users: test_julia, test_math, test_fsm, test_process, test_substrate.
 - **Risk:** The carve-out does not cover the rerun of nested thunk child lists that step 1.4 recorded.
