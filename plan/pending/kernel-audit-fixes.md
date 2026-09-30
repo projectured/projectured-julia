@@ -1601,6 +1601,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Rename the builders as in A, but keep the 0-based index, and name the argument `boundary`.
 - **C:** Keep the names and the two bases. Correct only the docstrings.
 - **Recommended (mine): A.** PAR-ONE-BASED-INDEXING says that elements are 1-based and boundaries 0-based, and the builders take the index of an element: the first to delete, or the place of the first new one. 12 of the 17 calls in source/ subtract 1 before the call (PaneSurgery.jl 6, ChartDocument.jl 3, TextDocument.jl 2, VersioningToAny.jl 1). Domain.jl builds `ElementReferenceStep(n + 1)` and passes `n` to the builder in the same function, and ClipboardCollectionToAny.jl keeps a helper only to make a 0-based index. The builders return an operation, and `make_` is the verb for a new object. When the base and the name change in one step, no call keeps the old base under the old name. I checked: the three new names are free.
+- **Decided by the owner, 2026-09-30: A.**
 - Cost: M. projectured-julia: `insert_elements` 20 uses in 11 code files, `delete_elements` 22 in 11, `replace_document` 32 in 11. Each call of an element builder needs a check of its index. omnet-julia: no call of the builders (1 call of `insert_elements!`, which does not change; text in 2 plans). inet-julia: none. No sealed file. Prose: PAR-PREFER-REPLACE-VALUE in architecture-invariants.md, operation.md.
 
 **L14-2** (Medium): Does CollectedIntentsOperation get a verb-first name, or a second structural exception in naming-rules.md?
