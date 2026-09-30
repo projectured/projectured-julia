@@ -44,8 +44,8 @@ The owner, 2026-09-30:
   REPL in an editor. Seams join the two, and join the display with the panes.
 - **C5. Tabs combine by default (Q3).** When the pane package is loaded, the
   display shows each value as a tab of one window. A keyword turns this off.
-  §4.3 says at which level "by default" applies. That point waits for the
-  owner (P1).
+  A wrapper that is on by default is on in every editor that `build_editor`
+  makes (C10).
 - **C6. No pause (Q4).** The editor loop runs on its own thread during a REPL
   input and takes input as usual. After each input, the display asks each
   shown document to refresh. A key does the same for a change that a
@@ -58,6 +58,39 @@ The owner, 2026-09-30:
   method in the package that declares it, so a `make_` call always creates.
   A caller that is not sure asks `hasmethod` first.
 - **C9. No inspector wrapper.** Another branch removes the inspector.
+- **C10. One function wraps, one does not (P1).** The owner: "For P1, the
+  defaults keyword is weird. Why don't the tests use the function which does
+  not wrap?" So there is no `defaults` keyword:
+  - `make_editor` applies no wrapper and chooses no backend. Tests, and a
+    program that wants exact control, call it.
+  - `build_editor` chooses the backend and applies the wrappers. A wrapper
+    that is on by default is always on there. A caller turns it off with its
+    keyword, for example `tabs = false`.
+  - A container wrapper does nothing when the document is its container
+    already: the tabs do not wrap a `PaneTree`, and the window does not wrap a
+    `ScreenDocument`.
+- **C11. The shape of a wrapper (P2)** is as §4.2 says (the owner: "I agree
+  with your recommendations for P2-P3").
+- **C12. The functions (P3 with C10)** are as §4.2 says. The name is
+  `build_editor`, because the naming rules say that `build_` assembles a
+  structure from parts, and the wrappers are the parts. A second name also
+  keeps two calls that look alike from giving one editor with tabs and one
+  without.
+- **C13. The order of the arguments.** The owner: "Concerning the order if
+  we ignore backward compatibility, how would you do it?", then "I agree".
+  - The document comes first, then the projection. Every other input is a
+    keyword, the backend too. This applies to the raw constructor `Editor`
+    and to `play_live!` as well. I read "I agree" as agreement to the change
+    of `Editor`, which I had put as optional.
+  - The reasons: the document is the subject; the projection can be optional,
+    and Julia puts an optional positional argument last; the backend is a
+    setting, as `devices` and `feeds` are; all variants get one positional
+    shape; most callers use this order now.
+  - Three exceptions stay. The projection API keeps the projection first,
+    because there it is the receiver of the dispatch. A function that changes
+    a value takes that value first (`run_editor!(editor)`,
+    `show_document!(editor, ...)`). A seam takes its dispatch key first
+    (`wrap_editor(::Val{k}, ...)`).
 
 ## 3. What exists now
 
@@ -118,6 +151,7 @@ Two call sites in inet-julia do not compile against the API now:
 | `wrap_editor(::Val{k}, layer::Symbol, setting, parts::EditorParts) -> EditorParts` | kernel, editor layer | each wrapper package |
 | `get_wrapper_layers(::Val{k})` | kernel, editor layer | each wrapper package |
 | `get_excluded_wrappers(::Val{k})` | kernel, editor layer, with a method for `Val` that gives `()` | the wrappers that exclude another |
+| `is_wrapper_default(::Val{k})` | kernel, editor layer, with a method for `Val` that gives `false` | Screen for `window`, Pane for `tabs` |
 | `show_document!(editor, content, document; title)` | Screen, with the method for `Any` that opens a new window | Pane: opens a tab in a `PaneTree`, or focuses the tab that shows `document` |
 | `make_value_document(value)` | Widget | DataFrames: a `DataFrameView` |
 | `make_graphics_projection(document; measure)` | Widget | DataFrames, for `DataFrameView`. Reflection, for `AReflectedNode`. |
@@ -146,36 +180,46 @@ first one. A static check in the style of the naming guard finds this.
 These are in the kernel, editor layer:
 
 ```julia
-make_editor(document, projection; backend = nothing, defaults = false,
-            feeds = Feed[], fault_policy = FaultPolicy(), wrappers...) -> Editor
-run_editor!(document, projection; wait = true, mcp..., same keywords) -> Editor
-run_editor!(editor::Editor; mcp...)
+make_editor(document, projection; backend, devices, feeds, fault_policy) -> Editor
+build_editor(document, projection = nothing; backend = nothing, devices, feeds,
+             fault_policy, wrappers...) -> Editor
+run_editor!(document, projection = nothing; wait = true, mcp..., the keywords
+            of build_editor) -> Editor
+run_editor!(editor::Editor; wait = true, mcp...) -> Editor
+Editor(document, projection; backend, devices, clock, tools, faults, fault_policy)
 ```
 
-The steps of `make_editor`:
+`make_editor` applies no wrapper and chooses no backend, so `backend` is a
+required keyword. It initializes the backend, opens the native windows and
+prints once, as the kernel's `make_editor` does now. `build_editor` does the
+steps below and then calls `make_editor`. `run_editor!(document, ...)` is
+`build_editor` and then the loop. A projection of `nothing` is the default
+projection of the document (P7).
+
+The steps of `build_editor`:
 
 1. Choose the backend. If `backend` is given, use it. If not, use the one
    candidate that draws windows. If there is no candidate or more than one,
    raise an error that names the candidates and the backend packages.
 2. Collect the keywords that are on. A keyword is on when its value is not
-   `false` and not `nothing`. With `defaults = true`, a wrapper that says it is
-   on by default is also on (P1). Two keywords that exclude each other are an
-   error that names both.
+   `false` and not `nothing`. A wrapper whose `is_wrapper_default` is `true`
+   is on unless its keyword is `false` (C10). Two keywords that exclude each
+   other are an error that names both.
 3. Put the wrappers in order, layer by layer:
    - `:document` applies to each document, and also to a document that
      `show_document!` opens later;
    - `:container` holds the documents, for example the tabs;
-   - `:window` is the window of the screen package. It is on by default when
-     the backend draws windows and the document is not a `ScreenDocument`
-     already;
+   - `:window` is the window of the screen package. It is on by default, and
+     it does nothing when the backend does not draw windows or when the
+     document is a `ScreenDocument` already;
    - `:screen` applies once, to the root.
 
    A number orders the wrappers inside a layer. One keyword can act in more
    than one layer. For example, the gesture log draws its overlay on each
    document and records on the root.
 4. Call `wrap_editor` for each wrapper, from the inside out.
-5. Make the editor with the kernel's constructor and run the start steps that
-   the wrappers gave.
+5. Make the editor with `make_editor` and run the start steps that the
+   wrappers gave.
 
 `EditorParts` holds what a wrapper can change:
 - `document`;
@@ -207,11 +251,23 @@ of its start, so a call that the REPL posts to it goes through
 `Base.invokelatest`.
 
 **These methods go:**
-- `make_editor(backend, projection, document)` and
-  `run_editor!(backend, projection, document)` of the kernel. Their callers
-  are tests, which pass `backend =`.
+- `run_editor!(backend, projection, document)` of the kernel. Its two
+  callers, `run_console_example` and inet's `mac_fsm_sdl.jl`, write
+  `run_editor!(make_editor(...))`.
 - `make_editor(document, projection, title)` and `run_window_editor` of the
   screen package. The title and the size become the setting of `window`.
+
+**These methods take the order of C13:**
+- `make_editor(backend, projection, document)` of the kernel becomes
+  `make_editor(document, projection; backend)`. An old call fails with a
+  `MethodError`, because a `Backend` is not a `Document`.
+- `Editor(backend, document, projection, devices)` becomes
+  `Editor(document, projection; backend, devices)`. It has about 20 callers,
+  most of them in tests.
+- `play_live!(backend, timeline; projection, document)` becomes
+  `play_live!(document, projection, timeline; backend)`.
+
+The order of the fields of `Editor` does not change.
 
 ### 4.3 The display package
 
@@ -222,8 +278,8 @@ Pane, DataFrames or a backend.
 
 - `display_in_editor(value; title, backend = nothing) -> document` shows
   `value`:
-  - The first call starts the editor with `run_editor!(...; wait = false,
-    defaults = true)`.
+  - The first call starts the editor with `run_editor!(document; wait =
+    false)`.
   - A later call uses `show_document!`. A value that is shown already gets
     focus again.
   - The document is `make_value_document(value)` if that method exists. If
@@ -245,16 +301,6 @@ projection in Widget:
   for each type.
 
 The natural renderer asks the same seam before its tables (C7).
-
-**P1: the level of "by default".** The test environment loads every package,
-and so does a program that loads the pane package for another reason. If a
-wrapper were on in every editor once its package is loaded, the tabs would
-wrap the document of every test and of every such program. My
-recommendation: a seam `is_wrapper_default(::Val{k})`, which the run function
-reads only when the caller passes `defaults = true`. The display and the
-gallery pass it, and a program or a test does not. The pane package says
-`true` for `tabs`. The window does not use this seam: it follows the backend
-(§4.2, step 3).
 
 ### 4.4 The data frame package after the move
 
@@ -278,8 +324,8 @@ that pair.
 
 | Keyword | Package | Layer | Note |
 |---|---|---|---|
-| `window` | Screen | `:window` | on for a backend that draws windows |
-| `tabs` | Pane | `:container` | on by default with `defaults = true` (P1) |
+| `window` | Screen | `:window` | on by default; acts only for a backend that draws windows |
+| `tabs` | Pane | `:container` | on by default; does nothing on a `PaneTree` |
 | `dragging` | Dragging | `:document` | |
 | `clipboard`, `clipboard_collection` | Clipboard | `:document` | excludes `tooltip` |
 | `hover` | Widget | `:document` | |
@@ -293,15 +339,7 @@ that pair.
 
 ## 5. Points that wait for the owner
 
-- **P1.** The level of "by default", §4.3. My recommendation: the
-  `defaults = true` keyword, and `is_wrapper_default`.
-- **P2.** The shape of a wrapper: `wrap_editor(::Val{k}, layer, setting,
-  parts)`, `EditorParts`, and the four named layers, as in §4.2. My
-  recommendation: as written.
-- **P3.** The run functions `make_editor(document, projection; ...)` and
-  `run_editor!(document, projection; ...)` replace the backend-first methods of
-  the kernel and the title methods of Screen, §4.2. My recommendation: as
-  written.
+P1, P2 and P3 are made (C10, C11 and C12).
 - **P4.** `make_value_document`, `make_graphics_projection`,
   `refresh_document!` and `DocumentToGraphics` go in Widget. Widget is the
   lowest package that both the data frame package and the display load. My
@@ -312,22 +350,40 @@ that pair.
   omnet-julia in a worktree of its own, and test that worktree against this
   branch in a scratch environment. Move the callers in inet-julia that
   compile now. List the two broken ones for the owner, and do not fix them.
+- **P7. The default projection.** C13 makes the projection optional in
+  `build_editor` and `run_editor!`. The kernel can not name
+  `DocumentToGraphics`, which is in Widget. The options:
+  - (a) The kernel declares `make_document_projection(document)` with no
+    method, and Widget adds the one method for `Document`, which makes
+    `DocumentToGraphics`. This is a method of a foreign function for a
+    foreign type in the strict sense, but both packages are in this
+    repository, and only Widget adds it.
+  - (b) The projection stays required. Each caller names
+    `DocumentToGraphics`, and the order of C13 has one reason less.
+
+  My recommendation: (a). `make_graphics_projection` answers a different
+  question: it gives the projection of one node of a type, and
+  `DocumentToGraphics` asks it for each type that it meets. The new seam
+  gives the projection of a whole editor.
 
 ## 6. Steps
 
 Each step ends with its narrowest test and a commit.
 
 - [ ] **1. The kernel.** Add `EditorParts`, the wrapper seams, the backend
-  seams, the choice of the backend, the new `make_editor` and `run_editor!`,
-  and `wait = false`. Remove the backend-first methods and move their tests.
-  Test with doubles in `ProjecturedKernelTest`.
+  seams and the choice of the backend. Add `build_editor`, the two forms of
+  `run_editor!`, and `wait = false`. Change `make_editor`, `Editor` and
+  `play_live!` to the order of C13, and move their callers. Remove
+  `run_editor!(backend, projection, document)`. Test with doubles in
+  `ProjecturedKernelTest`.
 - [ ] **2. The backends declare themselves.** SDL, Web and Console. Test the
   choice: one candidate, two, none, and a `:text` backend beside a `:windows`
   one.
 - [ ] **3. The window wrapper.** Move `make_window_scene` into the method of
   `window`. Remove `make_editor(document, projection, title)` and
-  `run_window_editor`, and move their callers: Application,
-  ApplicationVideo, the tests, and the data frame display for now.
+  `run_window_editor`, and move their callers to `build_editor` and
+  `run_editor!`: Application, ApplicationVideo, the tests, and the data frame
+  display for now.
 - [ ] **4. The widget seams.** Add `make_value_document`,
   `make_graphics_projection`, `refresh_document!` and `DocumentToGraphics`.
   The natural renderer asks `make_graphics_projection` before its tables.
@@ -364,6 +420,9 @@ Each step ends with its narrowest test and a commit.
 
 - **A change of behavior in the gallery.** Two exclusive keywords are an
   error now. The inventory found no caller that passes two of them.
+- **Tabs where there were none.** A caller of `build_editor` gets tabs when
+  the pane package is loaded (C10). Steps 8 to 12 decide for each caller
+  whether it passes `tabs = false`.
 - **The order of the wrappers.** A different order changes what a person
   sees. The layer numbers of §4.5 keep the order of the gallery. Step 8
   compares the pixels of three gallery examples before and after.
