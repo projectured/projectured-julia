@@ -636,6 +636,23 @@ Each step ends with its narrowest test and a commit.
     the whole value would also leave out a window whose content holds one
     button. Widget keeps its two `pred_arguments` methods and its
     Serialization dependency until these are decided.
+  - **D-b is decided** (the owner, 2026-09-30): "Another plan is working in
+    merging the platform packages into one package, so after that the menu
+    can be easily not saved as before without introducing unnecessary
+    dependencies." That plan is
+    [fold-the-internal-packages.md](fold-the-internal-packages.md): Widget,
+    Serialization, Pane, Natural and the other internal slices become one
+    package, `ProjecturedPlatform`. After the fold, Widget's
+    `pred_arguments` for `WidgetShell` keeps the menus out, as before, and
+    it costs no dependency. So Widget's part of this step waits for the
+    fold, and Widget keeps its methods and its Serialization dependency
+    until then.
+  - D-a stands: to save the size, the scroll position and the margins, the
+    notation must write a `Point2D` and an `Inset`. It is a question for the
+    owner when Widget's part is done.
+  - Found: `ProjecturedDisplay` is newer than the fold plan, whose list of
+    34 slices does not name it. It is a slice with no third-party
+    dependency, so it would fold into the platform too.
 - [x] **5. The tabs and `show_document!`.** The screen method opens a
   window. The pane method opens or focuses a tab. Add the `tabs` wrapper.
   - Found: `PaneToWidget` passes the content of a tab through unchanged, so
