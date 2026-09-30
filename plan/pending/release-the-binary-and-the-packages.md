@@ -1122,7 +1122,7 @@ registration.
       integration parts, each in its own testset. Scripts and logs:
       `/var/tmp/release-plan/ci/`.
 
-      **Result on `af91b1e13` (2026-09-30).** The instantiate of a test package
+      **Result on `fefa3eed3` (2026-09-30).** The instantiate of a test package
       takes seconds when the depot holds its dependencies; `environment/all`
       took 5 minutes. Five test packages name siblings that their `[sources]`
       do not list (`ProjecturedTest`, `ProjecturedSdlTest`,
@@ -1185,11 +1185,11 @@ registration.
       migrated (`export-block-rule.md` owns it); and fix the six argument
       violations in their files.
 
-      Done: the two faults of one line (`07ac41fdb`, `15a1f5707`). `HelpModule`
+      Done: the two faults of one line (`a0581e9ee`, `3676cae25`). `HelpModule`
       is fixed, not listed: its block exported the five types that `@document`
       and `@projection` already export, and `export-block-rule.md` does not
-      name it (`2ad633f67`). `visit` in `example/kernel/CallSite.jl` names its
-      index and caller (`0d2b99a0a`).
+      name it (`5a63c873f`). `visit` in `example/kernel/CallSite.jl` names its
+      index and caller (`c4a82279b`).
 
       Open: the other five argument violations are the open questions of the
       kernel audit plan: POLICY-3 with L18-3 (`Tool`) and L22-1
@@ -1199,7 +1199,7 @@ registration.
       Until that lands, the guard job of CI fails on these five; the umbrella
       job does not run the guards.
 
-      The markers (`8ab366654`, `447e82683`), each with a `# @broken:` reason
+      The markers (`561eb023f`, `5c3436089`), each with a `# @broken:` reason
       and only on the failing examples: the anchor point and the split pane
       (citing `kernel-audit-fixes.md`); the `text` example of the complete
       navigation (449 positions); three seeds of the position navigation; ten
@@ -1213,12 +1213,22 @@ registration.
       type with no atom still fails. Checked part by part: 0 failures, 0
       errors, no unexpected pass.
 
-      **The final check (2026-09-30, `5140d33df`, before the second rebase onto
+      **The final check (2026-09-30, on the branch before the second rebase onto
       `main`, a fresh clone, as CI runs it):** all 33 test jobs pass. `test_integration()`: 1,059,125 pass,
       1,605 broken, 0 fail, 0 error, in 69 minutes after 5 minutes of
       instantiate. Substrate: 86,907 pass, 8 broken. Of the five guards, only
-      the argument guard fails, on the five violations above. The umbrella now exports `test_documents`
-      and `test_projections`, which the testing guide calls (`c6227d382`).
+      the argument guard fails, on the five violations above.
+
+      **After the second rebase onto `main`** (76 new commits, among them the
+      DataFrames packages): the new test package got a job of its own (34 jobs,
+      `7bbeca00d`), and the check ran again from a fresh clone. 33 of 34 jobs
+      pass. The umbrella had 3 new failures, from the new commits of `main`:
+      `DataFrameView` has a printer and no atom, and the mouse clicks of
+      `chart` and `sequencechart_pair` find no cursor, as the ten marked
+      before. They are marked in the same lists (`a5f4c9936`); checked: 0
+      failures, 0 errors, no unexpected pass. The two mouse clicks are
+      regressions of that day, which the session that made them can look at. The umbrella now exports `test_documents`
+      and `test_projections`, which the testing guide calls (`dbe31d96b`).
 
 ### Step P5: the owner's steps
 
