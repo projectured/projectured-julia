@@ -1470,6 +1470,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep the catch-all arm and state an exception to PAR-REPORT-NEVER-THROWS.
 - **Recommended (mine): A.** The walk visits objects of every type, so a predicate that reads a field of one type throws on the others. 'Counts as no match' is what makes such a predicate usable, and search_documents gives it to the model. An interrupt or a stack overflow is not a fault of the predicate. is_passthrough_exception is in layer 1, below the document layer.
 - POLICY-1 (A) leaves out C: A or B remains.
+- **Decided by the owner, 2026-09-30: A, with a keyword.** `walk_document` takes `on_error`, a function `(object, exception) -> Bool` that runs when the predicate throws an ordinary exception; its answer is the match of that object. The default `(object, exception) -> false` keeps "counts as no match"; `on_error = (object, exception) -> throw(exception)` gives option B. An exception that means stop goes through first and never reaches `on_error`, as everywhere under POLICY-1. `search_documents` and `search_references` pass the keyword on. The owner allows the docstring of `search_references` in the sealed `ReferenceSearch.jl` to name it.
 - Depends on: L01-8.
 - Cost: S. DocumentWalk.jl and DocumentModule.jl (using ..FaultModule). Both files are not sealed now (SEALING.md). One test: a predicate that throws InterruptException ends the walk.
 
