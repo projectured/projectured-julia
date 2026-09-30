@@ -979,7 +979,7 @@ uuid = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 version = "0.1.0"
 
 [[deps.ProjecturedChart]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPlot", "ProjecturedStyle"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedPlot", "ProjecturedProjection", "ProjecturedStatistics", "ProjecturedStyle"]
 path = "../../package/ProjecturedChart"
 uuid = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 version = "0.1.0"
@@ -1584,7 +1584,7 @@ uuid = "74717b3c-e326-42b6-b898-33b3a53c04ca"
 version = "0.1.0"
 
 [[deps.ProjecturedStatistics]]
-deps = ["Printf", "ProjecturedChart", "ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedProjection", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["Printf", "ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedStatistics"
 uuid = "81408ee2-9581-4f43-8547-c7ccf1bed4ef"
 version = "0.1.0"

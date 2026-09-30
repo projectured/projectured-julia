@@ -29,11 +29,14 @@ using ..CellStructModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
+using ..FrameStatisticsModule
 using ..GestureModule
 using ..GraphicsModule
 using ..IoMapModule
+using ..NaturalModule
 using ..OperationModule
 using ..PlotModule
+using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..StyleModule
@@ -51,6 +54,7 @@ export ChartToChartPlot, ChartToChartPlotIoMap
 export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
        get_legend_item_rects, get_chart_part_reference, get_chart_series_reference
 export ChartDocument, Chart, ChartNothing, ChartPlot, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartLineSeries, ChartScatterSeries, ChartBarSeries, ChartHistogramSeries, ChartStripSeries, strip_state_name
+export FrameTimeSeriesToChart
 
 
 include("ChartSampleReferenceStep.jl")
@@ -58,5 +62,15 @@ include("ChartDocument.jl")
 include("ChartPlot.jl")
 include("ChartToChartPlot.jl")
 include("ChartPlotToGraphics.jl")
+include("FrameTimeSeriesToChart.jl")
+
+# The row that lets a tab draw the frame times of the statistics as a chart.
+# The factory form, so every renderer builds its own projection instances.
+function __init__()
+    register_natural_graphics!(:frame_time_series, (; measure) -> Pair{Type,Any}[
+        FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
+                                              ChartPlotToGraphicsCanvas(measure = measure)),
+    ])
+end
 
 end # module

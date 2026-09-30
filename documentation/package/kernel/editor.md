@@ -239,7 +239,7 @@ The concrete feeds:
 | --- | --- | --- | --- |
 | `InboxFeed` (built-in, always first) | `post_operation!` and `run_on_editor_task!` callers | bounded queue, backpressure | the edited document |
 | `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
-| `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FramePlot` |
+| `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FrameTimeSeries` |
 | `ReflectionFeed` (`ProjecturedReflection`) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
 | `TooltipFeed` (`ProjecturedTooltip`) | the probe of a window, on each pointer event | the place and the time of the last move | the inbox: at its deadline it posts the operation that the projection answers for a `PointerRest` |
 
@@ -578,8 +578,8 @@ something is reading more cells than necessary.
 The loop also records every frame in `editor.frame_measurements`: the frame time
 always, and the counters above when they are compiled in. The store keeps the
 last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
-(open a tab and type `statistics`) and their times as a plot (type
-`frame plot`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
+(open a tab and type `statistics`) and their times as a chart (type
+`frame times`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
 writes the frames as CSV.
 
 ## Adding new operations

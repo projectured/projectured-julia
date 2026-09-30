@@ -5,12 +5,12 @@
 
 """
     FrameStatisticsFeed(; statistics = get_session_frame_statistics(),
-                          plot = get_session_frame_plot(),
+                          plot = get_session_frame_time_series(),
                           flush_interval = 0.25, now = time)
 
 Register it when the editor is created —
 `Editor(...; feeds = Feed[FrameStatisticsFeed()])` — and a statistics tab and a
-frame plot tab show the loop's numbers live.
+frame times tab show the loop's numbers live.
 
 The feed never wakes the editor: its data arrives only with frames, so a wake
 would make frames feed themselves. It answers a deadline instead, and only
@@ -31,7 +31,7 @@ and leaves it, so the loop sleeps again.
 """
 mutable struct FrameStatisticsFeed <: Feed
     statistics::FrameStatistics
-    plot::FramePlot
+    plot::FrameTimeSeries
     flush_interval::Float64
     # The clock of the interval, and when each document flushed last.
     now::Function
@@ -40,7 +40,7 @@ mutable struct FrameStatisticsFeed <: Feed
 end
 
 FrameStatisticsFeed(; statistics::FrameStatistics = get_session_frame_statistics(),
-                      plot::FramePlot = get_session_frame_plot(),
+                      plot::FrameTimeSeries = get_session_frame_time_series(),
                       flush_interval::Real = 0.25, now::Function = time) =
     FrameStatisticsFeed(statistics, plot, Float64(flush_interval), now, -Inf, -Inf)
 
@@ -48,8 +48,8 @@ _is_frame_statistics_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore
     feed.statistics.frame_count != get_frame_count(store) &&
     has_dependent_cells(getfield(feed.statistics, :frame_count))
 
-_is_frame_plot_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore) =
-    _get_frame_plot_count(feed.plot) != get_frame_count(store) &&
+_is_frame_time_series_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore) =
+    _get_frame_time_series_count(feed.plot) != get_frame_count(store) &&
     has_dependent_cells(getfield(feed.plot, :names))
 
 # A document that flushed less than an interval ago waits. A flush changes what
@@ -66,13 +66,13 @@ function drain_changes!(feed::FrameStatisticsFeed, editor)
         feed.statistics_flushed_at = feed.now()
         written += flush_frame_statistics!(feed.statistics, store)
     end
-    if _is_frame_plot_due(feed, store) && _is_flush_allowed(feed, feed.plot_flushed_at)
+    if _is_frame_time_series_due(feed, store) && _is_flush_allowed(feed, feed.plot_flushed_at)
         feed.plot_flushed_at = feed.now()
-        written += flush_frame_plot!(feed.plot, store)
+        written += flush_frame_time_series!(feed.plot, store)
     end
     written
 end
 
 compute_wake_deadline(feed::FrameStatisticsFeed, editor) =
     _is_frame_statistics_due(feed, editor.frame_measurements) ||
-    _is_frame_plot_due(feed, editor.frame_measurements) ? feed.flush_interval : nothing
+    _is_frame_time_series_due(feed, editor.frame_measurements) ? feed.flush_interval : nothing

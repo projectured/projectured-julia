@@ -215,7 +215,7 @@ end
 @testset "the toolbar holds the tools of the window, as pictures" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
     tools = ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
-             "Statistics", "Frame plot", "Selection"]
+             "Statistics", "Frame times", "Selection"]
     # With no assistant the window has none, and no button for one.
     @test labels(make_window_toolbar()) == tools
     bar = make_window_toolbar(; assistant = _ -> Assistant())
@@ -252,7 +252,7 @@ end
     editor = _ShellFakeEditor(tree)
     bar = make_window_toolbar(; assistant = _ -> Assistant())
     types = [Workspace, Assistant, EvaluatorToplevel, MessageLog, GestureLog, FaultLog,
-             FrameStatistics, FramePlot, SelectionInspector]
+             FrameStatistics, FrameTimeSeries, SelectionInspector]
     holding(type) = count(tab -> get_wrapped_document(tab.content) isa type, group.tabs)
     for (item, type) in zip(bar.elements, types)
         evaluate_operation(editor, InvokeActionOperation(item.action))

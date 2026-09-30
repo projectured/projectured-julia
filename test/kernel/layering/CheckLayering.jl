@@ -302,23 +302,30 @@ function topo_errors(entries, aliases = Set{Symbol}())
 end
 
 """
-    slice_edge_errors(entries, allowed) -> Vector{String}
+    slice_edge_errors(entries, allowed; below = nothing) -> Vector{String}
 
 Every import that crosses from one slice to another where `allowed` does not
 permit it. `entries` are module files as `walk_includes` answers them, with
 paths relative to the folder that holds the slice folders, so the first folder
 of a path is the slice of its module. `allowed` maps a slice to the slices that
-it may use. An import of a module that no entry defines, such as a module of a
-package below that the entry file binds, is not checked here.
+it may use. `below` is the set of the modules of the packages below, which every
+slice may use; an import of a module that neither an entry nor `below` defines
+is an error too. When `below` is `nothing`, such an import is not checked.
 """
-function slice_edge_errors(entries, allowed)
+function slice_edge_errors(entries, allowed; below = nothing)
     slice_of = Dict{Symbol, String}(entry[2] => layer_of(entry[1]) for entry in entries)
     errs = String[]
     for (rel, mod, deps) in entries
         slice = layer_of(rel)
         for dep in deps
             other = get(slice_of, dep, nothing)
-            (other === nothing || other == slice) && continue
+            if other === nothing
+                below === nothing || dep in below ||
+                    push!(errs, "$rel ($mod) uses ..$dep, which is neither a slice of " *
+                                "the table nor a package below it")
+                continue
+            end
+            other == slice && continue
             other in get(allowed, slice, String[]) ||
                 push!(errs, "$rel ($mod) uses ..$dep of the slice $other, which the table " *
                             "does not allow for the slice $slice")
@@ -876,16 +883,20 @@ function check_layering(src_root, top_file; name = "package",
 end
 
 """
-    check_slice_edges(src_root, top_files, allowed; name = "package")
+    check_slice_edges(src_root, top_files, allowed; below_files = String[],
+                      name = "package")
 
 The static guard of the edges between the slices of one package, whose module
 files sit in slice folders under `src_root`. It walks the include tree of each
 of `top_files`, and fails for each import that crosses from one slice to
 another where `allowed`, a map from a slice to the slices that it may use, does
-not permit it. The slices that the include trees reach are exactly the keys of
-`allowed`, so a new slice needs its row in the table.
+not permit it, and for each import of a module that is neither in those slices
+nor defined by the include trees of `below_files`, the packages below. The
+slices that the include trees reach are exactly the keys of `allowed`, so a new
+slice needs its row in the table.
 """
-function check_slice_edges(src_root, top_files, allowed; name = "package")
+function check_slice_edges(src_root, top_files, allowed; below_files = String[],
+                           name = "package")
     @testset "$name edges between slices" begin
         entries = Tuple{String, Symbol, Vector{Symbol},
                         Vector{Pair{Symbol, Vector{Symbol}}}, Vector{Symbol}}[]
@@ -894,7 +905,9 @@ function check_slice_edges(src_root, top_files, allowed; name = "package")
         end
         @test sort(unique(layer_of(entry[1]) for entry in entries)) ==
               sort(collect(keys(allowed)))
-        for err in slice_edge_errors(entries, allowed)
+        below = Set{Symbol}(entry[2] for file in below_files
+                                     for entry in walk_includes(file, src_root)[2])
+        for err in slice_edge_errors(entries, allowed; below)
             @test err == ""
         end
     end
@@ -1266,5 +1279,11 @@ function test_layering_checkers()
         @test isempty(slice_edge_errors(entries, Dict("a" => String[], "b" => ["a"])))
         errs = slice_edge_errors(entries, Dict("a" => String[], "b" => String[]))
         @test length(errs) == 1 && occursin("..AModule of the slice a", only(errs))
+        # With the modules below known, a module from nowhere is an error.
+        @test isempty(slice_edge_errors(entries, Dict("a" => String[], "b" => ["a"]);
+                                        below = Set([:KernelLikeModule])))
+        errs = slice_edge_errors(entries, Dict("a" => String[], "b" => ["a"]);
+                                 below = Set{Symbol}())
+        @test length(errs) == 1 && occursin("..KernelLikeModule, which is neither", only(errs))
     end
 end

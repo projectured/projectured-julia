@@ -93,7 +93,7 @@ The cost of a chart depends on the size of its plot rectangle, not on the length
 
 ## How it fits
 
-`ProjecturedChart` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedPlot` and `ProjecturedStyle`. No package depends on it. It has no `__init__` and registers nothing: no natural row, no file type. A caller builds the chain, or adds one entry to the natural renderer to draw a chart inside another document:
+`ProjecturedChart` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedNatural`, `ProjecturedPlot`, `ProjecturedProjection`, `ProjecturedStatistics` and `ProjecturedStyle`. It registers one natural row, `:frame_time_series`: `FrameTimeSeriesToChart` draws the `FrameTimeSeries` of the statistics as a chart, one line for each time measurement. The projection lives here and not in the statistics, because the statistics are a part of the platform, which depends on no domain; see [statistics.md](../statistics/statistics.md). For a chart of its own, a caller builds the chain, or adds one entry to the natural renderer to draw a chart inside another document:
 
 ```julia
 NaturalToGraphics(measure = FontFileMeasure(),

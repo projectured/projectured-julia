@@ -133,7 +133,7 @@ make_window_menu_bar(; extra = [], about = _ -> AboutPage()) =
 
 The tools of the window, one button each: the explorer, the assistant, the
 evaluator, the message log, the gesture log, the fault log, the frame
-statistics, the frame plot and the selection. Each button shows a picture and
+statistics, the frame times and the selection. Each button shows a picture and
 says its name as a tooltip, and a press reaches the tool or opens it — see
 [`make_window_tool_command`](@ref).
 
@@ -174,8 +174,8 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
                                  tooltip = "Fault log: what failed in this session, and how often"),
         make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
                                  tooltip = "Statistics: how long the frames of this window take"),
-        make_window_tool_command("Frame plot", FramePlot; icon = :chart_line,
-                                 tooltip = "Frame plot: the time of each recent frame"),
+        make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
+                                 tooltip = "Frame times: the time of each recent frame"),
         make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
                                  tooltip = "Selection: what the selection of this window names"),
         extra...,

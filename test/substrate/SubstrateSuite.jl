@@ -76,23 +76,27 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "help" => ["domain", "natural", "serialization", "style", "syntax", "text"],
     "log" => ["collection", "domain", "natural", "serialization", "style", "syntax",
               "text"],
-    "statistics" => ["collection", "domain", "natural", "projection", "serialization",
-                     "style", "syntax", "text"],
+    "statistics" => ["collection", "domain", "natural", "serialization", "style",
+                     "syntax", "text"],
     "undo" => ["collection", "graphics", "projection", "style", "syntax", "text"],
     "gesturetracking" => [],
     "mousetargettracking" => ["graphics"],
+    "display" => ["natural", "screen", "style", "widget"],
 )
 
 """
     test_platform_slice_edges()
 
 Each slice of the platform uses only the slices that `PLATFORM_SLICE_EDGES`
-allows it, besides the kernel.
+allows it, and the kernel; it uses no module of a domain, a backend or an
+adapter.
 """
 function test_platform_slice_edges()
     root = normpath(joinpath(@__DIR__, "..", ".."))
     check_slice_edges(joinpath(root, "source"), _find_platform_entry_files(root),
-                      PLATFORM_SLICE_EDGES; name = "platform")
+                      PLATFORM_SLICE_EDGES; name = "platform",
+                      below_files = [joinpath(root, "package", "ProjecturedKernel", "src",
+                                              "ProjecturedKernel.jl")])
 end
 
 # The entry file of each package whose source is a slice of the platform.

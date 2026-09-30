@@ -56,7 +56,7 @@ end
     # prints, and the fields do not say it.
     @test occursin("0 frames", render(FrameStatistics()))
     # The plot draws through the chart renderer, which writes the chart title.
-    @test occursin("Frame times", render(FramePlot()))
+    @test occursin("Frame times", render(FrameTimeSeries()))
 end
 
 @testset "the file explorer opens by name, seeded" begin

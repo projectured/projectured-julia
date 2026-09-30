@@ -14,7 +14,7 @@ function test_frame_statistics_feed()
 @testset "the frame statistics feed" begin
     @testset "unwatched, the feed neither flushes nor asks for a deadline" begin
         statistics = FrameStatistics()
-        feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot())
+        feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries())
         editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
         EditorModule.record_frame_performance!(editor, 0.016)
@@ -26,7 +26,7 @@ function test_frame_statistics_feed()
     @testset "a subscribed view turns the flush on, and off once flushed" begin
         statistics = FrameStatistics()
         clock = Ref(0.0)
-        feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot(),
+        feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries(),
                                    now = () -> clock[])
         editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
@@ -57,7 +57,7 @@ function test_frame_statistics_feed()
         # must not flush again, or the frames would feed themselves.
         statistics = FrameStatistics()
         clock = Ref(10.0)
-        feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot(),
+        feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries(),
                                    now = () -> clock[])
         editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
@@ -110,8 +110,8 @@ function test_frame_statistics_feed()
     end
 
     @testset "the plot follows the recent frames" begin
-        plot = FramePlot()
-        p = FramePlotToChart()
+        plot = FrameTimeSeries()
+        p = FrameTimeSeriesToChart()
         chart = print_document(p, p, plot, PrinterContext()).output
         @test length(chart.series) == 0
         store = FrameMeasurementStore(capacity = 3)
@@ -119,7 +119,7 @@ function test_frame_statistics_feed()
                                    counts = [:reads => 5])
         record_frame_measurements!(store; times = [:frame_time => 0.020],
                                    counts = [:reads => 7])
-        @test flush_frame_plot!(plot, store) == 1
+        @test flush_frame_time_series!(plot, store) == 1
         @test length(chart.series) == 1
         series = chart.series[1]
         @test series.label == "frame_time"
@@ -128,14 +128,14 @@ function test_frame_statistics_feed()
         # A new frame gives the line new columns, and the line stays one object.
         record_frame_measurements!(store; times = [:frame_time => 0.030],
                                    counts = [:reads => 9])
-        flush_frame_plot!(plot, store)
+        flush_frame_time_series!(plot, store)
         @test chart.series[1] === series
         @test series.y ≈ [10.0, 20.0, 30.0]
     end
 
     @testset "a watched plot turns the flush on, and the table stays alone" begin
         statistics = FrameStatistics()
-        plot = FramePlot()
+        plot = FrameTimeSeries()
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot)
         editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
@@ -153,7 +153,7 @@ function test_frame_statistics_feed()
 
     @testset "a plot opened after the table flushed shows the frames at once" begin
         statistics = FrameStatistics()
-        plot = FramePlot()
+        plot = FrameTimeSeries()
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot)
         editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])

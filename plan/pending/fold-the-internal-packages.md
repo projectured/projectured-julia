@@ -162,8 +162,10 @@ docstrings, and a name that a `using` brings is checked by hand):
   pointer, and its crossings; the kernel and graphics) and
   `ProjecturedDisplay` (a value shown in an editor beside the REPL; the kernel,
   natural, screen, style and widget). The two trackers go to the platform:
-  `screen`, a slice of the platform, uses them. Where `display` goes is the
-  owner's question.
+  `screen`, a slice of the platform, uses them. `display` goes to the platform
+  too (the owner): it depends only on the kernel and on slices of the platform,
+  and it is a capability, like the assistant. `ProjecturedDisplayTest` joins
+  `ProjecturedPlatformTest` in Step 4. The platform then has 38 slices.
 - `ProjecturedDataFrames` imports `display_in_editor`, `ProjecturedDisplay` and
   `close_data_frame_editor!` from `DataFramesModule`, which no longer defines
   them; Julia warns "undeclared at import time" while it compiles. This is on
@@ -186,12 +188,33 @@ and the downstream repositories land in the same landing.
       `[deps]` of their packages on `e7962bdaa`) and `test_platform_slice_edges`
       in the substrate suite, which `test_substrate` runs. It walks the entry
       file of each package whose source is a slice of the platform, and checks
-      that the slices it reaches are exactly the rows. The times: see below.
-- [ ] **Step 1, the frame times (F9).** With `julia-rename.jl`: `FramePlot` →
+      that the slices it reaches are exactly the rows. **The times before the
+      fold** (`0bb7b7362`, a clone of its own, a depot whose `compiled` folder
+      starts empty, `JULIA_NUM_PRECOMPILE_TASKS=3` on CPUs 28, 30 and 31, load
+      average 7.8): the precompilation of `environment/all` 279 s, 309 compiled
+      files, 513 MB; the load of `ProjecturedKernel` 0.03 s, of `ProjecturedJson`
+      0.30 s, of `Projectured` 2.66 s (the median of three). The script is
+      `/var/tmp/fold/compile0/measure.sh`. A first run was void: the worktree
+      that it compiled was edited during the run.
+- [x] **Step 1, the frame times (F9).** With `julia-rename.jl`: `FramePlot` →
       `FrameTimeSeries`, and the other names of F9. `FrameTimeSeriesToChart.jl`
       and its registration move to `source/chart/`; `ProjecturedStatistics`
       loses its dependency on `ProjecturedChart`, and `ProjecturedChart` gains
       one on `ProjecturedStatistics`.
+      Done: the renames with `julia-rename.jl` (and the private
+      `_get_frame_time_series_count`, `_is_frame_time_series_due`,
+      `_SESSION_FRAME_TIME_SERIES`, and `_make_measurement_line` for the helper
+      that makes one chart line); the prose, the labels ("Frame times") and
+      the registry key by hand. `ProjecturedChart` gains `ProjecturedNatural`
+      and `ProjecturedProjection` too (the registration uses
+      `register_natural_graphics!` and `ChainingProjection`), and gets an
+      `__init__`. `ProjecturedStatistics` also loses `ProjecturedProjection`,
+      which only the moved registration used. The guard of the edges now also
+      fails for a module that is neither a slice of the platform nor in the
+      kernel (`below_files`). The table got the row of `display`. Tests: the
+      edge guard, chart 354, the frame statistics feed 48, the tool views 19,
+      the application 339 pass; the shell error and the four types without an
+      atom of the catalog coverage are on `main` too (see 4b).
 - [ ] **Step 2, the folders.** First `source/domain/` (the slice of the domain
       protocol) moves to `source/platform/domain/`. Then each slice moves to
       `source/<group>/<slice>/`, and the same in `test/`, `example/` and

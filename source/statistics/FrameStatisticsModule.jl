@@ -7,17 +7,17 @@ editor's `FrameMeasurementStore`. The [`FrameStatisticsFeed`](FrameStatisticsFee
 flushes them on its own deadline, and only while a view shows them, into two
 documents of [`FrameStatisticsDocument.jl`](FrameStatisticsDocument.jl):
 `FrameStatistics`, a table of one summary for each measurement, and
-`FramePlot`, the frame times of the recent frames.
+`FrameTimeSeries`, the times of the recent frames.
 [`FrameStatisticsToSyntax`](FrameStatisticsToSyntax.jl) projects the table
-onto the Syntax → Text → Graphics path, and [`FramePlotToChart`](FramePlotToChart.jl)
-projects the plot onto a chart.
+onto the Syntax → Text → Graphics path. The chart of the frame times is a
+projection of the chart domain, `FrameTimeSeriesToChart`, so this module
+depends on no domain.
 """
 module FrameStatisticsModule
 
 using Printf: @sprintf
 
 using ..CellModule
-using ..ChartModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
@@ -25,7 +25,6 @@ using ..FeedModule
 using ..IoMapModule
 using ..NaturalModule
 using ..PerformanceModule
-using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SerializationModule
@@ -42,24 +41,20 @@ import ..SerializationModule: pred_arguments
 
 export FrameStatisticsRow, FrameStatistics, get_session_frame_statistics,
        flush_frame_statistics!
-export FramePlot, get_session_frame_plot, flush_frame_plot!
+export FrameTimeSeries, get_session_frame_time_series, flush_frame_time_series!
 export FrameStatisticsFeed
-export FrameStatisticsToSyntax, FramePlotToChart
+export FrameStatisticsToSyntax
 
 include("FrameStatisticsDocument.jl")
 include("FrameStatisticsFeed.jl")
 include("FrameStatisticsToSyntax.jl")
-include("FramePlotToChart.jl")
 
-# The rows that let a tab draw the table and the plot. The factory forms, so
-# every renderer builds its own projection instances.
+# The row that lets a tab draw the table; the chart domain registers the row of
+# the frame times. The factory form, so every renderer builds its own
+# projection instance.
 function __init__()
     register_natural_syntax!(:statistics,
         () -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax()])
-    register_natural_graphics!(:frame_plot, (; measure) -> Pair{Type,Any}[
-        FramePlot => ChainingProjection(FramePlotToChart(), ChartToChartPlot(),
-                                        ChartPlotToGraphicsCanvas(measure = measure)),
-    ])
 end
 
 end # module

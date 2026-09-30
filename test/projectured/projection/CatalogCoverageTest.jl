@@ -82,7 +82,7 @@ end
 const _NO_ATOM = Set{String}([
     "AboutPage", "Assistant", "CommandPalette", "DataFrameView", "EvaluatorForm",
     "EvaluatorToplevel", "FaultLog", "FaultReport", "FileSystemChooser",
-    "FramePlot", "FrameStatistics", "GestureLog", "JuliaToplevel",
+    "FrameStatistics", "FrameTimeSeries", "GestureLog", "JuliaToplevel",
     "MessageLog", "ObjectField", "PaneGroup", "PaneSplit", "PaneTree",
     "SelectionInspector", "TextGraphics", "TextSpacing", "WidgetHighlight",
     "WidgetToolbarItem",

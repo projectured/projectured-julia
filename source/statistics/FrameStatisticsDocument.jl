@@ -1,6 +1,6 @@
 # Fragment of `FrameStatisticsModule` — the frame statistics document types:
 # `FrameStatisticsRow`, the summary row of one measurement, `FrameStatistics`,
-# the table of every measurement of one editor loop, and `FramePlot`, the
+# the table of every measurement of one editor loop, and `FrameTimeSeries`, the
 # frame times of the recent frames.
 
 @document struct FrameStatisticsRow
@@ -99,10 +99,10 @@ get_session_frame_statistics() = _SESSION_FRAME_STATISTICS
 # table it was registered with.
 make_insertion_document(::Type{FrameStatistics}) = get_session_frame_statistics()
 
-# ── The frame plot ───────────────────────────────────────────────────────────
+# ── The frame time series ────────────────────────────────────────────────────
 
 """
-    FramePlot()
+    FrameTimeSeries()
 
 The frame times of the recent frames, as columns. `frames` holds the frame
 numbers, and `names` and `columns` hold one column in seconds for each time
@@ -112,28 +112,28 @@ not measure the name.
 A column is one cell, not one cell for each frame: nothing selects a single
 frame, and a view draws a whole column at once.
 """
-@document struct FramePlot
+@document struct FrameTimeSeries
     names::Vector{String} = String[]
     frames::Vector{Float64} = Float64[]
     columns::Vector{Vector{Float64}} = Vector{Float64}[]
 end
 
-get_document_title(::FramePlot) = "Frame plot"
-get_insertion_aliases(::Type{FramePlot}) = ["frame plot"]
+get_document_title(::FrameTimeSeries) = "Frame times"
+get_insertion_aliases(::Type{FrameTimeSeries}) = ["frame times"]
 
 # Last session's frames are not this one's: a load starts an empty plot.
-pred_arguments(::FramePlot) = (), Pair{Symbol, Any}[]
+pred_arguments(::FrameTimeSeries) = (), Pair{Symbol, Any}[]
 
 """
-    flush_frame_plot!(plot, store) -> Int
+    flush_frame_time_series!(series, store) -> Int
 
-Write the recent frames of `store` into the plot, one column for each time
+Write the recent frames of `store` into `series`, one column for each time
 measurement, and answer how many columns it holds. The names are written only
 when they changed, so a flush gives a view new columns and keeps its series.
 
 Runs on the editor task only, because it writes cells.
 """
-function flush_frame_plot!(plot::FramePlot, store::FrameMeasurementStore)
+function flush_frame_time_series!(plot::FrameTimeSeries, store::FrameMeasurementStore)
     recent = collect_recent_frame_measurements(store)
     names = String[]
     columns = Vector{Float64}[]
@@ -150,22 +150,22 @@ end
 
 # The number of the last frame that the plot shows, and 0 before its first
 # flush. The frame numbers are the plot's own record of what it showed.
-function _get_frame_plot_count(plot::FramePlot)
+function _get_frame_time_series_count(plot::FrameTimeSeries)
     frames = plot.frames
     isempty(frames) ? 0 : Int(last(frames))
 end
 
 # One plot for the session, for the same reason as the one table above.
-const _SESSION_FRAME_PLOT = FramePlot()
+const _SESSION_FRAME_TIME_SERIES = FrameTimeSeries()
 
 """
-    get_session_frame_plot() -> FramePlot
+    get_session_frame_time_series() -> FrameTimeSeries
 
-The one frame plot of the session. Every plot view a person opens is this
-document, so two of them show the same frames.
+The one frame time series of the session. Every view of it that a person opens
+is this document, so two of them show the same frames.
 """
-get_session_frame_plot() = _SESSION_FRAME_PLOT
+get_session_frame_time_series() = _SESSION_FRAME_TIME_SERIES
 
-# A person who types `frame plot` into an empty tab gets the session's plot,
+# A person who types `frame times` into an empty tab gets the session's series,
 # for the same reason as the table.
-make_insertion_document(::Type{FramePlot}) = get_session_frame_plot()
+make_insertion_document(::Type{FrameTimeSeries}) = get_session_frame_time_series()
