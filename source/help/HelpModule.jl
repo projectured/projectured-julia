@@ -33,9 +33,8 @@ import ..DomainModule: get_insertion_aliases
 import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
 
-export DocumentTypeList, ProjectionList, AboutPage
-export compute_docstring_summary, compute_help_entries
-export HelpListToSyntax, AboutPageToSyntax
+export compute_docstring_summary
+export compute_help_entries
 
 include("HelpDocument.jl")
 include("DocstringSummary.jl")
