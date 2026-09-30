@@ -103,7 +103,9 @@ the part under the pointer), the reference of
 the text- and number-range replace operations, plus each member
 of a `CompoundOperation` recursively (so edits flow back through
 structure-preserving generic projections without a bespoke reader), and the one
-operation a `WrappingOperation` holds. A
+operation a `WrappingOperation` holds. A compound goes back whole or not at all,
+except the answer to a move, which holds a `ReplaceMouseTargetOperation`: each of
+its members goes back alone, and a member with no image is left out. A
 `document === nothing` (`editor.document`-rooted)
 `ReplaceReferencedValueOperation` has its `reference` re-targeted — this covers
 document-replace and sequence-insert/delete, which are
@@ -152,6 +154,10 @@ function read_intent(projection::Projection, iomap, operation)
     # `retarget_operation` seam in the `else` branch below.
     elseif operation isa CompoundOperation
         mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
+        # A move answers every part that it reached, the part under the pointer
+        # with them: each goes back alone, and a part with no image here is left
+        # out. Any other compound goes back whole or not at all.
+        has_mouse_target(operation) && return join_move_answers(mapped...)
         any(isnothing, mapped) && return nothing
         return CompoundOperation(mapped)
     elseif operation isa WrappingOperation

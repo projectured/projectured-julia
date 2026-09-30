@@ -85,6 +85,19 @@ function follow_output_selection!(root, forward::Function; forward_mouse_target 
     root
 end
 
+"""
+    follow_output_mouse_target!(root, forward; is_followed = node -> true) -> root
+
+Make each document of the output tree `root` hold the part below it of the path of
+the part under the pointer that `forward()` answers, as
+[`follow_output_selection!`](@ref) does, for a view that keeps the selection of its
+output in its own way. So each widget that the view makes lights while the pointer
+is on it. `forward()` answers a path from `root`, or `nothing`; `is_followed` leaves
+a node out, and what is below it.
+"""
+follow_output_mouse_target!(root, forward::Function; is_followed = node -> true) =
+    (_follow_output!(root, (), :mouse_target, forward, is_followed, IdDict{Any,Bool}()); root)
+
 function _follow_output!(node, prefix::Tuple, field::Symbol, forward, is_followed, seen)
     (haskey(seen, node) || !is_followed(node)) && return
     seen[node] = true

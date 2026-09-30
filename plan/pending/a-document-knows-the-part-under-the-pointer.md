@@ -277,20 +277,42 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
-- **Q14. A view that changes under a still pointer.** Open in part (found in
-  step 6). The principle is decided: D41 and D42 of
+- **Q14. A view that changes under a still pointer.** Open (found in step 6;
+  the owner, 2026-09-30: "not sure, let's investigate this further"). The
+  principle is decided: D41 and D42 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) say
   that after a frame that changed the display, the target is found again at
   the last position of the pointer, and D3 does not allow a made-up move. Only
   a move writes the mouse target now, so after a scroll under a still pointer
-  the old row stays lit until the next move; the tracker, which found the
-  target again on the `DisplayUpdate`, goes in step 8. What is open is where
-  the last position is kept and who reads it. Claude's recommendation: the
-  screen keeps the window and the point of the last move as view state, and on
-  the `DisplayUpdate` of that window it answers the part at that point by the
-  backward map of the point (`compute_part_at_point`), which is no move. The
-  two assertions of `ScrollPaneHoverTest` that check D41 are marked broken
-  until then.
+  the old row stays lit until the next move. The two assertions of
+  `ScrollPaneHoverTest` that check D41 are marked broken.
+  Facts (investigation, 2026-09-30):
+  - Only the SDL backend makes a `DisplayUpdate`: after a frame in which the
+    canvas of a window differs from the frame before, at most one waits for
+    each window, and the loop reads it before it sleeps. The web, video and
+    console backends make none, so D41 does not hold there today either.
+  - The tracker is the only reader of a `DisplayUpdate`, and the only keeper of
+    the last point (its state `position`, set by a move, cleared by the leave of
+    a window). It finds the target again only for the window of that point.
+  - A popup that opens reports a `DisplayUpdate` with the id of the popup, not
+    of the window of the pointer, so the tracker does not find the target again
+    then. A popup that closes reports none, for either window. So D41 has gaps
+    today for a popup that opens or closes under a still pointer.
+  - The dwell recognizer keeps a point too, but a scroll clears it.
+  The ways the facts allow:
+  - (a) The tracker stays for this, and writes the mouse target too. Against:
+    step 8 removes the tracker, and it keeps a second last point.
+  - (b) The screen keeps the window and the point of the last move as view
+    state, and on the `DisplayUpdate` of that window it answers the part at that
+    point by the backward map of the point (`compute_part_at_point`), which is
+    no move. Against: no reader of a part runs, so a part that keeps more than
+    its light (the cursor readout of a chart) stays as it was until the next
+    move; and the popup gaps stay unless the screen also answers on the
+    `DisplayUpdate` of a window that opens, and the backend reports a close.
+  - (c) As (b), with the point kept by each window. Against: the leave of a
+    window must clear it, which the screen does once for all windows today.
+  - (d) The dwell recognizer keeps the point for this too. Against: a scroll
+    clears it, and it mixes the dwell with the target.
 - **Q13. A drag.** Open in part. Under M6 and M7 alone, a dragged part (a
   slider thumb) gets only the first move off it: then the mouse target follows
   the pointer and the part is on no path. Claude's options were a capture (the
@@ -750,6 +772,50 @@ already; the sealed selection files do not change (Q4).
     other omnet views need the wiring of the mouse target as well: the catalog
     list, the tables and the lists of the workflow, the optimization table, the
     batch buttons, the embed toolbar, and the three syntax views.
+  The views (owner 2026-09-30: "For 1, this step"). Built:
+  - A view that makes its own widgets needs three parts: its forward map
+    answers its own introduced part (`find_introduced_path`); it walks its
+    output for the mouse target (`follow_output_mouse_target!`, new in the
+    focus package, the walk of `follow_output_selection!` for the mouse target
+    alone); and its reader maps a path of every kind backward. A reader that
+    knows only some parts (a list row, a form field) falls back to its own
+    introduced part for the part under the pointer, and not for the selection,
+    so a click beside a row still selects nothing.
+  - The default reader of the kernel, and the widget containers' re-root, map
+    the members of a move's answer one by one and leave out a member with no
+    image; any other compound still goes back whole or not at all. So a part
+    that one view cannot map does not drop the leave of a button with it.
+  - projectured: the reflection view names its rows and wires its tree.
+  - omnet, about 20 views (the runner, the optimization, the batch, the task,
+    the result, the federation, the find view, the topology, the capture table,
+    the dashboards, the execution, session and checkpoint views). Three needed
+    more than the three parts:
+    - The workbench prints the simulator's workflow view inside itself and
+      threw its IO map away; it keeps it now and delegates both maps and its
+      reader to it (the `sim` part).
+    - The workflow view maps a row of a registered list or table forward as
+      the inverse of its registry. The registry keeps the lists of earlier
+      prints too, which a forward map passes over; that the registry grows with
+      each refresh is an older fault, left as it is.
+    - The catalog shell mapped every page as `page.content`, the root of a
+      markdown page; a simulation entry shows the entry itself, so both maps
+      now take the steps that `_open_content` opens.
+    - The embed prints its panes inline, and a pane's builder keeps no IO map,
+      so a part of a pane is a part of the embed: its walk enters every widget
+      and layout of the panes, and stays out of a document of the domain that a
+      pane shows in a widget.
+  - An older fault on the branch: the embed used `is_view_state_field` with no
+    import (from `98706cca`); `test_pane_choices` found it.
+  Checks: in a sweep of moves, the catalog list and three of the four buttons of
+  the workbench light, the catalog navigator lights, and six of the eight
+  buttons of a simulation page of the catalog light. The omnet test sets have
+  the failures of the older wide run only, and the projectured sweeps have their
+  baselines with the three new assertions of the reflection tree.
+  Left: a document of the domain that a view shows inside a widget, and that a
+  second view draws later, gets no mouse target: the reflected tree of the
+  inspector pane. The chain stops at the introduced part of the outer view, and
+  the outer walk stays out of the document, because the chain write holds the
+  mouse target of such a document when a mapped view (the form) shows it.
 - [ ] 7. **The dwell and the right click by position** (M3, D76). The outward
   reading of the gesture tables (D64) runs in the helpers that hand a pointer
   gesture to the child at its point; `_read_dwell` of the tracker and the walk

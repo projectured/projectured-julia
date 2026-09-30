@@ -150,5 +150,22 @@ end
     @test "96 items not loaded" in labels
 end
 
+@testset "a row lights while the pointer is on it" begin
+    shadow = reflect_document(obj, policy)
+    chain = ChainingProjection(projection,
+                               make_widget_projection_example(measure = FixedMeasure(10, 18, 6, 0)))
+    driver = MttDriver(chain, shadow)
+    tree = driver.iomap.child_iomap.step_iomaps[1][].output
+    lit_row() = WidgetModule._wtree_ref_path(get_mouse_target(tree))
+    # A row is no part of the reflected node, so the node holds it as a part of
+    # the view, and the tree holds the node path of the row.
+    _mtt_move!(driver, 20, 5, 1.0)
+    @test lit_row() == [1]
+    _mtt_move!(driver, 20, 55, 1.1)
+    @test length(lit_row()) == 2 && lit_row()[1] == 1
+    _mtt_move!(driver, 900, 900, 1.2)
+    @test get_mouse_target(tree) === nothing
+end
+
 end
 end

@@ -1528,6 +1528,8 @@ function _retarget_op(p, iomap, op)
         return new_ref === nothing ? nothing : ReplaceReferencedValueOperation(nothing, new_ref, op.value)
     elseif op isa CompoundOperation
         mapped = Any[_retarget_op(p, iomap, o) for o in op.operations]
+        # A move answers every part that it reached: each goes back alone.
+        has_mouse_target(op) && return join_move_answers(mapped...)
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
     elseif op isa WrappingOperation
         inner = _retarget_op(p, iomap, get_wrapped_operation(op))

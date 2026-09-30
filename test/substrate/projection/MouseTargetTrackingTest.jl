@@ -61,10 +61,9 @@ function ProjectionModule.print_document(p::MttContactsToWidgets, recursion, inp
     iomap = SimpleIoMap(p, input, composite)
     # The view maps the part under the pointer forward into what it makes, as a view
     # maps its selection: a person to its row, and the button of the view to the
-    # button. The view has no selection to map.
-    follow_output_selection!(composite, () -> nothing;
-        forward_mouse_target = () -> map_mouse_target_forward(input,
-            path -> map_reference_forward(p, iomap, path)))
+    # button.
+    follow_output_mouse_target!(composite,
+        () -> map_mouse_target_forward(input, path -> map_reference_forward(p, iomap, path)))
     iomap
 end
 

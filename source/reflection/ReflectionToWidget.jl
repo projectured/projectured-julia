@@ -68,7 +68,13 @@ function print_document(p::ReflectionToWidget, recursion, node, ctx)
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(@computation tree[].expanded),
                         Cell(GestureBinding[]), Cell(nothing))
-    ReflectionToWidgetIoMap(p, node, output, tree)
+    iomap = ReflectionToWidgetIoMap(p, node, output, tree)
+    # A row lights while the pointer is on it. A row is no part of the reflected
+    # node, so the node holds it as a part of this view, and the tree holds its
+    # forward image.
+    set_cell_computation!(getfield(output, :mouse_target),
+        () -> map_mouse_target_forward(node, path -> map_reference_forward(p, iomap, path)))
+    iomap
 end
 
 print_document(p::ReflectionToWidget, node) = print_document(p, nothing, node, nothing)
@@ -153,6 +159,20 @@ end
 
 # A row click selects; there is no reflected-domain cursor to move it to.
 read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, ::ReplacePathOperation) = nothing
+
+# The part under the pointer is a row, which goes back as a part of this view.
+function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
+                     op::ReplaceMouseTargetOperation)
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceMouseTargetOperation(path)
+end
+
+# A move answers the leave of a part and the part under the pointer together; each
+# goes back as this view reads it alone.
+function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap, op::CompoundOperation)
+    has_mouse_target(op) || return op
+    join_move_answers((read_intent(p, iomap, member) for member in op.operations)...)
+end
 
 read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, op) = op
 
