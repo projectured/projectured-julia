@@ -431,7 +431,7 @@ end
     # A call that passes every field but the mouse target works, with a required
     # field (Rule Y) and with none.
     @test DmRuleY(1, 2, "c", false, nothing).mouse_target === nothing
-    @test DmSoleVector(CellVector([1, 2]), nothing).items == CellVector([1, 2])
+    @test DmSoleVector(DmCollection([1, 2]), nothing).items == DmCollection([1, 2])
     @test ICDmRuleY(1, 2, "z", true, nothing).mouse_target === nothing
     # A copy starts with no mouse target, and `show` leaves it out.
     @test copy_document(PlainCopyPolicy(), d).mouse_target === nothing

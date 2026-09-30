@@ -275,5 +275,9 @@ function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing,
         push!(args, all_cells || raw isa AbstractCell ?
                     K{_kinded_value_type(K, Ts, i, v)}(v) : v)
     end
+    # A native layout holds no mouse target, and the cell layout starts with none.
+    names = fieldnames(base)
+    length(args) < length(names) && names[length(args) + 1] === :mouse_target &&
+        push!(args, K{_kinded_value_type(K, Ts, length(args) + 1, nothing)}(nothing))
     base(args...)
 end

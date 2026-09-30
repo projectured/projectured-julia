@@ -34,8 +34,8 @@ using ..EventModule
 import ..EventModule: get_modifier_keys, get_event_time
 
 export Gesture
-export KeyChord
 export MouseClick, MouseEnter, MouseLeave, MouseHover, MouseDwell
+export KeyChord
 export GesturePattern, matches_gesture_pattern,
        KeyPressPattern, KeyDownPattern, KeyUpPattern,
        MouseDownPattern, MouseUpPattern, MouseClickPattern,
@@ -45,7 +45,10 @@ export GesturePattern, matches_gesture_pattern,
        describe_gesture_pattern, GesturePatternRule, parse_gesture_pattern_rule,
        build_gesture_pattern_expr, build_gesture_field_bindings, @gesture_case
 export GestureRecognition, make_recognition_state, recognize, RecognitionStep,
-       ClickRecognition, ChordRecognition, DwellRecognition, make_standard_recognitions
+       make_standard_recognitions
+export ClickRecognition
+export ChordRecognition
+export DwellRecognition
 
 include("GestureInterface.jl")
 include("MouseGesture.jl")

@@ -32,11 +32,12 @@ function find_reference_box(document, reference::Reference; measure::TextMeasure
                             visible::Bool = false)
     box, clip = _find_box_and_clip(document, reference, measure)
     (box === nothing || !visible || clip === nothing) && return box
-    _cut_box(box, clip)
+    clip === false ? nothing : _cut_box(box, clip)
 end
 
 # The box of the node that `reference` reaches, and the box that the viewports on
-# the way leave visible, or `nothing` when no viewport is on the way.
+# the way leave visible: `nothing` when no viewport is on the way, and `false` when
+# the viewports show none of it.
 function _find_box_and_clip(document, reference::Reference, measure::TextMeasure)
     node = _box_value(document)
     frame = (0.0, 0.0, 1.0, 1.0)       # origin x, origin y, scale x, scale y
@@ -52,8 +53,8 @@ function _find_box_and_clip(document, reference::Reference, measure::TextMeasure
         end
         if node isa GraphicsViewport && step isa FieldReferenceStep && step.name == "content"
             view = _make_node_box(frame, node, measure)
-            clip = clip === nothing ? view : _cut_box(view, clip)
-            clip === nothing && return (nothing, nothing)
+            clip === false ||
+                (clip = clip === nothing ? view : something(_cut_box(view, clip), false))
         end
         frame = _enter_box_frame(frame, node, step)
         node = child

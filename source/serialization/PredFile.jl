@@ -139,7 +139,7 @@ function make_pred_document(T::Type, positional, keywords)
     names = Tuple(first(keyword) for keyword in keywords)
     hasmethod(T, Tuple{}, names) && return T(; keywords...)
     values = Dict{Symbol,Any}(keywords)
-    fields = Symbol[name for name in fieldnames(T) if name !== :selection]
+    fields = Symbol[name for name in fieldnames(T) if !is_view_state_field(name)]
     for name in fields
         haskey(values, name) ||
             error("a .pred file builds ", nameof(T), " from its fields, and it gives no ", name)

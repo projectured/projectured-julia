@@ -101,8 +101,11 @@ function map_reference_backward(projection::Projection, iomap, reference)
     iomap === nothing && return reference
     # The projection-introduced element has no input pre-image, so the answer is the
     # canonical caret on it: its node carries the type of the input document, and its
-    # terminal records `Position`.
-    make_introduced_reference(projection, iomap.input, reference)
+    # terminal records `Position`. A bare step, such as a point, is the path of one
+    # step.
+    output_path = reference isa Reference ? reference :
+                  ConcreteReference(reference, EmptyReference())
+    make_introduced_reference(projection, iomap.input, output_path)
 end
 
 """
