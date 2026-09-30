@@ -186,10 +186,14 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
   in together or none.
 - **The AutoMerge rules of General** (the guidelines of RegistryCI, read on
   2026-09-29) that matter here:
-  - "Repo URL ends with `/PackageName.jl.git`." Only `Projectured` meets it in
-    `projectured/Projectured.jl`. **The first version of each of the other 64
-    needs a manual merge** by the maintainers of General. The rules for a new
-    version do not have this one.
+  - "Repo URL ends with `/PackageName.jl.git`." **AutoMerge does not apply
+    this rule to a package in a subdirectory** (`AutoMerge/src/guidelines.jl`
+    of RegistryCI: "we do not apply this check if the package is a
+    subdirectory package"), and the README of General says that a new package
+    in a subdirectory "will be handled by AutoMerge like any other package".
+    Found on 2026-09-30; the reading of 2026-09-29 took the guideline list
+    alone and missed the exception. So one release repository with a
+    subdirectory for each package passes this rule too.
   - "The package should be installable" and "loadable". AutoMerge tests a new
     package against General, so a package goes in only after its siblings are
     in. **The 65 packages form 13 dependency levels** (1, 9, 4, 2, 2, 6, 7, 4,
@@ -210,6 +214,15 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
     the next version skip it (R25).
   - `[compat]` must bound every dependency and Julia from above. The caret
     bounds of the release copy do.
+- **General has a policy for code made with an LLM** (its README, read on
+  2026-09-30). Code made with the help of a tool such as Claude Code is
+  welcome, but a person who maintains it must understand all of it; a
+  "vibe-coded" package is refused. It asks: say so, with details, in the
+  README; review the generated code by hand; keep the README short; run the
+  tests in CI and track the coverage; build the documentation in CI where it
+  fits. And it asks that a message about a registration be the owner's own
+  words, not the output of an LLM. **The repository has no CI workflow, and its
+  README does not say how the code was made.**
 - **A registry entry names a tree by its hash.** Pkg must find that tree in the
   release repository forever. So the history of the release repository is never
   rewritten.
@@ -233,7 +246,7 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
 | R3a | Which way removes the sound chain from the binary? | A stand-in for `alsa_plugins_jll` in the build environment of the binary: the same name and uuid, no dependencies (the owner, 2026-09-29). It removes 58 of the 99 JLLs and 462 of the 577 MB of artifacts, FFmpeg with `--enable-nonfree` among them. The binary only: with `Pkg.add` the JLLs come from the Julia package servers, not from us. |
 | R17 | Liberation 1.07.3 is GPL-2. | Switch Sans, Serif and Mono to Liberation 2.x (OFL-1.1, the same metrics), and remove Sans Narrow, which no code uses and which 2.x does not have (the owner, 2026-09-29). **Both routes**: `ProjecturedStyle` and `ProjecturedWeb` carry `asset/font/`, so it comes before B6 too. |
 | R18 | The source of the LGPL and GPL libraries that stay in the binary. | First `--filter-stdlibs`, which should leave out `libgit2` and 7-Zip because no package of the application needs Pkg or LibGit2; then a source archive of exactly the versions that remain, in the same GitHub release (the owner, 2026-09-29). The binary only. |
-| R23 | One release repository with 65 subdirectories, or one repository for each package? | Open: the owner asked whether one repository for each package makes the registration automatic. It makes the URL rule pass, so the first version of about 61 packages merges with no maintainer. But the name rule still stops 4 or more of them, the first registration still goes one dependency level at a time with 3 days of waiting for each new package (13 levels), and 65 repositories must then be kept and pushed at each release. My view: one repository, and a word first in `#pkg-registration` on the Julia Slack, which the README of General names for a review by a person. |
+| R23 | One release repository with 65 subdirectories, or one repository for each package? | Reopened on 2026-09-30. The URL rule does not decide it: AutoMerge skips that rule for a package in a subdirectory (§3.3), so with either layout the first version of each package merges with no maintainer, except the names of R22. What differs is the upkeep: one repository is one history and one push for each release; 65 repositories are 65 of each, which the generator already writes (commit `6571ceed9`). The owner asks the maintainers in `#pkg-registration` on the Julia Slack on 2026-10-01, with R22, the 13 dependency levels and the LLM policy of §3.3. My recommendation, not decided: one repository with a subdirectory for each package. |
 | R20 | The guides live in `ProjecturedKernel` (§2.3), so each change to a guide gives the kernel a new version, and Julia compiles every package above it again after `pkg> up`. A change to a licence text gives all 65 a new version. Accept that, or give the guides a package of their own later? | Accept it now. The kernel changes in most releases anyway, and a package of its own for the guides is a change of structure. |
 
 ### 4.2 Decided
@@ -262,7 +275,7 @@ The owner decided these on 2026-09-29.
 | R22 | Seven pairs of our names fail the name rule of General. Rename, or ask for manual merges? | Manual merges (the owner, 2026-09-29). |
 | R24 | Do the other two authors agree to MPL-2.0 for their commits? | Yes (the owner, 2026-09-29: "I know them well and they agreed"). Keep their agreement in writing with the release records. |
 | R25 | Guard against a version that skips one? | Yes (the owner, 2026-09-29). Done: `build_package_release!` takes `registry`, and `build_projectured_package_release!` checks General (commit after `c0dcdc1e1`). |
-| R23 | One release repository with 65 subdirectories, or one repository for each package? | One repository for each package, `projectured/<Name>.jl` (the owner, 2026-09-29). Then the URL rule of General passes for every package; the name rule still needs a manual merge for at least 4 (R22); the first registration still goes one level at a time, with 3 days of waiting for each new package. Done in the generator (commit `6571ceed9`). |
+| R23 | One release repository with 65 subdirectories, or one repository for each package? | One repository for each package, `projectured/<Name>.jl` (the owner, 2026-09-29). Then the URL rule of General passes for every package; the name rule still needs a manual merge for at least 4 (R22); the first registration still goes one level at a time, with 3 days of waiting for each new package. Done in the generator (commit `6571ceed9`). **Reopened on 2026-09-30** (§4.1): its reason, the URL rule, does not apply to a package in a subdirectory. |
 | R26 | Without the port, which engine does `ProjecturedGraph` use when none is registered? | A new force-directed engine, written from the textbook algorithm and not from the port (the owner, 2026-09-29: option 3). Part G. |
 | R19 | The ten files in `source/graph/cpp/` port the layout engine of OMNeT++, whose headers name OpenSim Ltd. and Andras Varga and the Academic Public License. | Move them out of this repository, into the private downstream repository that uses them (the owner, 2026-09-29). R26 holds what `ProjecturedGraph` uses in their place. The MIT function in `source/domain/Domain.jl` keeps its notice in one comment. |
 | R16 | What to do with the four packages of §2.4 that can not go in as they are? | Skip them: `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`. `ProjecturedExample` and the other example packages stay out by R12, so the registry gives no application; the binary gives it. The registry set is 65 packages. |
