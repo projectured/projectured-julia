@@ -1725,6 +1725,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** `make_child_iomaps_cell` and `make_child_iomap_cell` (the example of the audit).
 - **C:** Keep the `reconcile_` names, and let the docstring say that the call makes the cell that reconciles.
 - **Recommended (mine): A.** Each call makes a new `Cell`, and the cell does the reconcile at each computation, so `make_` with `cell` last says what the caller gets. The word `reconciled` keeps the reason to call these functions and not a plain `Cell(@computation ...)`: the reuse of each child IoMap. It also matches the file name IoMapReconcile.jl. I checked: the names are free.
+- **Decided by the owner, 2026-09-30: A.** The permission for the sealed IoMapModule.jl is asked when the work starts.
 - Cost: M. projectured-julia: `reconcile_child_iomaps` 24 uses in 14 code files, `reconcile_child_iomap` 33 in 15. omnet-julia: 3 uses in 2 files. inet-julia: no code use. The precompile assets of the three repositories (about 200 lines each) take the new names at their next record. Sealed (permission needed): IoMapModule.jl, for the export. Prose: the guides that name the two functions.
 
 **L17-21** (Low): Which names does the layer take for the file GestureBindings.jl, for withhold_offer, and for the engine word (template or rule)?
