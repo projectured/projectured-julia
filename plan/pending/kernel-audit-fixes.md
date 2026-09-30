@@ -1757,7 +1757,12 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** A fifth kind of exception: an editor verb that mirrors an operation builder may put the editor before the arguments of the builder. A marker may also excuse optional positional arguments.
 - **C:** No policy: decide each signature alone.
 - **Recommended (mine): A.** Each question of the group has an answer inside §4 as it is written. Tool is a constructor, and Resource in the same file already has the keyword shape. The editor verbs can name their index. copy_document and sync_document! are already on the protocol list of test/suite/arguments.jl, so only their defaults break §4. Each of the four kinds of today has a structural reason (a protocol, a tuple, a port, a table of painters); a kind for two verbs weakens a rule that a guard checks.
-- **Decided by the owner, 2026-09-30: A.**
+- **Decided by the owner, 2026-09-30: A, then changed the same day: the count rule is relaxed.** "Relax the rule, these argument count rules are not that strict." The new §4 of code-quality-rules.md:
+  - The count is advice. Prefer at most three positional arguments; a fourth is fine when the name of the function implies it. §4 no longer lists kinds of exception.
+  - These clauses stay rules: a `Bool` is never positional; two arguments of one type that a caller could swap take a name; more than five keywords means a type is missing.
+  - "At most one optional positional argument, and never one beside a keyword argument" is a recommendation, not a hard rule: "I can easily imagine exception, those should be marked". An exception carries a marker.
+  - `test_arguments()` no longer fails on the count; `julia test/suite/arguments.jl --report` still prints the picture. The `# @positional:` markers of the count go: 57 in 21 files of projectured-julia, 23 in omnet-julia.
+  - Open: whether the guard fails on an unmarked exception of the optional clause, and the word of its marker. Today 57 public definitions break the clause with no marker (24 projectured-julia, 30 omnet-julia, 3 inet-julia).
 - Settles: L18-3, L22-1, L10-8.
 - Cost: S to M in total: the three items below, and the two sites of N-3 (outside the questions) that the guard also reports.
 
@@ -1767,7 +1772,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Tool(handler, name; description, parameters, result_mime_type), so that a do block writes the handler.
 - **C:** A # @positional: marker for the four positional arguments. §4 then needs a new kind of exception, because a constructor of four fields is none of the four kinds.
 - **Recommended (mine): A.** Resource, the next type of Tool.jl, has the shape Resource(uri, name; description, provider, mime_type) from plan/done/keyword-arguments.md, and call_tool took keywords in the same plan. One shape then serves the types of the file. The Tool constructor came in commit 2224b9d8, after that plan closed.
-- **Decided by the owner, 2026-09-30: A.**
+- **Decided by the owner, 2026-09-30: A.** It stands under the relaxed §4: `name` and `description` are two strings that a caller can swap, and `Resource` in the same file has the keyword form.
 - Depends on: POLICY-3.
 - Cost: S. Tool.jl, DefaultTools.jl (6 calls), UndoDocument.jl (2), FaultExamples.jl (1), and about 14 calls in 8 test files. No call in omnet-julia or inet-julia.
 
@@ -1777,6 +1782,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Only insert takes the index as a keyword: insert_elements!(editor, collection, values; index), and delete_elements!(editor, collection, index; count = 1), which mirrors the builder delete_elements(path, index; count).
 - **C:** §4 gets a new kind of exception for an editor verb that mirrors a builder, and the shape of D24 stays.
 - **Recommended (mine): A.** The editor is the subject, so each verb has room for two more positional arguments, and the collection and the values are what the verbs name. The keyword at the call also marks the 1-based element index apart from the 0-based position of the builders insert_elements and delete_elements (the question of L13-9). One shape for the pair is simpler for a model to learn. D24 approved the verbs and their 1-based index; a keyword keeps both.
+- **Decided by the owner, 2026-09-30: no change.** Under the relaxed §4 (POLICY-3), `insert_elements!(editor, collection, index, values)` and `delete_elements!(editor, collection, index, count = 1)` keep their signatures.
 - Depends on: POLICY-3.
 - Cost: S. DocumentEdits.jl, the tool text in DefaultTools.jl:32-33, Application.jl (3 calls), orientation.md (4), editor.md, ReferencedDocumentEditorTest.jl (5), DeclaredApiTest.jl, ApplicationVideoTest.jl. omnet-julia SearchContextCorpus.jl names only the verb, so it does not change.
 - **Risk:** The choice is close: option B, where `delete_elements!` keeps its index positional, also follows §4.
