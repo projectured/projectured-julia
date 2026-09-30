@@ -27,6 +27,7 @@ mutable struct GridListState
     built::Dict{Int,Any}     # index from the head => (row canvas, cell entries, row height)
     head::Cell               # the canvas node of the head row, or nothing
     column_head::Union{Nothing,Cell}   # the canvas node of the head column when the columns are a list
+    column_aligns::Dict{Int,Any}       # the node of the alignment of each column built, when they are a list
 end
 
 """
@@ -94,7 +95,7 @@ function _print_grid_list(p, recursion, doc, ctx)
     col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
     total_w = Cell(@computation Int32(sum((Int(col_w[k][]) for k in 1:n); init = 0) +
                                       max(0, n - 1) * Int(hgap[])))
-    state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing)
+    state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing, Dict{Int,Any}())
     # A new head in `children` drops every row built and starts again, and a
     # grid whose children are no list draws no rows.
     set_cell_computation!(state.head, () -> begin

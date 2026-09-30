@@ -331,8 +331,25 @@ plan.
       from every cell: a list has no index to name one column by. A column
       that is not `Fixed` fails when its width is first read, because the
       policies are built as the walk reaches them.
-    - [ ] **1d-b. The table** with `column_headers` and the cells of its rows
-      as lists.
+    - [x] **1d-b. The table** (this commit) with `column_headers` and the
+      cells of its rows as lists, in `WidgetTableParts.jl`:
+      - `column_headers` a `ListNode` makes the columns a list; the keyword
+        constructor takes one, and `column_align` as a list too. Every column
+        is `column_policy`, which must be `Fixed`, at least as wide as its
+        header, from a list of policies that mirrors the headers and that
+        the header row and the cells share. The header row is a grid of one
+        row, as tall as the header of the head column; a grid of a list
+        reports no height, so the pane of the header row is offered it.
+      - `GridLayout` whose columns are a list takes `row_offers` with one
+        `false`, which measures each cell at its own height, and a
+        `column_align` that is a list; it reads its row policy without a
+        dependency at print, as the other grids read their policies.
+      - The readers, the bands and the keys find a column through
+        `_find_table_column_at` and `_get_table_column_span`, which walk the
+        columns that the cells placed. A whole row, and the whole table, band
+        the box of the pane of the cells, because a list has no last column
+        to end at. The rules of the columns are one list for each region,
+        down the whole pane, where a vector draws a segment in each row.
 - [x] **2. The table of layouts.** Implementation design, 2026-09-30:
   - **The parts.** The cells are a `GridLayout` over `rows` (a flat vector
     of the cells for an eager table, the list of rows for a lazy one), with

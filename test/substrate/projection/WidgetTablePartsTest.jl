@@ -468,7 +468,10 @@ end
 # its own, so its bands come first.
 header_graphics(io) = only(e for e in header_region(io).elements if e isa GraphicsViewport).content.elements
 function row_graphics(io, k)
-    node = only(e for e in cells_region(io).elements if e isa GraphicsViewport).content.elements
+    graphics = only(e for e in cells_region(io).elements if e isa GraphicsViewport).content
+    # When the columns are a list, the rows are the first of two canvases, and
+    # the rules of the columns the second.
+    node = graphics.elements isa ListNode ? graphics.elements : graphics.elements[1].elements
     for _ in 1:(k - 1)
         node = node.next
     end
@@ -521,6 +524,87 @@ end
     op = read(io, MouseDown(:left, x + 4, y + 4, mods; time = 0.0))
     @test op isa ReplaceViewStateOperation
     @test get_wrapped_operation(op).document === button
+end
+
+# A list of `count` values, built one at a time as a walk reaches them, that
+# reaches both ways from index `at`. `value_of(i)` makes the value of node `i`.
+function make_list_of(count::Int, value_of; at::Int = 1, built = Ref(0))
+    function make_node(i, before, after)
+        built[] += 1
+        node = ListNode(value_of(i))
+        if after === nothing
+            set_cell_computation!(getfield(node, :next),
+                                  () -> i < count ? make_node(i + 1, node, nothing) : nothing)
+        else
+            set_cell_value!(getfield(node, :next), after)
+        end
+        if before === nothing
+            set_cell_computation!(getfield(node, :prev),
+                                  () -> i > 1 ? make_node(i - 1, nothing, node) : nothing)
+        else
+            set_cell_value!(getfield(node, :prev), before)
+        end
+        node
+    end
+    make_node(at, nothing, nothing)
+end
+# A table of lists both ways: `rows` rows and `columns` columns, with the head
+# column at `at_column`. The header of column 3 is longer than the width of a
+# column.
+function make_wide_table(rows::Int, columns::Int; at_column = 1, cells = Ref(0))
+    header(c) = WidgetLabel(c == 3 ? "a longer header" : "h$(c)")
+    WidgetTable(; column_headers = make_list_of(columns, header; at = at_column),
+                rows = make_list_of(rows, i -> make_list_of(columns, c -> WidgetLabel("r$(i) c$(c)");
+                                                            at = at_column, built = cells)),
+                column_count = 0, column_policy = Fixed(60), row_policy = Fixed(16))
+end
+text_x(io, label) = only(t[1] for t in texts(io.output) if t[3] == label)
+
+@testset "a table whose columns are a list builds what it shows, and each header sits over its column" begin
+    cells = Ref(0)
+    table = make_wide_table(10_000_000, 1_000_000; cells)
+    io = print_document(rec, nothing, table, context())
+    @test io isa WidgetTableListIoMap
+    Int(cells_viewport(io).content.x); Int(cells_viewport(io).content.y)
+    @test cells[] < 100
+    @test text_x(io, "h2") == text_x(io, "r1 c2")
+    @test text_x(io, "h4") == text_x(io, "r1 c4")
+    # The header row is as tall as the header of the head column, one line.
+    @test Int(io.state.header_height[]) == 16 + io.state.bw + 2 * io.state.pad_y
+    # A column is at least as wide as its header.
+    @test text_x(io, "r1 c4") - text_x(io, "r1 c3") ==
+          8 * length("a longer header") + 2 * io.state.pad_x + io.state.bw
+    @test text_x(io, "r1 c3") - text_x(io, "r1 c2") == 60 + 2 * io.state.pad_x + io.state.bw
+    # A press on a header selects its column, and on a cell its row.
+    (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "h2")
+    column = read(io, MousePress(:left, hx + 2, hy + 2, mods; time = 0.0))
+    @test column.path.head.name == "column_headers" && column.path.tail.head.start + 1 == 2
+    (x, y) = place(io, 2, 4)
+    cell = read(io, MousePress(:left, x + 2, y + 2, alt; time = 0.0))
+    @test (row_of(cell.path), column_of(cell.path)) == (2, 4)
+    # The band of a selected column: its span in the header row and in a row.
+    getfield(table, :selection)[] = column.path
+    @test span(header_graphics(io)[3]) == span(row_graphics(io, 1)[2])
+    @test span(row_graphics(io, 1)[2])[2] == 60 + 2 * io.state.pad_x + io.state.bw
+end
+
+@testset "a table whose columns are a list stops at its first and its last column" begin
+    columns = 1_000
+    table = make_wide_table(20, columns; at_column = columns)
+    io = print_document(rec, nothing, table, context())
+    side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = 0.0))
+    # The head column is the last: the table shows it at the right edge, and
+    # the header of the last column over it.
+    @test side(-1) === nothing
+    @test side(1) !== nothing
+    @test text_x(io, "h$(columns)") == text_x(io, "r1 c$(columns)")
+    first_table = make_wide_table(20, columns)
+    first_io = print_document(rec, nothing, first_table, context())
+    @test read(first_io, MouseScroll(1, 0, 100, 150; time = 0.0)) === nothing
+    # Right, and back to the first column.
+    apply!(first_table, read(first_io, MouseScroll(-1, 0, 100, 150; time = 0.0)))
+    @test Int(first_table.scroll_position.x[]) > 0
+    @test text_x(first_io, "h2") == text_x(first_io, "r1 c2")
 end
 
 @testset "the bands of the hover and of the selection follow the rows" begin

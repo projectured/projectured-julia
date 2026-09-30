@@ -34,8 +34,12 @@ end
 
 # The canvas node of column `k`, placed after the column before it or before
 # the column after it; the head column is at 0. Its neighbours are built when
-# first read, from the neighbours of `policy_node`.
-function _make_grid_column_node(hgap::Cell, k::Int, policy_node::ListNode, before, after)
+# first read, from the neighbours of `policy_node`, and of `align_node`, the
+# node of the alignment of the column when the alignments are a list too,
+# which `aligns` keeps by the index of the column.
+function _make_grid_column_node(hgap::Cell, k::Int, policy_node::ListNode, align_node,
+                                aligns::Dict{Int,Any}, before, after)
+    aligns[k] = align_node isa ListNode ? align_node : nothing
     width = Cell(@computation Int32(_get_column_list_width(policy_node.value)))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), width, Cell(Int32(0)), CellVector(),
                             layout_none, true, Cell(nothing))
@@ -52,41 +56,49 @@ function _make_grid_column_node(hgap::Cell, k::Int, policy_node::ListNode, befor
     set_cell_computation!(getfield(node, :next), () -> begin
         following = policy_node.next
         following === nothing && return nothing
-        next_node = _make_grid_column_node(hgap, k + 1, following, node, nothing)
+        next_node = _make_grid_column_node(hgap, k + 1, following,
+                                           align_node isa ListNode ? align_node.next : nothing,
+                                           aligns, node, nothing)
         set_cell_value!(getfield(next_node, :prev), node)
         next_node
     end)
     set_cell_computation!(getfield(node, :prev), () -> begin
         preceding = policy_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_grid_column_node(hgap, k - 1, preceding, nothing, node)
+        prev_node = _make_grid_column_node(hgap, k - 1, preceding,
+                                           align_node isa ListNode ? align_node.prev : nothing,
+                                           aligns, nothing, node)
         set_cell_value!(getfield(prev_node, :next), node)
         prev_node
     end)
     node
 end
 
+# Whether the one entry of `offers`, which names every column or every row of
+# a grid whose columns are a list, keeps the extent from the cells.
+_is_offer_withheld(offers) = offers isa AbstractVector && !isempty(offers) && first(offers) === false
+
 # The node of cell `c` of row `k`: the document of `cell_node` printed through
 # the recursion and clipped to the slot of the column of `column_node`. A cell
 # with no document, or with no graphics, is an empty canvas at its column, so
 # the renderer still walks past it. The drawn cells are kept in `cells` by
 # their index from the head column.
-function _make_grid_cell_node(recursion, doc, ctx, k::Int, c::Int, cell_node::ListNode,
-                              column_node::ListNode, height::Cell, cells::Dict{Int,Any},
-                              before, after)
+function _make_grid_cell_node(recursion, doc, ctx, state::GridListState, k::Int, c::Int,
+                              cell_node::ListNode, column_node::ListNode, height::Cell,
+                              cells::Dict{Int,Any}, before, after)
     column = column_node.value
     document = cell_node.value
-    offers = doc.column_offers
-    withheld = offers isa AbstractVector && !isempty(offers) && first(offers) === false
     cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [k]),
                               (@reference_step [c]))
     if cctx !== nothing
-        cctx = withheld ? withhold_offer(cctx, :x) :
-                          with_exact_size(cctx; width = getfield(column, :w))
-        cctx = with_exact_size(cctx; height = height)
+        cctx = _is_offer_withheld(doc.column_offers) ? withhold_offer(cctx, :x) :
+                   with_exact_size(cctx; width = getfield(column, :w))
+        cctx = _is_offer_withheld(doc.row_offers) ? withhold_offer(cctx, :y) :
+                   with_exact_size(cctx; height = height)
     end
     cim = document === nothing ? nothing : _recurse_child(recursion, document, cctx)
-    halign = doc.horizontal_align
+    align_node = get(state.column_aligns, c, nothing)
+    halign = align_node isa ListNode ? align_node.value : doc.horizontal_align
     valign = doc.vertical_align
     x_cell = Cell(@computation Int32(Int(column.x) + _get_layout_list_align_offset(
         Symbol(halign), Int(column.w), cim === nothing ? 0 : _child_w(cim))))
@@ -107,16 +119,16 @@ function _make_grid_cell_node(recursion, doc, ctx, k::Int, c::Int, cell_node::Li
     set_cell_computation!(getfield(node, :next), () -> begin
         (following, following_column) = (cell_node.next, column_node.next)
         (following === nothing || following_column === nothing) && return nothing
-        next_node = _make_grid_cell_node(recursion, doc, ctx, k, c + 1, following, following_column,
-                                         height, cells, node, nothing)
+        next_node = _make_grid_cell_node(recursion, doc, ctx, state, k, c + 1, following,
+                                         following_column, height, cells, node, nothing)
         set_cell_value!(getfield(next_node, :prev), node)
         next_node
     end)
     set_cell_computation!(getfield(node, :prev), () -> begin
         (preceding, preceding_column) = (cell_node.prev, column_node.prev)
         (preceding === nothing || preceding_column === nothing) && return nothing
-        prev_node = _make_grid_cell_node(recursion, doc, ctx, k, c - 1, preceding, preceding_column,
-                                         height, cells, nothing, node)
+        prev_node = _make_grid_cell_node(recursion, doc, ctx, state, k, c - 1, preceding,
+                                         preceding_column, height, cells, nothing, node)
         set_cell_value!(getfield(prev_node, :next), node)
         prev_node
     end)
@@ -127,12 +139,13 @@ end
 # are the list of its cells from the head column. The canvas's `y` is set by
 # the node that links it.
 function _make_grid_column_list_row(recursion, doc, ctx, state::GridListState, k::Int, row)
-    height = Cell(Int32(doc.row_policy.preferred))
+    height = Cell(@computation Int32(doc.row_policy.preferred))
     cells = Dict{Int,Any}()
     elements = Cell(@computation begin
         column = state.column_head[]
         (row isa ListNode && column isa ListNode) || return CellVector()
-        _make_grid_cell_node(recursion, doc, ctx, k, 1, row, column, height, cells, nothing, nothing)
+        _make_grid_cell_node(recursion, doc, ctx, state, k, 1, row, column, height, cells,
+                             nothing, nothing)
     end)
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), height, elements,
                             layout_horizontal, false, Cell(nothing))
@@ -140,19 +153,26 @@ function _make_grid_column_list_row(recursion, doc, ctx, state::GridListState, k
 end
 
 function _print_grid_column_list(p, recursion, doc, ctx)
-    row_policy = doc.row_policy
+    # The kind of the row policy is read with no dependency, and its height in
+    # the cell of each row, so a height that a caller computes follows.
+    row_policy = peek(getfield(doc, :row_policy))
     (row_policy isa SizePolicy && row_policy.preferred !== nothing &&
      (row_policy.weight === nothing || row_policy.weight == 0)) ||
         error("GridLayout: a grid whose columns are a list needs its rows Fixed, not ",
               repr(row_policy))
     hgap = getfield(doc, :horizontal_gap)
     vgap = getfield(doc, :vertical_gap)
-    state = GridListState(0, Dict{Int,Any}(), Cell(nothing), Cell(nothing))
+    state = GridListState(0, Dict{Int,Any}(), Cell(nothing), Cell(nothing), Dict{Int,Any}())
     # A new head in `column_policies` builds the columns again, and so does a
-    # new head in `children` build the rows again.
+    # new head in `children` build the rows again. `column_align` is a list
+    # anchored with the columns, or one alignment for every column.
     set_cell_computation!(state.column_head, () -> begin
         policies = doc.column_policies
-        policies isa ListNode ? _make_grid_column_node(hgap, 1, policies, nothing, nothing) : nothing
+        empty!(state.column_aligns)
+        policies isa ListNode ?
+            _make_grid_column_node(hgap, 1, policies, doc.column_align, state.column_aligns,
+                                   nothing, nothing) :
+            nothing
     end)
     set_cell_computation!(state.head, () -> begin
         list = doc.children

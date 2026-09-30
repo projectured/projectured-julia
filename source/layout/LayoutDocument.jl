@@ -323,7 +323,7 @@ function GridLayout(rows::ListNode, columns::Integer;
     GridLayout(Cell(rows), Cell(Int(columns)),
                Cell(horizontal_align), Cell(vertical_align),
                Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
-               Cell(collect(column_align)),
+               Cell(column_align isa ListNode ? column_align : collect(column_align)),
                Cell(column_policy), Cell(row_policy),
                Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),
                Cell(Any[]), Cell(collect(Bool, column_offers)), Cell(Bool[]),

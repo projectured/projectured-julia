@@ -2290,7 +2290,12 @@ Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 reaches it, with no count and no end it has to have. Each node's value is a row,
 which [`make_widget_table_row`](@ref) builds from a vector of values or
 documents. Every column must be given a width — `Fixed`, or a weight — and the
-rows are `Fixed` or `Content`; a list draws no row headers. Such a table fills
+rows are `Fixed` or `Content`; a list draws no row headers. When
+`column_headers` is a `ListNode` too, the columns are a list as well: the
+cells of every row are a `ListNode` anchored at the same column, and so is
+`column_align` when it names each column; every column is `column_policy`,
+which must be `Fixed`, and at least as wide as its header, and every row is
+`Fixed`. Such a table fills
 the height that it is offered and scrolls its own parts there: the header row
 holds still above the rows, and `scroll_position` is the offset of both.
 `top_row` is the row at the top of the cells, counted from the head of the
@@ -2313,7 +2318,7 @@ line, cut at the column's edge.
 **A cell sits at the left of its column** unless `column_align` names `:center`
 or `:right` for that column, as a `GridLayout`'s `column_align` does.
 """
-function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
+function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Vector,ListNode},
                      rows::Union{Vector,ListNode}, column_count::Integer,
                      row_headers::Vector=Any[],
                      border_width::Integer=1, visible::Bool=true,
@@ -2324,21 +2329,24 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
-    for align in column_align
-        align in (:left, :center, :right) ||
-            error("WidgetTable: a column aligns :left, :center or :right, not ", repr(align))
+    if !(column_align isa ListNode)
+        for align in column_align
+            align in (:left, :center, :right) ||
+                error("WidgetTable: a column aligns :left, :center or :right, not ", repr(align))
+        end
     end
     rows isa ListNode && !isempty(row_headers) &&
         error("WidgetTable: a table whose rows are a list draws no row headers")
     WidgetTable(Cell(position),
-                CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
+                column_headers isa ListNode ? Cell(column_headers) :
+                    CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
                 _table_rows(rows),
                 Cell(Int(column_count)), Cell(Int(border_width)),
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(collect(Symbol, column_align)),
+                Cell(column_align isa ListNode ? column_align : collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                 Cell(nothing), Cell(scroll_position), Cell(1), Cell(tooltip))
 end
