@@ -182,6 +182,11 @@ docstrings, and a name that a `using` brings is checked by hand):
   twice, and an unexpected pass of the JSON markers of
   `ClickRoundtripTest.jl:323`). All came with the landings; the fold is
   measured against this list, not against a clean run.
+  `test_display()` also fails 8 times on `main` (not in the baseline run; run
+  alone on its clone). **The check of Step 2** (`4a5e5bb7a`, CI-like) found
+  these and two more: the package graph (`_source_dir`, mended in Step 3) and
+  the release copy (the generator copied a whole group; mended in
+  `446942db3`), so Step 2 adds no failure of its own.
 
 ## 5. Steps (a draft for the owner's review)
 
