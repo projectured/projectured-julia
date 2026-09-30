@@ -214,6 +214,85 @@ end
     @test column_step isa RangeReferenceStep && column_step.start == 1
 end
 
+# A list of `count` values, built one at a time as a walk reaches them, that
+# reaches both ways from index `at`. `value_of(i)` makes the value of node `i`.
+function make_list_of(count::Int, value_of; at::Int = 1, built = Ref(0))
+    function make_node(i, before, after)
+        built[] += 1
+        node = ListNode(value_of(i))
+        if after === nothing
+            set_cell_computation!(getfield(node, :next),
+                                  () -> i < count ? make_node(i + 1, node, nothing) : nothing)
+        else
+            set_cell_value!(getfield(node, :next), after)
+        end
+        if before === nothing
+            set_cell_computation!(getfield(node, :prev),
+                                  () -> i > 1 ? make_node(i - 1, nothing, node) : nothing)
+        else
+            set_cell_value!(getfield(node, :prev), before)
+        end
+        node
+    end
+    make_node(at, nothing, nothing)
+end
+# A grid of `rows` rows and `columns` columns, both lists, with the head row at
+# `at_row` and the head column at `at_column`.
+function make_grid_of_lists(rows::Int, columns::Int; at_row = 1, at_column = 1, cells = Ref(0))
+    row_of(i) = make_list_of(columns, c -> WidgetLabel("r$(i) c$(c)"); at = at_column, built = cells)
+    GridLayout(make_list_of(rows, row_of; at = at_row), 1;
+               column_policies = make_list_of(columns, c -> Fixed(90); at = at_column),
+               row_policy = Fixed(20), horizontal_gap = 6, vertical_gap = 4)
+end
+
+@testset "a grid lazy both ways builds a screenful, and places each cell in its column" begin
+    cells = Ref(0)
+    pane = WidgetScrollPane(make_grid_of_lists(10_000_000, 1_000_000; cells); size = Point2D(400, 200))
+    io = print_document(rec, nothing, pane, context())
+    @test io.content_iomap isa GridLayoutListIoMap
+    Int(viewport(io).content.y); Int(viewport(io).content.x)   # the pane places both lists
+    @test cells[] < 100
+    (x11, y11) = place(io, "r1 c1")
+    (x12, y12) = place(io, "r1 c2")
+    (x21, y21) = place(io, "r2 c1")
+    @test (x12 - x11, y12) == (90 + 6, y11)
+    @test (x21, y21 - y11) == (x11, 20 + 4)
+    cell = find_grid_list_cell(io.content_iomap, 2, 3)
+    @test cell !== nothing && cell[3].output isa GraphicsCanvas
+end
+
+@testset "a grid lazy both ways stops the pane at its last column, and roots a press at its cell" begin
+    columns = 1_000_000
+    # The head column is the last, and the offset puts it at the left: the pane
+    # draws it at the right instead.
+    pane = WidgetScrollPane(make_grid_of_lists(100, columns; at_column = columns); size = Point2D(400, 200))
+    io = print_document(rec, nothing, pane, context())
+    body = viewport(io)
+    last = get_grid_list_column_head(io.content_iomap).value
+    @test Int(body.content.x) + Int(last.x) + Int(last.w) == Int(body.w)
+    @test wheel(io, -1, 0) === nothing                           # right: nothing
+    @test wheel(io, 1, 0) !== nothing                            # left: at once
+    (x, y) = place(io, "r2 c$(columns - 1)")
+    op = read(io, MousePress(:left, x + 2, y + 2, alt; time = 0.0))
+    @test op isa ReplaceSelectionOperation
+    rows_step = op.path.tail.tail.head          # .content.children[k][c]
+    column_step = op.path.tail.tail.tail.head
+    @test rows_step isa RangeReferenceStep && rows_step.start == 1       # row 2
+    @test column_step isa RangeReferenceStep && column_step.start == -1  # one before the head: 0
+end
+
+@testset "a grid lazy both ways needs Fixed columns and Fixed rows" begin
+    rows = make_list_of(3, i -> make_list_of(3, c -> WidgetLabel("x")))
+    @test_throws ErrorException print_document(rec, nothing,
+        WidgetScrollPane(GridLayout(rows, 1; column_policies = make_list_of(3, c -> Fixed(90)),
+                                    row_policy = Content); size = Point2D(400, 200)), context())
+    content = WidgetScrollPane(GridLayout(make_list_of(3, i -> make_list_of(3, c -> WidgetLabel("x"))), 1;
+                                          column_policies = make_list_of(3, c -> Content),
+                                          row_policy = Fixed(20)); size = Point2D(400, 200))
+    io = print_document(rec, nothing, content, context())
+    @test_throws ErrorException Int(viewport(io).content.x)
+end
+
 @testset "a grid of a list needs a width for every column and no weight on its rows" begin
     @test_throws ErrorException print_document(rec, nothing,
         GridLayout(make_rows(3), 3; column_policies = Any[Fixed(90), Content, Fixed(90)]), context())

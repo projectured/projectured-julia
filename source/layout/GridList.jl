@@ -21,11 +21,12 @@
 # positions and draws nothing.
 
 # What the printer of a grid of a list keeps for its readers: the rows built so
-# far, by their index from the head, and the canvas list that it draws from.
+# far, by their index from the head, and the canvas lists that it draws from.
 mutable struct GridListState
-    columns::Int
+    columns::Int             # the count of the columns, or 0 when they are a list
     built::Dict{Int,Any}     # index from the head => (row canvas, cell entries, row height)
     head::Cell               # the canvas node of the head row, or nothing
+    column_head::Union{Nothing,Cell}   # the canvas node of the head column when the columns are a list
 end
 
 """
@@ -71,6 +72,9 @@ end
 # ── The printer ──────────────────────────────────────────────────────────────
 
 function _print_grid_list(p, recursion, doc, ctx)
+    # Policies that are a list make the columns a list too (`GridColumnList.jl`).
+    peek(getfield(doc, :column_policies)) isa ListNode &&
+        return _print_grid_column_list(p, recursion, doc, ctx)
     n = Int(doc.columns)
     row_policy = doc.row_policy
     # The kind of a column policy is read now, with no dependency, and its
@@ -90,7 +94,7 @@ function _print_grid_list(p, recursion, doc, ctx)
     col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
     total_w = Cell(@computation Int32(sum((Int(col_w[k][]) for k in 1:n); init = 0) +
                                       max(0, n - 1) * Int(hgap[])))
-    state = GridListState(n, Dict{Int,Any}(), Cell(nothing))
+    state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing)
     # A new head in `children` drops every row built and starts again, and a
     # grid whose children are no list draws no rows.
     set_cell_computation!(state.head, () -> begin
@@ -170,8 +174,9 @@ end
 # (`_make_layout_list_node`).
 function _make_grid_list_node(recursion, doc, ctx, state::GridListState, col_x, col_w,
                               total_w::Cell, k::Int, document_node::ListNode, before, after)
-    canvas, entries, row_h = _make_grid_list_row(recursion, doc, ctx, state, col_x, col_w,
-                                                 total_w, k, document_node.value)
+    canvas, entries, row_h = state.column_head === nothing ?
+        _make_grid_list_row(recursion, doc, ctx, state, col_x, col_w, total_w, k, document_node.value) :
+        _make_grid_column_list_row(recursion, doc, ctx, state, k, document_node.value)
     state.built[k] = (canvas, entries, row_h)
     vgap = getfield(doc, :vertical_gap)
     if before !== nothing
@@ -221,7 +226,9 @@ get_grid_list_head(iomap::GridLayoutListIoMap) = iomap.state.head[]
 Row `k` of a grid of a list, counted from the head, walked to from the head and
 built on the way; `nothing` when the list ends before it. `entries` has one
 `(x, y, iomap)` for each column: the `x` of the cell in the grid, its `y` in the
-canvas of the row, and its IO map, which is `nothing` for an empty cell.
+canvas of the row, and its IO map, which is `nothing` for an empty cell. When
+the columns are a list, `entries` holds the cells built so far, by their index
+from the head column; `find_grid_list_cell` gives any one of them.
 """
 find_grid_list_row(iomap::GridLayoutListIoMap, k::Integer) = _find_grid_list_row(iomap.state, Int(k))
 
@@ -283,9 +290,10 @@ function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap::GridLayoutLi
     k, c, rest = named
     found = _find_grid_list_row(iomap.state, k)
     found === nothing && return nothing
-    canvas, entries, _ = found
-    1 <= c <= length(entries) || return nothing
-    (x_cell, y_cell, cim) = entries[c]
+    canvas = found[1]
+    cell = find_grid_list_cell(iomap, k, c)
+    cell === nothing && return nothing
+    (x_cell, y_cell, cim) = cell
     cim === nothing && return nothing
     row_y = Cell(@computation Int32(Int(canvas.y) + Int(y_cell[])))
     shift_child_image(map_reference_forward(cim.projection, cim, rest), cim;
@@ -305,7 +313,9 @@ function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, e
     pointer = hasproperty(evt, :x) && hasproperty(evt, :y)
     k, c = if pointer
         row = _find_grid_list_row_at(state, Int(evt.y))
-        column = _find_grid_list_column_at(iomap.col_x, iomap.col_w, Int(evt.x))
+        column = state.column_head === nothing ?
+            _find_grid_list_column_at(iomap.col_x, iomap.col_w, Int(evt.x)) :
+            _find_grid_list_column_node_at(state, Int(evt.x))
         (row, column)
     else
         named = _split_grid_list_reference(getfield(iomap.input, :selection)[])
@@ -314,10 +324,9 @@ function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, e
     (k === nothing || c === nothing) && return nothing
     found = _find_grid_list_row(state, k)
     found === nothing && return nothing
-    canvas, entries, _ = found
-    1 <= c <= length(entries) || return nothing
-    entry = entries[c]
-    entry[3] === nothing && return nothing
+    canvas = found[1]
+    entry = find_grid_list_cell(iomap, k, c)
+    (entry === nothing || entry[3] === nothing) && return nothing
     answer = if pointer
         row_y = Int(canvas.y)
         point = _find_child_point(entry, Int(evt.x), Int(evt.y) - row_y; bounded = true)

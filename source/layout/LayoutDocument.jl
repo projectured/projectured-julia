@@ -306,7 +306,9 @@ end
 
 # A grid of the rows of a list, which it draws lazily: the rows that a viewport
 # shows, walked from the head. Each row is a vector of the documents of its
-# cells, one for each column. See `GridList.jl`.
+# cells, one for each column, or, when `column_policies` is a list, a list of
+# them anchored with it, which the grid draws lazily as well. See `GridList.jl`
+# and `GridColumnList.jl`.
 function GridLayout(rows::ListNode, columns::Integer;
                     horizontal_align::Symbol=:left,
                     vertical_align::Symbol=:top,
@@ -323,8 +325,8 @@ function GridLayout(rows::ListNode, columns::Integer;
                Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
                Cell(collect(column_align)),
                Cell(column_policy), Cell(row_policy),
-               Cell(collect(Any, column_policies)), Cell(Any[]),
-               Cell(collect(Bool, column_offers)), Cell(Bool[]),
+               Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),
+               Cell(Any[]), Cell(collect(Bool, column_offers)), Cell(Bool[]),
                Cell(nothing))
 end
 

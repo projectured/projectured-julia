@@ -297,6 +297,31 @@ plan.
     the rows `Fixed` (a row as tall as its cells would change while the pane
     scrolls sideways), and the grid places a list of the column positions
     that draws nothing, so the pane stops at the first and the last column.
+    Implementation design, 2026-09-30:
+    - **The grid.** A `GridLayout` whose rows are a list, and whose rows are
+      each a `ListNode` of cells, draws both ways lazily. Its canvas holds two
+      lists one level down: the rows, down, and the columns, to the side: a
+      canvas for each column, as wide as the column and drawing nothing,
+      placed after its neighbour from the head column at 0. The pane finds
+      each list by its axis (`_find_list_canvas`) and stops at its ends.
+    - **The widths.** Every column is `Fixed`: from `column_policies` when it
+      is a `ListNode` anchored with the cells, else from `column_policy`. A
+      weight has no count to divide by. The rows are `Fixed`.
+    - **A row** draws its cells as a list to the side, each cell at the place
+      of its column: the node of cell `c` pairs with the node of column `c`,
+      so a walk of the cells walks the columns with them. The renderer stops
+      at the edges of the clip, so a row builds the cells that show.
+    - **References.** `children[k][c]`, with `c` counted from the head column
+      as `k` is from the head row; `find_grid_list_cell(iomap, k, c)` gives
+      one cell.
+    - **The table.** `column_headers` is a list anchored with the cells. The
+      policy of a column is `Fixed`, at least as wide as its header, from a
+      list that mirrors the headers, and the header row and the cells take
+      the same list, so their columns agree. The header row is a grid of one
+      row, as tall as the header at the head column: a header clips to one
+      line. The graphics of a row are a list to the side too, one piece for
+      each column with its rules and bands, so only the visible columns have
+      graphics.
 - [x] **2. The table of layouts.** Implementation design, 2026-09-30:
   - **The parts.** The cells are a `GridLayout` over `rows` (a flat vector
     of the cells for an eager table, the list of rows for a lazy one), with
