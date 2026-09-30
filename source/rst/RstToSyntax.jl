@@ -876,11 +876,8 @@ end
 
 function ProjectionModule.print_document(p::RstStyledTextToSyntaxLeaf, recursion, t::RstText, ctx)
     style = get_property(ctx, :rst_style, p.style)
-    sel = Cell(@computation begin
-        s = t.selection
-        map_reference_forward(p, nothing, s)
-    end)
-    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
+    paths = make_output_path_cells(t, path -> map_reference_forward(p, nothing, path))
+    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); paths...))
 end
 
 function map_reference_forward(p::RstStyledTextToSyntaxLeaf, iomap, reference)
@@ -933,14 +930,11 @@ function ProjectionModule.print_document(p::RstStyledInline, recursion, doc, ctx
         for (i, child) in enumerate(doc.content)]))
     items = CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]])
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    node = SyntaxNode(items; indentation=0, selection=sel)
+    node = SyntaxNode(items; indentation=0, paths...)
     iomap = ChildrenIoMap(p, doc, node, child_iomaps)
     iomap_cell[] = iomap
     return iomap
@@ -1063,14 +1057,11 @@ function ProjectionModule.print_document(p::RstEnumeratedListToStyledNode, recur
             for k in eachindex(maps)]
     end)
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    node = SyntaxNode(items; indentation=0, selection=sel)
+    node = SyntaxNode(items; indentation=0, paths...)
     iomap = ChildrenIoMap(p, doc, node, child_iomaps)
     iomap_cell[] = iomap
     return iomap

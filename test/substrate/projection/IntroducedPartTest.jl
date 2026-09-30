@@ -109,3 +109,46 @@ function test_every_kind_of_path()
     end
 end
 end # test_every_kind_of_path
+
+# Every kind of path of an output document is the forward image of the same kind of
+# path of its input: the syntax node of each array holds the part under the pointer
+# in its own terms.
+function test_output_paths()
+@testset "an output document holds the forward image of each kind of path" begin
+    document = CellVector([PrimitiveNumber(1),
+                           CellVector([PrimitiveNumber(2), PrimitiveNumber(3)])])
+    to_syntax = RecursiveProjection(TypeDispatchingProjection(
+        CellVector      => CollectionCellVectorToSyntax(),
+        PrimitiveNumber => PrimitiveNumberToSyntaxLeaf()))
+    chain = ChainingProjection(to_syntax, RecursiveProjection(SyntaxToText()))
+    iomap = print_document(chain, document)
+    caret(k) = ConcreteReference(RangeReferenceStep(k, k), EmptyReference())
+    select(k) = read_intent(chain, iomap, ReplaceSelectionOperation(caret(k)))
+    is_inner_bracket(path) = begin
+        path = _ip_strip(path)
+        path isa ConcreteReference && path.head == ElementReferenceStep(2) &&
+            path.tail isa ConcreteReference && path.tail.head isa ProjectionReferenceStep
+    end
+    k = findfirst(k -> (op = select(k); op isa ReplaceSelectionOperation && is_inner_bracket(op.path)), 0:200)
+    @test k !== nothing
+    k === nothing && return
+    evaluate_operation((document = document,),
+                       read_intent(chain, iomap, ReplaceMouseTargetOperation(caret(k - 1))))
+
+    syntax = print_document(to_syntax, document).output
+    outer = strip_reference_types(getfield(syntax, :mouse_target)[])
+    inner = strip_reference_types(getfield(syntax.children[2], :mouse_target)[])
+    @test get_reference_head(inner) == FieldReferenceStep("open")
+    @test outer isa ConcreteReference && get_reference_head(outer) == FieldReferenceStep("children")
+    @test getfield(syntax.children[1], :mouse_target)[] === nothing
+
+    # A move to the number `3` moves the image too.
+    evaluate_operation((document = document,), ReplaceMouseTargetOperation(
+        ConcreteReference(ElementReferenceStep(2), ConcreteReference(ElementReferenceStep(2),
+            ConcreteReference(FieldReferenceStep("value"), ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))))))
+    @test getfield(syntax.children[2], :mouse_target)[] !== nothing
+    @test get_reference_head(strip_reference_types(getfield(syntax.children[2], :mouse_target)[])) ==
+          FieldReferenceStep("children")
+    @test getfield(syntax.children[2].children[2], :mouse_target)[] !== nothing
+end
+end # test_output_paths

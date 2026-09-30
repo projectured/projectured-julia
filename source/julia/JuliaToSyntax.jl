@@ -865,10 +865,9 @@ the object is selected whole.
 end
 
 function print_document(p::JuliaObjectToSyntaxLeaf, recursion, object, ctx)
-    selection = Cell(@computation(getfield(object, :selection)[] isa EmptyReference ?
-                                  EmptyReference() : nothing))
+    paths = make_output_path_cells(object, path -> path isa EmptyReference ? EmptyReference() : nothing)
     SimpleIoMap(p, object, SyntaxLeaf(TextString(_get_julia_object_label(object), p.label);
-                                      selection))
+                                      paths...))
 end
 
 _get_julia_object_label(object) =

@@ -45,12 +45,11 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
         (i, x) -> print_document(p, recursion, x,
             make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i))))
     out_windows = Cell(@computation CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(input, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        map_reference_forward(p, im, input.selection)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    output = ScreenDocument(out_windows, sel)
+    output = ScreenDocument(out_windows, paths.selection, paths.mouse_target)
     iomap = ScreenToScreenIoMap(p, input, output, window_iomaps)
     iomap_cell[] = iomap
     iomap
@@ -79,14 +78,13 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     content_iomap = reconcile_child_iomap(() -> input.content,
                                           c -> print_child(recursion, c, content_ctx))
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(input, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        map_reference_forward(p, im, input.selection)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
     # Metadata cells are shared verbatim (non-document fields), so a metadata edit on
-    # the input window is reflected here through the shared cell; only content and
-    # selection are produced fresh.
+    # the input window is reflected here through the shared cell; only the content
+    # and the paths (the selection, the mouse target) are produced fresh.
     # By keyword, and not by position: a field added to `WindowDocument` shifts
     # a positional list, and `x`, `y`, `width` and `height` are all `Int`, so a
     # shifted argument would mis-size or misplace a window with no error.
@@ -99,7 +97,7 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
                             auto_dismiss = getfield(input, :auto_dismiss),
                             modal = getfield(input, :modal),
                             content = Cell(@computation content_iomap[].output),
-                            selection = sel)
+                            paths...)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap
     iomap

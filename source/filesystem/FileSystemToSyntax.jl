@@ -29,14 +29,11 @@ function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemF
     # trick, as in FileSystemDirectoryToSyntaxNode), unwrapping our introduced caret
     # back into the leaf's own `.value{k}` span.
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(f, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = f.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    leaf = SyntaxLeaf(TextString(() -> " " * basename(f.pathname), p.style); selection=sel)
+    leaf = SyntaxLeaf(TextString(() -> " " * basename(f.pathname), p.style); paths...)
     iomap = SimpleIoMap(p, f, leaf)
     iomap_cell[] = iomap
     return iomap
@@ -111,17 +108,14 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
     # child_iomaps). The not-yet-built iomap is supplied via the deferred-iomap
     # trick (iomap_cell), as in JsonArrayToSyntaxNode / CopyingProjection.
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(d, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = d.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
         CellVector(Cell[Cell(name_leaf), Cell(body_node)]);
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, d, node, child_iomaps)
     iomap_cell[] = iomap

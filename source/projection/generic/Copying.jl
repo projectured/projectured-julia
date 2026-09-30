@@ -40,7 +40,7 @@ function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))
     output = CellVector(@computation [im.output for im in children[]])
-    set_cell_computation!(getfield(output, :selection), () -> input.selection)
+    set_output_path_computations!(output, input, identity)
     CopyingIoMap(p, input, output, children, nothing, nothing, nothing)
 end
 
@@ -101,18 +101,14 @@ function print_document(p::CopyingProjection, recursion, input, ctx)
     names = String[]
     field_vals = Any[]
     iomap_cell = Cell(nothing)   # filled in after construction
+    paths = make_output_path_cells(input, path -> begin
+        im = iomap_cell[]
+        im === nothing ? nothing : map_reference_forward(p, im, path)
+    end)
     for nm in all_names
         fv = getfield(input, nm)
-        if nm == :selection
-            push!(field_vals, Cell(@computation begin
-                im = iomap_cell[]
-                im === nothing && return nothing
-                sel = hasproperty(input, :selection) ? input.selection : nothing
-                sel === nothing && return nothing
-                map_reference_forward(p, im, sel)
-            end))
-        elseif nm == :mouse_target
-            push!(field_vals, Cell(nothing))
+        if haskey(paths, nm)
+            push!(field_vals, paths[nm])
         elseif _is_doc_field(fv)
             child_ctx = make_child_context(ctx, FieldReferenceStep(string(nm)))
             im = print_child(recursion, _unwrap(fv), child_ctx)

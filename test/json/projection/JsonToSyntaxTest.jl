@@ -13,6 +13,21 @@ j2s = RecursiveProjection(JsonToSyntax())
 ja = JsonArray([JsonNumber(1), JsonNumber(2)])
 @test render(print_document(j2s, ja).output) == "[1, 2]"
 
+# The part under the pointer reaches the syntax node of each array through the
+# forward map of the rule template: the pointer on the `2` of `[1, [2, 3]]`.
+nested = JsonArray([JsonNumber(1), JsonArray([JsonNumber(2), JsonNumber(3)])])
+nested_syntax = print_document(j2s, nested).output
+_step(name, index, tail) =
+    ConcreteReference(FieldReferenceStep(name), ConcreteReference(ElementReferenceStep(index), tail))
+replace_mouse_target!(nested, _step("elements", 2, _step("elements", 1, EmptyReference())))
+outer_target = strip_reference_types(getfield(nested_syntax, :mouse_target)[])
+inner_target = strip_reference_types(getfield(nested_syntax.children[2], :mouse_target)[])
+@test get_reference_head(outer_target) == FieldReferenceStep("children")
+@test get_reference_head(inner_target) == FieldReferenceStep("children")
+@test getfield(nested_syntax.children[1], :mouse_target)[] === nothing
+replace_mouse_target!(nested, nothing)
+@test getfield(nested_syntax.children[2], :mouse_target)[] === nothing
+
 # object (order-independent check)
 jo = JsonObject("a" => JsonNumber(1))
 rendered_obj = render(print_document(j2s, jo).output)

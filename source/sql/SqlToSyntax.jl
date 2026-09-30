@@ -112,12 +112,9 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
                             sep = " ")
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -132,7 +129,7 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
             docs
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -201,12 +198,9 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
     child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -221,7 +215,7 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
             docs
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -275,12 +269,9 @@ function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelec
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -291,7 +282,7 @@ function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelec
             kws
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, item_ims)
     iomap_cell[] = iomap
@@ -364,12 +355,9 @@ function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoi
     end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -379,7 +367,7 @@ function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoi
                                   SyntaxDocument[jt.output, fi.output, cond_im.output]
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -459,19 +447,16 @@ function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJo
     child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
         CellVector(@computation(SyntaxDocument[_kw("ON", p.keyword),
                                                expr_im[].output]));
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -553,12 +538,9 @@ function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem,
     end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -568,7 +550,7 @@ function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem,
                              SyntaxDocument[base.output, joins_body]
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -643,18 +625,15 @@ function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromCla
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[_kw("FROM", p.keyword), items_body]);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, item_ims)
     iomap_cell[] = iomap
@@ -713,19 +692,16 @@ function print_document(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::
     child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     # No delimiters, no separator, no indentation — the node exists only so the whole
     # condition has a level to select (`∅`). That is a navigation anchor, not a sequence.
-    # Positional (content, selection): SyntaxNavigation has no keyword constructor. The
-    # content is a computed cell so the child stays lazily projected.
-    node = SyntaxNavigation(Cell(@computation expr_im[].output), sel)
+    # Positional (content, selection, mouse target): SyntaxNavigation has no keyword
+    # constructor. The content is a computed cell so the child stays lazily projected.
+    node = SyntaxNavigation(Cell(@computation expr_im[].output), paths.selection, paths.mouse_target)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -782,18 +758,15 @@ function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereC
     child_iomaps_cell = Cell(@computation begin ci = cond_im[]; ci === nothing ? Any[] : Any[ci] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[_kw("WHERE", p.keyword), cond_body]);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -892,12 +865,9 @@ function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlCompari
     child_iomaps_cell = Cell(@computation begin left, right = projected[]; Any[left, right] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -906,7 +876,7 @@ function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlCompari
             SyntaxDocument[left.output, _kw(doc.operator, p.keyword), right.output]
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -978,12 +948,9 @@ function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     child_iomaps_cell = Cell(@computation begin left, right = projected[]; Any[left, right] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -994,7 +961,7 @@ function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
         open=TextString("(", p.keyword_style.font, color_default),
         close=TextString(")", p.keyword_style.font, color_default),
         sep=TextString(" ", p.keyword_style.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1058,12 +1025,9 @@ function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
     child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -1071,7 +1035,7 @@ function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
         open=TextString("(", p.keyword.font, color_default),
         close=TextString(")", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1144,15 +1108,12 @@ function print_document(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlS
     children = CellVector(@computation SyntaxDocument[im.output for im in child_iomaps_cell[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(stmt, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = stmt.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
-    node = SyntaxNode(children; selection=sel)
+    node = SyntaxNode(children; paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1250,12 +1211,9 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
     end; open = "(", close = ")", sep = ", ")
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(stmt, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = stmt.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -1270,7 +1228,7 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
             docs
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1376,12 +1334,9 @@ function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlU
     child_iomaps_cell = Cell(@computation begin col_im, val_im = projected[]; Any[col_im, val_im] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -1390,7 +1345,7 @@ function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlU
             SyntaxDocument[col_im.output, _kw("=", p.keyword), val_im.output]
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1479,12 +1434,9 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
     end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(stmt, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = stmt.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -1501,7 +1453,7 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
             docs
         end);
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1596,12 +1548,9 @@ function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlC
     child_iomaps_cell = Cell(@computation Any[col_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -1609,7 +1558,7 @@ function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlC
             col_im[].output,
             SyntaxLeaf(TextString(() -> doc.data_type, p.type))]));
         sep=TextString(" ", p.type.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1684,12 +1633,9 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
     end; open = "(", close = ")", sep = ",", indentation = 1)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(stmt, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = stmt.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -1702,7 +1648,7 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
         end);
         close=TextString(";", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -1777,12 +1723,9 @@ end
 
 function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(stmt, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = stmt.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
@@ -1792,7 +1735,7 @@ function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt
             SyntaxLeaf(TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green))]));
         close=TextString(";", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, Cell(@computation Any[]))
     iomap_cell[] = iomap
@@ -1853,18 +1796,15 @@ function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStat
     child_iomaps_cell = Cell(@computation Any[im for im in stmt_ims[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[_close_statement(p, im) for im in stmt_ims[]]);
         sep=TextString("\n\n", p.font, color_default),
-        selection=sel)
+        paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap

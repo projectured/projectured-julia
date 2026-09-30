@@ -79,6 +79,11 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
 
     title_leaf = SyntaxLeaf(TextString(() -> b.title, p.title); selection=title_sel)
 
+    iomap_cell = Cell(nothing)
+    mouse_target = Cell(@computation(map_mouse_target_forward(b, path -> begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end)))
     sel = Cell(@computation begin
         path = b.selection
         path isa ConcreteReference || return nothing
@@ -136,8 +141,10 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
     # keep their own internal indentation.
     output = SyntaxNode(children_cv; indentation=0,
                         sep=TextString("\n\n", font_ubuntu_monospace_regular_20, color_black),
-                        collapsed=b.collapsed, selection=sel)
-    ChildrenIoMap(p, b, output, element_iomaps)
+                        collapsed=b.collapsed, selection=sel, mouse_target)
+    iomap = ChildrenIoMap(p, b, output, element_iomaps)
+    iomap_cell[] = iomap
+    iomap
 end
 
 # Selection mapping (School A). title/author are projection-introduced leaves
@@ -261,6 +268,11 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
         end, p.title);
         selection=title_sel)
 
+    iomap_cell = Cell(nothing)
+    mouse_target = Cell(@computation(map_mouse_target_forward(b, path -> begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end)))
     sel = Cell(@computation begin
         path = b.selection
         path isa ConcreteReference || return nothing
@@ -305,8 +317,10 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
     # keep their own internal indentation.
     output = SyntaxNode(children_cv; indentation=0,
                         sep=TextString("\n\n", font_ubuntu_monospace_regular_20, color_black),
-                        collapsed=b.collapsed, selection=sel)
-    ChildrenIoMap(p, b, output, element_iomaps)
+                        collapsed=b.collapsed, selection=sel, mouse_target)
+    iomap = ChildrenIoMap(p, b, output, element_iomaps)
+    iomap_cell[] = iomap
+    iomap
 end
 
 # Selection mapping (School A). The title leaf is projection-introduced and may
@@ -441,6 +455,11 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
                                     make_child_context(ctx, b, (@reference_step elements), (@reference_step {i})))
                                  for (i, e) in enumerate(b.elements)]))
 
+    iomap_cell = Cell(nothing)
+    mouse_target = Cell(@computation(map_mouse_target_forward(b, path -> begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end)))
     sel = Cell(@computation begin
         path = b.selection
         is_introduced_reference(path) && return find_introduced_path(p, path)
@@ -464,8 +483,10 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
         ]
     end)
 
-    output = SyntaxNode(children_cv; indentation=p.indentation, collapsed=b.collapsed, selection=sel)
-    ChildrenIoMap(p, b, output, element_iomaps)
+    output = SyntaxNode(children_cv; indentation=p.indentation, collapsed=b.collapsed, selection=sel, mouse_target)
+    iomap = ChildrenIoMap(p, b, output, element_iomaps)
+    iomap_cell[] = iomap
+    iomap
 end
 
 # Selection mapping (School A). Each element i is wrapped in a bullet SyntaxNode

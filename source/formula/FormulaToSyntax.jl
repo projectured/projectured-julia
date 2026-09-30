@@ -25,17 +25,16 @@ _empty(font) = TextString("", font, color_default)
 # The "insert formula" placeholder. A projection-introduced leaf with no editable
 # input value, so the default mappers are correct: the backward map names a caret
 # on the text by the leaf's own introduced step, and the forward map answers the
-# path in the leaf. Each leaf of this file maps its selection forward into a cell
+# path in the leaf. Each leaf of this file maps its paths forward into cells
 # of its own.
 
-function _make_forward_selection_leaf(p, input, make_leaf)
+function _make_forward_path_leaf(p, input, make_leaf)
     iomap_cell = Cell(nothing)
-    selection = Cell(@computation begin
+    paths = make_output_path_cells(input, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing ? nothing :
-            map_selection_forward(input, path -> map_reference_forward(p, iomap, path))
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
-    iomap = SimpleIoMap(p, input, make_leaf(selection))
+    iomap = SimpleIoMap(p, input, make_leaf(paths))
     iomap_cell[] = iomap
     iomap
 end
@@ -45,8 +44,8 @@ end
 end
 
 print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx) =
-    _make_forward_selection_leaf(p, b,
-        selection -> SyntaxLeaf(TextString("insert formula", p.style); selection))
+    _make_forward_path_leaf(p, b,
+        paths -> SyntaxLeaf(TextString("insert formula", p.style); paths...))
 
 # ── FormulaReferenceToSyntaxLeaf ───────────────────────────────────────────────
 #
@@ -60,12 +59,12 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
 end
 
 print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx) =
-    _make_forward_selection_leaf(p, r, selection -> SyntaxLeaf(
+    _make_forward_path_leaf(p, r, paths -> SyntaxLeaf(
         TextString(() -> begin
             t = r.target
             t isa FormulaFormula ? t.name : "#REF!"
         end, p.style);
-        selection))
+        paths...))
 
 # ── FormulaFormulaToSyntaxNode ─────────────────────────────────────────────────
 #
@@ -114,12 +113,9 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
     result_leaf = SyntaxLeaf(TextString(() -> _result_to_string(f.result), p.result))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(f, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = hasfield(typeof(f), :selection) ? f.selection : nothing
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
         CellVector(@computation begin
@@ -133,7 +129,7 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
                                arrow_leaf, result_leaf]
             end
         end);
-        selection=sel)
+        paths...)
     iomap = ChildrenIoMap(p, f, node, Cell(@computation IoMap[code_iomap[]]))
     iomap_cell[] = iomap
     iomap
@@ -199,17 +195,14 @@ function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::Formula
          for i in 1:length(e.formulas)]))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(e, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = hasfield(typeof(e), :selection) ? e.selection : nothing
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
         sep=TextString("\n", p.font, color_default),
-        selection=sel)
+        paths...)
     iomap = ChildrenIoMap(p, e, node, child_iomaps)
     iomap_cell[] = iomap
     iomap

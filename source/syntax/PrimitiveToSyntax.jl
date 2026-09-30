@@ -5,10 +5,10 @@
 # with appropriate delimiters and colors.
 # ── PrimitiveBoolToSyntaxLeaf ────────────────────────────────────────────────
 #
-# Each leaf maps its selection forward into a cell of its own, so the primitive
-# holds a path of its own domain. A part that the leaf printed, such as a quote of
-# a string, is named by the leaf's own introduced step, and the forward map
-# answers the path of that part in the leaf.
+# Each leaf maps its paths (the selection, the mouse target) forward into cells of
+# its own, so the primitive holds a path of its own domain. A part that the leaf
+# printed, such as a quote of a string, is named by the leaf's own introduced step,
+# and the forward map answers the path of that part in the leaf.
 
 @projection struct PrimitiveBoolToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
@@ -32,14 +32,13 @@ end
 
 function print_document(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBool, ctx)
     iomap_cell = Cell(nothing)
-    selection = Cell(@computation begin
+    paths = make_output_path_cells(b, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing ? nothing :
-            map_selection_forward(b, path -> map_reference_forward(p, iomap, path))
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
     iomap = SimpleIoMap(p, b, SyntaxLeaf(
         TextString(() -> string(b.value), p.style);
-        selection))
+        paths...))
     iomap_cell[] = iomap
     iomap
 end
@@ -73,14 +72,13 @@ end
 
 function print_document(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveNumber, ctx)
     iomap_cell = Cell(nothing)
-    selection = Cell(@computation begin
+    paths = make_output_path_cells(n, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing ? nothing :
-            map_selection_forward(n, path -> map_reference_forward(p, iomap, path))
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
     iomap = SimpleIoMap(p, n, SyntaxLeaf(
         TextString(() -> string(n.value), p.style);
-        selection))
+        paths...))
     iomap_cell[] = iomap
     iomap
 end
@@ -115,16 +113,15 @@ end
 
 function print_document(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveString, ctx)
     iomap_cell = Cell(nothing)
-    selection = Cell(@computation begin
+    paths = make_output_path_cells(s, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing ? nothing :
-            map_selection_forward(s, path -> map_reference_forward(p, iomap, path))
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
     iomap = SimpleIoMap(p, s, SyntaxLeaf(
         TextString(() -> something(s.value, ""), p.value);
         open=TextString("\"", p.quote_style),
         close=TextString("\"", p.quote_style),
-        selection))
+        paths...))
     iomap_cell[] = iomap
     iomap
 end

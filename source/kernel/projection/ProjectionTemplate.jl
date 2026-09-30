@@ -244,9 +244,9 @@ _strip_checkpoints(x) = strip_reference_types(x)
 
 Build the marked output via `builder(p, doc)`, walk it to record the wiring,
 strip the markers (replacing each with its real value *through* the field's Cell),
-and return a `RuleIoMap`. The selection cell is wired at construction time: each
-node is rebuilt once via [`_with_selection`](@ref) with its final selection cell in
-place, reusing every other field's Cell object. No node is retargeted after
+and return a `RuleIoMap`. The path cells (the selection, the mouse target) are wired
+at construction time: each node is rebuilt once via `_with_path_cells` with its final
+path cells in place, reusing every other field's Cell object. No node is retargeted after
 anything else references it (prerequisite for the immutable kind-parameterized
 stem — plan/pending/cell-kind-documents.md, Phase 0).
 """
@@ -372,18 +372,19 @@ function _find_sections(out)
     (nothing, nothing)
 end
 
-# Selection cell for a bound child leaf of a fixed node: lens `doc.<in_field>{k}`
-# onto the leaf's own `.value{k}` span (the only shape `_leaf_cursor` understands).
-# A caret on a part that the fixed node printed is the node's, not the leaf's.
-function _key_leaf_sel(doc, in_field::Symbol)
+# The path cells of a bound child leaf of a fixed node: lens `doc.<in_field>{k}`
+# onto the leaf's own `.value{k}` span (the only shape `_leaf_cursor` understands),
+# for every kind of path. A caret on a part that the fixed node printed is the
+# node's, not the leaf's.
+function _key_leaf_path_cells(doc, in_field::Symbol)
     fname = String(in_field)
-    Cell(@computation(map_selection_forward(doc, sel -> begin
-        core = sel
+    make_output_path_cells(doc, path -> begin
+        core = path
         if core isa ConcreteReference && core.head isa FieldReferenceStep && core.head.name == fname
             return ConcreteReference(FieldReferenceStep("value"), core.tail)
         end
         return nothing
-    end)))
+    end)
 end
 
 # Locate a `Collection` marker among the built output's fields, if any.
@@ -395,14 +396,23 @@ function _find_collection(out)
     (nothing, nothing)
 end
 
-# Rebuild `node` with `sel` as its selection cell, reusing every other field's Cell
-# object — child/shared cells keep their identity, and prior value writes through
+# Rebuild `node` with the path cells in `cells` (its selection, its mouse target),
+# reusing every other field's Cell object — child/shared cells keep their identity, and prior value writes through
 # those cells are preserved. The auto-wrapping inner ctor passes Cells through
 # unchanged. Every call site rebuilds the node *before* anything else references it, so
 # document nodes are never retargeted after construction.
-_with_selection(node, sel::Cell) =
+_with_path_cells(node, cells::NamedTuple) =
     Base.typename(typeof(node)).wrapper(   # the UnionAll: its ctor accepts cells
-        (f === :selection ? sel : getfield(node, f) for f in fieldnames(typeof(node)))...)
+        (haskey(cells, f) ? cells[f] : getfield(node, f) for f in fieldnames(typeof(node)))...)
+
+# Rebuild `node` with every kind of path wired from `doc` through the forward map of
+# this projection, read through `iomap_cell`, which the builder fills once the IO map
+# exists.
+_with_output_paths(node, p, doc, iomap_cell) =
+    _with_path_cells(node, make_output_path_cells(doc, path -> begin
+        iomap = iomap_cell[]
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end))
 
 # Kind-agnostic type name for a document node: the UnionAll wrapper of a
 # kind-parameterized `@document` type, the type itself otherwise. Wirings record
@@ -441,7 +451,14 @@ function _atomic_print(p, doc, out)
                                                im === nothing && return nothing
                                                map_selection_forward(doc, path -> map_reference_forward(p, im, path))
                                            end)
-    out = _with_selection(out, sel)
+    # Every other kind of path maps forward: a part that the leaf printed is named by
+    # its own introduced step, which the forward map takes off.
+    mouse_target = Cell(@computation(map_mouse_target_forward(doc, path ->
+        wiring.bound_field === nothing ? map_reference_forward(p, nothing, path) : begin
+            iomap = iomap_cell[]
+            iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
+        end)))
+    out = _with_path_cells(out, (selection = sel, mouse_target = mouse_target))
     iomap = RuleIoMap(p, doc, out, wiring, nothing)
     iomap_cell[] = iomap
     iomap
@@ -471,14 +488,9 @@ function _node_print(p, recursion, doc, ctx, out, children_field, coll)
                 coll.element(x)))
     end
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
-        im = iomap_cell[]
-        im === nothing && return nothing
-        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
-    end)
     children = make_children_container(() -> [im.output for im in child_iomaps[]])
     setproperty!(out, children_field, children)   # replace the Collection marker with the real children
-    out = _with_selection(out, sel)
+    out = _with_output_paths(out, p, doc, iomap_cell)
     wiring = NodeWiring(_dtype(doc), _dtype(out), input_field, children_field)
     iomap = RuleIoMap(p, doc, out, wiring, child_iomaps)
     iomap_cell[] = iomap
@@ -547,7 +559,7 @@ function _walk_markers(p, recursion, doc, ctx, markers)
                 # cell, which `_leaf_cursor` reads as `.value{k}`. Lens the element's
                 # `.<bound_field>{k}` onto the leaf's `.value{k}` generically, so the
                 # builder needn't hand-wire it.
-                child = _with_selection(child, _key_leaf_sel(doc, w.bound_field))
+                child = _with_path_cells(child, _key_leaf_path_cells(doc, w.bound_field))
                 push!(slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
             end
             push!(output_cells, Cell(child))
@@ -560,16 +572,11 @@ function _fixed_print(p, recursion, doc, ctx, out)
     children_field = _find_fixed_children(out)
     slots, store, output_cells = _walk_markers(p, recursion, doc, ctx, getproperty(out, children_field))
     setproperty!(out, children_field, make_children_container(output_cells))
-    # The fixed node is a real output node, so its selection cell must hold an
-    # *output* path: forward-map the element's input selection through this node's
-    # own wiring (deferred-iomap trick, as the top node does).
+    # The fixed node is a real output node, so its path cells must hold *output*
+    # paths: forward-map the element's input paths through this node's own wiring
+    # (deferred-iomap trick, as the top node does).
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(@computation begin
-        im = iomap_cell[]
-        im === nothing && return nothing
-        # `map_selection_forward`, so a dormant selection maps forward as one.
-        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
-    end))
+    out = _with_output_paths(out, p, doc, iomap_cell)
     im = RuleIoMap(p, doc, out, FixedNodeWiring(_dtype(doc), _dtype(out), children_field, slots), store)
     iomap_cell[] = im
     return im
@@ -584,11 +591,7 @@ function _conditional_print(p, recursion, doc, ctx, out, children_field, thunk)
     state = Cell(@computation _walk_markers(p, recursion, doc, ctx, thunk()))
     setproperty!(out, children_field, make_children_container(() -> [c[] for c in state[][3]]))
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(@computation begin
-        im = iomap_cell[]
-        im === nothing && return nothing
-        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
-    end))
+    out = _with_output_paths(out, p, doc, iomap_cell)
     im = RuleIoMap(p, doc, out, ConditionalNodeWiring(_dtype(doc), _dtype(out), children_field), state)
     iomap_cell[] = im
     return im
@@ -628,7 +631,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
             if w.bound_field === nothing
                 push!(prefix_slots, IntroSlot())
             else
-                child = _with_selection(child, _key_leaf_sel(doc, w.bound_field))
+                child = _with_path_cells(child, _key_leaf_path_cells(doc, w.bound_field))
                 push!(prefix_slots, KeySlot(w.bound_field, w.bound_type, w.value_checkpoint))
             end
             push!(prefix_sources, child)
@@ -644,10 +647,7 @@ function _mixed_print(p, recursion, doc, ctx, out, children_field)
         [im.output for im in coll_iomaps[]]))
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(@computation begin
-        im = iomap_cell[]; im === nothing && return nothing
-        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
-    end))
+    out = _with_output_paths(out, p, doc, iomap_cell)
     wiring = MixedNodeWiring(_dtype(doc), _dtype(out), children_field, prefix_slots, coll_field)
     iomap = RuleIoMap(p, doc, out, wiring, (prefix=store, coll=coll_iomaps))
     iomap_cell[] = iomap
@@ -682,7 +682,7 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
                 v = getfield(leaf, fname)[]
                 if v isa Bound
                     setproperty!(leaf, fname, v.render)
-                    leaf = _with_selection(leaf, _key_leaf_sel(doc, v.input))
+                    leaf = _with_path_cells(leaf, _key_leaf_path_cells(doc, v.input))
                     break
                 end
             end
@@ -691,10 +691,7 @@ function _inline_print(p, recursion, doc, ctx, out, children_field, thunk)
     end)
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(@computation begin
-        im = iomap_cell[]; im === nothing && return nothing
-        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
-    end))
+    out = _with_output_paths(out, p, doc, iomap_cell)
     wiring = InlineWiring(_dtype(doc), _dtype(out), children_field, bound_index,
                           bound_field, bound_type, value_checkpoint)
     iomap = RuleIoMap(p, doc, out, wiring, nothing)
@@ -723,10 +720,7 @@ function _sections_print(p, recursion, doc, ctx, out, children_field, specs)
     children = make_children_container(() -> [s.mk([im.output for im in s.entries]) for s in section_iomaps[]])
     setproperty!(out, children_field, children)
     iomap_cell = Cell(nothing)
-    out = _with_selection(out, Cell(@computation begin
-        im = iomap_cell[]; im === nothing && return nothing
-        map_selection_forward(doc, path -> map_reference_forward(p, im, path))
-    end))
+    out = _with_output_paths(out, p, doc, iomap_cell)
     iomap = RuleIoMap(p, doc, out, SectionsWiring(_dtype(doc), _dtype(out), children_field), section_iomaps)
     iomap_cell[] = iomap
     return iomap

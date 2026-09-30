@@ -159,17 +159,14 @@ function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSe
         for im in child_iomaps[]]))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(seq, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = seq.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     # indentation=-1: block layout (one item per indented line) without the
     # trailing newline, so a nested sequence leaves no blank line after its items.
-    node = SyntaxNode(items; indentation=-1, selection=sel)
+    node = SyntaxNode(items; indentation=-1, paths...)
     iomap = ChildrenIoMap(p, seq, node, child_iomaps)
     iomap_cell[] = iomap
     return iomap

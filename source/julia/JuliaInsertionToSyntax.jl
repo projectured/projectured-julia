@@ -152,14 +152,13 @@ function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInse
                        Cell(@computation _julia_typed_color(p, something(ins.value, ""))),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     iomap_cell = Cell(nothing)
-    selection = Cell(@computation begin
+    paths = make_output_path_cells(ins, path -> begin
         iomap = iomap_cell[]
-        iomap === nothing ? nothing :
-            map_selection_forward(ins, path -> map_reference_forward(p, iomap, path))
+        iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
     end)
     iomap = SimpleIoMap(p, ins, SyntaxLeaf(typed;
         close=TextString(() -> get_julia_completion(something(ins.value, "")), p.completion),
-        selection))
+        paths...))
     iomap_cell[] = iomap
     iomap
 end

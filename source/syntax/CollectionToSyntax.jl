@@ -58,12 +58,9 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
     # avoids a forward reference: we build the iomap after the node, then fill in
     # the cell so the lazy sel thunk closes over a valid iomap.
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(cv, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = cv.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
@@ -71,7 +68,7 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
         close=TextString("]", p.delim),
         sep=TextString(", ", p.sep),
         indentation=1,
-        selection=sel)
+        paths...)
     iomap = ChildrenIoMap(p, cv, node, child_iomaps)
     iomap_cell[] = iomap
     iomap

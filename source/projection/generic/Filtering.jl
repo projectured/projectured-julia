@@ -33,7 +33,7 @@ FilteringProjection(; predicate::Function=Returns(true)) =
 function print_document(p::FilteringProjection, recursion, input::CellVector, ctx)
     kept = Cell(@computation Int[i for i in 1:length(input) if p.predicate(input[i])])
     output = CellVector(@computation [input[i] for i in kept[]])
-    set_cell_computation!(getfield(output, :selection), () -> input.selection)
+    set_output_path_computations!(output, input, identity)
     FilteringIoMap(p, input, output, kept)
 end
 

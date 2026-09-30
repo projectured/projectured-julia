@@ -170,23 +170,21 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     #
     # The wrapper takes the whole image, and the leaf inside it takes the image
     # without the `content` step that leads to the leaf.
-    node_selection = Cell(@computation begin
-        path = getfield(ins, :selection)[]
-        path isa ConcreteReference || return nothing
-        map_reference_forward(p, iomap_cell[], path)
-    end)
-    leaf_selection = Cell(@computation begin
-        whole = node_selection[]
+    node_paths = make_output_path_cells(ins, path ->
+        path isa ConcreteReference ? map_reference_forward(p, iomap_cell[], path) : nothing)
+    leaf_path(node_cell) = Cell(@computation begin
+        whole = node_cell[]
         whole isa ConcreteReference || return nothing
         @reference_case whole begin
             content.rest... => rest
         end
     end)
-    leaf = SyntaxLeaf(typed; close=hint, selection=leaf_selection)
+    leaf = SyntaxLeaf(typed; close=hint, selection=leaf_path(node_paths.selection),
+                      mouse_target=leaf_path(node_paths.mouse_target))
     io = SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
         opening_delimiter=frame(p.prefix),
         closing_delimiter=frame(p.suffix),
-        selection=node_selection))
+        node_paths...))
     iomap_cell[] = io
     io
 end

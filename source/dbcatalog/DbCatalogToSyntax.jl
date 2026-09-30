@@ -30,14 +30,10 @@
 end
 
 function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
-    sel = Cell(@computation begin
-        path = col.selection
-        path === nothing && return nothing
-        map_reference_forward(p, nothing, path)
-    end)
+    paths = make_output_path_cells(col, path -> map_reference_forward(p, nothing, path))
     SimpleIoMap(p, col, SyntaxLeaf(
         TextString(() -> " " * col.name * "::" * col.data_type, p.style);
-        selection=sel))
+        paths...))
 end
 
 function map_reference_forward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference)
@@ -201,12 +197,9 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
         collapsed=Cell(!_children_realized(children)))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(input_doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = input_doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
     # The entity groups its keyword(s); it stays expanded (foldable by the user).
@@ -214,7 +207,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
         CellVector(Cell[Cell(keyword_node)]);
         open=TextString(label, name_style),
         indentation=-1,
-        selection=sel)
+        paths...)
 
     entity_node, child_iomaps, iomap_cell
 end

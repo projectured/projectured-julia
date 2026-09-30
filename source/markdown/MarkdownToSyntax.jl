@@ -308,11 +308,8 @@ end
 
 function print_document(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::MarkdownText, ctx)
     style = get_property(ctx, :md_style, p.style)
-    sel = Cell(@computation begin
-        s = t.selection
-        map_reference_forward(p, nothing, s)
-    end)
-    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
+    paths = make_output_path_cells(t, path -> map_reference_forward(p, nothing, path))
+    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); paths...))
 end
 
 function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
@@ -354,14 +351,11 @@ function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
         for (i, child) in enumerate(doc.content)]))
     items = CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]])
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(doc, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = doc.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    node = SyntaxNode(items; indentation=0, selection=sel)
+    node = SyntaxNode(items; indentation=0, paths...)
     iomap = ChildrenIoMap(p, doc, node, child_iomaps)
     iomap_cell[] = iomap
     return iomap
@@ -517,14 +511,11 @@ function print_document(p::MarkdownListToStyledNode, recursion, lst::MarkdownLis
             for (i, im) in enumerate(child_iomaps[]) ]
     end)
     iomap_cell = Cell(nothing)
-    sel = Cell(@computation begin
+    paths = make_output_path_cells(lst, path -> begin
         im = iomap_cell[]
-        im === nothing && return nothing
-        path = lst.selection
-        path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    node = SyntaxNode(items; sep=TextString("\n", p.marker_style), indentation=0, selection=sel)
+    node = SyntaxNode(items; sep=TextString("\n", p.marker_style), indentation=0, paths...)
     iomap = ChildrenIoMap(p, lst, node, child_iomaps)
     iomap_cell[] = iomap
     return iomap
