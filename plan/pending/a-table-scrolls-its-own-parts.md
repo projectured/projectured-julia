@@ -415,7 +415,7 @@ plan.
       right, because a pane clamps `x` only as it scrolls.
 - [ ] **3. Relocation** in both directions (§3.6), and the row at the top
   (§3.7).
-  - [x] **3a. The rows** (this commit). Facts and decisions:
+  - [x] **3a. The rows** (`af9ec9bb3`). Facts and decisions:
     - `WidgetTable` has the field `top_row`, view state (P5): the row at the
       top of the cells, counted from the head of the list. The list table
       writes it with the answer to a turn of the wheel when it changes. The
@@ -434,11 +434,20 @@ plan.
     - The data frame view does not share `top_row` yet; its scroll bar
       (step 2.4 of the data frame plan) will.
   - [ ] **3b. The columns**, with the lazy columns of 1d.
-- [ ] **4. Selection, keys and bands across the parts.** `test_table_selection`,
+- [x] **4. Selection, keys and bands across the parts.** `test_table_selection`,
   `test_table_navigation`, `test_table_cell_editing`, `test_widget_table`,
-  `test_widget_table_list`. The eager table has them since 2b. Left for the
-  table of a list: the band of a selected column in the header row and the
-  cells, and a button down or up to the cell under it (2a).
+  `test_widget_table_list`. The eager table has them since 2b. The table of a
+  list (this commit):
+  - A selected or hovered column, and the selected table, band the header row
+    and every row; a row and a cell band their own row. The pointer over the
+    header row hovers its column, as in the eager table.
+  - Left and Right move a selected column; Down and Return go to its cell in
+    the row at the top (`top_row`), where the eager table goes to row 1,
+    because the head of a list can be far above the view. Ctrl+Space goes
+    from a cell to its column.
+  - A press of another button than the left, a button down or a button up
+    goes to the cell under it, a header too, in the coordinates of the cell,
+    in both tables.
 - [ ] **5. The pane loses its frozen regions.** §3.10, the frozen example,
   `test_frozen_table_headers` becomes a test of the table,
   `DirtyRectTest`, `WidgetColorTest`, widget.md, sdl.md.

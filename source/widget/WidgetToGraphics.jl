@@ -8907,9 +8907,9 @@ function _wt_route_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGra
     _wt_route_to_selected_cell(iomap, event)
 end
 
-# A button down or up goes to the cell under it, a header as well as a body
-# cell, in the coordinates of the cell, and its answer is re-rooted under the
-# cell.
+# A press of another button than the left, a button down or a button up goes
+# to the cell under it, a header as well as a body cell, in the coordinates of
+# the cell, and its answer is re-rooted under the cell.
 function _wt_route_to_cell_under(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
     geom = iomap.geometry
     x, y = _wt_get_unscrolled_point(p, iomap, Int(event.x), Int(event.y))
@@ -8933,6 +8933,8 @@ function _wt_route_to_cell_under(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     reroot_operation(read_intent(cim.projection, cim, local_event), steps)
 end
 
+_wt_translate_event(evt::MousePress, x::Int, y::Int) =
+    MousePress(evt.button, x, y, evt.count, evt.modifiers; time = evt.time)
 _wt_translate_event(evt::MouseDown, x::Int, y::Int) =
     MouseDown(evt.button, x, y, evt.modifiers; time = evt.time)
 _wt_translate_event(evt::MouseUp, x::Int, y::Int) =

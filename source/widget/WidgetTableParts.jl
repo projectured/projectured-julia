@@ -168,35 +168,55 @@ end
 
 # ── The graphics of the rows ─────────────────────────────────────────────────
 
-# The row and the cell that a reference names: `rows[k]∅` is `(k, nothing)`,
-# `rows[k][c]∅` is `(k, c)`, and anything else is `nothing`.
-function _find_named_row(reference)
+# What a reference names in a table of a list, as `(shape, row, column)`:
+# `(:table, 0, 0)` for `∅`, `(:row, k, 0)` for `rows[k]∅`, `(:cell, k, c)` for
+# `rows[k][c]∅` and `(:column, 0, c)` for `column_headers[c]∅`; `nothing` for
+# anything else. A row can have an index of 0 or less, before the head.
+function _find_named_part(reference)
+    reference isa EmptyReference && return (:table, 0, 0)
     terminal = _wt_field_element_terminal(reference)
-    terminal !== nothing && terminal[1] == "rows" && return (terminal[2], nothing)
-    _wt_cell_terminal(reference)
+    if terminal !== nothing
+        field, index = terminal
+        field == "rows" && return (:row, index, 0)
+        field == "column_headers" && return (:column, 0, index)
+        return nothing
+    end
+    cell = _wt_cell_terminal(reference)
+    cell === nothing ? nothing : (:cell, cell[1], cell[2])
 end
 
-# The band under row `k`: the whole row when the reference names the row, the
-# one cell when it names a cell, and nothing when it names neither. `kind` is
-# `:hover` or `:selection`. The rect reads the reference itself, so a move of
-# the selection builds no row again.
-function _make_row_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::WidgetTablePartsState,
-                        k::Int, band_height::Cell, kind::Symbol)
-    bounds = Cell(@computation begin
-        named = _find_named_row(kind === :hover ? w.hovered : w.selection)
-        (named === nothing || named[1] != k) && return (0, 0)
-        edges = st.edges[]
-        column = named[2]
-        column === nothing && return (0, last(edges) + st.bw)
+# The left edge and the width of the band that `named` draws in row `k`, or in
+# the header row for `k === nothing`, from the edges of the columns; `(0, 0)`
+# for no band there. The table and a column band every row and the header row,
+# a row and a cell only their own row.
+function _get_band_span(named, k, edges::Vector{Int}, bw::Int)
+    named === nothing && return (0, 0)
+    shape, row, column = named
+    shape === :table && return (0, last(edges) + bw)
+    if shape === :column
         (1 <= column < length(edges)) || return (0, 0)
-        (edges[column], edges[column + 1] - edges[column])
-    end)
+        return (edges[column], edges[column + 1] - edges[column])
+    end
+    (k === nothing || row != k) && return (0, 0)
+    shape === :row && return (0, last(edges) + bw)
+    (1 <= column < length(edges)) || return (0, 0)
+    (edges[column], edges[column + 1] - edges[column])
+end
+
+# The band of the hover or of the selection, `kind`, in row `k`, or in the
+# header row for `k === nothing`, under the rule above it and `band_height`
+# tall. The rect reads the reference itself, so a move of the selection builds
+# no row again.
+function _make_row_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::WidgetTablePartsState,
+                        k, band_height::Cell, kind::Symbol)
+    span = Cell(@computation _get_band_span(_find_named_part(kind === :hover ? w.hovered : w.selection),
+                                            k, st.edges[], st.bw))
     color = kind === :hover ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
     rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
-    set_cell_computation!(getfield(rect, :x), () -> Int32(bounds[][1]))
+    set_cell_computation!(getfield(rect, :x), () -> Int32(span[][1]))
     set_cell_computation!(getfield(rect, :y), () -> Int32(st.bw))
-    set_cell_computation!(getfield(rect, :w), () -> Int32(bounds[][2]))
-    set_cell_computation!(getfield(rect, :h), () -> Int32(bounds[][2] == 0 ? 0 : Int(band_height[])))
+    set_cell_computation!(getfield(rect, :w), () -> Int32(span[][2]))
+    set_cell_computation!(getfield(rect, :h), () -> Int32(span[][2] == 0 ? 0 : Int(band_height[])))
     rect
 end
 
@@ -307,16 +327,19 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
     edges = Cell(@computation compute_axis_offsets(Int[Int(cells_grid.col_w[c][]) for c in 1:n], hgap))
     st = WidgetTablePartsState(n, bw, pad_x, pad_y, column_header_pane, cells_pane, header_height, edges)
 
-    # The graphics of the header row: its band, the rule above it, and the
-    # rule of every column.
+    # The graphics of the header row: its band, the bands of a hovered or a
+    # selected column, the rule above it, and the rule of every column.
     divider = _get_state_stroke(p, w, :divider).color
     header_row_color = _get_state_color(p, w, :header_row)
     header_region = nothing
     if column_header_pane !== nothing
+        band_height = Cell(@computation Int(header_height[]) - bw)
+        bands = Any[_make_row_band(p, w, st, nothing, band_height, :hover),
+                    _make_row_band(p, w, st, nothing, band_height, :selection)]
         header_graphics = CellVector(@computation begin
             width = last(edges[]) + bw
             h = Int(header_height[])
-            out = Any[GraphicsRect(0, 0, width, h; color = header_row_color),
+            out = Any[GraphicsRect(0, 0, width, h; color = header_row_color), bands...,
                       GraphicsRect(0, 0, width, bw; color = divider)]
             for edge in edges[]
                 push!(out, GraphicsRect(edge, 0, bw, h; color = divider))
@@ -424,6 +447,19 @@ function _find_table_cell(st::WidgetTablePartsState, k::Int, c::Int)
           Int(row.y) + Int(y_cell[]) + Int(out.y) + st.pad_y + st.bw)
 end
 
+# The IO map of the header of column `c`, and the place of its canvas in the
+# coordinates of the rules of the header row; `nothing` for no header.
+function _find_table_header_cell(st::WidgetTablePartsState, c::Int)
+    st.column_header_pane === nothing && return nothing
+    entries = st.column_header_pane.content_iomap.child_iomaps
+    1 <= c <= length(entries) || return nothing
+    (x_cell, y_cell, cim) = entries[c]
+    cim === nothing && return nothing
+    out = cim.output
+    out isa GraphicsCanvas || return nothing
+    (cim, Int(x_cell[]) + Int(out.x) + st.pad_x + st.bw, Int(y_cell[]) + Int(out.y) + st.pad_y + st.bw)
+end
+
 # ── References ───────────────────────────────────────────────────────────────
 
 # An image in the grid of a part, moved into the coordinates of the table by
@@ -515,23 +551,24 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
 end
 
-# The row under the pointer, written to `hovered`. The header row hovers no
-# row. `force`, a crossing into the table, writes even an unchanged row, so
-# the tracker of the hover keeps the table as its target.
+# The row under the pointer, or the column under it in the header row, written
+# to `hovered`. `force`, a crossing into the table, writes even an unchanged
+# reference, so the tracker of the hover keeps the table as its target.
 function _read_table_parts_hover(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  x::Int, y::Int, force::Bool)
     st = iomap.state
     w = iomap.input
     found = _find_table_part_at(p, iomap, x, y)
-    k = (found === nothing || found[1] === :header) ? nothing : _find_table_row_at(st, found[3])
-    reference = k === nothing ? nothing : _wt_row_ref(k)
-    if !force
-        current = w.hovered
-        same = (current === nothing && reference === nothing) ||
-               (current !== nothing && reference !== nothing &&
-                _widget_element_selected(current, "rows") == k)
-        same && return nothing
+    reference = if found === nothing
+        nothing
+    elseif found[1] === :header
+        c = find_axis_band(st.edges[], found[2])
+        c === nothing ? nothing : _wt_col_ref(c)
+    else
+        k = _find_table_row_at(st, found[3])
+        k === nothing ? nothing : _wt_row_ref(k)
     end
+    (!force && w.hovered == reference) && return nothing
     _write_view_state(w, "hovered", reference)
 end
 
@@ -617,17 +654,28 @@ function _shift_row_reference(reference, distance::Int)
 end
 
 # The keys of the table: Ctrl+Alt+Home selects the table; the arrows move a
-# selected row or cell, and stop at the ends of the list; Return goes from a
-# row to its first cell and from a cell into its content; Shift+Space goes
-# from a cell to its row.
+# selected row, column or cell, and stop at the ends of the list; Return goes
+# from a row to its first cell, from a column to its cell in the row at the
+# top, and from a cell into its content; Shift+Space goes from a cell to its
+# row, and Ctrl+Space to its column.
 function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     st = iomap.state
     st.columns == 0 && return nothing
     evt.key === :home && evt.modifiers.ctrl && evt.modifiers.alt &&
         return ReplaceSelectionOperation(EmptyReference())
-    named = _find_named_row(iomap.input.selection)
+    named = _find_named_part(iomap.input.selection)
     named === nothing && return nothing
-    k, c = named
+    shape, k, c = named
+    shape === :table && return nothing
+    if shape === :column
+        top = iomap.input.top_row
+        evt.key === :return && return ReplaceSelectionOperation(_wt_cell_ref(top, c))
+        evt.key === :down && return ReplaceSelectionOperation(_wt_cell_ref(top, c))
+        evt.key === :left && return ReplaceSelectionOperation(_wt_col_ref(max(1, c - 1)))
+        evt.key === :right && return ReplaceSelectionOperation(_wt_col_ref(min(st.columns, c + 1)))
+        return nothing
+    end
+    c == 0 && (c = nothing)
     exists(row) = find_grid_list_row(st.cells_pane.content_iomap, row) !== nothing
     if evt.key === :return
         c === nothing && return ReplaceSelectionOperation(_wt_cell_ref(k, 1))
@@ -635,7 +683,7 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     end
     if evt.key === :space && (evt.modifiers.shift ⊻ evt.modifiers.ctrl)
         c === nothing && return nothing
-        return evt.modifiers.shift ? ReplaceSelectionOperation(_wt_row_ref(k)) : nothing
+        return ReplaceSelectionOperation(evt.modifiers.shift ? _wt_row_ref(k) : _wt_col_ref(c))
     end
     evt.key in (:up, :down, :left, :right) || return nothing
     if c === nothing
@@ -668,6 +716,30 @@ function _enter_table_cell(st::WidgetTablePartsState, k::Int, c::Int)
     reroot_operation(op, _wt_get_cell_steps(k, c))
 end
 
+# A press of another button than the left, a button down or a button up goes
+# to the cell under it, a header as well as a body cell, in the coordinates of
+# the cell, and its answer is rooted under the cell.
+function _read_table_point_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
+    st = iomap.state
+    found = _find_table_part_at(p, iomap, Int(event.x), Int(event.y))
+    found === nothing && return nothing
+    part, x, y = found
+    c = find_axis_band(st.edges[], x)
+    c === nothing && return nothing
+    cell, steps = if part === :header
+        (_find_table_header_cell(st, c), (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)))
+    else
+        k = _find_table_row_at(st, y)
+        k === nothing && return nothing
+        (_find_table_cell(st, k, c), _wt_get_cell_steps(k, c))
+    end
+    cell === nothing && return nothing
+    cim, left, top = cell
+    local_event = _wt_translate_event(event, x - left, y - top)
+    local_event === nothing && return nothing
+    reroot_operation(read_intent(cim.projection, cim, local_event), steps)
+end
+
 # An event that is not a gesture of the table goes to the cell that the
 # selection is in, and its answer is rooted under that cell.
 function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, event)
@@ -695,6 +767,8 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
             op === nothing || return Intent(g, op)
         end
     end
+    change.operation === nothing && _positioned_event(g) &&
+        return Intent(g, _read_table_point_event(p, iomap, g))
     payload = change.operation === nothing ? g : change.operation
     Intent(g, _read_selected_table_cell(iomap.state, iomap.input, payload))
 end
@@ -705,5 +779,6 @@ function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap
        event isa MouseMove || event isa MouseLeave || event isa MouseScroll
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
+    _positioned_event(event) && return _read_table_point_event(p, iomap, event)
     _read_selected_table_cell(iomap.state, iomap.input, event)
 end

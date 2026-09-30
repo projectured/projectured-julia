@@ -463,6 +463,66 @@ end
     @test table.top_row == 1
 end
 
+# The graphics of the header row and of row `k`: the band of the header row
+# first, then the bands of the hover and of the selection; a row has no band of
+# its own, so its bands come first.
+header_graphics(io) = only(e for e in header_region(io).elements if e isa GraphicsViewport).content.elements
+function row_graphics(io, k)
+    node = only(e for e in cells_region(io).elements if e isa GraphicsViewport).content.elements
+    for _ in 1:(k - 1)
+        node = node.next
+    end
+    node.value.elements
+end
+span(rect) = (Int(rect.x), Int(rect.w))
+
+@testset "a column is banded in the header row and in every row" begin
+    table = make_table(make_list(5, texts_of))
+    io = print_document(rec, nothing, table, context())
+    edges = io.state.edges[]
+    column = (edges[2], edges[3] - edges[2])
+    getfield(table, :selection)[] = ConcreteReference(FieldReferenceStep("column_headers"),
+        ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+    @test span(header_graphics(io)[3]) == column
+    @test all(k -> span(row_graphics(io, k)[2]) == column, 1:3)
+    # The whole table bands every row from edge to edge.
+    getfield(table, :selection)[] = EmptyReference()
+    @test span(row_graphics(io, 2)[2]) == (0, last(edges) + io.state.bw)
+    @test span(header_graphics(io)[3]) == (0, last(edges) + io.state.bw)
+    # The pointer over a header hovers its column.
+    (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "value")
+    hover = read(io, MouseMove(hx + 2, hy + 2, MouseButtons(), mods; time = 0.0))
+    getfield(table, :hovered)[] = get_wrapped_operation(hover).value
+    @test span(header_graphics(io)[2]) == column
+    @test span(row_graphics(io, 1)[1]) == column
+end
+
+@testset "keys move a selected column, and go between a column and its cells" begin
+    table = make_table(make_list(5, texts_of))
+    io = print_document(rec, nothing, table, context())
+    key(name; kw...) = read(io, KeyDown(name, ModifierKeys(; kw...); time = 0.0))
+    column(c) = ConcreteReference(FieldReferenceStep("column_headers"),
+                    ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+    getfield(table, :selection)[] = column(1)
+    @test key(:right).path == column(2)
+    @test key(:left).path == column(1)
+    # Down goes to the cell of the column in the row at the top.
+    @test key(:down).path == cell_reference(table.top_row, 1)
+    # Ctrl+Space goes from a cell to its column.
+    getfield(table, :selection)[] = cell_reference(3, 2)
+    @test key(:space; ctrl = true).path == column(2)
+end
+
+@testset "a button down reaches the cell under it" begin
+    button = WidgetButton("go")
+    rows = make_list(3, (i, c) -> (i == 2 && c == 2) ? button : texts_of(i, c))
+    io = print_document(rec, nothing, make_table(rows), context())
+    (x, y) = place(io, 2, 2)
+    op = read(io, MouseDown(:left, x + 4, y + 4, mods; time = 0.0))
+    @test op isa ReplaceViewStateOperation
+    @test get_wrapped_operation(op).document === button
+end
+
 @testset "the bands of the hover and of the selection follow the rows" begin
     table = make_table(make_list(5, texts_of))
     io = print_document(rec, nothing, table, context())
