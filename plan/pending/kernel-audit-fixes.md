@@ -1565,10 +1565,11 @@ Each question shows its options and my recommendation, marked **Recommended (min
 
 **L17-16** (Low): May `ChildrenContainer.jl`, an empty fragment, be deleted, which removes its line from SEALING.md?
 
-- **A:** Delete ChildrenContainer.jl, its include and its line in SEALING.md. The conventions of SEALING.md say that the line of a deleted file goes in the commit that deletes the file.
+- **A:** Delete ChildrenContainer.jl, its include and its line in SEALING.md. Add one sentence to the conventions of SEALING.md: the line of a deleted file goes out in the commit that deletes the file. The conventions do not say this today; they say only "Do not remove entries or reorder the list."
 - **B:** Keep the empty file with its header that says that it holds no code (the state after 5c9270493).
 - **C:** Give the file content: a default method of the children-container seam, if L17-17 gives the seam one.
 - **Recommended (mine): A.** SEALING.md is the ordered inventory of source/kernel/ in load order, and the include order of ProjecturedKernel.jl is the authority. A line for a file that does not exist makes the inventory false. The rule 'do not remove entries' keeps the audit order of files that exist. The file is not sealed, and PAR-PROJECTION-PLACEMENT says that no orphan shapes the structure.
+- **Decided by the owner, 2026-09-30: A**, with the new sentence in the conventions of SEALING.md.
 - Settles: L14-6, L11-10, L23-5.
 - Cost: S. ChildrenContainer.jl, ProjectionModule.jl (the include and the fragment table), ProjectionInterface.jl (the banner), SEALING.md (one line and one sentence of the conventions). No sealed file.
 
