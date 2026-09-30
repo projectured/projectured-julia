@@ -755,7 +755,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     this is a plan of its own before the rest of phase 2. Both yes (the
     owner, 2026-09-29): [a-table-scrolls-its-own-parts.md](../done/a-table-scrolls-its-own-parts.md)
     comes first, and it also gives the lazy columns of §4.2.
-    Done (this commit), after the table plan:
+    Done (`c875e6452`), after the table plan:
     - **The re-anchor** is the relocation of the table (phase 3 of the table
       plan): at 200 rows from the head, where §3.5 said about 500, the table
       writes `rows`, and the view turns it into its `anchor`. A wide frame
@@ -818,6 +818,57 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   form. If phase 0 puts the editor on another thread, the busy flag of §4.3
   comes with this phase, because an edit writes the frame. D11 is (b), so the
   busy flag and the REPL hook that sets it come with this phase.
+  Implementation design, 2026-09-30, with points E1 to E6 for the owner;
+  each recommendation is mine:
+  - **E1. The path of a cell.** The view has no field for its rows or
+    columns, so a path names them with steps of the domain, as a chart names
+    a sample with `ChartSampleReferenceStep` (§3.4): a
+    `DataFrameCellReferenceStep(row, column)` of a source row index and a
+    column name, which evaluates on the view to the text of the cell, and the
+    caret goes on inside that text as in any text; `DataFrameRowReferenceStep`
+    and `DataFrameColumnReferenceStep` for a whole row and a whole column. The
+    projection of the view maps the paths of the table, `rows[k][c]…`, to
+    these and back, with the anchors. Recommendation: these three steps,
+    rather than the fields `rows[row].columns[name]` of §3.4, which the view
+    does not have.
+  - **E2. The pending text.** The view keeps, as view state, a map from a cell
+    (source row, column name) to the text that a person typed there and did
+    not commit. A cell with a pending text shows it, with a mark when it did
+    not parse, and its reason in a tooltip; any other cell shows its value.
+    Enter, Tab or a move out commits; Escape drops it. A text that does not
+    parse stays in the map while the selection moves on, as §3.6 says.
+    Recommendation: the map, with one entry for each cell that has a pending
+    text.
+  - **E3. An editable cell.** A cell is a `WidgetText` over a cell that
+    computes the pending text or the printed value, where it is a
+    `WidgetLabel` now; the table sends a key to the selected cell, and the
+    view turns the write of the text (`ReplaceStringRangeOperation` at
+    `rows[k][c]`) into a write of the pending text. Recommendation: every
+    cell a `WidgetText`; the table builds only the cells that show.
+  - **E4. The operations and undo.** `SetDataFrameValueOperation(frame, row,
+    column, value)`, whose inverse through `make_inverse_operation` writes
+    the old value, so a commit is one step of undo and Ctrl+Z takes it back.
+    A write of a pending text is view state and no step of undo. The other
+    operations of §3.6 (insert, delete, rename, move and convert rows and
+    columns) need gestures that no step designs yet. Recommendation: phase 4
+    in two steps: 4a the edit of a cell with undo, the busy flag and
+    `SubDataFrame`; 4b the other operations with a context menu on the
+    header of a column and on a row.
+  - **E5. A `DataFrameRow`** is shown as a form: a table of two columns, the
+    name and the value of each column, editable as a cell is.
+    Recommendation: after 4a, in 4b.
+  - **E6. The busy flag.** `display_in_editor` puts a transform into
+    `Base.active_repl_backend.ast_transforms` once: it sets an atomic flag of
+    the package before an input and clears it after, and it posts to the
+    editor a write of the view state `busy` of each view. Building a row
+    reads the frame, and drawing the rows already built reads nothing, so
+    while `busy` is set the view builds no row: it answers no turn of the
+    wheel, no jump and no edit. It shows a line under the table, "The REPL
+    runs; the view waits", and a pending text waits too. Recommendation: as
+    written.
+  Without sort and filter (phase 5), a commit writes the value, Enter moves
+  the selection to the cell below and Tab to the next cell (D10 without its
+  sort).
 - [ ] **5. Sort and filter.** The query document, the header gestures, the
   quick filters, the expression filter, column hide and move. The sort and
   the filter again on a commit (D6), and the selection after it (D10). Column
