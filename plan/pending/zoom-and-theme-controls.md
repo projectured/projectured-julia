@@ -737,6 +737,12 @@ Each entry says what was decided and what was rejected, with the reason.
   part P. Rejected: a widget theme for each role, a frame theme and a content
   theme, which would key a theme by its type and a role and show two widget
   sections in the tab.
+- **D31. The wrapper and the tab before the domain themes** (2026-10-01). The
+  branch lands on `main` after B2, and the work goes on with W1–W6, then P1–P4,
+  then G1, so the owner can use the zoom, the keys and the tab early, and the
+  settings plan, which waits for W1, can start. The order of D10 put every
+  domain theme first, so that the font scale reached all text from the first
+  day; until P is done, a scale reaches the widgets only.
 
 ## 6. Steps
 
@@ -744,9 +750,13 @@ Each step is a commit in a worktree. With the default themes and every factor at
 1.0, each step before B0 gives the pixels of the baseline of A0, and each step
 from B0 on gives the pixels of the baseline that the owner accepts in B0.
 
-**The order of the work:** A0, N1, C1, T1, T2, B0, B1, B2, P1, P2, P3, P4, W1,
-W2, W3, W4, W5, W6, G1. Every domain gets its theme before the wrapper takes the
-keys (W1), so that the font scale reaches all text from the first day.
+**The order of the work:** A0, N1, C1, T1, T2, B0, B1, B2, then a landing on
+`main`, then W1, W2, W3, W4, W5, W6, then P1, P2, P3, P4, then G1 (D31). The
+wrapper, the keys and the tab come before the domain themes, so that the owner
+can use them early. Until P is done, a scale reaches the widgets and the text of
+a domain keeps its size. `plan/pending/editor-settings.md` starts its work after
+W1 lands on `main`, so W1 lands as soon as it is done (my reading of that plan,
+2026-10-01).
 
 - [x] **A0. The baseline on main.** Done on 2026-10-01 at `3d0d25ae0`, in
   `environment/all` of the worktree, offscreen. No fail and no error:
