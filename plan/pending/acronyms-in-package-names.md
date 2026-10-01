@@ -69,7 +69,9 @@ against "Julia" in a name is a separate question.
       the CI-like run of the 28 jobs, against the CI-like run of `main`.
 - [ ] **Step 3, downstream.** The same script in omnet-julia and inet-julia, on
       branches of their own; both precompile against this branch.
-- [ ] **Step 4, the release plan.** R29 is done.
+- [x] **Step 4, the release plan.** R29 is done.
+      Done: the release plan records R28 and R29 as done, so Steps B5 and B6
+      wait for R27 alone.
 
 A folder whose name changes only in case (`ProjecturedSdl` → `ProjecturedSDL`)
 is a rename that a case-insensitive file system can not do in place; git on

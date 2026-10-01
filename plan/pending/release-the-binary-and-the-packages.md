@@ -1324,6 +1324,12 @@ seals go beyond the kernel in time (only kernel files are sealed today).
 - R22 and R23 have their answers above. The generator goes back to one release
   repository, the form that Step B4 tested.
 - Step B6 and the install lines of Step B5 wait for R27, R28 and R29.
+- **R28 and R29 are done (2026-10-01).** The fold put the internal packages
+  into `ProjecturedPlatform` ([fold-the-internal-packages.md](../done/fold-the-internal-packages.md)),
+  and the twelve packages with an acronym have it in capitals
+  (`ProjecturedJSON`, `ProjecturedSQL`, `ProjecturedSDL`, …; the owner: "Let's
+  do the package renames now"; [acronyms-in-package-names.md](acronyms-in-package-names.md)).
+  Steps B5 and B6 now wait for R27 alone.
 - Part P stays: it is the CI of the development repository, and the release
   tests of R30 come from its suites.
 
