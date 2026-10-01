@@ -30,7 +30,7 @@ BackendModule.quit_backend!(::_DisplayProbeBackend) = nothing
 _display_session() = ProjecturedPlatform.DisplayModule._SESSION[]
 
 _count_tabs(editor) = run_on_editor_task!(() -> sum(length(group.tabs) for group in
-    get_pane_groups(get_wrapped_document(editor.document).windows[1].content)), editor)
+    get_pane_groups(get_window_tree(editor))), editor)
 _count_windows(editor) = run_on_editor_task!(() -> length(get_wrapped_document(editor.document).windows), editor)
 
 """
@@ -65,6 +65,11 @@ function test_editor_display()
                 logger = run_on_editor_task!(() -> Base.CoreLogging.current_logger(), editor)
                 @test Base.CoreLogging.min_enabled_level(logger) == Base.CoreLogging.Warn
                 @test _count_tabs(editor) == 1
+                # The tabs are in the chrome of a window.
+                shell = run_on_editor_task!(() -> get_wrapped_document(editor.document).windows[1].content,
+                                            editor)
+                @test shell isa WidgetShell && shell.content isa PaneTree
+                @test shell.toolbar isa WidgetToolbar && shell.status_bar isa WidgetStatusBar
 
                 # The same value again: the same document, and no new tab.
                 @test display_in_editor(first_value; backend) === document
@@ -95,6 +100,9 @@ function test_editor_display()
                 display_in_editor(DisplayProbeValue("a"); backend, tabs = false)
                 editor = _display_session().editor
                 @test _count_windows(editor) == 1
+                # A window of one value has no chrome.
+                @test !(run_on_editor_task!(() -> get_wrapped_document(editor.document).windows[1].content,
+                                            editor) isa WidgetShell)
                 second_value = DisplayProbeValue("b")
                 second = display_in_editor(second_value; backend)
                 @test _count_windows(editor) == 2

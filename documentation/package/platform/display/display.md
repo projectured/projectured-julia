@@ -18,7 +18,7 @@ The first call starts the editor with `run_editor!(document, projection; wait = 
 
 The loop logs each operation that it applies as an info line, and a hover is an operation. The display starts the editor inside `with_logger` with a console logger at the `Warn` level. The task of the loop keeps the logger of that scope, so the REPL shows the warnings and the errors of the editor and no line for each operation. The REPL keeps its own logger.
 
-A later call shows its value with `show_document!` of the screen slice. Its `tabs` wrapper holds the values as tabs of one window, because the pane slice is always loaded with it; with `tabs = false`, each value has a window of its own instead. A value that is shown already gets the focus again, and a title that the editor has already gets a number.
+A later call shows its value with `show_document!` of the screen slice. Its `tabs` wrapper holds the values as tabs of one window, because the pane slice is always loaded with it. The `shell` wrapper of the shell slice puts the tabs in the chrome of a window: the menu bar, the toolbar with the tools that need nothing more than the window, and the status bar. With `tabs = false`, each value has a window of its own instead, with no chrome, because the commands of the chrome act on the tabs. A value that is shown already gets the focus again, and a title that the editor has already gets a number.
 
 The loop keeps the world of its start, so every call that the display posts to the editor goes through `Base.invokelatest`. `close_display_editor!()` stops the editor, and a call after the window was closed starts a new one.
 
@@ -26,7 +26,7 @@ A value that a program changes in place stays the same object, so its document d
 
 ## How it fits
 
-The display slice depends on the kernel for the run function and the inbox, on the screen slice for `show_document!`, on the widget slice for `make_value_document`, on the natural slice for the renderer and on the style slice for the measure. A package that wants its values shown adds a method of `make_value_document` and uses only the widget slice of `ProjecturedPlatform`.
+The display slice depends on the kernel for the run function and the inbox, on the screen slice for `show_document!`, on the widget slice for `make_value_document`, on the natural slice for the renderer and on the style slice for the measure. It names the `tabs` and the `shell` wrappers only by their keywords of `build_editor`, so it does not depend on the pane and shell slices. A package that wants its values shown adds a method of `make_value_document` and uses only the widget slice of `ProjecturedPlatform`.
 
 ## Design decisions
 

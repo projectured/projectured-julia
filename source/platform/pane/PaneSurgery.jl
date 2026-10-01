@@ -199,6 +199,24 @@ function get_pane_focus_title(tree::PaneTree)
 end
 
 """
+    find_pane_content_selection(tree) -> Reference | Nothing
+
+The part of the selection of `tree` inside the content of the focused tab: the
+place in the document that the person works on, without the splits, the group
+and the tab that lead to it. `nothing` when the selection is not inside the
+content of a tab, such as on a tab title.
+"""
+function find_pane_content_selection(tree::PaneTree)
+    selection = get_selection(tree)
+    selection === nothing && return nothing
+    rest = _after_field(selection, "root")
+    rest === nothing && return nothing
+    found = _focus_walk(tree.root, rest)
+    (found === nothing || found[2] == 0) && return nothing
+    _after_field(found[3], "content")
+end
+
+"""
     get_pane_focused_group(tree) -> PaneGroup | Nothing
 
 The focused group, or `nothing` when the selection is not inside the tree.

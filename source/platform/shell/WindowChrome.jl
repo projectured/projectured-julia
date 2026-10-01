@@ -48,19 +48,21 @@ make_window_file_menu() =
     ]))
 
 """
-    make_window_view_menu() -> WidgetMenuItem
+    make_window_view_menu(; recorded = true) -> WidgetMenuItem
 
 The View menu: the name on the bar, and the menu that opens below it. Its
 commands split the focused group, open the gesture log, and open the appearance.
 
-**Gesture log** opens the session's log in a tab. The recorder is always on, so
-the tab holds what happened before it opened, and a person opens it after a
-fault rather than before one.
+**Gesture log** opens the session's log in a tab. The recorder of
+[`make_window_wrap`](@ref) is always on, so the tab holds what happened before it
+opened, and a person opens it after a fault rather than before one. A window
+that has no recorder passes `recorded = false`, and the menu has no item for a
+log that stays empty.
 
 **Appearance** (Ctrl+,) opens the `Appearance` of the window in a tab: the zoom
 and the scales, each with its buttons.
 """
-make_window_view_menu() =
+make_window_view_menu(; recorded::Bool = true) =
     WidgetMenuItem("View"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
         make_window_command("Split vertically",
                             editor -> _split!(editor, :vertical);
@@ -68,10 +70,11 @@ make_window_view_menu() =
         make_window_command("Split horizontally",
                             editor -> _split!(editor, :horizontal);
                             shortcut = Shortcut(:backslash; ctrl = true, shift = true)),
-        make_window_command("Gesture log",
-                            editor -> _reach_tool!(editor, GestureLog,
-                                                   _make_default_tool(GestureLog));
-                            tooltip = "Every gesture of this session, and what each one did"),
+        (recorded ? (make_window_command("Gesture log",
+                                         editor -> _reach_tool!(editor, GestureLog,
+                                                                _make_default_tool(GestureLog));
+                                         tooltip = "Every gesture of this session, and what each one did"),) :
+                    ())...,
         make_window_command("Appearance",
                             editor -> _reach_tool!(editor, Appearance, _make_appearance_tool);
                             shortcut = Shortcut(:comma; ctrl = true),
@@ -105,13 +108,13 @@ make_window_help_menu(; about = _ -> AboutPage()) =
     ]))
 
 """
-    make_window_menu_bar(; extra = [], about = _ -> AboutPage()) -> WidgetMenu
+    make_window_menu_bar(; recorded = true, extra = [], about = _ -> AboutPage()) -> WidgetMenu
 
 The menu bar both binaries share: [`make_window_file_menu`](@ref), then
-[`make_window_view_menu`](@ref), then the menus of `extra`, then
-[`make_window_help_menu`](@ref), which takes `about`. Help is the last menu, as
-on a desktop. A host that wants another bar builds a `WidgetMenu` from the menus
-it wants.
+[`make_window_view_menu`](@ref), which takes `recorded`, then the menus of
+`extra`, then [`make_window_help_menu`](@ref), which takes `about`. Help is the
+last menu, as on a desktop. A host that wants another bar builds a `WidgetMenu`
+from the menus it wants.
 
 **A menu item here performs its command.** `WidgetShell` fires a menu shortcut
 **before the focused widget sees the key**, so an item that carries a shortcut it
@@ -130,13 +133,14 @@ A host adds its own menus with `extra`, and this package names none of them.
 They go after File and View and before Help, so the bar reads the same way in
 every binary until the host's own menus begin.
 """
-make_window_menu_bar(; extra = [], about = _ -> AboutPage()) =
-    WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(), extra...,
+make_window_menu_bar(; recorded::Bool = true, extra = [], about = _ -> AboutPage()) =
+    WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(; recorded), extra...,
                    make_window_help_menu(; about = about)];
                orientation = :horizontal, padding = Inset(2, 2, 2, 2))
 
 """
-    make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) -> WidgetToolbar
+    make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = true,
+                        extra = []) -> WidgetToolbar
 
 The tools of the window, one button each: the explorer, the assistant, the
 evaluator, the message log, the gesture log, the fault log, the frame
@@ -159,10 +163,16 @@ functions of the editor:
   `nothing` the button opens what `Ctrl+T` and `explorer` open: the working
   directory.
 
+Five tools show what the window records: the message log, the gesture log, the
+fault log, the statistics and the frame times. They fill only in a window that
+[`run_with_window_tools`](@ref) opens and the recorder of
+[`make_window_wrap`](@ref) wraps. A window that has neither passes
+`recorded = false`, and the toolbar has no button for a tool that stays empty.
+
 A host appends its own buttons with `extra`, which is where a command that only
 one binary has belongs.
 """
-make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
+make_window_toolbar(; assistant = nothing, explorer = nothing, recorded::Bool = true, extra = []) =
     WidgetToolbar(Any[
         make_window_tool_command("Explorer", Workspace; icon = :folder,
                                  tooltip = "Explorer: the files of this window's folder",
@@ -173,16 +183,7 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
                                       make = assistant),))...,
         make_window_tool_command("Evaluator", EvaluatorToplevel; icon = :terminal,
                                  tooltip = "Evaluator: type Julia, and Enter evaluates it"),
-        make_window_tool_command("Message log", MessageLog; icon = :list,
-                                 tooltip = "Message log: what the program said in this session"),
-        make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
-                                 tooltip = "Gesture log: every gesture of this session, and what each one did"),
-        make_window_tool_command("Fault log", FaultLog; icon = :warning,
-                                 tooltip = "Fault log: what failed in this session, and how often"),
-        make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
-                                 tooltip = "Statistics: how long the frames of this window take"),
-        make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
-                                 tooltip = "Frame times: the time of each recent frame"),
+        (recorded ? _make_recorded_tool_commands() : ())...,
         make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
                                  tooltip = "Selection: what the selection of this window names"),
         make_window_tool_command("Appearance", Appearance; icon = :palette,
@@ -190,6 +191,19 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
                                  make = _make_appearance_tool),
         extra...,
     ]; padding = Inset(4, 4, 4, 4))
+
+# The buttons of the tools that show what the window records.
+_make_recorded_tool_commands() = (
+    make_window_tool_command("Message log", MessageLog; icon = :list,
+                             tooltip = "Message log: what the program said in this session"),
+    make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
+                             tooltip = "Gesture log: every gesture of this session, and what each one did"),
+    make_window_tool_command("Fault log", FaultLog; icon = :warning,
+                             tooltip = "Fault log: what failed in this session, and how often"),
+    make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
+                             tooltip = "Statistics: how long the frames of this window take"),
+    make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
+                             tooltip = "Frame times: the time of each recent frame"))
 
 """
     run_with_window_tools(run) -> the answer of `run`
@@ -375,7 +389,10 @@ end
     make_window_status_bar(document; extra = String[]) -> WidgetStatusBar
 
 What the window says about where the person is: the title of the focused tab,
-the selection, and whatever the host appends.
+the selection in the document of that tab, and whatever the host appends. The
+part of the selection that leads to the tab, through the splits and the groups
+of the panes, names no place in a document, so the band leaves it out, and it
+says nothing while the selection is not in the document of a tab.
 
 **Each segment is a computed cell, so the band follows the window.** It
 re-derives whenever what it read changes. A status bar built from strings would
@@ -391,13 +408,19 @@ make_window_status_bar(document; extra = String[]) =
                     # window's edges or the panes above it.
                     padding = Inset(4, 4, 8, 8))
 
-function _window_status_title(document)
-    tree = try
+# The pane tree of the window `document`, or `nothing` when it holds none.
+function _find_window_tree(document)
+    try
         get_window_tree(document)
     catch
-        # A window that holds no pane tree has no focused tab to name.
-        return ""
+        nothing
     end
+end
+
+function _window_status_title(document)
+    tree = _find_window_tree(document)
+    # A window that holds no pane tree has no focused tab to name.
+    tree === nothing && return ""
     focus = get_pane_focus(tree)
     focus === nothing && return ""
     group, index = focus
@@ -409,8 +432,12 @@ end
 # readably is `ReferenceToHumanReadableText`, which is a projection: it belongs
 # in what the band draws, not in a string built here. The band is one short line,
 # so it asks for the compact form, in which a place a projection introduced reads
-# as its path between ‹ and ›.
+# as its path between ‹ and ›. In a window with a pane tree it is the part inside
+# the document of the focused tab, and a selection of that whole document says
+# nothing more than the title does.
 function _window_status_selection(document)
-    selection = get_selection(document)
-    selection === nothing ? "" : sprint(show, selection; context = :compact => true)
+    tree = _find_window_tree(document)
+    selection = tree === nothing ? get_selection(document) : find_pane_content_selection(tree)
+    (selection === nothing || selection isa EmptyReference) && return ""
+    sprint(show, selection; context = :compact => true)
 end

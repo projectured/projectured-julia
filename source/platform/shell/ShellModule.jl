@@ -18,6 +18,10 @@ The bands the shell draws are built here too. [`make_window_toolbar`](@ref)
 holds the tools of the window, one picture each, and
 [`run_with_window_tools`](@ref) opens a window with what those tools need to
 show something: the message log capture, the feeds and the fault log.
+
+The wrapper `shell` of `build_editor` puts the root of an editor in the chrome
+of a window, with the menu bar, the toolbar and the status bar, for a window
+that the wrappers of `build_editor` make.
 """
 module ShellModule
 
@@ -53,6 +57,10 @@ using ..FrameStatisticsModule
 using ..InspectorModule
 using ..MessageLogModule
 
+# Imported to extend: this module adds a method to each of these.
+import ..EditorModule: wrap_editor!, get_wrapper_layers
+import ..ScreenModule: show_document!
+
 
 
 
@@ -67,5 +75,6 @@ include("WindowWrap.jl")
 include("WindowShell.jl")
 include("WindowChrome.jl")
 include("FileDialog.jl")
+include("WindowShellWrapper.jl")
 
 end # module

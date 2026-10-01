@@ -21,6 +21,23 @@ function _menu_actions()
     found
 end
 
+# A backend that declares no output, so the window wrapper of `build_editor` puts
+# the root in a window.
+struct _ShellProbeBackend <: ProjecturedKernel.BackendModule.Backend end
+ProjecturedKernel.BackendModule.initialize_backend!(::_ShellProbeBackend) = nothing
+ProjecturedKernel.BackendModule.quit_backend!(::_ShellProbeBackend) = nothing
+ProjecturedKernel.BackendModule.read_from_devices(::_ShellProbeBackend, devices) = nothing
+ProjecturedKernel.BackendModule.write_to_devices(::_ShellProbeBackend, devices, output) = nothing
+
+# Every text that `node` draws, read through its cells.
+function _shell_texts(node, found = String[])
+    node isa AbstractCell && return _shell_texts(node[], found)
+    node isa GraphicsText && push!(found, string(node.text))
+    node isa GraphicsCanvas && foreach(element -> _shell_texts(element, found), node.elements)
+    node isa GraphicsViewport && _shell_texts(node.content, found)
+    found
+end
+
 function test_window_shell()
 @testset "the window shell" begin
 
@@ -53,7 +70,7 @@ end
     @test string(file.action.label) == "File"
     @test _labels(file.submenu) == ["New tab", "Close tab"]
     @test string(view.action.label) == "View"
-    @test _labels(view.submenu) == ["Split vertically", "Split horizontally", "Gesture log"]
+    @test _labels(view.submenu) == ["Split vertically", "Split horizontally", "Gesture log", "Appearance"]
     @test string(help.action.label) == "Help"
     @test _labels(help.submenu) == ["Documents", "Projections", "About"]
     @test _labels(make_window_menu_bar()) == ["File", "View", "Help"]
@@ -218,14 +235,14 @@ end
 @testset "the toolbar holds the tools of the window, as pictures" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
     tools = ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
-             "Statistics", "Frame times", "Selection"]
+             "Statistics", "Frame times", "Selection", "Appearance"]
     # With no assistant the window has none, and no button for one.
     @test labels(make_window_toolbar()) == tools
     bar = make_window_toolbar(; assistant = _ -> Assistant())
     @test labels(bar) == insert!(copy(tools), 2, "Assistant")
     @test all(item -> item isa WidgetToolbarItem, bar.elements)
     @test [item.action.icon for item in bar.elements] ==
-          [:folder, :chat, :terminal, :list, :keyboard, :warning, :chart, :chart_line, :crosshair]
+          [:folder, :chat, :terminal, :list, :keyboard, :warning, :chart, :chart_line, :crosshair, :palette]
     # The tooltip names the tool first, because the picture does not.
     @test all(item -> startswith(item.tooltip, string(item.action.label, ":")), bar.elements)
     # What the band draws is pictures and no word.
@@ -388,6 +405,61 @@ end
     @test Int(value(ready.y)) == 4
     @test Int(value(ready.x)) >= 8
     @test Int(value(output.h)) == line + 8
+end
+
+@testset "a window that records nothing offers no tool and no item that stay empty" begin
+    labels(bar) = [String(string(item.action.label)) for item in bar.elements]
+    @test labels(make_window_toolbar(; recorded = false)) ==
+          ["Explorer", "Evaluator", "Selection", "Appearance"]
+    @test "Gesture log" ∉ _labels(_submenu(make_window_menu_bar(; recorded = false), "View"))
+    @test "Gesture log" in _labels(_submenu(make_window_menu_bar(), "View"))
+end
+
+@testset "the status bar names the place in the document of the focused tab, and nothing above it" begin
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", WidgetLabel("x"))]))
+    bar = make_window_status_bar(tree)
+    shown() = string(bar.elements[2])
+    set_selection!(tree, @reference(tree, root.tabs[1].content.content))
+    found = find_pane_content_selection(tree)
+    @test strip_reference_types(found) == ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+    @test shown() == sprint(show, found; context = :compact => true)
+    @test !occursin("tabs", shown()) && !occursin("root", shown())
+    # The whole document of the tab says nothing more than the title, and the
+    # tab and the group name no place in a document.
+    set_selection!(tree, @reference(tree, root.tabs[1].content))
+    @test shown() == ""
+    set_selection!(tree, @reference(tree, root.tabs[1]))
+    @test find_pane_content_selection(tree) === nothing
+    @test shown() == ""
+end
+
+@testset "the shell wrapper puts the tabs in the chrome of a window" begin
+    labels(bar) = [String(string(item.action.label)) for item in bar.elements]
+    editor = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
+                          backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[],
+                          shell = true)
+    shell = get_wrapped_document(editor.document).windows[1].content
+    @test shell isa WidgetShell
+    @test shell.content isa PaneTree
+    @test shell.menu_bar isa WidgetMenu
+    @test shell.status_bar isa WidgetStatusBar
+    # It records nothing, so the toolbar has the tools that need nothing more.
+    @test labels(shell.toolbar) == ["Explorer", "Evaluator", "Selection", "Appearance"]
+    # A command of a band finds the tree in the content of the shell.
+    @test find_pane_tree_reference(editor) !== nothing
+    # The window draws the bands and the tab.
+    texts = _shell_texts(get_iomap_output(editor.iomap).windows[1].content)
+    @test "File" in texts && "hi" in texts
+    @test string(find_icon_character(:folder)) in texts
+    # A window that records says so.
+    recorded = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
+                            backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[],
+                            shell = (; recorded = true))
+    @test "Gesture log" in labels(get_wrapped_document(recorded.document).windows[1].content.toolbar)
+    # The shell is off by default.
+    plain = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
+                         backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[])
+    @test get_wrapped_document(plain.document).windows[1].content isa PaneTree
 end
 
 @testset "the shell is a document, and the fold puts the window inside it" begin

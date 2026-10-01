@@ -68,9 +68,11 @@ So a host adds a command and needs no widget package of its own.
 
 **A status bar must be reactive.** `make_window_status_bar(document)` makes each segment a computed cell over the document of the window: the title of the focused tab and the selection. A band built from strings would show the state of the window when it opened, and never change.
 
+**The status bar shows the selection inside the document of the focused tab.** The part of the selection that leads to the tab, through the splits, the group and the tab of the pane tree, names no place in a document, so the band leaves it out. `find_pane_content_selection(tree)` of the pane slice gives the rest. The band shows nothing when the selection is on a tab title or a group, or names the whole document of the tab, which the title names already. A window with no pane tree shows the selection of its document.
+
 ### The toolbar opens the tools
 
-`make_window_toolbar(; assistant, explorer, extra)` holds one `WidgetToolbarItem` for each tool of the window: the explorer, the assistant, the evaluator, the message log, the gesture log, the fault log, the frame statistics and the selection. Each shows an icon, and its tooltip starts with the name of the tool. A new tab is not on it, because the tab strip of every group has a button for that.
+`make_window_toolbar(; assistant, explorer, recorded, extra)` holds one `WidgetToolbarItem` for each tool of the window: the explorer, the assistant, the evaluator, the message log, the gesture log, the fault log, the frame statistics, the frame times, the selection and the appearance. Each shows an icon, and its tooltip starts with the name of the tool. A new tab is not on it, because the tab strip of every group has a button for that.
 
 `make_window_tool_command(label, type; icon, tooltip, make)` makes one button. **A press reaches the tool, and makes one only when none exists.** It gives the focus to a tab that holds a `type`: the first one in the focused group, else the first one in the window. A tab counts when the document that it wraps is a `type`, so a tool inside a history counts too. When no tab holds one, it opens `make(editor)` in a new tab. `make` makes by default what `Ctrl+T` and the name of the tool make. View → Gesture log calls the same function.
 
@@ -88,6 +90,14 @@ end
 ```
 
 The capture is removed when the window closes, also when it throws, so the logger that the window replaced comes back. [log.md](../log/log.md) and [statistics.md](../statistics/statistics.md) describe the two feeds.
+
+The gesture log fills only when the recorder of the fold wraps the window. So five tools show what the window records: the message log, the gesture log, the fault log, the statistics and the frame times. A window that has neither `run_with_window_tools` nor the recorder passes `recorded = false` to `make_window_toolbar` and `make_window_menu_bar`, and the bands have no button and no item for those five. The explorer, the evaluator, the selection and the appearance need nothing more than the window.
+
+### The wrapper of `build_editor`
+
+`shell = true | (; recorded, measure)` is the wrapper of `build_editor` that puts the root in the chrome of a window, for a window that the wrappers of `build_editor` make and the fold does not. It is off by default. It acts in the layer `:container` with the number 10, so it is around the pane tree that the `tabs` wrapper makes, and inside the window. The bands are the menu bar, the toolbar and the status bar of this slice, drawn with the widget theme of the `appearance` wrapper of the same editor. The wrapper adds the rows of `make_opened_window_projections` to the windows that open later, so the menus of the bar draw.
+
+The wrapper records nothing, so `recorded` is `false` by default, and the toolbar has the explorer, the evaluator, the selection and the appearance. It has no assistant, because an assistant needs a model. `show_document!` of a window whose content is a shell shows the document in what the shell holds, so a later document opens in a tab and not in a window of its own. The display of the display slice turns the wrapper on.
 
 **An Alt+click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+press over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. A button of the toolbar answers a dwell with its name, so it shows its name as a tooltip.
 
@@ -109,7 +119,7 @@ The `context_menu` field of `WidgetShell` holds the menu of the window itself. T
 
 The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, help, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
 
-The [application slice](../application/application.md) builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The shell slice has no `__init__` and registers no row or file type. A binary calls its functions.
+The [application slice](../application/application.md) builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The [display slice](../display/display.md) turns the `shell` wrapper on by its keyword, and does not depend on this slice. The shell slice has no `__init__` and registers no row or file type. A binary calls its functions.
 
 ## Design decisions
 

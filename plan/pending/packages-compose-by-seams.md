@@ -822,6 +822,53 @@ Each step ends with its narrowest test and a commit.
     every other keyword goes through `build_editor`.
 - [ ] **9. The shell.** `make_window_wrap` and `run_with_window_tools` become
   wrappers. Move `make_application_window`.
+  - [x] **9a. The chrome, as the wrapper `shell`**, taken first for the
+    window of `display_in_editor`. The owner, 2026-10-01: "I think we should
+    have a shell around the pane tree, no?", then "I want this part but I also
+    want the toolbar but only the parts which don't bring new dependencies.
+    Also, the status bar should only display the selection from the shell, the
+    ancestor part doesn't mean anything to the user".
+    - `shell = true | (; recorded, measure)` in the shell slice
+      (`WindowShellWrapper.jl`), in the layer `:container` with the number 10,
+      so around the tree of `tabs` and inside the window. It makes the bands
+      with `make_window_menu_bar`, `make_window_toolbar` and
+      `make_window_status_bar`, draws them with the widget theme of the
+      `appearance` setting, and adds the rows of
+      `make_opened_window_projections` for the menus. Off by default.
+    - "The parts which don't bring new dependencies" (mine, the reading of
+      the writer): the tools that fill with nothing more than the window. The
+      explorer, the evaluator, the selection and the appearance stay. The
+      message log needs the capture of the global logger, the statistics and
+      the frame times a feed, the fault log the store of the editor, the
+      gesture log the recorder of the fold, and the assistant a model
+      package. A keyword `recorded` of `make_window_toolbar` and
+      `make_window_menu_bar` (default `true`) leaves out the five tools and
+      View → Gesture log; the wrapper passes `false` by default, because it
+      records nothing.
+    - The status bar shows the part of the selection inside the document of
+      the focused tab, with `find_pane_content_selection(tree)`, a new
+      function of the pane slice. It shows nothing on a tab title, a group, or
+      the whole document of a tab. This holds for the application too.
+    - Found while implementing: `show_document!` dispatches on the content of
+      the first window, which is the shell now, so a second value opened a
+      window of its own. The shell slice adds `show_document!(editor,
+      ::WidgetShell, document; title)`, which shows it in the content.
+    - `display_in_editor` turns `shell` on with the tabs, through the keyword
+      only, so the display slice still does not depend on the pane and shell
+      slices. With `tabs = false` it has no chrome, because the commands of
+      the chrome act on the tabs.
+    - `WindowShellTest` on main had four failures: the toolbar and the View
+      menu got the Appearance tool and item in W3 of the appearance plan, and
+      the test was not changed. The test lists them now.
+    - Tests: the bands of a window that records nothing, the status text, the
+      wrapper in an editor (the chrome, the four tools, a command finds the
+      tree, the window draws the bands and the tab, `recorded = true`, off by
+      default), the display (the chrome around the tabs, none without tabs);
+      266 tests of the shell, display, tabs and pane suites pass. A picture
+      shows the chrome around a data frame tab.
+    - The rest of step 9 stays open: F1 help, the command palette, the walk
+      and the clipboard, the history and the recorder as wrappers, and
+      `run_with_window_tools`.
 - [ ] **10. The builder.** The generated `main` loads the backend packages
   and calls `run_application_command(ARGS)`. `--backend=NAME` matches
   `get_backend_name`. Remove `PROJECTURED_BACKENDS` and `default_backend()`.

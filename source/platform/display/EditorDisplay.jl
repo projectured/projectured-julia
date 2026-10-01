@@ -30,8 +30,10 @@ gives a document is an error.
 The first call starts the editor, and so does a call after its window was
 closed. With no `backend`, the one loaded backend that draws windows runs it.
 Each value is a tab of one window, because the pane slice of
-`ProjecturedPlatform` is always loaded with this one; `tabs = false` gives
-each value a window of its own instead. `backend` and `tabs` apply when the
+`ProjecturedPlatform` is always loaded with this one, and the window has the
+chrome of the shell slice around its tabs: the menu bar, the toolbar and the
+status bar. `tabs = false` gives each value a window of its own instead, with no
+chrome. `backend` and `tabs` apply when the
 call starts the editor. `title` names a new tab or window; a title that the
 editor has already gets a number.
 
@@ -170,10 +172,13 @@ function _start_session(document, title::String; backend, tabs::Bool, refresh_ev
     later = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
     window = (; title = "Values", width = 1000, height = 600,
               opened_window_projections = Pair{Type,Any}[Document => later])
-    # The tabs wrapper is on by default: the pane slice of `ProjecturedPlatform`
-    # is always loaded with this one, so `get_wrapper_layers` always has a
-    # method for `:tabs`. Its setting names the first tab.
+    # The tabs wrapper is on by default, and the shell wrapper puts the tabs in
+    # the chrome of a window, whose commands act on the tabs. The pane and shell
+    # slices of `ProjecturedPlatform` are always loaded with this one, so
+    # `get_wrapper_layers` always has a method for `:tabs` and `:shell`. The
+    # setting of the tabs names the first tab.
     has_tabs = hasmethod(get_wrapper_layers, Tuple{Val{:tabs}})
+    has_shell = has_tabs && tabs && hasmethod(get_wrapper_layers, Tuple{Val{:shell}})
     # The loop logs each operation that it applies as an info line, and a hover
     # is an operation. The task of the loop keeps the logger of the scope that
     # starts it, so the loop writes only warnings and errors to the REPL.
@@ -181,7 +186,7 @@ function _start_session(document, title::String; backend, tabs::Bool, refresh_ev
     editor = Base.CoreLogging.with_logger(logger) do
         run_editor!(document, projection; wait = false, backend = backend,
                     window = window, appearance = appearance,
-                    tabs = has_tabs && tabs ? (; title, appearance) : false)
+                    tabs = has_tabs && tabs ? (; title, appearance) : false, shell = has_shell)
     end
     session = _EditorSession(editor, editor.loop_task, IdDict{Any,Pair{String,Any}}(), Set{String}(),
                              Ref{Union{Nothing,Timer}}(nothing))
