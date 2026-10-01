@@ -587,7 +587,7 @@ Each step ends with its narrowest test and a commit.
   - `test_document_composition` in
     `test/substrate/projection/DocumentCompositionTest.jl`. The natural
     tests (the registry, the notation, every atom) and the data frames pass.
-- [ ] **4a. Serialization leaves the view (C16).**
+- [x] **4a. Serialization leaves the view (C16).**
   - The reader builds any loaded document type by the name that a file
     writes. It finds the type among the loaded subtypes of `Document`. Two
     loaded types with one name are an error that names both modules.
@@ -681,9 +681,8 @@ Each step ends with its narrowest test and a commit.
       come back), the file project (a `TestWire` writes on one line) and the
       user interface file, 325 pass. The naming, export and documentation
       guards add no finding.
-  - Still open in this step: the review of the other 14 types above, one by
-    one, against C16. Each one is a decision of its own, such as whether a
-    log saves its entries.
+  - The review of the other 14 types above is step 15 now (the owner,
+    2026-10-01: "Defer the 14 types to a later step").
   - Found for that review: `FileSystemFile` and `FileSystemDirectory` were
     left out of the registry, because the disk is their state. Since the
     registry is gone, a file can build them, and a save writes their
@@ -836,6 +835,14 @@ Each step ends with its narrowest test and a commit.
   engineer-tour.md where it names the old run functions.
 - [ ] **14. The sweep.** Run the suites of the packages that changed, and
   compare them with main. Build omnet-julia against the branch.
+- [ ] **15. The saved forms (deferred from 4a).** Review, one by one,
+  against C16, the 14 types that save a reduced form: the clipboard, the
+  pane tree, the pane group, the three logs, the help lists, the statistics,
+  the inspectors, the formula, the workspace folder and the assistant. Add
+  `FileSystemFile` and `FileSystemDirectory`, which a file can build since
+  the registry is gone. Each one is a decision for the owner, such as
+  whether a log saves its entries. A secret, such as the API key of the
+  assistant, stays out of a file.
 
 ## 7. Risks
 
