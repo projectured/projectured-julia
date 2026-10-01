@@ -516,6 +516,15 @@ One at a time, with the owner.
      the slider gets the release wherever it is, and the drag ends there. The
      same holds for the split pane divider and the pan and zoom of the chart.
      (Owner, 2026-10-01: "agreed".)
+  7. The drag wrapper (the drag tracking projection of step 10 of the events
+     plan) keeps the path of the part whose drag is on, for a local and for a
+     global drag, and sends that part every held move and the release, wherever
+     the pointer is. The part keeps its own drag state (point 1); the reader of
+     the part answers the start of its drag with an operation that names its
+     path, as D21 says. So a local drag uses the drag wrapper for its moves, and
+     the wrapper holds no state of the drag itself. Claude had proposed the
+     screen as the keeper of the path; the owner (2026-10-01): "it's like 2, but
+     why not store it in the drag wrapper? it's about dragging no?"
   Facts (2026-10-01): a move with a button held still goes by position (step 5a
   changed only the move with no button held), except in the shell, where the
   band that takes a `MouseDown` gets every held move and the next `MouseUp`,
