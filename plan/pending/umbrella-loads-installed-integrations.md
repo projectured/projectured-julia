@@ -154,6 +154,20 @@ The owner accepted both recommendations on 2026-10-01 ("O2: no message", "O1: ye
   loads each installed model adapter, and the three adapters are weak
   dependencies for their bounds. The test expects them with the umbrella and
   never without it.
+- **The adapters load after the load, not in `__init__`** (`edb39efd9`). Julia
+  1.13 restores the packages of one load together; an `__init__` inside that
+  load that asks for a package of the same load stops with
+  `ConcurrencyViolationError: deadlock detected in loading ProjecturedOllama`.
+  The umbrella test package showed it, and so would any package that depends on
+  the umbrella and on an adapter (the IDE of omnet-julia). An extension does not
+  have the problem, because Julia runs extensions in `run_package_callbacks`,
+  after the whole load and without the loading lock. The umbrella now registers
+  a callback in `Base.package_callbacks`, which Julia calls at the same place;
+  a flag makes it run once. `Base.package_callbacks` is not documented API of
+  Julia (`Requires.jl` and Revise use it). The other way, catching the error, was
+  refused: an adapter outside the load whose own dependency is in the load would
+  stop the same way, in silence. The test has the case: `using
+  ProjecturedExample`, which depends on the umbrella and two adapters.
 - **The integration test lives in `test_repository()`**, because it needs the
   development environment, which names every trigger and integration; an
   installed umbrella has none of them.
