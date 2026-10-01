@@ -55,3 +55,21 @@ map_reference_forward(::FocusCyclingProjection, iomap::FocusCyclingIoMap, refere
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(::FocusCyclingProjection, iomap::FocusCyclingIoMap, reference) =
     map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
+
+"""
+    focus_cycling = true
+
+The wrapper of `build_editor` that wraps the projection of a window in a
+[`FocusCyclingProjection`](@ref), so Tab and Shift+Tab start over at the ends of
+the window. It is on by default, in every window, and a caller turns it off with
+`focus_cycling = false`. It acts around the chrome of the `shell` wrapper, so the
+cycle goes through the bands and the panes.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:focus_cycling}, layer::Symbol, setting, parts::EditorParts)
+    parts.projection = FocusCyclingProjection(inner = parts.projection)
+    parts
+end
+
+get_wrapper_layers(::Val{:focus_cycling}) = (:container => 20,)
+is_wrapper_default(::Val{:focus_cycling}) = true

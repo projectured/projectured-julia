@@ -44,5 +44,18 @@ function test_window_wrappers()
     @test _ww_tabs(editor) == 1
 end
 
+@testset "focus_cycling: on by default, Tab starts over at the end of the window" begin
+    fields() = VerticalLayout(Any[WidgetText("a"), WidgetText("b")])
+    tab = KeyDown(:tab, ModifierKeys(); time = 0.0)
+    places(editor, backend) = [(_ww_press!(editor, backend, tab); _ww_selection(editor)) for _ in 1:3]
+    editor, backend = _ww_editor(fields(); tabs = false)
+    first_place, second_place, third_place = places(editor, backend)
+    @test first_place != second_place
+    @test third_place == first_place
+    editor, backend = _ww_editor(fields(); tabs = false, focus_cycling = false)
+    first_place, second_place, third_place = places(editor, backend)
+    @test third_place != first_place
+end
+
 end # @testset
 end
