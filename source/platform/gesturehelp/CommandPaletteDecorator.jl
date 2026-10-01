@@ -278,3 +278,21 @@ end
 # does not claim to the content, and a `CollectIntents` payload is one of those —
 # so the help window sees exactly what it would see without the palette in the
 # chain. While the palette is open it swallows everything, itself included.
+
+"""
+    command_palette = true | (; measure)
+
+The wrapper of `build_editor` that makes Ctrl+Shift+P open a field over the
+window: typing narrows the commands that work here, Enter runs the selected one
+and Escape closes it. `measure` measures its text, `FontFileMeasure()` by
+default. It is off by default. It acts around the help of F1.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:command_palette}, layer::Symbol, setting, parts::EditorParts)
+    options = setting === true ? (;) : setting
+    parts.projection = CommandPaletteDecoratorProjection(inner = parts.projection,
+                                                         measure = get(options, :measure, FontFileMeasure()))
+    parts
+end
+
+get_wrapper_layers(::Val{:command_palette}) = (:container => 50,)

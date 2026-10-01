@@ -78,5 +78,12 @@ end
     @test length(screen.windows) == 1
 end
 
+@testset "command_palette: Ctrl+Shift+P opens the palette over the window" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); command_palette = true)
+    before = Set(_shell_texts(last(rendered_output(backend))))
+    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
+    @test !issubset(Set(_shell_texts(last(rendered_output(backend)))), before)
+end
+
 end # @testset
 end
