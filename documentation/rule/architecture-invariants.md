@@ -681,8 +681,8 @@ plain `struct … <: Projection` only when the macro can't be used (a `Cell` rea
 explicitly). A projection with no reactive fields may be a plain struct, but
 must then spell out `<: Projection` itself. A `Function` field is no longer a
 reason to avoid the macro — a callable is an ordinary field value
-(PAR-NO-NESTED-CELL) — so the plain-struct projections that carry one
-(`HoverProbeProjection`, `TooltipDecoratorProjection`) are free to move to it.
+(PAR-NO-NESTED-CELL) — so a plain-struct projection that carries one
+(`TooltipDecoratorProjection`) is free to move to it.
 
 ## References and selection
 

@@ -71,8 +71,8 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     content_ctx = with_exact_size(make_child_context(ctx, FieldReferenceStep("content"));
                                   width=offer_width, height=offer_height)
     # Reconcile the content by identity so replacing a same-id window's content
-    # (a hover probe following the cursor, a re-opened tooltip) re-projects it
-    # reactively; a same object mutated in place reuses the iomap and re-derives
+    # (a re-opened tooltip) re-projects it reactively; a same object mutated in
+    # place reuses the iomap and re-derives
     # through its own cells. This is what lets the window manager mutate only the
     # input screen and rely on this stage to mirror the output (PAR-STABLE-IOMAP-IDENTITY).
     content_iomap = reconcile_child_iomap(() -> input.content,

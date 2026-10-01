@@ -458,7 +458,7 @@ not slices of the platform.)
    pane            the tab and split layout and its widget projection
    clipboard       copy, cut and paste over any wrapped content
    tooltip         the TooltipSource wrapper and its decorator
-   inspector       the reference inspector and the hover probe
+   inspector       the reference inspector and the selection inspector
    gesturehelp     the gesture map, the command palette and their two decorators
    gesturelog      the log document, its printer, its recorder and its overlay
    fault           the fault report and log documents, the barrier projection that

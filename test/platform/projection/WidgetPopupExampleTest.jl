@@ -2,9 +2,8 @@
 # (WindowManager + ScreenToScreen) turns a trigger's `OpenPopupOperation` into a
 # real popup window: each reader moves the popup's position into its own frame,
 # ScreenToScreen adds the window's origin and emits an `OpenWindowOperation`, and
-# WindowManager opens the window. Driven exactly like the
-# HoverProbe pipeline test (an `WindowInput` routed in grows the screen's window
-# list).
+# WindowManager opens the window. Driven by routing a `WindowInput` through
+# `read_intent`, which grows the screen's window list.
 
 using ProjecturedKernel.EventModule: WindowInput
 using ProjecturedKernel.IntentModule: Intent

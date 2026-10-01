@@ -10,16 +10,11 @@ module InspectorModule
 using ..CellModule
 using ..DocumentModule
 using ..DomainModule
-using ..EventModule
-using ..GestureModule
-using ..IntentModule
 using ..IoMapModule
 using ..NaturalModule
-using ..OperationModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
-using ..ScreenModule
 using ..SelectionModule
 using ..SerializationModule
 using ..StyleModule
@@ -28,11 +23,10 @@ using ..TextModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments
 
 export ReferenceInspectorToText
-export HoverProbeProjection, HoverProbeIoMap
 export ReferenceInspector
 export SelectionInspector, SelectionInspectorToText,
        find_inspected_selection, get_inspected_document
@@ -42,7 +36,6 @@ include("ReferenceInspector.jl")
 include("SelectionInspector.jl")
 include("ReferenceInspectorToText.jl")
 include("SelectionInspectorToText.jl")
-include("HoverProbe.jl")
 
 # ── Natural-projection registration ─────────────────────────────────────────
 #

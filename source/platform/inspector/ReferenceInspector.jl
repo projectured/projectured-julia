@@ -11,7 +11,8 @@ end
 get_document_title(::ReferenceInspector) = "Reference"
 get_insertion_aliases(::Type{ReferenceInspector}) = ["reference"]
 
-# The hover probe fills `reference` and `target` as the pointer moves, so what
-# they hold is a moment, not data. A save writes nothing, and a load gets an
-# inspector that fills again the next time the pointer moves.
+# `reference` and `target` are set from outside — a `SelectionInspectorToText`
+# following a selection, a caller building one directly — so what they hold is
+# a moment, not data. A save writes nothing, and a load gets an inspector with
+# no reference until something sets it.
 pred_arguments(::ReferenceInspector) = (), Pair{Symbol,Any}[]

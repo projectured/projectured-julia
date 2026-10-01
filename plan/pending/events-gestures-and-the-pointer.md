@@ -1481,7 +1481,13 @@ it holds the example.
     branch until 9d goes on, as `/var/tmp/gesture-type/9d-partial/`: a patch of
     the changed files and copies of the three new ones. The right click travels by position,
     as today, and reaches the same outward reading (D76; owner 2026-09-28).
-  - [ ] 9e. The hover inspector goes away.
+  - [x] 9e. The hover inspector goes away. Done (2026-10-01): `HoverProbe.jl`
+    with `HoverProbeProjection`, the gallery's `inspector` option and
+    `_multi_window_projection_inspector`, the two probe tests, and the text
+    about the probe in the documents. `test_reference_inspector_text` moved to
+    `ReferenceInspectorTest.jl`; the Selection tool and `ReferenceInspector`
+    stay. The repls, the application, the gallery wrappers and the platform
+    pass as before.
   - [ ] 9f. The hosts, the checks and the documents.
 - [ ] 10. **Replaced by step 5b of
   [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md)**

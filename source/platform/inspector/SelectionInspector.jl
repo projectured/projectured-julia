@@ -28,8 +28,8 @@ editor's own selection.
 
     SelectionInspector(other_document)
 
-See also [`ReferenceInspector`](@ref), which shows a reference the hover probe
-found rather than a selection.
+See also [`ReferenceInspector`](@ref), which shows a reference directly rather
+than a selection.
 """
 @document struct SelectionInspector
     source::Any = nothing

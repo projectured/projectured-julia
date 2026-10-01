@@ -43,7 +43,6 @@ few keyword arguments worth knowing:
 | `scrolling=true` | Wraps the document/projection in the scrolling wrapper so you can drive layout that exceeds the viewport. |
 | `shell=true` | Embeds the example inside a `WidgetShell` (a menu bar, a toolbar, and a status bar that names the example). |
 | `tooltip=true` | Opens a sibling window showing the *current selection*'s reference (compact + human-readable) while a selection is set. |
-| `inspector=true` | Opens a secondary window that **follows the mouse** and shows the reference a single click *would* create at the pointer — compact (`ReferenceToText`) and human-readable (`ReferenceToHumanReadableText`) — without committing a selection. Move the mouse around to see what is what. Desktop/SDL only. |
 | `reset=true` | Rebuilds a fresh `document`/`projection` from the example's factories. Use this after an interactive session has mutated the cached instance. |
 | `gesture_log=true` | Shows a panel in the top-right corner with the last gestures and the operation each one made. See [The gesture log overlay](#the-gesture-log-overlay). |
 

@@ -1,8 +1,8 @@
 # domain-example/Gallery.jl
 #
 # The example gallery: `run_example` opens one window per example, side by
-# side, with optional cross-domain wrappers (tooltip, inspector,
-# clipboard, introspection, text filtering/highlighting; that domain
+# side, with optional cross-domain wrappers (tooltip, clipboard,
+# introspection, text filtering/highlighting; that domain
 # vocabulary is why the gallery's lowest home is the domain tier). No backend is
 # named here: an explicit `backend` wins, otherwise `default_backend()` picks one
 # by reflection over the loaded backends (SDL when loaded). The name-lookup entry
@@ -16,7 +16,7 @@ end
 """
     run_example(examples::Vector{Example}; width, height,
                 caching=false, scrolling=false, reset=false,
-                tooltip=false, inspector=false, introspection=false, selection=nothing,
+                tooltip=false, introspection=false, selection=nothing,
                 shell=false, dragging=false, gesture_help=false,
                 command_palette=false, gesture_log=false,
                 fault_tolerant=true, profile=false)
@@ -43,17 +43,6 @@ line and the multi-line human-readable narrative from
 `ReferenceToHumanReadableText`. The tooltip closes when the selection
 is cleared.
 
-When `inspector=true`, a secondary `:inspector` window **follows the mouse**
-and shows the reference a single left-click *would* create at the current
-pointer — without committing it as a selection. Each example window's content
-projection is wrapped in a `HoverProbeProjection`, whose reader reverse-projects
-each idle `MouseMove` (feeding a synthetic `MouseClick` to the wrapped reader)
-and drives the follower window via `OpenWindowOperation` / `CloseWindowOperation`.
-The window's content is a `ReferenceInspector` rendered the same two ways as the
-tooltip (compact `ReferenceToText` + human-readable `ReferenceToHumanReadableText`).
-It closes over dead space. Desktop-only (needs the SDL backend's global mouse via
-`get_pointer_position`); mutually exclusive with `tooltip`.
-
 When `introspection=true`, each example's content is wrapped in a
 `WidgetTabbedPane` with three tabs: the original content (rendered with
 the example's own projection), the editor's document, and the editor's
@@ -78,7 +67,7 @@ mirrored on copy/cut and used as the paste fallback (needs `xclip`/`xsel`/`wl-*`
 For other (structured) domains the generic wrapper leaves the OS-clipboard bridge
 off (pasting OS text into an arbitrary node domain is not type-safe); the
 dedicated `clipboard_example` wires JSON converters for it. Incompatible with
-`tooltip` and `inspector`.
+`tooltip`.
 
 Six more wrappers are layers rather than alternatives, so they compose with
 each other and with one of the wrappers above. They apply in this order, and a
@@ -144,7 +133,7 @@ end
 
 Open a live editor window on a raw `(document, projection)` pair, with no
 `Example` needed. Accepts every keyword the gallery offers (`scrolling`,
-`tooltip`, `inspector`, `introspection`,
+`tooltip`, `introspection`,
 `clipboard`/`clipboard_collection`, `text_filtering`/`text_highlighting`,
 `selection`, `caching`, `profile`, `backend`, `width`, `height`); `name` becomes
 the window's id/title. See the `run_example(documents, projections, names)`
@@ -158,7 +147,7 @@ run_example(document, projection; name::AbstractString="document", kwargs...) =
 
 The `Example`-free core: open one window per `(documents[i], projections[i])`
 pair, side by side, applying the same optional cross-domain wrappers (tooltip,
-inspector, introspection, clipboard, text filtering/highlighting,
+introspection, clipboard, text filtering/highlighting,
 caching, dragging, shell, gesture help, command palette). `names[i]` is
 window i's id/title and must be unique. Every keyword is
 identical to the `Example` overloads *except* `reset` — there are no factories to
@@ -194,7 +183,7 @@ client — and then run the loop with `run_editor!(editor)`.
 function make_example_editor(documents::Vector, projections::Vector, names::Vector;
                              width=nothing, height=nothing,
                              caching=false, scrolling=false,
-                             tooltip=false, inspector=false, introspection=false,
+                             tooltip=false, introspection=false,
                              clipboard=false, clipboard_collection=false,
                              text_filtering=false, text_highlighting=false, selection=nothing,
                              shell=false, dragging=false,
@@ -208,17 +197,13 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
     if text_filtering && text_highlighting
         error("run_example: text_filtering and text_highlighting are mutually exclusive")
     end
-    if inspector && tooltip
-        error("run_example: inspector=true is not compatible with tooltip=true")
-    end
     clipboard = clipboard || clipboard_collection
-    if clipboard && (tooltip || inspector)
-        error("run_example: clipboard=true is not compatible with tooltip=true or inspector=true")
+    if clipboard && tooltip
+        error("run_example: clipboard=true is not compatible with tooltip=true")
     end
-    # Resolve the backend up front — the display-size query below and the
-    # inspector's pointer closure both need it. An explicit `backend` wins;
-    # otherwise pick a default by reflection over the loaded backends (SDL when
-    # loaded, see `default_backend`).
+    # Resolve the backend up front — the display-size query below needs it. An
+    # explicit `backend` wins; otherwise pick a default by reflection over the
+    # loaded backends (SDL when loaded, see `default_backend`).
     backend === nothing && (backend = default_backend())
     if width === nothing || height === nothing
         sw, sh = get_display_size(backend)
@@ -336,11 +321,8 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
     shell     && push!(content_unwrap, :content)
     dragging  && push!(content_unwrap, :content)
     clipboard && push!(content_unwrap, :content)
-    # `compose(projs, backend)` — the inspector pipeline needs the backend for its
-    # pointer closure, hence the second argument.
-    compose = inspector ? (p, b) -> _multi_window_projection_inspector(p; pointer = () -> get_pointer_position(b)) :
-              tooltip   ? (p, b) -> _multi_window_projection_tooltipped(p) :
-                          (p, b) -> _multi_window_projection(p)
+    compose = tooltip ? (p, b) -> _multi_window_projection_tooltipped(p) :
+                         (p, b) -> _multi_window_projection(p)
     # The recorder sits at the root of whichever composer runs, because the root
     # is the seam every operation passes through.
     if gesture_log
@@ -600,46 +582,6 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=FontFi
             _gesture_map_entry(measure),
             TextBlock       => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
             Any            => ref_dispatch,
-        ),
-    )
-end
-
-# Hover click-reference inspector pipeline. Same shape as the tooltip variant,
-# but: each example window's content projection is wrapped in a
-# `HoverProbeProjection` (which reverse-projects the pointer into the
-# would-be-click reference and drives the follower `:inspector` window), and a
-# `ReferenceInspector` type entry renders that window's content (compact +
-# human-readable reference) down to graphics. `pointer` is the global-mouse
-# closure used to make the follower window track the cursor.
-function _multi_window_projection_inspector(projections::Vector; measure=FontFileMeasure(), pointer)
-    n = length(projections)
-    targets = Vector{Any}(undef, n)
-    for i in 1:n
-        targets[i] = @reference ::ScreenDocument.windows::CellVector[i]::WindowDocument.content::Document
-    end
-    ref_dispatch = ReferenceDispatchingProjection(ref -> begin
-        for i in 1:n
-            is_reference_equal(strip_reference_types(ref), strip_reference_types(targets[i])) || continue
-            inner = NestingProjection(projections[i]; recursion=IdentityProjection())
-            return HoverProbeProjection(inner = inner, id = :inspector, pointer = pointer)
-        end
-        for t in targets
-            is_reference_prefix(ref, t) || continue
-            return CopyingProjection()
-        end
-        return IdentityProjection()
-    end)
-    RecursiveProjection(
-        TypeDispatchingProjection(
-            ScreenDocument     => WindowManagingProjection(inner = ScreenToScreen()),
-            WindowDocument     => ScreenToScreen(),
-            CellVector         => CopyingProjection(),
-            ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
-                                                       WordWrapping(measure=measure),
-                                                       TextToGraphics(measure=measure)),
-            _gesture_map_entry(measure),
-            TextBlock           => ChainingProjection(WordWrapping(measure=measure), TextToGraphics(measure=measure)),
-            Any                => ref_dispatch,
         ),
     )
 end

@@ -2,7 +2,7 @@
 # `gesture_help` and `command_palette` flags of `run_example`. `run_example`
 # itself opens a window, so each test drives the helper pair the flag applies and
 # the scene assembly the flags feed. What the flags do to the reader is covered
-# elsewhere (DraggingTest, GestureHelpTest, HoverProbeTest); what these tests
+# elsewhere (DraggingTest, GestureHelpTest); what these tests
 # prove is that a wrapped example still renders and that a seeded selection still
 # reaches the screen through the wrappers.
 

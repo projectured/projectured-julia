@@ -90,6 +90,6 @@ run_example("json"; clipboard = true)     # the same wrapper, from the gallery
 ## Limits
 
 - The text mode copies a range inside one span only. A range across lines returns `nothing`.
-- In the gallery, `clipboard = true` can not go with `tooltip = true` or `inspector = true`.
+- In the gallery, `clipboard = true` can not go with `tooltip = true`.
 - A reference is a path, so a reference through an index goes stale when the tree changes shape, for example when the tabs are moved.
 - A paste of text reads the complete selection. A tool that the toolbar of the application opens leaves that selection unwritten from the root, so Ctrl+V into it does nothing until a click places the caret.

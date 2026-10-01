@@ -198,7 +198,6 @@ include("../../../test/platform/projection/AnchoredLayoutTest.jl")
 # The clipboard copy/cut/paste projection and the tooltip decorator's
 # open/close state machine — both live in visual now and use only base/visual
 # fixtures (Primitive / Text / Screen), so this is their lowest test home.
-# (HoverProbe's tests stay in the umbrella: they wrap Json content.)
 include("../../../test/platform/projection/ClipboardTest.jl")
 include("../../../test/platform/projection/TooltipProjectionTest.jl")
 include("../../../test/platform/projection/WindowFitTest.jl")
