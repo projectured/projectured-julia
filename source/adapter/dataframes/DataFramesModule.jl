@@ -20,12 +20,18 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent
+import ..ReferenceModule: evaluate_reference_step, get_reference_step_kind
+import ..DomainModule: compute_context_menu
 import ..WidgetModule: make_value_document, make_graphics_projection
 
+export DataFrameQuery
 export DataFrameView, jump_to_row, make_data_frame_cell
+export DataFrameColumnReferenceStep, DataFrameColumn
 export DataFrameViewToWidget, make_data_frame_view_projection
 
+include("DataFrameQuery.jl")
 include("DataFrameView.jl")
+include("DataFrameColumn.jl")
 include("DataFrameViewToWidget.jl")
 
 # A data frame shows as a `DataFrameView`: in the display of a value, and inside

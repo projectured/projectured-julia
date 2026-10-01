@@ -33,9 +33,13 @@ the table shows, which the projection counts from the height it is offered and
 `row_step`, the height of a row with its padding and its rule. A press on the
 bar, or a move with the left button held, is a jump to the row at that place.
 
+The table shows the columns that the query of the view does not hide. A press
+on a header selects its column, as a `DataFrameColumnReferenceStep`, and the
+header shows the selection; a press on the corner selects the view. A
+selection of a row or of a cell has no place in the view yet, and goes nowhere.
 The reader gives the view a key that the table does not take, so the gestures
 of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
-on. The view has no selection yet, so a selection in the table goes nowhere.
+on.
 """
 @projection UntrackedCell struct DataFrameViewToWidget
     row_height::Int
@@ -66,6 +70,8 @@ const _LIST_COLUMN_COUNT = 64
 const _LIST_COLUMN_WIDTH = 120
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
+    # The cells of the table follow the view, so a hidden column leaves the
+    # table that is drawn, and the table builds its parts again.
     table = ncol(view.frame) > _LIST_COLUMN_COUNT ? _make_column_list_table(p, view) :
                                                     _make_view_table(p, view)
     height = ctx === nothing ? nothing : get_exact_height(ctx)
@@ -100,11 +106,11 @@ _get_scroll_bar_row(value::Real, count::Int, visible::Int) =
 # The table of a frame whose columns share its width: every column a weight,
 # and at least as wide as its header.
 function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
-    headers = CellVector(@computation Any[WidgetLabel(_get_header_text(name, eltype(column)))
-                                          for (name, column) in pairs(eachcol(view.frame))])
-    align = Cell(@computation Symbol[_get_column_align(eltype(column))
-                                     for column in eachcol(view.frame)])
-    rows = Cell(@computation _make_row_list(view.frame, view.anchor))
+    headers = CellVector(@computation Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name])))
+                                          for name in _get_shown_columns(view)])
+    align = Cell(@computation Symbol[_get_column_align(eltype(view.frame[!, name]))
+                                     for name in _get_shown_columns(view)])
+    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.anchor))
     row_headers, corner = _make_row_numbers(view)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, rows, column_count, border_width,
@@ -113,12 +119,13 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
     # style, scroll_position, top_row, tooltip. The table scrolls its
     # own parts, and its offset is the cell of the view.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
-                        Cell(@computation ncol(view.frame)), Cell(1),
+                        Cell(@computation length(_get_shown_columns(view))), Cell(1),
                         Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(Any[]), Cell(Any[]),
                         Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing))
+                        getfield(view, :top_row), Cell(nothing),
+                        Cell(@computation _get_table_selection(view, false)))
 end
 
 print_document(p::DataFrameViewToWidget, view::DataFrameView) =
@@ -139,12 +146,14 @@ end
 # The table of a frame whose columns are a list: the headers, the alignments
 # and the cells of every row are lists with their heads at `column_anchor`.
 function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
-    frame() = view.frame
-    header_of(c) = WidgetLabel(_get_header_text(names(frame())[c], eltype(frame()[!, c])))
-    headers = Cell(@computation _make_index_list(ncol(view.frame), view.column_anchor, header_of))
-    align = Cell(@computation _make_index_list(ncol(view.frame), view.column_anchor,
-                                               c -> _get_column_align(eltype(view.frame[!, c]))))
-    rows = Cell(@computation _make_row_list(view.frame, view.anchor, view.column_anchor))
+    type_of(name) = eltype(view.frame[!, name])
+    headers = Cell(@computation (columns = _get_shown_columns(view);
+        _make_index_list(length(columns), view.column_anchor,
+                         c -> WidgetLabel(_get_header_text(columns[c], type_of(columns[c]))))))
+    align = Cell(@computation (columns = _get_shown_columns(view);
+        _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
+    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.anchor,
+                                            view.column_anchor))
     row_headers, corner = _make_row_numbers(view)
     # Positional, as in `_make_view_table` above.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows, Cell(0), Cell(1),
@@ -152,7 +161,24 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                         Cell(Any[]), Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing))
+                        getfield(view, :top_row), Cell(nothing),
+                        Cell(@computation _get_table_selection(view, true)))
+end
+
+# The selection of the table that shows the selection of `view`: the header of
+# the selected column, counted from the head column when the columns are a
+# list, and the whole table for the whole view.
+function _get_table_selection(view::DataFrameView, column_list::Bool)
+    selection = view.selection
+    selection === nothing && return nothing
+    selection = strip_reference_types(selection)
+    selection isa EmptyReference && return EmptyReference()
+    (selection isa ConcreteReference && selection.head isa DataFrameColumnReferenceStep) || return nothing
+    c = findfirst(==(selection.head.name), _get_shown_columns(view))
+    c === nothing && return nothing
+    column_list && (c -= view.column_anchor - 1)
+    ConcreteReference(FieldReferenceStep("column_headers"),
+                      ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
 end
 
 """
@@ -194,9 +220,46 @@ _get_column_align(type::Type) =
 read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, event::KeyDown) =
     read_gesture(iomap.input, event)
 
-# The view has no selection yet, so a selection in the table goes nowhere.
-read_intent(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, ::ReplaceSelectionOperation) =
-    nothing
+# A selection in the table selects in the view: a header selects its column, and
+# the corner or the whole table selects the view. Any other place in the table
+# has no place in the view yet.
+function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+                     operation::ReplaceSelectionOperation)
+    path = _find_table_path(operation.path)
+    path === nothing && return nothing
+    target = _find_view_path(iomap, path)
+    target === nothing ? nothing : ReplaceSelectionOperation(annotate_reference_types(iomap.input, target))
+end
+
+# The path inside the table from a path in the grid of the view, whose first
+# child is the table; `nothing` for a path that does not go into the table.
+function _find_table_path(path)
+    path = strip_reference_types(path)
+    (path isa ConcreteReference && path.head isa FieldReferenceStep && path.head.name == "children") ||
+        return nothing
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.head.start == 0 &&
+     tail.head.stop == 1) || return nothing
+    tail.tail
+end
+
+# The path in the view of `path`, a path in the table: the view for the table
+# and for its corner, a column for the header of the column, and `nothing` for
+# any other place.
+function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
+    path isa EmptyReference && return EmptyReference()
+    (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
+    path.head.name == "corner" && return EmptyReference()
+    path.head.name == "column_headers" || return nothing
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.tail isa EmptyReference) ||
+        return nothing
+    view = iomap.input
+    c = tail.head.stop
+    iomap.table.column_headers isa ListNode && (c += view.column_anchor - 1)
+    columns = _get_shown_columns(view)
+    1 <= c <= length(columns) ? _make_column_reference(columns[c]) : nothing
+end
 
 # A scroll of the table writes the cell that the view shares with it, and
 # every other operation of the widgets carries its own subject: both pass on.

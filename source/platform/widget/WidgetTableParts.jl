@@ -231,7 +231,8 @@ end
 # the header of the head row, which the grid measures once it prints.
 function _print_header_column(recursion, w::WidgetTable, inner, corner, height::Cell,
                               pad_x::Int, pad_y::Int, bw::Int)
-    w.row_headers isa ListNode || return nothing
+    # A move of the head writes the row headers, and the parts do not depend on it.
+    peek(getfield(w, :row_headers)) isa ListNode || return nothing
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
     grid_iomap = Cell(nothing)
@@ -518,6 +519,25 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
     inner = ctx === nothing ? nothing : with_inner_size(ctx; width = inset_width, height = inset_height)
     height = inner === nothing ? nothing : get_exact_height(inner)
     _check_table_parts(w, height)
+    # The parts, built again when the table changes its shape, and only then: a
+    # column added or removed, a header, an alignment or a cell policy changed.
+    # What a part reads as it prints, such as the rows that the grid of the cells
+    # walks, is no change of shape, so the parts are built in a cell of their own
+    # that the parts only peek at.
+    shape = Cell(@computation (Int(w.column_count), Any[header for header in w.column_headers],
+                               w.column_align, w.column_cell_policies, w.cell_policy, w.corner))
+    parts = Cell(@computation begin
+        shape[]
+        peek(Cell(@computation _print_vector_column_parts(p, recursion, w, inner, height)))
+    end)
+    # Read once now, so a table that a list can not draw raises its error here.
+    parts[]
+    _make_table_list_iomap(p, w, parts)
+end
+
+# The parts of a table whose columns are a vector, as `(; state, regions)`.
+function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, inner,
+                                    height)
     n = Int(w.column_count)
     pad_x = Int(p.cell_padding.left[])
     pad_y = Int(p.cell_padding.top[])
@@ -605,7 +625,8 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
                                      y = Cell(@computation Int32(content_y + Int(header_height[]))),
                                      pad_x, pad_y, bw, layout = layout_vertical)
 
-    _make_table_list_iomap(p, w, st, header_region, cells_region, content_x, content_y)
+    regions = _collect_table_regions(p, w, st, header_region, cells_region, content_x, content_y)
+    (; state = st, regions)
 end
 
 # The policy of the header row: as tall as its headers, and at least as tall as
@@ -614,19 +635,27 @@ _get_header_row_policy(corner) =
     corner === nothing ? Cell(Content) :
         Cell(@computation SizePolicy(_get_part_child_height(corner), nothing, nothing, 0))
 
-# The IO map of a table of a list: its canvas holds the box of the table, the
-# region of the corner and the region of the header column when there are row
-# headers, the region of the header row and the region of the cells, and a
-# transparent rect the size of the table, so a press anywhere on it reaches the
-# table through a container that gates on a hit.
-function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
-                                st::WidgetTablePartsState, header_region, cells_region,
-                                content_x::Int, content_y::Int)
+# The regions of the parts of a table of a list, in the order they are drawn:
+# the corner and the header column when there are row headers, the header row
+# when there are column headers, and the cells.
+function _collect_table_regions(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::WidgetTablePartsState,
+                                header_region, cells_region, content_x::Int, content_y::Int)
+    regions = Any[_make_corner_region(p, w, st, content_x, content_y),
+                  _make_header_column_region(p, w, st, content_x, content_y), header_region, cells_region]
+    Any[region for region in regions if region !== nothing]
+end
+
+# The IO map of a table of a list, from a cell of its parts: its canvas holds the
+# box of the table, the regions of the parts, and a transparent rect the size of
+# the table, so a press anywhere on it reaches the table through a container
+# that gates on a hit. Its state is the state of the parts that the cell holds.
+function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable, parts::Cell)
     inset_width, inset_height = _inset_total(p, w)
-    corner_region = _make_corner_region(p, w, st, content_x, content_y)
-    header_column_region = _make_header_column_region(p, w, st, content_x, content_y)
-    table_w = Cell(@computation Int32(Int(st.header_width[]) + Int(st.cells_pane.output.w) + inset_width))
-    table_h = Cell(@computation Int32(Int(st.header_height[]) + Int(st.cells_pane.output.h) + inset_height))
+    state = Cell(@computation parts[].state)
+    table_w = Cell(@computation (st = state[];
+                                 Int32(Int(st.header_width[]) + Int(st.cells_pane.output.w) + inset_width)))
+    table_h = Cell(@computation (st = state[];
+                                 Int32(Int(st.header_height[]) + Int(st.cells_pane.output.h) + inset_height)))
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
     set_cell_computation!(getfield(hit_target, :w), () -> Int32(table_w[]))
     set_cell_computation!(getfield(hit_target, :h), () -> Int32(table_h[]))
@@ -635,16 +664,13 @@ function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
     elements = CellVector(@computation begin
         out = Any[hit_target]
         _push_box_parts!(out, box, colors, Int(table_w[]) - inset_width, Int(table_h[]) - inset_height)
-        corner_region === nothing || push!(out, corner_region)
-        header_column_region === nothing || push!(out, header_column_region)
-        header_region === nothing || push!(out, header_region)
-        push!(out, cells_region)
+        append!(out, parts[].regions)
         out
     end)
     ox, oy = _origin(w.position::Point2D)
     canvas = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)), table_w, table_h, elements,
                             layout_none, true, Cell(nothing))
-    WidgetTableListIoMap(p, w, canvas, st)
+    WidgetTableListIoMap(p, w, canvas, state)
 end
 
 # ── Columns that are a list ──────────────────────────────────────────────────
@@ -816,7 +842,8 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
                                      x = parts_x,
                                      y = Cell(@computation Int32(content_y + Int(header_height[]))),
                                      pad_x, pad_y, bw)
-    _make_table_list_iomap(p, w, st, header_region, cells_region, content_x, content_y)
+    regions = _collect_table_regions(p, w, st, header_region, cells_region, content_x, content_y)
+    _make_table_list_iomap(p, w, Cell((; state = st, regions)))
 end
 
 # ── Places ───────────────────────────────────────────────────────────────────

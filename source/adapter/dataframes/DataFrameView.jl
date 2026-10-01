@@ -8,7 +8,10 @@
 """
     DataFrameView(frame; anchor = 1, column_anchor = 1)
 
-The view of `frame`, an `AbstractDataFrame`. `anchor` is the row of the frame at
+The view of `frame`, an `AbstractDataFrame`. `query`, a [`DataFrameQuery`](@ref),
+says what the view keeps of the frame, such as the columns that it hides; a
+column of the view is named by its name, with a `DataFrameColumnReferenceStep`.
+`anchor` is the row of the frame at
 the head of the list of rows, and `scroll_position` is the offset of the table
 from that row, in pixels. A frame with many columns draws its columns as a list
 too, and `column_anchor` is the column of the frame at the head of that list.
@@ -18,6 +21,7 @@ view: a jump writes them together, and a history does not record them.
 """
 @document struct DataFrameView <: Document
     frame::Any
+    query::DataFrameQuery
     anchor::Int
     column_anchor::Int
     scroll_position::Point2D
@@ -25,8 +29,8 @@ view: a jump writes them together, and a history does not record them.
 end
 
 DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1) =
-    DataFrameView(Cell(frame), Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)),
-                  Cell(1), Cell(nothing))
+    DataFrameView(Cell(frame), Cell(DataFrameQuery()), Cell(Int(anchor)), Cell(Int(column_anchor)),
+                  Cell(Point2D(0, 0)), Cell(1), Cell(nothing))
 
 """
     jump_to_row(view::DataFrameView, row::Integer) -> Operation or nothing
@@ -77,13 +81,14 @@ end
 
 # The list of rows of `frame` with its head at row `anchor`, or an empty vector
 # for a frame with no rows: a table draws an empty vector as no rows. A row is a
-# vector of its cells, or, when `column_anchor` is given, a list of them with
-# its head at that column.
-function _make_row_list(frame::AbstractDataFrame, anchor::Int, column_anchor = nothing)
+# vector of its cells in the `columns` that the view shows, or, when
+# `column_anchor` is given, a list of them with its head at that column.
+function _make_row_list(frame::AbstractDataFrame, columns::Vector{String}, anchor::Int,
+                        column_anchor = nothing)
     nrow(frame) == 0 && return CellVector()
     row_of(i) = column_anchor === nothing ?
-        make_widget_table_row(Any[make_data_frame_cell(frame[i, c]) for c in 1:ncol(frame)]) :
-        _make_index_list(ncol(frame), column_anchor, c -> make_data_frame_cell(frame[i, c]))
+        make_widget_table_row(Any[make_data_frame_cell(frame[i, name]) for name in columns]) :
+        _make_index_list(length(columns), column_anchor, c -> make_data_frame_cell(frame[i, columns[c]]))
     _make_index_list(nrow(frame), anchor, row_of)
 end
 

@@ -759,5 +759,26 @@ end
                                             column_count = 1, corner = WidgetLabel("c"))
 end
 
+
+@testset "a scroll keeps the parts, and a change of the column count builds them again" begin
+    table = make_table(make_indexed_list(10_000, texts_of))
+    io = print_document(rec, nothing, table, context())
+    state = io.state
+    apply!(table, wheel(io, -1))
+    @test io.state === state
+    @test "value" in Set(t[3] for t in texts(io.output))
+    # A move of the head writes the rows, and is no change of shape either.
+    step = Int(head_of(io).value.h) + gap_of(io)
+    getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
+    apply!(table, wheel(io, -1))
+    @test table.top_row == 1 && table.rows.value[1].content != "row 1"
+    @test io.state === state
+    getfield(table, :column_count)[] = 1
+    @test io.state !== state
+    found = Set(t[3] for t in texts(io.output))
+    @test "value" ∉ found
+    @test "name" in found
+end
+
 end
 end

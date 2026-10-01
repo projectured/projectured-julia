@@ -1045,13 +1045,38 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         numbers at their rows.
       - Open, small: the row numbers align left; a data frame prints them
         aligned right. The header column has no alignment of its own yet.
-    - [ ] **5.2 The path of a column (E1).**
+    - [x] **5.2 The path of a column (E1).**
       `DataFrameColumnReferenceStep(name)` evaluates on the view to a
       `DataFrameColumn` (the view and the name). The view maps the path of a
       header to it and back. `compute_context_menu(::DataFrameColumn)` gives
       "Hide column" (and "Filter by values…" in 5.5);
       `compute_context_menu(::DataFrameView)`, which the corner reaches,
       lists the hidden columns and shows one or all of them again.
+      Done 2026-10-01:
+      - `DataFrameQuery` starts here with `hidden_columns`, because "Hide
+        column" needs a state; 5.3 adds the rest. The view shows the columns
+        that the query does not hide, and the last shown column can not be
+        hidden.
+      - `DataFrameColumnReferenceStep(name)` evaluates to a `DataFrameColumn`
+        on the view. It has no entry in the `@reference` language: the step
+        names of that language are global, `row` is the sequence chart's, and
+        the paths work without an entry.
+      - A press on a header selects its column in the view; a press on the
+        corner or on the whole table selects the view. The table shows the
+        selection of the view, from a computed cell of its selection.
+      - A menu item posts its operation with `post_operation!`, because a
+        menu action is a callback with the editor.
+      - Found: the printer of a list table read its column count once, so a
+        hidden column stayed in the header. The table now builds its parts
+        again when its shape changes, as the eager table does, in a cell
+        that it only peeks at, so a move of the head and the rows that a grid
+        walks are no change of shape (a test checks both).
+      - Tests: the data frames (with the new `test_data_frame_columns()`:
+        the press, the path, the menus, the chain of a right click through the
+        context menu probe, the last column, a wide frame), the list table and
+        the eager table, 290 pass.
+      - Not checked: whether undo takes back a hide, because a posted
+        operation is applied outside the reader of the window.
     - [ ] **5.3 The query and the rows that pass.** `DataFrameQuery`, the
       computed vector of rows, the hidden columns and the pattern of the
       names (`abc` contains, `/re/` a regular expression).

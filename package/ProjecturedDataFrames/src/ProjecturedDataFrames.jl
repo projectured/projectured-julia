@@ -31,10 +31,12 @@ end
 include("../../../source/adapter/dataframes/DataFramesModule.jl")
 
 # A person loads this package by name, so its names are exported here.
-using .DataFramesModule: DataFrameView, jump_to_row, make_data_frame_cell,
+using .DataFramesModule: DataFrameQuery, DataFrameView, jump_to_row, make_data_frame_cell,
+                         DataFrameColumnReferenceStep, DataFrameColumn,
                          DataFrameViewToWidget, make_data_frame_view_projection
 
-export DataFrameView, jump_to_row, make_data_frame_cell,
+export DataFrameQuery, DataFrameView, jump_to_row, make_data_frame_cell,
+       DataFrameColumnReferenceStep, DataFrameColumn,
        DataFrameViewToWidget, make_data_frame_view_projection
 
 # The display of the platform shows a frame beside the REPL, so a person who

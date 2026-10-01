@@ -12,6 +12,7 @@ module ProjecturedDataFramesTest
 using Test
 using DataFrames
 using ProjecturedPlatform.CollectionModule
+using ProjecturedPlatform.DomainModule: compute_context_menu
 using ProjecturedDataFrames
 using ProjecturedDataFrames.DataFramesModule
 using ProjecturedDataFramesExample
@@ -26,10 +27,12 @@ using ProjecturedKernel.GestureModule
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.ProjectionModule
+using ProjecturedKernel.ReferenceModule
 using ProjecturedKernelTest
 using ProjecturedPlatform.LayoutModule
 using ProjecturedPlatform.NaturalModule
 using ProjecturedPlatform.PaneModule
+using ProjecturedPlatform.ScreenModule: OpenPopupOperation
 using ProjecturedPlatform.StyleModule
 using ProjecturedPlatform.WidgetModule
 
@@ -37,6 +40,7 @@ import ProjecturedKernelTest: check_layering, get_package_source_root
 
 include("../../../test/adapter/dataframes/DataFrameExampleTest.jl")
 include("../../../test/adapter/dataframes/DataFrameViewTest.jl")
+include("../../../test/adapter/dataframes/DataFrameColumnTest.jl")
 include("../../../test/adapter/dataframes/DataFrameDisplayTest.jl")
 include("../../../test/adapter/dataframes/DataFramesSuite.jl")
 
