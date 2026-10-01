@@ -774,9 +774,10 @@ function test_application()
                 # A window opened with no assistant has no assistant button.
                 @test [string(item.action.label) for item in toolbar.elements] ==
                       ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
-                       "Statistics", "Frame times", "Selection"]
+                       "Statistics", "Frame times", "Selection", "Appearance"]
                 drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
-                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times")
+                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times",
+                             "Appearance")
                     @test !any(text -> occursin(word, text), drawn)
                 end
             end

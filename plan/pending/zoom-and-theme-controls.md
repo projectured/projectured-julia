@@ -1244,3 +1244,27 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     after the landing in the offline sandbox.
     `OmnetPresentationTest.test_all()` does not end with `-t 2`:
     `test_parallel_sim_dashboard_panel` spins, as on `main`.
+21. **The tests after the rebase onto `4357fa3a9`** (W3, W6, 2026-10-01). The
+    appearance tests, the context menu tests, `test_build_editor`,
+    `test_application`, `test_exports` and the catalog coverage give 561 pass and
+    2 fail. The toolbar test of `ApplicationTest` listed the tools without
+    "Appearance"; it lists it now. The catalog coverage finds no atom for
+    `ContextMenuWindowState`, which the context menu commit of `main` added, so
+    `main` has this failure too.
+22. **The caret of a color is a path in the widgets of the tab** (W3, part 2).
+    D33 needs a caret in the text of a color. The tab builds its widgets again at
+    each print, and a color has no node in the `Appearance` that can hold a
+    selection, because the themes are in a `Dict` and a theme is no document. So
+    the `Appearance` holds the caret as a path that `AppearanceToWidget`
+    introduces: a path in its widget tree, from the scroll pane. The tree has the
+    same form at each print, so the path names the same color after a new print.
+    The print sets the selection of the pane from that path, and the selection of
+    each widget in the tree from the part of its parent's path below it, so a
+    layout sends a key to the color text and the text draws its caret. A color is
+    a `WidgetText` with `#rrggbbaa`; no projection of `StyleColor` is needed. The
+    reader of the tab turns a text edit of that text into a write of the color:
+    the text after the edit, read as `#rrggbb` or `#rrggbbaa`, or, for one hex
+    digit typed with no range, the text with the digit after the caret replaced,
+    so the text keeps nine characters. A text that is no color gives no
+    operation. `format_style_color` and `convert_text_to_style_color` in the
+    style slice write and read the text, for the tab and for the file.
