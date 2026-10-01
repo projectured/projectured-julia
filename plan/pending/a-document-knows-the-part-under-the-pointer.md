@@ -531,6 +531,21 @@ One at a time, with the owner.
      click has a meaning, such as the tab of a pane, starts its drag after the
      small move of D20, so a press that does not move is still a click. This
      narrows D20 of the events plan. (Owner, 2026-10-01: "agreed".)
+  9. The drop target of a global drag is found outward: the drag wrapper asks
+     each part on the path under the pointer, from the deepest part outward, and
+     the first part whose accept function (point 2) takes the dragged thing is
+     the target, as the tooltip finds its part (D64). The owner (2026-10-01):
+     "I think dragging a tab pane to another group or to split should work as it
+     worked so far, so if A does that then fine. The blueish preview rectangle
+     which we already have is also very useful, it should stay." So the drag of a
+     tab keeps its behaviour: the pane group is the part that accepts a tab, the
+     outward search reaches it from any point inside it, and the group finds the
+     zone from the point as `get_pane_drop_zone` does now (the strip and the
+     middle add the tab to the group; a band at an edge splits it). The pane
+     tree keeps the target and the zone in its `drag` state and draws the blue
+     rectangle from it, as `_drop_indicator_rectangle` does now. A part inside a
+     group that accepted a tab would take the drop at its place before the
+     group; no such part exists.
   Facts (2026-10-01): a move with a button held still goes by position (step 5a
   changed only the move with no button held), except in the shell, where the
   band that takes a `MouseDown` gets every held move and the next `MouseUp`,
