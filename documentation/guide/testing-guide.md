@@ -25,15 +25,23 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 17 domain te
   projections, its editor tests. Aggregator: `test_json()`, `test_sql()`,
   `test_xml()`, … Each also runs its package's layering guard
   (`test_json_layering()`, …).
+- The console, PDF and web backends and the MCP adapter each have their own
+  test package: [ProjecturedConsoleTest](../../package/ProjecturedConsoleTest)
+  (`test_console()`), [ProjecturedPDFTest](../../package/ProjecturedPDFTest)
+  (`test_pdf()`), [ProjecturedWebTest](../../package/ProjecturedWebTest)
+  (`test_web()`) and [ProjecturedMCPTest](../../package/ProjecturedMCPTest)
+  (`test_mcp()`). Each runs its package's layering guard, and its fixture is a
+  JSON document where it needs one. A test that reads the whole surface of the
+  application stays in the umbrella.
 - The **opt-in** main packages each have their own test package, so a suite
   that needs a native backend lives with the backend it exercises (not in the
   umbrella): [package/sdl/test](../../package/ProjecturedSDLTest) (`test_sdl()` — DirtyRect,
   write_image), [package/tulip/test](../../package/ProjecturedTulipTest) (`test_tulip()` —
   the LP constraint solver), [package/video/test](../../package/ProjecturedVideoTest)
   (`test_video()` — record_video), and [package/odbc/test](../../package/ProjecturedODBCTest)
-  (`test_odbc()` — the live-DB adapter + DbCatalog suites). Like the opt-in
-  example packages they resolve through the root env and precompile only where
-  the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
+  (`test_odbc()` — the live-DB adapter + DbCatalog suites). Each one names the
+  packages it uses, so it runs in its own environment, and it precompiles only
+  where the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
   [package/ollama/test](../../package/ProjecturedOllamaTest) follows the same
   shape (`test_ollama()` — request/stream translation, a meaning-vector suite
   against a stand-in server, and two live-server tests that skip themselves
@@ -542,9 +550,8 @@ pull request, except a push that changes only `plan/`:
 - One job runs the suite of each test package in its own environment, for
   example `test_json()` in `package/ProjecturedJSONTest`. A suite that uses a
   package that its `Project.toml` does not name fails there, and passes in
-  `environment/all`. The test packages of SDL, Tulip, Video and ODBC, and the
-  umbrella, load through `environment/all`. The umbrella job runs
-  `test_integration()`.
+  `environment/all`. The umbrella loads through `environment/all`, and its job
+  runs `test_integration()`.
 - Each job collects the coverage of the files of this repository and sends it
   to Codecov. SDL draws with `SDL_VIDEODRIVER=offscreen`, because the runner
   has no display.

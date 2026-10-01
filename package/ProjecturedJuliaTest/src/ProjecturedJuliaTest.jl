@@ -48,6 +48,9 @@ include("../../../test/domain/julia/document/JuliaDuplicateTest.jl")
 include("../../../test/domain/julia/projection/JuliaToSyntaxTest.jl")
 include("../../../test/domain/julia/projection/JuliaCodePiecesTest.jl")
 include("../../../test/domain/julia/editor/JuliaTypeinTest.jl")
+include("../../../test/domain/julia/editor/ConversationEditorTest.jl")
+include("../../../test/domain/julia/editor/JuliaTooltipTest.jl")
+include("../../../test/domain/julia/editor/TooltipWindowTest.jl")
 
 include("../../../test/domain/julia/JuliaSuite.jl")
 

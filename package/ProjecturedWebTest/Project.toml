@@ -1,0 +1,21 @@
+name = "ProjecturedWebTest"
+uuid = "63227355-0b2b-40e1-bdff-9ca7f4e6ad34"
+version = "0.1.0"
+authors = []
+
+# The tests of the web backend.
+
+[deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
+Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedWeb = {path = "../ProjecturedWeb"}

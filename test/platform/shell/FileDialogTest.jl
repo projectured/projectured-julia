@@ -56,13 +56,13 @@ end
 
 @testset "Save As gives the file its name and then writes it" begin
     directory = mktempdir()
-    source = joinpath(directory, "a.jl")
+    source = joinpath(directory, "a.json")
     # The notation this test package declares. A format a test reaches for must
     # be a package the test package depends on, or the test passes only in a
     # wider environment.
-    write_document_file(parse_natural_text(:jl, "x = 1\n"), source)
+    write_document_file(parse_natural_text(:json, "{\"x\": 1}"), source)
     file = make_file_tab(source)
-    target = joinpath(directory, "b.jl")
+    target = joinpath(directory, "b.json")
 
     # What the confirm button does, without the window: name it, then write it.
     file.filename = target

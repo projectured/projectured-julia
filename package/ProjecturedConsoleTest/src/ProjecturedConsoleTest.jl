@@ -1,14 +1,9 @@
 """
-    ProjecturedVideoTest
+    ProjecturedConsoleTest
 
-Test package for the opt-in `ProjecturedVideo` package. Hosts `VideoTest`
-(`record_video` over an example timeline) and `ApplicationVideoTest`
-(`record_application_video`, `ProjecturedSDLExample`'s `VideoBackend`-driven
-recording of the whole application window), moved down from the umbrella. Needs
-FFMPEG, so it precompiles and runs only where that is installed. Its fixture is a
-JSON document, and `ProjecturedPlatformTest` gives the selection enumerators.
+The test package of `ProjecturedConsole`: the console backend: a JSON document printed to the terminal, and the keys that drive it.
 """
-module ProjecturedVideoTest
+module ProjecturedConsoleTest
 
 using Test
 import ProjecturedConsole
@@ -16,16 +11,12 @@ import ProjecturedJSON
 import ProjecturedKernel
 import ProjecturedPDF
 import ProjecturedPlatform
-import ProjecturedVideo
 using ProjecturedKernelExample
 using ProjecturedPlatformExample
 using ProjecturedJSONExample
-using ProjecturedSDLExample
 using ProjecturedKernelTest
-using ProjecturedPlatformTest    # collect_position_selections (caret seeds)
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJSON, ProjecturedKernel, ProjecturedPDF,
-                  ProjecturedVideo)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJSON, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -45,9 +36,6 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/backend/video/editor/VideoTest.jl")
-include("../../../test/backend/video/editor/ApplicationVideoTest.jl")
+include("../../../test/backend/console/ConsoleSuite.jl")
 
-include("../../../test/backend/video/VideoSuite.jl")
-
-end # module ProjecturedVideoTest
+end # module ProjecturedConsoleTest

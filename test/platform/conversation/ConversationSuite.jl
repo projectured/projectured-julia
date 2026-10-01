@@ -1,15 +1,13 @@
 """
     test_conversation()
 
-Run this package's whole suite: the layering guard and every conversation test.
+Run every conversation test of the platform.
 """
 function test_conversation()
     @testset "ProjecturedPlatform" begin
-        test_conversation_editor()
-        test_conversation_transcript()
         test_assistant_api()
     end
 end
 
 export test_conversation
-export test_conversation_editor, test_conversation_transcript, test_assistant_api
+export test_assistant_api

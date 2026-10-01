@@ -13,26 +13,25 @@ ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedChartExample = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
 ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+ProjecturedConsoleTest = "0f41fec8-bd22-4fa0-a125-3c10d745f6e8"
 ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
-ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedDBCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
+ProjecturedDBCatalogExample = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
+ProjecturedDBCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 ProjecturedDataFramesExample = "61ad9eff-ea91-43c8-867c-8ad08b1239de"
 ProjecturedDataFramesTest = "b1aceadc-a635-48bd-837b-c4a6ec3ad7cd"
 ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
 ProjecturedDatabaseExample = "ee9f8c84-306f-4f17-8271-ad471b5f4c56"
 ProjecturedDatabaseTest = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
-ProjecturedDBCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
-ProjecturedDBCatalogExample = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
-ProjecturedDBCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
-ProjecturedFaultExample = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
-ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
-ProjecturedFormulaExample = "e12fc55c-24d9-46de-99d8-255849114e23"
-ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
 ProjecturedFSM = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedFSMExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
 ProjecturedFSMTest = "01095f28-dae7-4131-b352-cd496415c16e"
+ProjecturedFaultExample = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
+ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
+ProjecturedFormulaExample = "e12fc55c-24d9-46de-99d8-255849114e23"
+ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
 ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
@@ -45,13 +44,14 @@ ProjecturedJuliaTest = "caf9ed19-1e68-4f5e-8085-d28b12c9e002"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedMCP = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
+ProjecturedMCPTest = "6701148d-79c0-4063-93b4-06ac75587b22"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
 ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
 ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
 ProjecturedMathExample = "73f1f682-f993-4b23-8fb6-96106c481b86"
 ProjecturedMathTest = "35efe23a-a24b-424c-93f0-086222c9adeb"
-ProjecturedMCP = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 ProjecturedODBC = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 ProjecturedODBCExample = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
 ProjecturedODBCTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
@@ -60,7 +60,10 @@ ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 ProjecturedOpenRouter = "52a43d73-2617-4b68-a734-0e5186e9ad8a"
 ProjecturedOpenRouterTest = "dc1d00c5-94ff-4244-b58f-31c92e267a9e"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPDFTest = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedProcess = "0e3957ae-e92a-496b-bebd-10c4026663e9"
 ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
 ProjecturedProcessTest = "4e12067a-a745-4784-a5a3-977285a45110"
@@ -71,12 +74,12 @@ ProjecturedRSTTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedSDLExample = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 ProjecturedSDLTest = "906fdffd-1f7c-40f9-9b74-85400d88fea6"
-ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
-ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
-ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSQLExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSQLTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
+ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
+ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
+ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 ProjecturedTest = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 ProjecturedTulipExample = "4b11a654-d873-42c4-ad7f-89627ca1ee14"
@@ -84,6 +87,7 @@ ProjecturedTulipTest = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 ProjecturedVideoTest = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
+ProjecturedWebTest = "63227355-0b2b-40e1-bdff-9ca7f4e6ad34"
 ProjecturedXML = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXMLExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedXMLTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
@@ -108,26 +112,25 @@ ProjecturedChart = {path = "../../package/ProjecturedChart"}
 ProjecturedChartExample = {path = "../../package/ProjecturedChartExample"}
 ProjecturedChartTest = {path = "../../package/ProjecturedChartTest"}
 ProjecturedConsole = {path = "../../package/ProjecturedConsole"}
+ProjecturedConsoleTest = {path = "../../package/ProjecturedConsoleTest"}
 ProjecturedConversationExample = {path = "../../package/ProjecturedConversationExample"}
-ProjecturedPlatformTest = {path = "../../package/ProjecturedPlatformTest"}
+ProjecturedDBCatalog = {path = "../../package/ProjecturedDBCatalog"}
+ProjecturedDBCatalogExample = {path = "../../package/ProjecturedDBCatalogExample"}
+ProjecturedDBCatalogTest = {path = "../../package/ProjecturedDBCatalogTest"}
 ProjecturedDataFrames = {path = "../../package/ProjecturedDataFrames"}
 ProjecturedDataFramesExample = {path = "../../package/ProjecturedDataFramesExample"}
 ProjecturedDataFramesTest = {path = "../../package/ProjecturedDataFramesTest"}
 ProjecturedDatabase = {path = "../../package/ProjecturedDatabase"}
 ProjecturedDatabaseExample = {path = "../../package/ProjecturedDatabaseExample"}
 ProjecturedDatabaseTest = {path = "../../package/ProjecturedDatabaseTest"}
-ProjecturedDBCatalog = {path = "../../package/ProjecturedDBCatalog"}
-ProjecturedDBCatalogExample = {path = "../../package/ProjecturedDBCatalogExample"}
-ProjecturedDBCatalogTest = {path = "../../package/ProjecturedDBCatalogTest"}
 ProjecturedExample = {path = "../../package/ProjecturedExample"}
-ProjecturedFaultExample = {path = "../../package/ProjecturedFaultExample"}
-ProjecturedPlatformExample = {path = "../../package/ProjecturedPlatformExample"}
-ProjecturedFormula = {path = "../../package/ProjecturedFormula"}
-ProjecturedFormulaExample = {path = "../../package/ProjecturedFormulaExample"}
-ProjecturedFormulaTest = {path = "../../package/ProjecturedFormulaTest"}
 ProjecturedFSM = {path = "../../package/ProjecturedFSM"}
 ProjecturedFSMExample = {path = "../../package/ProjecturedFSMExample"}
 ProjecturedFSMTest = {path = "../../package/ProjecturedFSMTest"}
+ProjecturedFaultExample = {path = "../../package/ProjecturedFaultExample"}
+ProjecturedFormula = {path = "../../package/ProjecturedFormula"}
+ProjecturedFormulaExample = {path = "../../package/ProjecturedFormulaExample"}
+ProjecturedFormulaTest = {path = "../../package/ProjecturedFormulaTest"}
 ProjecturedGraph = {path = "../../package/ProjecturedGraph"}
 ProjecturedGraphExample = {path = "../../package/ProjecturedGraphExample"}
 ProjecturedGraphTest = {path = "../../package/ProjecturedGraphTest"}
@@ -140,13 +143,14 @@ ProjecturedJuliaTest = {path = "../../package/ProjecturedJuliaTest"}
 ProjecturedKernel = {path = "../../package/ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../../package/ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../../package/ProjecturedKernelTest"}
+ProjecturedMCP = {path = "../../package/ProjecturedMCP"}
+ProjecturedMCPTest = {path = "../../package/ProjecturedMCPTest"}
 ProjecturedMarkdown = {path = "../../package/ProjecturedMarkdown"}
 ProjecturedMarkdownExample = {path = "../../package/ProjecturedMarkdownExample"}
 ProjecturedMarkdownTest = {path = "../../package/ProjecturedMarkdownTest"}
 ProjecturedMath = {path = "../../package/ProjecturedMath"}
 ProjecturedMathExample = {path = "../../package/ProjecturedMathExample"}
 ProjecturedMathTest = {path = "../../package/ProjecturedMathTest"}
-ProjecturedMCP = {path = "../../package/ProjecturedMCP"}
 ProjecturedODBC = {path = "../../package/ProjecturedODBC"}
 ProjecturedODBCExample = {path = "../../package/ProjecturedODBCExample"}
 ProjecturedODBCTest = {path = "../../package/ProjecturedODBCTest"}
@@ -155,7 +159,10 @@ ProjecturedOllamaTest = {path = "../../package/ProjecturedOllamaTest"}
 ProjecturedOpenRouter = {path = "../../package/ProjecturedOpenRouter"}
 ProjecturedOpenRouterTest = {path = "../../package/ProjecturedOpenRouterTest"}
 ProjecturedPDF = {path = "../../package/ProjecturedPDF"}
+ProjecturedPDFTest = {path = "../../package/ProjecturedPDFTest"}
 ProjecturedPlatform = {path = "../../package/ProjecturedPlatform"}
+ProjecturedPlatformExample = {path = "../../package/ProjecturedPlatformExample"}
+ProjecturedPlatformTest = {path = "../../package/ProjecturedPlatformTest"}
 ProjecturedProcess = {path = "../../package/ProjecturedProcess"}
 ProjecturedProcessExample = {path = "../../package/ProjecturedProcessExample"}
 ProjecturedProcessTest = {path = "../../package/ProjecturedProcessTest"}
@@ -166,12 +173,12 @@ ProjecturedRSTTest = {path = "../../package/ProjecturedRSTTest"}
 ProjecturedSDL = {path = "../../package/ProjecturedSDL"}
 ProjecturedSDLExample = {path = "../../package/ProjecturedSDLExample"}
 ProjecturedSDLTest = {path = "../../package/ProjecturedSDLTest"}
-ProjecturedSequenceChart = {path = "../../package/ProjecturedSequenceChart"}
-ProjecturedSequenceChartExample = {path = "../../package/ProjecturedSequenceChartExample"}
-ProjecturedSequenceChartTest = {path = "../../package/ProjecturedSequenceChartTest"}
 ProjecturedSQL = {path = "../../package/ProjecturedSQL"}
 ProjecturedSQLExample = {path = "../../package/ProjecturedSQLExample"}
 ProjecturedSQLTest = {path = "../../package/ProjecturedSQLTest"}
+ProjecturedSequenceChart = {path = "../../package/ProjecturedSequenceChart"}
+ProjecturedSequenceChartExample = {path = "../../package/ProjecturedSequenceChartExample"}
+ProjecturedSequenceChartTest = {path = "../../package/ProjecturedSequenceChartTest"}
 ProjecturedTest = {path = "../../package/ProjecturedTest"}
 ProjecturedTulip = {path = "../../package/ProjecturedTulip"}
 ProjecturedTulipExample = {path = "../../package/ProjecturedTulipExample"}
@@ -179,6 +186,7 @@ ProjecturedTulipTest = {path = "../../package/ProjecturedTulipTest"}
 ProjecturedVideo = {path = "../../package/ProjecturedVideo"}
 ProjecturedVideoTest = {path = "../../package/ProjecturedVideoTest"}
 ProjecturedWeb = {path = "../../package/ProjecturedWeb"}
+ProjecturedWebTest = {path = "../../package/ProjecturedWebTest"}
 ProjecturedXML = {path = "../../package/ProjecturedXML"}
 ProjecturedXMLExample = {path = "../../package/ProjecturedXMLExample"}
 ProjecturedXMLTest = {path = "../../package/ProjecturedXMLTest"}

@@ -85,12 +85,23 @@ the move.
 
 ## 4. Steps
 
-- [ ] **Step 1, N1.** Run the two suites.
-- [ ] **Step 2, N2 and N6.** Run `test_sdl()` and `test_json()`.
-- [ ] **Step 3, N3 and N4.** Run the fault tests and the gallery wrappers.
-- [ ] **Step 4, N5.** Run `test_platform()` and `test_julia()`.
-- [ ] **Step 5, N7.** Run `test_video()`.
-- [ ] **Step 6, N8.** Run the four new suites.
+- [x] **Step 1, N1.** Run the two suites.
+- [x] **Step 2, N2 and N6.** Run `test_sdl()` and `test_json()`.
+- [x] **Step 3, N3 and N4.** Run the fault tests and the gallery wrappers.
+      Done by removing one unused dependency (§5).
+- [x] **Step 4, N5.** Run `test_platform()` and `test_julia()`.
+      Done. Each suite in its own environment, against `main` measured the same
+      way: platform 97502 → 97291 passed (8 broken on both), Julia 410 → 501.
+      The four moved functions have 40, 120, 8 and 43 assertions on `main`, so
+      91 went to Julia and 120 (`test_conversation_transcript`) to the
+      umbrella: nothing is lost.
+- [x] **Step 5, N7.** Run `test_video()`.
+      Done: 39 passed in its own environment (41 in CI on `main`); the 2
+      assertions of the assistant video are in the umbrella.
+- [x] **Step 6, N8.** Run the four new suites.
+      Done, each in its own environment with no network: Console 140, PDF 50,
+      Web 110, MCP 410 passed. The SDL, ODBC and Tulip suites alone: 803, 41
+      and 14, the counts of CI on `main`.
 - [ ] **Step 7, the check.** The closure script of R30 again: the unregistered
       packages, the registered ones, and the size for each package. The
       guards. The CI-like run of the 28 jobs, and the new ones, against the
@@ -98,4 +109,46 @@ the move.
 
 ## 5. Decisions made during the work
 
-(filled in as the work goes)
+- **N3 and N4 were not needed.** `ProjecturedPlatformTest` named
+  `ProjecturedFaultExample` in its `[deps]` but never loaded it, so the
+  dependency goes and the fault example and the gallery stay where they are.
+  The inventory had missed that the gallery uses the gallery wrappers, two
+  umbrella examples and `run_file_editor`, so its move would have been large.
+- **N2: the graphics image example was a duplicate.**
+  `make_graphics_image_projection_example` had the body of
+  `make_json_projection_example`, so the callers use the JSON example and the
+  file is gone.
+- **N1: the ODBC and Tulip test packages stand alone.** They had no `[sources]`
+  entry for the package they test, and CI ran them in `environment/all`. Now
+  they, and the SDL and Video test packages, name what they use and run in
+  their own projects in CI. Three ODBC test files loaded the umbrella
+  themselves.
+- **N5: JSON stays below the platform tests.** `FileDialogTest.jl` saves a file
+  in a notation that the test package declares; it used Julia, and now uses
+  JSON, the reference fixture. The three tests with a Julia fixture are in
+  `test/domain/julia/editor/`, and `ConversationTranscriptTest.jl` is in
+  `test/projectured/projection/`.
+- **N7: the SDL example package is narrow too.** Its live examples play JSON
+  only, so it needs `ProjecturedJSONExample`, not the umbrella; it has its own
+  `json_example`. The assistant conversation video uses the conversation
+  example of the umbrella, so that testset is now
+  `test_assistant_conversation_video()` in the umbrella suite.
+- **N8: the umbrella keeps its calls.** It loads the four new packages and
+  calls the moved test functions as before, as it does for SDL and Video, so
+  its count does not change. Each new package runs the same tests again with
+  its layering guard.
+- **N8, MCP.** Its new layering guard found that `McpModule.jl` imported `Tool`
+  and `Resource` only to win over the names of the protocol. The module now
+  names what it takes from the protocol instead. Two tests read the whole
+  surface of the application (`test_search_tools_registered`,
+  `test_whole_surface_documentation`) and moved to the umbrella, in
+  `McpSurfaceTest.jl`. `test_mcp_resources()` was called nowhere on `main`;
+  the MCP suite calls it, and its eight tests pass.
+
+Faults found on `main`, not changed here:
+- `DatabaseInstanceToDbCatalog.jl:86` calls `set_output_path_computations!`,
+  which `OdbcModule` does not import; the ODBC tests read the error as "DB
+  unavailable", so 10 of them skip in silence.
+- The assistant video test reads any error as "ffmpeg unavailable".
+- `ProjecturedExample` exports four `json_*_live` names that it does not
+  define.

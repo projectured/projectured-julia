@@ -110,6 +110,11 @@ using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
 # The suite of the data frame view. It prints its views without a window.
 using ProjecturedDataFramesTest
+# The suites of the console, PDF and web backends and of the MCP server.
+using ProjecturedConsoleTest
+using ProjecturedPDFTest
+using ProjecturedWebTest
+using ProjecturedMCPTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
                    ConcreteReference, EmptyReference, Reference,
@@ -140,9 +145,7 @@ include("../suite/exports.jl")
 include("../suite/documentation.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
-include("backend/ConsoleBackendTest.jl")
-include("backend/PdfWriterTest.jl")
-include("backend/WebTest.jl")
+include("backend/AssistantConversationVideoTest.jl")
 include("backend/BackendChoiceTest.jl")
 include("../tool/builder/BuilderTest.jl")
 include("../tool/builder/PackageReleaseTest.jl")
@@ -166,7 +169,6 @@ include("editor/EvaluatorDuplicateTest.jl")
 include("editor/ValueViewerTest.jl")
 include("editor/ReferencedDocumentEditorTest.jl")
 include("editor/GalleryWrapperTest.jl")
-include("editor/McpTest.jl")
 include("projection/CommandPaletteTest.jl")
 include("projection/DocumentInsertionTest.jl")
 include("projection/DraggingProjectionTest.jl")
@@ -174,6 +176,8 @@ include("projection/GestureHelpTest.jl")
 include("projection/TextRangeSelectionTest.jl")
 include("projection/TextClipboardTest.jl")
 include("projection/GestureLogProjectionTest.jl")
+include("projection/ConversationTranscriptTest.jl")
+include("editor/McpSurfaceTest.jl")
 include("projection/UndoRoundTripTest.jl")
 include("projection/GestureMapTest.jl")
 include("projection/ReferenceInspectorTest.jl")
@@ -232,6 +236,7 @@ function test_projections()
         test_dragging()
         test_write_image()
         test_record_video()
+        test_assistant_conversation_video()
         test_dirty_rect()
         test_console_backend()
         test_write_pdf()
@@ -460,7 +465,10 @@ function test_integration()
     # text projection.
     test_catalog_typeins()
     test_mcp_tools()
+    test_search_tools_registered()
+    test_whole_surface_documentation()
     test_conversation_serialization()
+    test_conversation_transcript()
     test_parse_markdown_blocks()
     test_document_insertion()
     # Every gesture that makes a recorded change is taken back, and the document
@@ -528,7 +536,7 @@ export test_json_document, test_syntax, test_text, test_graphics, test_affine_tr
 export test_formula_to_syntax, test_projection_template_hygiene
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_text_ink_inside_viewports, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect, test_web_backend, test_backend_choice
 export test_table, test_table_selection, test_table_navigation, test_table_cell_editing, explore_table_selections
-export test_graph_projection
+export test_graph_projection, test_conversation_transcript, test_assistant_conversation_video
 export test_examples, test_position_navigations, test_position_navigations_complete
 export test_printer, test_printers, test_example, test_position_navigation
 export measure_printer_locality, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
@@ -567,6 +575,7 @@ export test_assistant_composer_panel, test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_search_guides, test_search_api, test_search_tools_registered
+export test_whole_surface_documentation
 export test_pane_tab_b1, test_print_object_options, test_search_object
 export test_execute_julia_code, test_assistant_editor_reference, test_function_availability
 export test_base_extensions, test_mcp_resources, test_mcp_tools
