@@ -54,6 +54,7 @@ function _make_release_repository()
         dependencies = ["FakeBase" => "00000000-0000-0000-0000-00000000000b",
                         "Registered" => "00000000-0000-0000-0000-00000000000d",
                         "Dates" => "ade2ca70-3891-5945-98fb-dc099432e06a"])
+    _write_release_fixture_extension(root)
     _write_release_fixture_tests(root)
     mkpath(joinpath(root, "environment"))
     write(joinpath(root, "environment", "Manifest.toml"), """
@@ -62,12 +63,30 @@ function _make_release_repository()
         uuid = "00000000-0000-0000-0000-00000000000d"
         version = "1.2.3+0"
 
+        [[deps.WeakTrigger]]
+        git-tree-sha1 = "0000000000000000000000000000000000000001"
+        uuid = "00000000-0000-0000-0000-000000000010"
+        version = "2.0.0"
+
         [[deps.Dates]]
         uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
         version = "1.11.0"
         """)
     _track_release_fixture(root)
     root
+end
+
+# An extension of `FakeTop` that a registered package triggers, as the umbrella of
+# this repository has.
+function _write_release_fixture_extension(root)
+    path = joinpath(root, "package", "FakeTop", "Project.toml")
+    project = ProjecturedBuilder.BuilderModule.TOML.parsefile(path)
+    project["weakdeps"] = Dict{String,Any}("WeakTrigger" => "00000000-0000-0000-0000-000000000010")
+    project["extensions"] = Dict{String,Any}("FakeTopWeakTriggerExt" => "WeakTrigger")
+    open(io -> ProjecturedBuilder.BuilderModule.TOML.print(io, project), path, "w")
+    mkpath(joinpath(root, "package", "FakeTop", "ext"))
+    write(joinpath(root, "package", "FakeTop", "ext", "FakeTopWeakTriggerExt.jl"),
+          "module FakeTopWeakTriggerExt end\n")
 end
 
 # The test package of `FakeTop` and an example package it needs, which no release
@@ -175,9 +194,12 @@ function test_package_release()
             top = read_project("FakeTop")
             @test !haskey(top, "sources")
             # The registered version without its build suffix, which a
-            # `[compat]` entry can not name; no bound on a standard library.
+            # `[compat]` entry can not name; no bound on a standard library; and a
+            # bound on the weak dependency of the extension too.
             @test top["compat"] == Dict("FakeBase" => "0.1.0", "Registered" => "1.2.3",
-                                        "julia" => "1.11")
+                                        "WeakTrigger" => "2.0.0", "julia" => "1.11")
+            @test top["extensions"] == Dict("FakeTopWeakTriggerExt" => "WeakTrigger")
+            @test isfile(joinpath(output, "FakeTop", "ext", "FakeTopWeakTriggerExt.jl"))
             # One folder for each package, and the licence files at the root.
             @test sort(readdir(output)) == ["FakeBase", "FakeTop", "LICENSE"]
             @test occursin("include(\"../source/faketop/FakeTopCode.jl\")",
