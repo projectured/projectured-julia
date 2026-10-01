@@ -109,6 +109,29 @@ end
 
 function test_build_executable()
     @testset "builder" begin
+        @testset "the help text of the binary names exactly the options of the application" begin
+            # The `--help` text of a binary names exactly the options the
+            # parser takes.
+            usage = make_projectured_usage([:sdl, :web])
+            flags = Set(first(split(label, '=')) for (label, _) in usage.options)
+            @test flags == Set(["--backend", "--assistant", "--model",
+                                "--root", "--mcp", "--context",
+                                "--strict-fault-policy"])
+            # The binary takes both forms of `--mcp`: the flag alone, and the
+            # flag with the address.
+            @test "--mcp" in collect_option_flags(usage)
+            @test "--mcp=" in collect_option_flags(usage)
+            # A flag and the keyword it sets spell the same words, a flag with
+            # a hyphen and a keyword with an underscore, so
+            # `--strict-fault-policy` is `strict_fault_policy`.
+            for flag in flags
+                @test haskey(pairs(parse_application_arguments(String[])),
+                             Symbol(replace(flag[3:end], '-' => '_')))
+            end
+            @test !any(label -> startswith(first(label), "--backend"),
+                       make_projectured_usage([:sdl]).options)
+        end
+
         @testset "the help text says the three flags every binary answers" begin
             text = format_usage("a-binary", Usage("What it does."; synopsis = "[options] <file>",
                                                 options = ["--wide=<n>" => "how wide"]))

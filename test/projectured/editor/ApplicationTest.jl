@@ -373,26 +373,6 @@ function test_application()
             end
             @test first(report) == 2
             @test occursin("no display", last(report)) && occursin("Stacktrace", last(report))
-            # The `--help` text of a binary names exactly the options the
-            # parser takes.
-            usage = make_projectured_usage([:sdl, :web])
-            flags = Set(first(split(label, '=')) for (label, _) in usage.options)
-            @test flags == Set(["--backend", "--assistant", "--model",
-                                "--root", "--mcp", "--context",
-                                "--strict-fault-policy"])
-            # The binary takes both forms of `--mcp`: the flag alone, and the
-            # flag with the address.
-            @test "--mcp" in collect_option_flags(usage)
-            @test "--mcp=" in collect_option_flags(usage)
-            # A flag and the keyword it sets spell the same words, a flag with
-            # a hyphen and a keyword with an underscore, so
-            # `--strict-fault-policy` is `strict_fault_policy`.
-            for flag in flags
-                @test haskey(pairs(parse_application_arguments(String[])),
-                             Symbol(replace(flag[3:end], '-' => '_')))
-            end
-            @test !any(label -> startswith(first(label), "--backend"),
-                       make_projectured_usage([:sdl]).options)
         end
 
         @testset "the warm-up of a build" begin
