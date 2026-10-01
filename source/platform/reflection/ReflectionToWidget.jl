@@ -21,11 +21,12 @@
 # # The round trip
 #
 # `WidgetTree` keeps its open nodes as `expanded`, a set of index paths, and its
-# chevron emits a `ReplaceReferencedValueOperation` writing a new set. That
-# state is *derived* here, not owned: the printer collects the path of every node
-# whose children show, and the reader diffs the incoming set against it to find
-# the paths that toggled and RETURNS a `SetReflectedDisclosureOperation` naming
-# them; evaluating that is what writes the shadow. The widget's own copy is never
+# chevron emits a `ReplaceReferencedValueOperation` writing a new set, marked as
+# view state by `ReplaceViewStateOperation`. That state is *derived* here, not
+# owned: the printer collects the path of every node whose children show, and the
+# reader diffs the incoming set against it to find the paths that toggled and
+# RETURNS a `SetReflectedDisclosureOperation` naming them, in the same mark;
+# evaluating that is what writes the shadow. The widget's own copy is never
 # written to — the shadow is the only place expansion is recorded.
 #
 # The walk of the shadow runs in a cell, so the sync that fills an opened node
@@ -155,6 +156,17 @@ function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
         push!(changes, node => (path in next))
     end
     isempty(changes) ? nothing : SetReflectedDisclosureOperation(changes)
+end
+
+# The tree marks a fold as view state. The disclosure that it becomes keeps the
+# mark, so a history does not record it either.
+function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
+                     op::ReplaceViewStateOperation)
+    inner = get_wrapped_operation(op)
+    inner isa ReplaceReferencedValueOperation || return op
+    disclosure = read_intent(p, iomap, inner)
+    disclosure === inner ? op :
+    disclosure === nothing ? nothing : rewrap_operation(op, disclosure)
 end
 
 # A row click selects; there is no reflected-domain cursor to move it to.

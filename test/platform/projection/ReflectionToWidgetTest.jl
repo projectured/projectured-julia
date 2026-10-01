@@ -10,8 +10,9 @@ copy, or the widget and the shadow would hold two disagreeing versions of the
 same state.
 
 The reader is PURE (PAR-READER-IS-PURE): it returns a
-`SetReflectedDisclosureOperation` naming the nodes that toggled, and evaluating
-that is what moves the shadow. `apply_chevron!` below does both, standing in for
+`SetReflectedDisclosureOperation` naming the nodes that toggled, in the mark of
+view state that the tree gives a fold, and evaluating that is what moves the
+shadow. `apply_chevron!` below does both, standing in for
 what the editor does with whatever a reader returns.
 """
 
@@ -35,12 +36,17 @@ function tree_labels(node, out = String[])
     out
 end
 
-# The operation a chevron click produces: the printed set with `path` toggled.
+# The operation a chevron click produces: the printed set with `path` toggled,
+# marked as view state, as the reader of the tree marks it.
 function chevron(tree, path::Vector{Int})
     next = copy(tree.expanded)
     path in next ? delete!(next, path) : push!(next, path)
-    ReplaceReferencedValueOperation(tree, "expanded", next)
+    WidgetModule._write_view_state(tree, "expanded", next)
 end
+
+# A disclosure that keeps the mark of view state, so a history does not record it.
+is_marked_disclosure(op) =
+    op isa ReplaceViewStateOperation && get_wrapped_operation(op) isa SetReflectedDisclosureOperation
 
 # Click a chevron the way the editor would: read the intent, then evaluate what
 # it returns. Returns the operation so a test can assert on it.
@@ -79,7 +85,7 @@ end
     @test marker isa AUnsyncedDocument
     @test !marker.requested
 
-    @test apply_chevron!(projection, iomap, [1, 2]) isa SetReflectedDisclosureOperation
+    @test is_marked_disclosure(apply_chevron!(projection, iomap, [1, 2]))
     @test marker.requested                           # the click landed on the shadow
 end
 
@@ -112,7 +118,7 @@ end
     @test "a = 1" in tree_labels(iomap.output.roots[1])
     # The reader diffs against the tree as it is now, so the same chevron closes
     # the node it opened.
-    @test apply_chevron!(projection, iomap, [1, 2]) isa SetReflectedDisclosureOperation
+    @test is_marked_disclosure(apply_chevron!(projection, iomap, [1, 2]))
     @test shadow.children[2].children isa AUnsyncedDocument
     @test !([1, 2] in iomap.output.expanded)
 end
