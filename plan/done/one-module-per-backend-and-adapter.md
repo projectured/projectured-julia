@@ -175,6 +175,14 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       and a load of `ProjecturedRepl` with its recorded workload, its exports
       and the path of its driver.
 
+**The check before the landing** (`/var/tmp/fold/ci7`, the 28 jobs of CI from a
+fresh clone of `c6d171a7a`, Steps 0 to 5): every job as on `main` — the
+umbrella has the same ten sites, the Video job is clean now, and the only
+finding of the guards is the four argument findings of `main`. Step 6 was
+checked by its own tests (the builder suite, the two help texts, the load of the
+REPL leaf) and the guards. Landed with the matching branch of omnet-julia at the
+owner's word (2026-10-01).
+
 ## 5. Decisions made during the work
 
 - **The form of a package entry** is the one of `ProjecturedDataFrames`: the
