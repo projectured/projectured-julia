@@ -26,8 +26,9 @@
 # JsonInsertionToSyntaxLeaf / XmlInsertionToSyntaxLeaf), so it is an opaque
 # `@projection_template` leaf (no `bound`): the engine wires ∅↔∅ and nothing else.
 
-@projection struct BookInsertionToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct BookInsertionToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_book_style(theme, :placeholder_text)
 end
 
 @projection_template BookInsertionToSyntaxLeaf BookInsertion (prj, doc) ->
@@ -53,10 +54,12 @@ end
 
 # Titles use a proportional (sans) font, distinct from the monospace body, and a
 # larger size; the author line is italic.
-@projection struct BookBookToSyntaxNode
-    title::ImmutableCell{StyleText}        = StyleText(font_ubuntu_bold_36, color_solarized_blue)
-    author_prefix::ImmutableCell{StyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
-    author::ImmutableCell{StyleText}       = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
+@projection UntrackedCell struct BookBookToSyntaxNode
+    theme::Any = nothing
+    title::StyleText         = _get_book_style(theme, :title_text)
+    author_prefix::StyleText = _get_book_style(theme, :author_prefix_text)
+    author::StyleText        = _get_book_style(theme, :author_text)
+    sep_style::StyleText     = _get_book_style(theme, :paragraph_text)
 end
 
 
@@ -140,7 +143,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
     # on its own line. Embedded code fragments are separate SyntaxNodes, so they
     # keep their own internal indentation.
     output = SyntaxNode(children_cv; indentation=0,
-                        sep=TextString("\n\n", font_ubuntu_monospace_regular_20, color_black),
+                        sep=TextString("\n\n", p.sep_style),
                         collapsed=b.collapsed, selection=sel, mouse_target)
     iomap = ChildrenIoMap(p, b, output, element_iomaps)
     iomap_cell[] = iomap
@@ -233,11 +236,13 @@ end
 # both `.title[k]` (shifted right by length(numbering)+2) and `.numbering[k]` map
 # into the same leaf. A `bound(:field)`/KeySlot binds a single field with no offset.
 
-@projection struct BookChapterToSyntaxNode
-    title::ImmutableCell{StyleText} = StyleText(font_ubuntu_bold_24, color_solarized_blue)
+@projection UntrackedCell struct BookChapterToSyntaxNode
+    theme::Any = nothing
+    title::StyleText     = _get_book_style(theme, :chapter_title_text)
     # Reserved for styling the numbering prefix distinctly; the title leaf
     # currently renders "numbering  title" in the title style.
-    numbering::ImmutableCell{StyleText} = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
+    numbering::StyleText = _get_book_style(theme, :numbering_text)
+    sep_style::StyleText = _get_book_style(theme, :paragraph_text)
 end
 
 
@@ -316,7 +321,7 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
     # on its own line. Embedded code fragments are separate SyntaxNodes, so they
     # keep their own internal indentation.
     output = SyntaxNode(children_cv; indentation=0,
-                        sep=TextString("\n\n", font_ubuntu_monospace_regular_20, color_black),
+                        sep=TextString("\n\n", p.sep_style),
                         collapsed=b.collapsed, selection=sel, mouse_target)
     iomap = ChildrenIoMap(p, b, output, element_iomaps)
     iomap_cell[] = iomap
@@ -410,10 +415,11 @@ end
 #
 # Selection forward:  .content → .value
 
-@projection struct BookParagraphToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
+@projection UntrackedCell struct BookParagraphToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_book_style(theme, :paragraph_text)
     # Reserved for an empty-content placeholder hint (not yet rendered).
-    placeholder::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    placeholder::StyleText = _get_book_style(theme, :placeholder_text)
 end
 
 # A single bound leaf (like XmlTextToSyntaxLeaf / MarkdownTextToSyntaxLeaf): the
@@ -444,8 +450,9 @@ end
 # with no per-item wrapper, and its element-builder form (`collection(:f) do x`)
 # builds a node from x's *fields* — neither expresses "wrap the whole element".
 
-@projection struct BookListToSyntaxNode
-    bullet::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+@projection UntrackedCell struct BookListToSyntaxNode
+    theme::Any = nothing
+    bullet::StyleText = _get_book_style(theme, :bullet_text)
     indentation::Int = 2
 end
 
@@ -549,9 +556,10 @@ end
 # An empty title renders "untitled"; an empty content renders the path
 # placeholder. Written as an `@projection_template` fixed-children node.
 
-@projection struct BookPictureToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
-    placeholder::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct BookPictureToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText       = _get_book_style(theme, :picture_text)
+    placeholder::StyleText = _get_book_style(theme, :placeholder_text)
 end
 
 # The value span for a picture's content: when the content is a path to an image
@@ -614,14 +622,21 @@ end
 
 # ── Compound convenience constructor ─────────────────────────────────────────
 
-function BookToSyntax()
+"""
+    BookToSyntax(; theme = nothing)
+
+Build the Book → Syntax projection: one rule per document type. `theme` is a
+`BookTheme`, a scaled one, or `nothing` for the default styles.
+"""
+function BookToSyntax(; theme = nothing)
+    theme = scale_theme(theme)
     TypeDispatchingProjection(
-        BookInsertion => BookInsertionToSyntaxLeaf(),
-        BookBook      => BookBookToSyntaxNode(),
-        BookChapter   => BookChapterToSyntaxNode(),
-        BookParagraph => BookParagraphToSyntaxLeaf(),
-        BookList      => BookListToSyntaxNode(),
-        BookPicture   => BookPictureToSyntaxLeaf(),
+        BookInsertion => BookInsertionToSyntaxLeaf(; theme),
+        BookBook      => BookBookToSyntaxNode(; theme),
+        BookChapter   => BookChapterToSyntaxNode(; theme),
+        BookParagraph => BookParagraphToSyntaxLeaf(; theme),
+        BookList      => BookListToSyntaxNode(; theme),
+        BookPicture   => BookPictureToSyntaxLeaf(; theme),
     )
 end
 
@@ -641,5 +656,6 @@ end
 # factory form, so every renderer builds its own projection instance.
 
 function __init__()
-    register_natural_syntax!(:book, (; appearance) -> Pair{Type,Any}[BookDocument => BookToSyntax()])
+    register_natural_syntax!(:book, (; appearance) -> Pair{Type,Any}[
+        BookDocument => BookToSyntax(theme = get_scaled_theme!(appearance, BookTheme))])
 end

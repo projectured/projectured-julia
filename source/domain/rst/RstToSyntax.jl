@@ -30,13 +30,14 @@
 # past the first line. So these seven render through a plain computed
 # `TextString`: correct on the page and correct on save, but not
 # splice-editable in the source view. Every other field stays `bound`.
+#
+# Every rule reads its style from `RstTheme` through its `theme` field: with no
+# theme it holds the plain values of the default theme, and with a scaled
+# theme it follows the appearance's scales (`RstTheme.jl`).
 # The module binding itself, not only its names: the two macros below expand to
 # `ProjectionModule.print_document(...)` definitions, and the unescaped name
 # resolves in this module.
 
-
-const _MONO      = font_ubuntu_monospace_regular_20
-const _MONO_BOLD = font_ubuntu_monospace_bold_20
 
 # The body indent of a directive, a definition and a quote. Three spaces is what
 # the corpus writes and what `.. ` is wide, so an emitted file reads like a
@@ -139,15 +140,17 @@ end
 
 # ── Inline leaves ─────────────────────────────────────────────────────────────
 
-@projection struct RstInsertionToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstInsertionToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @projection_template RstInsertionToSyntaxLeaf RstInsertion (prj, doc) ->
     SyntaxLeaf(TextString("insert rst here", prj.style))
 
-@projection struct RstTextToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstTextToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :source_text)
 end
 
 @projection_template RstTextToSyntaxLeaf RstText (prj, doc) ->
@@ -157,9 +160,10 @@ end
                                       placeholder = "text",
                                       style = prj.style)))
 
-@projection struct RstLiteralToSyntaxLeaf
-    value_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_green)
-    tick_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstLiteralToSyntaxLeaf
+    theme::Any = nothing
+    value_style::StyleText = _get_rst_style(theme, :literal_text)
+    tick_style::StyleText  = _get_rst_style(theme, :marker_text)
     tick::String = "``"
 end
 
@@ -172,8 +176,9 @@ end
                open=TextString(prj.tick, prj.tick_style),
                close=TextString(prj.tick, prj.tick_style))
 
-@projection struct RstEmphasisToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstEmphasisToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
     marker::String = "*"
 end
 
@@ -182,8 +187,9 @@ end
                open=TextString(prj.marker, prj.marker_style),
                close=TextString(prj.marker, prj.marker_style))
 
-@projection struct RstStrongToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstStrongToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
     marker::String = "**"
 end
 
@@ -194,10 +200,11 @@ end
 
 # `:name:`content`` — the name and the content are separate editable spans, and
 # the colons and backquotes are the chrome between them.
-@projection struct RstRoleToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    name_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
-    value_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_cyan)
+@projection UntrackedCell struct RstRoleToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    name_style::StyleText   = _get_rst_style(theme, :target_text)
+    value_style::StyleText  = _get_rst_style(theme, :value_text)
     open_marker::String  = ":"
     mid_marker::String   = ":`"
     close_marker::String = "`"
@@ -220,10 +227,11 @@ end
 
 # `` `text <target>`_ `` — the angled part disappears when the target is empty,
 # which is the named-reference form `` `name`_ ``.
-@projection struct RstReferenceToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    text_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_blue)
-    target_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_violet)
+@projection UntrackedCell struct RstReferenceToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    text_style::StyleText   = _get_rst_style(theme, :reference_text)
+    target_style::StyleText = _get_rst_style(theme, :target_text)
     show_markers::Bool = true
 end
 
@@ -244,9 +252,10 @@ end
                                                             (isempty(doc.target) ? "" : ">") * "`" * (doc.anonymous ? "__" : "_"),
                                                      prj.marker_style)) ])
 
-@projection struct RstSubstitutionReferenceToSyntaxLeaf
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    style::ImmutableCell{StyleText}        = StyleText(_MONO, color_solarized_orange)
+@projection UntrackedCell struct RstSubstitutionReferenceToSyntaxLeaf
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    style::StyleText        = _get_rst_style(theme, :substitution_text)
     marker::String = "|"
 end
 
@@ -258,9 +267,10 @@ end
                open=TextString(prj.marker, prj.marker_style),
                close=TextString(prj.marker, prj.marker_style))
 
-@projection struct RstFootnoteReferenceToSyntaxLeaf
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    style::ImmutableCell{StyleText}        = StyleText(_MONO, color_solarized_blue)
+@projection UntrackedCell struct RstFootnoteReferenceToSyntaxLeaf
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    style::StyleText        = _get_rst_style(theme, :reference_text)
     open_marker::String  = "["
     close_marker::String = "]_"
 end
@@ -280,8 +290,9 @@ end
 @projection_template RstParagraphToSyntaxNode RstParagraph (prj, doc) ->
     SyntaxNode(collection(:content); indentation=0)
 
-@projection struct RstLiteralBlockToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_green)
+@projection UntrackedCell struct RstLiteralBlockToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :literal_text)
 end
 
 # The block writes its own `::` marker on a line of its own. The parser takes
@@ -293,8 +304,9 @@ end
     SyntaxLeaf(TextString(() -> "::\n\n" * _indent_body(doc.content, inner), prj.style);
                open=TextString("", prj.style))
 
-@projection struct RstLineBlockToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstLineBlockToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
     open_marker::String = "| "
     sep_marker::String  = "\n| "
 end
@@ -309,8 +321,9 @@ end
 # marker belongs to the list (`-`, `*` or `+` for a bullet list, the running
 # number for an enumerated one) and one item rule then serves both. The item
 # only stacks its own blocks under the marker's content column.
-@projection struct RstListItemToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstListItemToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
     sep::String = "\n\n   "
 end
 
@@ -330,8 +343,9 @@ _bullet_marker(prj, doc) = (isempty(prj.marker) ? (isempty(doc.marker) ? "-" : d
 _enum_marker(doc) = (startswith(doc.style, "#") ? "#" : string(doc.start)) *
                     (isempty(doc.style) ? "." : doc.style[end:end]) * " "
 
-@projection struct RstBulletListToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstBulletListToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
     # Empty means "use the marker the source wrote". The rendered view sets a
     # bullet glyph instead, because the natural notation shows one bullet
     # whatever character the file happened to use.
@@ -344,8 +358,9 @@ end
                sep=TextString(() -> "\n" * indent * _bullet_marker(prj, doc), prj.marker_style),
                indentation=0)
 
-@projection struct RstEnumeratedListToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstEnumeratedListToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @rst_flat RstEnumeratedListToSyntaxNode RstEnumeratedList (prj, doc, indent) ->
@@ -354,8 +369,9 @@ end
                sep=TextString(() -> "\n" * indent * _enum_marker(doc), prj.marker_style),
                indentation=0)
 
-@projection struct RstDefinitionItemToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstDefinitionItemToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @rst_indented RstDefinitionItemToSyntaxNode RstDefinitionItem (prj, doc, outer, inner) ->
@@ -370,9 +386,10 @@ end
 @rst_flat RstDefinitionListToSyntaxNode RstDefinitionList (prj, doc, indent) ->
     SyntaxNode(collection(:items); sep=TextString("\n\n" * indent), indentation=0)
 
-@projection struct RstFieldToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    name_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_blue)
+@projection UntrackedCell struct RstFieldToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    name_style::StyleText   = _get_rst_style(theme, :reference_text)
 end
 
 @rst_indented RstFieldToSyntaxNode RstField (prj, doc, outer, inner) ->
@@ -390,8 +407,9 @@ end
 @rst_flat RstFieldListToSyntaxNode RstFieldList (prj, doc, indent) ->
     SyntaxNode(collection(:fields); sep=TextString("\n" * indent), indentation=0)
 
-@projection struct RstBlockQuoteToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstBlockQuoteToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @rst_indented RstBlockQuoteToSyntaxNode RstBlockQuote (prj, doc, outer, inner) ->
@@ -403,16 +421,18 @@ end
                                 prj.marker_style),
                indentation=0)
 
-@projection struct RstTransitionToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstTransitionToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :marker_text)
     text::String = "----"
 end
 
 @projection_template RstTransitionToSyntaxLeaf RstTransition (prj, doc) ->
     SyntaxLeaf(TextString(prj.text, prj.style))
 
-@projection struct RstCommentToSyntaxLeaf
-    style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstCommentToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText  = _get_rst_style(theme, :marker_text)
     marker::String = ".. "
     show_marker::Bool = true
 end
@@ -428,9 +448,10 @@ end
                               (prj.show_marker ? prj.marker : "") * head * rest
                           end, prj.style))
 
-@projection struct RstTargetToSyntaxLeaf
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    style::ImmutableCell{StyleText}        = StyleText(_MONO, color_solarized_violet)
+@projection UntrackedCell struct RstTargetToSyntaxLeaf
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    style::StyleText        = _get_rst_style(theme, :target_text)
     open_marker::String  = ".. _"
     close_marker::String = ":"
 end
@@ -443,9 +464,10 @@ end
                open=TextString(prj.open_marker, prj.marker_style),
                close=TextString(prj.close_marker, prj.marker_style))
 
-@projection struct RstSubstitutionDefinitionToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    name_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_orange)
+@projection UntrackedCell struct RstSubstitutionDefinitionToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    name_style::StyleText   = _get_rst_style(theme, :substitution_text)
 end
 
 @rst_indented RstSubstitutionDefinitionToSyntaxNode RstSubstitutionDefinition (prj, doc, outer, inner) ->
@@ -458,9 +480,10 @@ end
                                      close=TextString("| ", prj.marker_style)),
                           project(:body) ])
 
-@projection struct RstFootnoteToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    label_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_blue)
+@projection UntrackedCell struct RstFootnoteToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    label_style::StyleText  = _get_rst_style(theme, :reference_text)
 end
 
 @rst_indented RstFootnoteToSyntaxNode RstFootnote (prj, doc, outer, inner) ->
@@ -510,22 +533,25 @@ function _grid_table_text(doc)
     join(lines, "\n")
 end
 
-@projection struct RstTableCellToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstTableCellToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @projection_template RstTableCellToSyntaxNode RstTableCell (prj, doc) ->
     SyntaxNode(collection(:elements); sep=TextString(" ", prj.marker_style), indentation=0)
 
-@projection struct RstTableRowToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstTableRowToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @projection_template RstTableRowToSyntaxNode RstTableRow (prj, doc) ->
     SyntaxNode(collection(:cells); sep=TextString(" | ", prj.marker_style), indentation=0)
 
-@projection struct RstGridTableToSyntaxNode
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstGridTableToSyntaxNode
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @rst_flat RstGridTableToSyntaxNode RstGridTable (prj, doc, indent) ->
@@ -534,10 +560,11 @@ end
 
 # ── Directives ────────────────────────────────────────────────────────────────
 
-@projection struct RstDirectiveOptionToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    name_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_blue)
-    value_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstDirectiveOptionToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    name_style::StyleText   = _get_rst_style(theme, :reference_text)
+    value_style::StyleText  = _get_rst_style(theme, :source_text)
 end
 
 @projection_template RstDirectiveOptionToSyntaxNode RstDirectiveOption (prj, doc) ->
@@ -558,10 +585,11 @@ end
 _option_open(prj, value_getter, name, indent) =
     TextString(() -> isempty(value_getter()) ? "" : "\n" * indent * ":" * name * ": ", prj.marker_style)
 
-@projection struct RstLiteralIncludeToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    path_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
-    value_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstLiteralIncludeToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    path_style::StyleText   = _get_rst_style(theme, :target_text)
+    value_style::StyleText  = _get_rst_style(theme, :source_text)
     header::String = ".. literalinclude:: "
 end
 
@@ -586,10 +614,11 @@ end
                    open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
-@projection struct RstFigureToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    path_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
-    value_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstFigureToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    path_style::StyleText   = _get_rst_style(theme, :target_text)
+    value_style::StyleText  = _get_rst_style(theme, :source_text)
     header::String = ".. figure:: "
 end
 
@@ -611,10 +640,11 @@ end
                    open=TextString(() -> isempty(doc.caption) ? "" : "\n\n" * inner, prj.marker_style),
                    sep=TextString("\n\n" * inner, prj.marker_style), indentation=0) ])
 
-@projection struct RstCodeBlockToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    lang_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_magenta)
-    code_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_green)
+@projection UntrackedCell struct RstCodeBlockToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    lang_style::StyleText   = _get_rst_style(theme, :directive_text)
+    code_style::StyleText   = _get_rst_style(theme, :literal_text)
     header::String = ".. code-block:: "
     # The rendered view shows the code alone. The language names a colouring
     # rule, not something a reader of the page needs to see.
@@ -633,10 +663,11 @@ end
                                     (prj.show_language ? "\n\n" : "") * _indent_body(doc.code, inner),
                               prj.code_style)) ])
 
-@projection struct RstImageToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    path_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
-    value_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstImageToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    path_style::StyleText   = _get_rst_style(theme, :target_text)
+    value_style::StyleText  = _get_rst_style(theme, :source_text)
     header::String = ".. image:: "
 end
 
@@ -657,10 +688,11 @@ end
                    open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
-@projection struct RstVideoToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    path_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
-    value_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstVideoToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    path_style::StyleText   = _get_rst_style(theme, :target_text)
+    value_style::StyleText  = _get_rst_style(theme, :source_text)
 end
 
 @rst_indented RstVideoToSyntaxNode RstVideo (prj, doc, outer, inner) ->
@@ -679,9 +711,10 @@ end
                    open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
-@projection struct RstAudioToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    path_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
+@projection UntrackedCell struct RstAudioToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    path_style::StyleText   = _get_rst_style(theme, :target_text)
     header::String = ".. audio:: "
 end
 
@@ -696,8 +729,9 @@ end
                    open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
-@projection struct RstAdmonitionToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO_BOLD, color_solarized_yellow)
+@projection UntrackedCell struct RstAdmonitionToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :admonition_text)
     # With the marker off the kind is written as a word — `Note`, `Warning` —
     # which is what the box is labelled in the natural notation.
     show_marker::Bool = true
@@ -711,9 +745,10 @@ end
                sep=TextString("\n\n" * inner, prj.marker_style),
                indentation=0)
 
-@projection struct RstToctreeToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    entry_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_blue)
+@projection UntrackedCell struct RstToctreeToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    entry_style::StyleText  = _get_rst_style(theme, :reference_text)
     # With the marker off the directive line and its options go, and a heading
     # word stands over the entries — a toctree *is* a table of contents, and
     # `:maxdepth:` is a build setting the reader has no use for.
@@ -737,9 +772,10 @@ end
                    open=TextString(() -> isempty(doc.entries) ? "" : "\n\n" * inner, prj.entry_style),
                    sep=TextString("\n" * inner, prj.entry_style), indentation=0) ])
 
-@projection struct RstMathBlockToSyntaxLeaf
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    style::ImmutableCell{StyleText}        = StyleText(_MONO, color_solarized_cyan)
+@projection UntrackedCell struct RstMathBlockToSyntaxLeaf
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    style::StyleText        = _get_rst_style(theme, :value_text)
     show_marker::Bool = true
 end
 
@@ -747,18 +783,20 @@ end
     SyntaxLeaf(TextString(() -> (prj.show_marker ? ".. math::\n\n" : "") * _indent_body(doc.content, inner),
                           prj.style))
 
-@projection struct RstRawBlockToSyntaxLeaf
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    style::ImmutableCell{StyleText}        = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstRawBlockToSyntaxLeaf
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    style::StyleText        = _get_rst_style(theme, :marker_text)
 end
 
 @rst_indented RstRawBlockToSyntaxLeaf RstRawBlock (prj, doc, outer, inner) ->
     SyntaxLeaf(TextString(() -> ".. raw:: " * doc.format * "\n\n" * _indent_body(doc.content, inner),
                           prj.style))
 
-@projection struct RstRoleDefinitionToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    name_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
+@projection UntrackedCell struct RstRoleDefinitionToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    name_style::StyleText   = _get_rst_style(theme, :target_text)
 end
 
 @rst_indented RstRoleDefinitionToSyntaxNode RstRoleDefinition (prj, doc, outer, inner) ->
@@ -773,10 +811,11 @@ end
                    open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
-@projection struct RstDirectiveToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    name_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_magenta)
-    arg_style::ImmutableCell{StyleText}    = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstDirectiveToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
+    name_style::StyleText   = _get_rst_style(theme, :directive_text)
+    arg_style::StyleText    = _get_rst_style(theme, :source_text)
 end
 
 @rst_indented RstDirectiveToSyntaxNode RstDirective (prj, doc, outer, inner) ->
@@ -797,9 +836,10 @@ end
 
 # ── Section and root ──────────────────────────────────────────────────────────
 
-@projection struct RstSectionToSyntaxNode
-    adornment_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_blue)
-    title_style::ImmutableCell{StyleText}     = StyleText(_MONO_BOLD, color_solarized_blue)
+@projection UntrackedCell struct RstSectionToSyntaxNode
+    theme::Any = nothing
+    adornment_style::StyleText = _get_rst_style(theme, :reference_text)
+    title_style::StyleText     = _get_rst_style(theme, :title_text)
 end
 
 @rst_flat RstSectionToSyntaxNode RstSection (prj, doc, indent) ->
@@ -813,8 +853,9 @@ end
                    open=TextString(() -> isempty(doc.elements) ? "" : "\n\n" * indent, prj.adornment_style),
                    sep=TextString("\n\n" * indent, prj.adornment_style), indentation=0) ])
 
-@projection struct RstRootToSyntaxNode
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_black)
+@projection UntrackedCell struct RstRootToSyntaxNode
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :source_text)
 end
 
 @rst_flat RstRootToSyntaxNode RstRoot (prj, doc, indent) ->
@@ -836,42 +877,28 @@ end
 # as `:rst_indent` — a container augments it and delegates (School A), the leaf
 # reads it.
 
-const _BODY = StyleText(font_ubuntu_regular_20, color_black)
-const _TITLE_COLOR = color_solarized_blue
-
-_title_font(level) = level <= 1 ? font_ubuntu_bold_36 :
-                     level == 2 ? font_ubuntu_bold_24 :
-                     level == 3 ? font_ubuntu_bold_22 :
-                                  font_ubuntu_bold_18
-
-# Augment the ambient style with a container's mode. There is no bold-italic
-# face, so nesting keeps the innermost weight.
-function _mode_style(mode::Symbol, ambient::StyleText, doc)
-    mode === :bold   && return StyleText(font_ubuntu_bold_20, ambient.color)
-    mode === :italic && return StyleText(font_ubuntu_italic_20, ambient.color)
-    ambient
-end
-
 # A role is drawn as a coloured chip with no `:name:` chrome. The colour groups
 # the roles by what they name, so a reader tells a NED type from a C++ symbol
 # from an ini parameter at a glance. An unknown role gets the neutral colour,
-# because the role set is open.
-function _role_color(name::AbstractString)
-    name in ("ned", "gate", "msg")            && return color_solarized_blue
-    name in ("cpp", "var", "fun")             && return color_solarized_violet
-    name in ("par", "ini")                    && return color_solarized_green
-    name in ("file", "download")              && return color_solarized_cyan
-    name in ("doc", "ref")                    && return color_solarized_magenta
-    name == "protocol"                        && return color_solarized_orange
-    color_solarized_gray
+# because the role set is open. Each colour is the colour of the theme role it
+# names, so the chip follows the same theme as every other rule.
+function _role_color(theme, name::AbstractString)
+    name in ("ned", "gate", "msg")  && return unwrap_cell(_get_rst_style(theme, :reference_text)).color
+    name in ("cpp", "var", "fun")   && return unwrap_cell(_get_rst_style(theme, :target_text)).color
+    name in ("par", "ini")          && return unwrap_cell(_get_rst_style(theme, :literal_text)).color
+    name in ("file", "download")    && return unwrap_cell(_get_rst_style(theme, :value_text)).color
+    name in ("doc", "ref")          && return unwrap_cell(_get_rst_style(theme, :directive_text)).color
+    name == "protocol"              && return unwrap_cell(_get_rst_style(theme, :substitution_text)).color
+    unwrap_cell(_get_rst_style(theme, :marker_text)).color
 end
 
 # ── RstStyledTextToSyntaxLeaf (rendered RstText; reads the ambient) ───────────
 # Same output shape and reference mapping as the source text leaf; only the font
-# differs, taken from the ambient `:rst_style` (or the body default).
+# differs, taken from the ambient `:rst_style` (or the theme's body default).
 
-@projection struct RstStyledTextToSyntaxLeaf
-    style::ImmutableCell{StyleText} = _BODY
+@projection UntrackedCell struct RstStyledTextToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :body_text)
 end
 
 function ProjectionModule.print_document(p::RstStyledTextToSyntaxLeaf, recursion, t::RstText, ctx)
@@ -912,17 +939,38 @@ end
 # projected children, so the reference mapping is the standard "delegate to
 # child i".
 
+# Neither is declared with `@projection`: each needs a different resolved theme
+# value (a bold or an italic font), so each holds exactly the `Any` fields it
+# needs — a value or a cell that `_get_rst_style`/`make_style_field` returned —
+# and reads it with `unwrap_cell`.
 abstract type RstStyledInline <: Projection end
 
-struct RstStrongToStyledNode   <: RstStyledInline end
-struct RstEmphasisToStyledNode <: RstStyledInline end
+struct RstStrongToStyledNode <: RstStyledInline
+    bold_font::Any
+    body_text::Any
+end
+RstStrongToStyledNode(; theme = nothing) =
+    RstStrongToStyledNode(make_style_field(RstTheme, scale_theme(theme), StyleFont, :bold_font),
+                          _get_rst_style(theme, :body_text))
 
-_mode(::RstStrongToStyledNode)   = :bold
-_mode(::RstEmphasisToStyledNode) = :italic
+struct RstEmphasisToStyledNode <: RstStyledInline
+    italic_font::Any
+    body_text::Any
+end
+RstEmphasisToStyledNode(; theme = nothing) =
+    RstEmphasisToStyledNode(make_style_field(RstTheme, scale_theme(theme), StyleFont, :italic_font),
+                            _get_rst_style(theme, :body_text))
+
+# Augment the ambient style with what this container's mode draws. There is no
+# bold-italic face, so nesting keeps the innermost weight.
+_mode_style(p::RstStrongToStyledNode, ambient::StyleText, doc) =
+    StyleText(unwrap_cell(p.bold_font), ambient.color)
+_mode_style(p::RstEmphasisToStyledNode, ambient::StyleText, doc) =
+    StyleText(unwrap_cell(p.italic_font), ambient.color)
 
 function ProjectionModule.print_document(p::RstStyledInline, recursion, doc, ctx)
-    ambient = get_property(ctx, :rst_style, _BODY)
-    style = _mode_style(_mode(p), ambient, doc)
+    ambient = get_property(ctx, :rst_style, unwrap_cell(p.body_text))
+    style = _mode_style(p, ambient, doc)
     child_iomaps = Cell(@computation([
         print_child(recursion, child,
             with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)),
@@ -979,14 +1027,16 @@ end
 # font and the colour are computed cells, so a role that is renamed recolours
 # without a re-print.
 
-@projection struct RstRoleToStyledLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstRoleToStyledLeaf
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @rst_flat RstRoleToStyledLeaf RstRole (prj, doc, indent) ->
     SyntaxLeaf(bound(:content, String,
                      TextString(Cell(@computation doc.content),
-                                Cell(_MONO), Cell(@computation _role_color(doc.name)),
+                                Cell(@computation prj.style.font),
+                                Cell(@computation _role_color(prj.theme, doc.name)),
                                 Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))))
 
 # ── RstSectionToStyledNode (rendered section; a large title, no adornment) ────
@@ -994,13 +1044,15 @@ end
 # under the body ambient, so one rule sets two different styles — which is why
 # it is written out rather than templated.
 
-@projection struct RstSectionToStyledNode
-    style::ImmutableCell{StyleText} = _BODY
+@projection UntrackedCell struct RstSectionToStyledNode
+    theme::Any = nothing
+    style::StyleText = _get_rst_style(theme, :body_text)
 end
 
 function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
     indent = _ambient(ctx)
-    title_style = StyleText(_title_font(doc.level), _TITLE_COLOR)
+    title_style = StyleText(unwrap_cell(_title_font(p.theme, doc.level)),
+                            unwrap_cell(make_style_field(RstTheme, scale_theme(p.theme), StyleColor, :title_color)))
     child_iomaps = Cell(@computation begin
         maps = Any[]
         for (i, child) in enumerate(doc.title)
@@ -1036,8 +1088,9 @@ end
 # natural notation *is* the render, so the number has to be right — which means
 # building the items here, where the index is in hand.
 
-@projection struct RstEnumeratedListToStyledNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstEnumeratedListToStyledNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 function ProjectionModule.print_document(p::RstEnumeratedListToStyledNode, recursion, doc::RstEnumeratedList, ctx)
@@ -1136,9 +1189,10 @@ function _rst_picture(path, placeholder::StyleText; max_w::Int = 640)
     TextString(isempty(String(path)) ? "image" : String(path), placeholder)
 end
 
-@projection struct RstFigureToStyledNode
-    caption_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
-    placeholder::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstFigureToStyledNode
+    theme::Any = nothing
+    caption_style::StyleText = _get_rst_style(theme, :caption_text)
+    placeholder::StyleText   = _get_rst_style(theme, :marker_text)
 end
 
 @rst_flat RstFigureToStyledNode RstFigure (prj, doc, indent) ->
@@ -1154,14 +1208,15 @@ end
 # which is the file's own spelling. The natural notation says the same thing in
 # one line: where the text comes from, in what language, between which marks.
 #
-# The arrow is set in DejaVu explicitly: Ubuntu Mono lacks this glyph, and
-# pinning the font here keeps the marker legible without depending on the
-# per-glyph fallback `source/backend/sdl/Sdl.jl` otherwise applies.
+# The arrow takes the theme's `rendered_marker_text`, which is DejaVu: Ubuntu
+# Mono lacks this glyph, and a DejaVu marker stays legible without depending on
+# the per-glyph fallback `source/backend/sdl/Sdl.jl` otherwise applies.
 
-@projection struct RstLiteralIncludeToStyledLeaf
-    marker_style::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
-    path_style::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_violet)
-    detail_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstLiteralIncludeToStyledLeaf
+    theme::Any = nothing
+    marker_style::StyleText = _get_rst_style(theme, :rendered_marker_text)
+    path_style::StyleText   = _get_rst_style(theme, :target_text)
+    detail_style::StyleText = _get_rst_style(theme, :marker_text)
     marker::String = "\u21b3 "
 end
 
@@ -1185,8 +1240,9 @@ end
                    open=TextString(prj.marker, prj.marker_style)),
         SyntaxLeaf(TextString(() -> _include_detail(doc), prj.detail_style)) ])
 
-@projection struct RstImageToStyledNode
-    placeholder::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct RstImageToStyledNode
+    theme::Any = nothing
+    placeholder::StyleText = _get_rst_style(theme, :marker_text)
 end
 
 @rst_flat RstImageToStyledNode RstImage (prj, doc, indent) ->
@@ -1209,94 +1265,96 @@ marker (the loader) and its writer (this projection) need the one name.
 """
 const PRED_REF_DIRECTIVE = "pred-ref"
 
-_source_rules() = Pair{Any,Any}[
-    RstInsertion               => RstInsertionToSyntaxLeaf(),
-    RstText                    => RstTextToSyntaxLeaf(),
-    RstLiteral                 => RstLiteralToSyntaxLeaf(),
-    RstEmphasis                => RstEmphasisToSyntaxNode(),
-    RstStrong                  => RstStrongToSyntaxNode(),
-    RstRole                    => RstRoleToSyntaxNode(),
-    RstReference               => RstReferenceToSyntaxNode(),
-    RstSubstitutionReference   => RstSubstitutionReferenceToSyntaxLeaf(),
-    RstFootnoteReference       => RstFootnoteReferenceToSyntaxLeaf(),
+_source_rules(theme) = Pair{Any,Any}[
+    RstInsertion               => RstInsertionToSyntaxLeaf(; theme),
+    RstText                    => RstTextToSyntaxLeaf(; theme),
+    RstLiteral                 => RstLiteralToSyntaxLeaf(; theme),
+    RstEmphasis                => RstEmphasisToSyntaxNode(; theme),
+    RstStrong                  => RstStrongToSyntaxNode(; theme),
+    RstRole                    => RstRoleToSyntaxNode(; theme),
+    RstReference               => RstReferenceToSyntaxNode(; theme),
+    RstSubstitutionReference   => RstSubstitutionReferenceToSyntaxLeaf(; theme),
+    RstFootnoteReference       => RstFootnoteReferenceToSyntaxLeaf(; theme),
     RstParagraph               => RstParagraphToSyntaxNode(),
-    RstLiteralBlock            => RstLiteralBlockToSyntaxLeaf(),
-    RstLineBlock               => RstLineBlockToSyntaxNode(),
-    RstListItem                => RstListItemToSyntaxNode(),
-    RstBulletList              => RstBulletListToSyntaxNode(),
-    RstEnumeratedList          => RstEnumeratedListToSyntaxNode(),
-    RstDefinitionItem          => RstDefinitionItemToSyntaxNode(),
+    RstLiteralBlock            => RstLiteralBlockToSyntaxLeaf(; theme),
+    RstLineBlock               => RstLineBlockToSyntaxNode(; theme),
+    RstListItem                => RstListItemToSyntaxNode(; theme),
+    RstBulletList              => RstBulletListToSyntaxNode(; theme),
+    RstEnumeratedList          => RstEnumeratedListToSyntaxNode(; theme),
+    RstDefinitionItem          => RstDefinitionItemToSyntaxNode(; theme),
     RstDefinitionList          => RstDefinitionListToSyntaxNode(),
-    RstField                   => RstFieldToSyntaxNode(),
+    RstField                   => RstFieldToSyntaxNode(; theme),
     RstFieldList               => RstFieldListToSyntaxNode(),
-    RstBlockQuote              => RstBlockQuoteToSyntaxNode(),
-    RstTransition              => RstTransitionToSyntaxLeaf(),
-    RstComment                 => RstCommentToSyntaxLeaf(),
-    RstTarget                  => RstTargetToSyntaxLeaf(),
-    RstSubstitutionDefinition  => RstSubstitutionDefinitionToSyntaxNode(),
-    RstFootnote                => RstFootnoteToSyntaxNode(),
-    RstTableCell               => RstTableCellToSyntaxNode(),
-    RstTableRow                => RstTableRowToSyntaxNode(),
-    RstGridTable               => RstGridTableToSyntaxNode(),
-    RstDirectiveOption         => RstDirectiveOptionToSyntaxNode(),
-    RstLiteralInclude          => RstLiteralIncludeToSyntaxNode(),
-    RstFigure                  => RstFigureToSyntaxNode(),
-    RstCodeBlock               => RstCodeBlockToSyntaxNode(),
-    RstImage                   => RstImageToSyntaxNode(),
-    RstVideo                   => RstVideoToSyntaxNode(),
-    RstAudio                   => RstAudioToSyntaxNode(),
-    RstAdmonition              => RstAdmonitionToSyntaxNode(),
-    RstToctree                 => RstToctreeToSyntaxNode(),
-    RstMathBlock               => RstMathBlockToSyntaxLeaf(),
-    RstRawBlock                => RstRawBlockToSyntaxLeaf(),
-    RstRoleDefinition          => RstRoleDefinitionToSyntaxNode(),
-    RstDirective               => RstDirectiveToSyntaxNode(),
-    RstSection                 => RstSectionToSyntaxNode(),
-    RstRoot                    => RstRootToSyntaxNode(),
+    RstBlockQuote              => RstBlockQuoteToSyntaxNode(; theme),
+    RstTransition              => RstTransitionToSyntaxLeaf(; theme),
+    RstComment                 => RstCommentToSyntaxLeaf(; theme),
+    RstTarget                  => RstTargetToSyntaxLeaf(; theme),
+    RstSubstitutionDefinition  => RstSubstitutionDefinitionToSyntaxNode(; theme),
+    RstFootnote                => RstFootnoteToSyntaxNode(; theme),
+    RstTableCell               => RstTableCellToSyntaxNode(; theme),
+    RstTableRow                => RstTableRowToSyntaxNode(; theme),
+    RstGridTable               => RstGridTableToSyntaxNode(; theme),
+    RstDirectiveOption         => RstDirectiveOptionToSyntaxNode(; theme),
+    RstLiteralInclude          => RstLiteralIncludeToSyntaxNode(; theme),
+    RstFigure                  => RstFigureToSyntaxNode(; theme),
+    RstCodeBlock               => RstCodeBlockToSyntaxNode(; theme),
+    RstImage                   => RstImageToSyntaxNode(; theme),
+    RstVideo                   => RstVideoToSyntaxNode(; theme),
+    RstAudio                   => RstAudioToSyntaxNode(; theme),
+    RstAdmonition              => RstAdmonitionToSyntaxNode(; theme),
+    RstToctree                 => RstToctreeToSyntaxNode(; theme),
+    RstMathBlock               => RstMathBlockToSyntaxLeaf(; theme),
+    RstRawBlock                => RstRawBlockToSyntaxLeaf(; theme),
+    RstRoleDefinition          => RstRoleDefinitionToSyntaxNode(; theme),
+    RstDirective               => RstDirectiveToSyntaxNode(; theme),
+    RstSection                 => RstSectionToSyntaxNode(; theme),
+    RstRoot                    => RstRootToSyntaxNode(; theme),
     Vector{Cell}               => CopyingProjection(),
 ]
 
 """
-    RstToSyntax(; style::Symbol = :source)
+    RstToSyntax(; style::Symbol = :source, theme = nothing)
 
 Build the RST → Syntax projection. `style` is `:source` (colourised raw RST,
 fully editable including the markers) or `:rendered` (the natural notation,
-marker-free — see the module docstring).
+marker-free — see the module docstring). `theme` is an `RstTheme`, a scaled
+one, or `nothing` for the default styles.
 """
-function RstToSyntax(; style::Symbol = :source)
+function RstToSyntax(; style::Symbol = :source, theme = nothing)
     style in (:source, :rendered) || error("RstToSyntax: style must be :source or :rendered, got :$style")
-    rules = _source_rules()
+    theme = scale_theme(theme)
+    rules = _source_rules(theme)
     style === :source && return TypeDispatchingProjection(rules...)
 
-    dejavu_gray = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    marker = _get_rst_style(theme, :rendered_marker_text)
     # Every override either swaps in a cascading rule or turns a marker off by
     # giving the same rule a different field value.
     overrides = Dict{Any,Any}(
-        RstText        => RstStyledTextToSyntaxLeaf(),
-        RstStrong      => RstStrongToStyledNode(),
-        RstEmphasis    => RstEmphasisToStyledNode(),
-        RstRole        => RstRoleToStyledLeaf(),
-        RstSection     => RstSectionToStyledNode(),
-        RstFigure      => RstFigureToStyledNode(),
-        RstImage       => RstImageToStyledNode(),
+        RstText        => RstStyledTextToSyntaxLeaf(; theme),
+        RstStrong      => RstStrongToStyledNode(; theme),
+        RstEmphasis    => RstEmphasisToStyledNode(; theme),
+        RstRole        => RstRoleToStyledLeaf(; theme),
+        RstSection     => RstSectionToStyledNode(; theme),
+        RstFigure      => RstFigureToStyledNode(; theme),
+        RstImage       => RstImageToStyledNode(; theme),
         # The backquotes go, the monospace stays.
-        RstLiteral     => RstLiteralToSyntaxLeaf(tick=""),
+        RstLiteral     => RstLiteralToSyntaxLeaf(; theme, tick=""),
         # A rule with no markers left to draw.
-        RstReference   => RstReferenceToSyntaxNode(show_markers=false),
-        RstTransition  => RstTransitionToSyntaxLeaf(text="────────────", style=dejavu_gray),
-        RstBulletList  => RstBulletListToSyntaxNode(marker="•  "),
-        RstCodeBlock   => RstCodeBlockToSyntaxNode(header="", show_language=false),
-        RstEnumeratedList => RstEnumeratedListToStyledNode(),
-        RstAdmonition  => RstAdmonitionToSyntaxNode(show_marker=false),
-        RstToctree     => RstToctreeToSyntaxNode(show_marker=false),
-        RstLineBlock   => RstLineBlockToSyntaxNode(open_marker=""),
-        RstLiteralInclude => RstLiteralIncludeToStyledLeaf(),
-        RstAudio       => RstAudioToSyntaxNode(header=""),
-        RstMathBlock   => RstMathBlockToSyntaxLeaf(show_marker=false),
+        RstReference   => RstReferenceToSyntaxNode(; theme, show_markers=false),
+        RstTransition  => RstTransitionToSyntaxLeaf(; theme, text="────────────", style=marker),
+        RstBulletList  => RstBulletListToSyntaxNode(; theme, marker="•  "),
+        RstCodeBlock   => RstCodeBlockToSyntaxNode(; theme, header="", show_language=false),
+        RstEnumeratedList => RstEnumeratedListToStyledNode(; theme),
+        RstAdmonition  => RstAdmonitionToSyntaxNode(; theme, show_marker=false),
+        RstToctree     => RstToctreeToSyntaxNode(; theme, show_marker=false),
+        RstLineBlock   => RstLineBlockToSyntaxNode(; theme, open_marker=""),
+        RstLiteralInclude => RstLiteralIncludeToStyledLeaf(; theme),
+        RstAudio       => RstAudioToSyntaxNode(; theme, header=""),
+        RstMathBlock   => RstMathBlockToSyntaxLeaf(; theme, show_marker=false),
         # A comment and a target are build-time chrome: the natural notation
         # shows the comment dimmed without its marker, and nothing for a target.
-        RstComment     => RstCommentToSyntaxLeaf(show_marker=false),
-        RstTarget      => RstTargetToSyntaxLeaf(open_marker="", close_marker=""),
+        RstComment     => RstCommentToSyntaxLeaf(; theme, show_marker=false),
+        RstTarget      => RstTargetToSyntaxLeaf(; theme, open_marker="", close_marker=""),
     )
     TypeDispatchingProjection((k => get(overrides, k, v) for (k, v) in rules)...)
 end

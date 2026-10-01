@@ -28,8 +28,9 @@ function test_markdown()
         test_markdown_embed_card()
         test_markdown_page_table()
         test_markdown_image_leaf()
+        test_markdown_theme()
     end
 end
 
 export test_markdown, test_markdown_layering, test_markdown_parser, test_markdown_page_wrap, test_markdown_embed_card,
-       test_markdown_page_table, test_markdown_image_leaf
+       test_markdown_page_table, test_markdown_image_leaf, test_markdown_theme

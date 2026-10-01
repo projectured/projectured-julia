@@ -43,6 +43,7 @@ end
 
 include("../../../test/domain/rst/document/RstParserTest.jl")
 include("../../../test/domain/rst/projection/RstEmbedCardTest.jl")
+include("../../../test/domain/rst/projection/RstThemeTest.jl")
 
 include("../../../test/domain/rst/RstSuite.jl")
 

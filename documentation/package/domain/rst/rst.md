@@ -84,6 +84,15 @@ The directive needs no parser rule: an unknown directive name becomes an `RstDir
 
 `find_rst_section(document, title)` returns the first section, depth first, whose title reads `title`. `get_rst_title_text` gives that plain text, with every inline marker dropped. The search returns the section node itself, because an RST section already owns its blocks. It is the RST method of `get_document_section`, so `<<section(file("page.rst"), "Title")>>` embeds a section of a page, and a title that no section has raises an error.
 
+### The theme
+
+`RstTheme` holds the look of the RST projections: the text of the markers, the source text, a literal, a target, a value, a reference, a substitution, a directive, an admonition and a section title; for the rendered form the body text, the bold and the italic font, the four title fonts, the color of a title, the caption, the rendered markers, and the gap between the blocks of a page. The color of a role takes the color of the text of its kind. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `RstTheme` or a scaled one; with none it holds the default values.
+`RstToSyntax(; style, theme)` gives the theme to every projection, and the layouts of a page and of a section take `block_gap`. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `RstTheme`.
+
 ## How it fits
 
 `ProjecturedRST` depends on the kernel and the platform, using the layout and widget slices for the page and the embed cards. Unlike other domains, it does not use the domain slice's `@domain` machinery, and no other domain depends on it.

@@ -24,7 +24,8 @@ function test_book()
     @testset "ProjecturedBook" begin
         test_book_layering()
         test_book_to_syntax()
+        test_book_theme()
     end
 end
 
-export test_book, test_book_layering, test_book_to_syntax
+export test_book, test_book_layering, test_book_to_syntax, test_book_theme

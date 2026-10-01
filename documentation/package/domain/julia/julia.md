@@ -52,6 +52,15 @@ A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring
 
 `has_document_duplicate` is `true` for every `JuliaDocument`, because Julia code is what a person typed. A duplicated pane copies the code into nodes of its own, and an edit in one pane does not change the other. The code of an evaluator form is a Julia document, so a duplicated evaluator does not type into the original. See [document.md](../../kernel/document.md#the-duplicate).
 
+### The theme
+
+`JuliaTheme` holds the look of the Julia projections: the text of an identifier, a literal, punctuation, a keyword, a symbol, an operator, a called function, a module name and plain text, the completion hint, and the colors of a typed name that names nothing and of one that names one thing. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `JuliaTheme` or a scaled one; with none it holds the default values.
+`JuliaToSyntax(entries...; theme, syntax_theme)` gives the theme to every projection, and the entries that a domain adds keep their own styles. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `JuliaTheme`.
+
 ## How it fits
 
 `ProjecturedJulia` depends only on the engine and the platform. The domains that embed Julia code depend on it: `ProjecturedFSM`, `ProjecturedProcess` and `ProjecturedFormula`. `ProjecturedFormula` copies the dispatch table of `JuliaToSyntax()` and adds its own rules, so one recursion prints a tree that mixes Julia and formula nodes.

@@ -26,8 +26,9 @@ function test_rst()
         test_rst_parser()
         test_rst_round_trip()
         test_rst_embed_card()
+        test_rst_theme()
     end
 end
 
 export test_rst, test_rst_layering, test_rst_parser
-export test_rst_round_trip, test_rst_embed_card
+export test_rst_round_trip, test_rst_embed_card, test_rst_theme

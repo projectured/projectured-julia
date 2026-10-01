@@ -31,8 +31,9 @@
 #
 # A bound leaf: `.content{k}` edits map to the leaf's own `.value{k}` span.
 
-@projection struct XmlTextToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_black)
+@projection UntrackedCell struct XmlTextToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_xml_style(theme, :content_text)
 end
 
 # The text is entity-escaped on the way out, as an attribute value already is,
@@ -48,7 +49,7 @@ end
 # leaf's char editing declines without a value cursor, so those keys fall
 # through to `@gestures XmlDocument` (declared in `XmlDocument.jl`).
 
-XmlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(XmlDocument)
+XmlInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(XmlDocument; theme)
 
 # ── XmlAttributeToSyntaxNode ────────────────────────────────────────────────
 #
@@ -56,11 +57,12 @@ XmlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(XmlDocument)
 # document in its own right, so it projects on its own rather than being built
 # inline by the element that happens to hold it.
 
-@projection struct XmlAttributeToSyntaxNode
-    delim::ImmutableCell{StyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    attr_name::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    attr_value::ImmutableCell{StyleText}  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+@projection UntrackedCell struct XmlAttributeToSyntaxNode
+    theme::Any = nothing
+    delim::StyleText       = _get_xml_style(theme, :delimiter_text)
+    attr_name::StyleText   = _get_xml_style(theme, :attribute_name_text)
+    quote_style::StyleText = _get_xml_style(theme, :quote_text)
+    attr_value::StyleText  = _get_xml_style(theme, :attribute_value_text)
 end
 
 @projection_template XmlAttributeToSyntaxNode XmlAttribute (p, a) ->
@@ -73,9 +75,10 @@ end
 
 # ── XmlElementToSyntaxNode ──────────────────────────────────────────────────
 
-@projection struct XmlElementToSyntaxNode
-    tag::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct XmlElementToSyntaxNode
+    theme::Any = nothing
+    tag::StyleText   = _get_xml_style(theme, :tag_text)
+    delim::StyleText = _get_xml_style(theme, :delimiter_text)
 end
 
 # Fixed-children node `[tag, attrs, body, close]`. The tag leaf is `bound(:tag)`;
@@ -102,13 +105,19 @@ end
 
 # ── XmlToSyntax (composite) ─────────────────────────────────────────────────
 
-function XmlToSyntax()
+# The projection of the whole domain: one rule per document type. `theme` is an
+# `XmlTheme`, a scaled one, or `nothing` for the default styles; `syntax_theme`
+# styles the insertion and the empty placeholder, which are the syntax slice's.
+
+function XmlToSyntax(; theme = nothing, syntax_theme = nothing)
+    theme = scale_theme(theme)
+    syntax_theme = scale_theme(syntax_theme)
     TypeDispatchingProjection(
-        XmlText      => XmlTextToSyntaxLeaf(),
-        XmlAttribute => XmlAttributeToSyntaxNode(),
-        XmlElement   => XmlElementToSyntaxNode(),
-        XmlInsertion => XmlInsertionToSyntaxLeaf(),
-        XmlNothing   => InsertionNothingToSyntaxLeaf(),
+        XmlText      => XmlTextToSyntaxLeaf(; theme),
+        XmlAttribute => XmlAttributeToSyntaxNode(; theme),
+        XmlElement   => XmlElementToSyntaxNode(; theme),
+        XmlInsertion => XmlInsertionToSyntaxLeaf(; theme = syntax_theme),
+        XmlNothing   => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
     )
 end
 

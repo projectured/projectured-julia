@@ -43,6 +43,7 @@ end
 
 include("../../../test/domain/xml/document/XmlParserTest.jl")
 include("../../../test/domain/xml/projection/XmlToSyntaxTest.jl")
+include("../../../test/domain/xml/projection/XmlThemeTest.jl")
 
 include("../../../test/domain/xml/XmlSuite.jl")
 

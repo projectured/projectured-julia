@@ -43,6 +43,7 @@ end
 
 
 include("../../../test/domain/yaml/document/YamlParserTest.jl")
+include("../../../test/domain/yaml/projection/YamlThemeTest.jl")
 
 include("../../../test/domain/yaml/YamlSuite.jl")
 

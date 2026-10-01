@@ -43,6 +43,7 @@ end
 
 
 include("../../../test/domain/book/projection/BookToSyntaxTest.jl")
+include("../../../test/domain/book/projection/BookThemeTest.jl")
 
 include("../../../test/domain/book/BookSuite.jl")
 

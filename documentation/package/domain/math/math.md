@@ -105,6 +105,15 @@ A key goes to the selected child first, and a node acts only when the child retu
 
 `MathFile` is the file type for `.math`. It holds one formula in its linear form, and `emit_text` writes `print_natural_text` of the content. Neither the linear form nor the tree can hold a reference to another file, so a node of a `.math` file belongs to that file alone. A `MathFile` with no content holds a `MathInsertion`.
 
+### The theme
+
+`MathTheme` holds the look of the Math projections: the text of a variable, an operator, the chrome, a symbol, a name, a word and the equals sign of the linear form, and for the typeset form its font, its slanted font, its ink, its hint color and the wash of a selection. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `MathTheme` or a scaled one; with none it holds the default values.
+`MathToSyntax(; theme, syntax_theme)` and `MathToGraphics(; measure, theme)` gives the theme to every projection, and a font or a color that a keyword of `MathToGraphics` names stays fixed. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `MathTheme`.
+
 ## How it fits
 
 `ProjecturedMath` depends on the kernel and the platform. It depends on no other domain. `ProjecturedFormula` depends on it: a formula can have math code, which it converts to Julia to compute, and it draws that code with the boxes of this domain; see [formula.md](../formula/formula.md).

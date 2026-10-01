@@ -20,6 +20,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,
        SqlJoinCondition, SqlJoinConditionExpression, SqlWhereCondition, SqlBooleanExpression
 export parse_sql_text, parse_sql_file
+export SqlTheme, ScaledSqlTheme
 export SqlInsertionToSyntaxLeaf,
        SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
        SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
@@ -43,6 +44,7 @@ export SqlFile
 
 include("SqlDocument.jl")
 include("SqlParser.jl")
+include("SqlTheme.jl")
 include("SqlToSyntax.jl")
 include("SqlFile.jl")
 

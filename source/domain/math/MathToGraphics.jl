@@ -129,26 +129,31 @@ _box_output(b) = b.output
 # ════════════════════════════════════════════════════════════════════════════
 
 """
-    MathConfig(; font, slanted, measure, ink, hint)
+    MathConfig(; theme = nothing, measure, font, slanted, ink, hint)
 
 What every rule of one renderer shares: the two faces, the text measurer and the
 two ink colors. One value is built by `MathToGraphics` and handed to each rule,
-so a formula cannot end up half in one font and half in another.
+so a formula cannot end up half in one font and half in another. `theme` is a
+`MathTheme`, a scaled one, or `nothing` for the default values; a field given
+explicitly overrides the theme's own.
 """
-struct MathConfig
+@cell_struct UntrackedCell struct MathConfig
     font::StyleFont        # upright: numbers, operators, function names, symbols
     slanted::StyleFont     # oblique: variables
     measure::TextMeasure
     ink::StyleColor
     hint::StyleColor
+    selection_wash::StyleColor   # the wash a selected box paints over itself
 end
 
-MathConfig(; font::StyleFont = font_dejavu_sans_regular_20,
-             slanted::StyleFont = font_dejavu_sans_italic_20,
+MathConfig(; theme = nothing,
              measure::TextMeasure = FontFileMeasure(),
-             ink::StyleColor = color_default,
-             hint::StyleColor = color_solarized_gray) =
-    MathConfig(font, slanted, measure, ink, hint)
+             font = _get_math_style(theme, StyleFont, :font),
+             slanted = _get_math_style(theme, StyleFont, :slanted_font),
+             ink = _get_math_style(theme, StyleColor, :ink),
+             hint = _get_math_style(theme, StyleColor, :hint),
+             selection_wash = _get_math_style(theme, StyleColor, :selection_wash)) =
+    MathConfig(font, slanted, measure, ink, hint, selection_wash)
 
 """
     MathMetrics
@@ -1685,9 +1690,9 @@ end
 # `EmptyReference` on the node itself — and it is the one a two-dimensional
 # formula can show, because there is no line of text to put a caret in.
 
-# The wash a selected box paints over itself. The color cell reads the
-# document's own selection, so selecting is a repaint and never a re-layout.
-const _SELECTION_WASH = StyleColor(0.15, 0.39, 0.68, 0.22)
+# The wash a selected box paints over itself is the `selection_wash` of the
+# config of the rule that draws it. The color cell reads the document's own
+# selection, so selecting is a repaint and never a re-layout.
 
 # A selection carries type checkpoints — a whole-element selection on a node is
 # an empty path *plus* that node's type — so every comparison here strips them
@@ -1700,7 +1705,7 @@ function _selection_element(p, doc, build::Cell)
     GraphicsRect(Cell(Int32(0)), Cell(Int32(0)),
                  _int32(() -> build[].width[]),
                  _int32(() -> build[].ascent[] + build[].descent[]),
-                 Cell(@computation _is_selected(doc) ? _SELECTION_WASH : color_transparent),
+                 Cell(@computation _is_selected(doc) ? p.config.selection_wash : color_transparent),
                  Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)),
                  Cell(Int32(0)), Cell(color_transparent), Cell(nothing))
 end
@@ -1933,23 +1938,34 @@ end
 # ════════════════════════════════════════════════════════════════════════════
 
 """
-    MathToGraphics(; measure, font, slanted, style, ink, hint) -> TypeDispatchingProjection
+    MathToGraphics(; measure, theme = nothing, style, font = nothing, slanted = nothing,
+                    ink = nothing, hint = nothing) -> TypeDispatchingProjection
 
 Every math rule, sharing one configuration. Splice `.dispatch` into a bigger
 table the way `WidgetToGraphics(…).dispatch` is spliced, so a formula renders
 the same wherever it appears.
+
+`theme` is a `MathTheme`, a scaled one, or `nothing` for the default values.
+`font`, `slanted`, `ink` and `hint` each give a fixed value when they are not
+`nothing`, and the theme's own value otherwise.
 
 `style` is the style level of the root: `:display` sets a formula on its own
 line (limits above and below a sum, a taller fraction) and `:text` sets it in a
 line of prose.
 """
 function MathToGraphics(; measure::TextMeasure = FontFileMeasure(),
-                        font::StyleFont = font_dejavu_sans_regular_20,
-                        slanted::StyleFont = font_dejavu_sans_italic_20,
+                        theme = nothing,
                         style::Symbol = :display,
-                        ink::StyleColor = color_default,
-                        hint::StyleColor = color_solarized_gray)
-    c = MathConfig(font = font, slanted = slanted, measure = measure, ink = ink, hint = hint)
+                        font::Union{StyleFont,Nothing} = nothing,
+                        slanted::Union{StyleFont,Nothing} = nothing,
+                        ink::Union{StyleColor,Nothing} = nothing,
+                        hint::Union{StyleColor,Nothing} = nothing)
+    theme = scale_theme(theme)
+    c = MathConfig(; theme, measure,
+                     font = something(font, _get_math_style(theme, StyleFont, :font)),
+                     slanted = something(slanted, _get_math_style(theme, StyleFont, :slanted_font)),
+                     ink = something(ink, _get_math_style(theme, StyleColor, :ink)),
+                     hint = something(hint, _get_math_style(theme, StyleColor, :hint)))
     TypeDispatchingProjection(
         MathVariable        => MathVariableToGraphics(c, style),
         MathSymbol          => MathSymbolToGraphics(c, style),

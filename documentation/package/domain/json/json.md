@@ -61,6 +61,15 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 
 `JsonFile` is the file type for `.json`. A reference to a node in another file is a `JsonString` whose whole value is the marker, because a string is the only unit of JSON that can hold any text. `emit_text` prints the content with `print_natural_text`. A `.json` path that does not exist opens as a `JsonInsertion`.
 
+### The theme
+
+`JsonTheme` holds the look of the JSON projections: the text of a null, a bool, a number and a string, the quotes, a key, the brackets and braces, and the separators. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `JsonTheme` or a scaled one; with none it holds the default values.
+`JsonToSyntax(; theme, syntax_theme)` gives the theme to every projection, and the insertion and the empty placeholder, which come from the syntax slice, take `syntax_theme`. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `JsonTheme`.
+
 ## How it fits
 
 `ProjecturedJSON` depends on the kernel and the platform. No other domain package depends on it. The examples put JSON next to other domains, for example in `pane_json_example` and in a split pane with XML.

@@ -25,6 +25,7 @@ function test_sql()
         test_sql_layering()
         test_sql_parser()
         test_sql_to_syntax()
+        test_sql_theme()
         test_sql_insert_update_selection()
         test_sql_to_syntax_selection()
         test_sql_ddl()
@@ -33,5 +34,5 @@ function test_sql()
 end
 
 export test_sql, test_sql_layering, test_sql_parser
-export test_sql_to_syntax, test_sql_insert_update_selection, test_sql_to_syntax_selection
+export test_sql_to_syntax, test_sql_theme, test_sql_insert_update_selection, test_sql_to_syntax_selection
 export test_sql_ddl, test_sql_ddl_selection

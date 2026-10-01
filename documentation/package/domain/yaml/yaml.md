@@ -38,6 +38,15 @@ The block sequence is the one hand-written projection, `YamlSequenceToBlockSynta
 
 `YamlFile` is the file type. A reference to a node in another file is a `YamlString` whose whole value is the marker, as in JSON.
 
+### The theme
+
+`YamlTheme` holds the look of the YAML projections: the text of a null, a bool, a number, a string and a key, of the delimiters (also the marker of a block sequence) and of the separators (also the colon). Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `YamlTheme` or a scaled one; with none it holds the default values.
+`YamlToSyntax(; style, theme, syntax_theme)` gives the theme to every projection, and the insertion and the empty placeholder take `syntax_theme`. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `YamlTheme`.
+
 ## How it fits
 
 `ProjecturedYAML` depends on the engine and on the platform. No other domain depends on it. Its `__init__` registers:

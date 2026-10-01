@@ -28,6 +28,7 @@ export MathDocument, _operator_string, get_math_operator_glyph, get_math_operato
        get_math_symbol_glyph, get_math_big_operator_glyph, get_math_big_operator_name,
        is_math_big_operator_text,
        get_math_delimiter_strings, is_math_accent_wide, MathSubscript, MathSuperscript
+export MathTheme, ScaledMathTheme
 export MathInsertionToSyntaxLeaf, MathVariableToSyntaxLeaf,
        MathBinaryOperationToSyntaxNode, MathParenthesizedToSyntaxNode,
        MathAssignmentToSyntaxNode, MathToSyntax,
@@ -55,6 +56,7 @@ export parse_math, MathFile
 
 include("MathDocument.jl")
 include("MathParser.jl")
+include("MathTheme.jl")
 include("MathToSyntax.jl")
 include("MathToGraphics.jl")
 include("MathFile.jl")

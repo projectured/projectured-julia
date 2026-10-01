@@ -39,8 +39,9 @@ function _make_forward_path_leaf(p, input, make_leaf)
     iomap
 end
 
-@projection struct FormulaInsertionToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct FormulaInsertionToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_formula_style(theme, StyleText, :insertion_text)
 end
 
 print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx) =
@@ -54,8 +55,9 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
 # target, not editable here, so the leaf has no input value mapping (the cursor
 # selects the whole reference).
 
-@projection struct FormulaReferenceToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
+@projection UntrackedCell struct FormulaReferenceToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_formula_style(theme, StyleText, :reference_text)
 end
 
 print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx) =
@@ -79,11 +81,12 @@ print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, 
 # EvaluatorForm renders its result). Only `code` therefore needs School-A
 # delegation; its output child index depends on the mode.
 
-@projection struct FormulaFormulaToSyntaxNode
-    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    op::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct FormulaFormulaToSyntaxNode
+    theme::Any = nothing
+    name::StyleText = _get_formula_style(theme, StyleText, :name_text)
+    op::StyleText   = _get_formula_style(theme, StyleText, :operator_text)
     # The result run shares the op font but is coloured distinctly (green).
-    result::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    result::StyleText = _get_formula_style(theme, StyleText, :result_text)
 end
 
 # Flatten a result TextBlock into a single rendered string.
@@ -185,8 +188,9 @@ end
 #
 # A plain list — one formula per line — like BookmarkList in the tutorial.
 
-@projection struct FormulaEnvironmentToSyntaxNode
-    font::StyleFont = font_ubuntu_monospace_regular_20
+@projection UntrackedCell struct FormulaEnvironmentToSyntaxNode
+    theme::Any = nothing
+    font::StyleFont = _get_formula_font(theme)
 end
 
 function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
@@ -248,8 +252,16 @@ end
 # Returns a bare `TypeDispatchingProjection` (the convention used by
 # JuliaToSyntax / JsonToSyntax / BookToSyntax); callers wrap it once in a
 # `RecursiveProjection` so node projections can recurse children.
-FormulaToSyntax() = JuliaToSyntax(
-    FormulaInsertion   => FormulaInsertionToSyntaxLeaf(),
-    FormulaReference   => FormulaReferenceToSyntaxLeaf(),
-    FormulaFormula     => FormulaFormulaToSyntaxNode(),
-    FormulaEnvironment => FormulaEnvironmentToSyntaxNode())
+#
+# `theme` is a `FormulaTheme`, a scaled one, or `nothing` for the default
+# styles; `julia_theme` and `syntax_theme` style the Julia nodes a formula's
+# code is built from, through `JuliaToSyntax`.
+function FormulaToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
+    theme = scale_theme(theme)
+    JuliaToSyntax(
+        FormulaInsertion   => FormulaInsertionToSyntaxLeaf(; theme),
+        FormulaReference   => FormulaReferenceToSyntaxLeaf(; theme),
+        FormulaFormula     => FormulaFormulaToSyntaxNode(; theme),
+        FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; theme);
+        theme = julia_theme, syntax_theme)
+end

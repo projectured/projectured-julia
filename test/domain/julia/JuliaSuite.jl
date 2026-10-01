@@ -28,6 +28,7 @@ function test_julia()
         test_julia_definition()
         test_julia_duplicate()
         test_julia_to_syntax()
+        test_julia_theme()
         test_julia_code_pieces()
         test_julia_typein()
         test_conversation_editor()
@@ -37,5 +38,5 @@ function test_julia()
 end
 
 export test_julia, test_julia_layering, test_julia_parser, test_julia_definition
-export test_julia_expression, test_julia_duplicate, test_julia_to_syntax, test_julia_code_pieces
+export test_julia_expression, test_julia_duplicate, test_julia_to_syntax, test_julia_theme, test_julia_code_pieces
 export test_julia_typein, test_conversation_editor, test_julia_tooltip, test_tooltip_window

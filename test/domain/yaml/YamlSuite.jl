@@ -24,7 +24,8 @@ function test_yaml()
     @testset "ProjecturedYAML" begin
         test_yaml_layering()
         test_yaml_parser()
+        test_yaml_theme()
     end
 end
 
-export test_yaml, test_yaml_layering, test_yaml_parser
+export test_yaml, test_yaml_layering, test_yaml_parser, test_yaml_theme

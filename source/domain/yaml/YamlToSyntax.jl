@@ -18,8 +18,9 @@
 # block sequence is a hand-written projection (like `FileSystemDirectoryToSyntaxNode`).
 # ── YamlNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
-@projection struct YamlNullToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+@projection UntrackedCell struct YamlNullToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_yaml_style(theme, :null_text)
 end
 
 @projection_template YamlNullToSyntaxLeaf YamlNull (prj, doc) ->
@@ -32,12 +33,13 @@ end
 # a whole-selected insertion keep working: the leaf declines without a value
 # cursor, so those keys fall through to `@gestures YamlDocument`.
 
-YamlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(YamlDocument)
+YamlInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(YamlDocument; theme)
 
 # ── YamlBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
-@projection struct YamlBoolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+@projection UntrackedCell struct YamlBoolToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_yaml_style(theme, :bool_text)
 end
 
 # See JsonBoolToSyntaxLeaf: `make_hinted_text` guards the `doc.value ? …` thunk against a
@@ -51,8 +53,9 @@ end
 
 # ── YamlNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
-@projection struct YamlNumberToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+@projection UntrackedCell struct YamlNumberToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_yaml_style(theme, :number_text)
 end
 
 @projection_template YamlNumberToSyntaxLeaf YamlNumber (prj, doc) ->
@@ -68,8 +71,9 @@ end
 # A plain scalar: rendered unquoted (the distinctly-YAML choice). The bound value
 # lives on the leaf's `.value` span with empty open/close delimiters.
 
-@projection struct YamlStringToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+@projection UntrackedCell struct YamlStringToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_yaml_style(theme, :string_text)
 end
 
 @projection_template YamlStringToSyntaxLeaf YamlString (prj, doc) ->
@@ -85,11 +89,12 @@ end
 # the same rule renders flow (`{a: 1, b: 2}`) or block (indented `key: value`
 # lines) — see `YamlToSyntax`.
 
-@projection struct YamlMappingToSyntaxNode
-    delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-    key_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    colon_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct YamlMappingToSyntaxNode
+    theme::Any = nothing
+    delimiter_style::StyleText = _get_yaml_style(theme, :delimiter_text)
+    separator_style::StyleText = _get_yaml_style(theme, :separator_text)
+    key_style::StyleText = _get_yaml_style(theme, :key_text)
+    colon_style::StyleText = _get_yaml_style(theme, :separator_text)
     open::String = ""      # "{" flow, "" block
     close::String = ""     # "}" flow, "" block
     sep::String = ""       # ", " flow, "" block (indentation provides the newline)
@@ -118,9 +123,10 @@ end
 
 # ── YamlSequenceToSyntaxNode (template; flow style [a, b]) ────────────────────
 
-@projection struct YamlSequenceToSyntaxNode
-    delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct YamlSequenceToSyntaxNode
+    theme::Any = nothing
+    delimiter_style::StyleText = _get_yaml_style(theme, :delimiter_text)
+    separator_style::StyleText = _get_yaml_style(theme, :separator_text)
 end
 
 @projection_template YamlSequenceToSyntaxNode YamlSequence (prj, doc) ->
@@ -145,8 +151,9 @@ end
 # delegated through the stored child iomaps (School A); the two mappers are the
 # single source of truth for the printer's selection cell and the readers.
 
-@projection struct YamlSequenceToBlockSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+@projection UntrackedCell struct YamlSequenceToBlockSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_yaml_style(theme, :delimiter_text)
 end
 
 function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
@@ -248,25 +255,29 @@ end
 # ── Compound convenience constructor ────────────────────────────────────────
 
 """
-    YamlToSyntax(; style::Symbol = :block)
+    YamlToSyntax(; style::Symbol = :block, theme = nothing, syntax_theme = nothing)
 
 Build the YAML → Syntax projection. `style` is `:block` (idiomatic block YAML) or
-`:flow` (JSON-superset flow YAML). See the module docstring.
+`:flow` (JSON-superset flow YAML). See the module docstring. `theme` is a
+`YamlTheme`, a scaled one, or `nothing` for the default styles; `syntax_theme`
+styles the insertion and the empty placeholder, which are the syntax slice's.
 """
-function YamlToSyntax(; style::Symbol = :block)
+function YamlToSyntax(; style::Symbol = :block, theme = nothing, syntax_theme = nothing)
     style in (:block, :flow) || error("YamlToSyntax: style must be :block or :flow, got :$style")
-    sequence = style === :flow ? YamlSequenceToSyntaxNode() : YamlSequenceToBlockSyntaxNode()
-    mapping  = style === :flow ? YamlMappingToSyntaxNode(open="{", close="}", sep=", ", indent=1) :
-                                 YamlMappingToSyntaxNode()
+    theme = scale_theme(theme)
+    syntax_theme = scale_theme(syntax_theme)
+    sequence = style === :flow ? YamlSequenceToSyntaxNode(; theme) : YamlSequenceToBlockSyntaxNode(; theme)
+    mapping  = style === :flow ? YamlMappingToSyntaxNode(; open="{", close="}", sep=", ", indent=1, theme) :
+                                 YamlMappingToSyntaxNode(; theme)
     TypeDispatchingProjection(
-        YamlNull         => YamlNullToSyntaxLeaf(),
-        YamlBool         => YamlBoolToSyntaxLeaf(),
-        YamlNumber       => YamlNumberToSyntaxLeaf(),
-        YamlString       => YamlStringToSyntaxLeaf(),
+        YamlNull         => YamlNullToSyntaxLeaf(; theme),
+        YamlBool         => YamlBoolToSyntaxLeaf(; theme),
+        YamlNumber       => YamlNumberToSyntaxLeaf(; theme),
+        YamlString       => YamlStringToSyntaxLeaf(; theme),
         YamlSequence     => sequence,
         YamlMapping      => mapping,
-        YamlInsertion    => YamlInsertionToSyntaxLeaf(),
-        YamlNothing      => InsertionNothingToSyntaxLeaf(),
+        YamlInsertion    => YamlInsertionToSyntaxLeaf(; theme = syntax_theme),
+        YamlNothing      => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
         YamlMappingEntry => CopyingProjection(),
         Vector{Cell}     => CopyingProjection(),
     )
@@ -280,7 +291,9 @@ end
 function __init__()
     register_natural_domain!(YamlDocument;
                              rung      = :syntax,
-                             make      = (; appearance) -> YamlToSyntax(),
+                             make      = (; appearance) -> YamlToSyntax(;
+                                 theme = get_scaled_theme!(appearance, YamlTheme),
+                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
                              format    = :yaml,
                              extension = ".yaml",
                              parse     = parse_yaml)

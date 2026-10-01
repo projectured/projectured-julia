@@ -20,6 +20,7 @@ import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
 
 export parse_xml, parse_xml_file
+export XmlTheme, ScaledXmlTheme
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
        XmlElementToSyntaxNode,
        XmlToSyntax
@@ -29,6 +30,7 @@ export XmlDocument, XmlElement, XmlAttribute, XmlText, XmlNothing, XmlInsertion
 
 include("XmlDocument.jl")
 include("XmlParser.jl")
+include("XmlTheme.jl")
 include("XmlToSyntax.jl")
 include("XmlFile.jl")
 
@@ -38,7 +40,9 @@ include("XmlFile.jl")
 function __init__()
     register_natural_domain!(XmlDocument;
                              rung      = :syntax,
-                             make      = (; appearance) -> XmlToSyntax(),
+                             make      = (; appearance) -> XmlToSyntax(;
+                                 theme = get_scaled_theme!(appearance, XmlTheme),
+                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
                              format    = :xml,
                              extension = ".xml",
                              parse     = parse_xml)

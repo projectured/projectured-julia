@@ -44,6 +44,7 @@ end
 include("../../../test/domain/sql/document/SqlDocumentTest.jl")
 include("../../../test/domain/sql/document/SqlParserTest.jl")
 include("../../../test/domain/sql/projection/SqlToSyntaxTest.jl")
+include("../../../test/domain/sql/projection/SqlThemeTest.jl")
 
 include("../../../test/domain/sql/SqlSuite.jl")
 

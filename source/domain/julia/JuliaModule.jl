@@ -24,6 +24,7 @@ export _julia_operator_string
 export parse_julia, parse_julia_file
 export make_julia_expression
 export compute_julia_signature
+export JuliaTheme, ScaledJuliaTheme
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
 export JuliaObjectToSyntaxLeaf
 export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
@@ -58,6 +59,7 @@ export JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool, JuliaN
 include("JuliaDocument.jl")
 include("JuliaParser.jl")
 include("JuliaExpression.jl")
+include("JuliaTheme.jl")
 include("JuliaInsertionToSyntax.jl")
 include("JuliaFile.jl")
 include("JuliaToSyntax.jl")
@@ -73,7 +75,9 @@ function __init__()
 
     register_natural_domain!(JuliaDocument;
                              rung      = :syntax,
-                             make      = (; appearance) -> JuliaToSyntax(),
+                             make      = (; appearance) -> JuliaToSyntax(;
+                                 theme = get_scaled_theme!(appearance, JuliaTheme),
+                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
                              format    = :jl,
                              extension = ".jl",
                              parse     = parse_julia,
@@ -83,9 +87,12 @@ function __init__()
     # an object that a person pasted into a form, stays one leaf of the code,
     # `⟨Table⟩`, and does not draw as itself in the middle of a line.
     register_natural_graphics!(:julia_code, (; measure, appearance) -> Pair{Type,Any}[
-        JuliaDocument => ChainingProjection(RecursiveProjection(JuliaToSyntax()),
-                                            RecursiveProjection(SyntaxToText()),
-                                            TextToGraphics(measure = measure))])
+        JuliaDocument => ChainingProjection(
+            RecursiveProjection(JuliaToSyntax(;
+                theme = get_scaled_theme!(appearance, JuliaTheme),
+                syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))),
+            RecursiveProjection(SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme))),
+            TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)))])
 end
 
 end # module

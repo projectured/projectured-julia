@@ -52,6 +52,15 @@ A letter or a digit on a placeholder is not a retype key, so it goes into the na
 
 `XmlFile` is the file type for `.xml`. A reference to a node in another file is a `pred:ref` element whose one text child is the marker, for example `<pred:ref>&lt;&lt;file("a.xml")&gt;&gt;</pred:ref>`. An element is the opaque unit of XML, and a text node can exist only inside an element. `find_reference_marker` accepts only an element with the tag `PRED_REF_ELEMENT_TAG` and exactly one `XmlText` child. An `.xml` path that does not exist opens as an `XmlInsertion`.
 
+### The theme
+
+`XmlTheme` holds the look of the XML projections: the text of a text node, a tag, a delimiter, the name and the value of an attribute, and the quotes. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `XmlTheme` or a scaled one; with none it holds the default values.
+`XmlToSyntax(; theme, syntax_theme)` gives the theme to every projection, and the insertion and the empty placeholder take `syntax_theme`. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `XmlTheme`.
+
 ## How it fits
 
 `ProjecturedXML` depends on the kernel and the platform. No other domain package depends on it. Its `__init__` registers the natural row with the rung `:syntax`, the format `:xml`, the extension `.xml` and the parser `parse_xml`, and it registers `XmlFile` for `.xml`.

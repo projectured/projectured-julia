@@ -25,9 +25,10 @@
 # than the source view, where the whole section maps.
 # ── RstRootToVerticalLayout ────────────────────────────────────────────────
 
-@projection struct RstRootToVerticalLayout
+@projection UntrackedCell struct RstRootToVerticalLayout
+    theme::Any = nothing
     horizontal_align::Symbol = :left
-    gap::Int = 8
+    gap::Int = make_style_field(RstTheme, scale_theme(theme), Int, :block_gap)
 end
 
 function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ctx)
@@ -58,9 +59,10 @@ map_reference_backward(::RstRootToVerticalLayout, iomap, reference) =
 
 # ── RstSectionToVerticalLayout ─────────────────────────────────────────────
 
-@projection struct RstSectionToVerticalLayout
+@projection UntrackedCell struct RstSectionToVerticalLayout
+    theme::Any = nothing
     horizontal_align::Symbol = :left
-    gap::Int = 8
+    gap::Int = make_style_field(RstTheme, scale_theme(theme), Int, :block_gap)
 end
 
 function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSection, ctx)
@@ -74,7 +76,7 @@ function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSe
     # renderer. The title is rebuilt reactively: editing it re-renders the line.
     cards = IdDict{Any,Any}()
     children = CellVector(@computation begin
-        stack = Any[_title_block(section)]
+        stack = Any[_title_block(p.theme, section)]
         append!(stack, [_rst_block(element, cards) for element in section.elements])
         stack
     end)
@@ -85,10 +87,11 @@ function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSe
     iomap
 end
 
-# The title as one prose line in the level's font.
-_title_block(section::RstSection) =
+# The title as one prose line in the level's font, read from the theme `theme`.
+_title_block(theme, section::RstSection) =
     TextBlock([TextString(_title_text(section),
-                          StyleText(_title_font(section.level), _TITLE_COLOR))])
+                          StyleText(unwrap_cell(_title_font(theme, section.level)),
+                                   unwrap_cell(make_style_field(RstTheme, scale_theme(theme), StyleColor, :title_color))))])
 
 function _title_text(section::RstSection)
     buffer = IOBuffer()

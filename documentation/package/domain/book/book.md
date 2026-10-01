@@ -31,6 +31,15 @@ The three hand-written rules map only the step that they own. They give the rest
 
 The example chain adds `WordWrapping` between `SyntaxToText` and `TextToGraphics`, so a paragraph breaks at the width of the window.
 
+### The theme
+
+`BookTheme` holds the look of the Book projections: the text of the title, the author and its prefix, a chapter title and its numbering, a paragraph (also the blank lines between the parts), a placeholder, a bullet and a picture. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `BookTheme` or a scaled one; with none it holds the default values.
+`BookToSyntax(; theme)` gives the theme to every projection, and the book has no graphics row of its own, so a view draws it through the syntax and the text. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `BookTheme`.
+
 ## How it fits
 
 `ProjecturedBook` depends on the kernel and the platform. It uses the syntax, text, graphics and natural slices, but not the serialization or file-format slices. No other package depends on it.

@@ -37,6 +37,7 @@ import ..SerializationModule: emit_text, get_document_section,
 
 export RstDocument, set_cell_computation!
 export parse_rst, parse_rst_file
+export RstTheme, ScaledRstTheme
 export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstEmphasisToSyntaxNode, RstStrongToSyntaxNode, RstRoleToSyntaxNode,
        RstReferenceToSyntaxNode, RstSubstitutionReferenceToSyntaxLeaf,
@@ -65,6 +66,7 @@ export RstRoot, RstSection, RstParagraph, RstText, RstLiteral, RstEmphasis, RstS
 
 include("RstDocument.jl")
 include("RstParser.jl")
+include("RstTheme.jl")
 include("RstToSyntax.jl")
 include("RstFile.jl")
 include("RstToLayout.jl")
@@ -73,7 +75,9 @@ include("RstToLayout.jl")
 # What this slice registers when it loads: the file extensions it owns, and
 # the natural notation it reads and writes.
 function __init__()
-    register_natural_syntax!(:rst, (; appearance) -> Pair{Type,Any}[RstDocument => RstToSyntax(style = :rendered)])
+    register_natural_syntax!(:rst, (; appearance) -> Pair{Type,Any}[
+        RstDocument => RstToSyntax(style = :rendered,
+                                   theme = get_scaled_theme!(appearance, RstTheme))])
 
     register_file_document_type!(".rst", RstFile)
     # What this domain's natural notation is: the syntax rung, the format, and
@@ -81,15 +85,18 @@ function __init__()
     # the call below it.
     register_natural_domain!(RstDocument;
                              rung      = :syntax,
-                             make      = (; appearance) -> RstToSyntax(),
+                             make      = (; appearance) -> RstToSyntax(
+                                 theme = get_scaled_theme!(appearance, RstTheme)),
                              format    = :rst,
                              extension = ".rst",
                              parse     = parse_rst)
 
     register_natural_graphics!(:rst_page, (; measure, appearance) -> Pair{Type,Any}[
-        RstRoot    => ChainingProjection(RstRootToVerticalLayout(),
+        RstRoot    => ChainingProjection(RstRootToVerticalLayout(
+                                             theme = get_scaled_theme!(appearance, RstTheme)),
                                          VerticalLayoutToGraphicsCanvas()),
-        RstSection => ChainingProjection(RstSectionToVerticalLayout(),
+        RstSection => ChainingProjection(RstSectionToVerticalLayout(
+                                             theme = get_scaled_theme!(appearance, RstTheme)),
                                          VerticalLayoutToGraphicsCanvas()),
     ])
 end

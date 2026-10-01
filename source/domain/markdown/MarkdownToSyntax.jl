@@ -16,10 +16,12 @@
 #   `@projection_template` (rendered field values), only the cascading nodes
 #   (Text/Strong/Emphasis/Heading/Link) are hand-written.
 #
+# Every rule reads its style from `MarkdownTheme` through its `theme` field: with
+# no theme it holds the plain values of the default theme, and with a scaled
+# theme it follows the appearance's scales (`MarkdownTheme.jl`).
+#
 # Blocks stack flush-left (`indentation=0` + a newline `sep`, the BookToSyntax
 # idiom); inline runs concatenate (a `SyntaxConcatenation`).
-const _MONO      = font_ubuntu_monospace_regular_20
-const _MONO_BOLD = font_ubuntu_monospace_bold_20
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Source view (style = :source) — colourised raw markdown, all @projection_template
@@ -27,8 +29,9 @@ const _MONO_BOLD = font_ubuntu_monospace_bold_20
 
 # ── MarkdownInsertionToSyntaxLeaf ─────────────────────────────────────────────
 
-@projection struct MarkdownInsertionToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownInsertionToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_markdown_style(theme, :marker_text)
 end
 
 @projection_template MarkdownInsertionToSyntaxLeaf MarkdownInsertion (prj, doc) ->
@@ -36,8 +39,9 @@ end
 
 # ── MarkdownTextToSyntaxLeaf ──────────────────────────────────────────────────
 
-@projection struct MarkdownTextToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_black)
+@projection UntrackedCell struct MarkdownTextToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_markdown_style(theme, :source_text)
 end
 
 @projection_template MarkdownTextToSyntaxLeaf MarkdownText (prj, doc) ->
@@ -50,9 +54,10 @@ end
 # ── MarkdownCodeToSyntaxLeaf ──────────────────────────────────────────────────
 # `tick` is the delimiter shown around the code (`` ` `` in source, "" rendered).
 
-@projection struct MarkdownCodeToSyntaxLeaf
-    value_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_green)
-    tick_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownCodeToSyntaxLeaf
+    theme::Any = nothing
+    value_style::StyleText = _get_markdown_style(theme, :code_text)
+    tick_style::StyleText  = _get_markdown_style(theme, :marker_text)
     tick::String           = "`"
 end
 
@@ -68,8 +73,9 @@ end
 # ── MarkdownThematicBreakToSyntaxLeaf ─────────────────────────────────────────
 # `text` is "---" in source, a `───` rule (DejaVu box-drawing) when rendered.
 
-@projection struct MarkdownThematicBreakToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownThematicBreakToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_markdown_style(theme, :marker_text)
     text::String     = "---"
 end
 
@@ -78,8 +84,9 @@ end
 
 # ── MarkdownEmphasisToSyntaxNode / MarkdownStrongToSyntaxNode (source) ─────────
 
-@projection struct MarkdownEmphasisToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownEmphasisToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_markdown_style(theme, :marker_text)
 end
 
 @projection_template MarkdownEmphasisToSyntaxNode MarkdownEmphasis (prj, doc) ->
@@ -87,8 +94,9 @@ end
                open=TextString("*", prj.marker_style),
                close=TextString("*", prj.marker_style))
 
-@projection struct MarkdownStrongToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownStrongToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_markdown_style(theme, :marker_text)
 end
 
 @projection_template MarkdownStrongToSyntaxNode MarkdownStrong (prj, doc) ->
@@ -105,8 +113,9 @@ end
 
 # ── MarkdownHeadingToSyntaxNode (source; `#…` open marker) ─────────────────────
 
-@projection struct MarkdownHeadingToSyntaxNode
-    hash_style::ImmutableCell{StyleText} = StyleText(_MONO_BOLD, color_solarized_blue)
+@projection UntrackedCell struct MarkdownHeadingToSyntaxNode
+    theme::Any = nothing
+    hash_style::StyleText = _get_markdown_style(theme, :heading_marker_text)
 end
 
 @projection_template MarkdownHeadingToSyntaxNode MarkdownHeading (prj, doc) ->
@@ -117,8 +126,9 @@ end
 # ── MarkdownQuoteToSyntaxNode ─────────────────────────────────────────────────
 # `open_marker`/`sep_marker` prefix each quoted line (`> ` source, `▏ ` rendered).
 
-@projection struct MarkdownQuoteToSyntaxNode
-    marker_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownQuoteToSyntaxNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_markdown_style(theme, :marker_text)
     open_marker::String     = "> "
     sep_marker::String      = "\n> "
 end
@@ -132,8 +142,9 @@ end
 # ── MarkdownListItemToSyntaxNode ──────────────────────────────────────────────
 # `bullet` is `- ` (source) or `• ` (rendered). Ordered numbering is deferred.
 
-@projection struct MarkdownListItemToSyntaxNode
-    bullet_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownListItemToSyntaxNode
+    theme::Any = nothing
+    bullet_style::StyleText = _get_markdown_style(theme, :marker_text)
     bullet::String          = "- "
 end
 
@@ -155,8 +166,9 @@ end
 # and the delimiter row is the separator between the two: it is printed from
 # `alignments`, so no position in it stands for a field of the table.
 
-@projection struct MarkdownTableRowToSyntaxNode
-    pipe_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownTableRowToSyntaxNode
+    theme::Any = nothing
+    pipe_style::StyleText = _get_markdown_style(theme, :marker_text)
 end
 
 @projection_template MarkdownTableRowToSyntaxNode MarkdownTableRow (prj, doc) ->
@@ -173,8 +185,9 @@ _make_delimiter_row(alignments) =
                  alignment === :center ? ":---:" :
                  alignment === :right  ? "---:"  : "---" for alignment in alignments), " | ") * " |"
 
-@projection struct MarkdownTableToSyntaxNode
-    pipe_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownTableToSyntaxNode
+    theme::Any = nothing
+    pipe_style::StyleText = _get_markdown_style(theme, :marker_text)
 end
 
 @projection_template MarkdownTableToSyntaxNode MarkdownTable (prj, doc) ->
@@ -184,8 +197,9 @@ end
                  SyntaxNode(collection(:rows); sep=TextString("\n"), indentation=0) ],
                0, false, nothing)
 
-@projection struct MarkdownRootToSyntaxNode
-    style::ImmutableCell{StyleText} = StyleText(_MONO, color_black)
+@projection UntrackedCell struct MarkdownRootToSyntaxNode
+    theme::Any = nothing
+    style::StyleText = _get_markdown_style(theme, :source_text)
 end
 
 @projection_template MarkdownRootToSyntaxNode MarkdownRoot (prj, doc) ->
@@ -195,9 +209,10 @@ end
 
 # ── MarkdownLinkToSyntaxNode (source `[content](url)`) ────────────────────────
 
-@projection struct MarkdownLinkToSyntaxNode
-    bracket_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    url_style::ImmutableCell{StyleText}     = StyleText(_MONO, color_solarized_violet)
+@projection UntrackedCell struct MarkdownLinkToSyntaxNode
+    theme::Any = nothing
+    bracket_style::StyleText = _get_markdown_style(theme, :marker_text)
+    url_style::StyleText     = _get_markdown_style(theme, :url_text)
 end
 
 @projection_template MarkdownLinkToSyntaxNode MarkdownLink (prj, doc) ->
@@ -214,10 +229,11 @@ end
 
 # ── MarkdownImageToSyntaxNode (source `![alt](url)`) ──────────────────────────
 
-@projection struct MarkdownImageToSyntaxNode
-    bracket_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    alt_style::ImmutableCell{StyleText}     = StyleText(_MONO, color_solarized_cyan)
-    url_style::ImmutableCell{StyleText}     = StyleText(_MONO, color_solarized_violet)
+@projection UntrackedCell struct MarkdownImageToSyntaxNode
+    theme::Any = nothing
+    bracket_style::StyleText = _get_markdown_style(theme, :marker_text)
+    alt_style::StyleText     = _get_markdown_style(theme, :alt_text)
+    url_style::StyleText     = _get_markdown_style(theme, :url_text)
 end
 
 @projection_template MarkdownImageToSyntaxNode MarkdownImage (prj, doc) ->
@@ -238,10 +254,11 @@ end
 
 # ── MarkdownCodeBlockToSyntaxNode (fenced; shared) ────────────────────────────
 
-@projection struct MarkdownCodeBlockToSyntaxNode
-    fence_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
-    lang_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_magenta)
-    code_style::ImmutableCell{StyleText}  = StyleText(_MONO, color_solarized_green)
+@projection UntrackedCell struct MarkdownCodeBlockToSyntaxNode
+    theme::Any = nothing
+    fence_style::StyleText = _get_markdown_style(theme, :marker_text)
+    lang_style::StyleText  = _get_markdown_style(theme, :language_text)
+    code_style::StyleText  = _get_markdown_style(theme, :code_text)
     open_fence::String     = "```"     # "" rendered
     close_fence::String    = "\n```"   # "" rendered
 end
@@ -265,30 +282,14 @@ end
 # Rendered view (style = :rendered) — cascading inline styles via ambient context
 # ══════════════════════════════════════════════════════════════════════════════
 
-const _BODY = StyleText(font_ubuntu_regular_20, color_black)
-const _HEADING_COLOR = color_solarized_blue
-
-_heading_font(level) = level <= 1 ? font_ubuntu_bold_36 :
-                       level == 2 ? font_ubuntu_bold_24 :
-                       level == 3 ? font_ubuntu_bold_22 :
-                                    font_ubuntu_bold_18
-
-# Augment the ambient style with a container's mode. There is no bold-italic face,
-# so nesting keeps the innermost weight (a documented v1 limitation).
-function _mode_style(mode::Symbol, ambient::StyleText, doc)
-    mode === :bold    && return StyleText(font_ubuntu_bold_20, ambient.color)
-    mode === :italic  && return StyleText(font_ubuntu_italic_20, ambient.color)
-    mode === :link    && return StyleText(ambient.font, color_solarized_blue)
-    mode === :heading && return StyleText(_heading_font(clamp(doc.level, 1, 6)), _HEADING_COLOR)
-    ambient
-end
-
 # ── MarkdownStyledTextToSyntaxLeaf (rendered MarkdownText; reads ambient) ──────
 # Same output shape and reference mapping as the source text leaf; the only
-# difference is the font, taken from the ambient `:md_style` (or the body default).
+# difference is the font, taken from the ambient `:md_style` (or the theme's
+# body default).
 
-@projection struct MarkdownStyledTextToSyntaxLeaf
-    style::ImmutableCell{StyleText} = _BODY
+@projection UntrackedCell struct MarkdownStyledTextToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_markdown_style(theme, :body_text)
 end
 
 function map_reference_forward(p::MarkdownStyledTextToSyntaxLeaf, iomap, reference)
@@ -324,27 +325,71 @@ function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplacePathOp
 end
 
 # ── MarkdownStyledInline (rendered Strong/Emphasis/Heading/Link) ───────────────
-# A marker-free inline container that sets an ambient `:md_style` (its `mode`) and
-# projects its `content` children through it (School A delegation). Output shape:
-# a `SyntaxNode` whose children are the recursively projected content, so the
-# reference mapping is the standard "delegate to child i" (modeled on
-# YamlSequenceToBlockSyntaxNode, minus the per-item wrapper).
+# A marker-free inline container that sets an ambient `:md_style` (its own
+# themed font/color) and projects its `content` children through it (School A:
+# containers delegate to their children and only *augment* the ambient style;
+# the leaf reads it). Output shape: a `SyntaxNode` whose children are the
+# recursively projected content, so the reference mapping is the standard
+# "delegate to child i" (modeled on YamlSequenceToBlockSyntaxNode, minus the
+# per-item wrapper).
+#
+# None of the four is declared with `@projection`: each needs a different set
+# of resolved theme values (a font, a color, or four fonts and a color for a
+# heading), so each holds exactly the `Any` fields it needs — a value or a cell
+# that `_get_markdown_style`/`make_style_field` returned — and reads it with
+# `unwrap_cell`.
 
 abstract type MarkdownStyledInline <: Projection end
 
-struct MarkdownStrongToStyledNode   <: MarkdownStyledInline end
-struct MarkdownEmphasisToStyledNode <: MarkdownStyledInline end
-struct MarkdownHeadingToStyledNode  <: MarkdownStyledInline end
-struct MarkdownLinkToStyledNode     <: MarkdownStyledInline end
+struct MarkdownStrongToStyledNode <: MarkdownStyledInline
+    bold_font::Any
+    body_text::Any
+end
+MarkdownStrongToStyledNode(; theme = nothing) =
+    MarkdownStrongToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleFont, :bold_font),
+                               _get_markdown_style(theme, :body_text))
 
-_mode(::MarkdownStrongToStyledNode)   = :bold
-_mode(::MarkdownEmphasisToStyledNode) = :italic
-_mode(::MarkdownHeadingToStyledNode)  = :heading
-_mode(::MarkdownLinkToStyledNode)     = :link
+struct MarkdownEmphasisToStyledNode <: MarkdownStyledInline
+    italic_font::Any
+    body_text::Any
+end
+MarkdownEmphasisToStyledNode(; theme = nothing) =
+    MarkdownEmphasisToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleFont, :italic_font),
+                                 _get_markdown_style(theme, :body_text))
+
+struct MarkdownLinkToStyledNode <: MarkdownStyledInline
+    link_color::Any
+    body_text::Any
+end
+MarkdownLinkToStyledNode(; theme = nothing) =
+    MarkdownLinkToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleColor, :link_color),
+                             _get_markdown_style(theme, :body_text))
+
+struct MarkdownHeadingToStyledNode <: MarkdownStyledInline
+    theme::Any
+    heading_color::Any
+    body_text::Any
+end
+MarkdownHeadingToStyledNode(; theme = nothing) =
+    MarkdownHeadingToStyledNode(scale_theme(theme),
+                                make_style_field(MarkdownTheme, scale_theme(theme), StyleColor, :heading_color),
+                                _get_markdown_style(theme, :body_text))
+
+# Augment the ambient style with what this container's mode draws. There is no
+# bold-italic face, so nesting keeps the innermost weight (a documented v1
+# limitation).
+_mode_style(p::MarkdownStrongToStyledNode, ambient::StyleText, doc) =
+    StyleText(unwrap_cell(p.bold_font), ambient.color)
+_mode_style(p::MarkdownEmphasisToStyledNode, ambient::StyleText, doc) =
+    StyleText(unwrap_cell(p.italic_font), ambient.color)
+_mode_style(p::MarkdownLinkToStyledNode, ambient::StyleText, doc) =
+    StyleText(ambient.font, unwrap_cell(p.link_color))
+_mode_style(p::MarkdownHeadingToStyledNode, ambient::StyleText, doc) =
+    StyleText(unwrap_cell(_heading_font(p.theme, clamp(doc.level, 1, 6))), unwrap_cell(p.heading_color))
 
 function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
-    ambient = get_property(ctx, :md_style, _BODY)
-    style = _mode_style(_mode(p), ambient, doc)
+    ambient = get_property(ctx, :md_style, unwrap_cell(p.body_text))
+    style = _mode_style(p, ambient, doc)
     child_iomaps = Cell(@computation([
         print_child(recursion, child,
             with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)), :md_style, style))
@@ -417,9 +462,10 @@ end
 # text when the file is not on disk. Modelled on BookPictureToSyntaxLeaf.
 #   .alt[k] → .children[1].value[k]   .url[k] → .children[2].value[k]
 
-@projection struct MarkdownImageToStyledNode
-    caption_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_italic_20, color_solarized_gray)
-    placeholder::ImmutableCell{StyleText}   = StyleText(_MONO, color_solarized_gray)
+@projection UntrackedCell struct MarkdownImageToStyledNode
+    theme::Any = nothing
+    caption_style::StyleText = _get_markdown_style(theme, :caption_text)
+    placeholder::StyleText   = _get_markdown_style(theme, :marker_text)
 end
 
 # The image span: an inline `TextGraphics` with a lazily-decoded `ImageFile` when
@@ -493,8 +539,9 @@ end
 # marker. Rendered `MarkdownListItem` carries no bullet (the List supplies it).
 #   .items[i].rest ↔ .children[i].content.<item-mapped rest>
 
-@projection struct MarkdownListToStyledNode
-    marker_style::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct MarkdownListToStyledNode
+    theme::Any = nothing
+    marker_style::StyleText = _get_markdown_style(theme, :rendered_marker_text)
 end
 
 _md_list_marker(ordered::Bool, i::Int) = ordered ? "$(i). " : "• "
@@ -567,59 +614,61 @@ end
 # ══════════════════════════════════════════════════════════════════════════════
 
 """
-    MarkdownToSyntax(; style::Symbol = :source)
+    MarkdownToSyntax(; style::Symbol = :source, theme = nothing)
 
 Build the Markdown → Syntax projection. `style` is `:source` (colourised raw
 markdown, fully editable including markers) or `:rendered` (formatted, marker-free
-— see the module docstring).
+— see the module docstring). `theme` is a `MarkdownTheme`, a scaled one, or
+`nothing` for the default styles.
 """
-function MarkdownToSyntax(; style::Symbol = :source)
+function MarkdownToSyntax(; style::Symbol = :source, theme = nothing)
     style in (:source, :rendered) || error("MarkdownToSyntax: style must be :source or :rendered, got :$style")
+    theme = scale_theme(theme)
     if style === :rendered
-        gray_dejavu = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+        marker = _get_markdown_style(theme, :rendered_marker_text)
         return TypeDispatchingProjection(
-            MarkdownInsertion     => MarkdownInsertionToSyntaxLeaf(),
-            MarkdownText          => MarkdownStyledTextToSyntaxLeaf(),
-            MarkdownCode          => MarkdownCodeToSyntaxLeaf(tick="",
-                                        value_style=StyleText(_MONO, color_solarized_magenta)),
-            MarkdownThematicBreak => MarkdownThematicBreakToSyntaxLeaf(text="────────────",
-                                        style=gray_dejavu),
-            MarkdownEmphasis      => MarkdownEmphasisToStyledNode(),
-            MarkdownStrong        => MarkdownStrongToStyledNode(),
+            MarkdownInsertion     => MarkdownInsertionToSyntaxLeaf(; theme),
+            MarkdownText          => MarkdownStyledTextToSyntaxLeaf(; theme),
+            MarkdownCode          => MarkdownCodeToSyntaxLeaf(; theme, tick="",
+                                        value_style=_get_markdown_style(theme, :language_text)),
+            MarkdownThematicBreak => MarkdownThematicBreakToSyntaxLeaf(; theme, text="────────────",
+                                        style=marker),
+            MarkdownEmphasis      => MarkdownEmphasisToStyledNode(; theme),
+            MarkdownStrong        => MarkdownStrongToStyledNode(; theme),
             MarkdownParagraph     => MarkdownParagraphToSyntaxNode(),
-            MarkdownHeading       => MarkdownHeadingToStyledNode(),
-            MarkdownCodeBlock     => MarkdownCodeBlockToSyntaxNode(open_fence="", close_fence="",
-                                        lang_style=gray_dejavu),
-            MarkdownQuote         => MarkdownQuoteToSyntaxNode(open_marker="▏ ", sep_marker="\n▏ ",
-                                        marker_style=gray_dejavu),
-            MarkdownList          => MarkdownListToStyledNode(),
-            MarkdownListItem      => MarkdownListItemToSyntaxNode(bullet=""),
-            MarkdownTable         => MarkdownTableToSyntaxNode(),
-            MarkdownTableRow      => MarkdownTableRowToSyntaxNode(),
-            MarkdownLink          => MarkdownLinkToStyledNode(),
-            MarkdownImage         => MarkdownImageToStyledNode(),
-            MarkdownRoot          => MarkdownRootToSyntaxNode(),
+            MarkdownHeading       => MarkdownHeadingToStyledNode(; theme),
+            MarkdownCodeBlock     => MarkdownCodeBlockToSyntaxNode(; theme, open_fence="", close_fence="",
+                                        lang_style=marker),
+            MarkdownQuote         => MarkdownQuoteToSyntaxNode(; theme, open_marker="▏ ", sep_marker="\n▏ ",
+                                        marker_style=marker),
+            MarkdownList          => MarkdownListToStyledNode(; theme),
+            MarkdownListItem      => MarkdownListItemToSyntaxNode(; theme, bullet=""),
+            MarkdownTable         => MarkdownTableToSyntaxNode(; theme),
+            MarkdownTableRow      => MarkdownTableRowToSyntaxNode(; theme),
+            MarkdownLink          => MarkdownLinkToStyledNode(; theme),
+            MarkdownImage         => MarkdownImageToStyledNode(; theme),
+            MarkdownRoot          => MarkdownRootToSyntaxNode(; theme),
             Vector{Cell}          => CopyingProjection(),
         )
     end
     TypeDispatchingProjection(
-        MarkdownInsertion     => MarkdownInsertionToSyntaxLeaf(),
-        MarkdownText          => MarkdownTextToSyntaxLeaf(),
-        MarkdownCode          => MarkdownCodeToSyntaxLeaf(),
-        MarkdownThematicBreak => MarkdownThematicBreakToSyntaxLeaf(),
-        MarkdownEmphasis      => MarkdownEmphasisToSyntaxNode(),
-        MarkdownStrong        => MarkdownStrongToSyntaxNode(),
+        MarkdownInsertion     => MarkdownInsertionToSyntaxLeaf(; theme),
+        MarkdownText          => MarkdownTextToSyntaxLeaf(; theme),
+        MarkdownCode          => MarkdownCodeToSyntaxLeaf(; theme),
+        MarkdownThematicBreak => MarkdownThematicBreakToSyntaxLeaf(; theme),
+        MarkdownEmphasis      => MarkdownEmphasisToSyntaxNode(; theme),
+        MarkdownStrong        => MarkdownStrongToSyntaxNode(; theme),
         MarkdownParagraph     => MarkdownParagraphToSyntaxNode(),
-        MarkdownHeading       => MarkdownHeadingToSyntaxNode(),
-        MarkdownCodeBlock     => MarkdownCodeBlockToSyntaxNode(),
-        MarkdownQuote         => MarkdownQuoteToSyntaxNode(),
+        MarkdownHeading       => MarkdownHeadingToSyntaxNode(; theme),
+        MarkdownCodeBlock     => MarkdownCodeBlockToSyntaxNode(; theme),
+        MarkdownQuote         => MarkdownQuoteToSyntaxNode(; theme),
         MarkdownList          => MarkdownListToSyntaxNode(),
-        MarkdownListItem      => MarkdownListItemToSyntaxNode(),
-        MarkdownTable         => MarkdownTableToSyntaxNode(),
-        MarkdownTableRow      => MarkdownTableRowToSyntaxNode(),
-        MarkdownLink          => MarkdownLinkToSyntaxNode(),
-        MarkdownImage         => MarkdownImageToSyntaxNode(),
-        MarkdownRoot          => MarkdownRootToSyntaxNode(),
+        MarkdownListItem      => MarkdownListItemToSyntaxNode(; theme),
+        MarkdownTable         => MarkdownTableToSyntaxNode(; theme),
+        MarkdownTableRow      => MarkdownTableRowToSyntaxNode(; theme),
+        MarkdownLink          => MarkdownLinkToSyntaxNode(; theme),
+        MarkdownImage         => MarkdownImageToSyntaxNode(; theme),
+        MarkdownRoot          => MarkdownRootToSyntaxNode(; theme),
         Vector{Cell}          => CopyingProjection(),
     )
 end

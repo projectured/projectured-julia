@@ -18,12 +18,14 @@ using ..PlatformModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export BookDocument
+export BookTheme, ScaledBookTheme
 export BookInsertionToSyntaxLeaf, BookBookToSyntaxNode, BookChapterToSyntaxNode, BookParagraphToSyntaxLeaf,
        BookListToSyntaxNode, BookPictureToSyntaxLeaf, BookToSyntax
 export BookInsertion, BookBook, BookChapter, BookParagraph, BookList, BookPicture
 
 
 include("BookDocument.jl")
+include("BookTheme.jl")
 include("BookToSyntax.jl")
 
 end # module

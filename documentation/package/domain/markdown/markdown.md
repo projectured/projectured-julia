@@ -33,6 +33,15 @@ This route exists for a block that is not Markdown. A page can hold any file doc
 
 `get_markdown_section(document, title)` returns the part of a page from a heading to the next heading of the same or a higher level. The result shares the cells of the page. It is the Markdown method of `get_document_section`, so the `section(file("a.md"), "Title")` marker of a multi-file project can name a section. A missing title and a title that occurs twice both raise an error.
 
+### The theme
+
+`MarkdownTheme` holds the look of the Markdown projections: the text of the markers, of the source text, of code and of a language, of the marker of a heading, of a URL and an alt text; for the rendered form the body text, the bold and the italic font, the four heading fonts, the color of a heading and of a link, the caption, the rendered markers, and the gap between the blocks of a page. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `MarkdownTheme` or a scaled one; with none it holds the default values.
+`MarkdownToSyntax(; style, theme)` gives the theme to every projection, and the layout of a page takes `block_gap`. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `MarkdownTheme`.
+
 ## How it fits
 
 `ProjecturedMarkdown` depends on the kernel and the platform. Beyond what every text domain needs, it uses the layout, graphics and widget slices for the vertical layout, the images and the embed cards. No domain depends on it.

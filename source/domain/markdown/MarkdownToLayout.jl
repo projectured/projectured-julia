@@ -18,9 +18,10 @@
 # relocate the head: `elements[i] + rest ↔ children[i] + rest`. This
 # mirrors `CellVectorToVerticalLayout`, which does the same for a bare
 # collection.
-@projection struct MarkdownRootToVerticalLayout
+@projection UntrackedCell struct MarkdownRootToVerticalLayout
+    theme::Any = nothing
     horizontal_align::Symbol = :left
-    gap::Int = 8
+    gap::Int = make_style_field(MarkdownTheme, scale_theme(theme), Int, :block_gap)
 end
 
 function print_document(p::MarkdownRootToVerticalLayout, recursion, root::MarkdownRoot, ctx)

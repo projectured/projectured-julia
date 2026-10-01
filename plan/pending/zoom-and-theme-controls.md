@@ -1024,8 +1024,29 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     between the layers of a tooltip is the `item_gap` of the widget theme.
   - Open: the caret of a widget text field, which the widgets print with their own
     `TextToGraphics`, keeps the default text theme.
-- [ ] **P2. The document domains:** `json`, `xml`, `yaml`, `sql`, `julia`,
-  `markdown`, `rst`, `book`, `math`, `formula`.
+- [x] **P2. The document domains:** `json`, `xml`, `yaml`, `sql`, `julia`,
+  `markdown`, `rst`, `book`, `math`, `formula`. The form (finding 29):
+  - Each domain declares `<Domain>Theme` with `@theme` in a fragment of its own,
+    with one value for each role that its projections draw, named by meaning
+    (`keyword_text`, `delimiter_text`, `heading_color`, `block_gap`, …). The
+    default of each value is the literal that the code drew, so the pixels at no
+    scale do not change.
+  - Each projection struct is `@projection UntrackedCell struct` with
+    `theme::Any = nothing` as its first field, and each style field defaults to
+    `_get_<domain>_style(theme, :role)`: the generated keyword constructor reads
+    the earlier keyword `theme`, as `Base.@kwdef` does. So a builder passes one
+    theme to every projection, a role is named once, and a projection built with
+    no theme holds the plain default values. A plain struct holds a style as a
+    value or a cell in an `Any` field and reads it with `unwrap_cell`.
+  - The factory of a domain takes `theme` and `syntax_theme` (the latter for the
+    insertion and the empty placeholder of the syntax slice), scales each once,
+    and its natural registration passes the scaled themes of the `Appearance`.
+  - A module const of a style, or a helper that answers one, reads the theme.
+    A literal `color_default` that pairs a style font with the default color
+    stays: its font follows the theme already.
+  - `draw_font_sizes` in `ProjecturedPlatformTest` draws a document with the
+    natural renderer, and each domain test checks a font scale of 1.5.
+  - JSON is the model (`12ebb11c2`); the other nine follow it.
 - [ ] **P3. The charts:** `chart`, `sequencechart`, `plot`, `graphics`.
 - [ ] **P4. The tools and the overlays:** `fault`, `gesturelog`,
   `gesturehelp` (with the command palette), `inspector`, `log`, `statistics`,
@@ -1405,3 +1426,36 @@ as large. omnet-julia and inet-julia follow where they build these projections.
       and an empty placeholder draw their text 1.5 times as large; a change of the
       scale reaches the next print; the caret and the band follow the line and
       the radius scales; a projection with no theme has the default values.
+29. **P2: the ten document domains have themes** (2026-10-02). Each theme has
+    3 (SQL) to 21 (RST) values, one for each role; every style default of every
+    projection matched a role, so the images of all 94 examples that draw as one
+    image equal those of `9b5d1210a` byte for byte. The domain suites give 2841
+    pass and the 2 old broken markers of YAML. Facts found:
+    - A node with no delimiter of its own drew its indentation and its line
+      breaks in a fixed fallback font, so at a font scale its text grew and its
+      whitespace did not. The fallback is the `font` of `SyntaxTheme`, which
+      `SyntaxCompoundToText` holds. This corrects P1, which kept the fallback as a
+      default of the document.
+    - A delimiter that a printer gives as a plain string becomes `TextString(s)`
+      in the default font, which no theme reaches; the indentation of its node
+      takes that font too. SQL styles its commas and parentheses with
+      `plain_text`, which equals the default of `TextString`, and the reflection
+      styles its separators with the font of the field names and the default
+      color. A space has no ink, so its color does not show.
+    - Markdown, RST and Book draw no leaf of the syntax slice, so their factories
+      take no `syntax_theme`. The `font` field of `JuliaBlockToSyntaxNode` was
+      read nowhere; it goes, and the block indents in the font of `SyntaxTheme`.
+    - `MathConfig` is an `@cell_struct UntrackedCell struct`, so its fields hold
+      a value or a theme cell and its about 20 reads stay plain; it holds the wash
+      of a selection too. A keyword of a constructor whose default is a theme cell
+      has no type, because Julia checks the type of a keyword against its default.
+    - Book and Formula have no natural row of their own for the syntax, so their
+      tests build the chain to graphics by hand.
+    - The appearance tab has a section for each theme that the loaded domains
+      registered, sorted by name, so the widget theme is far down in a session
+      with many domains. The color test of the tab scrolls the tab through
+      `Appearance.scroll_position`.
+    - Not themed: `JuliaCodePieces` (the colors of a code field of a widget),
+      which reads no projection.
+    - `test_formula()` prints "detected a stack overflow" before its summary, as on
+      `main`; all its tests pass.

@@ -42,6 +42,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/domain/math/projection/MathToGraphicsTest.jl")
+include("../../../test/domain/math/projection/MathThemeTest.jl")
 include("../../../test/domain/math/document/MathParserTest.jl")
 
 include("../../../test/domain/math/MathSuite.jl")

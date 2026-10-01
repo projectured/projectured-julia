@@ -15,6 +15,7 @@ import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
 
 export parse_yaml, parse_yaml_file
+export YamlTheme, ScaledYamlTheme
 export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, YamlNumberToSyntaxLeaf,
        YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
        YamlToSyntax
@@ -24,6 +25,7 @@ export YamlFile
 
 include("YamlDocument.jl")
 include("YamlParser.jl")
+include("YamlTheme.jl")
 include("YamlToSyntax.jl")
 include("YamlFile.jl")
 

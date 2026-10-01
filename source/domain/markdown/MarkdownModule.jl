@@ -17,6 +17,7 @@ import ..SerializationModule: emit_text, get_document_section,
 
 export MarkdownDocument, set_cell_computation!
 export parse_markdown, parse_markdown_file
+export MarkdownTheme, ScaledMarkdownTheme
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
        MarkdownParagraphToSyntaxNode, MarkdownHeadingToSyntaxNode, MarkdownQuoteToSyntaxNode,
@@ -34,6 +35,7 @@ export MarkdownRoot, MarkdownHeading, MarkdownParagraph, MarkdownCodeBlock, Mark
 
 include("MarkdownDocument.jl")
 include("MarkdownParser.jl")
+include("MarkdownTheme.jl")
 include("MarkdownToSyntax.jl")
 include("MarkdownFile.jl")
 include("MarkdownToLayout.jl")
@@ -42,7 +44,9 @@ include("MarkdownToLayout.jl")
 # What this slice registers when it loads: the file extensions it owns, and
 # the natural notation it reads and writes.
 function __init__()
-    register_natural_syntax!(:markdown, (; appearance) -> Pair{Type,Any}[MarkdownDocument => MarkdownToSyntax(style = :rendered)])
+    register_natural_syntax!(:markdown, (; appearance) -> Pair{Type,Any}[
+        MarkdownDocument => MarkdownToSyntax(style = :rendered,
+                                             theme = get_scaled_theme!(appearance, MarkdownTheme))])
 
     register_file_document_type!(".md",       MarkdownFile)
     register_file_document_type!(".markdown", MarkdownFile)
@@ -52,7 +56,8 @@ function __init__()
     # markdown reaches two.
     register_natural_domain!(MarkdownDocument;
                              rung      = :syntax,
-                             make      = (; appearance) -> MarkdownToSyntax(),
+                             make      = (; appearance) -> MarkdownToSyntax(
+                                 theme = get_scaled_theme!(appearance, MarkdownTheme)),
                              format    = :md,
                              extension = ".md",
                              parse     = parse_markdown)
@@ -61,7 +66,8 @@ function __init__()
     # width the page offers. The four prose blocks say so; a code block and a
     # thematic break do not, and fall to the fabric, which never breaks a line.
     register_natural_graphics!(:markdown_page, (; measure, appearance) -> Pair{Type,Any}[
-        MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
+        MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(
+                                               theme = get_scaled_theme!(appearance, MarkdownTheme)),
                                            VerticalLayoutToGraphicsCanvas()),
         MarkdownHeading   => make_natural_prose_graphics(; measure, appearance),
         MarkdownParagraph => make_natural_prose_graphics(; measure, appearance),

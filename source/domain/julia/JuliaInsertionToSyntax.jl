@@ -98,19 +98,24 @@ end
 # ── JuliaInsertion: gesture-driven structural hole ─────────────────────────────
 
 """
-    JuliaInsertionToSyntaxLeaf()
+    JuliaInsertionToSyntaxLeaf(; theme = nothing)
 
 A Julia source-insertion hole. Renders the typed buffer plus a pale-green keyword
-completion continuation; all editing/commit is `@gestures JuliaInsertion`.
+completion continuation; all editing/commit is `@gestures JuliaInsertion`. `theme`
+is a `JuliaTheme`, a scaled one, or `nothing` for the default styles.
 """
-@projection struct JuliaInsertionToSyntaxLeaf <: Projection
-    value::ImmutableCell{StyleText}
-    completion::ImmutableCell{StyleText}
+@projection UntrackedCell struct JuliaInsertionToSyntaxLeaf <: Projection
+    value::StyleText
+    completion::StyleText
+    wrong_color::StyleColor
+    found_color::StyleColor
 end
 
-JuliaInsertionToSyntaxLeaf() = JuliaInsertionToSyntaxLeaf(
-    StyleText(font_ubuntu_monospace_regular_20, color_default),
-    StyleText(font_ubuntu_monospace_regular_20, color_completion_hint))
+JuliaInsertionToSyntaxLeaf(; theme = nothing) = JuliaInsertionToSyntaxLeaf(
+    _get_julia_style(theme, StyleText, :plain_text),
+    _get_julia_style(theme, StyleText, :hint_text),
+    _get_julia_style(theme, StyleColor, :wrong_color),
+    _get_julia_style(theme, StyleColor, :found_color))
 
 # `value{k}` char-cursor ↔ the rendered `SyntaxLeaf`'s value span (identity offset).
 # The completion after the buffer is a part that the leaf printed.
@@ -142,8 +147,8 @@ end
 
 _julia_typed_color(p::JuliaInsertionToSyntaxLeaf, value::AbstractString) = begin
     state = _julia_state(value)
-    state === :invalid ? color_solarized_red :
-    state === :empty   ? p.value.color      : color_solarized_green
+    state === :invalid ? p.wrong_color :
+    state === :empty   ? p.value.color : p.found_color
 end
 
 function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInsertion, ctx)

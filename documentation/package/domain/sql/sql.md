@@ -53,6 +53,15 @@ A `+` or a `-` in front of a number is the sign of that number where the grammar
 
 `SqlFile` is the file type for `.sql`. A reference to a node in another file is a `SqlScalarValue` whose value is a string that holds only the marker, as in JSON and YAML. A number or a boolean value is never a marker. A `.sql` path that does not exist opens as a `SqlInsertion`.
 
+### The theme
+
+`SqlTheme` holds the look of the SQL projections: the text of a keyword, the plain text of columns, values, expressions and types, and the text of a table name; the plain text also styles the commas and the parentheses that the printers build. Each value has
+the default that the domain draws with no appearance. Each projection takes
+`theme`, a `SqlTheme` or a scaled one; with none it holds the default values.
+`SqlToSyntax(; theme, syntax_theme)` gives the theme to every projection, and the insertion and the empty placeholder take `syntax_theme`. The natural
+registration gives the scaled theme of the `Appearance` of the editor, so the view
+follows its scales, and the appearance tab shows a section for `SqlTheme`.
+
 ## How it fits
 
 `ProjecturedSQL` depends on the kernel and the platform. It does not depend on `ProjecturedDatabase` or `ProjecturedODBC`. Two packages depend on it: `ProjecturedDBCatalog` makes `CREATE` statements from a catalog, and `ProjecturedODBC` prints a `SqlSelectStatement` to text and runs it on a connection.
