@@ -525,6 +525,12 @@ One at a time, with the owner.
      the wrapper holds no state of the drag itself. Claude had proposed the
      screen as the keeper of the path; the owner (2026-10-01): "it's like 2, but
      why not store it in the drag wrapper? it's about dragging no?"
+  8. The part decides when its drag starts. A part whose press has no other
+     meaning, such as a slider thumb or a split pane divider, starts its drag
+     at the press, so it follows the pointer from the first pixel. A part whose
+     click has a meaning, such as the tab of a pane, starts its drag after the
+     small move of D20, so a press that does not move is still a click. This
+     narrows D20 of the events plan. (Owner, 2026-10-01: "agreed".)
   Facts (2026-10-01): a move with a button held still goes by position (step 5a
   changed only the move with no button held), except in the shell, where the
   band that takes a `MouseDown` gets every held move and the next `MouseUp`,
