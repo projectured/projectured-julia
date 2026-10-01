@@ -153,16 +153,29 @@ end
 # The width of the field of the expression.
 const _EXPRESSION_FIELD_WIDTH = 480
 
-# The expression bar above the table: the field of the expression of the query,
-# after the words that it ends, so it reads "Rows where :age > 30". The field
-# is Julia code, which the Julia domain colors when it is loaded.
+# The bar above the table: the field of the expression of the query, after the
+# words that it ends, so it reads "Rows where :age > 30", and at the right end
+# the glyph that reads the frame again, as F5 does. The field is Julia code,
+# which the Julia domain colors when it is loaded. The bar is a grid of one row,
+# whose third column takes the room between the field and the glyph.
 function _make_expression_bar(view)
     field = _make_query_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
                               () -> last(view.expression_result); width = _EXPRESSION_FIELD_WIDTH,
                               language = :julia)
-    bar = HorizontalLayout(Any[WidgetLabel("Rows where"), field]; gap = 8)
+    bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), _make_refresh_glyph(view)], 4;
+                     horizontal_gap = 8, vertical_align = :center,
+                     column_policies = Any[Content, Content, Fill, Content])
     set_cell_computation!(getfield(bar, :selection), () -> _make_field_child_reference(field.selection))
     bar
+end
+
+# The glyph that reads the frame of `view` again: a flat toolbar item, whose
+# tooltip names the key that does the same.
+function _make_refresh_glyph(view)
+    refresh = (document, event) -> RefreshDataFrameViewOperation(view)
+    gestures = GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), refresh;
+                                             description = "Read the frame again", domain = "data frame")]
+    WidgetToolbarItem("Read the frame again (F5)"; icon = :refresh, gestures)
 end
 
 # The path in the view of a path in the grid of the view that goes into the

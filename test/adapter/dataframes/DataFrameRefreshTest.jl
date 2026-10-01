@@ -66,6 +66,21 @@ function test_data_frame_refresh()
             @test module_._find_column_filter(view.query, "extra") !== nothing
         end
 
+        @testset "the glyph at the right end of the top bar reads the frame again" begin
+            view = DataFrameView(DataFrame(id = 1:3))
+            io = print_document(projection, nothing, view, context())
+            version = view.frame_version
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(io.output) if t[3] == string(Char(0xe145)))
+            # It sits at the right end of the bar, past the field of the expression.
+            @test x > 700
+            change = read_intent(projection, nothing,
+                                 Intent(MouseClick(:left, x + 2, y + 2, ModifierKeys(); time = 0.0), nothing), io)
+            op = change isa Intent ? change.operation : change
+            @test op isa RefreshDataFrameViewOperation
+            evaluate_operation(nothing, op)
+            @test view.frame_version == version + 1
+        end
+
         @testset "F5 reads the frame again, also with no change" begin
             view = DataFrameView(DataFrame(id = 1:3))
             io = print_document(projection, nothing, view, context())

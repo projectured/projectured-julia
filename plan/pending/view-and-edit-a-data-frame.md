@@ -924,7 +924,12 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     the reads of a frame of ten million rows found). A new column gets a
     filter in the query.
   - D: F5 is `RefreshDataFrameViewOperation`, which reads at every level
-    whether the snapshot changed or not.
+    whether the snapshot changed or not. The owner, 2026-10-01: "we need a
+    refresh button somewhere on the table, no?", then "yes" to the
+    suggestion of the writer: the glyph `refresh-cw` at the right end of the
+    top bar, a flat toolbar item whose tooltip names F5. The top bar is a grid
+    of one row now, label, field, room and glyph, with the label centred on
+    the field.
   - C: `display_in_editor(value; refresh_every)`, a timer of the display that
     is off by default; and `refresh_display_editor!()`, which refreshes every
     shown document and waits, for a person in the REPL (mine: a name that the
