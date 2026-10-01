@@ -3,7 +3,8 @@
 # Each test package runs in its own environment, so a suite that uses a package
 # its Project.toml does not name fails here. The umbrella loads through
 # environment/all, the one environment that names every package
-# (documentation/guide/testing-guide.md).
+# (documentation/guide/testing-guide.md); its suite has two jobs, the tests of
+# the packages and the tests that read this repository.
 name: CI
 
 on:
@@ -84,7 +85,9 @@ jobs:
           - {package: ProjecturedTulipTest, run: test_tulip}
           - {package: ProjecturedVideoTest, run: test_video}
           - {package: ProjecturedODBCTest, run: test_odbc}
+          - {package: ProjecturedBuilderTest, run: test_builder}
           - {package: ProjecturedTest, run: test_integration, project: environment/all}
+          - {package: ProjecturedTest, run: test_repository, project: environment/all}
     env:
       PROJECT: ${{ matrix.project || format('package/{0}', matrix.package) }}
       SDL_VIDEODRIVER: offscreen   # SDL draws into memory; the runner has no display

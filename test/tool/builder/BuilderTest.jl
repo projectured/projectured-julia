@@ -107,7 +107,7 @@ function _apply_log_level(sandbox; arguments = String[], environment = nothing)
     end
 end
 
-function test_builder()
+function test_build_executable()
     @testset "builder" begin
         @testset "the help text says the three flags every binary answers" begin
             text = format_usage("a-binary", Usage("What it does."; synopsis = "[options] <file>",

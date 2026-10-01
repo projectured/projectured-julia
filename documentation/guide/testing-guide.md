@@ -104,7 +104,9 @@ mouse-click / click-round-trip sweeps — see
 
 `test_all` is just a `@testset` that calls the per-package functions in
 sequence; pick the one you actually need and skip the rest. `test_integration()`
-runs the umbrella integration tests alone.
+runs the umbrella integration tests alone, and `test_repository()` the tests of
+the umbrella that read this repository (the package graph). The builder has its
+own test package, `ProjecturedBuilderTest` (`test_builder()`).
 [The time and the memory of each part](#the-time-and-the-memory-of-each-part)
 gives what each of them costs.
 
@@ -550,8 +552,8 @@ pull request, except a push that changes only `plan/`:
 - One job runs the suite of each test package in its own environment, for
   example `test_json()` in `package/ProjecturedJSONTest`. A suite that uses a
   package that its `Project.toml` does not name fails there, and passes in
-  `environment/all`. The umbrella loads through `environment/all`, and its job
-  runs `test_integration()`.
+  `environment/all`. The umbrella loads through `environment/all`, and two jobs
+  run its suite: `test_integration()` and `test_repository()`.
 - Each job collects the coverage of the files of this repository and sends it
   to Codecov. SDL draws with `SDL_VIDEODRIVER=offscreen`, because the runner
   has no display.

@@ -90,8 +90,9 @@ build_projectured_distribution()             # build/projectured-<version>-linux
 build_projectured_package_release!("../Projectured.jl")   # the release copy of the packages
 ```
 
-- Test: `test_builder()` in `test/tool/builder/BuilderTest.jl`. The tests compile nothing: they check what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
-- Test: `test_package_release()` in `test/tool/builder/PackageReleaseTest.jl`, also with no compile: the layout of the copy, the versions, the bounds, the scan, and a release copy of this repository.
+- Test: `test_builder()` of the test package `ProjecturedBuilderTest` runs the layering guard of the builder and the two suites below. The tests compile nothing.
+- Test: `test_build_executable()` in `test/tool/builder/BuilderTest.jl`: what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
+- Test: `test_package_release()` in `test/tool/builder/PackageReleaseTest.jl`: the layout of the copy, the versions, the bounds, the scan, the test folders, and a release copy of this repository.
 
 ## Limits
 

@@ -31,9 +31,6 @@ using ProjecturedDBCatalogTest
 using ProjecturedFormulaTest
 using ProjecturedFSMTest
 using ProjecturedProcessTest
-# The builder's own suite is umbrella-only: it needs no domain and no editor,
-# but it is a repository-wide tool and this is where a repository-wide test runs.
-using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_platform()` as well as `test_all()`.
@@ -147,8 +144,6 @@ include("../suite/documentation.jl")
 # fixture names several domains, so none of them belongs to one.
 include("backend/AssistantConversationVideoTest.jl")
 include("backend/BackendChoiceTest.jl")
-include("../tool/builder/BuilderTest.jl")
-include("../tool/builder/PackageReleaseTest.jl")
 include("document/SelectionEnumeration.jl")
 include("editor/ConstructTest.jl")
 include("editor/ConversationPanelTest.jl")
@@ -418,15 +413,29 @@ function test_all()
 end
 
 """
+    test_repository()
+
+The tests of the umbrella that read this repository and not only its packages:
+the package graph, from the `Project.toml` files under `package/`. An installed
+package has no repository, so the release test of `Projectured` leaves them out.
+"""
+function test_repository()
+    @testset "repository" begin
+        test_package_graph()
+    end
+end
+
+"""
     test_integration()
 
-The umbrella's full-stack integration tests: the package graph, the examples,
-the editor loop, the SDL, Tulip and Video suites of the umbrella, and the checks
-that need no live database. CI runs it in a job of its own.
+The umbrella's full-stack integration tests: the examples, the editor loop, the
+SDL, Tulip and Video suites of the umbrella, and the checks that need no live
+database. They need the packages and nothing of this repository, so the release
+test of `Projectured` runs them. CI runs them in a job of its own, with
+[`test_repository`](@ref).
 """
 function test_integration()
     @testset "integration" begin
-    test_package_graph()
     # Every concrete-domain example through the printer.
     test_domain_examples()
     # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
@@ -494,8 +503,6 @@ function test_integration()
     test_evaluator_duplicate()
     test_value_viewer()
     test_referenced_document_editor()
-    test_builder()
-    test_package_release()
     test_gallery_wrappers()
     test_mouse_clicks()
     test_click_roundtrips()
@@ -525,7 +532,7 @@ function test_table()
     end
 end
 
-export test_all, test_integration, test_documents, test_projections, test_domain_examples,
+export test_all, test_integration, test_repository, test_documents, test_projections, test_domain_examples,
        test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
 export test_kernel, test_platform, test_domain
@@ -563,8 +570,7 @@ export test_undo_round_trip
 export test_application, test_history_sweep, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
-       test_value_viewer, test_referenced_document_editor, test_builder,
-       test_package_release,
+       test_value_viewer, test_referenced_document_editor,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql

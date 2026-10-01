@@ -8,7 +8,6 @@ HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
-ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
 ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
 ProjecturedConsoleTest = "0f41fec8-bd22-4fa0-a125-3c10d745f6e8"
 ProjecturedDBCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
@@ -57,7 +56,6 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [sources]
 ProjecturedAnthropicTest = {path = "../ProjecturedAnthropicTest"}
 ProjecturedBookTest = {path = "../ProjecturedBookTest"}
-ProjecturedBuilder = {path = "../ProjecturedBuilder"}
 ProjecturedChartTest = {path = "../ProjecturedChartTest"}
 ProjecturedConsoleTest = {path = "../ProjecturedConsoleTest"}
 ProjecturedDBCatalogTest = {path = "../ProjecturedDBCatalogTest"}

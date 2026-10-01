@@ -9,6 +9,7 @@ ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
 ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
+ProjecturedBuilderTest = "4b4f0ad5-ca0e-4e1f-bd3e-51e22c785921"
 ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedChartExample = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
 ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
@@ -108,6 +109,7 @@ ProjecturedBook = {path = "../../package/ProjecturedBook"}
 ProjecturedBookExample = {path = "../../package/ProjecturedBookExample"}
 ProjecturedBookTest = {path = "../../package/ProjecturedBookTest"}
 ProjecturedBuilder = {path = "../../package/ProjecturedBuilder"}
+ProjecturedBuilderTest = {path = "../../package/ProjecturedBuilderTest"}
 ProjecturedChart = {path = "../../package/ProjecturedChart"}
 ProjecturedChartExample = {path = "../../package/ProjecturedChartExample"}
 ProjecturedChartTest = {path = "../../package/ProjecturedChartTest"}
