@@ -355,9 +355,10 @@ end
     build_projectured_package_release!(output; context, kwargs...) -> Vector
 
 Write the release copy of the packages of this repository into `output`, the
-folder that holds the repository of each package, `<Name>.jl`. The packages are served by
-`registry`, the General registry, and every version of the last release must be in it. The
-other keywords go to [`build_package_release!`](@ref).
+working tree of the release repository `projectured/Projectured.jl`, one folder
+for each package. The packages are served by `registry`, the General registry
+or the name or folder of another one, and every version of the last release must
+be in it. The other keywords go to [`build_package_release!`](@ref).
 """
 function build_projectured_package_release!(output::AbstractString;
                                               context::BuildContext =
@@ -374,14 +375,14 @@ function build_projectured_package_release!(output::AbstractString;
                            kwargs...)
 end
 
-# The README of the repository of one released package, which is also its page
-# on GitHub.
+# The README of the folder of one released package, which is also its page on
+# GitHub.
 _format_projectured_package_readme(name) = """
     # $name
 
     A package of [ProjecturEd](https://github.com/projectured/projectured-julia), a
-    projectional editor. The release of ProjecturEd writes this repository: the
-    source of `$name` is `package/$name` there, and a change belongs there.
+    projectional editor. The release of ProjecturEd writes this folder: the source
+    of `$name` is `package/$name` there, and a change belongs there.
 
     The licence is the Mozilla Public License 2.0, in `LICENSE`.
     """
