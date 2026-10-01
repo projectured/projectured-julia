@@ -1717,6 +1717,7 @@ a share that is only shown.
     padding::Inset
     style::Any
     dragging::Bool     # the knob is held: a move keeps writing until release
+    press_value::Any   # the value of the knob at the press while it is held, else nothing
     target::Any        # what a drag writes to, or nothing = this slider
     field::String      # which field of the target a drag writes
     # What the knob's position MEANS, as a function of the fraction along the
@@ -1741,7 +1742,7 @@ WidgetSlider(value::Real; position::Point2D=Point2D(0, 0), width::Integer=240, v
              mapping=nothing, tooltip=nothing) =
     WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
                  Cell(enabled), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                 Cell(false), Cell(target), Cell(String(field)),
+                 Cell(false), Cell(nothing), Cell(target), Cell(String(field)),
                  Cell(mapping), Cell(tooltip), Cell(nothing))
 
 """

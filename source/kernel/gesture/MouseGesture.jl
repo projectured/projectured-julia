@@ -1,5 +1,7 @@
 # Fragment of `GestureModule` — the gestures of the mouse: `MouseClick`, a completed
-# click, from a down and an up; `MouseDwell`, from a pointer that does not move.
+# click, from a down and an up; `MouseDwell`, from a pointer that does not move;
+# and `DragMove`, `DragEnd` and `DragCancel`, the parts of a drag that the part
+# whose drag is on reads.
 
 """
     MouseClick(button, x, y[, modifiers]; time)
@@ -56,3 +58,63 @@ MouseDwell(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseDwell(x, y, modifiers, Float64(time))
 
 get_modifier_keys(gesture::Union{MouseClick,MouseDwell}) = gesture.modifiers
+
+"""
+    DragMove(x, y[, modifiers]; time)
+    DragMove(x, y, modifiers, time)
+
+A move of the pointer with a button held, for the part whose drag is on. The code
+that tracks a drag makes it from a `MouseMove` and sends it by the path of that
+part, wherever the pointer is, so `x` and `y` are in the frame of the part. A part
+reads its drag only from `DragMove`, `DragEnd` and `DragCancel`; the `MouseMove`
+goes by position, as for every part.
+"""
+struct DragMove <: Gesture
+    x::Int
+    y::Int
+    modifiers::ModifierKeys
+    time::Float64
+end
+
+DragMove(x::Int, y::Int; time::Real) = DragMove(x, y, ModifierKeys(), Float64(time))
+# @positional: the position and the keys of a pointer event.
+DragMove(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
+    DragMove(x, y, modifiers, Float64(time))
+
+"""
+    DragEnd(x, y[, modifiers]; time)
+    DragEnd(x, y, modifiers, time)
+
+The release of the button of a drag, for the part whose drag is on, with `x` and
+`y` in the frame of the part. The drag ends, and the part keeps what the drag did.
+The code that tracks a drag makes it from the `MouseUp` and sends it by the path
+of the part, as a `DragMove`.
+"""
+struct DragEnd <: Gesture
+    x::Int
+    y::Int
+    modifiers::ModifierKeys
+    time::Float64
+end
+
+DragEnd(x::Int, y::Int; time::Real) = DragEnd(x, y, ModifierKeys(), Float64(time))
+# @positional: the position and the keys of a pointer event.
+DragEnd(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
+    DragEnd(x, y, modifiers, Float64(time))
+
+get_modifier_keys(gesture::Union{DragMove,DragEnd}) = gesture.modifiers
+
+"""
+    DragCancel(; time)
+    DragCancel(time)
+
+The end of a drag with no change, for the part whose drag is on. The code that
+tracks a drag makes it from Escape, from the loss of the focus of the window, and
+from a move with no button held, which shows a release that the window did not
+get. The part puts back what it kept at the start of the drag.
+"""
+struct DragCancel <: Gesture
+    time::Float64
+end
+
+DragCancel(; time::Real) = DragCancel(Float64(time))

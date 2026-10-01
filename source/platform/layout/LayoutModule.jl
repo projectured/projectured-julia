@@ -22,6 +22,7 @@ using ..EventModule
 using ..FocusModule
 using ..GestureModule
 using ..GraphicsModule
+using ..IntentModule
 using ..IoMapModule
 using ..OperationModule
 using ..ProjectionAlgebraModule

@@ -67,6 +67,10 @@ function _tw_drawn_strings(node, found = String[])
     found
 end
 
+# The state of the tooltip wrapper: one `.content` below the drag tracker,
+# which is one below the gesture tracker at the root of the editor's document.
+_tw_state(editor) = editor.document.content.content
+
 function _tw_drawn_tooltip(editor)
     output = _tw_force(get_iomap_output(editor.iomap))
     windows = _tw_force(output.windows)
@@ -102,7 +106,7 @@ end
     @test tip.minimum_size == (120, 32)
     @test tip.maximum_size == (560, 400)
     # The state of the wrapper keeps what the window shows.
-    state = editor.document.content
+    state = _tw_state(editor)
     @test state isa TooltipWindowState
     @test state.shown == 1
 end
@@ -162,7 +166,7 @@ end
     @test length(_tw_tooltips(scene)) == 1
     _tw_send!(editor, backend, MouseMove(20, 50; time = 1.2))
     @test isempty(_tw_tooltips(scene))
-    @test editor.document.content.shown == 0
+    @test _tw_state(editor).shown == 0
 end
 
 @testset "a press closes the window" begin
@@ -224,9 +228,10 @@ end
                           tooltip = "what this button is for")
     editor, backend, scene = _tw_editor(WidgetComposite(Any[button]))
     # The path of the button from the root of the editor: through the gesture
-    # tracker and the tooltip wrapper to the screen.
+    # tracker, the drag tracker and the tooltip wrapper to the screen.
     place = extend_reference(EmptyReference(),
                              FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
                              FieldReferenceStep("windows"), ElementReferenceStep(1),
                              FieldReferenceStep("content"),
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
@@ -253,6 +258,7 @@ end
     editor, backend, scene = _tw_editor(WidgetComposite(Any[label]))
     place = extend_reference(EmptyReference(),
                              FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
                              FieldReferenceStep("windows"), ElementReferenceStep(1),
                              FieldReferenceStep("content"),
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
@@ -277,6 +283,7 @@ end
                                       ElementReferenceStep(1), FieldReferenceStep("content"))
     # From the root of the editor, and from the state of the tooltip wrapper.
     place = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("content"),
+                                               FieldReferenceStep("content"),
                                                FieldReferenceStep("content")),
                               concat_references(window_content, inside))
     from_wrapper = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("content")),
@@ -291,8 +298,10 @@ end
     tip = only(_tw_tooltips(scene))
     # The window stands below the function, where the place of the function says:
     # the operation carries the path of the function, not of the whole document.
-    wrapper = editor.projection.inner
-    below = find_part_place(wrapper, editor.iomap.child_iomap, from_wrapper)
+    # One more hop than `wrapper` used to need, past the drag tracker that now
+    # sits between the gesture tracker and the tooltip wrapper.
+    wrapper = editor.projection.inner.inner
+    below = find_part_place(wrapper, editor.iomap.child_iomap.child_iomap, from_wrapper)
     @test below !== nothing
     @test (tip.x, tip.y) == (below[1], below[2] + 4)
     # And above the bottom of the text, which `x = 1` ends.

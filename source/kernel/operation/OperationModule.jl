@@ -54,7 +54,7 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        # from Operations.jl
        ReplacePathOperation, get_operation_path, make_path_operation,
        DoNothingOperation, InvalidateProjectionOperation,
-       ReplaceSelectionOperation, ReplaceMouseTargetOperation,
+       ReplaceSelectionOperation, ReplaceMouseTargetOperation, StartDragOperation,
        QuitEditorOperation,
        SetTimerOperation,
        QuitEditorException, ToggleCollapseOperation,

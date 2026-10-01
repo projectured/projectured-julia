@@ -30,6 +30,7 @@ using ..FaultModule
 using ..FeedModule
 using ..GestureBindingModule
 using ..GestureModule
+using ..DragTrackingModule
 using ..GestureTrackingModule
 using ..GraphicsModule
 using ..IntentModule

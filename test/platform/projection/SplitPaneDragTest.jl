@@ -8,8 +8,18 @@ _stub = FixedMeasure(10, 18, 6, 0)
 _proj() = make_widget_projection_example(measure=_stub)
 _szs(doc) = isempty(doc.sizes) ? Int[] : [Int(doc.sizes[i]) for i in 1:length(doc.sizes)]
 
-# The operation a drag answers, without the view-state mark it carries.
-_unmark(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
+# The operation a drag answers, without the view-state mark it carries. The
+# press now answers a `CompoundOperation` that also starts the drag
+# (`StartDragOperation`), so the real operation is found among its members.
+function _unmark(op)
+    op isa ReplaceViewStateOperation && return get_wrapped_operation(op)
+    if op isa CompoundOperation
+        for member in op.operations
+            member isa ReplaceViewStateOperation && return get_wrapped_operation(member)
+        end
+    end
+    op
+end
 
 # Feed an event through the pipeline, evaluate any resulting operation, and
 # answer it without its mark.
@@ -26,8 +36,8 @@ end
 
     # The lone splitter sits in the ~1px gap before the second child (x≈300).
     # A drag is view state: a history records none of its three operations.
-    @test read_intent(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys(); time = 0.0)) isa
-          ReplaceViewStateOperation
+    @test !is_undo_step(nothing,
+                        read_intent(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys(); time = 0.0)))
     down = _feed(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys(); time = 0.0))
     @test down isa StartSplitterDragOperation
     @test down.split === doc
@@ -36,13 +46,13 @@ end
     @test doc.drag_anchor !== nothing
 
     # Grow the left slot by 50px; the right slot gives back exactly 50px.
-    move = _feed(proj, iomap, MouseMove(350, 50, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    move = _feed(proj, iomap, DragMove(350, 50; time = 0.0))
     @test move isa ResizeSplitPaneOperation
     @test _szs(doc) == [350, 250]
     @test sum(_szs(doc)) == 600
 
     # A second move resizes relative to the grab origin, not cumulatively.
-    _feed(proj, iomap, MouseMove(270, 50, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _feed(proj, iomap, DragMove(270, 50; time = 0.0))
     @test _szs(doc) == [270, 330]
     @test sum(_szs(doc)) == 600
 
@@ -51,11 +61,11 @@ end
     reader = Cell(@computation (Any[doc.sizes[i] for i in 1:length(doc.sizes)],
                                 Any[doc.pinned[i] for i in 1:length(doc.pinned)]))
     reader[]
-    _feed(proj, iomap, MouseMove(270, 50, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _feed(proj, iomap, DragMove(270, 50; time = 0.0))
     @test is_cell_up_to_date(reader)
     @test _szs(doc) == [270, 330]
 
-    up =_feed(proj, iomap, MouseUp(:left, 270, 50, ModifierKeys(); time = 0.0))
+    up =_feed(proj, iomap, DragEnd(270, 50; time = 0.0))
     @test up isa EndSplitterDragOperation
     @test doc.active_splitter == 0
     @test doc.drag_anchor === nothing
@@ -94,11 +104,11 @@ end
     # baseline failure; see plan/pending/kernel-audit-fixes.md
     # ("SplitPaneDragTest.jl"). Cause not investigated.
     @test_broken down isa StartSplitterDragOperation
-    _feed(proj, iomap, MouseMove(40, 240, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _feed(proj, iomap, DragMove(40, 240; time = 0.0))
     # @broken: same cause — no drag started, so the move never resizes the slots.
     @test_broken _szs(doc) == [240, 160]
     @test sum(_szs(doc)) == 400
-    _feed(proj, iomap, MouseUp(:left, 40, 240, ModifierKeys(); time = 0.0))
+    _feed(proj, iomap, DragEnd(40, 240; time = 0.0))
     @test doc.active_splitter == 0
 end
 
@@ -111,8 +121,8 @@ end
     iomap = print_document(proj, nothing, doc, ctx)
 
     _feed(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys(); time = 0.0))
-    _feed(proj, iomap, MouseMove(380, 50, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed(proj, iomap, MouseUp(:left, 380, 50, ModifierKeys(); time = 0.0))
+    _feed(proj, iomap, DragMove(380, 50; time = 0.0))
+    _feed(proj, iomap, DragEnd(380, 50; time = 0.0))
 
     @test _szs(doc) == [380, 220]
     @test [Bool(doc.pinned[i]) for i in 1:length(doc.pinned)] == [true, true]
@@ -159,9 +169,9 @@ end
         gy = (first(starts) + last(starts)) ÷ 2
         _feed(proj, iomap, MouseDown(:left, 40, gy, ModifierKeys(); time = 0.0))
         @test split.active_splitter == 1
-        _feed(proj, iomap, MouseMove(40, gy + 40, MouseButtons(:left), ModifierKeys(); time = 0.0))
+        _feed(proj, iomap, DragMove(40, gy + 40; time = 0.0))
         @test [Int(split.sizes[i]) for i in 1:length(split.sizes)] == [190, 110]
-        _feed(proj, iomap, MouseUp(:left, 40, gy + 40, ModifierKeys(); time = 0.0))
+        _feed(proj, iomap, DragEnd(40, gy + 40; time = 0.0))
         @test split.active_splitter == 0
     catch e
         # @broken: same cause — starts is empty, so gy cannot be computed and

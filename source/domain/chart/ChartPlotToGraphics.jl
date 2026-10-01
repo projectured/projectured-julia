@@ -1403,18 +1403,16 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         return _scroll_intent(g, plot, event)
     elseif event isa MouseDown && event.button === :left
         return _drag_start(g, plot, event)
-    elseif event isa MouseUp && event.button === :left
-        return _drag_end(g, plot, event)
     elseif event isa Union{KeyDown, KeyPress}
         return _key_intent(g, plot, event)
+    elseif event isa DragMove
+        # The drag comes by the path of the plot, also off the plot.
+        return _drag_move(g, plot, event)
+    elseif event isa DragEnd
+        return _drag_end(g, plot, event)
+    elseif event isa DragCancel
+        return _cancel_drag(plot)
     elseif event isa MouseMove
-        if plot.drag_anchor !== nothing
-            # A move with a button held drags, also off the plot. A move with no
-            # button held follows a release that the plot did not get, so the drag
-            # ends with no change.
-            is_move_without_button(event) || return _drag_move(g, plot, event)
-            return _compound(_cancel_drag(plot), _track_cursor(g, plot, event.x, event.y))
-        end
         return _track_cursor(g, plot, event.x, event.y)
     elseif event isa MouseClick && event.button === :left
         # A double click anywhere in the plot means "show me everything again".
@@ -1509,16 +1507,20 @@ end
 # Dragging in the plot draws a rubber band and commits it as the new window;
 # with Shift it pans instead. There is no precedent for a rubber band in this
 # codebase, so the lifecycle mirrors the splitter drag: the anchor goes down on
-# press, the rectangle grows on move, and the release either commits or — if the
-# band never grew past a few pixels — leaves the window alone.
+# press and starts the drag of the plot, the rectangle grows on each `DragMove`,
+# and `DragEnd` either commits or — if the band never grew past a few pixels —
+# leaves the window alone. The anchor keeps the view of the press as the plot
+# holds it, so `DragCancel` puts back a pan.
 function _drag_start(g, plot::ChartPlot, event::MouseDown)
     _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
     mode = event.modifiers.shift ? :pan : :zoom
-    _write_view_state(plot, "drag_anchor",
-                                    (event.x, event.y, mode, resolve_view(plot), g.xs, g.ys))
+    _compound(_write_view_state(plot, "drag_anchor",
+                                (event.x, event.y, mode, resolve_view(plot), g.xs, g.ys,
+                                 plot.view)),
+              StartDragOperation(EmptyReference(), nothing))
 end
 
-function _drag_move(g, plot::ChartPlot, event::MouseMove)
+function _drag_move(g, plot::ChartPlot, event::DragMove)
     anchor = plot.drag_anchor
     anchor === nothing && return nothing
     ax, ay, mode, start_view, xs, ys = anchor
@@ -1534,7 +1536,7 @@ function _drag_move(g, plot::ChartPlot, event::MouseMove)
                     abs(event.x - ax), abs(event.y - ay)))
 end
 
-function _drag_end(g, plot::ChartPlot, event::MouseUp)
+function _drag_end(g, plot::ChartPlot, event::DragEnd)
     anchor = plot.drag_anchor
     anchor === nothing && return nothing
     ax, ay, mode, _ = anchor
@@ -1552,18 +1554,21 @@ _rect_op(plot::ChartPlot, rect) =
     isequal(plot.drag_rect, rect) ? nothing :
     _write_view_state(plot, "drag_rect", rect)
 
+# The end of a drag with no change: a pan puts back the view of the press.
 function _cancel_drag(plot::ChartPlot)
-    (plot.drag_anchor === nothing && plot.drag_rect === nothing) && return nothing
-    CompoundOperation(Operation[
+    anchor = plot.drag_anchor
+    (anchor === nothing && plot.drag_rect === nothing) && return nothing
+    clear = CompoundOperation(Operation[
         _write_view_state(plot, "drag_anchor", nothing),
         _write_view_state(plot, "drag_rect", nothing)])
+    (anchor !== nothing && anchor[3] === :pan) || return clear
+    _compound(_set_view(plot, anchor[7]), clear)
 end
 
 # Keyboard view control. This lives in the reader rather than in a `@gestures`
 # block because the window belongs to the plot, and a document gesture only ever
 # sees the chart.
 function _key_intent(g, plot::ChartPlot, event::KeyDown)
-    event.key === :escape && return _cancel_drag(plot)
     # Bare and Alt arrows belong to selection navigation, as everywhere else in
     # the editor, so panning takes Shift and this reader declines the rest.
     event.modifiers.shift || return nothing

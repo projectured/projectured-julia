@@ -878,6 +878,13 @@ the pixels and the test counts of the baseline of S0.
   - The toolbar, the View menu and their tests hold both Appearance and
     Settings; the settings tab is in the toolbar of a window that records
     nothing, because it is never empty.
+- [x] **M2. `main` merged again** (2026-10-02, `main` at `384dd472f`, the drag
+  work). `test_platform()` 84694 and 8 broken, `test_application()` 341 and 2
+  broken, and the SDL, video, web, PDF, MCP and referenced-editor suites pass.
+  `test_kernel()` has one failure, "a gesture reaches the child its route names"
+  (`RoutedChangeTest.jl:199`): `main` alone at `8d1edf0ce` has it too (4088
+  pass, 1 failure), so it is not from this branch. The drag work has no
+  threshold, so `drag_threshold` still has no reader.
 - [ ] **S10. The start settings**, a later part after S0 to S9 (D1).
   `StartSettings` in `application`, read by `run_application`.
   - Tests: the file, the environment and the command line in their order.

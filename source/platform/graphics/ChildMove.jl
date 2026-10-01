@@ -121,3 +121,44 @@ function get_child_frame_offset(entry)
     (Int(ox isa AbstractCell ? ox[] : ox) + (canvas isa GraphicsCanvas ? Int(canvas.x) : 0),
      Int(oy isa AbstractCell ? oy[] : oy) + (canvas isa GraphicsCanvas ? Int(canvas.y) : 0))
 end
+
+"""
+    read_routed_child_in_frame(recursion, change, child; move_in, move_out) -> Intent
+
+The answer of `child` to `change`, whose route leads into it, when the container
+draws the child in a frame of its own: the point of a pointer gesture goes into
+the frame of the child by `move_in(x, y)`, and each position of the answer comes
+back by `move_out(x, y)`, as for a gesture that the container gives to the child
+at the point. A change that carries an operation, or a gesture with no point,
+goes to the child as it is.
+"""
+function read_routed_child_in_frame(recursion, change::Intent, child; move_in, move_out)
+    projection = get_iomap_projection(child)
+    gesture = change.gesture
+    (change.operation === nothing && gesture isa Union{Event, Gesture}) ||
+        return read_routed_intent(projection, recursion, change, child)
+    moved = Intent(map_event_position(gesture, move_in), nothing,
+                   change.description, change.domain, change.route)
+    inner = read_routed_intent(projection, recursion, moved, child)
+    Intent(gesture, map_operation_position(inner.operation, move_out))
+end
+
+"""
+    read_routed_entry_child(recursion, change, child; entries) -> Intent
+
+The answer of `child` to `change`, whose route leads into it, for a container
+that keeps each child as an `(x, y, child_iomap)` entry: the child reads the
+change in its own frame ([`get_child_frame_offset`](@ref),
+[`read_routed_child_in_frame`](@ref)). A child that no entry places reads the
+change as it is.
+"""
+function read_routed_entry_child(recursion, change::Intent, child; entries)
+    for entry in entries
+        (entry isa Tuple && length(entry) == 3 && last(entry) === child) || continue
+        dx, dy = get_child_frame_offset(entry)
+        return read_routed_child_in_frame(recursion, change, child;
+                                          move_in = (x, y) -> (x - dx, y - dy),
+                                          move_out = (x, y) -> (x + dx, y + dy))
+    end
+    read_routed_intent(get_iomap_projection(child), recursion, change, child)
+end

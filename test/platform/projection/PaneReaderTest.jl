@@ -38,6 +38,29 @@ _starts_drag(op) = op isa StartSplitterDragOperation ||
                    (op isa CompoundOperation && any(_starts_drag, op.operations)) ||
                    (op isa ReplaceViewStateOperation && _starts_drag(get_wrapped_operation(op)))
 
+# The path of the part a press starts the drag of, from the `StartDragOperation`
+# inside its answer, or `nothing`. The path a drag reader (`_pr_drag`) sends the
+# rest of that drag's gestures to.
+function _drag_path(op)
+    op isa StartDragOperation && return get_operation_path(op)
+    if op isa CompoundOperation
+        for member in op.operations
+            found = _drag_path(member)
+            found === nothing || return found
+        end
+    end
+    op isa ReplaceViewStateOperation && return _drag_path(get_wrapped_operation(op))
+    nothing
+end
+
+# `gesture` to the part at `path`, the way the drag wrapper sends the rest of a
+# drag that `path` started: by the route the press's answer named, with the
+# point in the frame of the root, as the original press was.
+function _pr_drag(proj, iomap, path, gesture)
+    answer = read_intent(proj, nothing, Intent(gesture, nothing, "", "", path), iomap)
+    answer isa Intent ? answer.operation : answer
+end
+
 _is_delete(op) = any(w -> w.value isa AbstractVector && isempty(w.value), _writes(op))
 _inserted_titles(op) = [get_pane_tab_title_string(w.value[1]) for w in _writes(op)
                         if w.value isa AbstractVector && length(w.value) == 1 &&
@@ -242,19 +265,22 @@ end
 
     # The divider of an even split sits near the middle; find the band it grabs in.
     grab = nothing
+    path = nothing
     for x in 190:210
         op = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys(); time = 0.0))
         if _starts_drag(op)
             grab = x
+            path = _drag_path(op)
             _apply!(editor, op)
             break
         end
     end
     @test grab !== nothing
+    @test path isa Reference
 
     # The weight write comes back marked as view state, as the widget marked the
     # resize it answers, so a history records no part of the drag.
-    move = read_intent(proj, iomap, MouseMove(300, 150, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    move = _pr_drag(proj, iomap, path, DragMove(300, 150; time = 0.0))
     @test move isa ReplaceViewStateOperation
     @test get_wrapped_operation(move) isa ReplaceReferencedValueOperation
     _apply!(editor, move)
@@ -263,10 +289,9 @@ end
 
     # A move to the point of the last move writes no cell: the weights that the
     # split holds are not written again.
-    @test read_intent(proj, iomap, MouseMove(300, 150, MouseButtons(:left), ModifierKeys();
-                                             time = 0.0)) === nothing
+    @test _pr_drag(proj, iomap, path, DragMove(300, 150; time = 0.0)) === nothing
 
-    finish =read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys(); time = 0.0))
+    finish = _pr_drag(proj, iomap, path, DragEnd(300, 150; time = 0.0))
     @test finish isa ReplaceViewStateOperation
     @test get_wrapped_operation(finish) isa EndSplitterDragOperation
     _apply!(editor, finish)
@@ -289,17 +314,17 @@ end
 
     # Grab the divider wherever it currently is, move to `to`, release.
     function _drag!(to)
-        grabbed = false
+        path = nothing
         for x in 0:399
             operation = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys(); time = 0.0))
             _starts_drag(operation) || continue
+            path = _drag_path(operation)
             _apply!(editor, operation)
-            grabbed = true
             break
         end
-        grabbed || return false
-        _apply!(editor, read_intent(proj, iomap, MouseMove(to, 150, MouseButtons(:left), ModifierKeys(); time = 0.0)))
-        _apply!(editor, read_intent(proj, iomap, MouseUp(:left, to, 150, ModifierKeys(); time = 0.0)))
+        path === nothing && return false
+        _apply!(editor, _pr_drag(proj, iomap, path, DragMove(to, 150; time = 0.0)))
+        _apply!(editor, _pr_drag(proj, iomap, path, DragEnd(to, 150; time = 0.0)))
         true
     end
 
@@ -336,9 +361,12 @@ end
     @test grabbed !== nothing
     grabbed === nothing && return
     y = (100:200)[grabbed]
-    _apply!(editor, read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys(); time = 0.0)))
-    _apply!(editor, read_intent(proj, iomap, MouseMove(340, y + 60, MouseButtons(:left), ModifierKeys(); time = 0.0)))
-    _apply!(editor, read_intent(proj, iomap, MouseUp(:left, 340, y + 60, ModifierKeys(); time = 0.0)))
+    down = read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys(); time = 0.0))
+    _apply!(editor, down)
+    path = _drag_path(down)
+    @test path isa Reference
+    _apply!(editor, _pr_drag(proj, iomap, path, DragMove(340, y + 60; time = 0.0)))
+    _apply!(editor, _pr_drag(proj, iomap, path, DragEnd(340, y + 60; time = 0.0)))
     @test get_pane_weights(inner)[1] > 0.6              # the top pane took the space
     @test get_pane_weights(tree.root) == [0.5, 0.5]     # and the outer split is untouched
 end

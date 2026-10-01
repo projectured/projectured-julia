@@ -188,6 +188,28 @@ make_path_operation(::ReplaceMouseTargetOperation, path::Reference) = ReplaceMou
 evaluate_operation(editor, op::ReplaceMouseTargetOperation) =
     replace_mouse_target!(editor.document, op.path)
 
+"""
+    StartDragOperation(path, dragged)
+
+Operation that starts a drag of the part at `path`. The code that tracks a drag
+keeps the path, and while the drag is on, it sends that part each `DragMove`, the
+`DragEnd` and a `DragCancel` by the path, wherever the pointer is. The part keeps
+its own state of the drag. `dragged` is the thing that a global drag carries to
+the part that takes it, and `nothing` for a local drag, such as the thumb of a
+slider. A part answers it from its own place with the empty path; each container
+puts its steps before the path, and each projection maps it backward, as for
+`ReplaceMouseTargetOperation`. With no code that tracks a drag, it does nothing.
+"""
+struct StartDragOperation <: ReplacePathOperation
+    path::Reference
+    dragged::Any
+end
+
+make_path_operation(operation::StartDragOperation, path::Reference) =
+    StartDragOperation(path, operation.dragged)
+
+evaluate_operation(editor, ::StartDragOperation) = nothing
+
 # Split a non-empty path into (everything-but-last-step, last-step). The prefix is
 # rebuilt as a plain skeleton (callers pass an already type-stripped path).
 function _split_terminal_step(path::ConcreteReference)

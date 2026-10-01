@@ -984,11 +984,151 @@ already; the sealed selection files do not change (Q4).
     rectangle); `StartDragOperation(path, dragged)` starts a drag, where `path`
     is the part whose drag is on and `dragged` is the thing that a global drag
     carries, `nothing` for a local drag such as a slider thumb.
+  - **A route moves the point** (owner 2026-10-01: "Agreed", on Claude's
+    option A). A fact found before the code: a route moved no point
+    (`read_routed_child` walks the steps of the path, and `ScreenToScreen.jl`
+    said "a route moves no point"), and no code sent a pointer gesture by a
+    route, only `RoutedGestureTest`. So when a container follows a step of a
+    route to a child, it moves the point into the frame of that child, with the
+    same move that gives a move to the part that the pointer leaves in 5a; the
+    route names the child, not the mouse target of the container. Each
+    container changes, about as many as the dwell of step 7. Rejected: option B,
+    where the wrapper moves the point into the box of the part
+    (`find_reference_box`) and no container changes, because the box is in
+    window pixels and a container that scales its child gives a wrong point.
+    The drop target of a global drag needs no route: it goes by position.
+  - **A drag that ends with no change gets one gesture, `DragCancel(time)`**
+    (owner 2026-10-01: "Agreed", on Claude's option b). The wrapper sees the
+    three signals of point 10 for a local drag: Escape, a `WindowDefocus` (the
+    wrapper is outside the window manager, which takes that event), and a move
+    with no button held while the drag is on (the release was lost). It turns
+    each into `DragCancel` and sends it to the part by the drag path, as the
+    gesture tracker makes a dwell from a timer. The part reads only that
+    gesture and puts back what it kept at the press: the chart its start view,
+    the divider the sizes in its `drag_anchor`, and the slider its value at the
+    press, which it now keeps. Rejected: option a, where the wrapper sends each
+    signal as it comes and each part reads all three.
+  - **A part reads its drag from three gestures of the wrapper** (owner
+    2026-10-01: "Agreed", on Claude's option a). While a drag is on, a held
+    move must reach the dragged part by the drag path (point 7) and also go by
+    position, so that the mouse target follows the pointer (point 4); held moves
+    go by position in any case, because the scroll bar reads them so
+    (`WidgetToGraphics.jl`, the reader of `WidgetScrollBarToGraphicsCanvas`).
+    So the wrapper sends the dragged part `DragMove(x, y, time)` for each held
+    move and `DragEnd(x, y, time)` for the release by the drag path, beside
+    `DragCancel`, and a part reads its drag only from these three. The raw
+    `MouseMove` and `MouseUp` go by position, as for every part. Rejected:
+    option b, the raw events by the path, where the part under the pointer gets
+    each move and the release twice and is right only because of
+    `PAR-REPEATED-MOVE-WRITES-NOTHING`.
   - Tests: each of the five drags; a slider thumb dragged past the end of the
     slider and released over another widget; a press on a tab with no move
     still selects the tab; a part under a drag lights; Escape and a lost release
     end a drag with no change; a tab dropped into a group and onto each edge,
     with the blue rectangle.
+  - **The sub-steps** (2026-10-01). Each ends with a commit and its tests.
+    - [x] 5b.1 **A route moves the point.** `read_routed_child` reads the child
+      that a route names through one hook of the projection layer, whose default
+      is the read of today. A graphics container adds a method that moves the
+      event into the frame of that child and moves the positions of the answer
+      back: one method for `ChildrenIoMap`, whose entries hold the offset of each
+      child (`get_child_frame_offset`), and one each for the grid layout, the
+      scroll pane, the transform pane (its affine transform), the accordion, the
+      menu item, the context menu and the dialog; the screen and the shell move
+      the point in their own routed readers. Test: a gesture that a route takes
+      to a part reaches it at the same point as the same gesture by position,
+      through each container.
+      Built (2026-10-01): the hook is `read_child_by_route(projection, recursion,
+      change, iomap, child)` in `ProjectionDefaults.jl`; the graphics slice has
+      `map_event_position`, `read_routed_child_in_frame` and
+      `read_routed_entry_child`. The methods dispatch on the projection of the
+      container (a `Union` of the placing layout projections, and one of the
+      widget projections), because `ChildrenIoMap` is a kernel type and a
+      platform method for it would be type piracy. The screen moves the point of
+      a routed `WindowInput` into the frame of the window that the route names
+      (`_make_window_event`, by the places of the two windows when the pointer
+      is over another window), and the window into its content. A fact found on
+      the way: a route that ends at a container gave the gesture only to the
+      gesture tables (`read_routed_child`), although `read_routed_intent` says
+      that the part reads it; so `read_routed_intent` now gives a part at the
+      end of a route the gesture with no route, and a container that is the
+      part reads it with its own reader, as a leaf does. Only the routed
+      gesture test and the drag wrapper send gestures by a route; the command
+      palette sends operations. Test: `test_routed_gesture`, 8 scenes (a
+      composite, a split pane, a scrolled pane, a scaled pane, a card, a tabbed
+      pane, a shell, a layout); with the methods removed, all 8 fail.
+    - [x] 5b.2 **The gestures and the operation.** `DragMove`, `DragEnd` and
+      `DragCancel` in the gesture layer of the kernel, beside `MouseDwell`;
+      `StartDragOperation(path, dragged)` in the operation layer, a path
+      operation, so each container puts its step in front of the path and each
+      projection maps it backward, as `ReplaceMouseTargetOperation`.
+    - [x] 5b.3 **The drag wrapper.** A platform slice `dragtracking` with
+      `DragTrackingState` (the content, the drag path and the dragged thing, as
+      view state) and `DragTrackingProjection`, which `make_tracking_screen` puts
+      inside the gesture tracker (D26). It takes a `StartDragOperation` out of
+      an answer and keeps its path; while a drag is on, it sends `DragMove`,
+      `DragEnd` and `DragCancel` by the drag path, gives the raw events on by
+      position, and drops the click gestures (D14).
+    - [x] 5b.4 **The local drags.** The slider, the split pane divider and the
+      pan and zoom of the chart answer `StartDragOperation` at the press and
+      read their drag from the three gestures; the slider keeps its value at the
+      press. The drag fallbacks of the composite and the split pane, and the
+      band capture of the shell, go.
+      Built for 5b.2 to 5b.4 (2026-10-02), in one commit, because the three
+      touch the same files:
+      - The gestures are in `MouseGesture.jl` of the kernel, beside
+        `MouseDwell`; `StartDragOperation <: ReplacePathOperation`, with
+        `make_path_operation` and an `evaluate_operation` that does nothing,
+        so with no drag wrapper a drag does not start.
+      - The slice `dragtracking` holds `DragTrackingState(content, drag_path,
+        dragged)` and `DragTrackingProjection`; `make_tracking_screen` has a
+        keyword `drag_tracking = true`. The wrapper takes `StartDragOperation`
+        out of a compound answer and keeps its path below `content`; while a
+        drag is on, a `MouseClick` goes nowhere, a held move gives `DragMove`,
+        the release `DragEnd`, and Escape, `WindowDefocus` and a move with no
+        button `DragCancel`, each sent as a `WindowInput` of the window of the
+        event by the route, beside the raw event by position (Escape goes no
+        further). A `StartDragOperation` in an answer while a drag is on is
+        dropped.
+      - The slider keeps `press_value` (a new view state field after
+        `dragging`). The divider answers the start in a compound beside
+        `StartSplitterDragOperation`, and `DragCancel` writes back the sizes of
+        `drag_anchor`. The chart keeps the `view` of the press as the seventh
+        member of its anchor, and a cancelled pan puts it back; its reader no
+        longer reads Escape.
+      - The press fallbacks of the composite and the split pane stay, as
+        `_route_composite_press` and `_route_split_press`: a nested split
+        draws its divider in a gap that is no hit, and the press there must
+        still grab it. The release and the held move go by hit test only. The
+        shell has no capture; its two dead arms went with it.
+      - A fact found in the tests: the backward maps of `PaneToWidget` did not
+        map the empty path of the widgets that they make, so a
+        `StartDragOperation` from a divider of the pane tree had no image, and
+        the bridge drops a compound that does not map whole. The empty path of
+        the overlay composite, the split pane and the tabbed pane now maps to
+        the tree, the split and the group, whole; the forward direction had
+        the fallback of `_child_forward` already.
+      - `read_child_by_route` joined `ARGUMENT_PROTOCOL`.
+      - Tests: `test_drag_tracking` (26) drives a real editor: a slider thumb
+        past the end and released over another widget, Escape, a lost release
+        and the loss of the focus, and a divider past the edge of its pane with
+        Escape and a second drag. The old drag tests send the three gestures by
+        the route of the `StartDragOperation` of the press (pane reader 86,
+        split pane drag, slider, shell pointer, chart 354, application 341),
+        and the window tests read their state one `.content` deeper. Platform
+        84701 with the 5 failures of main (the file system test under
+        `unshare -r`, and the 4 tests of `WindowShellTest` that `af3f7f02d`
+        on main left with no Appearance tool).
+    - [ ] 5b.5 **The light during a drag** (point 4): a move with a button held
+      names the part under the pointer, as a move with no button held does.
+    - [ ] 5b.6 **The global drags**: the tab of a pane and the reorder of the
+      dragging package, with `find_drop_zone`. The drop target goes by
+      position, so a gesture by position must carry the dragged thing to the
+      parts under the pointer. That gesture is a new mechanism, and its design
+      goes to the owner before the code.
+    - [ ] 5b.7 **The documents and the rules**: `package/platform/dragging/`
+      and `guide/dragging-guide.md`, as the table of step 11 of the events plan
+      lists them.
 - [x] 6. **The light** (M9). The button, the menu item and the toolbar item
   light while their mouse target is set; the list, the table, the table list and
   the tree light the row that their mouse target names; the chart and the

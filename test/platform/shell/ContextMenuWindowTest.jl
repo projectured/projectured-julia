@@ -52,6 +52,10 @@ _cm_labels(menu) = [string(item.action.label) for item in menu.elements
 
 _cm_force(value) = value isa Cell ? _cm_force(value[]) : value
 
+# The state of the context menu wrapper: one `.content` below the drag tracker,
+# which is one below the gesture tracker at the root of the editor's document.
+_cm_state(editor) = editor.document.content.content
+
 # The drawn content of the window `id`, as the editor printed it.
 function _cm_drawn_window(editor, scene, id::Symbol)
     windows = _cm_force(_cm_force(get_iomap_output(editor.iomap)).windows)
@@ -88,7 +92,7 @@ function test_context_menu_window()
     @test window.auto_dismiss
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # The state of the wrapper keeps what the window shows.
-    state = editor.document.content
+    state = _cm_state(editor)
     @test state isa ContextMenuWindowState
     @test state.shown == 1
     @test [title for (title, _) in state.layers] == ["WidgetContextMenu"]
@@ -114,7 +118,7 @@ end
     editor, backend, scene = _cm_editor(shell)
     (x, y) = _cm_place_of(_cm_drawn_window(editor, scene, :W), "has a menu")
     _cm_click!(editor, backend, :right, x + 2, y + 2, 1.0)
-    state = editor.document.content
+    state = _cm_state(editor)
     @test [title for (title, _) in state.layers] == ["WidgetContextMenu", "WidgetShell"]
     # The nearest menu shows first, alone and with no mark.
     @test _cm_labels(only(_cm_menus(scene)).content) == ["Cut", "Copy"]
@@ -144,7 +148,7 @@ end
     editor, backend, scene = _cm_editor(shell)
     (x, y) = _cm_place_of(_cm_drawn_window(editor, scene, :W), "has none")
     _cm_click!(editor, backend, :right, x + 2, y + 2, 1.0)
-    @test [title for (title, _) in editor.document.content.layers] == ["WidgetShell"]
+    @test [title for (title, _) in _cm_state(editor).layers] == ["WidgetShell"]
     @test _cm_labels(only(_cm_menus(scene)).content) == ["Close window"]
 end
 
@@ -175,7 +179,7 @@ end
     # The Escape closes the popup, so the editor does not quit.
     @test !(editor.operation isa QuitEditorOperation)
     # The state forgets the window that is gone.
-    @test editor.document.content.shown == 0
+    @test _cm_state(editor).shown == 0
 end
 
 @testset "a choice runs the item and closes the window" begin
@@ -188,7 +192,7 @@ end
     _cm_click!(editor, backend, :left, x + 2, y + 2, 2.0; window = window.id)
     @test chosen[] == 1
     @test isempty(_cm_menus(scene))
-    @test editor.document.content.shown == 0
+    @test _cm_state(editor).shown == 0
 end
 
 @testset "a command runs the binding with no pointer, and the menu opens below" begin
@@ -200,9 +204,10 @@ end
     height = Int(unwrap_cell(get_iomap_output(alone)).h[])
     editor, backend, scene = _cm_editor(WidgetComposite(Any[wrap]))
     # The path of the wrapper from the root of the editor: through the gesture
-    # tracker and the context menu wrapper to the screen.
+    # tracker, the drag tracker and the context menu wrapper to the screen.
     place = extend_reference(EmptyReference(),
                              FieldReferenceStep("content"), FieldReferenceStep("content"),
+                             FieldReferenceStep("content"),
                              FieldReferenceStep("windows"), ElementReferenceStep(1),
                              FieldReferenceStep("content"),
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
