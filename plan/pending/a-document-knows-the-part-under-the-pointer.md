@@ -511,6 +511,11 @@ One at a time, with the owner.
      split pane divider, the slider and the pan and zoom of the chart, keep
      their drag in their own document (point 1). (Owner, 2026-10-01: "I
      basically agree".)
+  6. A local drag keeps its moves and its release when the pointer leaves the
+     part: a slider thumb dragged past the end of the slider stops at the end,
+     the slider gets the release wherever it is, and the drag ends there. The
+     same holds for the split pane divider and the pan and zoom of the chart.
+     (Owner, 2026-10-01: "agreed".)
   Facts (2026-10-01): a move with a button held still goes by position (step 5a
   changed only the move with no button held), except in the shell, where the
   band that takes a `MouseDown` gets every held move and the next `MouseUp`,
