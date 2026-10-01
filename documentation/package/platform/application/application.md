@@ -62,7 +62,7 @@ A path with no leading `-` is a file; an unknown option, or a value a keyword re
 
 ### `default_backend`
 
-`default_backend(prefer = (:SdlBackend, :WebBackend, :ConsoleBackend))` constructs a backend by reflection over the loaded `Backend` subtypes, with the subtype walk of the domain slice, which needs no `InteractiveUtils` (see [domain.md](../domain/domain.md)): it matches each name of `prefer`, in order, against a type's own name or its qualified name (`parentmodule(T)`, `.`, `nameof(T)`), and constructs the first one that is loaded. So a caller needs no dependency on a backend package, and no `:kind` key is coined for one. It raises an error, naming the backends that are loaded, only when none of `prefer` is. `run_application` calls it with no argument when `backend` is `nothing`; `warm_application` calls it with `(:ConsoleBackend,)` alone, because the warm-up must run with no display.
+`default_backend(prefer = (:SdlBackend, :WebBackend, :ConsoleBackend))` constructs a backend by reflection over the loaded `Backend` subtypes, with `compute_loaded_subtypes`, the subtype walk of the domain slice, which needs no `InteractiveUtils` (see [domain.md](../domain/domain.md)): it matches each name of `prefer`, in order, against a type's own name or its qualified name (`parentmodule(T)`, `.`, `nameof(T)`), and constructs the first one that is loaded. So a caller needs no dependency on a backend package, and no `:kind` key is coined for one. It raises an error, naming the backends that are loaded, only when none of `prefer` is. `run_application` calls it with no argument when `backend` is `nothing`; `warm_application` calls it with `(:ConsoleBackend,)` alone, because the warm-up must run with no display.
 
 ## How it fits
 

@@ -23,7 +23,7 @@
 # `:unambiguous` / `:ambiguous`) and computes the completion continuation;
 # `resolve_insertion` maps a typed name to the committable type (exact name or
 # alias first, then an unambiguous prefix).
-# `subtypes` WITHOUT InteractiveUtils.
+# `compute_loaded_subtypes`: `subtypes` WITHOUT InteractiveUtils.
 #
 # `InteractiveUtils` is the REPL's introspection stdlib — `@which`, `@edit`,
 # `@code_native`, `versioninfo` — and its only dependency is `Markdown`. An
@@ -100,7 +100,15 @@ function _compute_subtypes(named::Dict{Core.TypeName, Vector{Any}}, @nospecializ
     return permute!(sts, sortperm(map(string, sts)))
 end
 
-subtypes(x::Type; world::UInt = Base.get_world_counter()) =
+"""
+    compute_loaded_subtypes(T::Type; world) -> Vector{Type}
+
+The direct subtypes of `T` among the loaded modules, sorted by name: what
+`InteractiveUtils.subtypes` answers, with no `InteractiveUtils`. It walks every
+name of every loaded module, so a caller that searches a whole type tree uses
+one walk for all of it.
+"""
+compute_loaded_subtypes(x::Type; world::UInt = Base.get_world_counter()) =
     _compute_subtypes(_collect_named_types(world), x)
 
 

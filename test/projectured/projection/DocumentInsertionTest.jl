@@ -134,10 +134,11 @@ function test_document_insertion()
             searched = DS._collect_concrete!(Type[], Document, named)
             @test InsertionReflectionProbe in searched
             @test issetequal(searched, collect_concrete_named_subtypes(Document))
-            # The order is depth first, each level in the order of `subtypes`,
-            # which walks the modules again for every abstract type.
+            # The order is depth first, each level in the order of
+            # `compute_loaded_subtypes`, which walks the modules again for every
+            # abstract type.
             function collect_concrete_by_subtypes!(out, root)
-                for T in DS.subtypes(root)
+                for T in DS.compute_loaded_subtypes(root)
                     isabstracttype(T) ? collect_concrete_by_subtypes!(out, T) : push!(out, T)
                 end
                 out

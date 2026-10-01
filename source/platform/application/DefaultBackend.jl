@@ -26,7 +26,7 @@ ride through reflection — pass an already-constructed backend via `backend=`
 when you need them.
 """
 function default_backend(prefer = (:SdlBackend, :WebBackend, :ConsoleBackend))
-    loaded = DomainModule.subtypes(Backend)
+    loaded = compute_loaded_subtypes(Backend)
     for name in prefer
         i = findfirst(loaded) do T
             nameof(T) === name || Symbol(parentmodule(T), '.', nameof(T)) === name

@@ -51,7 +51,7 @@ The domain slice depends on the kernel only. Every domain uses it, and so do the
 ## Design decisions
 
 - **Completion reads the type tree. No list of names exists.** A new document type needs no registration to be a candidate.
-- **The package finds subtypes without `InteractiveUtils`.** `InteractiveUtils` needs the `Markdown` standard library, and this package is in the dependency closure of every downstream program. The own walk also reads all module names once, not once for each abstract type; the comment at `source/platform/domain/Domain.jl:26` gives the numbers.
+- **The package finds subtypes without `InteractiveUtils`.** `compute_loaded_subtypes` is that walk, and the application slice finds a loaded backend with it too. `InteractiveUtils` needs the `Markdown` standard library, and this package is in the dependency closure of every downstream program. The own walk also reads all module names once, not once for each abstract type; the comment at `source/platform/domain/Domain.jl:26` gives the numbers.
 - **Behaviour dispatches on traits.** A name is used only to show a type, never to decide what it does.
 - **One appender for all domains.** `append_insertion_operation` takes the caret from the `@insertion` of the type, so the domains do not each derive it.
 
