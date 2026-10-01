@@ -122,6 +122,17 @@ The owner, 2026-09-30:
   absolutely be able to save the complete state of the UI if possible, at
   least as complete as possible, so any artificial limitation is in the way".
   Step 4a does this.
+- **C17. A saved window keeps its size, its scroll position and its margins
+  (D-a, the owner, 2026-10-01: "I agree with all").** Style adds
+  `is_pred_constructible` for `Point2D` and `Inset`, and the writer writes a
+  value of a constructible type that is not a document as its keyword call
+  on one line, `size = Point2D(x = 800, y = 600)`. The shell writes every
+  field but `menu_bar` and `context_menu` (D-b), `toolbar` (its actions hold
+  callbacks), `status_bar` (its segments are computations, which a file
+  would freeze) and `overlay` (a tooltip that shows for a moment). The
+  scroll pane writes every field. On open, a size that the application gives
+  wins over the saved one. C16 replaces the reason of the old methods, that
+  the size and the scroll position "belong to the window it is opened in".
 
 ## 3. What exists now
 
@@ -647,9 +658,35 @@ Each step ends with its narrowest test and a commit.
     it costs no dependency. So Widget's part of this step waits for the
     fold, and Widget keeps its methods and its Serialization dependency
     until then.
-  - D-a stands: to save the size, the scroll position and the margins, the
-    notation must write a `Point2D` and an `Inset`. It is a question for the
-    owner when Widget's part is done.
+  - D-a is decided (C17). The fold put Widget, Style and Serialization in
+    one package, so Widget's part costs no package dependency. Style gets
+    the slice edge to Serialization, which makes no cycle, because
+    Serialization depends on no slice.
+  - Widget's part is done 2026-10-01, by C17:
+    - The writer writes a value of a constructible type that is not a
+      document as its keyword call on one line, through `pred_arguments`;
+      any other value is refused as before. Style adds
+      `is_pred_constructible` for `Point2D` and `Inset`. The reader needed
+      no change: neither has a keyword constructor, so `make_pred_document`
+      builds each from its fields, and the `Real` methods make the cells.
+    - `WidgetShell` writes every field but its five bands, and
+      `WidgetScrollPane` writes every field. Both take the default keywords
+      of `pred_arguments` through `invoke`, so a field that is added later is
+      saved unless it is named.
+    - The edge `style => serialization` is in `PLATFORM_SLICE_EDGES` and in
+      package-rules.md. The guides of Style, Serialization, Widget, Shell and
+      Pane follow.
+    - Tests: the platform layering and slice edges, the marker language, the
+      window shell (the scroll position and the size and margins of a shell
+      come back), the file project (a `TestWire` writes on one line) and the
+      user interface file, 325 pass. The naming, export and documentation
+      guards add no finding.
+  - Still open in this step: the review of the other 14 types above, one by
+    one, against C16. Each one is a decision of its own, such as whether a
+    log saves its entries.
+  - Found: nine guides still said that an `__init__` registers `.pred`
+    types: widget, pane, inspector, log, help, clipboard, statistics,
+    gesture log and assistant. They are mended with this step.
   - Found: `ProjecturedDisplay` is newer than the fold plan, whose list of
     34 slices does not name it. It is a slice with no third-party
     dependency, so it would fold into the platform too.

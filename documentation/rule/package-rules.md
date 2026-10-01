@@ -176,7 +176,7 @@ guard of the platform checks every edge below against the code.
 | `serialization` | Kernel | Serialization |
 | `primitive` | Kernel | — |
 | `domain` | Kernel | — |
-| `style` | Kernel | — |
+| `style` | Serialization | — |
 | `component` | Kernel | — |
 | `projection` | Collection, Primitive | — |
 | `dragging` | Collection, Projection | — |

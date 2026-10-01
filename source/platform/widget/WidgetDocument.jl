@@ -2885,18 +2885,26 @@ compute_context_menu(shell::WidgetShell) = shell.context_menu
 # that asks for the pane tree, a save that looks for the files a window holds.
 get_wrapped_document(shell::WidgetShell) = get_wrapped_document(shell.content)
 
-# A saved user interface holds the window a person arranged, and not the bands
-# around it. A menu bar is what the binary offers, built fresh from its own
-# vocabulary every time it starts: writing it would put one binary's menu in a
-# file another binary opens, and would ask the notation to hold a shortcut, an
-# action and a callback. The size goes for the same reason — the window it fits
-# is the one it is opened in, not the one it was saved from.
-pred_arguments(shell::WidgetShell) = (shell.content,), Pair{Symbol,Any}[]
+# A saved user interface holds the window a person arranged, with its size, its
+# margins and its style, and not the bands around it. The bands are what the
+# binary offers, built fresh from its own vocabulary every time it starts, so
+# that one binary's menu is not in a file that another binary opens: the menus
+# and the toolbar hold actions with callbacks, the status bar holds computations
+# that a file would freeze, and the overlay is a tooltip that shows for a moment.
+# On open, a size that the application gives wins over the saved one.
+pred_arguments(shell::WidgetShell) =
+    (shell.content,), _get_field_keywords(shell, (:overlay, :menu_bar, :toolbar,
+                                                  :context_menu, :status_bar))
 
-# A saved window keeps what a scroll pane holds, and not where it was scrolled or
-# how large it was drawn: both belong to the window it is opened in. A list of
-# the Help menu is a tab of this kind.
-pred_arguments(pane::WidgetScrollPane) = (pane.content,), Pair{Symbol,Any}[]
+# A saved window keeps a scroll pane whole: what it holds, its size, and where it
+# was scrolled. A list of the Help menu is a tab of this kind.
+pred_arguments(pane::WidgetScrollPane) = (pane.content,), _get_field_keywords(pane, ())
+
+# The keywords that a file writes for `widget` by default, but for its content,
+# which is written as the first argument, and for the fields `left_out`.
+_get_field_keywords(widget::WidgetDocument, left_out::Tuple) =
+    filter(keyword -> first(keyword) !== :content && !(first(keyword) in left_out),
+           last(invoke(pred_arguments, Tuple{Any}, widget)))
 
 # A person sees through a scroll pane to what it shows, which names the pane.
 get_edited_field(::WidgetScrollPane) = :content

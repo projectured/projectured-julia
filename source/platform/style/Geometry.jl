@@ -68,6 +68,11 @@ function Base.show(io::IO, p::Point2D)
     print(io, "Point2D(", p.x[], ", ", p.y[], ")")
 end
 
+# A size, a scroll position and a margin are data, so a saved window keeps them:
+# a file writes each as its call, and the reader builds it from the numbers.
+is_pred_constructible(::Type{Point2D}) = true
+is_pred_constructible(::Type{Inset}) = true
+
 # ── Inset API ──────────────────────────────────────────────────────────────
 
 """Return the total `Point2D` extent consumed by `ins` on each axis."""

@@ -460,6 +460,13 @@ function test_file_project()
             @test get_pred_type("TestNotWire") === nothing
         end
 
+        @testset "a value that a file may build writes as its call on one line" begin
+            text = print_pred_text(TestWire(5000))
+            @test text == "TestWire(port = 5000)"
+            @test parse_pred_text(text) == TestWire(5000)
+            @test_throws FileCutException print_pred_text(TestNotWire(5000))
+        end
+
         @testset "a name that two loaded document types have is an error that names both" begin
             @test_throws r"PredTwinFirst\.TestTwin and .*PredTwinSecond\.TestTwin|PredTwinSecond\.TestTwin and .*PredTwinFirst\.TestTwin" get_pred_type("TestTwin")
         end

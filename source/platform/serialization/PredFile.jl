@@ -237,7 +237,8 @@ bytes, so two saves of one document must print the same text.
 
 Throws a [`FileCutException`](@ref) naming the field when a value is outside the
 notation: a string, a number, a character, a bool, a symbol, `nothing`, a vector
-of those, a document, and a reference are all of it.
+of those, a document, a value of a type that [`is_pred_constructible`](@ref)
+says a file may build, and a reference are all of it.
 """
 function print_pred_text(document)
     io = IOBuffer()
@@ -325,7 +326,24 @@ function _print_pred_value(io::IO, document::Document, where, indent)
     print(io, _PRED_INDENT^indent, ")")
 end
 
-_print_pred_value(io::IO, value, where, indent) = _refuse_pred_value(value, where)
+# A value that is data but not a document, of a type that a file may build, is
+# its call on one line: a size or a margin is one value in a diff, as a number is.
+function _print_pred_value(io::IO, value, where, indent)
+    is_pred_constructible(typeof(value)) || _refuse_pred_value(value, where)
+    positional, keywords = pred_arguments(value)
+    print(io, nameof(typeof(value)), "(")
+    for (index, element) in enumerate(positional)
+        index > 1 && print(io, ", ")
+        _print_pred_value(io, element, where, indent)
+    end
+    for (index, (name, element)) in enumerate(keywords)
+        (index > 1 || !isempty(positional)) && print(io, ", ")
+        print(io, name, " = ")
+        _print_pred_value(io, element,
+                          isempty(where) ? String(name) : where * "." * String(name), indent)
+    end
+    print(io, ")")
+end
 
 function _refuse_pred_value(value, where)
     at = isempty(where) ? "" : " at " * where
@@ -333,5 +351,5 @@ function _refuse_pred_value(value, where)
         "cannot write a " * string(typeof(value)) * at *
         " — the .pred notation holds a string, a number, a character, a bool, " *
         "nothing, a vector of those, a group of them, a mapping of names to " *
-        "them, a document, and a reference"))
+        "them, a document, a value of a type that a file may build, and a reference"))
 end

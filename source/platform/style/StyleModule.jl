@@ -12,6 +12,7 @@ using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
+import ..SerializationModule: is_pred_constructible
 
 export StyleColor, make_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,

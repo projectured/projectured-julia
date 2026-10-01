@@ -208,7 +208,7 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 `save_user_interface(editor, path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`, only when that file is a file of the project, and it aborts on any other. So the function finds each reachable file tab with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file. `load_user_interface(path)` returns the document, with each file tab read back from its file.
 
-`pred_arguments` of `PaneTree` writes only `root`, because a drag is not layout. The `__init__` registers `PaneTree`, `PaneSplit`, `PaneGroup` and `PaneTab` as `.pred` types. The functions name no screen type, so an editor that holds a bare `PaneTree` saves and loads the same way.
+`pred_arguments` of `PaneTree` writes only `root`, because a drag is not layout. A `.pred` file builds `PaneTree`, `PaneSplit`, `PaneGroup` and `PaneTab` by their names, as it builds any loaded document type. The functions name no screen type, so an editor that holds a bare `PaneTree` saves and loads the same way.
 
 `get_pane_file_group(editor)` returns the group for a newly opened file: a group that holds a file already, as the content of a tab or through a layer that `get_edited_field` names, such as the scroll pane of a file tab, else a group whose tabs all answer `accepts_opened_file`, the focused one first. The file-system package pairs its `OpenFileOperation` with this answer, because this package can not name a type of a package that it does not depend on.
 

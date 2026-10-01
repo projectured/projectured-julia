@@ -95,13 +95,16 @@ end
     # The tab is titled by the list, not by the scroll pane.
     @test get_pane_tab_title_string(tab(DocumentTypeList)) == "Documents"
     @test get_pane_tab_title_string(tab(ProjectionList)) == "Projections"
-    # A saved window keeps the list in its scroll pane, and not where it was
+    # A saved window keeps the list in its scroll pane, and where it was
     # scrolled.
     pane = get_wrapped_document(tab(DocumentTypeList).content)
+    pane.scroll_position.y[] = 40
     text = print_pred_text(pane)
-    @test parse_pred_text(text) isa WidgetScrollPane
-    @test parse_pred_text(text).content isa DocumentTypeList
-    @test !occursin("scroll_position", text)
+    again = parse_pred_text(text)
+    @test again isa WidgetScrollPane
+    @test again.content isa DocumentTypeList
+    @test occursin("scroll_position = Point2D(x = 0, y = 40),", text)
+    @test (again.scroll_position.x[], again.scroll_position.y[]) == (0, 40)
 end
 
 @testset "the shell prints what it holds with the step of its field" begin
@@ -417,17 +420,24 @@ end
 @testset "a saved user interface holds the window, and the binary its bands" begin
     shell = make_window_shell_document(PrimitiveString("x");
                                        menu_bar = make_window_menu_bar(),
+                                       toolbar = make_window_toolbar(),
                                        size = Point2D(400, 300))
+    shell.margin = Inset(1, 2, 3, 4)
     directory = mktempdir()
     save_user_interface(_ShellFakeEditor(shell), joinpath(directory, "session.pred"))
     @test isfile(joinpath(directory, "session.pred"))
     again = load_user_interface(joinpath(directory, "session.pred"))
     @test again isa WidgetShell
     @test again.content isa PrimitiveString
+    # The window keeps the size and the margins that it had.
+    @test (again.size.x[], again.size.y[]) == (400, 300)
+    @test (again.margin.top[], again.margin.bottom[], again.margin.left[], again.margin.right[]) ==
+          (1, 2, 3, 4)
     # The bands are the binary's, built fresh at every start, so the file holds
     # none of them. The fold fills them into the shell that comes back, and the
     # wrapper is idempotent so nothing is wrapped twice.
     @test again.menu_bar === nothing
+    @test again.toolbar === nothing
     filled = make_window_shell_document(again; menu_bar = make_window_menu_bar())
     @test filled === again
     @test filled.menu_bar isa WidgetMenu

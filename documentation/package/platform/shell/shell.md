@@ -42,7 +42,7 @@ A wrapper that opens a window of its own needs `make_opened_window_projections()
 
 **The shell fills its window.** The printer, `WidgetShellToGraphicsCanvas` in the widget package, takes the extent on each axis from the authored `size`, else from the available size that the parent gives. Only a shell with neither takes the size of its content. The window gives its own size as the available size, so the fold passes no `size`, and the shell follows the window when it resizes. The content gets the extent less the insets and the bands. A band gets the width and no height, so it is as tall as what it holds, and the status bar is on the bottom edge.
 
-**What is saved is the window, and not the bands.** `WidgetShell` writes only its `content`. A menu bar belongs to the binary, and the fold makes the bands again at each start, so one binary never writes its menu into a file that another binary opens.
+**What is saved is the window, and not the bands.** `WidgetShell` writes its `content`, its size, its margins and its style, and none of its bands. A menu bar and a toolbar belong to the binary, and the fold makes the bands again at each start, so one binary never writes its menu into a file that another binary opens. On open, a size that the application gives wins over the saved one.
 
 ### The menu bar
 
@@ -50,7 +50,7 @@ Each menu of the bar has its own make function. `make_window_file_menu()` makes 
 
 `make_window_menu_bar(; extra, about)` combines them: File, then View, then the menus of `extra`, then Help. Help is the last menu, as on a desktop, so a host's own menus go between View and Help.
 
-Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. The list of document types and the list of projections are longer than a pane, and a tab page gets no scroll of its own, so each opens inside a `WidgetScrollPane`, with the title of the list; `_find_tool_tab` looks into the scroll pane. A saved window keeps the list in its scroll pane, and not where it was scrolled. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
+Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. The list of document types and the list of projections are longer than a pane, and a tab page gets no scroll of its own, so each opens inside a `WidgetScrollPane`, with the title of the list; `_find_tool_tab` looks into the scroll pane. A saved window keeps the list in its scroll pane, and where it was scrolled. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
 
 ### How a host adds a command
 

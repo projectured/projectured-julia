@@ -21,7 +21,7 @@ The package also defines about a thousand colour constants (`color_black`, `colo
 
 `StyleColor`, `StyleFont` and `StyleText` are declared with `@document ImmutableCell [DC] struct`. `ImmutableCell` makes every field immutable, and `[DC]` gives the plain type name to that form. So `StyleText` is a value with no reactive cell and no selection, and a projection stores it in an `ImmutableCell{StyleText}` field. The reactive forms exist under prefixed names, such as `RCStyleFont`, for the rare case that needs one. [The layout list](../../kernel/macros.md#the-layout-list) in macros.md describes the prefixes.
 
-`StyleStroke`, `Inset`, `Point2D` and `AffineTransform` are plain structs. They have no identity in a reference path.
+`StyleStroke`, `Inset`, `Point2D` and `AffineTransform` are plain structs. They have no identity in a reference path. A `.pred` file can hold an `Inset` and a `Point2D`, because the slice adds `is_pred_constructible` for them: a saved window keeps its size, its scroll position and its margins.
 
 ### Measurement without a display
 
@@ -61,7 +61,7 @@ The size of text on the screen comes from two separate settings:
 
 ## How it fits
 
-The style slice depends only on the kernel, and it is the lowest slice of the drawing chain: style, then graphics, then text, then syntax. Every slice that draws uses it. A backend converts a `StyleColor` into its own device format when it draws.
+The style slice depends on the kernel and on the serialization slice, whose seam `is_pred_constructible` it extends. It is the lowest slice of the drawing chain: style, then graphics, then text, then syntax. Every slice that draws uses it. A backend converts a `StyleColor` into its own device format when it draws.
 
 ## Design decisions
 
