@@ -1349,9 +1349,12 @@ seals go beyond the kernel in time (only kernel files are sealed today).
 - [ ] R31: the release repository has its CI workflow.
 - [ ] Each registered package has a short README.
 - [ ] The full test of Step B4 again, with a local registry on this machine.
-- [ ] The owner pushes the release copy, makes the repository public, and
-      makes the repository of the local registry, `projectured/ProjecturedRegistry`
-      (R10).
+- [x] The owner makes the repository of the local registry,
+      `projectured/ProjecturedRegistry` (R10). Done on 2026-10-01, private and
+      empty. Its content, `Registry.toml` with the uuid of the registry, comes
+      from `LocalRegistry.create_registry` in the test of the item above.
+- [ ] The owner pushes the release copy and the registry, and makes both
+      repositories public.
 - [ ] The build guide names `ProjecturedRegistry` where it says `<registry>`.
 
 **R34, open: the move from `ProjecturedRegistry` to General.** AutoMerge
