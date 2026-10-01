@@ -52,10 +52,12 @@ export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, format_conversation, write_conversation,
        parse_markdown_blocks
+export register_assistant_api!, get_assistant_api
 
 
 include("AssistantDocument.jl")
 include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
+include("AssistantApi.jl")
 
 end # module

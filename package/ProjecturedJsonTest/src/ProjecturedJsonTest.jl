@@ -43,6 +43,7 @@ end
 
 include("../../../test/domain/json/document/JsonParserTest.jl")
 include("../../../test/domain/json/document/JsonDocumentTest.jl")
+include("../../../test/domain/json/document/JsonAssistantApiTest.jl")
 include("../../../test/domain/json/editor/JsonContentClicksTest.jl")
 include("../../../test/domain/json/editor/JsonPlaceholderNavTest.jl")
 include("../../../test/domain/json/editor/JsonMouseTargetTest.jl")

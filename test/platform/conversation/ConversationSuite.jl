@@ -7,8 +7,9 @@ function test_conversation()
     @testset "ProjecturedPlatform" begin
         test_conversation_editor()
         test_conversation_transcript()
+        test_assistant_api()
     end
 end
 
 export test_conversation
-export test_conversation_editor, test_conversation_transcript
+export test_conversation_editor, test_conversation_transcript, test_assistant_api

@@ -376,12 +376,19 @@ and the downstream repositories land in the same landing.
       domain shows every domain a session loads, a downstream one too. What
       a user types: `using Projectured, ProjecturedSdl, ProjecturedOllama`.
       The parts:
-      - [ ] 5a. **The assistant's API is open to the domains** (the owner:
+      - [x] 5a. **The assistant's API is open to the domains** (the owner:
             "other domains can also extend the assistant API, add the
             registry"). A domain registers, when it loads, the names a model
             may use for its documents; `make_application_api` takes every
             registered entry. JSON registers the seven names that the
             application names now (`JsonArray` … `JsonNull`).
+            Done: `register_assistant_api!(declaration)` and
+            `get_assistant_api()` in the assistant slice
+            (`AssistantApi.jl`); an entry is in the form that `declare_api!`
+            takes, and an entry registered again is not added twice (a
+            package calls it from `__init__`). JSON registers in its
+            `__init__`; tests `test_assistant_api` (platform) and
+            `test_json_assistant_api` (JSON).
       - [ ] 5b. **The chat rows** `conversation_draft_entry` and
             `conversation_widget_entry` move from the conversation example
             into the conversation slice, with the names of a product.

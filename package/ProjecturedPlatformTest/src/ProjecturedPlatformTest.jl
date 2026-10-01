@@ -346,6 +346,7 @@ end
 
 include("../../../test/platform/conversation/projection/ConversationEditorTest.jl")
 include("../../../test/platform/conversation/projection/ConversationTranscriptTest.jl")
+include("../../../test/platform/conversation/AssistantApiTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
 end # module ConversationTests

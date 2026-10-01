@@ -283,9 +283,10 @@ end
 
 What the assistant of this window may write, and the whole of it.
 
-Four vocabularies: the pane verbs that arrange the window, the widget names that
-build what a pane shows, the file verbs that open and save one, and the workspace
-this application lists. Every exported name here is a verb the assistant reaches
+Five vocabularies: the pane verbs that arrange the window, the widget names that
+build what a pane shows, the file verbs that open and save one, the workspace
+this application lists, and what each loaded domain registered with
+`register_assistant_api!`. Every exported name here is a verb the assistant reaches
 through `execute_julia_code`, and nothing else resolves.
 
 Each vocabulary is declared where its verbs are, so a second host that offers the
@@ -309,9 +310,9 @@ make_application_api() = Any[
     Projectured.NaturalModule => (:print_natural_text, :parse_natural_text),
     # The verbs that edit a collection of a document, as edits of the editor.
     Projectured.EditorModule => (:insert_elements!, :delete_elements!),
-    # The shape of a JSON file, which a model reads to find the fields of a record.
-    Projectured.JsonModule => (:JsonArray, :JsonObject, :JsonObjectEntry, :JsonString,
-                               :JsonNumber, :JsonBool, :JsonNull),
+    # What each loaded domain offers for its own documents, such as the shape of
+    # a JSON file, which a model reads to find the fields of a record.
+    get_assistant_api()...,
 ]
 
 """
