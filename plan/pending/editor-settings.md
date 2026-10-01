@@ -1,0 +1,638 @@
+# A person sets how an editor works, in a settings document
+
+> **Status:** pending, not started. Written on 2026-10-01 at the owner's
+> request. The owner decided the design on 2026-10-01; section 5 logs each
+> decision. The work starts after step W1 of the appearance plan lands on `main`
+> (D10).
+
+## 1. The request
+
+The owner asked on 2026-10-01:
+
+> in projectured-julia, I'd like to have a projectured settings document and
+> projections similar to how themes will be edited, the settings would control
+> partial render, dirty render and other global options that you may find
+> reasonable to control through normal widge editing and using operation
+> produced by the wrapper projection transforming the normal editing operations
+>
+> let's design this, what settings make sense, how to store them, how to
+> conifure them, how to apply them, how to save/load them, where, etc.
+
+"How themes will be edited" is `plan/pending/zoom-and-theme-controls.md`, the
+appearance plan below. This plan follows its form: a collection of documents for
+each editor, a wrapper of `build_editor` that handles a change, a tool tab, and a
+TOML file. "Dirty render" is the red outline of the region that a frame repaints,
+`debug_dirty` now.
+
+## 2. The words
+
+- A **setting** is one value that a person chooses about how an editor works, or
+  about what it shows to find a fault. Example: whether a window repaints only
+  the parts that changed.
+- The **appearance** is how the content looks: the zoom, the scales and the
+  themes. The appearance plan owns it. This plan does not change it.
+- A **settings group** is a document that holds the settings of one part of the
+  editor. Example: `RenderSettings` holds the settings of the repaint. The slice
+  that owns the effect of a group declares it.
+- `Settings` is the collection of the groups of one editor, found by the type of
+  the group.
+- To **apply** a group is to copy its values to the place outside the documents
+  where they act. Example: the field `partial_render` of an `SdlBackend`.
+- The **kind** of a setting says how it takes effect:
+
+| Kind | What the code does | Example |
+| --- | --- | --- |
+| copied | `apply_settings!` copies the value into a field of the backend or of the editor. | partial render |
+| read | The code that acts reads the cell of the setting each time that it acts. | the interval of a double click |
+| start | The application reads the value once, when it starts. The tab says so. | the assistant |
+
+An apply can also ask for a new print of the view, when a projection reads the
+value while it prints. The fault policy is such a value (3.3).
+
+## 3. What exists
+
+### 3.1 Partial render and the repaint outline
+
+- `SdlBackend` has two plain fields, `partial_render` and `debug_dirty`
+  (`source/backend/sdl/SdlBackend.jl:200-201`). One value acts on every window of
+  the backend.
+- The constructor reads `PROJECTURED_PARTIAL_RENDER` and
+  `PROJECTURED_DEBUG_DIRTY` once, when its keyword is `nothing` (`:228-233`).
+  Both are off by default.
+- `_render_window!` reads both fields in each frame (`:2862-2863`). With partial
+  render off, it repaints the whole window. The walk of the change runs in both
+  modes, so a switch between the modes is safe at any frame.
+- With `debug_dirty` on, each frame copies the whole target to the window, so the
+  outline of the frame before goes away (`:2915`). When `debug_dirty` goes off,
+  the last outline stays on the back buffer until the next full copy.
+- `VideoBackend` has `partial_render`, `debug_dirty` and `debug_dirty_hold`
+  (`source/backend/video/VideoBackend.jl:122-124`), set by keyword only.
+  `debug_dirty_hold` keeps each outline for a number of seconds. The SDL backend
+  has no hold.
+- The web backend has neither field. It always sends a patch of the changes.
+- `_force_full_repaint!(editor)` (`SdlBackend.jl:4207`) makes the next frame
+  repaint each window in full.
+
+### 3.2 Supersample
+
+- `_window_supersample()` (`SdlBackend.jl:628`) reads `PROJECTURED_SUPERSAMPLE`.
+  The default is 2, and the value is clamped to 1 to 4. A value of 1 turns it off.
+- The backend reads it once, when it makes a window, into
+  `SdlWindowResources.ss`. The retained target of the window has the size of the
+  window times `ss`. So a change at run time needs a new target for each window.
+
+### 3.3 The fault policy
+
+- `FaultPolicy` (`source/kernel/fault/FaultPolicy.jl`, ⬜) has three flags:
+  `is_barrier_enabled`, `is_console_enabled` and `is_sound_enabled`. It is
+  immutable, and `Editor.fault_policy` holds one.
+- `run_editor!` replaces it, and calls `invalidate_projection!` when it changes
+  (`source/kernel/editor/EditorLoop.jl:161`). The reason: `print!` puts the policy
+  into the printer context, and the barriers read it there.
+- The command line has `--strict-fault-policy`.
+
+### 3.4 The pointer
+
+- `ClickRecognition` (`source/kernel/gesture/ClickRecognition.jl`) holds four
+  limits. A click moves less than 5 pixels and lasts less than 0.3 s. The next
+  click of a double click comes within 5 pixels and 0.3 s. The limits are plain
+  fields of an immutable struct.
+- `DwellRecognition(; delay = 0.5)` gives a `MouseDwell`, which opens a tooltip.
+- `make_standard_recognitions()` makes the chord, the click and the dwell
+  recognition. `GestureTrackingProjection` and `WindowScene` take them as a
+  keyword (`source/platform/screen/WindowScene.jl:93,125`). So the limits are
+  fixed when the projection is built.
+- `DraggingProjection(; threshold = 5)`: a press becomes a drag after 5 pixels.
+- `ClickRecognition.jl` and `DwellRecognition.jl` are not in the inventory of
+  `SEALING.md`. The other files of the gesture layer are ⬜.
+
+### 3.5 The limits of the histories and the logs
+
+| Limit | Default | Where |
+| --- | --- | --- |
+| undo steps | 100 | `UndoBuffer.capacity`, a plain `Int` (`source/platform/undo/UndoDocument.jl:77`) |
+| message log lines | 200 | `MessageLog.capacity` (`source/platform/log/MessageLogDocument.jl:11`) |
+| captured log lines | 1000 | `MessageLogStore.capacity`, one store for the process |
+| gesture log entries | 20 | `GestureLog.capacity` (`source/platform/gesturelog/GestureLogDocument.jl:13`) |
+| faults | 64 | `FaultStore.capacity` (`source/kernel/fault/FaultStore.jl`, 🔒) |
+| frame measurements | 1000 | `FrameMeasurementStore.capacity` (`source/kernel/performance/FrameMeasurement.jl`, 🔒) |
+
+### 3.6 The options of the application
+
+`run_application` and its command line (`parse_application_arguments`,
+`source/platform/application/Application.jl:450`) take `assistant` (`:ollama`,
+`:anthropic` or `:none`), `model`, `context`, `mcp` with its host and port,
+`root`, the size of the window and the fault policy. Each acts once, when the
+application starts. The `Assistant` document holds its backend, its model and its
+context as cells, so a person can change them in the assistant tab of an editor
+that runs.
+
+### 3.7 Values that are not settings for a person
+
+The search of 2026-10-01 found these values. This plan leaves them out:
+
+- `PROJECTURED_PERFORMANCE_COUNTERS` is a switch at compile time.
+- `PROJECTURED_DISPLAY_SCALE` is a fact of the hardware. The appearance plan
+  renames it to the density.
+- `PROJECTURED_FONT_DIR` is a path for the process.
+- `FRAME_INTERVAL` (10 ms), `MAX_OPERATIONS_PER_FRAME` (32), `INBOX_CAPACITY`
+  (64), `_HOVER_MOTION_INTERVAL` (30 ms), `_DIRTY_RECT_LIMIT` (32),
+  `_DAMAGE_HISTORY_CAP` (8) and the cap of the text textures (16384) tune the
+  code. A person does not choose them, and a wrong value makes the editor slow or
+  wrong.
+- `ANTHROPIC_API_KEY` and `OPENROUTER_API_KEY` are secrets. A settings file is
+  plain text, so a key stays in the environment.
+- The host and the port of `WebBackend` and of `McpServer` are the address of a
+  server. The person gives it when the server starts.
+
+### 3.8 The appearance plan
+
+`plan/pending/zoom-and-theme-controls.md` is in progress on the branch
+`appearance`. On 2026-10-01 the branch has `UntrackedCell`, `@theme`,
+`Appearance` and `InvalidateProjectionOperation` (its steps C1, T1 and T2). It
+does not have the wrapper (W1), the seam of the build for the path with no
+projection (its 4.13, in W1), the tab (W3) or the save and the load (W6).
+
+### 3.9 How an edit of a settings document reaches the root
+
+- `ObjectToWidget` (`source/platform/widget/ObjectToWidget.jl`) shows the fields
+  of an object as a form. It turns a control edit into
+  `ReplaceReferencedValueOperation(root, path, value)`, the normal edit of a
+  field.
+- A `ReplaceReferencedValueOperation` that carries its own document passes each
+  wrapper unchanged (`reroot_operation`,
+  `source/kernel/operation/Rerooting.jl:38-44`). So a wrapper at the root sees
+  the document that the write changes.
+- A `WrappingOperation` is "an operation that holds one other operation and does
+  something around it", for "a change [that] is another change plus an effect"
+  (`source/kernel/operation/OperationInterface.jl:28-49`). `RecordUndoOperation`
+  and `ReplaceViewStateOperation` are two of them.
+- `make_inverse_operation(document, operation)` is the seam of the inverse. The
+  editor takes the inverse before it evaluates the operation
+  (`source/kernel/operation/Inversion.jl`).
+- `evaluate_operation(editor, operation)` gets the editor. So an operation of a
+  platform slice can reach `editor.backend` and `editor.fault_policy`.
+- `SaveDocumentOperation` and `LoadDocumentOperation`
+  (`source/platform/serialization/BinarySerialization.jl:73,95`) write and read a
+  file.
+- A history skips a write of view state (`_is_no_edit`,
+  `source/platform/undo/UndoDocument.jl:167`).
+- No settings document, settings tab or settings file exists.
+
+## 4. The design
+
+### 4.1 The settings of an editor
+
+A `Settings` holds the settings groups of one editor, found by the type of the
+group, as an `Appearance` holds the themes.
+
+- The main builder, `run_application`, makes the `Settings`. It fills it from the
+  file, the environment and the command line (4.9), builds the projection with
+  it, and passes it to `build_editor` as `settings = collection`.
+- The `settings` wrapper of `build_editor` is in the `:screen` layer and on by
+  default. It wraps the root document in a `SettingsDocument` with the fields
+  `settings` and `content`. It wraps the projection in a
+  `SettingsManagingProjection` (4.5). Its start step applies each group once
+  (4.7).
+- On the path with no projection, the seam of the build of the appearance plan
+  (its 4.13, `make_wrapper_setting`) makes a new `Settings` for the setting
+  `true`. So the projection and the wrapper share it.
+- With `settings = true`, the wrapper makes a `Settings` with the defaults and
+  the environment. It never reads the file, so a test that calls `build_editor`
+  does not depend on the file of the person.
+
+**The editor knows nothing about settings.** It holds none, and the kernel reads
+none. The editor evaluates the operations as now.
+
+### 4.2 A settings group
+
+A slice declares a group with the macro `@settings`. Each field has a docstring,
+a type, a default and, when needed, the values that it can take:
+
+```julia
+@settings struct RenderSettings
+    "Repaint only the parts of a window that changed."
+    partial_render::Bool = false
+    "Outline in red the parts of a window that each frame repaints."
+    debug_dirty::Bool = false
+    "Keep each outline for this number of seconds."
+    debug_dirty_hold::Float64 = 0.0 in 0.0:0.5:5.0
+    "Pixels in each direction for each pixel of a window. 1 turns it off."
+    supersample::Int = 2 in 1:4
+end
+```
+
+The macro generates:
+
+- a `@document` struct `RenderSettings <: SettingsGroup`, with one cell for each
+  field;
+- `get_setting_descriptions(::Type{RenderSettings})`: one `SettingDescription`
+  for each field, with the name, the label from the docstring, the type, the
+  default, and the values that it can take;
+- `get_settings_name(::Type{RenderSettings})`: `"render"`, the name of its table
+  in the file.
+
+The tab, the check of a value, the reset and the file use only the descriptions.
+So a new setting is one line in one place. The types are `Bool`, `Int` and
+`Float64` with a range, `Symbol` with a tuple of choices, and `String`.
+
+### 4.3 The settings
+
+The owner chose the set (D1): first the table without the start group, then
+the start group.
+
+| Group (slice) | Setting | Type, default, values | Kind | Where it acts |
+| --- | --- | --- | --- | --- |
+| `RenderSettings` (screen) | `partial_render` | `Bool`, off | copied | `SdlBackend`, `VideoBackend`; the next frame repaints in full once |
+| | `debug_dirty` | `Bool`, off | copied | the same; when it goes off, the next frame repaints in full, so the last outline goes |
+| | `debug_dirty_hold` | `Float64`, 0, 0 to 5 s | copied | `VideoBackend` now; the SDL backend gets the same hold |
+| | `supersample` | `Int`, 2, 1 to 4 | copied | `ss` of each SDL window; the backend makes the target again |
+| `FaultSettings` (fault) | `is_barrier_enabled` | `Bool`, on | copied | `editor.fault_policy`; a change also prints the view again, as `run_editor!` does |
+| | `is_console_enabled` | `Bool`, on | copied | `editor.fault_policy` |
+| | `is_sound_enabled` | `Bool`, on | copied | `editor.fault_policy` |
+| `PointerSettings` (gesturetracking) | `multi_click_max_interval` | `Float64`, 0.3, 0.1 to 1 s | read | `ClickRecognition` |
+| | `click_max_displacement` | `Int`, 5, 1 to 20 | read | `ClickRecognition`, for the click and for the next click |
+| | `dwell_delay` | `Float64`, 0.5, 0.1 to 3 s | read | `DwellRecognition`, so the delay of a tooltip |
+| | `drag_threshold` | `Int`, 5, 1 to 20 | read | `DraggingProjection` |
+| `HistorySettings` (undo) | `undo_capacity` | `Int`, 100, 10 to 10000 | read | each `UndoBuffer` that the editor makes |
+| `LogSettings` (log) | `message_log_capacity` | `Int`, 200, 50 to 10000 | read | `MessageLog` |
+| `StartSettings` (application) | `assistant` | `Symbol`, `:ollama`, (`:ollama`, `:anthropic`, `:none`) | start | `run_application` |
+| | `model` | `String`, empty | start | `run_application` |
+| | `context` | `Int`, 0, 0 to 1048576 | start | `run_application` |
+| | `mcp` | `Bool`, off | start | `run_application` |
+
+Where a field exists now, the setting keeps its name: `partial_render`,
+`debug_dirty`, `is_barrier_enabled`, `multi_click_max_interval` and the others.
+So no code must change a name. A setting for a field with a short name gets a
+longer one: `delay` becomes `dwell_delay`, `threshold` becomes `drag_threshold`,
+and `capacity` becomes `undo_capacity`. The tab shows the label from the
+docstring.
+
+### 4.4 The settings tab
+
+A tool tab, as the fault log is. Its projection is `SettingsToWidget`. It shows
+the `Settings` of its own editor.
+
+- One `WidgetCard` for each group, with the name of the group. One row for each
+  setting: the label, the control, and a button that resets the setting. The
+  docstring is the tooltip of the label.
+- The type of the setting gives the control:
+  - `Bool`: a `WidgetSwitch`;
+  - `Int` or `Float64` with a range: a `WidgetSpinBox`, with the step of the
+    range;
+  - `Symbol`: a `WidgetSelect` of the choices;
+  - `String`: a `WidgetText`.
+- A row of the kind "start" shows "Takes effect at the next start".
+- When no target of this editor applies a group (`is_settings_target`, 4.7), the
+  card shows "This editor does not use these settings", and its controls are
+  disabled. Example: `RenderSettings` in a web editor.
+- Under the cards: "Reset all", "Save" and "Load".
+- The tab opens from the toolbar, from the View menu and from the command palette
+  ("Open settings").
+- **The tab knows no effect.** Its reader turns a control edit into the normal
+  edit of the group, `ReplaceReferencedValueOperation(group,
+  FieldReference(name), value)`. The wrapper does the rest (4.5).
+
+### 4.5 The wrapper turns a normal edit into an applied setting
+
+`SettingsManagingProjection` wraps the whole view, in the `:screen` layer. It
+holds the `Settings` of its editor. It holds no cell and no edge.
+
+```julia
+function read_intent(p::SettingsManagingProjection, recursion, intent, iomap)
+    answer = <the answer of the content>
+    answer === nothing && (answer = <the answer of the wrapper's own bindings>)
+    wrap_setting_writes(p.settings, answer)
+end
+```
+
+`wrap_setting_writes` walks the answer, into each `CompoundOperation` and each
+`WrappingOperation`. It replaces each `ReplaceReferencedValueOperation` whose
+document is a group of `p.settings` with `ApplySettingOperation(write)`. A write
+with no document, whose reference goes through `SettingsDocument.settings`, gets
+the same. Every other operation stays as it is.
+
+Why the wrapper, and not the tab:
+
+- Each view of a settings group makes the same normal edit: the tab,
+  `ObjectToWidget`, an inspector, a paste. The wrapper is the one place
+  where each of them becomes an applied setting.
+- The tab stays a plain view of a document. It knows no backend and no editor.
+- The tab, the reset and a later view of the settings can not forget the apply.
+
+The wrapper's own bindings act only when the content declines the key. They are
+two commands of the palette, "Toggle partial render" and "Toggle repaint
+outline". Each answers the `ApplySettingOperation` of the write that toggles the
+value. They have no key (D8).
+
+### 4.6 `ApplySettingOperation`
+
+```julia
+struct ApplySettingOperation <: WrappingOperation
+    operation::ReplaceReferencedValueOperation   # a write into a settings group
+end
+```
+
+- **The evaluation** has three parts:
+  1. Check the value against the description. Convert it to the declared type,
+     for example the text "3" to 3 for an `Int`, and check the range or the
+     choices. If the value does not fit, change nothing and write one warning to
+     the log.
+  2. Evaluate the write, as the kernel does.
+  3. Apply the group: `apply_settings!(editor, group)` and
+     `apply_settings!(editor.backend, group)` (4.7).
+- **The inverse** is the `ApplySettingOperation` of the inverse of the write. The
+  write of the old value comes first and the apply after it, so the target gets
+  the old value back.
+- **The description** is "Set <label> to <value>", for the gesture log and the
+  message log.
+- **The other paths.** The effect is in the evaluation, not in the wrapper. So an
+  `ApplySettingOperation` from the inbox, from the MCP server, from the assistant,
+  from a load or from a reset applies its group. It does not need the reader
+  chain.
+- `ResetSettingsOperation(settings)` and `LoadSettingsOperation(settings, path)`
+  evaluate one `ApplySettingOperation` for each value that changes.
+  `SaveSettingsOperation(settings, path)` writes the file and changes no
+  document, as `SaveDocumentOperation` does.
+
+Why a wrapping operation, and not a second operation after the write, as the
+appearance wrapper adds `InvalidateProjectionOperation`: the inverse of
+`CompoundOperation([write, apply])` runs in the opposite order. It applies first
+and writes the old value after it, so the target keeps the new value. A wrapping
+operation keeps the apply after the write in both directions.
+
+### 4.7 `apply_settings!`
+
+`apply_settings!(target, group)` copies the values of a group to one target. The
+settings slice declares it, with a default that does nothing. The slice or the
+package that owns a target adds a method for each group that acts on it:
+
+| Method | Package | What it does |
+| --- | --- | --- |
+| `apply_settings!(::SdlBackend, ::RenderSettings)` | the SDL backend | sets `partial_render`, `debug_dirty` and the hold; for a new `supersample`, sets `ss` of each window and drops its target; asks each window for a full repaint |
+| `apply_settings!(::VideoBackend, ::RenderSettings)` | the video backend | sets its three fields |
+| `apply_settings!(::Editor, ::FaultSettings)` | the platform fault slice | sets `editor.fault_policy`; calls `invalidate_projection!(editor)` when `is_barrier_enabled` changes |
+
+- `is_settings_target(target, group)` answers whether such a method exists. The
+  tab reads it (4.4).
+- `ApplySettingOperation` calls it, and so do the reset and the load through it.
+  The start step of the wrapper calls it once for each group, so the values from
+  the file and from the environment reach the backend.
+- A group of the kind "read" or "start" needs no method.
+
+### 4.8 The settings that the code reads where it acts
+
+- **The pointer.** Each limit of `ClickRecognition` and `DwellRecognition` takes
+  a number or a cell (`Union{Real, AbstractCell}`), and the recognition reads the
+  cell at each input. The default stays a number, so the tests do not change.
+  `make_standard_recognitions(settings::PointerSettings)` gives the cells of the
+  group. The main builder passes these recognitions to the window, as it passes
+  the themes. `DraggingProjection` takes its threshold in the same way.
+- **The history and the log.** The capacity of an `UndoBuffer` and of a
+  `MessageLog` becomes a cell. The builder that makes one gives it the cell of
+  the group. A smaller capacity drops the oldest entries at the next push.
+- A reader or an evaluation reads these cells outside a computation, so the read
+  records no edge.
+
+### 4.9 Save and load
+
+- **The file** is `settings.toml`, beside `appearance.toml` of the appearance
+  plan, in the configuration folder of the platform. On Linux that is
+  `$XDG_CONFIG_HOME/projectured/`, by default `~/.config/projectured/`. An
+  application can name another file.
+- **The form** is one table for each group, named by `get_settings_name`, and one
+  key for each setting:
+
+  ```toml
+  [render]
+  partial_render = true
+  debug_dirty = false
+  debug_dirty_hold = 0.0
+  supersample = 2
+
+  [fault]
+  is_barrier_enabled = true
+  is_console_enabled = true
+  is_sound_enabled = true
+  ```
+
+- A key that is missing takes its default. A key or a table that is not known is
+  ignored. A value that does not fit takes the default. Each of these writes one
+  warning to the log, and none of them stops the load.
+- **Save** writes the values of this editor. **Load** reads the file and applies
+  each value that changes. The editor never saves on its own.
+- **The order of the sources** when the application starts, from the weakest:
+  the default, the file, the environment variables, the command line. A later
+  source wins for this run. The tab shows the result, and a Save writes it.
+- **The environment variables** stay, for one run: `PROJECTURED_PARTIAL_RENDER`,
+  `PROJECTURED_DEBUG_DIRTY` and `PROJECTURED_SUPERSAMPLE`. The settings slice
+  reads them, in one place. The `SdlBackend` constructor and
+  `_window_supersample` stop their read (D6). `SdlBackend(;
+  partial_render, debug_dirty)` keeps its keywords, with off as the default, for
+  `make_editor`, which applies no wrapper.
+- `--strict-fault-policy` sets `is_barrier_enabled` to off, as a source of the
+  command line.
+- Two editors can use one file. Each writes it when its person presses Save. The
+  last save wins at the next start.
+- The read and the write of the file share one helper with the appearance plan
+  (its W6): the folder, the read of a TOML table into a document, and the write.
+  The plan that lands second uses the helper of the first.
+
+### 4.10 One editor, one `Settings`
+
+- Each editor has its own `Settings` (PAR-PER-EDITOR-STATE). Two editors in one
+  process have two, and a change in one leaves the other.
+- An `SdlBackend` serves one editor, so `partial_render` acts on all the windows
+  of one editor.
+
+### 4.11 The slices
+
+| Part | Slice |
+| --- | --- |
+| `SettingsGroup`, `@settings`, `SettingDescription`, `Settings`, `ApplySettingOperation` and the other operations of the settings, `apply_settings!`, `is_settings_target` | a new slice `source/platform/settings/`, before `gesturetracking` |
+| `RenderSettings` | `screen` |
+| `FaultSettings` and its apply | the platform `fault` slice |
+| `PointerSettings` and `make_standard_recognitions(settings)` | `gesturetracking` |
+| `HistorySettings` | `undo` |
+| `LogSettings` | `log` |
+| `StartSettings` | `application` |
+| `SettingsDocument`, `SettingsManagingProjection`, the `settings` wrapper, `SettingsToWidget`, the commands of the palette, the save and the load | a new slice `source/platform/settingsmanaging/`, above `widget` |
+| the toolbar item and the View menu item | `shell` (`WindowChrome.jl`) |
+| `apply_settings!` for `SdlBackend` and for `VideoBackend` | the SDL backend and the video backend |
+
+The tab and the wrapper find the groups by type in the `Settings` while the
+editor runs. So the slice `settingsmanaging` does not depend on the slices of the
+groups.
+
+### 4.12 The new mechanisms
+
+PAR-NO-NEW-SYNTHETIC-EVENT and the word of the owner of 2026-09-23 need each new
+mechanism named and approved before it is added. The owner approved each of
+these on 2026-10-01 (D11). This plan adds:
+
+1. `Settings`, `SettingsGroup`, `SettingsDocument` and the `settings` wrapper of
+   `build_editor`.
+2. The macro `@settings` and `SettingDescription`.
+3. `SettingsManagingProjection`, whose reader wraps each write into a settings
+   group.
+4. `ApplySettingOperation`, `ResetSettingsOperation`, `LoadSettingsOperation` and
+   `SaveSettingsOperation`.
+5. The seam `apply_settings!(target, group)`, and `is_settings_target`.
+6. Limits of `ClickRecognition`, `DwellRecognition`, `DraggingProjection`,
+   `UndoBuffer` and `MessageLog` that take a cell.
+7. A change of the supersample of a window while the window is open.
+8. The hold of the repaint outline in the SDL backend.
+9. The file `settings.toml`.
+
+The plan uses the seam of the build of the appearance plan (its 4.13). It adds no
+`SyntheticEvent`, no reader payload and no `read_intent` method for a new type.
+
+## 5. The decision log
+
+All decisions are of 2026-10-01, by the owner. The owner agreed with each of my
+recommendations, and chose two separate tabs for O8.
+
+- **D1. The settings of this plan** (O1). First the table of 4.3 without the
+  start group, then the start group as a later part (step S10). Rejected: the
+  render group only; the render group and the fault group.
+- **D2. The wrapper wraps the normal edit** (O2) in an `ApplySettingOperation`
+  (4.5, 4.6). Rejected: an apply operation after the write, whose inverse runs in
+  the wrong order; a tab that makes the settings operation itself, which leaves
+  every other view of the document with no effect.
+- **D3. The macro `@settings`** (O3) declares a group (4.2). Rejected: a plain
+  `@document` and a list of descriptions by hand.
+- **D4. The seam `apply_settings!(target, group)`** (O4) carries a copied value
+  to the editor and to the backend (4.7). Rejected: a new `Device`, which holds a
+  fact of the hardware and is sealed; a backend that reads the cells of a group
+  in each frame.
+- **D5. TOML, `settings.toml`** (O5), as the appearance plan chose (4.9).
+  Rejected: a `.pred` file.
+- **D6. The environment variables are overrides for one run** (O6), which the
+  settings slice reads in one place; the backend stops its read (4.9). Rejected:
+  the backend keeps its read; the variables go.
+- **D7. No history records a change of a setting** (O7), as the appearance plan
+  decided for a theme. The inverse exists for a later step. Rejected: a history
+  that holds the tab records it.
+- **D8. Two separate tabs** (O8): the settings tab and the appearance tab. The
+  settings tab opens from the toolbar, the View menu and the palette, with no
+  key. Rejected: a key of its own; one tab with the appearance.
+- **D9. The names** (O9) of 4.3, 4.11 and 4.12.
+- **D10. The work starts after the appearance plan lands its step W1 on
+  `main`** (O10), so that the seam of the build has one form. Rejected: a copy of
+  the seam on a branch of its own.
+- **D11. The new mechanisms of 4.12** are approved, all nine.
+
+## 6. Open decisions
+
+None. Section 5 holds the answers to O1 to O10.
+
+## 7. Steps
+
+Each step is a commit in a worktree. With the default settings, each step gives
+the pixels and the test counts of the baseline of S0.
+
+- [ ] **S0. The baseline on `main`.**
+  - `test_sdl()`, `test_video()`, `test_web_backend()`, the tests of the gesture
+    layer, `test/platform/undo/`, `test/platform/fault/`, one file at a time.
+    `test_video()` has one known failure on `main` (finding 3 of the appearance
+    plan).
+  - Each call that passes `partial_render` or `debug_dirty` to `SdlBackend` or to
+    `VideoBackend` and goes through `build_editor`, in this repository, in
+    `tool/video/` and in omnet-julia.
+  - Whether a history holds a tool tab now. If one does, the step that makes
+    the tab must keep its writes out of that history (D7), and the owner
+    approves how.
+- [ ] **S1. The slice `settings`** (4.2, 4.6, 4.7). `SettingsGroup`, `@settings`,
+  `SettingDescription`, `Settings` with its lookup by type, `apply_settings!`,
+  `is_settings_target`, and `ApplySettingOperation` with its evaluation, its
+  check, its inverse and its description.
+  - Tests: the macro gives the descriptions and the name of the table. A value
+    that does not fit changes nothing. The inverse writes the old value and then
+    applies it. A target with no method is not a target. Two `Settings` are
+    independent.
+- [ ] **S2. The render settings** (4.3, 4.7, 4.9). `RenderSettings` in `screen`.
+  The apply of the SDL backend and of the video backend. The read of the
+  environment variables moves into the settings slice.
+  - Tests, offscreen: a switch of `partial_render` in the middle of a run gives
+    the pixels of a run that starts with it. After `debug_dirty` goes off, the
+    next frame has no outline (the headless probe of the dirty region).
+- [ ] **S3. The supersample and the hold in the SDL backend.** A change of
+  `supersample` makes the target of each window again. The SDL backend keeps
+  each outline for `debug_dirty_hold` seconds, as the video backend does.
+  - Tests: the pixels after a change equal the pixels of a window that starts
+    with the new value. An outline stays for the hold and then goes.
+- [ ] **S4. The fault settings.** `FaultSettings` in the platform `fault` slice,
+  and its apply.
+  - Tests: after `is_barrier_enabled` goes off, a fault in a projection raises.
+    After it goes on, the barrier catches it. The view prints again once.
+- [ ] **S5. The pointer settings** (4.8). The limits of the two recognitions and
+  of `DraggingProjection` take a cell. `PointerSettings` and
+  `make_standard_recognitions(settings)` in `gesturetracking`.
+  - Tests: a change of `multi_click_max_interval` changes the recognition of the
+    next double click with no new build. A recognition with plain numbers acts as
+    now.
+- [ ] **S6. The history and the log** (4.8). The capacity of `UndoBuffer` and of
+  `MessageLog` takes a cell. `HistorySettings` and `LogSettings`.
+  - Tests: a smaller capacity drops the oldest entries at the next push.
+- [ ] **S7. The slice `settingsmanaging`: the wrapper** (4.1, 4.5).
+  `SettingsDocument`, `SettingsManagingProjection`, the `settings` wrapper with
+  its start step, its method of the seam of the build, and the two commands of
+  the palette.
+  - Tests: a write into a group becomes an `ApplySettingOperation`, also inside a
+    `CompoundOperation`. A write into another document passes unchanged. An
+    ordinary edit applies nothing: type, move the caret, open a tab. Two editors
+    in one process are independent. `build_editor` with `settings = true` does
+    not read the file. F1 and the palette list the two commands.
+  - The calls that S0 found pass their values in `settings`, or pass
+    `settings = false`. omnet-julia follows; check `Pkg.precompile` there.
+- [ ] **S8. The tab** (4.4). `SettingsToWidget`, the toolbar item, the View menu
+  item and the command "Open settings".
+  - Tests, with a press at the drawn pixels: the switch of partial render sets
+    the field of the backend at the next frame. A spin box steps in its range. A
+    group with no target is disabled. A row of the kind "start" shows its text.
+    The pixels, offscreen.
+- [ ] **S9. Save and load** (4.9). The file, the order of the sources,
+  `--strict-fault-policy` as a source, the three operations, and the fill in
+  `run_application`.
+  - Tests: Save writes the file. Load applies its values. A key that is missing
+    takes its default. A file with a key that is not known loads. An environment
+    variable wins over the file.
+- [ ] **S10. The start settings**, a later part after S0 to S9 (D1).
+  `StartSettings` in `application`, read by `run_application`.
+  - Tests: the file, the environment and the command line in their order.
+- [ ] **S11. The guides.** A new design document
+  `documentation/package/platform/settings/`. The changes in the guides of the
+  SDL backend, the video backend, the screen, the fault slice and the undo
+  slice. The environment variables in `debugging-guide.md`. The settings
+  wrapper in `testing-guide.md`. The two commands in
+  `keyboard-and-mouse-guide.md`.
+
+## 8. Risks
+
+- A `ReplaceReferencedValueOperation` into a group that does not pass the reader
+  chain, such as a direct post to the inbox, writes the cell and applies nothing.
+  The tab then shows the new value, and the backend keeps the old one. The guide
+  of the assistant must say: post an `ApplySettingOperation`.
+- A test or a take that passes `SdlBackend(partial_render = true)` or
+  `VideoBackend(partial_render = true)` to `build_editor` gets the `settings`
+  wrapper, and its start step writes the default over the value. Step S0 finds
+  these calls, and S7 changes them.
+- A new supersample makes a new target for each window. That costs memory and one
+  full repaint.
+- A limit that is a cell costs one more read for each input. This is small.
+- omnet-julia builds its editors with `build_editor`, so the wrapper is on there
+  too.
+- No 🔒 file changes. `FaultPolicy.jl` and the gesture layer are ⬜, and
+  `ClickRecognition.jl` and `DwellRecognition.jl` are not in the inventory. Read
+  `SEALING.md` again before each edit.
+
+## 9. Not in this plan
+
+- A setting for each window, or for each document.
+- Settings for a project, in a folder of the project.
+- The tunings of the frame loop and of the caches (3.7).
+- The key bindings as settings (`plan/pending/key-chords-from-bindings.md`).
+- The capacity of the faults and of the frame measurements, which are in sealed
+  files.
+- A minimum level of the message log, and the interval of the statistics.
+- A start or a stop of the MCP server while the editor runs.
