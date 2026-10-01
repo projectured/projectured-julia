@@ -40,7 +40,18 @@ end
 # session asks for it by name (`assistant = :ollama`).
 const _INSTALLED_ADAPTERS = ("ProjecturedOllama", "ProjecturedAnthropic", "ProjecturedOpenRouter")
 
+# Julia restores the packages of one load together, and an `__init__` inside that
+# load can not load one of them again. So the adapters load once the load is done,
+# where Julia runs the extensions: in the callbacks after a package loads. The
+# callback stays in the list, because Julia walks the list while it calls it, and a
+# flag makes every later call return at once.
 function __init__()
-    foreach(ProjecturedPlatform.load_installed_package!, _INSTALLED_ADAPTERS)
+    loaded = Ref(false)
+    push!(Base.package_callbacks, _ -> begin
+        loaded[] && return nothing
+        loaded[] = true
+        foreach(ProjecturedPlatform.load_installed_package!, _INSTALLED_ADAPTERS)
+        nothing
+    end)
     nothing
 end

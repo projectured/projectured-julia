@@ -60,6 +60,9 @@ function test_umbrella_loads_integrations()
               ["ProjecturedDataFrames", "ProjecturedWeb"]
         # The umbrella alone loads no integration that has a trigger.
         @test _read_loaded_integrations(environment, "using Projectured") == with_umbrella()
+        # A package that depends on the umbrella and on two adapters loads them in one
+        # batch, and the umbrella loads the third adapter after the batch.
+        @test _read_loaded_integrations(environment, "using ProjecturedExample") == with_umbrella()
         # Each of the other triggers; Video loads SDL, which it needs.
         @test _read_loaded_integrations(environment,
             "using FFMPEG, ODBC, Tulip, ModelContextProtocol, Projectured") ==
