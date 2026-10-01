@@ -39,11 +39,13 @@ using ..PrimitiveModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
+using ..SettingsModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..OperationModule: evaluate_operation
+import ..SettingsModule: get_setting_environment_names
 import ..GraphicsModule: map_operation_position
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
@@ -56,6 +58,7 @@ export make_window_scene, make_window_scene_projection, make_tracking_screen,
 export ScreenDocument, WindowDocument
 export find_part_place
 export show_window_layers, make_window_layer_bindings
+export RenderSettings
 
 
 include("ScreenDocument.jl")
@@ -65,6 +68,7 @@ include("WindowScene.jl")
 include("PartPlace.jl")
 include("WindowLayers.jl")
 include("DocumentShow.jl")
+include("RenderSettings.jl")
 
 
 end # module

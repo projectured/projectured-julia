@@ -20,10 +20,11 @@ function test_video()
     @testset "ProjecturedVideo" begin
         test_video_layering()
         test_record_video()
+        test_video_render_settings()
         test_json_build_live()
         test_application_video()
     end
 end
 
-export test_video, test_video_layering, test_record_video, test_json_build_live,
+export test_video, test_video_layering, test_record_video, test_video_render_settings, test_json_build_live,
        test_application_video

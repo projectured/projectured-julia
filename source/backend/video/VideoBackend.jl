@@ -170,6 +170,17 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                 nothing, nothing)
 end
 
+# The render settings of an editor reach the take here. A change of the mode
+# drops the retained surface of the partial paint, so the next partial frame
+# paints it all. The supersample of a take is fixed when its renderer opens.
+function apply_settings!(backend::VideoBackend, settings::RenderSettings)
+    backend.partial_render == settings.partial_render || (backend.paint_state = nothing)
+    backend.partial_render = settings.partial_render
+    backend.debug_dirty = settings.debug_dirty
+    backend.debug_dirty_hold = settings.debug_dirty_hold
+    nothing
+end
+
 # The video time of the frame about to be written: the frames written so far,
 # each `1/fps` long.
 _get_video_seconds(backend::VideoBackend) = backend.frame[] / backend.fps

@@ -176,3 +176,24 @@ function test_json_build_live()
     @test isempty(compare_content(editor.document, expected))
 end
 end # test_json_build_live
+
+# The render settings of an editor reach a take through `apply_settings!`. A
+# change of the mode drops the retained surface of the partial paint.
+function test_video_render_settings()
+@testset "the render settings reach a take" begin
+    frames = mktempdir()
+    backend = VideoBackend(Any[], :video_settings_test; frames_dir = frames)
+    @test is_settings_target(backend, RenderSettings())
+    backend.paint_state = :retained
+    apply_settings!(backend, RenderSettings(partial_render = true, debug_dirty = true,
+                                            debug_dirty_hold = 1.5))
+    @test (backend.partial_render, backend.debug_dirty, backend.debug_dirty_hold) ==
+          (true, true, 1.5)
+    @test backend.paint_state === nothing
+    backend.paint_state = :retained
+    apply_settings!(backend, RenderSettings(partial_render = true))
+    @test backend.paint_state === :retained
+    @test !backend.debug_dirty
+    rm(frames; force = true, recursive = true)
+end
+end

@@ -650,7 +650,25 @@ the pixels and the test counts of the baseline of S0.
     that does not fit changes nothing. The inverse writes the old value and then
     applies it. A target with no method is not a target. Two `Settings` are
     independent.
-- [ ] **S2. The render settings** (4.3, 4.7, 4.9). `RenderSettings` in `screen`.
+- [x] **S2. The render settings** (4.3, 4.7, 4.9). Done on 2026-10-01:
+  `test_settings()` with the guards 86 pass, `test_sdl()` 813 pass,
+  `test_video()` 46 pass. What the work found and decided:
+  - **The environment.** A group names its variables with a method of
+    `get_setting_environment_names(T)`, and `read_settings_environment!(settings,
+    environment = ENV)` of the settings slice reads them, the one place of D6. A
+    `Bool` takes `1`, `true`, `yes`, `on` and `0`, `false`, `no`, `off`; another
+    word is a warning, where `_envflag` read it as off.
+  - **The backend keeps its own read until S7**, when the wrapper reads the
+    environment, so each commit of the branch keeps the variables working.
+  - **A change of the mode or of the outline** sets `first_paint` of each SDL
+    window, which `_render_window!` already reads: the next frame repaints and
+    copies the whole window, so the last outline goes. The test checks
+    `first_paint` and the damage record of the next frame; the headless probe
+    is not needed.
+  - **The video backend** drops its retained partial surface (`paint_state`)
+    when the mode changes. It takes the hold; its supersample is fixed when the
+    renderer of the take opens.
+  What the step holds: `RenderSettings` in `screen`.
   The apply of the SDL backend and of the video backend. The read of the
   environment variables moves into the settings slice.
   - Tests, offscreen: a switch of `partial_render` in the middle of a run gives

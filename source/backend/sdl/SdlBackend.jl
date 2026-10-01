@@ -302,6 +302,18 @@ const _DAMAGE_HISTORY_CAP = 8
 _envflag(name, default::Bool) =
     (v = lowercase(get(ENV, name, "")); v == "" ? default : v in ("1", "true", "yes", "on"))
 
+# The render settings of an editor reach its backend here. A change of the mode
+# or of the outline repaints each window in full at the next frame, so no
+# outline of a frame before stays on the back buffer.
+function apply_settings!(backend::SdlBackend, settings::RenderSettings)
+    changed = backend.partial_render != settings.partial_render ||
+              backend.debug_dirty != settings.debug_dirty
+    backend.partial_render = settings.partial_render
+    backend.debug_dirty = settings.debug_dirty
+    changed && foreach(resources -> resources.first_paint = true, values(backend.windows))
+    nothing
+end
+
 function _clear_text_texture_cache!()
     for entry in values(_text_texture_cache)
         SDL_DestroyTexture(entry.texture)

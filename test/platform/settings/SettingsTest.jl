@@ -20,6 +20,9 @@ end
     level::Int = 1
 end
 
+SettingsModule.get_setting_environment_names(::Type{SettingsTestProbeSettings}) =
+    (flag = "SETTINGS_TEST_FLAG", count = "SETTINGS_TEST_COUNT", mode = "SETTINGS_TEST_MODE")
+
 # A target that records each apply, as a backend or an editor does.
 struct SettingsTestTarget
     applied::Vector{Any}
@@ -157,6 +160,38 @@ end
         ReplaceReferencedValueOperation(WidgetLabel("x"), "content", "y"))
     @test_throws ArgumentError ApplySettingOperation(
         ReplaceReferencedValueOperation(SettingsTestProbeSettings(), EmptyReference(), 1))
+end
+
+@testset "an environment variable sets a setting for one run" begin
+    settings = make_settings(SettingsTestProbeSettings(count = 3))
+    environment = Dict("SETTINGS_TEST_FLAG" => "on", "SETTINGS_TEST_COUNT" => " ",
+                       "SETTINGS_TEST_MODE" => "slow")
+    read_settings_environment!(settings, environment)
+    group = get_settings_group!(settings, SettingsTestProbeSettings)
+    # An empty variable leaves the value as it is.
+    @test (group.flag, group.count, group.mode) == (true, 3, :slow)
+    @test_logs (:warn, r"SETTINGS_TEST_COUNT can not set \"Count\" to \"9\"") (
+        read_settings_environment!(settings, Dict("SETTINGS_TEST_COUNT" => "9")))
+    @test group.count == 3
+    read_settings_environment!(settings, Dict("SETTINGS_TEST_FLAG" => "0"))
+    @test !group.flag
+    # A group with no variables reads none.
+    @test get_setting_environment_names(SettingsTestOtherSettings) == (;)
+end
+
+@testset "the render settings of the screen" begin
+    @test get_settings_name(RenderSettings) == "render"
+    @test [d.name for d in get_setting_descriptions(RenderSettings)] ==
+          [:partial_render, :debug_dirty, :debug_dirty_hold, :supersample]
+    render = RenderSettings()
+    @test (render.partial_render, render.debug_dirty, render.debug_dirty_hold,
+           render.supersample) == (false, false, 0.0, 2)
+    settings = make_settings()
+    read_settings_environment!(settings, Dict("PROJECTURED_PARTIAL_RENDER" => "1",
+                                              "PROJECTURED_DEBUG_DIRTY" => "yes",
+                                              "PROJECTURED_SUPERSAMPLE" => "1"))
+    render = get_settings_group!(settings, RenderSettings)
+    @test (render.partial_render, render.debug_dirty, render.supersample) == (true, true, 1)
 end
 
 @testset "a target is a target of a group when a method applies it" begin

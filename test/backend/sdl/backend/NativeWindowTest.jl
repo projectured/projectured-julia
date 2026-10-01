@@ -116,6 +116,42 @@ end
     quit_backend!(full)
 end
 
+@testset "the render settings switch the repaint of a backend that runs" begin
+    # A backend that starts with the full repaint gets the partial repaint from
+    # its settings, and then repaints as a backend that starts with it: a frame
+    # in which nothing changed adds no damage record. A change of the mode or of
+    # the outline repaints the whole window at the next frame.
+    backend = SdlBackend(partial_render = false, debug_dirty = false)
+    @test is_settings_target(backend, RenderSettings())
+    initialize_backend!(backend)
+    canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+    window = WindowDocument(; id = :render_settings_test, title = "render_settings_test",
+                              x = 100, y = 100, width = 200, height = 100,
+                              style = :tooltip, content = canvas)
+    screen = ScreenDocument([window])
+    write_to_devices(backend, Device[Display()], screen)   # opens, paints, shows
+    write_to_devices(backend, Device[Display()], screen)   # the paint after the show
+    resource = backend.windows[:render_settings_test]
+    apply_settings!(backend, RenderSettings(partial_render = true))
+    @test backend.partial_render && !backend.debug_dirty
+    @test resource.first_paint
+    write_to_devices(backend, Device[Display()], screen)   # the whole window once
+    @test first(resource.damage_history) == [(0, 0, 200, 100)]
+    before = length(resource.damage_history)
+    write_to_devices(backend, Device[Display()], screen)   # nothing changed
+    @test length(resource.damage_history) == before
+    # The outline goes off: the next frame paints over the last outline.
+    apply_settings!(backend, RenderSettings(partial_render = true, debug_dirty = true))
+    write_to_devices(backend, Device[Display()], screen)
+    apply_settings!(backend, RenderSettings(partial_render = true, debug_dirty = false))
+    @test resource.first_paint
+    # The same values again ask for no repaint.
+    write_to_devices(backend, Device[Display()], screen)
+    apply_settings!(backend, RenderSettings(partial_render = true))
+    @test !resource.first_paint
+    quit_backend!(backend)
+end
+
 @testset "a backend reports each frame that changed, and no other" begin
     # A `DisplayUpdate` runs the loop again after a frame that changed. So a
     # frame that shows something new is reported, and one that shows nothing new

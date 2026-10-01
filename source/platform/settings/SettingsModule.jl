@@ -15,6 +15,8 @@ the kernel read no setting.
 - [`Settings.jl`](Settings.jl) — `Settings`, the groups of one editor.
 - [`ApplySettingOperation.jl`](ApplySettingOperation.jl) — the write and the
   apply of a setting, and the seam `apply_settings!`.
+- [`SettingsEnvironment.jl`](SettingsEnvironment.jl) — the environment variables
+  that set a setting for one run.
 """
 module SettingsModule
 
@@ -33,9 +35,11 @@ export Settings, compute_loaded_settings_types, make_settings, get_settings_grou
        set_settings_group!, get_settings_groups, is_settings_group
 export ApplySettingOperation, apply_settings!, is_settings_target,
        apply_settings_to_editor!
+export get_setting_environment_names, read_settings_environment!
 
 include("SettingsGroup.jl")
 include("Settings.jl")
 include("ApplySettingOperation.jl")
+include("SettingsEnvironment.jl")
 
 end # module SettingsModule
