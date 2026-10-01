@@ -167,7 +167,28 @@ The owner accepted each recommendation on 2026-10-01.
       registry holds.
 - [ ] **Step 4, the full check.** In an empty depot with a local registry,
       `Pkg.test` for each of the 32 packages; record the size and the time.
-- [ ] **Step 5, the guides.** `builder.md` and `build-guide.md`.
+      First pass (`/var/tmp/r30/s4/`, a clone of the branch, 2026-10-01): the
+      release copy of the clone, registered in a local registry; phase 1, with
+      network, installs every package and the 3 registered packages their
+      tests need (DataFrames, HTTP, JSON3); phase 2, with no network
+      (`unshare -rn`, because an Ollama server listens on this machine) and
+      offline, runs `Pkg.add` and `Pkg.test` for each package in a new
+      environment. A user service could not run phase 2: `unshare` may not
+      write the user map there, so the run starts from the shell.
+      - 29 of 32 pass as installed packages, with the counts of CI: kernel
+        4059 (170 s with its compile), JSON 213, Julia 501, Console 140, PDF 50,
+        Web 110, MCP 410, and the rest.
+      - Three tests read the repository, and now read the loaded packages
+        instead: the slice edges of the platform (`package/`), the Markdown
+        test of the guides (`documentation/`, now through the kernel, which
+        ships the guides), and in the umbrella the help text of the binary,
+        which needs the builder and moved to `ProjecturedBuilderTest`.
+      - The umbrella as an installed package (`test_integration()`, 2143 s):
+        the 7 known failure sites of `main`, the 10 errors of the missing
+        import of the conversation example (fixed in `8740e5d16`), and the
+        help text test.
+- [x] **Step 5, the guides.** `builder.md` and `build-guide.md`.
+      Done (`3793081e6`), with the test folder, the version rule and the scan.
 
 ## 5. Decisions made during the work
 
