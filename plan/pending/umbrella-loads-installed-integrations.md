@@ -106,24 +106,54 @@ The owner accepted both recommendations on 2026-10-01 ("O2: no message", "O1: ye
 
 ## 5. Steps
 
-- [ ] **Step 1, the load.** `load_installed_package!` in the platform, with
+- [x] **Step 1, the load.** `load_installed_package!` in the platform, with
       its test: an installed package is loaded, a package that is not
       installed gives `nothing`, and a process that writes a cache file loads
       nothing.
-- [ ] **Step 2, the extensions.** `ext/` of the umbrella, `[weakdeps]` and
+      Done (`21edcd706`): `load_installed_package!` in
+      `source/platform/domain/Domain.jl`, and `test_load_installed_package()`
+      in the platform suite, which starts a new process with a stand-in package
+      in a scratch environment (a project and a manifest; the platform comes
+      through the load path of the test). The guard of the cache file is not in
+      that test: a plain process can not report that it writes one
+      (`--output-ji` needs a build of the system image), and a package
+      precompiled on the platform in a scratch environment takes minutes.
+- [x] **Step 2, the extensions.** `ext/` of the umbrella, `[weakdeps]` and
       `[extensions]` in its `Project.toml`, and `environment/all` resolved.
-- [ ] **Step 3, the test of the two ways.** A test that starts a new Julia
+      Done (`3da127769`). Pkg refuses `[sources]` for a weak dependency, so the
+      paths of the integrations come from `environment/all` alone. That
+      environment now names the six triggers too, so its session can load them
+      (they were already in its manifest). By hand, in new processes: the two
+      ways and both orders load exactly what §1 asks.
+- [x] **Step 3, the test of the two ways.** A test that starts a new Julia
       process in a scratch environment, for each way and each order of `using`:
       with the umbrella, an installed integration is loaded and one that is not
       installed is not; without it, only what is listed is loaded.
-- [ ] **Step 4, the release copy.** The generator copies `ext/` and writes the
+      Done (`ecfa48529`): `test_umbrella_loads_integrations()` in
+      `test_repository()`, six cases in new processes in `environment/all`, and
+      one in an environment that names the trigger of SDL and not
+      `ProjecturedSDL`.
+- [x] **Step 4, the release copy.** The generator copies `ext/` and writes the
       `[compat]` of the weak dependencies; `test_package_release()` covers it.
-- [ ] **Step 5, the binary.** Build it, and run the check of the copied
+      Done (`a94ed553f`): a weak dependency counts as a dependency for the
+      closure check, the order of the registration and `[compat]`; `ext/` is
+      copied as it is. The fixture has an extension; `test_builder()` 399.
+- [x] **Step 5, the binary.** Build it, and run the check of the copied
       binary.
-- [ ] **Step 6, the guides.** The setup guide and the own-project guide show
+      Done: `bin/build_projectured` in 468 s, `--help`, and
+      `check_projectured_copy` (web client, fonts, guides, MCP server) pass.
+- [x] **Step 6, the guides.** The setup guide and the own-project guide show
       the two ways; `documentation/package/` names the extensions; the naming
       rule loses "No package here has one yet".
+      Done (`d774b2b37`): the own-project guide, the system anatomy, the
+      domain document and the naming rule.
 
 ## 6. Decisions made during the work
 
-(filled in as the work goes)
+- **O1 is in the umbrella, not in an extension** (`655e9aafa`): its `__init__`
+  loads each installed model adapter, and the three adapters are weak
+  dependencies for their bounds. The test expects them with the umbrella and
+  never without it.
+- **The integration test lives in `test_repository()`**, because it needs the
+  development environment, which names every trigger and integration; an
+  installed umbrella has none of them.
