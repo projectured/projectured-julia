@@ -124,5 +124,32 @@ end
     @test _dt_drag_path(editor) === nothing
 end
 
+@testset "the part under the pointer lights during a drag" begin
+    root, slider, button = _dt_slider_scene()
+    editor, backend = _dt_editor(root)
+    _dt_down!(editor, backend, 60, 28, 1.0)
+    # The thumb follows the pointer over the button, and the button lights.
+    _dt_held!(editor, backend, 40, 130, 1.1)
+    @test slider.dragging === true
+    @test get_mouse_target(button) !== nothing
+    @test get_mouse_target(slider) === nothing
+    _dt_held!(editor, backend, 390, 280, 1.2)
+    @test get_mouse_target(button) === nothing
+    _dt_up!(editor, backend, 390, 280, 1.3)
+end
+
+@testset "a button that is pressed and dragged off is no longer drawn pressed" begin
+    root, slider, button = _dt_slider_scene()
+    editor, backend = _dt_editor(root)
+    # The pointer comes onto the button, as it does before a press.
+    _dt_send!(editor, backend, MouseMove(30, 130; time = 0.9))
+    _dt_down!(editor, backend, 30, 130, 1.0)
+    @test button.pressed === true
+    _dt_held!(editor, backend, 390, 280, 1.1)
+    @test button.pressed === false
+    _dt_up!(editor, backend, 390, 280, 1.2)
+    @test button.pressed === false
+end
+
 end # @testset
 end # test_drag_tracking

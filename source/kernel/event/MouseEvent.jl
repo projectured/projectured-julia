@@ -110,9 +110,9 @@ MouseMove(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time::
 """
     is_move_without_button(event) -> Bool
 
-Whether `event` is a move of the pointer with no button held. A container gives
-such a move first to the part that the pointer leaves, the child that its own mouse
-target names, and then to the part that the pointer is on.
+Whether `event` is a move of the pointer with no button held. While a drag is on,
+such a move shows a release that the window did not get, so the drag ends with no
+change.
 """
 is_move_without_button(event) = event isa MouseMove && event.buttons == MouseButtons()
 

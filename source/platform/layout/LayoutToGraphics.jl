@@ -165,7 +165,7 @@ A left button down with no modifier on a drawn part of the child answers with
 `convert_to_focus_selection`: a focusable child that answers nothing is selected
 as a whole, so a key after the click goes to it.
 
-A move with no button held answers with `read_child_move`: when the child names no
+A move of the pointer answers with `read_child_move`: when the child names no
 part under the pointer, its own backward map of the point names it, such as a row
 of a list, and a child that maps the point to no part is the part itself.
 
@@ -177,7 +177,7 @@ pointer leaves gets the move through its reader alone (`read_child_leave`), so
 it names no part.
 """
 function read_child_event(child_iomap, event)
-    is_move_without_button(event) && return read_child_move(child_iomap, event)
+    event isa MouseMove && return read_child_move(child_iomap, event)
     answer = read_intent(child_iomap.projection, child_iomap, event)
     if is_outward_gesture(event) && !(answer isa Operation)
         own = read_child_part_gesture(child_iomap, event)
@@ -269,7 +269,7 @@ function _find_child_point(entry, x::Int, y::Int; bounded::Bool)
     (0 <= lx < w && 0 <= ly < h) ? (lx, ly) : nothing
 end
 
-# A move with no button held: the child that the pointer leaves, then the child it
+# A move of the pointer: the child that the pointer leaves, then the child it
 # is on (`route` finds that one), each re-rooted into its own `children[i]`.
 function _read_layout_move(document, entries::Vector, evt::MouseMove, route)
     new = route(entries, evt)
@@ -419,12 +419,11 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         end
         return _layout_tab(iomap.input, entries, evt)
     end
-    is_move_without_button(evt) && return _read_layout_move(iomap.input, entries, evt, _route_move)
+    evt isa MouseMove && return _read_layout_move(iomap.input, entries, evt, _route_move)
     res = @gesture_case evt begin
         MouseClick  => _route_click(entries, evt)
         MouseDwell  => _route_dwell(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
-        MouseMove   => _route_move(entries, evt)
         MouseDown   => _route_downup(entries, evt)
         MouseUp     => _route_downup(entries, evt)
         _ => begin
@@ -1820,7 +1819,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     if evt isa KeyDown && evt.key === :tab
         return _layout_tab(iomap.input, entries, evt)
     end
-    is_move_without_button(evt) &&
+    evt isa MouseMove &&
         return _read_layout_move(iomap.input, entries, evt, _route_move_reverse)
     res = @gesture_case evt begin
         MouseClick  => _route_click_reverse(entries, evt)

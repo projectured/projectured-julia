@@ -212,13 +212,13 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
             wim = iomap.window_iomaps[index]
             op = read_intent(wim.projection, recursion, change, wim).operation
             # A window that names no part under the pointer is that part itself.
-            is_move_without_button(event) && (op = add_mouse_target(op))
+            event isa MouseMove && (op = add_mouse_target(op))
             steps = (FieldReferenceStep("windows"), ElementReferenceStep(index))
             op = read_container_gesture(_prefix_op(op, steps), event, iomap.input; steps)
         else
             op = read_container_gesture(nothing, event, iomap.input)
         end
-        if is_move_without_button(event) || event isa WindowLeave
+        if event isa MouseMove || event isa WindowLeave
             op = _read_window_leave(recursion, iomap, index, event, op)
         end
         return Intent(change.gesture, op)
@@ -311,7 +311,7 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         operation = inner.operation
         # When the content names no part under the pointer and the point is on it,
         # its own backward map of the point names the part.
-        if is_move_without_button(event) && _is_event_on_content(iomap, event) &&
+        if event isa MouseMove && _is_event_on_content(iomap, event) &&
            !has_mouse_target(operation)
             operation = add_mouse_target(operation, compute_part_at_point(cim, event.x, event.y))
         end

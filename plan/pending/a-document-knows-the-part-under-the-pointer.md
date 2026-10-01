@@ -1119,8 +1119,20 @@ already; the sealed selection files do not change (Q4).
         84701 with the 5 failures of main (the file system test under
         `unshare -r`, and the 4 tests of `WindowShellTest` that `af3f7f02d`
         on main left with no Appearance tool).
-    - [ ] 5b.5 **The light during a drag** (point 4): a move with a button held
+    - [x] 5b.5 **The light during a drag** (point 4): a move with a button held
       names the part under the pointer, as a move with no button held does.
+      Built (2026-10-02): each container gives every `MouseMove` to the part
+      that the pointer leaves and to the part at the point (the 21 checks of
+      `is_move_without_button` in the widgets, the layouts, the stack, the
+      screen and the graph became `isa MouseMove`), and the arms for a held
+      move that this made dead went (the composite, the split pane, the shell
+      and the layout), with `_route_move_to_children`. `is_move_without_button`
+      stays for the drag wrapper, where it shows a lost release. A button that
+      is pressed and dragged off is drawn pressed no more, because the held move
+      off it is its leave. Tests: `test_drag_tracking` (33) adds the light of a
+      button under a dragged thumb and the button dragged off. omnet: the IDE
+      window test turns the drag tracker on where it drags a divider through
+      an editor with no gesture tracker (omnet `93a19483`).
     - [ ] 5b.6 **The global drags**: the tab of a pane and the reorder of the
       dragging package, with `find_drop_zone`. The drop target goes by
       position, so a gesture by position must carry the dragged thing to the
