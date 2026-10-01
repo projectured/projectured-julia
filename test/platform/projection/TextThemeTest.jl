@@ -6,8 +6,12 @@
 # of a scale reaches the next print. A projection built with no theme draws the
 # values of the default theme.
 
-# The size of the font of each text that a canvas tree draws.
-function _tt_font_sizes(canvas)
+"""
+    collect_font_sizes(canvas) -> Vector{Int}
+
+The size of the font of each text that the canvas tree `canvas` draws, in order.
+"""
+function collect_font_sizes(canvas)
     sizes = Int[]
     function walk(c)
         for element in c.elements
@@ -25,13 +29,25 @@ function _tt_font_sizes(canvas)
     sizes
 end
 
+"""
+    draw_font_sizes(document, appearance) -> Vector{Int}
+
+The size of the font of each text that the natural renderer draws for `document`
+with `appearance`, with a fixed measure in a box of 800 by 600. A domain test
+compares the sizes at a font scale with those at no scale.
+"""
+draw_font_sizes(document, appearance::Appearance) =
+    collect_font_sizes(print_document(NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), appearance),
+                                      nothing, document,
+                                      PrinterContext(EmptyReference(), Cell(800), Cell(600),
+                                                     Dict{Symbol,Any}())).output)
+
 function test_text_and_syntax_themes()
 @testset "the text and the syntax follow the scales of the appearance" begin
 
 measure = FixedMeasure(8, 12, 4, 0)
 offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
-drawn(appearance, document) =
-    _tt_font_sizes(print_document(NaturalToGraphics(; measure, appearance), nothing, document, offer).output)
+drawn(appearance, document) = draw_font_sizes(document, appearance)
 
 @testset "at a font scale of 1.5 the text is 1.5 times as large" begin
     for document in (PrimitiveNumber(42), PrimitiveString("text"), DocumentNothing())
@@ -46,7 +62,7 @@ end
     appearance = Appearance()
     projection = NaturalToGraphics(; measure, appearance)
     document = PrimitiveNumber(42)
-    print_size() = only(unique(_tt_font_sizes(print_document(projection, nothing, document, offer).output)))
+    print_size() = only(unique(collect_font_sizes(print_document(projection, nothing, document, offer).output)))
     @test print_size() == 20
     appearance.font_scale = 2.0
     @test print_size() == 40

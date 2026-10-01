@@ -31,11 +31,13 @@ import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
 
 export parse_json, parse_json_file
+export JsonTheme, ScaledJsonTheme
 export JsonToSyntax, JsonInsertionToSyntaxLeaf
 
 
 include("JsonDocument.jl")
 include("JsonParser.jl")
+include("JsonTheme.jl")
 include("JsonToSyntax.jl")
 include("JsonFile.jl")
 
@@ -45,7 +47,9 @@ include("JsonFile.jl")
 function __init__()
     register_natural_domain!(JsonDocument;
                              rung      = :syntax,
-                             make      = (; appearance) -> JsonToSyntax(),
+                             make      = (; appearance) -> JsonToSyntax(;
+                                 theme = get_scaled_theme!(appearance, JsonTheme),
+                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
                              format    = :json,
                              extension = ".json",
                              parse     = parse_json)

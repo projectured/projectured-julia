@@ -48,6 +48,7 @@ include("../../../test/domain/json/editor/JsonContentClicksTest.jl")
 include("../../../test/domain/json/editor/JsonPlaceholderNavTest.jl")
 include("../../../test/domain/json/editor/JsonMouseTargetTest.jl")
 include("../../../test/domain/json/projection/JsonToSyntaxTest.jl")
+include("../../../test/domain/json/projection/JsonThemeTest.jl")
 
 include("../../../test/domain/json/JsonSuite.jl")
 

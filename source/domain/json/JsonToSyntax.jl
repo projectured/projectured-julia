@@ -3,8 +3,9 @@
 # object become a node that carries its brackets or its braces and its comma
 # separators.
 
-@projection struct JsonNullToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+@projection UntrackedCell struct JsonNullToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_json_style(theme, :null_text)
 end
 
 @projection_template JsonNullToSyntaxLeaf JsonNull (prj, doc) ->
@@ -16,10 +17,12 @@ end
 # whole-selected insertion keep working: the leaf's char editing declines
 # without a value cursor, so those keys fall through to `@gestures JsonDocument`.
 
-JsonInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(JsonDocument; placeholder = "enter json value")
+JsonInsertionToSyntaxLeaf(; theme = nothing) =
+    DomainInsertionToSyntaxLeaf(JsonDocument; placeholder = "enter json value", theme)
 
-@projection struct JsonBoolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+@projection UntrackedCell struct JsonBoolToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_json_style(theme, :bool_text)
 end
 
 # `bound` editing can transiently clear the value (the reactive `value` cell is
@@ -33,8 +36,9 @@ end
                                       placeholder = "enter json bool",
                                       style = prj.style)))
 
-@projection struct JsonNumberToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+@projection UntrackedCell struct JsonNumberToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_json_style(theme, :number_text)
 end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
@@ -45,9 +49,10 @@ end
                                       style = prj.style);
                      retype = ReplaceNumberRangeOperation))
 
-@projection struct JsonStringToSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+@projection UntrackedCell struct JsonStringToSyntaxLeaf
+    theme::Any = nothing
+    quote_style::StyleText = _get_json_style(theme, :quote_text)
+    value_style::StyleText = _get_json_style(theme, :string_text)
 end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
@@ -59,9 +64,10 @@ end
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
-@projection struct JsonArrayToSyntaxNode
-    delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct JsonArrayToSyntaxNode
+    theme::Any = nothing
+    delimiter_style::StyleText = _get_json_style(theme, :delimiter_text)
+    separator_style::StyleText = _get_json_style(theme, :separator_text)
 end
 
 @projection_template JsonArrayToSyntaxNode JsonArray (prj, doc) ->
@@ -74,9 +80,10 @@ end
 # One `"key": value` member. The object delegates each entry here rather than
 # inlining it, so a bare `JsonObjectEntry` also projects on its own.
 
-@projection struct JsonObjectEntryToSyntaxNode
-    key_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    colon_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct JsonObjectEntryToSyntaxNode
+    theme::Any = nothing
+    key_style::StyleText = _get_json_style(theme, :key_text)
+    colon_style::StyleText = _get_json_style(theme, :separator_text)
 end
 
 @projection_template JsonObjectEntryToSyntaxNode JsonObjectEntry (prj, e) ->
@@ -92,9 +99,10 @@ end
                  project(:value) ],
                0, false, getfield(e, :selection))
 
-@projection struct JsonObjectToSyntaxNode
-    delimiter_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    separator_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct JsonObjectToSyntaxNode
+    theme::Any = nothing
+    delimiter_style::StyleText = _get_json_style(theme, :delimiter_text)
+    separator_style::StyleText = _get_json_style(theme, :separator_text)
 end
 
 @projection_template JsonObjectToSyntaxNode JsonObject (prj, doc) ->
@@ -104,19 +112,23 @@ end
                sep=TextString(", ", prj.separator_style),
                indentation=1)
 
-# The projection of the whole domain: one rule per document type.
+# The projection of the whole domain: one rule per document type. `theme` is a
+# `JsonTheme`, a scaled one, or `nothing` for the default styles; `syntax_theme`
+# styles the insertion and the empty placeholder, which are the syntax slice's.
 
-function JsonToSyntax()
+function JsonToSyntax(; theme = nothing, syntax_theme = nothing)
+    theme = scale_theme(theme)
+    syntax_theme = scale_theme(syntax_theme)
     TypeDispatchingProjection(
-        JsonNull        => JsonNullToSyntaxLeaf(),
-        JsonBool        => JsonBoolToSyntaxLeaf(),
-        JsonNumber      => JsonNumberToSyntaxLeaf(),
-        JsonString      => JsonStringToSyntaxLeaf(),
-        JsonArray       => JsonArrayToSyntaxNode(),
-        JsonObject      => JsonObjectToSyntaxNode(),
-        JsonInsertion   => JsonInsertionToSyntaxLeaf(),
-        JsonNothing     => InsertionNothingToSyntaxLeaf(),
-        JsonObjectEntry => JsonObjectEntryToSyntaxNode(),
+        JsonNull        => JsonNullToSyntaxLeaf(; theme),
+        JsonBool        => JsonBoolToSyntaxLeaf(; theme),
+        JsonNumber      => JsonNumberToSyntaxLeaf(; theme),
+        JsonString      => JsonStringToSyntaxLeaf(; theme),
+        JsonArray       => JsonArrayToSyntaxNode(; theme),
+        JsonObject      => JsonObjectToSyntaxNode(; theme),
+        JsonInsertion   => JsonInsertionToSyntaxLeaf(; theme = syntax_theme),
+        JsonNothing     => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
+        JsonObjectEntry => JsonObjectEntryToSyntaxNode(; theme),
         Vector{Cell}    => CopyingProjection(),
     )
 end
