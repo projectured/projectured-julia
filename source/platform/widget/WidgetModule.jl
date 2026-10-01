@@ -69,7 +69,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-       WidgetToGraphics, WidgetTheme, make_light_theme, make_dark_theme,
+       WidgetToGraphics, WidgetTheme, ScaledWidgetTheme, make_light_theme, make_dark_theme,
        make_slate_light_theme, make_slate_dark_theme,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
@@ -97,6 +97,7 @@ export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle
 
 include("WidgetDocument.jl")
 include("WidgetStyle.jl")
+include("WidgetTheme.jl")
 include("WidgetToGraphics.jl")
 include("WidgetTableParts.jl")
 include("WidgetEmbedCard.jl")

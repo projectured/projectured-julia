@@ -21,21 +21,22 @@
 # A layout that draws a ring around a child selected as a whole holds the stroke
 # of that ring. The layout slice has no theme, so the default is the ring of the
 # graphics slice; the widget factory builds the layouts with the selection of
-# its theme.
+# its theme. The field is an `UntrackedCell`, so the factory can give a ring that
+# reads the theme at each read, as the widgets read it.
 
-@projection struct HorizontalLayoutToGraphicsCanvas
+@projection UntrackedCell struct HorizontalLayoutToGraphicsCanvas
     selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
 end
 
-@projection struct VerticalLayoutToGraphicsCanvas
+@projection UntrackedCell struct VerticalLayoutToGraphicsCanvas
     selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
 end
 
-@projection struct GridLayoutToGraphicsCanvas
+@projection UntrackedCell struct GridLayoutToGraphicsCanvas
     selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
 end
 
-@projection struct FlowLayoutToGraphicsCanvas
+@projection UntrackedCell struct FlowLayoutToGraphicsCanvas
     selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
 end
 
@@ -51,14 +52,10 @@ the origin; pass a `TulipConstraintSolver` (opt-in `ProjecturedTulip` package)
 for real LP-based constraint solving — same injection pattern as
 `GraphGraphToGraphLayout`'s `engine`.
 """
-struct ConstraintLayoutToGraphicsCanvas <: Projection
-    solver::ConstraintSolver
-    selection_ring_stroke::StyleStroke
+@projection UntrackedCell struct ConstraintLayoutToGraphicsCanvas
+    solver::ConstraintSolver = FallbackConstraintSolver()
+    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
 end
-
-ConstraintLayoutToGraphicsCanvas(; solver::ConstraintSolver=FallbackConstraintSolver(),
-                                 selection_ring_stroke::StyleStroke=StyleStroke(SELECTION_RING_COLOR, 2)) =
-    ConstraintLayoutToGraphicsCanvas(solver, selection_ring_stroke)
 
 # ── GridLayout iomap (geometry-bearing) ─────────────────────────────────────
 
@@ -2127,7 +2124,7 @@ end
 Project an [`AnchoredLayout`](@ref): the content, with each anchored child
 composited over it beside its target.
 """
-@projection struct AnchoredLayoutToGraphicsCanvas
+@projection UntrackedCell struct AnchoredLayoutToGraphicsCanvas
     selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
 end
 
@@ -2282,7 +2279,8 @@ child selected as a whole; the widget factory passes the selection of its
 theme. Wrap in a `RecursiveProjection` (or
 include in a larger dispatcher) so children re-enter the recursion.
 """
-function LayoutToGraphics(; selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2))
+function LayoutToGraphics(; selection_ring_stroke::Union{StyleStroke, UntrackedCell{StyleStroke}} =
+                              StyleStroke(SELECTION_RING_COLOR, 2))
     TypeDispatchingProjection(
         HorizontalLayout => HorizontalLayoutToGraphicsCanvas(; selection_ring_stroke),
         VerticalLayout   => VerticalLayoutToGraphicsCanvas(; selection_ring_stroke),

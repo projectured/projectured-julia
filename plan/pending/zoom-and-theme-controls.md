@@ -859,18 +859,38 @@ keys (W1), so that the font scale reaches all text from the first day.
   `/var/tmp/appearance-b0/baseline-a0-set/hashes.txt` for the four examples of
   the A0 script, where only `widget_example` differs from A0.
 - [ ] **B1. `WidgetTheme` with `@theme`.**
-  - The theme values of B0, each with its kind of length. The four presets.
-  - The widget projections are declared `@projection UntrackedCell struct`. The
-    factory builds one `UntrackedCell` for each value of the scaled widget theme
-    and each derived value, and each projection that uses it holds the same
-    cell. `WidgetToGraphics(font; measure, theme)` takes a scaled theme; its
+  - [x] The theme values of B0, each with its kind of length. The four presets.
+  - [x] The widget projections are declared `@projection UntrackedCell struct`.
+    ~~The factory builds one `UntrackedCell` for each value of the scaled widget
+    theme and each derived value, and each projection that uses it holds the same
+    cell.~~ Each projection builds its own small cells with `_themed` (finding 6).
+    `WidgetToGraphics(font; measure, theme)` takes a theme or a scaled theme; its
     default is a new default theme.
-  - The icon box multiplies by the icon scale. `_sc` remains only for numbers
-    that stay outside the theme, if B0 leaves any.
-  - Tests: at the default theme, the pixels of B0. At 1.5 for each scale alone,
-    only the lengths of its kind change. A press at the drawn place of each
-    control hits it. The edges and the memory of a view do not grow.
-  - omnet-julia: `build_qtenv_widget_theme` and its widget projections follow.
+  - [x] The icon box multiplies by the icon scale. The button, the menu item, the
+    toolbar item, the tabbed pane, the alert and the tree have a field
+    `icon_scale`, and the row that holds an icon is as tall as the larger of the
+    icon and the line (findings 9 and 10). `_sc` remains only for numbers that a
+    document authors (finding 8).
+  - Tests:
+    - [x] At the default theme, the pixels of B0: the twelve examples are
+      identical.
+    - [x] At 1.5 for each scale alone, only the lengths of its kind change, and a
+      press at the drawn place of a checkbox, a radio option and a tab hits it,
+      with every scale at 1.5 (`test_widget_scales`, 23 tests).
+    - [x] The edges and the memory of a view do not grow (finding 11). Before
+      is `45376ce8d`, after is the branch; the edges of the reactive cells that
+      a forced view reaches, and the live bytes that a second print keeps after a
+      full collection:
+
+      | example | edges before | edges after | bytes before | bytes after |
+      | --- | --- | --- | --- | --- |
+      | `widget_example` | 9235 | 8167 | 1816464 | 1806256 |
+      | `widget_alert_example` | 141 | 120 | 20576 | 20160 |
+      | `widget_accordion_example` | 74 | 56 | 16480 | 16336 |
+      | `widget_card_example` | 81 | 63 | 15440 | 14992 |
+
+      The script is `/var/tmp/appearance-b1/measure/edges4.jl`.
+  - [ ] omnet-julia: `build_qtenv_widget_theme` and its widget projections follow.
 - [ ] **B2. The builders pass the themes** (4.3). `NaturalToGraphics`,
   `WindowWrap`, `WindowShell`, `FileSystemToSyntax` and `DataFrameViewToWidget`
   take the `Appearance` or the themes of their parts. The registry factories get
@@ -1025,3 +1045,39 @@ as large. omnet-julia and inet-julia follow where they build these projections.
    concrete type of `JsonTheme()` is a variant of `JsonTheme`, not `JsonTheme`
    itself. `@theme` therefore adds `get_theme_type(theme)`, which answers the
    declared name, and `set_theme!` keeps a theme under it.
+6. **Each widget projection builds its own untracked cells** (B1). The step
+   planned one cell for each value of the scaled theme, shared by the
+   projections. The factory makes one projection for each widget type, so a
+   shared cell saves a few small cells for each value and nothing that can be
+   measured. `_themed(T, theme, f)` builds a cell in place of each default, and
+   each constructor stays whole.
+7. **The printer walk counts an untracked cell once for each value** (B1).
+   `test_printer` forces every cell that it reaches and counts one test for each.
+   An `UntrackedCell` is immutable, so two of the same content have the same
+   `objectid`, and the cycle guard of the walk counts them once. A `ReactiveCell`
+   is mutable and counts once for each object. So `test_platform` counts 84336
+   tests, with the 23 of `test_widget_scales`, where it counted 97486 before B1. Without the guard for untracked cells
+   the walk of the platform examples counts 14398 more. Each different style
+   field is still forced.
+8. **The small offsets take the spacing scale where a projection reads its
+   theme** (B1). B0 gave them to `_sc`. `_scale_space(n, theme)` scales them in
+   the style field instead, so `_sc` stays an identity marker for a number that
+   a document authors on a widget (`w.width`, `w.height`, a position). 86 calls of
+   `_sc` on a theme value are removed, and 29 calls remain.
+9. **An icon written as text follows the icon scale in step P** (B1).
+   `ConversationToWidget` writes the icon of a speaker as a character of the
+   Lucide font. It follows the icon scale when the conversation slice has its
+   theme.
+10. **A tree row grows only when the roots show an icon** (B1). The same rule
+    widens the icon column, so a tree of plain labels keeps rows of one line at
+    each icon scale. The row height is in the geometry cell, which the reader
+    also uses.
+11. **A derived inset or point is kept in a computed cell** (B1). An `Inset` and
+    a `Point2D` hold reactive cells, and a printer that reads a side records an
+    edge to it. A style field such as the border, the uniform inset of
+    `border_width`, made a new inset at each read, so each print recorded edges
+    to new cells: the alert example had 152 edges where it had 141 before B1.
+    `_themed` for these two types keeps the derived value in one computed cell
+    that follows the scaled theme, and the style field reads that cell with no
+    edge. The value is then made once for each state of the theme, as the
+    factory made it once before B1.

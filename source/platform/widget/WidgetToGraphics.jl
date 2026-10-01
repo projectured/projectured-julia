@@ -14,203 +14,6 @@
 # `GraphicsCanvas` wrapping the `GraphicsViewport` that clips, with the content
 # delegated through the recursion argument. Compose it with `NestingProjection`
 # to give that content a different recursion table than the surrounding tree.
-# ── Theme (design tokens) ─────────────────────────────────────────
-
-"""
-    WidgetTheme
-
-The **small shared core** of design tokens — only the cross-cutting values read
-by many widgets. Each widget projection owns its own style parameters (full
-names, compound types) and the `WidgetToGraphics` factory supplies them, deriving
-the shared ones from this theme and providing the widget-specific dimensions
-(switch size, tree indent, card padding, …) as per-widget defaults at the call
-site. So this theme is the *palette + scale*; a different look is a different
-factory, not a bigger theme. The fields:
-
-- **Palette** — `background … ring` plus `track_off` (the switch's off-track).
-- **Decorations** — `shadow`, `scrim`, `selection` (the ring around an object
-  selected as a whole; a selected row takes it at 25%), `knob`, and the
-  translucent layers `hover_layer` and `pressed_layer` that a hovered or a
-  pressed widget draws over its surface.
-- **Type & base spacing** — `font*`, `radius`, `pad_x`, `pad_y`.
-- **Shared layout** — `gap`, `border_width`, `stroke`, `chevron` (each read by
-  several widgets; the source of fan-out).
-- **Text styles** — `body_text` / `title_text` / `caption_text` / `label_text`
-  (`StyleText`, bundling font + color).
-
-Spacing tokens are *logical* pixels scaled at render time via `_sc`. They are
-palette-independent, so both presets share them via [`_widget_theme`](@ref);
-only colors and fonts differ. See [`make_light_theme`](@ref) /
-[`make_dark_theme`](@ref). The constructor takes keywords, one for each field.
-"""
-Base.@kwdef struct WidgetTheme
-    # ── Palette ──
-    background::StyleColor
-    foreground::StyleColor
-    card::StyleColor
-    card_foreground::StyleColor
-    popover::StyleColor
-    popover_foreground::StyleColor
-    muted::StyleColor
-    muted_foreground::StyleColor
-    primary::StyleColor
-    primary_foreground::StyleColor
-    secondary::StyleColor
-    secondary_foreground::StyleColor
-    accent::StyleColor
-    accent_foreground::StyleColor
-    destructive::StyleColor
-    destructive_foreground::StyleColor
-    border::StyleColor
-    input::StyleColor
-    ring::StyleColor
-    track_off::StyleColor   # switch off-track fill
-    # ── Decorations ──
-    shadow::StyleColor
-    scrim::StyleColor
-    selection::StyleColor
-    knob::StyleColor
-    hover_layer::StyleColor
-    pressed_layer::StyleColor
-    # ── Type & base spacing ──
-    radius::Int
-    font::StyleFont
-    font_bold::StyleFont
-    font_small::StyleFont
-    pad_x::Int
-    pad_y::Int
-    # ── Shared layout tokens (each read by several widgets; the source of
-    #    fan-out — widget-specific dimensions live on their projections,
-    #    supplied as factory defaults, not here). ──
-    gap::Int            # inter-item gap (toolbar items, shell bands, select, accordion)
-    border_width::Int   # hairline: border / splitter / separator / table rules
-    stroke::Int         # icon stroke (checkmark, chevron, radio ring, knob ring)
-    chevron::Int        # chevron half-size (select, accordion, tree)
-    # ── Semantic text styles (font + color) ──
-    body_text::StyleText      # regular foreground text
-    title_text::StyleText     # bold foreground heading
-    caption_text::StyleText    # small muted text
-    label_text::StyleText      # control labels (regular foreground)
-end
-
-"""
-    _widget_theme(; <palette colors>, font, font_bold, font_small) -> WidgetTheme
-
-Build a theme from a color palette and fonts, filling in the palette-independent
-spacing / sizing tokens and the decorations with their shared defaults. The
-presets funnel through here so the geometry is defined in exactly one place.
-The hover and pressed layers are `primary` at 12% and 20%.
-"""
-function _widget_theme(; background, foreground, card, card_foreground, popover,
-                         popover_foreground, muted, muted_foreground, primary,
-                         primary_foreground, secondary, secondary_foreground,
-                         accent, accent_foreground, destructive, destructive_foreground,
-                         border, input, ring, track_off,
-                         font, font_bold, font_small)
-    WidgetTheme(;
-        background, foreground, card, card_foreground, popover, popover_foreground,
-        muted, muted_foreground, primary, primary_foreground, secondary, secondary_foreground,
-        accent, accent_foreground, destructive, destructive_foreground, border, input, ring, track_off,
-        shadow = StyleColor(0.0, 0.0, 0.0, 0x14 / 255),
-        scrim = StyleColor(0.0, 0.0, 0.0, 0x66 / 255),
-        selection = SELECTION_RING_COLOR,
-        knob = color_white,
-        hover_layer = _with_alpha(primary, 0.12),
-        pressed_layer = _with_alpha(primary, 0.20),
-        radius = 8, font, font_bold, font_small, pad_x = 14, pad_y = 9,
-        gap = 4, border_width = 1, stroke = 2, chevron = 4,
-        body_text = StyleText(font, foreground),
-        title_text = StyleText(font_bold, foreground),
-        caption_text = StyleText(font_small, muted_foreground),
-        label_text = StyleText(font, foreground))
-end
-
-"""
-    make_light_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
-
-The neutral zinc light theme (a neutral zinc palette on a white background).
-Kept as an alternative; the expressed slate/indigo theme is the default — see
-[`make_slate_light_theme`](@ref).
-"""
-function make_light_theme(; font::StyleFont=font_ubuntu_regular_20)
-    _widget_theme(
-        background=color_white,       foreground=color_zinc_950,
-        card=color_white,             card_foreground=color_zinc_950,
-        popover=color_white,          popover_foreground=color_zinc_950,
-        muted=color_zinc_100,         muted_foreground=color_zinc_500,
-        primary=color_zinc_900,       primary_foreground=color_zinc_50,
-        secondary=color_zinc_100,     secondary_foreground=color_zinc_900,
-        accent=color_zinc_100,        accent_foreground=color_zinc_900,
-        destructive=color_destructive, destructive_foreground=color_destructive_fg,
-        border=color_zinc_200,        input=color_zinc_200,    ring=color_zinc_400,
-        track_off=color_zinc_300,
-        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
-end
-
-"""
-    make_dark_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
-
-The neutral zinc dark theme (zinc-950 surfaces). Ships alongside the light
-default; the editor chrome can opt in. For the expressed slate/indigo variant
-see [`make_slate_dark_theme`](@ref).
-"""
-function make_dark_theme(; font::StyleFont=font_ubuntu_regular_20)
-    _widget_theme(
-        background=color_zinc_950,    foreground=color_zinc_50,
-        card=color_zinc_900,          card_foreground=color_zinc_50,
-        popover=color_zinc_900,       popover_foreground=color_zinc_50,
-        muted=color_zinc_800,         muted_foreground=color_zinc_400,
-        primary=color_zinc_50,        primary_foreground=color_zinc_900,
-        secondary=color_zinc_800,     secondary_foreground=color_zinc_50,
-        accent=color_zinc_800,        accent_foreground=color_zinc_50,
-        destructive=color_destructive, destructive_foreground=color_destructive_fg,
-        border=color_zinc_800,        input=color_zinc_800,    ring=color_zinc_600,
-        track_off=color_zinc_700,
-        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
-end
-
-"""
-    make_slate_light_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
-
-The default light theme: a cool slate palette with an indigo accent, on tinted
-(non-white) surfaces so the colors read as expressed rather than washed out.
-"""
-function make_slate_light_theme(; font::StyleFont=font_ubuntu_regular_20)
-    _widget_theme(
-        background=color_slate_100,    foreground=color_slate_950,
-        card=color_slate_50,           card_foreground=color_slate_950,
-        popover=color_slate_50,        popover_foreground=color_slate_950,
-        muted=color_slate_200,         muted_foreground=color_slate_500,
-        primary=color_indigo_600,      primary_foreground=color_slate_50,
-        secondary=color_slate_200,     secondary_foreground=color_slate_900,
-        accent=color_indigo_100,       accent_foreground=color_indigo_700,
-        destructive=color_destructive, destructive_foreground=color_destructive_fg,
-        border=color_slate_300,        input=color_slate_300,   ring=color_indigo_500,
-        track_off=color_slate_300,
-        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
-end
-
-"""
-    make_slate_dark_theme(; font=font_ubuntu_regular_20) -> WidgetTheme
-
-The expressed dark theme: deep slate surfaces with a bright indigo accent, the
-dark counterpart to [`make_slate_light_theme`](@ref).
-"""
-function make_slate_dark_theme(; font::StyleFont=font_ubuntu_regular_20)
-    _widget_theme(
-        background=color_slate_950,    foreground=color_slate_50,
-        card=color_slate_900,          card_foreground=color_slate_50,
-        popover=color_slate_900,       popover_foreground=color_slate_50,
-        muted=color_slate_800,         muted_foreground=color_slate_400,
-        primary=color_indigo_500,      primary_foreground=color_slate_50,
-        secondary=color_slate_800,     secondary_foreground=color_slate_50,
-        accent=color_indigo_950,       accent_foreground=color_indigo_200,
-        destructive=color_destructive, destructive_foreground=color_destructive_fg,
-        border=color_slate_800,        input=color_slate_800,   ring=color_indigo_400,
-        track_off=color_slate_700,
-        font=font, font_bold=font_ubuntu_bold_20, font_small=font_ubuntu_regular_18)
-end
-
 # ── Styling helpers ─────────────────────────────────────────────────────────
 
 # Fallback viewport / track extents used only when a widget carries no `size`
@@ -223,10 +26,11 @@ end
 # on an axis has no extent there. A number invented in a printer is a size nobody
 # chose, in a place nobody looks. See documentation/rule/layout-rules.md.
 
-# All widget geometry — spacing, radii, insets, positions — is in logical
-# pixels. The device pixel ratio of the `Display` is applied uniformly at the SDL
-# render boundary, so the projection layer never scales: `_sc`/`_origin` are
-# identity markers that document "this number is a logical pixel measurement".
+# All widget geometry is in logical pixels; the device pixel ratio of the
+# `Display` applies at the SDL render boundary. `_sc` and `_origin` are identity
+# markers for a logical pixel number that a document authors on a widget. A
+# theme value reaches the printer through a style field of the projection and
+# needs no marker.
 _sc(px::Integer) = Int(px)
 
 # A widget's authored `position` is in logical pixels, like insets.
@@ -492,7 +296,7 @@ end
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                            ring::StyleStroke, radius::Int; whole = nothing)
     rect = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius,
-                        border_width=max(1, _sc(ring.width)), border_color=ring.color)
+                        border_width=max(1, Int(ring.width)), border_color=ring.color)
     set_cell_computation!(getfield(rect, :w),
                           () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
     set_cell_computation!(getfield(rect, :h),
@@ -520,19 +324,17 @@ _is_route_at_place(route) = route === nothing || route isa EmptyReference
 #
 # A widget projection holds one style field for each part and state that it
 # draws, named `[<variant>_]<part>[_<state>]_<kind>`, and a constructor that
-# fills every field from a `WidgetTheme`. A keyword of that constructor replaces
-# one field. A widget with the box insets has the default insets `margin`,
-# `border` and `padding`, which an inset of the document replaces, and a color
-# for each of its four box parts. `@projection` puts each field in a cell, so a
-# person can edit it while the editor runs.
+# fills every field from a scaled `WidgetTheme`. A keyword of that constructor
+# replaces one field with a fixed value. A widget with the box insets has the
+# default insets `margin`, `border` and `padding`, which an inset of the document
+# replaces, and a color for each of its four box parts.
+#
+# Each projection is `@projection UntrackedCell struct`: a field that the
+# constructor fills from the theme reads the scaled theme at each read, with no
+# edge (`_themed`), and the appearance wrapper makes the view print again after a
+# change of the theme. A field can not be written after the projection is built.
 
-# The inset of `width` on every side, for a border.
-_make_uniform_inset(width::Integer) = Inset(width, width, width, width)
-
-# The padding of a control: `pad_y` above and below, `pad_x` left and right.
-_make_control_padding(theme) = Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)
-
-@projection struct WidgetLabelToGraphicsCanvas
+@projection UntrackedCell struct WidgetLabelToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -541,19 +343,20 @@ _make_control_padding(theme) = Inset(theme.pad_y, theme.pad_y, theme.pad_x, them
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}
+    label_text::StyleText
     placeholder_color::StyleColor          # an image that is not decoded yet
 end
 
-WidgetLabelToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetLabelToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                             margin = inset_default, border = inset_default, padding = inset_default,
                             margin_color = color_transparent, border_color = color_transparent,
                             padding_color = color_transparent, content_color = color_transparent,
-                            label_text = theme.body_text, placeholder_color = theme.muted) =
+                            label_text = _themed(StyleText, theme, _get_body_text),
+                            placeholder_color = _themed(StyleColor, theme, t -> t.muted)) =
     WidgetLabelToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                 padding_color, content_color, label_text, placeholder_color)
 
-@projection struct WidgetTextToGraphicsCanvas
+@projection UntrackedCell struct WidgetTextToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -564,30 +367,37 @@ WidgetLabelToGraphicsCanvas(theme::WidgetTheme; measure,
     content_color::StyleColor
     padding_disabled_color::StyleColor
     content_disabled_color::StyleColor
-    label_text::ImmutableCell{StyleText}          # the text of the non-editable form
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText                         # the text of the non-editable form
+    label_disabled_text::StyleText
     focus_ring_stroke::StyleStroke                # the widget holds the focus
     selection_ring_stroke::StyleStroke            # the widget is selected as a whole
     corner_radius::Int
 end
 
-WidgetTextToGraphicsCanvas(theme::WidgetTheme; measure,
-                           margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                           padding = _make_control_padding(theme),
-                           margin_color = color_transparent, border_color = theme.input,
-                           padding_color = theme.background, content_color = theme.background,
-                           padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
-                           label_text = theme.body_text,
-                           label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
-                           focus_ring_stroke = StyleStroke(theme.ring, 2),
-                           selection_ring_stroke = StyleStroke(theme.selection, 2),
-                           corner_radius = theme.radius) =
+WidgetTextToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                           margin = inset_default,
+                           border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                           padding = _themed(Inset, theme, t -> t.control_padding),
+                           margin_color = color_transparent,
+                           border_color = _themed(StyleColor, theme, t -> t.input),
+                           padding_color = _themed(StyleColor, theme, t -> t.background),
+                           content_color = _themed(StyleColor, theme, t -> t.background),
+                           padding_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                           content_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                           label_text = _themed(StyleText, theme, _get_body_text),
+                           label_disabled_text =
+                               _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                           focus_ring_stroke =
+                               _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                           selection_ring_stroke =
+                               _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width)),
+                           corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetTextToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                padding_color, content_color, padding_disabled_color,
                                content_disabled_color, label_text, label_disabled_text,
                                focus_ring_stroke, selection_ring_stroke, corner_radius)
 
-@projection struct WidgetCheckboxToGraphicsCanvas
+@projection UntrackedCell struct WidgetCheckboxToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -607,25 +417,30 @@ WidgetTextToGraphicsCanvas(theme::WidgetTheme; measure,
     corner_radius::Int
 end
 
-WidgetCheckboxToGraphicsCanvas(theme::WidgetTheme;
+WidgetCheckboxToGraphicsCanvas(theme::ScaledWidgetTheme;
                                margin = inset_default, border = inset_default, padding = inset_default,
                                margin_color = color_transparent, border_color = color_transparent,
                                padding_color = color_transparent, content_color = color_transparent,
-                               indicator_color = theme.background, indicator_checked_color = theme.primary,
-                               indicator_disabled_color = theme.muted,
-                               indicator_stroke = StyleStroke(theme.input, theme.stroke),
-                               indicator_disabled_stroke = StyleStroke(theme.muted_foreground, theme.stroke),
-                               check_color = theme.primary_foreground,
-                               check_disabled_color = theme.muted_foreground,
-                               focus_ring_stroke = StyleStroke(theme.ring, 2),
-                               indicator_size = 18, corner_radius = theme.radius ÷ 2) =
+                               indicator_color = _themed(StyleColor, theme, t -> t.background),
+                               indicator_checked_color = _themed(StyleColor, theme, t -> t.primary),
+                               indicator_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                               indicator_stroke =
+                                   _themed(StyleStroke, theme, t -> StyleStroke(t.input, t.stroke)),
+                               indicator_disabled_stroke =
+                                   _themed(StyleStroke, theme, t -> StyleStroke(t.muted_foreground, t.stroke)),
+                               check_color = _themed(StyleColor, theme, t -> t.primary_foreground),
+                               check_disabled_color = _themed(StyleColor, theme, t -> t.muted_foreground),
+                               focus_ring_stroke =
+                                   _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                               indicator_size = _themed(Int, theme, t -> t.indicator_size),
+                               corner_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetCheckboxToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                    content_color, indicator_color, indicator_checked_color,
                                    indicator_disabled_color, indicator_stroke, indicator_disabled_stroke,
                                    check_color, check_disabled_color, focus_ring_stroke,
                                    indicator_size, corner_radius)
 
-@projection struct WidgetButtonToGraphicsCanvas
+@projection UntrackedCell struct WidgetButtonToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -636,8 +451,8 @@ WidgetCheckboxToGraphicsCanvas(theme::WidgetTheme;
     content_color::StyleColor
     padding_disabled_color::StyleColor
     content_disabled_color::StyleColor
-    label_text::ImmutableCell{StyleText}
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText
+    label_disabled_text::StyleText
     layer_hovered_color::StyleColor        # over the surface while the pointer is inside
     layer_pressed_color::StyleColor        # over the surface while it is held down
     shadow_color::StyleColor
@@ -645,29 +460,41 @@ WidgetCheckboxToGraphicsCanvas(theme::WidgetTheme;
     placeholder_color::StyleColor          # an image that is not decoded yet
     focus_ring_stroke::StyleStroke
     corner_radius::Int
+    label_gap::Int                         # between the icon and the label
+    icon_scale::Float64                    # times the box of the icon, one line of the label
 end
 
-WidgetButtonToGraphicsCanvas(theme::WidgetTheme; measure,
-                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                             padding = _make_control_padding(theme),
-                             margin_color = color_transparent, border_color = theme.border,
-                             padding_color = theme.background, content_color = theme.background,
-                             padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
-                             label_text = theme.label_text,
-                             label_disabled_text = StyleText(theme.label_text.font, theme.muted_foreground),
-                             layer_hovered_color = theme.hover_layer,
-                             layer_pressed_color = theme.pressed_layer,
-                             shadow_color = theme.shadow, shadow_offset = 2,
-                             placeholder_color = theme.muted,
-                             focus_ring_stroke = StyleStroke(theme.ring, 2),
-                             corner_radius = theme.radius) =
+WidgetButtonToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                             margin = inset_default,
+                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                             padding = _themed(Inset, theme, t -> t.control_padding),
+                             margin_color = color_transparent,
+                             border_color = _themed(StyleColor, theme, t -> t.border),
+                             padding_color = _themed(StyleColor, theme, t -> t.background),
+                             content_color = _themed(StyleColor, theme, t -> t.background),
+                             padding_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             content_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             label_text = _themed(StyleText, theme, _get_label_text),
+                             label_disabled_text =
+                                 _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                             layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                             layer_pressed_color = _themed(StyleColor, theme, _get_pressed_layer),
+                             shadow_color = _themed(StyleColor, theme, t -> t.shadow),
+                             shadow_offset = _themed(Int, theme, t -> _scale_space(2, t)),
+                             placeholder_color = _themed(StyleColor, theme, t -> t.muted),
+                             focus_ring_stroke =
+                                 _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                             corner_radius = _themed(Int, theme, t -> t.radius),
+                             label_gap = _themed(Int, theme, t -> t.label_gap),
+                             icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetButtonToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                  padding_color, content_color, padding_disabled_color,
                                  content_disabled_color, label_text, label_disabled_text,
                                  layer_hovered_color, layer_pressed_color, shadow_color, shadow_offset,
-                                 placeholder_color, focus_ring_stroke, corner_radius)
+                                 placeholder_color, focus_ring_stroke, corner_radius, label_gap,
+                                 icon_scale)
 
-@projection struct WidgetTooltipToGraphicsCanvas
+@projection UntrackedCell struct WidgetTooltipToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -676,24 +503,27 @@ WidgetButtonToGraphicsCanvas(theme::WidgetTheme; measure,
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}
+    label_text::StyleText
     corner_radius::Int
 end
 
-WidgetTooltipToGraphicsCanvas(theme::WidgetTheme; measure,
-                              margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                              padding = _make_control_padding(theme),
-                              margin_color = color_transparent, border_color = theme.border,
-                              padding_color = theme.popover, content_color = theme.popover,
-                              label_text = StyleText(theme.font, theme.popover_foreground),
-                              corner_radius = theme.radius) =
+WidgetTooltipToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                              margin = inset_default,
+                              border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                              padding = _themed(Inset, theme, t -> t.control_padding),
+                              margin_color = color_transparent,
+                              border_color = _themed(StyleColor, theme, t -> t.border),
+                              padding_color = _themed(StyleColor, theme, t -> t.popover),
+                              content_color = _themed(StyleColor, theme, t -> t.popover),
+                              label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.popover_foreground)),
+                              corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetTooltipToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                   padding_color, content_color, label_text, corner_radius)
 
 # A menu bar is the variant `horizontal`, with no fields of its own: it draws on
 # the surface of the bar that holds it. A dropdown is the variant `vertical`, and
 # it draws the popover surface of the theme, because it is a window of its own.
-@projection struct WidgetMenuToGraphicsCanvas
+@projection UntrackedCell struct WidgetMenuToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -708,24 +538,26 @@ WidgetTooltipToGraphicsCanvas(theme::WidgetTheme; measure,
     vertical_padding_color::StyleColor
     vertical_content_color::StyleColor
     font::StyleFont             # used to measure the per-item row height
+    bar_gap::Int                # between the items of a horizontal menu bar
 end
 
-WidgetMenuToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetMenuToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            margin = inset_default, border = inset_default, padding = inset_default,
-                           vertical_border = _make_uniform_inset(theme.border_width),
-                           vertical_padding = _make_uniform_inset(4),
+                           vertical_border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                           vertical_padding = _themed(Inset, theme, t -> _make_uniform_inset(t.item_gap)),
                            margin_color = color_transparent, border_color = color_transparent,
                            padding_color = color_transparent, content_color = color_transparent,
-                           vertical_border_color = theme.border,
-                           vertical_padding_color = theme.popover,
-                           vertical_content_color = theme.popover,
-                           font = theme.font) =
+                           vertical_border_color = _themed(StyleColor, theme, t -> t.border),
+                           vertical_padding_color = _themed(StyleColor, theme, t -> t.popover),
+                           vertical_content_color = _themed(StyleColor, theme, t -> t.popover),
+                           font = _themed(StyleFont, theme, t -> t.font),
+                           bar_gap = _themed(Int, theme, t -> t.bar_gap)) =
     WidgetMenuToGraphicsCanvas(measure, margin, border, padding, vertical_border, vertical_padding,
                                margin_color, border_color, padding_color, content_color,
                                vertical_border_color, vertical_padding_color,
-                               vertical_content_color, font)
+                               vertical_content_color, font, bar_gap)
 
-@projection struct WidgetMenuItemToGraphicsCanvas
+@projection UntrackedCell struct WidgetMenuItemToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -734,23 +566,30 @@ WidgetMenuToGraphicsCanvas(theme::WidgetTheme; measure,
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}            # font + foreground
-    label_disabled_text::ImmutableCell{StyleText}   # label when disabled (item or bound command)
+    label_text::StyleText            # font + foreground
+    label_disabled_text::StyleText   # label when disabled (item or bound command)
     layer_hovered_color::StyleColor                 # hover surface behind the item (Stage 6)
+    label_gap::Int                   # between a leading icon and the label
+    popup_gap::Int                   # below the item, where its submenu opens
+    icon_scale::Float64              # times the box of a leading icon, one line of the label
 end
 
-WidgetMenuItemToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetMenuItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                margin = inset_default, border = inset_default, padding = inset_default,
                                margin_color = color_transparent, border_color = color_transparent,
                                padding_color = color_transparent, content_color = color_transparent,
-                               label_text = theme.body_text,
-                               label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
-                               layer_hovered_color = theme.hover_layer) =
+                               label_text = _themed(StyleText, theme, _get_body_text),
+                               label_disabled_text =
+                                   _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                               layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                               label_gap = _themed(Int, theme, t -> t.label_gap),
+                               popup_gap = _themed(Int, theme, t -> t.item_gap),
+                               icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetMenuItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                    padding_color, content_color, label_text, label_disabled_text,
-                                   layer_hovered_color)
+                                   layer_hovered_color, label_gap, popup_gap, icon_scale)
 
-@projection struct WidgetToolbarItemToGraphicsCanvas
+@projection UntrackedCell struct WidgetToolbarItemToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -759,23 +598,26 @@ WidgetMenuItemToGraphicsCanvas(theme::WidgetTheme; measure,
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}            # font (the size of the icon) + foreground
-    label_disabled_text::ImmutableCell{StyleText}   # icon and label when disabled
+    label_text::StyleText            # font (the size of the icon) + foreground
+    label_disabled_text::StyleText   # icon and label when disabled
     layer_hovered_color::StyleColor                 # the layer while the pointer is on the item
+    icon_scale::Float64              # times the box of the icon, one line of the label
 end
 
-WidgetToolbarItemToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetToolbarItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                   margin = inset_default, border = inset_default, padding = inset_default,
                                   margin_color = color_transparent, border_color = color_transparent,
                                   padding_color = color_transparent, content_color = color_transparent,
-                                  label_text = theme.body_text,
-                                  label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
-                                  layer_hovered_color = theme.hover_layer) =
+                                  label_text = _themed(StyleText, theme, _get_body_text),
+                                  label_disabled_text =
+                                      _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                                  layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                                  icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetToolbarItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, label_text, label_disabled_text,
-                                      layer_hovered_color)
+                                      layer_hovered_color, icon_scale)
 
-@projection struct WidgetCompositeToGraphicsCanvas
+@projection UntrackedCell struct WidgetCompositeToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -786,15 +628,16 @@ WidgetToolbarItemToGraphicsCanvas(theme::WidgetTheme; measure,
     selection_ring_stroke::StyleStroke   # the ring around a child selected as a whole
 end
 
-WidgetCompositeToGraphicsCanvas(theme::WidgetTheme;
+WidgetCompositeToGraphicsCanvas(theme::ScaledWidgetTheme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                selection_ring_stroke = StyleStroke(theme.selection, 2)) =
+                                selection_ring_stroke =
+                                    _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width))) =
     WidgetCompositeToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                     content_color, selection_ring_stroke)
 
-@projection struct WidgetShellToGraphicsCanvas
+@projection UntrackedCell struct WidgetShellToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -810,15 +653,18 @@ WidgetCompositeToGraphicsCanvas(theme::WidgetTheme;
     capture::Base.RefValue{Any}
 end
 
-WidgetShellToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetShellToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                             margin = inset_default, border = inset_default, padding = inset_default,
-                            margin_color = color_transparent, border_color = color_transparent,
-                            padding_color = theme.background, content_color = theme.background,
-                            font = theme.font, band_gap = theme.gap) =
+                            margin_color = color_transparent,
+                            border_color = color_transparent,
+                            padding_color = _themed(StyleColor, theme, t -> t.background),
+                            content_color = _themed(StyleColor, theme, t -> t.background),
+                            font = _themed(StyleFont, theme, t -> t.font),
+                            band_gap = _themed(Int, theme, t -> t.item_gap)) =
     WidgetShellToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                 padding_color, content_color, font, band_gap, Ref{Any}(nothing))
 
-@projection struct WidgetTitlePaneToGraphicsCanvas
+@projection UntrackedCell struct WidgetTitlePaneToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -828,24 +674,24 @@ WidgetShellToGraphicsCanvas(theme::WidgetTheme; measure,
     padding_color::StyleColor
     content_color::StyleColor
     title_bar_color::StyleColor                 # fill of the title row
-    title_text::ImmutableCell{StyleText}        # bold title
-    body_text::ImmutableCell{StyleText}         # string-content body
+    title_text::StyleText        # bold title
+    body_text::StyleText         # string-content body
     title_gap::Int
 end
 
-WidgetTitlePaneToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetTitlePaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
                                 title_bar_color = color_transparent,
-                                title_text = StyleText(theme.font_bold, theme.foreground),
-                                body_text = StyleText(theme.font, theme.card_foreground),
-                                title_gap = 6) =
+                                title_text = _themed(StyleText, theme, _get_title_text),
+                                body_text = _themed(StyleText, theme, t -> StyleText(t.font, t.card_foreground)),
+                                title_gap = _themed(Int, theme, t -> t.title_gap)) =
     WidgetTitlePaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, title_bar_color, title_text, body_text,
                                     title_gap)
 
-@projection struct WidgetSplitPaneToGraphicsCanvas
+@projection UntrackedCell struct WidgetSplitPaneToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -856,15 +702,16 @@ WidgetTitlePaneToGraphicsCanvas(theme::WidgetTheme; measure,
     splitter_stroke::StyleStroke    # divider color + thickness
 end
 
-WidgetSplitPaneToGraphicsCanvas(theme::WidgetTheme;
+WidgetSplitPaneToGraphicsCanvas(theme::ScaledWidgetTheme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                splitter_stroke = StyleStroke(theme.border, theme.border_width)) =
+                                splitter_stroke =
+                                    _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
     WidgetSplitPaneToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                     content_color, splitter_stroke)
 
-@projection struct WidgetTabbedPaneToGraphicsCanvas
+@projection UntrackedCell struct WidgetTabbedPaneToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -877,30 +724,38 @@ WidgetSplitPaneToGraphicsCanvas(theme::WidgetTheme;
     tab_strip_color::StyleColor           # the tab strip's own fill
     tab_color::StyleColor                 # an unselected tab
     tab_selected_color::StyleColor        # the selected tab's raised fill
-    tab_text::ImmutableCell{StyleText}
-    tab_selected_text::ImmutableCell{StyleText}
+    tab_text::StyleText
+    tab_selected_text::StyleText
     page_color::StyleColor                # the area below the strip
     selection_ring_stroke::StyleStroke    # the ring around a page selected as a whole
     tab_padding::Int
     corner_radius::Int
+    label_gap::Int                        # between a tab's icon and its label, and before its button
+    icon_scale::Float64                   # times the box of an icon and of a button, one line
 end
 
-WidgetTabbedPaneToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetTabbedPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                  margin = inset_default, border = inset_default, padding = inset_default,
                                  margin_color = color_transparent, border_color = color_transparent,
                                  padding_color = color_transparent, content_color = color_transparent,
-                                 font = theme.font,
-                                 tab_strip_color = theme.muted, tab_color = color_transparent,
-                                 tab_selected_color = theme.background,
-                                 tab_text = StyleText(theme.font, theme.muted_foreground),
-                                 tab_selected_text = StyleText(theme.font, theme.foreground),
+                                 font = _themed(StyleFont, theme, t -> t.font),
+                                 tab_strip_color = _themed(StyleColor, theme, t -> t.muted),
+                                 tab_color = color_transparent,
+                                 tab_selected_color = _themed(StyleColor, theme, t -> t.background),
+                                 tab_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                                 tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
                                  page_color = color_transparent,
-                                 selection_ring_stroke = StyleStroke(theme.selection, 2),
-                                 tab_padding = 4, corner_radius = theme.radius) =
+                                 selection_ring_stroke =
+                                     _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width)),
+                                 tab_padding = _themed(Int, theme, t -> t.item_gap),
+                                 corner_radius = _themed(Int, theme, t -> t.radius),
+                                 label_gap = _themed(Int, theme, t -> t.label_gap),
+                                 icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetTabbedPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, font, tab_strip_color, tab_color,
                                      tab_selected_color, tab_text, tab_selected_text, page_color,
-                                     selection_ring_stroke, tab_padding, corner_radius)
+                                     selection_ring_stroke, tab_padding, corner_radius, label_gap,
+                                     icon_scale)
 
 # The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
 # pane's real width and height — a parent that MEASURES its child (a WidgetCard
@@ -913,7 +768,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme::WidgetTheme; measure,
 # second copy of the same viewport and the same coordinate arithmetic, and the
 # copies drifted — one translated every pointer event and the other only the
 # press, so a scrolled list's hover lagged the pointer by the scroll offset.
-@projection struct WidgetScrollPaneToGraphicsCanvas
+@projection UntrackedCell struct WidgetScrollPaneToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -925,14 +780,16 @@ WidgetTabbedPaneToGraphicsCanvas(theme::WidgetTheme; measure,
     font::StyleFont                  # measures the scroll step
 end
 
-WidgetScrollPaneToGraphicsCanvas(theme::WidgetTheme; measure, font = theme.font,
+WidgetScrollPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                                 font = _themed(StyleFont, theme, t -> t.font),
                                  margin = inset_default, border = inset_default, padding = inset_default,
                                  margin_color = color_transparent, border_color = color_transparent,
-                                 padding_color = color_transparent, content_color = theme.background) =
+                                 padding_color = color_transparent,
+                                 content_color = _themed(StyleColor, theme, t -> t.background)) =
     WidgetScrollPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                      content_color, font)
 
-@projection struct WidgetTransformPaneToGraphicsCanvas
+@projection UntrackedCell struct WidgetTransformPaneToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -944,14 +801,16 @@ WidgetScrollPaneToGraphicsCanvas(theme::WidgetTheme; measure, font = theme.font,
     font::StyleFont                   # measures the pan step
 end
 
-WidgetTransformPaneToGraphicsCanvas(theme::WidgetTheme; measure, font = theme.font,
+WidgetTransformPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                                    font = _themed(StyleFont, theme, t -> t.font),
                                     margin = inset_default, border = inset_default, padding = inset_default,
                                     margin_color = color_transparent, border_color = color_transparent,
-                                    padding_color = color_transparent, content_color = theme.background) =
+                                    padding_color = color_transparent,
+                                    content_color = _themed(StyleColor, theme, t -> t.background)) =
     WidgetTransformPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                         content_color, font)
 
-@projection struct WidgetToolbarToGraphicsCanvas
+@projection UntrackedCell struct WidgetToolbarToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -964,15 +823,16 @@ WidgetTransformPaneToGraphicsCanvas(theme::WidgetTheme; measure, font = theme.fo
     item_gap::Int
 end
 
-WidgetToolbarToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetToolbarToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                               margin = inset_default, border = inset_default, padding = inset_default,
                               margin_color = color_transparent, border_color = color_transparent,
                               padding_color = color_transparent, content_color = color_transparent,
-                              font = theme.font, item_gap = theme.gap) =
+                              font = _themed(StyleFont, theme, t -> t.font),
+                              item_gap = _themed(Int, theme, t -> t.item_gap)) =
     WidgetToolbarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                   padding_color, content_color, font, item_gap)
 
-@projection struct WidgetScrollBarToGraphicsCanvas
+@projection UntrackedCell struct WidgetScrollBarToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -986,12 +846,14 @@ WidgetToolbarToGraphicsCanvas(theme::WidgetTheme; measure,
     thickness::Int                # across the bar, where nothing sizes it
 end
 
-WidgetScrollBarToGraphicsCanvas(theme::WidgetTheme;
+WidgetScrollBarToGraphicsCanvas(theme::ScaledWidgetTheme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                track_color = theme.muted, thumb_color = theme.border,
-                                minimum_thumb_length = 8, thickness = 12) =
+                                track_color = _themed(StyleColor, theme, t -> t.muted),
+                                thumb_color = _themed(StyleColor, theme, t -> t.border),
+                                minimum_thumb_length = _themed(Int, theme, t -> t.scroll_thumb_minimum),
+                                thickness = _themed(Int, theme, t -> t.scroll_bar_thickness)) =
     WidgetScrollBarToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                     content_color, track_color, thumb_color, minimum_thumb_length,
                                     thickness)
@@ -1720,7 +1582,7 @@ end
 # the origin. WidgetInsertion carries no `position`/`content` value of its own,
 # so there is nothing to map; like the sibling JsonInsertion handler it is a
 # projection-introduced placeholder and its reference maps are no-ops.
-@projection struct WidgetInsertionToGraphicsCanvas
+@projection UntrackedCell struct WidgetInsertionToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -1729,14 +1591,14 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}
+    label_text::StyleText
 end
 
-WidgetInsertionToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetInsertionToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                label_text = theme.body_text) =
+                                label_text = _themed(StyleText, theme, _get_body_text)) =
     WidgetInsertionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, label_text)
 
@@ -1856,7 +1718,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx)) :
         _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), ctx)
     build = Cell(@computation begin
-        radius = _sc(p.corner_radius)
+        radius = p.corner_radius
         inner = content_iomap[].output::GraphicsCanvas
         # The box is at least as wide as the widget asks for, and always at
         # least one line tall. An empty document measures nothing in both
@@ -1975,8 +1837,8 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         checked = w.content === true
         enabled = !(w.enabled === false)
-        box_size = _sc(p.indicator_size)
-        corner_radius = _sc(p.corner_radius)
+        box_size = p.indicator_size
+        corner_radius = p.corner_radius
         inset_width, inset_height = _inset_total(p, w)
         x, y = _content_offset(p, w)
         elements = Any[]
@@ -1992,7 +1854,7 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
         else
             outline = _get_state_stroke(p, w, :indicator; state)
             _push_panel!(elements, x, y, box_size, box_size; fill=indicator_color,
-                         border=outline.color, border_w=max(1, _sc(outline.width)), radius=corner_radius)
+                         border=outline.color, border_w=max(1, Int(outline.width)), radius=corner_radius)
         end
         outer_width, outer_height = box_size + inset_width, box_size + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
@@ -2068,17 +1930,19 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         box = _get_box_insets(p, w)
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
-        # Optional leading icon (Stage 5): a square the size of the label text, with a
-        # gap before the label. An unknown icon name contributes nothing.
+        # An optional leading icon: a square of the height of the label times the icon
+        # scale, with a gap before the label. The button is as tall as the larger of
+        # the icon and the label. An unknown icon name contributes nothing.
         icon = _button_icon(w)
-        icon_sz = content_height
+        icon_sz = scale_length(content_height, p.icon_scale)
         icon_w  = icon_width(icon, icon_sz)
-        icon_gap = icon_w > 0 ? _sc(6) : 0
+        icon_gap = icon_w > 0 ? p.label_gap : 0
         full_w = icon_w + icon_gap + content_width
+        full_h = max(icon_w, content_height)
         button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + inset_width)
-        button_height = _resolve_height(ctx, Int(authored_size.y[]), content_height + inset_height)
+        button_height = _resolve_height(ctx, Int(authored_size.y[]), full_h + inset_height)
         inner_width, inner_height = button_width - inset_width, button_height - inset_height
-        corner_radius = _sc(p.corner_radius)
+        corner_radius = p.corner_radius
         # State-driven surface. The reader keeps the transient `pressed` cell
         # current, and the mouse target says whether the pointer is on the button.
         # A lit or a pressed button draws a translucent layer over its surface, so
@@ -2101,7 +1965,7 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
         # and while disabled (so it reads as inert/flat).
         if enabled && !pressed
-            _push_panel!(elements, margin_left, margin_top + _sc(p.shadow_offset), border_box_width,
+            _push_panel!(elements, margin_left, margin_top + p.shadow_offset, border_box_width,
                          border_box_height; fill = p.shadow_color, radius = corner_radius)
         end
         _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
@@ -2220,7 +2084,7 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
         vw = _resolve_overlay(ctx, :x, sz isa Point2D ? Int(sz.x[]) : 0, cw + txp)
         vh = _resolve_overlay(ctx, :y, sz isa Point2D ? Int(sz.y[]) : 0, ch + typ)
         _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), vw - txp, vh - typ;
-                         radius = _sc(p.corner_radius))
+                         radius = p.corner_radius)
         append!(elems, body)
         (width=vw, height=vh, elements=elems, child_iomaps=child_iomaps)
     end)
@@ -2243,7 +2107,7 @@ end
 
 # ── WidgetContextMenu ─────────────────────────────────────────────────────────
 
-@projection struct WidgetContextMenuToGraphicsCanvas
+@projection UntrackedCell struct WidgetContextMenuToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -2254,7 +2118,7 @@ end
     content_color::StyleColor
 end
 
-WidgetContextMenuToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetContextMenuToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                   margin = inset_default, border = inset_default, padding = inset_default,
                                   margin_color = color_transparent, border_color = color_transparent,
                                   padding_color = color_transparent, content_color = color_transparent) =
@@ -2380,7 +2244,7 @@ _open_context_menu(menu, lx, ly) =
 
 # ── WidgetDialog ──────────────────────────────────────────────────────────────
 
-@projection struct WidgetDialogToGraphicsCanvas
+@projection UntrackedCell struct WidgetDialogToGraphicsCanvas
     measure::TextMeasure
     margin::Inset                          # space around the card
     border::Inset
@@ -2389,20 +2253,26 @@ _open_context_menu(menu, lx, ly) =
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    title_text::ImmutableCell{StyleText}
-    body_text::ImmutableCell{StyleText}    # content/label fallback font + color
+    title_text::StyleText
+    body_text::StyleText    # content/label fallback font + color
     scrim_color::StyleColor
     gap::Int                               # vertical gap between title / content / buttons
     corner_radius::Int
 end
 
-WidgetDialogToGraphicsCanvas(theme::WidgetTheme; measure,
-                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                             padding = _make_control_padding(theme),
-                             margin_color = color_transparent, border_color = theme.border,
-                             padding_color = theme.card, content_color = theme.card,
-                             title_text = theme.title_text, body_text = theme.body_text,
-                             scrim_color = theme.scrim, gap = theme.gap, corner_radius = theme.radius) =
+WidgetDialogToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                             margin = inset_default,
+                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                             padding = _themed(Inset, theme, t -> t.control_padding),
+                             margin_color = color_transparent,
+                             border_color = _themed(StyleColor, theme, t -> t.border),
+                             padding_color = _themed(StyleColor, theme, t -> t.card),
+                             content_color = _themed(StyleColor, theme, t -> t.card),
+                             title_text = _themed(StyleText, theme, _get_title_text),
+                             body_text = _themed(StyleText, theme, _get_body_text),
+                             scrim_color = _themed(StyleColor, theme, t -> t.scrim),
+                             gap = _themed(Int, theme, t -> t.item_gap),
+                             corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetDialogToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                  padding_color, content_color, title_text, body_text, scrim_color,
                                  gap, corner_radius)
@@ -2429,7 +2299,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     margin_left, margin_top, _margin_right, _margin_bottom = box.margin
     border_left, border_top, border_right, border_bottom = box.border
     padding_left, padding_top, padding_right, padding_bottom = box.padding
-    gap = _sc(p.gap); radius = _sc(p.corner_radius)
+    gap = p.gap; radius = p.corner_radius
     # The dialog fills its (modal) window; the scrim covers that whole area.
     aw = ctx === nothing ? nothing : get_exact_width(ctx)
     ah = ctx === nothing ? nothing : get_exact_height(ctx)
@@ -2630,13 +2500,17 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             push!(elems, _make_canvas(content_x, content_y, Any[inner]))
         else
             text = string(content)
-            cw, ch = _text_size(p.measure, label.font, text)
-            # Optional leading icon (Stage 5), tinted to the item's foreground.
+            cw, line = _text_size(p.measure, label.font, text)
+            # An optional leading icon, tinted to the item's foreground: a square of
+            # one line times the icon scale. The row is as tall as the larger of the
+            # icon and the line, and each is centred in it.
             icon = _menu_item_icon(w)
-            icon_w = icon_width(icon, ch)
-            gap = icon_w > 0 ? _sc(6) : 0
-            icon_w > 0 && _push_icon!(elems, icon, content_x, content_y, ch, label.color)
-            _push_text!(elems, p.measure, label.font, text, content_x + icon_w + gap, content_y, label.color)
+            icon_w = icon_width(icon, scale_length(line, p.icon_scale))
+            gap = icon_w > 0 ? p.label_gap : 0
+            ch = max(icon_w, line)
+            icon_w > 0 && _push_icon!(elems, icon, content_x, content_y + (ch - icon_w) ÷ 2, icon_w, label.color)
+            _push_text!(elems, p.measure, label.font, text, content_x + icon_w + gap,
+                        content_y + (ch - line) ÷ 2, label.color)
             cw += icon_w + gap
         end
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
@@ -2698,7 +2572,7 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         # command) ⇒ inert.
         (evt.button === :left && _menu_item_enabled(w)) || return nothing
         submenu = w.submenu
-        submenu === nothing || return _open_submenu_popup(submenu, iomap)
+        submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
         # The subtree wins over the callback here (unlike a button's dialog):
         # a menu-bar entry that opens a submenu is what the item IS.
         command = _menu_item_command(w)
@@ -2716,10 +2590,9 @@ end
 # the item's own frame, which each reader above moves into its own frame, as the
 # `WidgetSelect` dropdown does. The popup window takes the extent of what the
 # submenu draws; placement beyond "below" is left to anchored-layout.md.
-function _open_submenu_popup(submenu, iomap::WidgetMenuItemToGraphicsCanvasIoMap)
-    gap = 4
+function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu, iomap::WidgetMenuItemToGraphicsCanvasIoMap)
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + gap,
+        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
                            auto_dismiss=true, content=submenu))
 end
 
@@ -2743,11 +2616,11 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         _, line = _text_size(p.measure, label.font, "M")
-        icon_size = icon_width(command.icon, line)
+        icon_size = icon_width(command.icon, scale_length(line, p.icon_scale))
         elements = Any[]
         if icon_size > 0
             _push_icon!(elements, command.icon, cox, coy, icon_size, label.color)
-            content_width, content_height = icon_size, line
+            content_width, content_height = icon_size, icon_size
         else
             text = string(command.label)
             content_width, content_height = _text_size(p.measure, label.font, text)
@@ -2900,7 +2773,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         content_x, content_y = _content_offset(p, w; variant)
         horizontal = w.orientation === :horizontal
         _, item_h = _text_size(p.measure, p.font, "M")
-        item_gap = horizontal ? 12 : 0
+        item_gap = horizontal ? p.bar_gap : 0
         child_iomaps = Any[]
         items = Any[]
         x_cursor = 0
@@ -3615,7 +3488,7 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
         body_text = _get_part_text(w, :body_text, p.body_text)
         title = string(w.title)
         tw, th = _text_size(p.measure, title_text.font, title)
-        content_y = content_y0 + th + _sc(p.title_gap)
+        content_y = content_y0 + th + p.title_gap
         content = w.content
         body_elems = Any[]
         child_iomaps = Any[]
@@ -3734,7 +3607,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     main_axis = orientation === :horizontal ? :x : :y
     sizes = w.sizes
     splitter_stroke = _get_part_stroke(w, :splitter_stroke, p.splitter_stroke)
-    splitter_thickness = max(1, _sc(splitter_stroke.width))
+    splitter_thickness = max(1, Int(splitter_stroke.width))
     splitter_color = splitter_stroke.color
 
     # Reading the slot list here is what makes the enclosing cell re-derive when a
@@ -4051,7 +3924,7 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
     n = length(child_iomaps)
     n < 2 && return nothing
     orientation = w.orientation::Symbol
-    thickness   = max(1, _sc(p.splitter_stroke.width))
+    thickness   = max(1, Int(p.splitter_stroke.width))
     active      = w.active_splitter::Int
 
     if evt isa MouseDown && evt.button === :left && active == 0
@@ -4291,27 +4164,30 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     closable = w.closable === true
     duplicable = w.duplicable === true
     tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, buttons)
-    tab_h = em_h
+    # An icon and a button are a square of one line times the icon scale, and the
+    # row is as tall as the largest of them and the line.
+    new_side = w.new_tab === true ? scale_length(em_h, p.icon_scale) : 0
+    tab_h = max(em_h, new_side)
     x = cox
     for pair in w.selector_element_pairs
         label = string(pair.selector)
         icon  = pair.icon
         tw, th = _text_size(p.measure, p.font, label)
-        iw  = icon_width(icon, th)
-        gap = iw > 0 ? _sc(6) : 0
+        iw  = icon_width(icon, scale_length(th, p.icon_scale))
+        gap = iw > 0 ? p.label_gap : 0
         buttons = _get_tab_buttons(closable, duplicable && pair.duplicable === true)
-        button_w = buttons === :none ? 0 : th
-        button_gap = button_w > 0 ? _sc(6) : 0
+        button_w = buttons === :none ? 0 : scale_length(th, p.icon_scale)
+        button_gap = button_w > 0 ? p.label_gap : 0
         rw  = tw + iw + gap + button_w + button_gap + 2 * sel_pad
         push!(tabs, (label, icon, iw, gap, x, rw, button_w, buttons))
         x += rw
-        tab_h = max(tab_h, th)
+        tab_h = max(tab_h, th, iw, button_w)
     end
     sel_h = tab_h + 2 * sel_pad
-    new_w = w.new_tab === true ? em_h + 2 * sel_pad : 0
+    new_w = w.new_tab === true ? new_side + 2 * sel_pad : 0
     strip_w = (isempty(tabs) && new_w == 0) ? 0 : (x + new_w - cox)
     (cox = cox, coy = coy, pad = sel_pad, height = sel_h, strip_w = strip_w,
-     tabs = tabs, new_x = x, new_w = new_w)
+     tabs = tabs, new_x = x, new_w = new_w, line = em_h)
 end
 
 # What the button column of a tab holds.
@@ -4353,7 +4229,8 @@ function _push_tab_buttons!(result, g, tab, color)
         _push_icon!(result, :close, icon_x, g.coy + half + (g.height - half - side) ÷ 2,
                     side, color)
     else
-        _push_icon!(result, buttons === :duplicate ? :plus : :close, x, g.coy + g.pad, w, color)
+        _push_icon!(result, buttons === :duplicate ? :plus : :close, x,
+                    g.coy + g.pad + (g.height - 2 * g.pad - w) ÷ 2, w, color)
     end
 end
 
@@ -4431,7 +4308,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         sel_pad, sel_h, tabs = g.pad, g.height, g.tabs
         active = _active_idx(get_stored_selection(w), length(tabs))
         result = Any[]
-        tab_radius = _sc(p.corner_radius)
+        tab_radius = p.corner_radius
         tab_strip_color = _get_part_color(w, :tab_strip_color, p.tab_strip_color)
         # The tab strip's own fill behind the whole tab row.
         _push_panel!(result, cox, coy, g.strip_w, sel_h; fill=tab_strip_color, radius=tab_radius)
@@ -4449,8 +4326,9 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             end
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
-            iw > 0 && _push_icon!(header, icon, tx + sel_pad, coy + sel_pad, iw, fg)
-            name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad
+            iw > 0 && _push_icon!(header, icon, tx + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - iw) ÷ 2,
+                                  iw, fg)
+            name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad + (sel_h - 2 * sel_pad - g.line) ÷ 2
             found = name_caret[]
             if found !== nothing && found[1] == i
                 push!(header, _make_canvas(name_x, name_y, Any[name_view[].output]))
@@ -4464,8 +4342,9 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                                          layout_none, true, Cell(nothing)))
         end
         # The new-tab button follows the last tab.
-        g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad,
-                                   g.new_w - 2 * sel_pad, _get_part_text(w, :tab_text, p.tab_text).color)
+        new_side = g.new_w - 2 * sel_pad
+        g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - new_side) ÷ 2,
+                                   new_side, _get_part_text(w, :tab_text, p.tab_text).color)
         result
     end)
 
@@ -5942,7 +5821,7 @@ end
 # A non-interactive bottom band: stringified `segments` laid left-to-right on a
 # muted surface, filling the available width when a parent seeded one.
 
-@projection struct WidgetStatusBarToGraphicsCanvas
+@projection UntrackedCell struct WidgetStatusBarToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -5951,15 +5830,17 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}
+    label_text::StyleText
     item_gap::Int
 end
 
-WidgetStatusBarToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetStatusBarToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
-                                padding_color = theme.muted, content_color = theme.muted,
-                                label_text = theme.caption_text, item_gap = theme.gap) =
+                                padding_color = _themed(StyleColor, theme, t -> t.muted),
+                                content_color = _themed(StyleColor, theme, t -> t.muted),
+                                label_text = _themed(StyleText, theme, _get_caption_text),
+                                item_gap = _themed(Int, theme, t -> t.item_gap)) =
     WidgetStatusBarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, label_text, item_gap)
 
@@ -5977,7 +5858,7 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
     build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         inset_width, inset_height = _inset_total(p, w)
-        item_gap = _sc(p.item_gap)
+        item_gap = p.item_gap
         label = _get_part_text(w, :label_text, p.label_text)
         labels = Any[]
         x = 0
@@ -6120,7 +6001,7 @@ end
 
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
-@projection struct WidgetBadgeToGraphicsCanvas
+@projection UntrackedCell struct WidgetBadgeToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -6129,39 +6010,47 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}
+    label_text::StyleText
     secondary_padding_color::StyleColor
     secondary_content_color::StyleColor
     secondary_border_color::StyleColor
-    secondary_label_text::ImmutableCell{StyleText}
+    secondary_label_text::StyleText
     destructive_padding_color::StyleColor
     destructive_content_color::StyleColor
     destructive_border_color::StyleColor
-    destructive_label_text::ImmutableCell{StyleText}
+    destructive_label_text::StyleText
     outline_padding_color::StyleColor
     outline_content_color::StyleColor
     outline_border_color::StyleColor
-    outline_label_text::ImmutableCell{StyleText}
+    outline_label_text::StyleText
 end
 
 # The border inset is the theme's width in every variant, so a badge keeps its
 # size when its variant changes; only the outline variant shows a visible
 # border color.
-WidgetBadgeToGraphicsCanvas(theme::WidgetTheme; measure,
-                            margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                            padding = Inset(3, 3, 10, 10),
+WidgetBadgeToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                            margin = inset_default,
+                            border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                            padding = _themed(Inset, theme, t -> t.compact_padding),
                             margin_color = color_transparent, border_color = color_transparent,
-                            padding_color = theme.primary, content_color = theme.primary,
-                            label_text = StyleText(theme.font_small, theme.primary_foreground),
-                            secondary_padding_color = theme.secondary, secondary_content_color = theme.secondary,
+                            padding_color = _themed(StyleColor, theme, t -> t.primary),
+                            content_color = _themed(StyleColor, theme, t -> t.primary),
+                            label_text = _themed(StyleText, theme, t -> StyleText(t.font_small, t.primary_foreground)),
+                            secondary_padding_color = _themed(StyleColor, theme, t -> t.secondary),
+                            secondary_content_color = _themed(StyleColor, theme, t -> t.secondary),
                             secondary_border_color = color_transparent,
-                            secondary_label_text = StyleText(theme.font_small, theme.secondary_foreground),
-                            destructive_padding_color = theme.destructive, destructive_content_color = theme.destructive,
+                            secondary_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.secondary_foreground)),
+                            destructive_padding_color = _themed(StyleColor, theme, t -> t.destructive),
+                            destructive_content_color = _themed(StyleColor, theme, t -> t.destructive),
                             destructive_border_color = color_transparent,
-                            destructive_label_text = StyleText(theme.font_small, theme.destructive_foreground),
-                            outline_padding_color = theme.background, outline_content_color = theme.background,
-                            outline_border_color = theme.border,
-                            outline_label_text = StyleText(theme.font_small, theme.foreground)) =
+                            destructive_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.destructive_foreground)),
+                            outline_padding_color = _themed(StyleColor, theme, t -> t.background),
+                            outline_content_color = _themed(StyleColor, theme, t -> t.background),
+                            outline_border_color = _themed(StyleColor, theme, t -> t.border),
+                            outline_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.foreground))) =
     WidgetBadgeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, label_text,
                                 secondary_padding_color, secondary_content_color, secondary_border_color,
@@ -6197,7 +6086,7 @@ end
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
-@projection struct WidgetSeparatorToGraphicsCanvas
+@projection UntrackedCell struct WidgetSeparatorToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -6208,11 +6097,12 @@ end
     divider_stroke::StyleStroke    # color + width of the rule
 end
 
-WidgetSeparatorToGraphicsCanvas(theme::WidgetTheme;
+WidgetSeparatorToGraphicsCanvas(theme::ScaledWidgetTheme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                divider_stroke = StyleStroke(theme.border, theme.border_width)) =
+                                divider_stroke =
+                                    _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width))) =
     WidgetSeparatorToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                     content_color, divider_stroke)
 
@@ -6222,7 +6112,7 @@ function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widget
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         rule_length = _sc(Int(w.length))
         divider_stroke = _get_state_stroke(p, w, :divider)
-        thickness = max(1, _sc(divider_stroke.width))
+        thickness = max(1, Int(divider_stroke.width))
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w)
         inset_width, inset_height = _inset_total(p, w)
@@ -6253,7 +6143,7 @@ end
 
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
-@projection struct WidgetCardToGraphicsCanvas
+@projection UntrackedCell struct WidgetCardToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -6262,10 +6152,10 @@ end
     border_color::StyleColor
     padding_color::StyleColor          # card fill, in the :card variant
     content_color::StyleColor          # card fill, in the :card variant
-    title_text::ImmutableCell{StyleText}
-    description_text::ImmutableCell{StyleText}
-    body_text::ImmutableCell{StyleText}
-    footer_text::ImmutableCell{StyleText}
+    title_text::StyleText
+    description_text::StyleText
+    body_text::StyleText
+    footer_text::StyleText
     header_color::StyleColor           # behind the title and the description
     body_color::StyleColor             # behind the content
     footer_color::StyleColor           # behind the footer
@@ -6284,19 +6174,24 @@ end
     title_gap::Int
     section_gap::Int
     chevron_size::Int                  # its half-size
+    chevron_nudge::Int                 # the mark, one pixel under the header's middle line
 end
 
-# The padding of the projection is 16 on every side, unless the card names its
-# own (`nothing` takes this default, by the rule of `_get_box_insets`).
-WidgetCardToGraphicsCanvas(theme::WidgetTheme; measure,
-                           margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                           padding = Inset(16, 16, 16, 16),
-                           margin_color = color_transparent, border_color = theme.border,
-                           padding_color = theme.card, content_color = theme.card,
-                           title_text = StyleText(theme.font_bold, theme.foreground),
-                           description_text = StyleText(theme.font_small, theme.muted_foreground),
-                           body_text = StyleText(theme.font, theme.card_foreground),
-                           footer_text = StyleText(theme.font_small, theme.muted_foreground),
+# The padding of the projection is the theme's container padding on every side,
+# unless the card names its own (`nothing` takes this default, by the rule of
+# `_get_box_insets`).
+WidgetCardToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                           margin = inset_default,
+                           border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                           padding = _themed(Inset, theme, t -> _make_uniform_inset(t.container_padding)),
+                           margin_color = color_transparent,
+                           border_color = _themed(StyleColor, theme, t -> t.border),
+                           padding_color = _themed(StyleColor, theme, t -> t.card),
+                           content_color = _themed(StyleColor, theme, t -> t.card),
+                           title_text = _themed(StyleText, theme, _get_title_text),
+                           description_text = _themed(StyleText, theme, _get_caption_text),
+                           body_text = _themed(StyleText, theme, t -> StyleText(t.font, t.card_foreground)),
+                           footer_text = _themed(StyleText, theme, _get_caption_text),
                            header_color = color_transparent, body_color = color_transparent,
                            footer_color = color_transparent,
                            # The tint is NEUTRAL, and it is a step of depth rather than a change
@@ -6310,16 +6205,23 @@ WidgetCardToGraphicsCanvas(theme::WidgetTheme; measure,
                            # Neutral leaves the role to be said by the thing that says it well: the
                            # colored mark and word on the role line.
                            tinted_border_color = color_transparent,
-                           tinted_padding_color = color_interpolate(theme.muted, theme.background, 0.5),
-                           tinted_content_color = color_interpolate(theme.muted, theme.background, 0.5),
+                           tinted_padding_color =
+                               _themed(StyleColor, theme, t -> color_interpolate(t.muted, t.background, 0.5)),
+                           tinted_content_color =
+                               _themed(StyleColor, theme, t -> color_interpolate(t.muted, t.background, 0.5)),
                            muted_border_color = color_transparent,
-                           muted_padding_color = theme.muted, muted_content_color = theme.muted,
+                           muted_padding_color = _themed(StyleColor, theme, t -> t.muted),
+                           muted_content_color = _themed(StyleColor, theme, t -> t.muted),
                            plain_border_color = color_transparent,
                            plain_padding_color = color_transparent, plain_content_color = color_transparent,
-                           chevron_color = theme.muted_foreground,
-                           selection_ring_stroke = StyleStroke(theme.selection, 2),
-                           corner_radius = theme.radius, title_gap = 4, section_gap = 10,
-                           chevron_size = theme.chevron) =
+                           chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
+                           selection_ring_stroke =
+                               _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width)),
+                           corner_radius = _themed(Int, theme, t -> t.radius),
+                           title_gap = _themed(Int, theme, t -> t.title_gap),
+                           section_gap = _themed(Int, theme, t -> t.section_gap),
+                           chevron_size = _themed(Int, theme, t -> t.chevron),
+                           chevron_nudge = _themed(Int, theme, t -> _scale_space(1, t))) =
     WidgetCardToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                content_color, title_text, description_text, body_text, footer_text,
                                header_color, body_color, footer_color,
@@ -6327,13 +6229,13 @@ WidgetCardToGraphicsCanvas(theme::WidgetTheme; measure,
                                muted_border_color, muted_padding_color, muted_content_color,
                                plain_border_color, plain_padding_color, plain_content_color,
                                chevron_color, selection_ring_stroke, corner_radius, title_gap, section_gap,
-                               chevron_size)
+                               chevron_size, chevron_nudge)
 
 # The column a collapsible card's chevron takes, left of everything else the
 # card draws: two half-sizes of the mark and the title gap. Zero for a card that
 # does not fold, or has no title to fold from.
 _card_chevron_column(p, w::WidgetCard) =
-    (w.collapsible === true && w.title !== nothing) ? 2 * _sc(p.chevron_size) + _sc(p.title_gap) : 0
+    (w.collapsible === true && w.title !== nothing) ? 2 * p.chevron_size + p.title_gap : 0
 
 # The box a card folds from, as `(x0, y0, x1, y1)`: the chevron's column, as tall
 # as the header row. `nothing` for a card that does not fold from a click. Only
@@ -6390,21 +6292,21 @@ function _card_build(p, w, ctx, tim, cim)
         if inner isa GraphicsCanvas
             header_h = Int(inner.h[])
             max_content_width = max(max_content_width, Int(inner.w[]))
-            y += header_h + _sc(p.title_gap)
+            y += header_h + p.title_gap
         else
-            y += _sc(p.title_gap)
+            y += p.title_gap
         end
     elseif w.title !== nothing
         title_width, title_height = _push_text_block!(header_elements, p.measure, title_text,
                                                       string(w.title), padding, y, text_bound)
         header_h = title_height
-        max_content_width = max(max_content_width, title_width); y += title_height + _sc(p.title_gap)
+        max_content_width = max(max_content_width, title_width); y += title_height + p.title_gap
     end
     if column > 0
-        chevron_size = _sc(p.chevron_size)
+        chevron_size = p.chevron_size
         # The mark sits one pixel under the header's middle line: a word's ink
         # sits under the middle of its box, and the mark belongs beside the ink.
-        _push_chevron!(header_elements, content_x + chevron_size, content_y + header_h ÷ 2 + _sc(1),
+        _push_chevron!(header_elements, content_x + chevron_size, content_y + header_h ÷ 2 + p.chevron_nudge,
                        chevron_size, w.collapsed === true ? :right : :down,
                        _get_state_color(p, w, :chevron))
     end
@@ -6422,7 +6324,7 @@ function _card_build(p, w, ctx, tim, cim)
             _push_text_block!(header_elements, p.measure, description_text,
                               string(w.description), padding, y, text_bound)
         max_content_width = max(max_content_width, description_width)
-        y += description_height + _sc(p.section_gap)
+        y += description_height + p.section_gap
     end
     header_bottom = y
     body_top = y
@@ -6469,7 +6371,7 @@ function _card_build(p, w, ctx, tim, cim)
     footer_top = y
     footer_text = _get_state_text(p, w, :footer)
     if w.footer !== nothing
-        y += _sc(p.section_gap)
+        y += p.section_gap
         footer_top = y
         footer_width, footer_height = _push_text_block!(footer_elements, p.measure, footer_text,
                                                         string(w.footer), padding, y, text_bound)
@@ -6488,7 +6390,7 @@ function _card_build(p, w, ctx, tim, cim)
     # the colors change. `:plain` draws no panel at all: its three box colors
     # are transparent, and `_push_box_parts!` skips a transparent part.
     surface = Any[]
-    _push_box_parts!(surface, box, colors, region_width, card_height - inset_height; radius = _sc(p.corner_radius))
+    _push_box_parts!(surface, box, colors, region_width, card_height - inset_height; radius = p.corner_radius)
     # The three regions, each a panel (transparent by default, so it costs
     # nothing) behind the elements that fill it.
     _push_panel!(surface, content_x, header_top, region_width, header_bottom - header_top;
@@ -6716,7 +6618,7 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
-@projection struct WidgetSwitchToGraphicsCanvas
+@projection UntrackedCell struct WidgetSwitchToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -6734,15 +6636,18 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
     focus_ring_stroke::StyleStroke
 end
 
-WidgetSwitchToGraphicsCanvas(theme::WidgetTheme;
+WidgetSwitchToGraphicsCanvas(theme::ScaledWidgetTheme;
                              margin = inset_default, border = inset_default, padding = inset_default,
                              margin_color = color_transparent, border_color = color_transparent,
                              padding_color = color_transparent, content_color = color_transparent,
-                             track_size = Point2D(44, 24), knob_padding = 3,
-                             track_color = theme.track_off, track_checked_color = theme.primary,
-                             track_disabled_color = theme.muted, knob_color = theme.knob,
-                             knob_stroke = StyleStroke(theme.border, theme.border_width),
-                             focus_ring_stroke = StyleStroke(theme.ring, 2)) =
+                             track_size = _themed(Point2D, theme, t -> t.switch_track),
+                             knob_padding = _themed(Int, theme, t -> t.switch_knob_padding),
+                             track_color = _themed(StyleColor, theme, t -> t.track_off),
+                             track_checked_color = _themed(StyleColor, theme, t -> t.primary),
+                             track_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             knob_color = _themed(StyleColor, theme, t -> t.knob),
+                             knob_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                             focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width))) =
     WidgetSwitchToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                  content_color, track_size, knob_padding, track_color, track_checked_color,
                                  track_disabled_color, knob_color, knob_stroke, focus_ring_stroke)
@@ -6754,8 +6659,8 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         on  = w.checked === true
         enabled = !(w.enabled === false)
         state = !enabled ? :disabled : on ? :checked : nothing
-        track_width  = _sc(Int(p.track_size.x[]))
-        track_height = _sc(Int(p.track_size.y[]))
+        track_width  = Int(p.track_size.x[])
+        track_height = Int(p.track_size.y[])
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w; state)
         inset_width, inset_height = _inset_total(p, w)
@@ -6764,14 +6669,14 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         _push_box_parts!(elements, box, colors, track_width, track_height)
         track_color = _get_state_color(p, w, :track; state)
         push!(elements, GraphicsRect(content_x, content_y, track_width, track_height; color = track_color, radius = track_height ÷ 2))
-        knob_padding = _sc(p.knob_padding)
+        knob_padding = p.knob_padding
         knob_radius  = (track_height - 2knob_padding) ÷ 2
         left_x  = content_x + knob_padding + knob_radius
         right_x = content_x + track_width - knob_padding - knob_radius
         knob_color = _get_state_color(p, w, :knob; state)
         knob_stroke = _get_state_stroke(p, w, :knob; state)
         knob = GraphicsCircle(on ? right_x : left_x, content_y + track_height ÷ 2, knob_radius; color = knob_color,
-                              border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color)
+                              border_width=max(1, Int(knob_stroke.width)), border_color=knob_stroke.color)
         # The knob snaps to its new position. A slide needs a start time on the
         # editor's clock, and the reader of the switch has no context that reaches it.
         push!(elements, knob)
@@ -6810,7 +6715,7 @@ map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothi
 
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
-@projection struct WidgetProgressToGraphicsCanvas
+@projection UntrackedCell struct WidgetProgressToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -6823,11 +6728,13 @@ map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothi
     indicator_color::StyleColor  # filled portion
 end
 
-WidgetProgressToGraphicsCanvas(theme::WidgetTheme;
+WidgetProgressToGraphicsCanvas(theme::ScaledWidgetTheme;
                                margin = inset_default, border = inset_default, padding = inset_default,
                                margin_color = color_transparent, border_color = color_transparent,
                                padding_color = color_transparent, content_color = color_transparent,
-                               bar_height = 8, track_color = theme.muted, indicator_color = theme.primary) =
+                               bar_height = _themed(Int, theme, t -> t.progress_height),
+                               track_color = _themed(StyleColor, theme, t -> t.muted),
+                               indicator_color = _themed(StyleColor, theme, t -> t.primary)) =
     WidgetProgressToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                    content_color, bar_height, track_color, indicator_color)
 
@@ -6847,7 +6754,7 @@ function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetP
         # loses to an offer, and a progress bar 700 pixels thick is not a
         # progress bar. A widget that cannot measure its own extent has authored
         # the number it draws.
-        outer_height = _resolve_height(ctx, _sc(p.bar_height) + inset_height, inset_height)
+        outer_height = _resolve_height(ctx, p.bar_height + inset_height, inset_height)
         bar_width, bar_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
         _push_box_parts!(elements, box, colors, bar_width, bar_height)
@@ -6865,7 +6772,7 @@ end
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
-@projection struct WidgetSliderToGraphicsCanvas
+@projection UntrackedCell struct WidgetSliderToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -6886,16 +6793,21 @@ end
     focus_ring_stroke::StyleStroke
 end
 
-WidgetSliderToGraphicsCanvas(theme::WidgetTheme;
+WidgetSliderToGraphicsCanvas(theme::ScaledWidgetTheme;
                              margin = inset_default, border = inset_default, padding = inset_default,
                              margin_color = color_transparent, border_color = color_transparent,
                              padding_color = color_transparent, content_color = color_transparent,
-                             height = 24, track_thickness = 4, knob_radius = 9,
-                             track_color = theme.muted, track_disabled_color = theme.muted,
-                             indicator_color = theme.primary, indicator_disabled_color = theme.muted,
-                             knob_color = theme.knob, knob_disabled_color = theme.muted,
-                             knob_stroke = StyleStroke(theme.primary, theme.stroke),
-                             focus_ring_stroke = StyleStroke(theme.ring, 2)) =
+                             height = _themed(Int, theme, t -> t.slider_height),
+                             track_thickness = _themed(Int, theme, t -> t.slider_track),
+                             knob_radius = _themed(Int, theme, t -> t.slider_knob),
+                             track_color = _themed(StyleColor, theme, t -> t.muted),
+                             track_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             indicator_color = _themed(StyleColor, theme, t -> t.primary),
+                             indicator_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             knob_color = _themed(StyleColor, theme, t -> t.knob),
+                             knob_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             knob_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.primary, t.stroke)),
+                             focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width))) =
     WidgetSliderToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                  content_color, height, track_thickness, knob_radius, track_color,
                                  track_disabled_color, indicator_color, indicator_disabled_color,
@@ -6921,9 +6833,9 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
         slider_width  = track_width
-        slider_height = _resolve_height(ctx, _sc(p.height) + inset_height, inset_height) - inset_height
+        slider_height = _resolve_height(ctx, p.height + inset_height, inset_height) - inset_height
         center_y = content_y + slider_height ÷ 2
-        track_thickness = _sc(p.track_thickness)
+        track_thickness = p.track_thickness
         filled_width = round(Int, value * slider_width)
         elements = Any[]
         _push_box_parts!(elements, box, colors, slider_width, slider_height)
@@ -6933,8 +6845,8 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         knob_stroke = _get_state_stroke(p, w, :knob; state)
         push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, slider_width, track_thickness; color = track_c, radius = track_thickness ÷ 2))
         filled_width > 0 && push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, filled_width, track_thickness; color = indicator_c, radius = track_thickness ÷ 2))
-        push!(elements, GraphicsCircle(content_x + filled_width, center_y, _sc(p.knob_radius); color = knob_c,
-                                       border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color))
+        push!(elements, GraphicsCircle(content_x + filled_width, center_y, p.knob_radius; color = knob_c,
+                                       border_width=max(1, Int(knob_stroke.width)), border_color=knob_stroke.color))
         outer_width, outer_height = slider_width + inset_width, slider_height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, slider_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
@@ -7023,7 +6935,7 @@ end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
-@projection struct WidgetRadioGroupToGraphicsCanvas
+@projection UntrackedCell struct WidgetRadioGroupToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -7032,8 +6944,8 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}          # option labels
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText          # option labels
+    label_disabled_text::StyleText
     indicator_color::StyleColor           # the circle
     indicator_stroke::StyleStroke         # the ring, unselected
     indicator_selected_stroke::StyleStroke # the ring, selected
@@ -7047,19 +6959,26 @@ end
     dot_radius::Int                # selected inner dot
 end
 
-WidgetRadioGroupToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetRadioGroupToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                  margin = inset_default, border = inset_default, padding = inset_default,
                                  margin_color = color_transparent, border_color = color_transparent,
                                  padding_color = color_transparent, content_color = color_transparent,
-                                 label_text = StyleText(theme.font, theme.foreground),
-                                 label_disabled_text = StyleText(theme.font, theme.muted_foreground),
-                                 indicator_color = theme.background,
-                                 indicator_stroke = StyleStroke(theme.input, theme.stroke),
-                                 indicator_selected_stroke = StyleStroke(theme.primary, theme.stroke),
-                                 indicator_disabled_stroke = StyleStroke(theme.muted_foreground, theme.stroke),
-                                 dot_color = theme.primary, dot_disabled_color = theme.muted_foreground,
-                                 focus_ring_stroke = StyleStroke(theme.ring, 2),
-                                 button_size = 18, label_gap = 10, row_gap = 12, dot_radius = 5) =
+                                 label_text = _themed(StyleText, theme, _get_body_text),
+                                 label_disabled_text =
+                                     _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                                 indicator_color = _themed(StyleColor, theme, t -> t.background),
+                                 indicator_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.input, t.stroke)),
+                                 indicator_selected_stroke =
+                                     _themed(StyleStroke, theme, t -> StyleStroke(t.primary, t.stroke)),
+                                 indicator_disabled_stroke =
+                                     _themed(StyleStroke, theme, t -> StyleStroke(t.muted_foreground, t.stroke)),
+                                 dot_color = _themed(StyleColor, theme, t -> t.primary),
+                                 dot_disabled_color = _themed(StyleColor, theme, t -> t.muted_foreground),
+                                 focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                                 button_size = _themed(Int, theme, t -> t.indicator_size),
+                                 label_gap = _themed(Int, theme, t -> t.label_gap),
+                                 row_gap = _themed(Int, theme, t -> t.section_gap),
+                                 dot_radius = _themed(Int, theme, t -> t.indicator_dot)) =
     WidgetRadioGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, label_text, label_disabled_text,
                                      indicator_color, indicator_stroke, indicator_selected_stroke,
@@ -7082,9 +7001,9 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
         selected = Int(w.selected)
-        diameter = _sc(p.button_size)
-        label_gap = _sc(p.label_gap)
-        row_gap = _sc(p.row_gap)
+        diameter = p.button_size
+        label_gap = p.label_gap
+        row_gap = p.row_gap
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w)
         inset_width, inset_height = _inset_total(p, w)
@@ -7118,10 +7037,10 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
             indicator_color = _get_state_color(p, w, :indicator; state)
             indicator_stroke = _get_state_stroke(p, w, :indicator; state)
             push!(elements, GraphicsCircle(cx, center_y, diameter ÷ 2; color = indicator_color,
-                                           border_width=max(1, _sc(indicator_stroke.width)), border_color=indicator_stroke.color))
+                                           border_width=max(1, Int(indicator_stroke.width)), border_color=indicator_stroke.color))
             if i == selected
                 dot_color = _get_state_color(p, w, :dot; state)
-                push!(elements, GraphicsCircle(cx, center_y, _sc(p.dot_radius); color = dot_color))
+                push!(elements, GraphicsCircle(cx, center_y, p.dot_radius; color = dot_color))
             end
             _push_text!(elements, p.measure, label.font, label_str, content_x + diameter + label_gap,
                        content_y + row_y + (row_height - label_height) ÷ 2, label.color)
@@ -7178,7 +7097,7 @@ end
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
-@projection struct WidgetAvatarToGraphicsCanvas
+@projection UntrackedCell struct WidgetAvatarToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -7187,14 +7106,15 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor      # circle fill
-    label_text::ImmutableCell{StyleText}          # font + color of the initials
+    label_text::StyleText          # font + color of the initials
 end
 
-WidgetAvatarToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetAvatarToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                              margin = inset_default, border = inset_default, padding = inset_default,
                              margin_color = color_transparent, border_color = color_transparent,
-                             padding_color = color_transparent, content_color = theme.muted,
-                             label_text = StyleText(theme.font, theme.muted_foreground)) =
+                             padding_color = color_transparent,
+                             content_color = _themed(StyleColor, theme, t -> t.muted),
+                             label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground))) =
     WidgetAvatarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                  content_color, label_text)
 
@@ -7225,7 +7145,7 @@ end
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
-@projection struct WidgetAlertToGraphicsCanvas
+@projection UntrackedCell struct WidgetAlertToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -7234,27 +7154,37 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    title_text::ImmutableCell{StyleText}
-    description_text::ImmutableCell{StyleText}        # muted description
+    title_text::StyleText
+    description_text::StyleText        # muted description
     destructive_border_color::StyleColor
-    destructive_title_text::ImmutableCell{StyleText}
+    destructive_title_text::StyleText
     title_gap::Int                     # gap between title and description
     corner_radius::Int
+    label_gap::Int                     # gap between the icon and the title
+    icon_scale::Float64                # times the box of the icon, one line of the title
 end
 
-WidgetAlertToGraphicsCanvas(theme::WidgetTheme; measure,
-                            margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                            padding = Inset(14, 14, 14, 14),
-                            margin_color = color_transparent, border_color = theme.border,
-                            padding_color = theme.background, content_color = theme.background,
-                            title_text = StyleText(theme.font_bold, theme.foreground),
-                            description_text = StyleText(theme.font_small, theme.muted_foreground),
-                            destructive_border_color = theme.destructive,
-                            destructive_title_text = StyleText(theme.font_bold, theme.destructive),
-                            title_gap = 4, corner_radius = theme.radius) =
+WidgetAlertToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                            margin = inset_default,
+                            border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                            padding = _themed(Inset, theme, t -> _make_uniform_inset(t.container_padding)),
+                            margin_color = color_transparent,
+                            border_color = _themed(StyleColor, theme, t -> t.border),
+                            padding_color = _themed(StyleColor, theme, t -> t.background),
+                            content_color = _themed(StyleColor, theme, t -> t.background),
+                            title_text = _themed(StyleText, theme, _get_title_text),
+                            description_text = _themed(StyleText, theme, _get_caption_text),
+                            destructive_border_color = _themed(StyleColor, theme, t -> t.destructive),
+                            destructive_title_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_bold, t.destructive)),
+                            title_gap = _themed(Int, theme, t -> t.title_gap),
+                            corner_radius = _themed(Int, theme, t -> t.radius),
+                            label_gap = _themed(Int, theme, t -> t.label_gap),
+                            icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetAlertToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, title_text, description_text, destructive_border_color,
-                                destructive_title_text, title_gap, corner_radius)
+                                destructive_title_text, title_gap, corner_radius, label_gap,
+                                icon_scale)
 
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -7272,14 +7202,19 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         y = content_y
         title_string = string(w.title)
         title_width, title_height = _text_size(p.measure, title.font, title_string)
-        # The icon stands before the title, as tall as it and in its color.
-        icon_size = icon_width(w.icon, title_height)
-        icon_gap = icon_size > 0 ? _sc(8) : 0
-        icon_size > 0 && _push_icon!(elements, w.icon, content_x, y, icon_size, title.color)
-        _push_text!(elements, p.measure, title.font, title_string, content_x + icon_size + icon_gap, y, title.color)
-        max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += title_height
+        # The icon stands before the title, in its color: a square of the height of
+        # the title times the icon scale. The row is as tall as the larger of the
+        # icon and the title, and each is centred in it.
+        icon_size = icon_width(w.icon, scale_length(title_height, p.icon_scale))
+        icon_gap = icon_size > 0 ? p.label_gap : 0
+        row_height = max(icon_size, title_height)
+        icon_size > 0 && _push_icon!(elements, w.icon, content_x, y + (row_height - icon_size) ÷ 2, icon_size,
+                                     title.color)
+        _push_text!(elements, p.measure, title.font, title_string, content_x + icon_size + icon_gap,
+                    y + (row_height - title_height) ÷ 2, title.color)
+        max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += row_height
         if w.description !== nothing
-            y += _sc(p.title_gap)
+            y += p.title_gap
             description_string = string(w.description)
             description_width, description_height = _text_size(p.measure, description.font, description_string)
             _push_text!(elements, p.measure, description.font, description_string, content_x, y, description.color)
@@ -7290,7 +7225,7 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         alert_height = _resolve_height(ctx, 0, y + bottom_inset)
         surface = Any[]
         _push_box_parts!(surface, box, colors, alert_width - inset_width, alert_height - inset_height;
-                         radius = _sc(p.corner_radius))
+                         radius = p.corner_radius)
         append!(surface, elements)
         (width=alert_width, height=alert_height, elements=surface)
     end))
@@ -7299,25 +7234,22 @@ end
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
-# The same colour at a different alpha — what makes a highlight read *over* the
-# surface it covers rather than replacing it.
-_with_alpha(color::StyleColor, alpha::Real) =
-    StyleColor(color.red, color.green, color.blue, Float64(alpha))
 
 # The drop-indicator surface: a translucent accent fill under a solid accent
 # outline, so the called-out area reads over whatever it covers. It marks an
 # area its caller sizes, so it keeps no insets (D11): a margin would move the
 # mark away from that area.
-@projection struct WidgetHighlightToGraphicsCanvas
+@projection UntrackedCell struct WidgetHighlightToGraphicsCanvas
     content_color::StyleColor
     border_stroke::StyleStroke
     corner_radius::Int
 end
 
-WidgetHighlightToGraphicsCanvas(theme::WidgetTheme;
-                                content_color = _with_alpha(theme.primary, 0.25),
-                                border_stroke = StyleStroke(theme.primary, 2),
-                                corner_radius = 6) =
+WidgetHighlightToGraphicsCanvas(theme::ScaledWidgetTheme;
+                                content_color = _themed(StyleColor, theme, t -> _with_alpha(t.primary, 0.25)),
+                                border_stroke =
+                                    _themed(StyleStroke, theme, t -> StyleStroke(t.primary, t.ring_width)),
+                                corner_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetHighlightToGraphicsCanvas(content_color, border_stroke, corner_radius)
 
 # Everything here is read **inside** a cell, `position` and `visible` included: a
@@ -7336,15 +7268,15 @@ function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::Widget
         (cw <= 0 || ch <= 0) && return Any[]
         content_color = _get_state_color(p, w, :content)
         border_stroke = _get_state_stroke(p, w, :border)
-        Any[GraphicsRect(0, 0, cw, ch; color = content_color, radius = _sc(p.corner_radius),
-                         border_width = _sc(border_stroke.width), border_color = border_stroke.color)]
+        Any[GraphicsRect(0, 0, cw, ch; color = content_color, radius = p.corner_radius,
+                         border_width = Int(border_stroke.width), border_color = border_stroke.color)]
     end)
     SimpleIoMap(p, w, GraphicsCanvas(x, y, width, height, elements,
                                      layout_none, true, Cell(nothing)))
 end
 @_printer_only WidgetHighlightToGraphicsCanvas
 
-@projection struct WidgetSkeletonToGraphicsCanvas
+@projection UntrackedCell struct WidgetSkeletonToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -7355,13 +7287,14 @@ end
     corner_radius::Int
 end
 
-WidgetSkeletonToGraphicsCanvas(theme::WidgetTheme;
+WidgetSkeletonToGraphicsCanvas(theme::ScaledWidgetTheme;
                                margin = inset_default, border = inset_default, padding = inset_default,
                                margin_color = color_transparent, border_color = color_transparent,
                                # The padding and the content share the muted default (§4.4), so the
                                # block is one rounded surface, as it is with no padding inset drawn.
-                               padding_color = theme.muted, content_color = theme.muted,
-                               corner_radius = 6) =
+                               padding_color = _themed(StyleColor, theme, t -> t.muted),
+                               content_color = _themed(StyleColor, theme, t -> t.muted),
+                               corner_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetSkeletonToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                    content_color, corner_radius)
 
@@ -7375,7 +7308,7 @@ function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetS
         colors = _get_box_colors(p, w)
         inset_width, inset_height = _inset_total(p, w)
         elements = Any[]
-        _push_box_parts!(elements, box, colors, block_width, block_height; radius = _sc(p.corner_radius))
+        _push_box_parts!(elements, box, colors, block_width, block_height; radius = p.corner_radius)
         (width=block_width + inset_width, height=block_height + inset_height, elements=elements)
     end))
 end
@@ -7555,7 +7488,7 @@ end
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
-@projection struct WidgetToggleToGraphicsCanvas
+@projection UntrackedCell struct WidgetToggleToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -7569,26 +7502,33 @@ end
     content_checked_color::StyleColor
     padding_disabled_color::StyleColor
     content_disabled_color::StyleColor
-    label_text::ImmutableCell{StyleText}
-    label_checked_text::ImmutableCell{StyleText}
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText
+    label_checked_text::StyleText
+    label_disabled_text::StyleText
     focus_ring_stroke::StyleStroke
     corner_radius::Int
 end
 
-WidgetToggleToGraphicsCanvas(theme::WidgetTheme; measure,
-                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                             padding = _make_control_padding(theme),
-                             margin_color = color_transparent, border_color = theme.border,
-                             padding_color = theme.background, content_color = theme.background,
+WidgetToggleToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                             margin = inset_default,
+                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                             padding = _themed(Inset, theme, t -> t.control_padding),
+                             margin_color = color_transparent,
+                             border_color = _themed(StyleColor, theme, t -> t.border),
+                             padding_color = _themed(StyleColor, theme, t -> t.background),
+                             content_color = _themed(StyleColor, theme, t -> t.background),
                              border_checked_color = color_transparent,
-                             padding_checked_color = theme.accent, content_checked_color = theme.accent,
-                             padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
-                             label_text = StyleText(theme.font, theme.foreground),
-                             label_checked_text = StyleText(theme.font, theme.accent_foreground),
-                             label_disabled_text = StyleText(theme.font, theme.muted_foreground),
-                             focus_ring_stroke = StyleStroke(theme.ring, 2),
-                             corner_radius = theme.radius) =
+                             padding_checked_color = _themed(StyleColor, theme, t -> t.accent),
+                             content_checked_color = _themed(StyleColor, theme, t -> t.accent),
+                             padding_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             content_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             label_text = _themed(StyleText, theme, _get_body_text),
+                             label_checked_text =
+                                 _themed(StyleText, theme, t -> StyleText(t.font, t.accent_foreground)),
+                             label_disabled_text =
+                                 _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                             focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                             corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetToggleToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                  padding_color, content_color, border_checked_color, padding_checked_color,
                                  content_checked_color, padding_disabled_color, content_disabled_color,
@@ -7612,7 +7552,7 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         outer_width  = _resolve_width(ctx, 0, text_width + inset_width)
         outer_height = _resolve_height(ctx, 0, text_height + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
-        radius = _sc(p.corner_radius)
+        radius = p.corner_radius
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
         _push_text!(elements, p.measure, label.font, text, content_x + (content_width - text_width) ÷ 2,
@@ -7638,7 +7578,7 @@ end
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
-@projection struct WidgetToggleGroupToGraphicsCanvas
+@projection UntrackedCell struct WidgetToggleGroupToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -7652,28 +7592,34 @@ end
     segment_color::StyleColor          # unselected segment fill
     segment_selected_color::StyleColor # raised segment fill
     segment_disabled_color::StyleColor
-    label_text::ImmutableCell{StyleText}
-    label_selected_text::ImmutableCell{StyleText}
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText
+    label_selected_text::StyleText
+    label_disabled_text::StyleText
     segment_padding::Inset             # a segment's own text padding
     focus_ring_stroke::StyleStroke
     corner_radius::Int
 end
 
-WidgetToggleGroupToGraphicsCanvas(theme::WidgetTheme; measure,
-                                  margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                                  padding = _make_uniform_inset(2),
-                                  margin_color = color_transparent, border_color = theme.border,
-                                  padding_color = theme.muted, content_color = theme.muted,
-                                  padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
-                                  segment_color = color_transparent, segment_selected_color = theme.background,
-                                  segment_disabled_color = theme.muted,
-                                  label_text = StyleText(theme.font, theme.muted_foreground),
-                                  label_selected_text = StyleText(theme.font, theme.foreground),
-                                  label_disabled_text = StyleText(theme.font, theme.muted_foreground),
-                                  segment_padding = _make_control_padding(theme),
-                                  focus_ring_stroke = StyleStroke(theme.ring, 2),
-                                  corner_radius = theme.radius) =
+WidgetToggleGroupToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                                  margin = inset_default,
+                                  border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                                  padding = _themed(Inset, theme, t -> _make_uniform_inset(_scale_space(2, t))),
+                                  margin_color = color_transparent,
+                                  border_color = _themed(StyleColor, theme, t -> t.border),
+                                  padding_color = _themed(StyleColor, theme, t -> t.muted),
+                                  content_color = _themed(StyleColor, theme, t -> t.muted),
+                                  padding_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                                  content_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                                  segment_color = color_transparent,
+                                  segment_selected_color = _themed(StyleColor, theme, t -> t.background),
+                                  segment_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                                  label_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                                  label_selected_text = _themed(StyleText, theme, _get_body_text),
+                                  label_disabled_text =
+                                      _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                                  segment_padding = _themed(Inset, theme, t -> t.control_padding),
+                                  focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                                  corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetToggleGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, padding_disabled_color, content_disabled_color,
                                       segment_color, segment_selected_color, segment_disabled_color,
@@ -7704,8 +7650,8 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
         colors = _get_box_colors(p, w; state)
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
-        segment_padding_x = _sc(Int(p.segment_padding.left[]))
-        segment_padding_y = _sc(Int(p.segment_padding.top[]))
+        segment_padding_x = Int(p.segment_padding.left[])
+        segment_padding_y = Int(p.segment_padding.top[])
         labels = [string(o) for o in w.options]
         _, text_height = _text_size(p.measure, p.label_text.font, "M")
         # The segments divide what the control was given, and the control IS its
@@ -7729,7 +7675,7 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
                           gap = 0, n = segment_count)
         content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
         content_width  = sum(segment_widths; init=0)
-        corner_radius = _sc(p.corner_radius)
+        corner_radius = p.corner_radius
         # The content radius, less the border and the padding that lie between
         # it and the rounded outline — the same rule `_push_box_parts!` applies
         # to its own content part.
@@ -7818,7 +7764,7 @@ end
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
-@projection struct WidgetSelectToGraphicsCanvas
+@projection UntrackedCell struct WidgetSelectToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -7829,30 +7775,39 @@ end
     content_color::StyleColor
     padding_disabled_color::StyleColor
     content_disabled_color::StyleColor
-    label_text::ImmutableCell{StyleText}            # value font + color
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText            # value font + color
+    label_disabled_text::StyleText
     chevron_color::StyleColor          # the mark that opens the list
     focus_ring_stroke::StyleStroke     # focus ring when selected
     gap::Int                   # space between value and chevron
     chevron_size::Int
     corner_radius::Int
+    popup_gap::Int              # below the box, where the dropdown opens
 end
 
-WidgetSelectToGraphicsCanvas(theme::WidgetTheme; measure,
-                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                             padding = _make_control_padding(theme),
-                             margin_color = color_transparent, border_color = theme.input,
-                             padding_color = theme.background, content_color = theme.background,
-                             padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
-                             label_text = theme.body_text,
-                             label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
-                             chevron_color = theme.muted_foreground,
-                             focus_ring_stroke = StyleStroke(theme.ring, 2),
-                             gap = theme.gap, chevron_size = theme.chevron, corner_radius = theme.radius) =
+WidgetSelectToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                             margin = inset_default,
+                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                             padding = _themed(Inset, theme, t -> t.control_padding),
+                             margin_color = color_transparent,
+                             border_color = _themed(StyleColor, theme, t -> t.input),
+                             padding_color = _themed(StyleColor, theme, t -> t.background),
+                             content_color = _themed(StyleColor, theme, t -> t.background),
+                             padding_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             content_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                             label_text = _themed(StyleText, theme, _get_body_text),
+                             label_disabled_text =
+                                 _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                             chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
+                             focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                             gap = _themed(Int, theme, t -> t.item_gap),
+                             chevron_size = _themed(Int, theme, t -> t.chevron),
+                             corner_radius = _themed(Int, theme, t -> t.radius),
+                             popup_gap = _themed(Int, theme, t -> t.item_gap)) =
     WidgetSelectToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                  content_color, padding_disabled_color, content_disabled_color, label_text,
                                  label_disabled_text, chevron_color, focus_ring_stroke, gap, chevron_size,
-                                 corner_radius)
+                                 corner_radius, popup_gap)
 
 # Carries the rendered box size, so the reader can open the dropdown popup under
 # the box, in its own frame. `control_width` fixes the popup width to the box;
@@ -7880,14 +7835,14 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
         content_x, content_y = _content_offset(p, w)
         label = _get_state_text(p, w, :label; state)
         text_width, text_height = _text_size(p.measure, label.font, text)
-        chevron_size = _sc(p.chevron_size)
+        chevron_size = p.chevron_size
         # Fit the value text, a gap and the trailing chevron; the box's own
         # padding is already in `inset_width`.
-        content_min = text_width + _sc(p.gap) + 2chevron_size
+        content_min = text_width + p.gap + 2chevron_size
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), content_min + inset_width)
         outer_height = _resolve_height(ctx, 0, text_height + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
-        radius = _sc(p.corner_radius)
+        radius = p.corner_radius
         chevron_color = _get_state_color(p, w, :chevron; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
@@ -7918,7 +7873,7 @@ function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraph
     w = iomap.input
     w.enabled === false && return nothing
     @gesture_case evt begin
-        MouseClick(button, x, y) => button === :left ? _open_select_popup(w, iomap) : nothing
+        MouseClick(button, x, y) => button === :left ? _open_select_popup(p, w, iomap) : nothing
         _ => nothing
     end
 end
@@ -7927,13 +7882,13 @@ end
 # selectable value, each pointing back at this select for the value write), so it
 # draws the popover of a menu, wrapped in an `OpenPopupOperation` under the box.
 # No options ⇒ nothing to open.
-function _open_select_popup(w::WidgetSelect, iomap::WidgetSelectToGraphicsCanvasIoMap)
+function _open_select_popup(p::WidgetSelectToGraphicsCanvas, w::WidgetSelect,
+                            iomap::WidgetSelectToGraphicsCanvasIoMap)
     opts = collect(w.options)
     isempty(opts) && return nothing
-    gap = 4
     items = Any[WidgetOption(w, opt; width=iomap.control_width) for opt in opts]
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + gap,
+        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
                            auto_dismiss=true, content=WidgetMenu(items)))
 end
 
@@ -7941,7 +7896,7 @@ end
 # One row of an open select dropdown. A plain label on a flat surface; a left
 # click writes the value back to the target select and dismisses the popup.
 
-@projection struct WidgetOptionToGraphicsCanvas
+@projection UntrackedCell struct WidgetOptionToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -7950,17 +7905,18 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}
+    label_text::StyleText
     layer_hovered_color::StyleColor   # over the surface while the option is hovered
 end
 
-WidgetOptionToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetOptionToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                              margin = inset_default, border = inset_default,
-                             padding = _make_control_padding(theme),
+                             padding = _themed(Inset, theme, t -> t.control_padding),
                              margin_color = color_transparent, border_color = color_transparent,
-                             padding_color = theme.background, content_color = theme.background,
-                             label_text = theme.body_text,
-                             layer_hovered_color = theme.hover_layer) =
+                             padding_color = _themed(StyleColor, theme, t -> t.background),
+                             content_color = _themed(StyleColor, theme, t -> t.background),
+                             label_text = _themed(StyleText, theme, _get_body_text),
+                             layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer)) =
     WidgetOptionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                  padding_color, content_color, label_text, layer_hovered_color)
 
@@ -8010,7 +7966,7 @@ end
 
 _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v > hi) ? hi : v)
 
-@projection struct WidgetSpinBoxToGraphicsCanvas
+@projection UntrackedCell struct WidgetSpinBoxToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -8021,31 +7977,44 @@ _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v
     content_color::StyleColor
     padding_disabled_color::StyleColor
     content_disabled_color::StyleColor
-    label_text::ImmutableCell{StyleText}
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText
+    label_disabled_text::StyleText
     stepper_color::StyleColor           # the + and − marks
     stepper_disabled_color::StyleColor
     divider_stroke::StyleStroke         # the line beside the steppers
     focus_ring_stroke::StyleStroke
     corner_radius::Int
+    glyph_inset::Int                    # the + and − marks, in from the stepper column's edge
+    glyph_minimum::Int                  # the + and − marks never shrink under this
 end
 
-WidgetSpinBoxToGraphicsCanvas(theme::WidgetTheme; measure,
-                              margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                              padding = Inset(theme.pad_y, theme.pad_y, theme.pad_x, 0),
-                              margin_color = color_transparent, border_color = theme.input,
-                              padding_color = theme.background, content_color = theme.background,
-                              padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
-                              label_text = theme.body_text,
-                              label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
-                              stepper_color = theme.foreground, stepper_disabled_color = theme.muted_foreground,
-                              divider_stroke = StyleStroke(theme.input, theme.border_width),
-                              focus_ring_stroke = StyleStroke(theme.ring, 2),
-                              corner_radius = theme.radius) =
+WidgetSpinBoxToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                              margin = inset_default,
+                              border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                              padding = _themed(Inset, theme,
+                                  t -> Inset(t.control_padding.top[], t.control_padding.bottom[],
+                                            t.control_padding.left[], 0)),
+                              margin_color = color_transparent,
+                              border_color = _themed(StyleColor, theme, t -> t.input),
+                              padding_color = _themed(StyleColor, theme, t -> t.background),
+                              content_color = _themed(StyleColor, theme, t -> t.background),
+                              padding_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                              content_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                              label_text = _themed(StyleText, theme, _get_body_text),
+                              label_disabled_text =
+                                  _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                              stepper_color = _themed(StyleColor, theme, t -> t.foreground),
+                              stepper_disabled_color = _themed(StyleColor, theme, t -> t.muted_foreground),
+                              divider_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.input, t.border_width)),
+                              focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                              corner_radius = _themed(Int, theme, t -> t.radius),
+                              glyph_inset = _themed(Int, theme, t -> _scale_space(3, t)),
+                              glyph_minimum =
+                                  _themed(Int, theme, t -> scale_length(8, get_theme_appearance(t).icon_scale))) =
     WidgetSpinBoxToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                   content_color, padding_disabled_color, content_disabled_color, label_text,
                                   label_disabled_text, stepper_color, stepper_disabled_color, divider_stroke,
-                                  focus_ring_stroke, corner_radius)
+                                  focus_ring_stroke, corner_radius, glyph_inset, glyph_minimum)
 
 # @iomap so the reader reads control_width/control_height/stepper_w transparently
 # (extent shared from the build cell); PAR-STABLE-IOMAP-IDENTITY.
@@ -8082,7 +8051,7 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         gap = box.padding[1]
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), tw + gap + stepper_w + inset_width)
         content_width = outer_width - inset_width
-        radius = _sc(p.corner_radius)
+        radius = p.corner_radius
         step_color = _get_state_color(p, w, :stepper; state)
         divider_stroke = _get_state_stroke(p, w, :divider; state)
         elements = Any[]
@@ -8090,9 +8059,9 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         _push_text!(elements, p.measure, label.font, text, content_x, content_y + (content_height - th) ÷ 2, label.color)
         sx = content_x + content_width - stepper_w
         sy = content_y - padding_top
-        dw = max(1, _sc(divider_stroke.width))
+        dw = max(1, Int(divider_stroke.width))
         push!(elements, GraphicsLine(sx, sy, sx, sy + stepper_w; color = divider_stroke.color, width=dw))
-        isz = max(8, stepper_w ÷ 2 - _sc(3))
+        isz = max(p.glyph_minimum, stepper_w ÷ 2 - p.glyph_inset)
         ix = sx + (stepper_w - isz) ÷ 2
         _push_icon!(elements, :plus,  ix, sy + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
         _push_icon!(elements, :minus, ix, sy + stepper_w ÷ 2 + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
@@ -8132,7 +8101,7 @@ end
 
 # ── WidgetList (Stage 6) ──────────────────────────────────────────────────────
 
-@projection struct WidgetListToGraphicsCanvas
+@projection UntrackedCell struct WidgetListToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -8141,23 +8110,26 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}
+    label_text::StyleText
     row_selected_color::StyleColor      # the band of the selected row
     layer_hovered_color::StyleColor     # over a hovered row, behind the band
     row_padding::Inset                  # a row's own text padding
     corner_radius::Int
 end
 
-WidgetListToGraphicsCanvas(theme::WidgetTheme; measure,
-                           margin = inset_default, border = _make_uniform_inset(theme.border_width),
+WidgetListToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                           margin = inset_default,
+                           border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                            padding = inset_default,
-                           margin_color = color_transparent, border_color = theme.border,
-                           padding_color = theme.background, content_color = theme.background,
-                           label_text = theme.body_text,
-                           row_selected_color = _with_alpha(theme.selection, 0.25),
-                           layer_hovered_color = theme.hover_layer,
-                           row_padding = _make_control_padding(theme),
-                           corner_radius = theme.radius) =
+                           margin_color = color_transparent,
+                           border_color = _themed(StyleColor, theme, t -> t.border),
+                           padding_color = _themed(StyleColor, theme, t -> t.background),
+                           content_color = _themed(StyleColor, theme, t -> t.background),
+                           label_text = _themed(StyleText, theme, _get_body_text),
+                           row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
+                           layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                           row_padding = _themed(Inset, theme, t -> t.control_padding),
+                           corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetListToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                content_color, label_text, row_selected_color, layer_hovered_color,
                                row_padding, corner_radius)
@@ -8177,7 +8149,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     build = Cell(@computation begin
-        row_pad_x = _sc(Int(p.row_padding.left[])); row_pad_y = _sc(Int(p.row_padding.top[]))
+        row_pad_x = Int(p.row_padding.left[]); row_pad_y = Int(p.row_padding.top[])
         items = collect(w.items)
         n = length(items)
         box = _get_box_insets(p, w)
@@ -8195,7 +8167,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic + inset_width)
         outer_height = _resolve_height(ctx, 0, max(row_height, n * row_height) + inset_height)
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
-        radius = _sc(p.corner_radius)
+        radius = p.corner_radius
         sel = get_widget_list_selected(w)
         enabled = !(w.enabled === false)
         lit_row = enabled ? _widget_element_selected(get_mouse_target(w), "items") : 0
@@ -8291,7 +8263,7 @@ end
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
-@projection struct WidgetTextareaToGraphicsCanvas
+@projection UntrackedCell struct WidgetTextareaToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -8302,22 +8274,27 @@ end
     content_color::StyleColor
     padding_disabled_color::StyleColor
     content_disabled_color::StyleColor
-    label_text::ImmutableCell{StyleText}            # content font + color
-    label_disabled_text::ImmutableCell{StyleText}
+    label_text::StyleText            # content font + color
+    label_disabled_text::StyleText
     focus_ring_stroke::StyleStroke      # focus ring when selected
     corner_radius::Int
 end
 
-WidgetTextareaToGraphicsCanvas(theme::WidgetTheme; measure,
-                               margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                               padding = _make_control_padding(theme),
-                               margin_color = color_transparent, border_color = theme.input,
-                               padding_color = theme.background, content_color = theme.background,
-                               padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
-                               label_text = theme.body_text,
-                               label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
-                               focus_ring_stroke = StyleStroke(theme.ring, 2),
-                               corner_radius = theme.radius) =
+WidgetTextareaToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
+                               margin = inset_default,
+                               border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                               padding = _themed(Inset, theme, t -> t.control_padding),
+                               margin_color = color_transparent,
+                               border_color = _themed(StyleColor, theme, t -> t.input),
+                               padding_color = _themed(StyleColor, theme, t -> t.background),
+                               content_color = _themed(StyleColor, theme, t -> t.background),
+                               padding_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                               content_disabled_color = _themed(StyleColor, theme, t -> t.muted),
+                               label_text = _themed(StyleText, theme, _get_body_text),
+                               label_disabled_text =
+                                   _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                               focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                               corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetTextareaToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                    padding_color, content_color, padding_disabled_color,
                                    content_disabled_color, label_text, label_disabled_text,
@@ -8361,7 +8338,7 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
             max(Int(w.rows) * line_height, text_height) + inset_height : 0
         outer_height = _resolve_height(ctx, authored_height, text_height + inset_height)
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), Int(inner.w[]) + inset_width)
-        radius = _sc(p.corner_radius)
+        radius = p.corner_radius
         elements = Any[]
         _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height;
                          radius)
@@ -8403,7 +8380,7 @@ end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
-@projection struct WidgetAccordionToGraphicsCanvas
+@projection UntrackedCell struct WidgetAccordionToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -8412,8 +8389,8 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    title_text::ImmutableCell{StyleText}        # bold title
-    body_text::ImmutableCell{StyleText}          # muted body
+    title_text::StyleText        # bold title
+    body_text::StyleText          # muted body
     divider_stroke::StyleStroke   # hairline between items
     chevron_color::StyleColor     # the mark that opens a section
     item_padding::Inset           # a row's own horizontal + vertical padding
@@ -8422,16 +8399,18 @@ end
     chevron_size::Int
 end
 
-WidgetAccordionToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetAccordionToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                title_text = StyleText(theme.font_bold, theme.foreground),
-                                body_text = StyleText(theme.font_small, theme.muted_foreground),
-                                divider_stroke = StyleStroke(theme.border, theme.border_width),
-                                chevron_color = theme.muted_foreground,
-                                item_padding = Inset(10, 10, theme.pad_x, theme.pad_x),
-                                gap = theme.gap, body_gap = 2, chevron_size = theme.chevron) =
+                                title_text = _themed(StyleText, theme, _get_title_text),
+                                body_text = _themed(StyleText, theme, _get_caption_text),
+                                divider_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                                chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
+                                item_padding = _themed(Inset, theme, t -> t.control_padding),
+                                gap = _themed(Int, theme, t -> t.item_gap),
+                                body_gap = _themed(Int, theme, t -> _scale_space(2, t)),
+                                chevron_size = _themed(Int, theme, t -> t.chevron)) =
     WidgetAccordionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, title_text, body_text, divider_stroke,
                                     chevron_color, item_padding, gap, body_gap, chevron_size)
@@ -8466,7 +8445,7 @@ end
 function _get_accordion_item_context(p::WidgetAccordionToGraphicsCanvas, w::WidgetAccordion, ctx)
     ctx === nothing && return ctx
     inset_width, _ = _inset_total(p, w)
-    padding = inset_width + 2 * _sc(Int(p.item_padding.left[]))
+    padding = inset_width + 2 * Int(p.item_padding.left[])
     authored = _sc(Int(w.width))
     inner_ctx = authored > 0 ? with_exact_size(ctx; width = Cell(Int32(max(0, authored - padding)))) :
                 with_inner_size(ctx; width = padding)
@@ -8490,9 +8469,9 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         colors = _get_box_colors(p, w)
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
-        item_padding_x = _sc(Int(p.item_padding.left[]))
-        item_padding_y = _sc(Int(p.item_padding.top[]))
-        chevron_size = _sc(p.chevron_size)
+        item_padding_x = Int(p.item_padding.left[])
+        item_padding_y = Int(p.item_padding.top[])
+        chevron_size = p.chevron_size
         title_style = _get_state_text(p, w, :title)
         body_style  = _get_state_text(p, w, :body)
         chevron_color = _get_state_color(p, w, :chevron)
@@ -8513,7 +8492,7 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
                 body_min = max(body_min, size_of(body_document, item.body, body_style.font)[1])
             end
         end
-        item_content_min = max(2item_padding_x + title_min + _sc(p.gap) + 2chevron_size,
+        item_content_min = max(2item_padding_x + title_min + p.gap + 2chevron_size,
                                2item_padding_x + body_min)
         outer_width = _resolve_width(ctx, _sc(Int(w.width)), item_content_min + inset_width)
         content_width = outer_width - inset_width
@@ -8527,7 +8506,7 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         headers = Any[]
         body_entry = nothing
         y = 0
-        divider_width = max(1, _sc(divider_stroke.width))
+        divider_width = max(1, Int(divider_stroke.width))
         for (i, item) in enumerate(w.items)
             _, title_height = size_of(titles[i], item.title, title_style.font)
             row_height = title_height + 2item_padding_y
@@ -8548,15 +8527,15 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             y += row_height
             if i == expanded && body_document !== nothing
                 body_x = content_x + item_padding_x
-                body_y = content_y + y + _sc(p.body_gap)
+                body_y = content_y + y + p.body_gap
                 push!(row_elements, _make_canvas(body_x, body_y, Any[body_document.output]))
                 body_entry = (body_x, body_y, i, body_document)
-                y += _sc(p.body_gap) + Int(body_document.output.h[]) + item_padding_y
+                y += p.body_gap + Int(body_document.output.h[]) + item_padding_y
             elseif i == expanded && item.body !== nothing && !isempty(string(item.body))
                 body = string(item.body)
                 _, body_height = _text_size(p.measure, body_style.font, body)
                 _push_text!(row_elements, p.measure, body_style.font, body, content_x + item_padding_x,
-                           content_y + y + _sc(p.body_gap), body_style.color)
+                           content_y + y + p.body_gap, body_style.color)
                 y += body_height + item_padding_y
             end
             push!(row_elements, GraphicsLine(content_x, content_y + y, content_x + content_width,
@@ -8792,7 +8771,7 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
 # handle into a 2-D band. An in-cell cursor (`rows[r][c].…`) descends into the
 # cell's own sub-pipeline and is drawn there.
 
-@projection struct WidgetTableToGraphicsCanvas
+@projection UntrackedCell struct WidgetTableToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -8805,25 +8784,22 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
     row_selected_color::StyleColor      # the band of the selected row, column or cell
     layer_hovered_color::StyleColor     # over a hovered row, column or cell, behind the band
     cell_padding::Inset                 # inside a cell: top and bottom, left and right
+    row_radius::Int                     # corner radius of the hover and the selection band
 end
 
-WidgetTableToGraphicsCanvas(theme::WidgetTheme;
+WidgetTableToGraphicsCanvas(theme::ScaledWidgetTheme;
                             margin = inset_default, border = inset_default, padding = inset_default,
                             margin_color = color_transparent, border_color = color_transparent,
                             padding_color = color_transparent, content_color = color_transparent,
-                            divider_stroke = StyleStroke(theme.border, theme.border_width),
-                            header_row_color = theme.muted,
-                            row_selected_color = _with_alpha(theme.selection, 0.25),
-                            layer_hovered_color = theme.hover_layer,
-                            cell_padding = _make_control_padding(theme)) =
+                            divider_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                            header_row_color = _themed(StyleColor, theme, t -> t.muted),
+                            row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
+                            layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                            cell_padding = _themed(Inset, theme, t -> t.control_padding),
+                            row_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetTableToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, divider_stroke, header_row_color, row_selected_color,
-                                layer_hovered_color, cell_padding)
-
-# The corner radius of the hover and the selection band. Shared by the table
-# (both printers) and the tree; not a box part, so it is a size constant, not a
-# style field.
-const _WT_ROW_RADIUS = 4
+                                layer_hovered_color, cell_padding, row_radius)
 
 # The geometry of a table as if it were not scrolled, in the coordinates of its
 # content. `col_x` / `row_y` are the cumulative left/top edges, length
@@ -9174,8 +9150,8 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.
-    pad_x = _sc(Int(p.cell_padding.left[]))
-    pad_y = _sc(Int(p.cell_padding.top[]))
+    pad_x = Int(p.cell_padding.left[])
+    pad_y = Int(p.cell_padding.top[])
     bw  = max(1, _sc(Int(w.border_width)))
     box = _get_box_insets(p, w)
     colors = _get_box_colors(p, w)
@@ -9242,8 +9218,8 @@ function _wt_make_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable, geom:
         push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h; color = header_row_color))
     end
     push!(result, _wt_make_band(() -> _find_wt_lit_reference(get_mouse_target(w)), geom,
-                                p.layer_hovered_color))
-    push!(result, _wt_make_band(() -> w.selection, geom, row_selected_color))
+                                p.layer_hovered_color, p.row_radius))
+    push!(result, _wt_make_band(() -> w.selection, geom, row_selected_color, p.row_radius))
     # Horizontal rules at row_y[gr] for gr in 1..grid_rows+1 (the top border,
     # the inner rules, the bottom border), and vertical rules likewise.
     for gr in 1:(geom.grid_rows + 1)
@@ -9257,9 +9233,9 @@ end
 
 # A band over the row, the column, the cell or the table that `reference()`
 # names, or a 0×0 rect when it names none.
-function _wt_make_band(reference, geom::WTGeometry, color)
+function _wt_make_band(reference, geom::WTGeometry, color, radius::Int)
     bounds = Cell(@computation _wt_highlight_bounds(reference(), geom))
-    rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
+    rect = GraphicsRect(0, 0, 0, 0; color, radius)
     set_cell_computation!(getfield(rect, :x), () -> Int32(bounds[][1]))
     set_cell_computation!(getfield(rect, :y), () -> Int32(bounds[][2]))
     set_cell_computation!(getfield(rect, :w), () -> Int32(bounds[][3]))
@@ -9701,7 +9677,7 @@ end
 
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
-@projection struct WidgetTreeToGraphicsCanvas
+@projection UntrackedCell struct WidgetTreeToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
@@ -9710,8 +9686,8 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    label_text::ImmutableCell{StyleText}         # node labels
-    icon_text::ImmutableCell{StyleText}          # node icon glyphs (own column)
+    label_text::StyleText         # node labels
+    icon_text::StyleText          # node icon glyphs (own column)
     chevron_color::StyleColor                    # the mark that expands a node
     row_selected_color::StyleColor               # the band of the selected row
     layer_hovered_color::StyleColor              # over a hovered row, behind the band
@@ -9720,22 +9696,32 @@ end
     icon_column::Int              # width reserved for the icon glyph
     row_padding::Int              # vertical padding per row
     chevron_size::Int
+    row_radius::Int               # corner radius of the hover and the selection band
+    label_gap::Int                # between an icon column widened for a glyph and its label
+    icon_scale::Float64           # times the box of a named icon, one line of the label
 end
 
-WidgetTreeToGraphicsCanvas(theme::WidgetTheme; measure,
+WidgetTreeToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            margin = inset_default, border = inset_default, padding = inset_default,
                            margin_color = color_transparent, border_color = color_transparent,
                            padding_color = color_transparent, content_color = color_transparent,
-                           label_text = StyleText(theme.font, theme.foreground),
-                           icon_text = StyleText(theme.font, theme.muted_foreground),
-                           chevron_color = theme.muted_foreground,
-                           row_selected_color = _with_alpha(theme.selection, 0.25),
-                           layer_hovered_color = theme.hover_layer,
-                           indent = 22, chevron_column = 18, icon_column = 20, row_padding = 4,
-                           chevron_size = theme.chevron) =
+                           label_text = _themed(StyleText, theme, _get_body_text),
+                           icon_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                           chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
+                           row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
+                           layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                           indent = _themed(Int, theme, t -> t.indent),
+                           chevron_column = _themed(Int, theme, t -> t.tree_chevron_column),
+                           icon_column = _themed(Int, theme, t -> t.tree_icon_column),
+                           row_padding = _themed(Int, theme, t -> t.item_gap),
+                           chevron_size = _themed(Int, theme, t -> t.chevron),
+                           row_radius = _themed(Int, theme, t -> t.radius_small),
+                           label_gap = _themed(Int, theme, t -> t.label_gap),
+                           icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetTreeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                content_color, label_text, icon_text, chevron_color, row_selected_color,
-                               layer_hovered_color, indent, chevron_column, icon_column, row_padding, chevron_size)
+                               layer_hovered_color, indent, chevron_column, icon_column, row_padding, chevron_size,
+                               row_radius, label_gap, icon_scale)
 
 # A node is a WidgetTreeNode (icon + label + children), a leaf label (String), or
 # a bare (label, children::Vector) tuple. Icon-less nodes report an empty icon.
@@ -9824,11 +9810,11 @@ end
 function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    indent = _sc(p.indent)
-    chevron_column = _sc(p.chevron_column)
-    icon_column = _sc(p.icon_column)
-    chevron_size = _sc(p.chevron_size)
-    pad = _sc(p.row_padding)
+    indent = p.indent
+    chevron_column = p.chevron_column
+    icon_column = p.icon_column
+    chevron_size = p.chevron_size
+    pad = p.row_padding
     box = _get_box_insets(p, w)
     colors = _get_box_colors(p, w)
     inset_width, inset_height = _inset_total(p, w)
@@ -9838,8 +9824,17 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     chevron_color = _get_state_color(p, w, :chevron)
     row_selected_color = _get_state_color(p, w, :row; state = :selected)
     _, line_height = _text_size(p.measure, label_style.font, "M")
-    row_height = line_height + 2 * pad
+    icon_size = scale_length(line_height, p.icon_scale)
     avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
+
+    # A named icon is a square of one line times the icon scale. A tree whose roots
+    # show one reserves a column that holds it and a gap, and rows as tall as the
+    # larger of the icon and a line; a tree of plain labels keeps the column of its
+    # theme and rows of one line. The roots decide, because a row below them is read
+    # only when it is drawn, and every row takes the same column and height.
+    shows_icons = Cell(@computation any(node -> _tree_icon(node) isa Symbol, w.roots))
+    column = Cell(@computation shows_icons[] ? max(icon_column, icon_size + p.label_gap) : icon_column)
+    line_box = Cell(@computation shows_icons[] ? max(line_height, icon_size) : line_height)
 
     # The rows of the open tree. The walk reads the children of an open node and
     # nothing of a closed one: a closed row is a path, and its node is read when
@@ -9849,6 +9844,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # position into a row.
     geometry = Cell(@computation begin
         expanded = w.expanded
+        row_height = line_box[] + 2 * pad
         rows = WTreeRow[]
         index = Dict{Vector{Int},Int}()
         function visit(path, depth, node)
@@ -9870,13 +9866,6 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         WTreeGeometry(rows, index, row_height, length(rows) * row_height)
     end)
 
-    # A named icon is as tall as a line, so a tree whose roots show one reserves a
-    # column that holds it and a gap; a tree of plain labels keeps the column of
-    # its theme. The roots decide, because a row below them is read only when it
-    # is drawn, and every row takes the same column.
-    column = Cell(@computation any(node -> _tree_icon(node) isa Symbol, w.roots) ?
-                  max(icon_column, line_height + _sc(6)) : icon_column)
-
     # The tree takes the width that its parent offers, and what holds the tree
     # clips a longer label. With no offer the tree is as wide as its widest row,
     # which reads the node of every row of the open tree.
@@ -9895,7 +9884,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # answers the path of the row. A band reads the selection or the pointer in a
     # cell of its own, so a selection move redraws two bands and no label.
     function make_band(row::WTreeRow, color, read)
-        band = GraphicsRect(0, 0, 0, 0; color = color, radius = _WT_ROW_RADIUS)
+        band = GraphicsRect(0, 0, 0, 0; color = color, radius = p.row_radius)
         set_cell_computation!(getfield(band, :w), () -> Int32(width[]))
         set_cell_computation!(getfield(band, :h),
                               () -> Int32(_wtree_ref_path(read()) == row.path ? row.height : 0))
@@ -9935,20 +9924,22 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                          make_band(row, row_selected_color, () -> w.selection)]
             x = row.depth * indent
             if _wtree_has_children(node)
-                _push_open_chevron!(result, x + chevron_column ÷ 2, row_height ÷ 2, chevron_size,
+                _push_open_chevron!(result, x + chevron_column ÷ 2, row.height ÷ 2, chevron_size,
                                     chevron_color, () -> row.path in w.expanded)
             end
             icon = _tree_icon(node)
+            text_y = pad + (line_box[] - line_height) ÷ 2
             if icon isa Symbol
                 # A registered icon name: a glyph, tinted to the icon color.
-                _push_icon!(result, icon, x + chevron_column, pad, line_height, icon_style.color)
+                _push_icon!(result, icon, x + chevron_column, pad + (line_box[] - icon_size) ÷ 2, icon_size,
+                            icon_style.color)
             elseif icon isa AbstractString && !isempty(icon)
                 # A literal glyph string (e.g. an emoji), drawn as text.
-                _push_text!(result, p.measure, icon_style.font, icon, x + chevron_column, pad,
+                _push_text!(result, p.measure, icon_style.font, icon, x + chevron_column, text_y,
                             icon_style.color)
             end
             _push_text!(result, p.measure, label_style.font, _tree_label(node),
-                        x + chevron_column + column[], pad, label_style.color)
+                        x + chevron_column + column[], text_y, label_style.color)
             result
         end))
         GraphicsCanvas(Cell(Int32(0)), Cell(@computation get_row_top(row.path)),
@@ -10141,17 +10132,47 @@ end
 
 # ── Factory ────────────────────────────────────────────────────────────────
 
+# A projection built from a `WidgetTheme` with no appearance takes the scales of
+# 1, so a caller can build one widget projection from a theme. The list holds each
+# widget projection whose constructor takes a scaled theme.
+for projection in (WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
+                   WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,
+                   WidgetInsertionToGraphicsCanvas, WidgetTooltipToGraphicsCanvas,
+                   WidgetContextMenuToGraphicsCanvas, WidgetDialogToGraphicsCanvas,
+                   WidgetMenuToGraphicsCanvas, WidgetMenuItemToGraphicsCanvas,
+                   WidgetToolbarItemToGraphicsCanvas, WidgetCompositeToGraphicsCanvas,
+                   WidgetShellToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
+                   WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
+                   WidgetScrollPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvas,
+                   WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas,
+                   WidgetScrollBarToGraphicsCanvas, WidgetBadgeToGraphicsCanvas,
+                   WidgetSeparatorToGraphicsCanvas, WidgetCardToGraphicsCanvas,
+                   WidgetSwitchToGraphicsCanvas, WidgetProgressToGraphicsCanvas,
+                   WidgetSliderToGraphicsCanvas, WidgetRadioGroupToGraphicsCanvas,
+                   WidgetAvatarToGraphicsCanvas, WidgetAlertToGraphicsCanvas,
+                   WidgetSkeletonToGraphicsCanvas, WidgetHighlightToGraphicsCanvas,
+                   WidgetToggleToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvas,
+                   WidgetSelectToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvas,
+                   WidgetListToGraphicsCanvas, WidgetOptionToGraphicsCanvas,
+                   WidgetTextareaToGraphicsCanvas, WidgetAccordionToGraphicsCanvas,
+                   WidgetTableToGraphicsCanvas, WidgetTreeToGraphicsCanvas)
+    @eval (::Type{$projection})(theme::WidgetTheme; keywords...) =
+        $projection(make_scaled_theme(theme); keywords...)
+end
+
 """
-    WidgetToGraphics(font; measure, theme=make_slate_light_theme(font=font))
+    WidgetToGraphics(font; measure, theme = make_slate_light_theme(font = font))
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
-subtree to a `GraphicsCanvas`. `measure` ([`TextMeasure`](@ref)) is
-used for all text sizing. The `theme` ([`WidgetTheme`](@ref)) is the single
-source of truth for colors, radius, and spacing. Defaults to the expressed
-slate/indigo light theme; the neutral zinc theme is `make_light_theme`.
+subtree to a `GraphicsCanvas`. `measure` ([`TextMeasure`](@ref)) is used for all
+text sizing. `theme` is a [`WidgetTheme`](@ref), which the factory scales with the
+scales of 1, or a `ScaledWidgetTheme` of an `Appearance`, whose changes every
+widget follows. The default is the slate light theme.
 """
 function WidgetToGraphics(font::StyleFont; measure::TextMeasure,
-                          theme::WidgetTheme=make_slate_light_theme(font=font))
+                          theme::Union{WidgetTheme, ScaledWidgetTheme} =
+                              make_slate_light_theme(font = font))
+    theme isa ScaledWidgetTheme || (theme = make_scaled_theme(theme))
     widgets = TypeDispatchingProjection(
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measure),
         WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measure),
@@ -10201,5 +10222,6 @@ function WidgetToGraphics(font::StyleFont; measure::TextMeasure,
     # A layout draws the ring around a child selected as a whole, and it takes
     # the selection of this theme.
     TypeDispatchingProjection(vcat(widgets.dispatch,
-        LayoutToGraphics(; selection_ring_stroke = StyleStroke(theme.selection, 2)).dispatch))
+        LayoutToGraphics(; selection_ring_stroke =
+            _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width))).dispatch))
 end

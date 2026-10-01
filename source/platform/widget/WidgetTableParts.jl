@@ -258,7 +258,7 @@ function _make_row_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::Widg
     reference() = kind === :light ? _find_wt_lit_reference(get_mouse_target(w)) : w.selection
     span = Cell(@computation _get_band_span(_find_named_part(reference()), k, st))
     color = kind === :light ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
-    rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
+    rect = GraphicsRect(0, 0, 0, 0; color, radius = p.row_radius)
     set_cell_computation!(getfield(rect, :x), () -> Int32(span[][1]))
     set_cell_computation!(getfield(rect, :y), () -> Int32(st.bw))
     set_cell_computation!(getfield(rect, :w), () -> Int32(span[][2]))
@@ -335,8 +335,8 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
     height = inner === nothing ? nothing : get_exact_height(inner)
     _check_table_parts(w, height)
     n = Int(w.column_count)
-    pad_x = _sc(Int(p.cell_padding.left[]))
-    pad_y = _sc(Int(p.cell_padding.top[]))
+    pad_x = Int(p.cell_padding.left[])
+    pad_y = Int(p.cell_padding.top[])
     bw = max(1, _sc(Int(w.border_width)))
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
@@ -528,8 +528,8 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     base = w.column_policy
     (base isa SizePolicy && base.preferred !== nothing && (base.weight === nothing || base.weight == 0)) ||
         error("WidgetTable: a table whose columns are a list needs a Fixed column policy")
-    pad_x = _sc(Int(p.cell_padding.left[]))
-    pad_y = _sc(Int(p.cell_padding.top[]))
+    pad_x = Int(p.cell_padding.left[])
+    pad_y = Int(p.cell_padding.top[])
     bw = max(1, _sc(Int(w.border_width)))
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw

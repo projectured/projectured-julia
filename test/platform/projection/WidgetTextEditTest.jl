@@ -36,13 +36,13 @@ end
 
 @testset "a WidgetText has the control padding of the theme, unless it gives its own" begin
     # The same text with the default padding and with none: the default adds the
-    # room of a control of the theme, `pad_x` at each side and `pad_y` above and
-    # below, and a padding the document gives is kept.
-    theme = make_slate_light_theme(font = _font)
+    # room of the theme's control padding, left and right at the sides and top
+    # and bottom above and below, and a padding the document gives is kept.
+    padding = make_scaled_theme(make_slate_light_theme(font = _font)).control_padding
     extent(document) = (output = print_document(_proj(), nothing, document, PrinterContext()).output;
                         (Int(output.w), Int(output.h)))
     padded, bare = extent(WidgetText("edit me")), extent(WidgetText("edit me"; padding = Inset(0, 0, 0, 0)))
-    @test padded .- bare == (2 * theme.pad_x, 2 * theme.pad_y)
+    @test padded .- bare == (padding.left[] + padding.right[], padding.top[] + padding.bottom[])
 end
 
 @testset "typing into a WidgetText edits via the Text domain, re-rooted at content" begin

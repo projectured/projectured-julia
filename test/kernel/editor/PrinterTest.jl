@@ -6,7 +6,7 @@
 #   2. Reflexively walk every field of iomap (and its .output) using
 #      fieldnames / getfield so that new document types are covered
 #      automatically.
-#   3. Force-evaluate every Cell encountered by calling c[].
+#   3. Force-evaluate every Cell and every UntrackedCell encountered by calling c[].
 #   4. Track visited objects by objectid to handle circular references.
 #   5. Collect and report any errors.
 # ═══════════════════════════════════════════════════════════════════════════
@@ -14,11 +14,15 @@
 # ── Reflexive walker ─────────────────────────────────────────────────────────
 #
 # Recursively descends into every field of every object reachable from `x`.
-# Calls c[] on every Cell to force evaluation.
+# Calls c[] on every Cell and every UntrackedCell to force evaluation. An untracked
+# cell is a style field of a projection that reads its theme at each read; forcing
+# it checks that the theme gives the field a value.
 # Stops at:
 #   • primitive leaf types (nothing, Bool, Number, String, Symbol, …)
 #   • already-visited objects  (cycle guard via objectid)
 #   • Julia internals (Function, DataType, Module)
+
+using ProjecturedKernel.CellModule: UntrackedCell
 
 const _WALK_MAX_DEPTH = 100
 const _WALK_MAX_NODES = 500_000
@@ -71,7 +75,7 @@ function _walk!(x, visited::Set{UInt64}, errors::Vector{String},
         status.max_depth = depth
     end
 
-    if x isa Cell
+    if x isa Cell || x isa UntrackedCell
         val = try
             x[]
         catch e

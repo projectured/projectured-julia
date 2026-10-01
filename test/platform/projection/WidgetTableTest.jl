@@ -396,13 +396,13 @@ function test_widget_table_cell_policy()
         @test op.path.tail.tail isa EmptyReference
     end
     @testset "the padding around a cell is the theme's, one token per axis" begin
-        theme = make_slate_light_theme(font = font_ubuntu_regular_20)
+        scaled = make_scaled_theme(make_slate_light_theme(font = font_ubuntu_regular_20))
         geometry = clipped.geometry
-        @test geometry.pad_x == theme.pad_x
-        @test geometry.pad_y == theme.pad_y
+        @test geometry.pad_x == scaled.control_padding.left[]
+        @test geometry.pad_y == scaled.control_padding.top[]
         # A row is one line of sixteen plus the padding above and below plus
         # the rule: the theme decides the height of a row nobody sized.
-        @test geometry.row_y[2] - geometry.row_y[1] == 16 + 2 * theme.pad_y + 1
+        @test geometry.row_y[2] - geometry.row_y[1] == 16 + 2 * scaled.control_padding.top[] + 1
     end
 end
 end

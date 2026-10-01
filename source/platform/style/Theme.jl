@@ -203,6 +203,9 @@ macro theme(definition)
         declaration.args[1] in (:theme, :appearance) &&
             throw(ArgumentError("@theme: a field can not be named `$(declaration.args[1])`, " *
                                 "the scaled theme holds its theme and its appearance under these names"))
+        declaration.args[1] in (:selection, :mouse_target) &&
+            throw(ArgumentError("@theme: a field can not be named `$(declaration.args[1])`, " *
+                                "a document keeps its own `$(declaration.args[1])` under that name"))
         push!(fields, declaration.args[1])
         push!(types, declaration.args[2])
     end

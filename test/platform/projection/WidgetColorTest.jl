@@ -55,27 +55,24 @@ function _make_probe_theme()
     count = Ref(0)
     probe() = (count[] += 1; StyleColor(count[] / 101, 0.37, 1 - count[] / 101, 1.0))
     values = Dict{Symbol, Any}()
-    for name in fieldnames(WidgetTheme)
-        value = getfield(base, name)
+    for name in get_theme_field_names(WidgetTheme)
+        value = getproperty(base, name)
         values[name] = value isa StyleColor ? probe() : value
     end
-    values[:body_text] = StyleText(base.font, values[:foreground])
-    values[:title_text] = StyleText(base.font_bold, values[:foreground])
-    values[:caption_text] = StyleText(base.font_small, values[:muted_foreground])
-    values[:label_text] = StyleText(base.font, values[:foreground])
     WidgetTheme(; values...)
 end
 
-# The colors of a theme, and the colors that the projections derive from it.
+# The colors of a theme, and the colors that the projections derive from it. The
+# text styles that the projections derive — the body, the title, the caption and
+# the label — take their color from a palette field that the loop already covers.
 function _theme_colors(theme)
     colors = StyleColor[color_transparent]
-    for name in fieldnames(WidgetTheme)
-        value = getfield(theme, name)
+    for name in get_theme_field_names(WidgetTheme)
+        value = getproperty(theme, name)
         value isa StyleColor && push!(colors, value)
-        value isa StyleText && push!(colors, value.color)
     end
     see_through(color, alpha) = StyleColor(color.red, color.green, color.blue, alpha)
-    push!(colors, see_through(theme.selection, 0.25),                 # the band of a selected row
+    push!(colors, see_through(theme.selection_ring, 0.25),             # the band of a selected row
                   see_through(theme.primary, 0.25),                   # the area of a highlight
                   color_interpolate(theme.muted, theme.background, 0.5))  # a tinted card
     colors
@@ -182,7 +179,7 @@ end
     lit = button()
     getfield(lit, :mouse_target)[] = EmptyReference()
     colors = _drawn_colors(render(default_projection, lit))
-    @test _has_color(colors, red) && _has_color(colors, theme.hover_layer)
+    @test _has_color(colors, red) && _has_color(colors, WidgetModule._get_hover_layer(make_scaled_theme(theme)))
     # The override of the normal state does not reach the checked state, and
     # the override of the checked state does.
     on(style) = WidgetToggle("Bold"; pressed = true, style)
