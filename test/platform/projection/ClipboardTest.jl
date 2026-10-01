@@ -704,8 +704,11 @@ end
         @test buffer[] == "evaluate_reference(editor.document, @reference(editor.document, content))"
         @test slice.slice isa PrimitiveString && slice.slice.value == buffer[]
         # The code gives the object where `editor` is bound, as in an evaluator.
+        # The kernel is bound by its module, not by its name, so the test needs no
+        # environment that names the kernel.
         scratch = Module()
-        Core.eval(scratch, :(using ProjecturedKernel.ReferenceModule))
+        Core.eval(scratch, :(const ProjecturedKernel = $ProjecturedKernel))
+        Core.eval(scratch, :(using .ProjecturedKernel.ReferenceModule))
         Core.eval(scratch, :(editor = $(QuoteNode(editor))))
         @test Core.eval(scratch, Meta.parse(buffer[])) === slice.content
     finally
