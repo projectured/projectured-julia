@@ -54,6 +54,8 @@ The build never throws. If it finds no Adaptagrams, or the compile fails, it wri
 
 ## How it fits
 
+The code is the slice `AdaptagramsModule`, in `source/adapter/adaptagrams/`: `AdaptagramsModule.jl` holds its imports and its exports, and `ProjecturedAdaptagrams` includes that file and exports the same names.
+
 `ProjecturedAdaptagrams` depends on `ProjecturedGraph` and on the standard library `Libdl`. No package of the editor depends on it.
 
 Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayout(orthogonal = orthogonal))`. From then on, each `DeferredLayout` resolves to this engine; see [graph.md](../../domain/graph/graph.md#the-deferred-choice-of-an-engine). A projection that names another engine does not change. In this repository the process flowchart is the one example that names a deferred engine. The graph example, the fsm diagram and the natural row of `GraphGraph` name `GridEmbedding`.
@@ -84,5 +86,5 @@ run_example("process_diagram")        # its deferred engine now resolves to Adap
 ## Limits
 
 - No test covers the engine. On a checkout without the shim, `graph_adaptagrams_example` draws with a pure-Julia engine.
-- The `ccall` signatures in `source/adapter/adaptagrams/Adaptagrams.jl` must match `adaptagrams_shim.h` by hand. A mismatch fails at the call, not at compile time.
+- The `ccall` signatures in `source/adapter/adaptagrams/AdaptagramsLayout.jl` must match `adaptagrams_shim.h` by hand. A mismatch fails at the call, not at compile time.
 - The engine implements only `:pin` and `:fixed_size`, and the neighbours of a pinned vertex are placed as if it were free.

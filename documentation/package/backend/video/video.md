@@ -43,9 +43,11 @@ The loop over the entries does not yield, so a task that a gesture started, such
 
 ### Encode
 
-`_emit_frames!` writes each frame as a PNG file into a temporary folder, through the offscreen renderer of `ProjecturedSdl` with `supersample` and `scale`; see [sdl.md](../sdl/sdl.md). `FFMPEG.exe` then encodes the files with `libx264` and `yuv420p`. The filter `pad=ceil(iw/2)*2:ceil(ih/2)*2` makes both sides even, which H.264 needs. The command is a vector of strings, because a backtick command literal does not accept the parentheses and asterisks of the filter without quotes. An error in the chain propagates to the caller; a `finally` block closes the renderer and deletes the folder. A timeline that makes no frame raises an error.
+`write_offscreen_frames!` writes each frame as a PNG file into a temporary folder, through the offscreen renderer of `ProjecturedSdl` with `supersample` and `scale`; see [sdl.md](../sdl/sdl.md). `FFMPEG.exe` then encodes the files with `libx264` and `yuv420p`. The filter `pad=ceil(iw/2)*2:ceil(ih/2)*2` makes both sides even, which H.264 needs. The command is a vector of strings, because a backtick command literal does not accept the parentheses and asterisks of the filter without quotes. An error in the chain propagates to the caller; a `finally` block closes the renderer and deletes the folder. A timeline that makes no frame raises an error.
 
 ## How it fits
+
+The code is the slice `VideoModule`, in `source/backend/video/`: `VideoModule.jl` holds its imports and its exports, and `ProjecturedVideo` includes that file and exports the same names.
 
 `ProjecturedVideo` depends on `FFMPEG`, the kernel, the platform and `ProjecturedSdl`. It takes the offscreen renderer from `ProjecturedSdl` and does not have one of its own. It registers nothing.
 

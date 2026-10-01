@@ -154,7 +154,7 @@ default of `BackendDefaults.jl`. A generic with no default and no method raises 
 
 ### SdlBackend
 
-`SdlBackend` (in [package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) implements
+`SdlBackend` (in [source/backend/sdl/SdlBackend.jl](../../../source/backend/sdl/SdlBackend.jl)) implements
 all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its design document. Highlights:
 
 - A font measurement cache shared across all windows.
@@ -342,7 +342,7 @@ The backends above drive output and input. The file export below does not
 subtype `Backend`: it has no devices and no events, and it turns a
 `GraphicsCanvas` into a file.
 
-- **`write_image`** ([package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) rasterizes a
+- **`write_image`** ([source/backend/sdl/SdlBackend.jl](../../../source/backend/sdl/SdlBackend.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
 - **`write_pdf`** ([source/backend/pdf/PdfWriter.jl](../../../source/backend/pdf/PdfWriter.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType

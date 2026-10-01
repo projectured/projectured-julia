@@ -47,6 +47,8 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 
 ## How it fits
 
+The code is the slice `McpModule`, in `source/adapter/mcp/`: `McpModule.jl` holds its imports and its exports, and `ProjecturedMcp` includes that file and exports the same names.
+
 `ProjecturedMcp` depends on `ModelContextProtocol` and on the kernel. From the kernel it takes the `agent` seam with `run_on_editor_task!`, `record_fault!` and the `tool` layer, from which it uses `Tool`, `Resource`, `ToolSet`, `list_tools`, `list_resources` and `register_default_tools!`. [agent.md](../../kernel/agent.md) describes those layers. The package has no `__init__`: its three methods are its registration.
 
 `run_editor!` uses it with `mcp = true`, and the application starts it with `--mcp`, or with `--mcp=PORT` or `--mcp=HOST:PORT` at another address. The package binds no meaning model to the tool set. An MCP client runs no turn of the assistant, so the application binds the meaning model of its backend in `on_start`, and a search by description ranks by meaning for the client too.

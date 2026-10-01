@@ -17,6 +17,8 @@ set_relevance_model!(editor.tools, make_openrouter_relevance_model())
 
 ## How it works
 
+The code is the slice `OpenRouterModule`, in `source/adapter/openrouter/`: `OpenRouterModule.jl` holds its imports and its exports, and `ProjecturedOpenRouter` includes that file and exports the same names.
+
 The kernel asks a `RelevanceModel` two things, and the package turns each into one kind of question of the Decisions API:
 
 | the kernel asks | the package sends | the package reads |

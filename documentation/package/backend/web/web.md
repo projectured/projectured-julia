@@ -59,6 +59,8 @@ Each client message holds `t`: the time of its browser event in milliseconds sin
 
 ## How it fits
 
+The code is the slice `WebModule`, in `source/backend/web/`: `WebModule.jl` holds its imports and its exports, and `ProjecturedWeb` includes that file and exports the same names.
+
 `ProjecturedWeb` depends on the kernel and the platform, and on `HTTP`, `JSON3` and `Base64`. It needs no SDL. It registers nothing.
 
 `default_backend()` in the [application slice](../../platform/application/application.md) picks `WebBackend` when `SdlBackend` is not loaded. The builder names it as the backend `web`, and a binary with both backends takes `--backend=web`. The test of a distribution starts the copied binary with `--backend=web` and reads the client and a font through this server; see [builder.md](../../tool/builder/builder.md).

@@ -132,9 +132,17 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       fragment of `ProjecturedBuilder` and of `ProjecturedRepl`). The owner
       asked about the backends and approved the adapters; the two tools wait
       for the owner's word.
-- [ ] **Step 5, the words.** `naming-rules.md` (its example of `<Thing>.jl` is
+- [x] **Step 5, the words.** `naming-rules.md` (its example of `<Thing>.jl` is
       `source/backend/sdl/Sdl.jl`), the guides of the backends and adapters,
       `system-anatomy.md`.
+      Done: `naming-rules.md` says that the rule of one module per slice holds
+      outside the kernel and that the guard checks it, and its example is
+      `SdlBackend.jl`; each guide of a backend or an adapter names its module
+      and folder (which also gives `source/adapter/openrouter` its guide in the
+      eyes of the documentation guard); the graphics guide documents
+      `ContentBounds`, the SDL guide the public offscreen renderer; the links
+      of `system-anatomy.md`, `devices-and-backends.md`, `llm.md` and
+      `adaptagrams.md` follow the new file names.
 
 ## 5. Decisions made during the work
 

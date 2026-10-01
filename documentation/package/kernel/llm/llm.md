@@ -10,7 +10,7 @@ The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.
 
 | | `ProjecturedAnthropic` | `ProjecturedOllama` |
 | --- | --- | --- |
-| Source | `source/adapter/anthropic/Anthropic.jl` | `source/adapter/ollama/Ollama.jl` |
+| Source | `source/adapter/anthropic/AnthropicLlm.jl` | `source/adapter/ollama/OllamaLlm.jl` |
 | Backend type | `AnthropicLlm` | `OllamaLlm` |
 | `make_llm` key | `:anthropic` | `:ollama` |
 | Where the model runs | the servers of Anthropic | this machine, at `http://localhost:11434` by default |

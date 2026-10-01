@@ -50,6 +50,8 @@ The writer itself, `PdfWriter`, is a small PDF 1.7 writer: it numbers the object
 
 ## How it fits
 
+The code is the slice `PdfModule`, in `source/backend/pdf/`: `PdfModule.jl` holds its imports and its exports, and `ProjecturedPdf` includes that file and exports the same names.
+
 `ProjecturedPdf` depends on the kernel for the projection and the IoMap, and on the platform for the canvas and `get_canvas_content_bounds` (the graphics slice) and for the colours, the fonts and the TrueType reader (the style slice). It needs no third-party package, so the umbrella `Projectured` holds it. It registers nothing. `write_example_pdf(name)` in `ProjecturedExample` writes a registered example.
 
 ## Design decisions

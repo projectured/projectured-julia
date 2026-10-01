@@ -75,17 +75,17 @@ thing, and is it the real thing or an example of one. Of 690 files,
 | `source/` | `<Slice>Module.jl` — the module head: the docstring, the header, the includes | `source/domain/json/JsonModule.jl` |
 | | `<Slice>Document.jl` — the slice's document types | `source/domain/json/JsonDocument.jl` |
 | | `<A>To<B>.jl` — a projection | `source/domain/json/JsonToSyntax.jl` |
-| | `<Thing>.jl` — anything that is neither | `source/backend/sdl/Sdl.jl` |
+| | `<Thing>.jl` — anything that is neither, named for what it defines | `source/backend/sdl/SdlBackend.jl` |
 | `test/` | `<Thing>Test.jl` — `<Thing>` is the file it tests | `test/domain/json/document/JsonDocumentTest.jl` |
 | | `<Slice>Suite.jl` — the aggregator, `test_<slice>()` | `test/domain/json/JsonSuite.jl` |
 | `example/` | `<Thing>DocumentExample.jl` | `example/domain/json/JsonDocumentExample.jl` |
 | | `<Thing>ProjectionExample.jl` | `example/domain/json/JsonProjectionExample.jl` |
 | | `<Slice>Examples.jl` — the registry | `example/domain/json/JsonExamples.jl` |
 
-**Only a document file carries `Document`.** A slice whose primary file defines
-no document keeps the bare name, which is why `source/backend/sdl/Sdl.jl` is a backend
-and `source/domain/json/JsonDocument.jl` is a document. The test is `@document` in the
-file, and it sorts all 51 slice-named files without a judgement call.
+**Only a document file carries `Document`.** A file that defines no document is
+named for what it defines, which is why `source/backend/sdl/SdlBackend.jl` holds a
+backend and `source/domain/json/JsonDocument.jl` holds documents. The test is
+`@document` in the file, and it sorts the files without a judgement call.
 
 **`example/` has no role folders and `test/` keeps them.** The name says
 `Document` or `Projection` now, so a folder saying it again is a folder per
@@ -110,7 +110,11 @@ query rather than a file, and are named for what they query, such as
 
 - **One module per unit of architecture.** A slice declares one module, named
   for the slice: every file under `source/domain/json/` is a fragment of `JsonModule`,
-  and only one of them carries the `module` line. The kernel is layered rather
+  and only one of them carries the `module` line. The rule holds in every group
+  outside the kernel, the backends and the adapters too: `SdlModule.jl` declares
+  `SdlModule`, and `ProjecturedSdl` includes that file and exports its names. A
+  package entry holds no import of the slice, so the slice says what it needs.
+  `test/suite/naming.jl` checks both. The kernel is layered rather
   than sliced, so there a module belongs to a layer and its file is named for
   it: `ClockModule.jl` declares `ClockModule`, `ProjectionModule.jl` declares
   `ProjectionModule`. Grep-by-guess must work in both directions: a reader

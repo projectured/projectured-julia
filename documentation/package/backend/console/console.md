@@ -77,6 +77,8 @@ Structural navigation works: the arrows move between nodes once a whole element 
 
 ## How it fits
 
+The code is the slice `ConsoleModule`, in `source/backend/console/`: `ConsoleModule.jl` holds its imports and its exports, and `ProjecturedConsole` includes that file and exports the same names.
+
 `ProjecturedConsole` depends on the kernel and the platform: the style slice for the colours, and the text slice for the spans. It registers nothing.
 
 `default_backend()` in the [application slice](../../platform/application/application.md) picks it last, after `SdlBackend` and `WebBackend`. The gallery pipelines end in graphics, so a gallery run on this backend raises the error above; `run_console_example` builds a console pipeline instead. `warm_application()` gives its editor a `ConsoleBackend`, because the warm-up of a build must run with no display and draws nothing.

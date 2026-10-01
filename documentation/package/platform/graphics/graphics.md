@@ -84,7 +84,7 @@ The container finds the child that the pointer leaves from its own mouse target 
 
 ### Measuring
 
-This package calls no font backend. A function that needs the box of a text takes a `TextMeasure`, from [style.md](../style/style.md), as an argument, `FontFileMeasure()` by default. `get_canvas_content_bounds(canvas, measure)` returns the box of everything that a canvas draws. `get_graphics_size(document, measure)` returns the size of one primitive; a bare `GraphicsText` outside a canvas has its width there. `_bounds_elem!` takes the same measure, so the bounds of a canvas cover the box of each text it holds.
+This package calls no font backend. A function that needs the box of a text takes a `TextMeasure`, from [style.md](../style/style.md), as an argument, `FontFileMeasure()` by default. `get_canvas_content_bounds(canvas, measure)` returns the box of everything that a canvas draws. `get_graphics_size(document, measure)` returns the size of one primitive; a bare `GraphicsText` outside a canvas has its width there. Both read a `ContentBounds`, the box that grows as it is extended: `extend_element_bounds!(bounds, element, origin; measure)` adds what an element draws, `extend_canvas_bounds!` what the elements of a canvas draw, `extend_content_bounds!` a box, and `get_content_box` reads it. A backend that repaints what changed, such as SDL and the web, passes one through its walk. The measure of `extend_element_bounds!` is the same, so the bounds of a canvas cover the box of each text it holds.
 
 ### Saving to a file
 
