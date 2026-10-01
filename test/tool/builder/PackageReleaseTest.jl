@@ -54,6 +54,7 @@ function _make_release_repository()
         dependencies = ["FakeBase" => "00000000-0000-0000-0000-00000000000b",
                         "Registered" => "00000000-0000-0000-0000-00000000000d",
                         "Dates" => "ade2ca70-3891-5945-98fb-dc099432e06a"])
+    _write_release_fixture_tests(root)
     mkpath(joinpath(root, "environment"))
     write(joinpath(root, "environment", "Manifest.toml"), """
         [[deps.Registered]]
@@ -68,6 +69,42 @@ function _make_release_repository()
     _track_release_fixture(root)
     root
 end
+
+# The test package of `FakeTop` and an example package it needs, which no release
+# holds. The suite includes its files from `test/` and the example package from
+# `example/`, as the test packages of this repository do, and a test reads a file
+# beside it while it runs.
+function _write_release_fixture_tests(root)
+    for (name, uuid, dependencies, folder, file, code) in (
+            ("FakeTopExample", "00000000-0000-0000-0000-00000000000e",
+             ["FakeTop" => "00000000-0000-0000-0000-00000000000c"],
+             "example/faketop", "FakeTopExamples.jl", "make_top_example() = 1\n"),
+            ("FakeTopTest", "00000000-0000-0000-0000-00000000000f",
+             ["FakeTop" => "00000000-0000-0000-0000-00000000000c",
+              "FakeTopExample" => "00000000-0000-0000-0000-00000000000e",
+              "Test" => "8dfed614-e22c-5e08-85e1-65c5234f0b40"],
+             "test/faketop", "FakeTopSuite.jl",
+             "const DATA = joinpath(@__DIR__, \"data.txt\")\ntest_faketop() = nothing\n"))
+        mkpath(joinpath(root, "package", name, "src"))
+        project = Dict{String,Any}("name" => name, "uuid" => uuid, "version" => "0.1.0",
+                                   "deps" => Dict{String,Any}(dependencies),
+                                   "sources" => Dict{String,Any}(
+                                       dependency => Dict("path" => "../$dependency")
+                                       for (dependency, _) in dependencies
+                                       if startswith(dependency, "Fake")))
+        open(io -> ProjecturedBuilder.BuilderModule.TOML.print(io, project),
+             joinpath(root, "package", name, "Project.toml"), "w")
+        write(joinpath(root, "package", name, "src", "$name.jl"),
+              "module $name\ninclude(\"../../../$folder/$file\")\nend\n")
+        mkpath(joinpath(root, folder))
+        write(joinpath(root, folder, file), code)
+    end
+    write(joinpath(root, "test", "faketop", "data.txt"), "data\n")
+end
+
+# The suite that tests a released package of the made repository.
+_find_release_fixture_test(name) =
+    name == "FakeTop" ? ("FakeTopTest" => "using FakeTopTest\ntest_faketop()\n") : nothing
 
 # A registry folder that holds `versions`, `"<name>" => ["<version>", …]`, of the
 # two packages of the made repository, in the layout that Pkg reads.
@@ -122,7 +159,8 @@ function test_package_release()
             build_package_release!(context;
                 packages = ["FakeTop", "FakeBase"], output = into,
                 assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
-                licences = ["LICENSE"], readme = name -> "# $name\n", manifest)
+                licences = ["LICENSE"], readme = name -> "# $name\n",
+                tests = _find_release_fixture_test, manifest)
         read_project(name) =
             ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(output, name,
                                                        "Project.toml"))
@@ -154,6 +192,34 @@ function test_package_release()
             end
         end
 
+        @testset "a package gets the suite of its test package, with what no registry holds" begin
+            test = joinpath(output, "FakeTop", "test")
+            @test read(joinpath(test, "runtests.jl"), String) ==
+                  "using FakeTopTest\ntest_faketop()\n"
+            @test sort(readdir(joinpath(test, "support"))) == ["FakeTopExample", "FakeTopTest"]
+            # `test/Project.toml` names every support package by its folder.
+            project = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+                joinpath(test, "Project.toml"))
+            @test sort(collect(keys(project["deps"]))) == ["FakeTopExample", "FakeTopTest"]
+            @test project["sources"]["FakeTopTest"]["path"] == "support/FakeTopTest"
+            # A support package names its sibling by path, and a released package
+            # not at all: that one comes from the registry.
+            support = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+                joinpath(test, "support", "FakeTopTest", "Project.toml"))
+            @test support["sources"] ==
+                  Dict("FakeTopExample" => Dict("path" => "../FakeTopExample"))
+            # The include prefix of the repository becomes one of the copy, and the
+            # folders it names come along, the file a test reads included.
+            @test occursin("include(\"../test/faketop/FakeTopSuite.jl\")",
+                           read(joinpath(test, "support", "FakeTopTest", "src",
+                                         "FakeTopTest.jl"), String))
+            @test isfile(joinpath(test, "support", "FakeTopTest", "test", "faketop",
+                                  "data.txt"))
+            @test isfile(joinpath(test, "support", "FakeTopExample", "example", "faketop",
+                                  "FakeTopExamples.jl"))
+            @test !isdir(joinpath(output, "FakeBase", "test"))
+        end
+
         @testset "a release with no change keeps every folder and every version" begin
             before = _read_release_folder(output)
             # A file that git does not track never reaches the copy.
@@ -164,6 +230,17 @@ function test_package_release()
                                  result.version == v"0.1.0", results)
             @test _read_release_folder(output) == before
             rm(joinpath(root, "source", "faketop", "FakeTopCode.jl.1234.cov"))
+        end
+
+        @testset "a change of a test gives no package a new version" begin
+            before = _read_release_folder(output)
+            write(joinpath(root, "test", "faketop", "FakeTopSuite.jl"),
+                  "const DATA = joinpath(@__DIR__, \"data.txt\")\ntest_faketop() = 1\n")
+            _track_release_fixture(root)
+            results = release()
+            @test all(result -> result.status === :unchanged, results)
+            # The released folder keeps the tests of its version.
+            @test _read_release_folder(output) == before
         end
 
         @testset "a change gives a new version to the package that changed, and only to it" begin
