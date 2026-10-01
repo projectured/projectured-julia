@@ -72,7 +72,7 @@ projection = ChainingProjection(make_graphics_image_projection_example(),
 write_example_pdf("json", "json.pdf")
 ```
 
-- Test: `test_write_pdf()` in `test/projectured/backend/PdfTest.jl` checks the file envelope, the content-fit size, every primitive with an embedded font, the projection form, the page count of pagination, the text size under a font zoom, the kerning of a run, that texts of different fonts share one baseline, and the runs of a text in a fallback font. The package has no test suite of its own.
+- Test: `test_write_pdf()` in `test/projectured/backend/PdfWriterTest.jl` checks the file envelope, the content-fit size, every primitive with an embedded font, the projection form, the page count of pagination, the text size under a font zoom, the kerning of a run, that texts of different fonts share one baseline, and the runs of a text in a fallback font. The package has no test suite of its own.
 
 ## Limits
 

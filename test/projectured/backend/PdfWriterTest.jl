@@ -238,8 +238,8 @@ end
     rm(filename)
     # The writer embeds a font as `/FontFile2`, which holds TrueType outlines. A
     # CFF font has none, so a fallback font in that form is skipped.
-    @test PdfBackendModule._is_embeddable_font(fallback)
-    @test !PdfBackendModule._is_embeddable_font(load_truetype_font(StyleModule.font_inconsolata_regular_18.filename))
+    @test PdfModule._is_embeddable_font(fallback)
+    @test !PdfModule._is_embeddable_font(load_truetype_font(StyleModule.font_inconsolata_regular_18.filename))
 end
 
 end # test_write_pdf

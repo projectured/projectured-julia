@@ -1,4 +1,4 @@
-# Fragment of `PdfBackendModule` — the PDF backend: the page it writes, the
+# Fragment of `PdfModule` — the PDF backend: the page it writes, the
 # graphics operators it emits, and the Bézier arithmetic behind the curves.
 
 const DEFAULT_BG = (0xfd, 0xf6, 0xe3, 0xff)

@@ -141,7 +141,7 @@ include("../suite/documentation.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
 include("backend/ConsoleBackendTest.jl")
-include("backend/PdfTest.jl")
+include("backend/PdfWriterTest.jl")
 include("backend/WebTest.jl")
 include("backend/BackendChoiceTest.jl")
 include("../tool/builder/BuilderTest.jl")

@@ -1,4 +1,4 @@
-const _CB = ConsoleBackendModule
+const _CB = ConsoleModule
 const _ED = EditorModule
 
 # Parse one event from a fresh byte buffer (mirrors how `read_from_devices`

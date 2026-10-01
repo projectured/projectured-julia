@@ -1,5 +1,5 @@
 """
-    ConsoleBackendModule
+    ConsoleModule
 
 Console backend. Renders a **Text-domain** document (`TextBlock` and its spans)
 straight to a terminal (stdout), preserving the spans' colors via ANSI SGR
@@ -34,16 +34,17 @@ The selection is shown as inverse-video span colors, baked into the spans by the
 `SelectionInverting` projection at the end of the console pipeline (the backend
 itself does not resolve the selection or emit a reverse-video attribute).
 """
-module ConsoleBackendModule
+module ConsoleModule
 
 using ..KernelModule
-import ..EditorModule: get_backend_name, get_backend_output
-using ..KernelModule
 using ..PlatformModule
+
+# Imported to extend: this module adds a method to each of these.
+import ..EditorModule: get_backend_name, get_backend_output
 
 export ConsoleBackend, render_console
 
 
-include("Console.jl")
+include("ConsoleBackend.jl")
 
 end # module

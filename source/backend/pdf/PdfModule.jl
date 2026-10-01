@@ -1,5 +1,5 @@
 """
-    PdfBackendModule
+    PdfModule
 
 A second, SDL-free backend over the graphics domain: it walks a `GraphicsCanvas`
 tree and emits a **vector** PDF — rectangles, lines, circles become PDF path
@@ -26,7 +26,7 @@ optimizations. The graphics domain is top-left/y-down; PDF is bottom-left/y-up,
 so a single `page_height - y` flip is applied at the moment each coordinate is
 written.
 """
-module PdfBackendModule
+module PdfModule
 
 using ..KernelModule
 using ..PlatformModule
@@ -37,6 +37,6 @@ import ..ProjectionModule: print_document
 export write_pdf, GraphicsCanvasToPdfFile
 
 
-include("Pdf.jl")
+include("PdfWriter.jl")
 
 end # module

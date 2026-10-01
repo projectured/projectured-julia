@@ -1,4 +1,4 @@
-# Fragment of `ConsoleBackendModule` — `ConsoleBackend`, the backend that draws
+# Fragment of `ConsoleModule` — `ConsoleBackend`, the backend that draws
 # into a terminal and reads its keyboard.
 
 mutable struct ConsoleBackend <: Backend

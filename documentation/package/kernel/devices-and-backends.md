@@ -174,7 +174,7 @@ all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its des
 
 ### ConsoleBackend
 
-`ConsoleBackend` (in [source/backend/console/Console.jl](../../../source/backend/console/Console.jl))
+`ConsoleBackend` (in [source/backend/console/ConsoleBackend.jl](../../../source/backend/console/ConsoleBackend.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextBlock` directly and skips `TextToGraphics`: its pipeline is
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
@@ -344,7 +344,7 @@ subtype `Backend`: it has no devices and no events, and it turns a
 
 - **`write_image`** ([package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) rasterizes a
   canvas through an offscreen SDL software renderer to BMP/PNG.
-- **`write_pdf`** ([source/backend/pdf/Pdf.jl](../../../source/backend/pdf/Pdf.jl)) walks the same
+- **`write_pdf`** ([source/backend/pdf/PdfWriter.jl](../../../source/backend/pdf/PdfWriter.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
   text from the font files, with a `FontFileMeasure()`.

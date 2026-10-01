@@ -331,10 +331,10 @@ composes with any higher-order projection.
 |---|---|
 | `EditorModule.jl` | REPL loop: read → eval → print; `make_editor(document, projection; backend)`, `build_editor` and `run_editor!` entry points |
 | `sdl/Sdl.jl` (opt-in `ProjecturedSdl`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `console/Console.jl` (required `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
+| `console/ConsoleBackend.jl` (required `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
 | `web/Web.jl` (opt-in `ProjecturedWeb`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [asset/web/](../../asset/web) |
 | `video/VideoBackend.jl` (opt-in `ProjecturedVideo`) | Video backend: plays a scripted timeline through the editor loop into the frames of a video file |
-| `pdf/Pdf.jl` (required `ProjecturedPdf`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
+| `pdf/PdfWriter.jl` (required `ProjecturedPdf`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `event/MouseEvent.jl` | `MouseButtons`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll` |
@@ -535,9 +535,9 @@ for adding one.
 | Styled string domain | `TextDocument.jl` | ✅ |
 | Graphics domain | `GraphicsDocument.jl` | ✅ |
 | SDL backend | `sdl/Sdl.jl` | ✅ |
-| Console (terminal) backend | `console/Console.jl` | ✅ (Text domain, no Lisp counterpart) |
+| Console (terminal) backend | `console/ConsoleBackend.jl` | ✅ (Text domain, no Lisp counterpart) |
 | Web backend (browser renderer) | `web/Web.jl` | ✅ (new in Julia port) |
-| PDF export backend | `pdf/Pdf.jl` | ✅ |
+| PDF export backend | `pdf/PdfWriter.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
 | References | `reference/` (layer 11) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |

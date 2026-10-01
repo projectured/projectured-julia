@@ -65,7 +65,19 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       packages that change, on `main`: `test_sdl`, `test_video`, `test_tulip`,
       `test_anthropic`, `test_ollama`, `test_openrouter`, `test_platform` (Console
       and Pdf), the MCP and builder tests of the umbrella.
-- [ ] **Step 1, console and pdf.** Rename the two modules and their fragments.
+- [x] **Step 1, console and pdf.** Rename the two modules and their fragments.
+      Done: `ConsoleModule` (`ConsoleModule.jl`, `ConsoleBackend.jl`) and
+      `PdfModule` (`PdfModule.jl`, `PdfWriter.jl`); the test of the PDF writer
+      is `PdfWriterTest.jl`. **The form of a package entry**, decided here and
+      kept for every step: the entry of `ProjecturedDataFrames` — the loop that
+      binds every submodule of the kernel and the platform as a `const`, the
+      include of the module file, `using .<Slice>Module: <names>` and `export`
+      of the same names. The console entry exported nothing before; now a
+      person who loads `ProjecturedConsole` gets `ConsoleBackend` and
+      `render_console`, and `ProjecturedPdf` gives `write_pdf` and
+      `GraphicsCanvasToPdfFile`. Tests: the console backend, the PDF writer,
+      the export collisions, the layering guard of the platform (which checks
+      Console and Pdf): 198 pass.
 - [ ] **Step 2, sdl, web and video.** A module file for each, the imports out of
       the package entries; the private names of §2 get public names or stay
       inside one module.
