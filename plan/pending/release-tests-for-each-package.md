@@ -1,0 +1,103 @@
+# The tests of each released package (R30)
+
+## 1. Goal
+
+Each registered package has a `test/runtests.jl` that passes when `Pkg.test`
+runs it on the installed package alone. The maintainers of General ask for it,
+because `Pkg.test` and PkgEval run each package alone and do not find the
+`Projectured*Test` packages. This is R30 of
+[release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md),
+and the next item of "The work toward the local registry" in its Part R. The
+owner asked for this plan on 2026-10-01; nothing is implemented yet.
+
+## 2. Facts (2026-10-01, `main` at `6519a5abd`)
+
+**The packages.**
+- The release holds 32 packages. 28 of them have a test package
+  (`ProjecturedJSON` → `ProjecturedJSONTest`, `Projectured` → `ProjecturedTest`).
+- `ProjecturedConsole`, `ProjecturedMCP`, `ProjecturedPDF` and `ProjecturedWeb`
+  have no test package. Their tests are in the umbrella suite `ProjecturedTest`
+  (`test/projectured/backend/`, `test/projectured/editor/`).
+
+**What a test package needs.** A test package depends on example packages and
+on the test packages below it, and the registry holds none of them. The
+closure of these unregistered packages is wide:
+- `ProjecturedFaultExample` depends on `Projectured` and on `ProjecturedExample`,
+  which depends on every domain example, on `ProjecturedOllama` and on
+  `ProjecturedAnthropic`.
+- `ProjecturedPlatformTest` depends on `ProjecturedFaultExample`, and on the
+  domains JSON, Julia and XML: five of its test files use them.
+- `ProjecturedSDLTest` and `ProjecturedODBCTest` depend on `ProjecturedExample`.
+
+So the test of `ProjecturedJSON` needs 25 unregistered packages and 24 of the
+registered ones. The narrow cases are `ProjecturedKernel` (2 unregistered, 1
+registered) and the adapters Anthropic, Ollama, OpenRouter and DataFrames (3
+or 4 unregistered).
+
+**Size.** The folders that the unregistered closure of one package includes
+hold 4.1 to 5.3 MB (in this repository, `test/` is 4.7 MB and `example/` is
+1.1 MB). A copy for each package gives about 130 MB in the release
+repository. Pkg downloads the whole folder of a package, `test/` included, so
+each user who adds a package also downloads its tests. On 2026-09-29 the whole
+release copy, without tests, was 35 MB.
+
+**Time.** In the CI-like run of 2026-10-01: `test_kernel()` 156 s,
+`test_platform()` 423 s, a domain 10 to 45 s, the umbrella `ProjecturedTest`
+2166 s. `test_integration()` is the part of the umbrella suite that only the
+umbrella can run.
+
+**Pkg.**
+- A package declares its test dependencies in `[extras]` and `[targets]`, or
+  in `test/Project.toml`.
+- With `[extras]`, Pkg copies the `[sources]` of the package into the test
+  project.
+- The code of Pkg 1.13 makes the paths of `[sources]` in a test project
+  absolute, from the folder of that project (`abspath!` in
+  `Operations.jl`). That suggests that `test/Project.toml` can name a package
+  inside the package folder by a path. Nothing proves it yet, on 1.13 or on
+  1.11, the oldest Julia of the release.
+
+**The environment.** The CI of Part P runs every test package with
+`SDL_VIDEODRIVER=offscreen` and with no network. They pass, except the known
+failures of the umbrella suite.
+
+## 3. Open decisions
+
+| # | Question | Recommendation (mine, not decided) |
+| --- | --- | --- |
+| T1 | What does the release test of a package run? | The suite of its test package, unchanged (`test_json()` for `ProjecturedJSON`), so that the release runs the tests of the development repository. A second, smaller suite for the release would be a second thing to keep. |
+| T2 | How does the release test get the code of the unregistered packages? | The release copy writes each one into the test folder of the package as a package of its own, `test/support/<Name>/`, and `test/Project.toml` names it by `[sources]`. If Step 0 shows that Pkg does not read those `[sources]`, `runtests.jl` includes the copied files as modules instead. Registering the test and example packages is no choice: the maintainers of General refuse them, and R34 moves the packages to General later. |
+| T3 | Make the closure narrow first? | Yes, in the development repository and before the generator: `ProjecturedFaultExample` must not depend on `Projectured` or `ProjecturedExample`, and the five domain files of `ProjecturedPlatformTest` move up to the test packages of their domains. Each test package then needs the packages below it only, which `CLAUDE.md` already says of them. It is a change to the test layout with its own plan; measure the closure and the size again after it. |
+| T4 | How large can the test folder of a package be? | Decide after T3, with the numbers. |
+| T5 | What does the test of `Projectured` run? | `test_integration()`, not the whole umbrella suite: the other parts are the tests of the other packages, and the whole suite takes 36 minutes. |
+| T6 | Console, MCP, PDF and Web, which have no test package? | A test package for each, with its tests moved out of `ProjecturedTest`, as T3 does for the platform. Until then, a `runtests.jl` that loads the package and checks one call. |
+| T7 | The environment of a release test? | `runtests.jl` sets `SDL_VIDEODRIVER=offscreen` when it is not set. A test that needs the network or a database already passes without them, as the CI of Part P shows. |
+
+## 4. Steps
+
+- [ ] **Step 0, the prototype.** By hand, under `/var/tmp`: give the release
+      copy of `ProjecturedKernel` a `test/` folder with `ProjecturedKernelTest`
+      and `ProjecturedKernelExample` in `test/support/`, a `test/Project.toml`
+      that names them by `[sources]`, and a `runtests.jl` that calls
+      `test_kernel()`. Register it in a local registry, and in an empty depot
+      run `add ProjecturedKernel` and `test ProjecturedKernel` on Julia 1.13
+      and 1.11. Record whether Pkg reads those `[sources]`, the size, and the
+      time.
+- [ ] **Step 1, the narrow closure (T3, T6).** Its own plan, if the owner
+      agrees.
+- [ ] **Step 2, the generator.** `build_package_release!` writes the test
+      folder of each package: the unregistered closure in `test/support/`,
+      with the include prefixes changed as for `source/`; `test/Project.toml`
+      with the registered dependencies, their `[compat]` bounds and the
+      `[sources]` of the support packages; and `runtests.jl`. The test
+      packages of each released package come from `context`, by the rule of
+      the name (`<Name>Test`).
+- [ ] **Step 3, the test.** `test_package_release()` checks the test folder
+      of a fixture package, and that its `Pkg.test` passes.
+- [ ] **Step 4, the full check.** In an empty depot with a local registry,
+      `Pkg.test` for each of the 32 packages; record the size and the time.
+- [ ] **Step 5, the guides.** `builder.md` and `build-guide.md`.
+
+## 5. Decisions made during the work
+
+(filled in as the work goes)

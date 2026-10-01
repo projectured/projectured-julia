@@ -1345,7 +1345,8 @@ seals go beyond the kernel in time (only kernel files are sealed today).
 - [x] The generator writes one repository with a folder for each package, the
       form that Step B4 tested. Done on 2026-10-01:
       [one-release-repository.md](../done/one-release-repository.md).
-- [ ] R30: each registered package has its `test/runtests.jl`.
+- [ ] R30: each registered package has its `test/runtests.jl`. The plan:
+      [release-tests-for-each-package.md](release-tests-for-each-package.md).
 - [ ] R31: the release repository has its CI workflow.
 - [ ] Each registered package has a short README.
 - [ ] The full test of Step B4 again, with a local registry on this machine.
