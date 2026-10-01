@@ -20,7 +20,7 @@ Base.display(::EditorDisplay, value) = (display_in_editor(value); nothing)
 
 """
     display_in_editor(value; title = summary(value), backend = nothing,
-                      tabs = true) -> document
+                      tabs = true, refresh_every = nothing) -> document
 
 Show `value` in the editor of this process, and answer its document: the
 document that `make_value_document` makes for it, in the tab or the window that
@@ -35,11 +35,17 @@ each value a window of its own instead. `backend` and `tabs` apply when the
 call starts the editor. `title` names a new tab or window; a title that the
 editor has already gets a number.
 
+A value that a program changes in place, such as a data frame that gets a row,
+shows the change after [`refresh_display_editor!`](@ref). With `refresh_every`,
+a number of seconds, the editor that the call starts also reads every shown
+value again at that interval; it is off by default, because a program that
+writes a value while the editor reads it races the editor.
+
 The editor logs only warnings and errors, so an operation in its window writes
 no line to the REPL.
 """
 function display_in_editor(value; title::AbstractString = summary(value), backend = nothing,
-                           tabs::Bool = true)
+                           tabs::Bool = true, refresh_every::Union{Nothing,Real} = nothing)
     hasmethod(make_value_document, Tuple{typeof(value)}) ||
         error("No loaded package shows a value of type ", typeof(value), " in an editor: ",
               "none adds a method of make_value_document for it.")
@@ -51,7 +57,7 @@ function display_in_editor(value; title::AbstractString = summary(value), backen
         end
         if session === nothing
             document = make_value_document(value)
-            session = _start_session(document, String(title), backend, tabs)
+            session = _start_session(document, String(title); backend, tabs, refresh_every)
             _SESSION[] = session
             _remember!(session, value, String(title), document)
             return document
@@ -75,6 +81,20 @@ function close_display_editor!()
     nothing
 end
 
+"""
+    refresh_display_editor!() -> Nothing
+
+Read again every value that the editor of [`display_in_editor`](@ref) shows,
+after a program changed it in place: each shown document with a method of
+`refresh_document!` reads its value again, and the call waits until the editor
+did it. Nothing happens when no editor runs.
+"""
+function refresh_display_editor!()
+    session = lock(() -> _SESSION[], _SESSION_LOCK)
+    session === nothing || _refresh_session(session; wait = true)
+    nothing
+end
+
 # ── The session ──────────────────────────────────────────────────────────────
 
 # The editor of this process, the task of its loop, the title and the document
@@ -86,6 +106,7 @@ struct _EditorSession
     loop::Task
     shown::IdDict{Any,Pair{String,Any}}
     titles::Set{String}
+    refresh_timer::Base.RefValue{Union{Nothing,Timer}}   # the timer of `refresh_every`, or nothing
 end
 
 const _SESSION = Ref{Union{_EditorSession,Nothing}}(nothing)
@@ -113,7 +134,27 @@ _is_session_alive(session::_EditorSession) =
         !(root isa ScreenDocument) || length(root.windows) > 0
     end, session)
 
+# Post the refresh of every shown document to the editor of `session`, and wait
+# for it when `wait`. The documents are read under the lock of the session,
+# because the timer of `refresh_every` runs on a task of its own.
+function _refresh_session(session::_EditorSession; wait::Bool)
+    istaskdone(session.loop) && return nothing
+    documents = lock(() -> Any[last(entry) for entry in values(session.shown)], _SESSION_LOCK)
+    run_on_editor_task!(_call_latest(() -> foreach(_refresh_shown_document, documents)), session.editor;
+                        wait)
+    nothing
+end
+
+_refresh_shown_document(document) =
+    hasmethod(refresh_document!, Tuple{typeof(document)}) && refresh_document!(document)
+
+# A timer that refreshes the documents of `session` every `seconds`.
+_start_refresh_timer(session::_EditorSession, seconds::Real) =
+    Timer(_ -> _refresh_session(session; wait = false), seconds; interval = seconds)
+
 function _close_session!(session::_EditorSession)
+    timer = session.refresh_timer[]
+    timer === nothing || close(timer)
     istaskdone(session.loop) && return nothing
     post_operation!(session.editor, QuitEditorOperation())
     wait(session.loop)
@@ -123,7 +164,7 @@ end
 # The editor with one window, which shows `document`, built and run on a task
 # of its own. A window that opens later draws its document with a renderer of
 # its own, because a renderer keeps state for the documents it draws.
-function _start_session(document, title::String, backend, tabs::Bool)
+function _start_session(document, title::String; backend, tabs::Bool, refresh_every)
     appearance = load_appearance!(Appearance())
     projection = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
     later = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
@@ -142,7 +183,10 @@ function _start_session(document, title::String, backend, tabs::Bool)
                     window = window, appearance = appearance,
                     tabs = has_tabs && tabs ? (; title, appearance) : false)
     end
-    _EditorSession(editor, editor.loop_task, IdDict{Any,Pair{String,Any}}(), Set{String}())
+    session = _EditorSession(editor, editor.loop_task, IdDict{Any,Pair{String,Any}}(), Set{String}(),
+                             Ref{Union{Nothing,Timer}}(nothing))
+    refresh_every === nothing || (session.refresh_timer[] = _start_refresh_timer(session, refresh_every))
+    session
 end
 
 function _show_in_session!(session::_EditorSession, value, title::String)

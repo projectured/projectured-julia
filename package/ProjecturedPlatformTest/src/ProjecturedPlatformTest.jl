@@ -454,6 +454,7 @@ using ProjecturedPlatform.DisplayModule
 using ProjecturedKernel
 using ProjecturedKernel.AgentModule
 using ProjecturedKernel.BackendModule
+using ProjecturedKernel.DocumentModule: @document, Document
 using ProjecturedKernelTest
 using ProjecturedPlatform.PaneModule
 using ProjecturedPlatform.PrimitiveModule

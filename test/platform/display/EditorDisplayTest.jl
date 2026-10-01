@@ -7,6 +7,16 @@ struct DisplayProbeValue
 end
 WidgetModule.make_value_document(value::DisplayProbeValue) = PrimitiveString(value.text)
 
+# A value whose document counts the times that the display reads it again.
+@document struct DisplayRefreshProbe <: Document
+    count::Int = 0
+end
+struct DisplayRefreshedValue
+    document::DisplayRefreshProbe
+end
+WidgetModule.make_value_document(value::DisplayRefreshedValue) = value.document
+WidgetModule.refresh_document!(document::DisplayRefreshProbe) = (document.count += 1; nothing)
+
 # A backend with no window and no input: its wait is a short sleep, so the loop
 # turns and answers the calls that are posted to it.
 struct _DisplayProbeBackend <: Backend end
@@ -95,6 +105,29 @@ function test_editor_display()
             finally
                 close_display_editor!()
             end
+        end
+
+        @testset "a refresh reads each shown value again, at a call and at an interval" begin
+            close_display_editor!()
+            probe = DisplayRefreshProbe()
+            try
+                display_in_editor(DisplayRefreshedValue(probe); backend = _DisplayProbeBackend(),
+                                  refresh_every = 0.05)
+                count = probe.count
+                refresh_display_editor!()
+                @test probe.count > count
+                # The timer reads the value again, within a bounded wait.
+                count = probe.count
+                deadline = time() + 5.0
+                while probe.count == count && time() < deadline
+                    sleep(0.02)
+                end
+                @test probe.count > count
+            finally
+                close_display_editor!()
+            end
+            # No editor runs: nothing happens.
+            @test refresh_display_editor!() === nothing
         end
     end
 end

@@ -67,8 +67,10 @@ function _find_filter_place(query, name::String)
 end
 
 # The names of the columns that `view` shows, in the order of its frame: the
-# columns that it does not hide, and whose names the pattern keeps.
+# columns that it does not hide, and whose names the pattern keeps. A
+# computation that reads them follows a refresh of the frame too.
 function _get_shown_columns(view)
+    view.frame_version
     query = view.query
     keep = _parse_name_pattern(query.column_pattern)
     String[name for name in names(view.frame)

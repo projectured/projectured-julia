@@ -911,6 +911,33 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 - [ ] **3. Refresh.** The three levels of §4.3, as the method of
   `refresh_document!` for `DataFrameView`. The triggers A, B and D, with no
   busy flag. C is a keyword that is off by default (D3).
+  Started 2026-10-01 (the owner: "do phase 3, refresh"); done except B:
+  - `DataFrameRefresh.jl`: a snapshot of the three levels (the structure;
+    a hash of 100 rows from the top row and 64 shown columns; the full
+    content of the columns that the query reads, because `hash` of an array
+    reads only a few elements). The view has `frame_version`, which every
+    computation of the data of the frame reads, and `frame_snapshot`. A
+    refresh moves the version when the snapshot differs; the first refresh
+    moves it in any case, so a new view reads no cell for a refresh (a
+    snapshot in the constructor read 100 cells, which the tests that count
+    the reads of a frame of ten million rows found). A new column gets a
+    filter in the query.
+  - D: F5 is `RefreshDataFrameViewOperation`, which reads at every level
+    whether the snapshot changed or not.
+  - C: `display_in_editor(value; refresh_every)`, a timer of the display that
+    is off by default; and `refresh_display_editor!()`, which refreshes every
+    shown document and waits, for a person in the REPL (mine: a name that the
+    plan did not have, and the step that B also calls).
+  - A comes with phase 4: an edit through the view moves the version itself.
+  - B waits for the owner: the REPL has no hook after an input; the
+    recommendation of the writer is a task that an `ast_transforms` entry
+    starts with each input and that waits until
+    `Base.active_repl_backend.in_eval` is false, an internal field, and does
+    nothing when a later Julia renames it.
+  - Tests: `test_data_frame_refresh()` (no change, a written value, a pushed
+    row, a value that a filter reads and the table does not show, a new
+    column, F5) and the display (a call and the timer); 203 data frame and
+    21 display tests pass.
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
   form. There is no busy flag (D3 changes, §5.1). An edit writes the frame

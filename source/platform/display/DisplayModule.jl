@@ -30,7 +30,7 @@ using ..ScreenModule
 using ..StyleModule
 using ..WidgetModule
 
-export EditorDisplay, display_in_editor, close_display_editor!
+export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
 
 include("EditorDisplay.jl")
 

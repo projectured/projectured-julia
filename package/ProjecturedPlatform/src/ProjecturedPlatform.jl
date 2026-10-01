@@ -89,6 +89,6 @@ end
 
 # The display of a value beside the REPL, at the level of the package.
 using .DisplayModule
-export EditorDisplay, display_in_editor, close_display_editor!
+export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
 
 end # module ProjecturedPlatform
