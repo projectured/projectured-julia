@@ -33,5 +33,5 @@ ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedPdf = {path = "../ProjecturedPdf"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
-ProjecturedPlatformExample = {path = "../ProjecturedSubstrateExample"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedXml = {path = "../ProjecturedXml"}
