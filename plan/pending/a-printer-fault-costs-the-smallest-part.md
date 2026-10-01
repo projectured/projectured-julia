@@ -238,6 +238,14 @@ A computation that has no scope does not note. Its exception goes on to the next
 computation up that has one. So the mark goes to the nearest barrier on the pull
 path when the cell that failed was built outside every barrier.
 
+A barrier that can not show a fault hands it to the barrier that enclosed it when
+it printed: the scope that held then, which `find_fault_scope()` answers. That is
+the case when its substitute could not draw the mark, and when a read from
+outside its retry reaches a part that shows its mark. The fault follows the
+nesting of the barriers and not the pull stack, because the cells of a part
+travel by reference through the stages after it: the stack of the read that
+fails can hold no other barrier at all.
+
 ### 6.4 The switch
 
 The drain of the frame (`report_frame_faults!`) takes the list and writes the
@@ -321,6 +329,12 @@ pane.
   a theme, gives a mark to each node that reads it.
 - A stage with no recursion point, such as `TextToGraphics` or `WordWrapping`,
   is one part: a barrier around it costs that stage of the pane.
+- A retry that prints a part again runs outside every computation, so the reads of
+  that print do not reach the reconcile computation of the parent. The parent
+  keeps the reads of the first print.
+- A print that reads a cell of a child while it prints shows its own mark when
+  the cell of the child fails, so the mark can stand for the parent, until the
+  parent prints the part again.
 
 ### 6.9 Files
 
@@ -416,7 +430,7 @@ runs2[]               # 3: each pull runs the computation again
       What the code is:
       - `source/kernel/cell/CellFaultScope.jl`: `run_in_fault_scope`,
         `record_computation_fault!`, `RecordedFaultException`,
-        `get_fault_scope`. `Computation` keeps the scope by wrapping its
+        `get_fault_scope`, `find_fault_scope`. `Computation` keeps the scope by wrapping its
         function in `_FaultScopedComputation`, which catches and hands the
         fault on. The wrapper and not a field of the cell, because an
         `UntrackedCell` computes with no `_recompute!`, and a field costs every
@@ -459,9 +473,37 @@ runs2[]               # 3: each pull runs the computation again
         thousands of nodes then costs one computation and two throws per mark
         and per frame with an operation. A bound on it waits for the
         measurement.
-- [ ] **Step 4: retry A** after each operation.
-- [ ] **Step 5: retry C**, the context menu item and the plain click on the
+- [x] **Step 4: retry A** after each operation.
+- [x] **Step 5: retry C**, the context menu item and the plain click on the
       mark.
+
+      Steps 4 and 5 came with steps 2 and 3, in commit 916dd6d67, with their
+      tests in `FaultPartTest.jl`.
+
+      A review of the diff before that commit found these, all fixed in it:
+      - A mark whose substitute throws froze the frames with no count.
+        `_show_mark!` keeps the report only after the mark is drawn;
+        `show_barrier_mark!` records the fault of the substitute, and the
+        barrier hands its later faults to the barrier that encloses it. The
+        drain empties its list before it draws. A paint that a noted fault
+        stopped counts as a device fault when no barrier is on the list.
+        Test: "a mark that can not be drawn goes to the barrier above". That
+        test also showed that the fallback must follow the nesting and not the
+        pull stack (§6.3).
+      - The wrapper stopped the retry of `_run_computation` in a newer world. A
+        `MethodError` in an older world now passes the wrapper.
+      - Retry A could answer a success with nothing changed: a fault of an
+        untracked cell, or of the computation of the output of the barrier
+        itself. The scope now gets the function of the computation that threw,
+        not the cell, and the retry runs that function. A retry of a print reads
+        the new output before it answers.
+      - Under `run_untracked`, the depth of a scope was compared with another
+        stack. The scope keeps its stack vector.
+      - `set_cell_computation!` kept no scope; it does now.
+      - A failed retry of an early fault recorded again; a retry records
+        nothing.
+      - The reader and the maps recorded a `RecordedFaultException` again; they
+        do not.
 - [ ] **Step 6: the barriers of the application** (§6.7), with the count of cells
       and the frame time. If it costs too much, the fallback of §6.7.
 - [ ] **Step 7: the renderer catch** around each element, with the frame time.
