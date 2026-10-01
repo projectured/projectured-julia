@@ -229,8 +229,9 @@ Build the ProjecturEd application, and answer the directory of the bundle,
   `compile = false` to write the package and compile nothing, or
   `incremental = false` for a fresh image.
 
-The binary holds the example package, which holds every domain, both assistant
-backends and the application, and the MCP server.
+The binary holds the umbrella, which holds every domain and, through the
+platform, the application; both model adapters, the MCP server, and the
+backends.
 """
 function build_projectured_executable(; name::AbstractString = "projectured",
                                         backends = (:sdl, :web),
@@ -250,11 +251,12 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                                Expr(:., Symbol(first(PROJECTURED_BACKENDS[backend])),
                                     QuoteNode(last(PROJECTURED_BACKENDS[backend]))))
                           for backend in backends]...)
-    main = :(ProjecturedExample.run_application_command(ARGS; backends = $table))
+    main = :(Projectured.run_application_command(ARGS; backends = $table))
     build_executable(context; name = name,
-                     packages = vcat(["ProjecturedExample", "ProjecturedMcp"], backend_packages),
+                     packages = vcat(["Projectured", "ProjecturedOllama", "ProjecturedAnthropic",
+                                      "ProjecturedMcp"], backend_packages),
                      main = main,
-                     workload = workload ? :(ProjecturedExample.warm_application()) : nothing,
+                     workload = workload ? :(Projectured.warm_application()) : nothing,
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
                      assets = PROJECTURED_ASSETS,

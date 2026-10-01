@@ -62,8 +62,8 @@ include("JuliaFile.jl")
 include("JuliaToSyntax.jl")
 
 
-# What this slice registers when it loads: the file extensions it owns, and
-# the natural notation it reads and writes.
+# What this slice registers when it loads: the file extensions it owns, the
+# natural notation it reads and writes, and how its code draws as a whole.
 function __init__()
     register_file_document_type!(".jl", JuliaFile)
     register_marker_function!(:definition,
@@ -76,6 +76,14 @@ function __init__()
                              extension = ".jl",
                              parse     = parse_julia,
                              expression = make_julia_expression)
+
+    # Julia code draws as a whole: a document that stands in the code, such as
+    # an object that a person pasted into a form, stays one leaf of the code,
+    # `⟨Table⟩`, and does not draw as itself in the middle of a line.
+    register_natural_graphics!(:julia_code, (; measure) -> Pair{Type,Any}[
+        JuliaDocument => ChainingProjection(RecursiveProjection(JuliaToSyntax()),
+                                            RecursiveProjection(SyntaxToText()),
+                                            TextToGraphics(measure = measure))])
 end
 
 end # module

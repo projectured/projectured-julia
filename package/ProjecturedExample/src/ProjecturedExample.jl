@@ -95,30 +95,15 @@ include(joinpath(_EXAMPLE_DIR, "DomainExamples.jl"))
 # The global interleaved registry, then the generated atomic catalog.
 include(joinpath(_EXAMPLE_DIR, "ProjecturedExamples.jl"))
 include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
-# `default_backend` picks a loaded Backend subtype by its own type name. Only
-# the two harnesses below call it, so it lives with them rather than in a
-# slice of the platform. It reads the kernel's Backend type through the
-# alias, which is how every file that names a submodule reaches one here.
-const BackendModule = Projectured.BackendModule
-include(joinpath(_EXAMPLE_DIR, "DefaultBackend.jl"))
-using .DefaultBackendModule
-export default_backend
-# The gallery (`run_example` and its wrappers), the file-editor harness and the
-# application: all three compose several domains, so they live at the umbrella.
+# The gallery (`run_example` and its wrappers) and the file-editor harness:
+# both compose several domains, so they live at the umbrella.
 include(joinpath(_EXAMPLE_DIR, "Gallery.jl"))
 include(joinpath(_EXAMPLE_DIR, "FeedExamples.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 include(joinpath(_EXAMPLE_DIR, "ValueViewer.jl"))
-include(joinpath(_EXAMPLE_DIR, "Application.jl"))
 include(joinpath(_EXAMPLE_DIR, "SearchScaleCorpus.jl"))
 include(joinpath(_EXAMPLE_DIR, "SearchGuideCorpus.jl"))
 export run_value_viewer, make_value_viewer, make_value_viewer_feeds
-export run_application, start_application!, make_application_document, make_application_projection,
-       make_application_window, make_application_api, APPLICATION_SYSTEM,
-       make_application_assistant, make_application_content_projections,
-       get_application_greeting_text, APPLICATION_ASSISTANTS,
-       parse_application_arguments, run_application_command,
-       warm_application
 # LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
 # real SDL window / record via ProjecturedVideo).
 # The workload body comes last, so it can reach everything above it. The

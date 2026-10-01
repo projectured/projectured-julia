@@ -400,19 +400,44 @@ and the downstream repositories land in the same landing.
             chain already, and a markdown override that wrapped at 800 pixels
             (the natural rows of markdown wrap at the width of the page). The
             example's other two projections keep their renderer.
-      - [ ] 5c. **The slice**: `Application.jl` and `DefaultBackend.jl` move to
+      - [x] 5c. **The slice**: `Application.jl` and `DefaultBackend.jl` move to
             `source/platform/application/`; the four domain rows go, and the
             natural renderer draws those documents (the visible difference:
             long lines of a JSON or an XML file no longer wrap, because the
             natural renderer never wraps code). The platform gains
             `InteractiveUtils` (a standard library) for `default_backend`.
             `PLATFORM_SLICE_EDGES` gains the row of the slice.
-      - [ ] 5d. **The warm-up** `warm_application` needs `ConsoleBackend` and
+            Done: `ApplicationModule` in `source/platform/application/`,
+            included after the undo slice; `default_backend` is a fragment of
+            it. **A fact found on the way**: without the Julia row, the
+            application drew an object that a person pasted into Julia code
+            as a reflected tree and not as the chip `⟨a.json⟩`, because the
+            natural renderer sends every child back to its own table, while
+            `JuliaToSyntax` ends with a row that draws any foreign document as
+            one leaf (two tests of `test_application` failed). So the Julia
+            domain registers its closed chain with `register_natural_graphics!`
+            (`:julia_code`), and every natural renderer draws Julia code as the
+            Julia notation says. Tests: `test_application` 339 pass and 2
+            broken, as on the clone before step 5; the Julia, formula, FSM and
+            process suites, the conversation suite, the evaluator, file tab,
+            natural notation and registry, construct and value viewer tests
+            equal the clone before step 5 (1,531 against 1,526; the 5 more are
+            the registry test of 5a).
+      - [x] 5d. **The warm-up** `warm_application` needs `ConsoleBackend` and
             three domains, so it goes to the umbrella, which only a build runs
             it from.
-      - [ ] 5e. **The builder** builds the binary from `Projectured`, the two
+            Changed while doing it: the warm-up stays in the slice and finds
+            the console backend with `default_backend((:ConsoleBackend,))`, so
+            the application stays in one place and the umbrella stays a pure
+            re-export; it needs what a build loads (the console and the JSON,
+            Markdown and Julia formats), as before. The walk that reads every
+            reachable cell, which the file-editor example shares, is
+            `evaluate_reachable_cells!` in the slice.
+      - [x] 5e. **The builder** builds the binary from `Projectured`, the two
             model adapters, `ProjecturedMcp` and the backends; the example tier
             leaves the binary.
+            Done: `main` is `Projectured.run_application_command`, the workload
+            `Projectured.warm_application()`. Builder tests 225 pass.
       - [ ] 5f. The tests, the examples that call the application, and the
             documents follow.
 - [x] **Step 6, the words.** The docstrings of `conversation` and `filesystem`

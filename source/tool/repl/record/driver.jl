@@ -35,7 +35,7 @@ ProjecturedExample.precompile_workload()
 # The warm-up a binary runs: the application window, and a tab made with the
 # Insert key. The examples below never type into a name buffer, and its first
 # key compiles a method for every document type that the buffer can make.
-ProjecturedExample.warm_application()
+Projectured.warm_application()
 
 backend = SdlBackend()
 initialize_backend!(backend)

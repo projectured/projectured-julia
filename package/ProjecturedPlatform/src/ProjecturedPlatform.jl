@@ -6,9 +6,10 @@ built on. The collections, the primitive values, the projection algebra, the
 style, the graphics, the layout, the screen, the text, the syntax and the
 natural notation; the widgets, the panes and the window; the clipboard, the
 focus and the dragging; the conversation and the assistant; the file system, the
-help, the logs, the statistics and the undo. Each slice is a module of its own,
-in `source/platform/<slice>/`, and the order of the includes below is an order
-of `PLATFORM_SLICE_EDGES`, the table of the edges between the slices.
+help, the logs, the statistics and the undo; and the application that puts
+them in one window. Each slice is a module of its own, in
+`source/platform/<slice>/`, and the order of the includes below is an order of
+`PLATFORM_SLICE_EDGES`, the table of the edges between the slices.
 
 The loop below binds every submodule of the kernel as a `const`, so a source
 file here names a module of the kernel exactly as the module names itself.
@@ -62,6 +63,7 @@ include("../../../source/platform/log/MessageLogModule.jl")
 include("../../../source/platform/statistics/FrameStatisticsModule.jl")
 include("../../../source/platform/shell/ShellModule.jl")
 include("../../../source/platform/undo/UndoModule.jl")
+include("../../../source/platform/application/ApplicationModule.jl")
 include("../../../source/platform/PlatformModule.jl")
 
 # A user who loads the package by name gets every module of it and every name that

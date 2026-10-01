@@ -193,37 +193,6 @@ const _WARMUP_EVENTS = Any[
     KeyDown(:delete,    ModifierKeys(); time = time()),
 ]
 
-const _WARMUP_WALK_MAX_DEPTH = 200
-const _WARMUP_WALK_MAX_NODES = 20_000
-
-# Force every reachable reactive `Cell` in a printed iomap so PackageCompiler
-# compiles the cell bodies (the printer closures), not just the graph assembly.
-# Depth/node caps keep a legitimately lazy/large document from walking forever.
-# Mirrors the test suite's `_walk!` but is self-contained (no test dependency).
-function _force_reactive!(x, visited::Set{UInt64} = Set{UInt64}(),
-                          count::Base.RefValue{Int} = Ref(0), depth::Int = 0)
-    (x === nothing || x isa Bool || x isa Number || x isa AbstractString ||
-     x isa Symbol || x isa Function || x isa DataType || x isa Module) && return
-    (depth >= _WARMUP_WALK_MAX_DEPTH || count[] >= _WARMUP_WALK_MAX_NODES) && return
-    id = objectid(x)
-    id in visited && return
-    push!(visited, id); count[] += 1
-    if x isa Cell
-        v = try x[] catch; return end
-        _force_reactive!(v, visited, count, depth + 1)
-    elseif x isa Vector
-        for el in x
-            _force_reactive!(el, visited, count, depth + 1)
-        end
-    else
-        for fn in fieldnames(typeof(x))
-            f = try getfield(x, fn) catch; continue end
-            _force_reactive!(f, visited, count, depth + 1)
-        end
-    end
-    return
-end
-
 """
     warm_file_editor(domain::Symbol) -> nothing
 
@@ -256,7 +225,7 @@ function warm_file_editor(domain::Symbol)
         editor = Editor(screen, composed; backend = ConsoleBackend(),
                         devices = Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, screen)
-        _force_reactive!(editor.iomap)
+        evaluate_reachable_cells!(editor.iomap)
         for event in _WARMUP_EVENTS
             window_input    = WindowInput(window_id, event)
             change = read_intent(composed, nothing, Intent(window_input), editor.iomap)
@@ -265,7 +234,7 @@ function warm_file_editor(domain::Symbol)
             editor.operation = op
             evaluate_operation(editor, op)
             editor.iomap = print_document(composed, editor.document)
-            _force_reactive!(editor.iomap)
+            evaluate_reachable_cells!(editor.iomap)
         end
     catch err
         @warn "warm_file_editor: headless warm-up failed (non-fatal)" domain err

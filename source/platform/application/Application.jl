@@ -1,5 +1,5 @@
-# The ProjecturEd application: a window that shows files, with a file navigator
-# and the assistant beside them.
+# Fragment of `ApplicationModule` — the ProjecturEd application: a window that
+# shows files, with a file navigator and the assistant beside them.
 #
 # The navigator, the file tabs and the assistant are the groups of a split, and
 # the pane gestures rearrange them. Every file tab holds a `FileDocument`, so
@@ -138,9 +138,10 @@ end
     make_application_content_projections(; measure = FontFileMeasure()) -> Vector{Pair{Type,Any}}
 
 How the application draws what a tab holds, in front of the defaults of
-`NaturalToGraphics`: the domains with an editor projection of their own, the
-assistant and its conversation, and plain text. The navigator draws through
-its own registered row.
+`NaturalToGraphics`: the history around a file, the navigator, the assistant
+and its conversation, and plain text. A document of a domain draws through the
+natural renderer, which every loaded domain registers itself with, so the
+application names no domain.
 """
 function make_application_content_projections(; measure = FontFileMeasure())
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
@@ -153,12 +154,6 @@ function make_application_content_projections(; measure = FontFileMeasure())
         # A history around what a tab holds is invisible: it prints what it holds
         # and answers that output.
         UndoBuffer        => UndoBufferToAnyProjection(),
-        JsonDocument      => ChainingProjection(RecursiveProjection(JsonToSyntax()),
-                                                RecursiveProjection(SyntaxToText()), text_to_graphics),
-        XmlDocument       => ChainingProjection(RecursiveProjection(XmlToSyntax()),
-                                                RecursiveProjection(SyntaxToText()), text_to_graphics),
-        JuliaDocument     => make_julia_projection_example(measure = measure),
-        SqlDocument       => make_sql_syntax_projection_example(measure = measure),
         TextDocument      => text_to_graphics,
         # The file system slice registers a row for a workspace, and this one
         # overrides it for one reason: what a file opens WITH is the
@@ -297,19 +292,17 @@ make_application_api() = Any[
     make_interface_api()...,
     make_file_api()...,
     # What this application holds and the file slice does not name: the tree a
-    # navigator lists, and the operation that opens a row of it. Named through
-    # the umbrella, because an example package binds a slice's names and not its
-    # module.
-    Projectured.FileSystemModule => (:OpenFileOperation, :Workspace, :WorkspaceFolder),
+    # navigator lists, and the operation that opens a row of it.
+    FileSystemModule => (:OpenFileOperation, :Workspace, :WorkspaceFolder),
     # How a model reads what a tab holds, which is what a window of files is
     # asked about: find a document in the window, see through the history a file
     # carries, take the content of a file document, and read or write a document
     # of any domain as its own text.
-    Projectured.DocumentModule => (:search_documents, :get_wrapped_document),
-    Projectured.FileFormatModule => (:get_file_content,),
-    Projectured.NaturalModule => (:print_natural_text, :parse_natural_text),
+    DocumentModule => (:search_documents, :get_wrapped_document),
+    FileFormatModule => (:get_file_content,),
+    NaturalModule => (:print_natural_text, :parse_natural_text),
     # The verbs that edit a collection of a document, as edits of the editor.
-    Projectured.EditorModule => (:insert_elements!, :delete_elements!),
+    EditorModule => (:insert_elements!, :delete_elements!),
     # What each loaded domain offers for its own documents, such as the shape of
     # a JSON file, which a model reads to find the fields of a record.
     get_assistant_api()...,
@@ -547,6 +540,41 @@ end
 
 # ── The warm-up of a build ───────────────────────────────────────────────────
 
+const _WARMUP_WALK_MAX_DEPTH = 200
+const _WARMUP_WALK_MAX_NODES = 20_000
+
+"""
+    evaluate_reachable_cells!(value) -> nothing
+
+Read every reactive `Cell` that `value` reaches, so that a warm-up compiles the
+bodies of the cells, the closures of a printer, and not only the graph that
+holds them. A cap on the depth and on the count of the nodes keeps a lazy or a
+large document from a walk without end.
+"""
+function evaluate_reachable_cells!(x, visited::Set{UInt64} = Set{UInt64}(),
+                                   count::Base.RefValue{Int} = Ref(0), depth::Int = 0)
+    (x === nothing || x isa Bool || x isa Number || x isa AbstractString ||
+     x isa Symbol || x isa Function || x isa DataType || x isa Module) && return
+    (depth >= _WARMUP_WALK_MAX_DEPTH || count[] >= _WARMUP_WALK_MAX_NODES) && return
+    id = objectid(x)
+    id in visited && return
+    push!(visited, id); count[] += 1
+    if x isa Cell
+        v = try x[] catch; return end
+        evaluate_reachable_cells!(v, visited, count, depth + 1)
+    elseif x isa Vector
+        for el in x
+            evaluate_reachable_cells!(el, visited, count, depth + 1)
+        end
+    else
+        for fn in fieldnames(typeof(x))
+            f = try getfield(x, fn) catch; continue end
+            evaluate_reachable_cells!(f, visited, count, depth + 1)
+        end
+    end
+    return
+end
+
 """
     warm_application() -> document or nothing
 
@@ -560,6 +588,9 @@ The new tab gets its name one key at a time, as a person types it, with a
 Backspace and a Delete on the way. The first key lists every document type that
 the name buffer can make, and that list compiles a method for each type. Without
 the warm-up, the first key waits for all of them.
+
+It needs what a build of the binary loads: the console backend, which it finds
+by the name of its type, and the JSON, Markdown and Julia formats of its files.
 """
 function warm_application()
     directory = mktempdir()
@@ -596,10 +627,10 @@ function warm_application()
         composed = make_window_scene_projection(projection;
             opened_window_projections = make_opened_window_projections(;
                 content = make_application_content_projections()))
-        editor = Editor(scene, composed; backend = ConsoleBackend(),
+        editor = Editor(scene, composed; backend = default_backend((:ConsoleBackend,)),
                         devices = Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, scene)
-        _force_reactive!(editor.iomap)
+        evaluate_reachable_cells!(editor.iomap)
         for event in events
             change = read_intent(composed, nothing,
                                  Intent(WindowInput(:ProjecturEd, event)), editor.iomap)
@@ -608,7 +639,7 @@ function warm_application()
             editor.operation = operation
             evaluate_operation(editor, operation)
             editor.iomap = print_document(composed, editor.document)
-            _force_reactive!(editor.iomap)
+            evaluate_reachable_cells!(editor.iomap)
         end
         warmed = document
     catch err

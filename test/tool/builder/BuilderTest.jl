@@ -913,15 +913,16 @@ function test_builder()
             deps = ProjecturedBuilder.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
             # The packages of the binary, and the stand-in that keeps the sound
             # libraries out of it.
-            @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedExample",
+            @test Set(keys(deps)) == Set(["PrecompileTools", "Projectured",
+                                          "ProjecturedOllama", "ProjecturedAnthropic",
                                           "ProjecturedMcp", "ProjecturedSdl",
                                           "ProjecturedWeb",
                                           "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
-            @test occursin("ProjecturedExample.run_application_command(ARGS; backends = " *
+            @test occursin("Projectured.run_application_command(ARGS; backends = " *
                            "(sdl = ProjecturedSdl.SdlBackend, web = ProjecturedWeb.WebBackend))",
                            source)
-            @test occursin("ProjecturedExample.warm_application()", source)
+            @test occursin("Projectured.warm_application()", source)
             @test occursin("--backend=sdl|web", source)
             @test occursin("--assistant=ollama|anthropic|none", source)
             text = format_usage("projectured", make_projectured_usage([:sdl, :web]))
