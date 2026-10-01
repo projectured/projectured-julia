@@ -15,7 +15,7 @@ function _make_referenced_application(directory; paths = nothing)
                           window = (; title = "ProjecturEd", width = 1280, height = 720,
                                     opened_window_projections = make_opened_window_projections(;
                                         content = make_application_content_projections())))
-    start_application!(editor, false, :none, "")
+    start_application!(editor)
     run_frame!(editor)
     editor
 end

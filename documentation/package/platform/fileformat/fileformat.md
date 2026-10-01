@@ -59,7 +59,7 @@ The save calls `save_file!`, which uses the `emit_text` of the file type, and no
 
 ## How it fits
 
-The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the application of `example/projectured/Application.jl` adds `make_file_api()` to its tool set.
+The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) adds `make_file_api()` to its tool set.
 
 It registers one natural row: `register_natural_graphics!(:fileformat, …)` with `FileDocument => FileToContent()`. Every file type then draws as its content in a tab. [natural.md](../natural/natural.md) describes the table.
 
@@ -81,7 +81,7 @@ tab  = make_file_tab("example.json")           # a JsonFile for a tab
 tab  = make_file_tab("example.json", UndoBuffer)
 ```
 
-- Examples: no example of its own. `example/projectured/Application.jl` opens its files with `make_file_tab`.
+- Examples: no example of its own. The [application slice](../application/application.md) opens its files with `make_file_tab_content`.
 - Tests: no `test/fileformat/` folder exists. `test_file_tab()` in `test/projectured/projection/FileTabTest.jl` covers `FileToContent`, `test/projectured/editor/ApplicationTest.jl` covers the tool set, and `test/projectured/serializer/SerializationTest.jl` covers the binary format, the natural round trip of each domain and the export guard.
 
 ## Limits

@@ -67,7 +67,7 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 
 Its `__init__` in `source/domain/json/JsonModule.jl` registers the natural row with the rung `:syntax`, the format `:json`, the extension `.json` and the parser `parse_json`. It also registers `JsonFile` for `.json`. The [YAML domain](../yaml/yaml.md) mirrors these types one to one.
 
-An application that gives a language model access to the editor declares the seven types of this domain in its own vocabulary, so a model can read the shape of a JSON file it opens: `example/projectured/Application.jl` names `JsonArray`, `JsonObject`, `JsonObjectEntry`, `JsonString`, `JsonNumber`, `JsonBool` and `JsonNull` this way, beside the pane and file verbs it also declares.
+The same `__init__` registers `JsonArray`, `JsonObject`, `JsonObjectEntry`, `JsonString`, `JsonNumber`, `JsonBool` and `JsonNull` with `register_assistant_api!`, so a model can read the shape of a JSON file it opens without a host naming this domain. [assistant.md](../../platform/assistant/assistant.md) describes the registry, and the [application slice](../../platform/application/application.md) is a host that declares every registered entry to the model it runs.
 
 ## Design decisions
 

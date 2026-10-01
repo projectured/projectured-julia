@@ -27,7 +27,7 @@ The package depends on `Dates`, `Pkg`, `Preferences`, `SHA` and `TOML`, and on n
 
 Nothing depends on the app package, so it is a leaf in the sense of [package-rules.md](../../../rule/package-rules.md#why-the-leaf-matters). Its `@compile_workload` runs the expression `workload`, and the compiled code stays in the image. It is the second leaf beside `ProjecturedRepl`; see [repl.md](../repl/repl.md).
 
-For `projectured` the workload is `ProjecturedExample.warm_application()`. It builds the application window over a temporary folder with files of several formats, on a `ConsoleBackend` with no display. Then it sends a key, a click in the navigator, Enter on a file and a save. Last, it makes a new tab with Ctrl+T and Insert, and types its name key by key. The first key in the name buffer compiles a method for every document type that the buffer can make. A failure of the warm-up is logged, and the build goes on.
+For `projectured` the workload is `Projectured.warm_application()`. It builds the application window over a temporary folder with files of several formats, on a `ConsoleBackend` with no display. Then it sends a key, a click in the navigator, Enter on a file and a save. Last, it makes a new tab with Ctrl+T and Insert, and types its name key by key. The first key in the name buffer compiles a method for every document type that the buffer can make. A failure of the warm-up is logged, and the build goes on.
 
 ### Preferences
 
@@ -65,7 +65,7 @@ The last release is what the last commit of each repository holds: an uncommitte
 
 ## How it fits
 
-`ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. `source/tool/builder/build_binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `ProjecturedExample`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../../guide/static-compilation-guide.md).
+`ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. `source/tool/builder/build_binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `Projectured`, `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../../guide/static-compilation-guide.md).
 
 ## Design decisions
 

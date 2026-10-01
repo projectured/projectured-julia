@@ -15,7 +15,7 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 17 domain te
   `test_reader`, `test_repl`, the navigation explorers, `_walk!`) + the shared
   static `check_layering` guard. Aggregator: `test_kernel()`.
 - [package/platform/test](../../package/ProjecturedPlatformTest/src/ProjecturedPlatformTest.jl) —
-  the unit tests of every one of the thirty-eight slices of the platform: the
+  the unit tests of every one of the thirty-nine slices of the platform: the
   collection and copying tests, the ground-truth selection enumerators, the
   syntax, text, graphics and layout documents, the text, graphics and widget
   projections, and the type-in and click-roundtrip drivers. Aggregator:

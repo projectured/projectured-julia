@@ -17,8 +17,6 @@ that a session loads, and a session decides what it holds by what it loads:
 """
 module ApplicationModule
 
-import InteractiveUtils: subtypes
-
 using ..KernelModule
 using ..AssistantModule
 using ..CollectionModule
@@ -40,12 +38,12 @@ using ..UndoModule
 using ..WidgetModule
 
 export default_backend
-export run_application, start_application!, make_application_document,
+export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,
+       make_application_document, make_application_content_projections,
        make_application_projection, make_application_window, make_application_api,
-       APPLICATION_SYSTEM, make_application_assistant,
-       make_application_content_projections, get_application_greeting_text,
-       APPLICATION_ASSISTANTS, parse_application_arguments, run_application_command,
-       warm_application, evaluate_reachable_cells!
+       APPLICATION_SYSTEM, run_application, parse_application_arguments,
+       run_application_command, evaluate_reachable_cells!, warm_application,
+       start_application!
 
 include("DefaultBackend.jl")
 include("Application.jl")

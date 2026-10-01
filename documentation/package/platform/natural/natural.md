@@ -87,14 +87,15 @@ The natural slice depends on the kernel and on the text, layout, widget, graphic
 
 | Registers | With |
 | --- | --- |
-| JSON, XML, YAML, Julia, SQL | `register_natural_domain!` at `:syntax` |
+| JSON, XML, YAML, SQL | `register_natural_domain!` at `:syntax` |
+| Julia | `register_natural_domain!` at `:syntax`, and a graphics factory that closes the dispatch of `JuliaToSyntax` |
 | Markdown, RST, math | `register_natural_domain!` at `:syntax`, a syntax factory and a graphics factory |
 | book, the message log, the gesture log, the fault log | a syntax factory only |
 | the file system | a syntax factory, and a graphics factory for the workspace |
 | graph, formula, file format, inspector, assistant, evaluator | a graphics factory |
 | the syntax slice | the fallback and the `syntax → text` step |
 
-The file-format slice reads and writes files with `print_natural_text` and `parse_natural_text`; see [fileformat.md](../fileformat/fileformat.md). Each `XFile` type prints its content with `print_natural_text` in `emit_text`. The assistant checks `make_natural_projection(document, :string)` before it gives a document to the model as text. The application in `example/projectured/Application.jl` draws every tab through `NaturalToGraphics`, with rows in `extra` for the documents that have a designed view.
+The file-format slice reads and writes files with `print_natural_text` and `parse_natural_text`; see [fileformat.md](../fileformat/fileformat.md). Each `XFile` type prints its content with `print_natural_text` in `emit_text`. The assistant checks `make_natural_projection(document, :string)` before it gives a document to the model as text. The [application slice](../application/application.md) draws every tab through `NaturalToGraphics`, with rows in `extra` for the documents that have a designed view.
 
 ## Design decisions
 

@@ -91,7 +91,7 @@ Both repaint every window in full.
 
 `ProjecturedSdl` depends on the kernel and the platform, and on `SimpleDirectMediaLayer` and `SDL2_jll`. A package with a third-party dependency is a stem that a user names, so `using Projectured` does not load it. `ProjecturedRepl` loads it, and `ProjecturedVideo` depends on it. The builder names it as the backend `sdl` of a binary, the default when a build holds both backends.
 
-`default_backend()` in `example/projectured/DefaultBackend.jl` returns an `SdlBackend` when the package is loaded. It registers nothing.
+`default_backend()` in the [application slice](../../platform/application/application.md) returns an `SdlBackend` when the package is loaded. It registers nothing.
 
 ## Design decisions
 

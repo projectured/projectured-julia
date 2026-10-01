@@ -101,7 +101,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                                     measure = measure)))
             backend.editor = editor
             start(editor)
-            start_application!(editor, false, assistant, model)
+            start_application!(editor; assistant, model)
             run_editor!(editor)
         end
         _encode_frames_to_video!(backend.frames_dir, filename, fps)

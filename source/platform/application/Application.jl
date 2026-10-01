@@ -423,7 +423,7 @@ function run_application(paths::AbstractString...;
                                                                make_application_content_projections(measure = measure)),
                                                 measure = measure)))
         start(editor)
-        start_application!(editor, mcp, assistant, model)
+        start_application!(editor; mcp, assistant, model)
         run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
     end
 end
@@ -551,25 +551,33 @@ bodies of the cells, the closures of a printer, and not only the graph that
 holds them. A cap on the depth and on the count of the nodes keeps a lazy or a
 large document from a walk without end.
 """
-function evaluate_reachable_cells!(x, visited::Set{UInt64} = Set{UInt64}(),
-                                   count::Base.RefValue{Int} = Ref(0), depth::Int = 0)
+evaluate_reachable_cells!(value) = (_walk_cells!(value, _CellWalk(Set{UInt64}(), 0), 0); nothing)
+
+# The objects that the walk has read, and how many.
+mutable struct _CellWalk
+    visited::Set{UInt64}
+    count::Int
+end
+
+function _walk_cells!(x, walk::_CellWalk, depth::Int)
     (x === nothing || x isa Bool || x isa Number || x isa AbstractString ||
      x isa Symbol || x isa Function || x isa DataType || x isa Module) && return
-    (depth >= _WARMUP_WALK_MAX_DEPTH || count[] >= _WARMUP_WALK_MAX_NODES) && return
+    (depth >= _WARMUP_WALK_MAX_DEPTH || walk.count >= _WARMUP_WALK_MAX_NODES) && return
     id = objectid(x)
-    id in visited && return
-    push!(visited, id); count[] += 1
+    id in walk.visited && return
+    push!(walk.visited, id)
+    walk.count += 1
     if x isa Cell
         v = try x[] catch; return end
-        evaluate_reachable_cells!(v, visited, count, depth + 1)
+        _walk_cells!(v, walk, depth + 1)
     elseif x isa Vector
         for el in x
-            evaluate_reachable_cells!(el, visited, count, depth + 1)
+            _walk_cells!(el, walk, depth + 1)
         end
     else
         for fn in fieldnames(typeof(x))
             f = try getfield(x, fn) catch; continue end
-            evaluate_reachable_cells!(f, visited, count, depth + 1)
+            _walk_cells!(f, walk, depth + 1)
         end
     end
     return
@@ -651,19 +659,21 @@ function warm_application()
 end
 
 """
-    start_application!(editor, mcp::Bool, assistant::Symbol, model::AbstractString)
+    start_application!(editor; mcp = false, assistant = :none, model = "")
 
 What the application does once the editor exists: it declares the API of
 [`make_application_api`](@ref) on the tools of the editor, and adds the `undo`
 and `redo` tools. With `mcp`, the tools also get the meaning model of the
-backend, because an MCP client runs no turn of the assistant and its searches by
-description rank by meaning too.
+backend `assistant` names, with `model` (empty for its default), because an MCP
+client runs no turn of the assistant and its searches by description rank by
+meaning too.
 
 [`run_application`](@ref) calls it between `build_editor` and `run_editor!`. A
 host that opens the same window another way calls it too, so its assistant is
 the one of the application.
 """
-function start_application!(editor, mcp::Bool, assistant::Symbol, model::AbstractString)
+function start_application!(editor; mcp::Bool = false, assistant::Symbol = :none,
+                            model::AbstractString = "")
     if hasproperty(editor, :tools)
         # What the assistant may write, and the whole of it. The verbs are
         # functions a model finds with `search_api` and calls through

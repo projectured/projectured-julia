@@ -1266,7 +1266,7 @@ uuid = "18e37c66-e2b2-4424-ab73-223891693292"
 version = "0.1.0"
 
 [[deps.ProjecturedPlatform]]
-deps = ["InteractiveUtils", "Printf", "ProjecturedKernel", "Serialization"]
+deps = ["Printf", "ProjecturedKernel", "Serialization"]
 path = "../../package/ProjecturedPlatform"
 uuid = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 version = "0.1.0"

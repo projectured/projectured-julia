@@ -3,7 +3,8 @@
 #
 # A backend is a loaded subtype of `Backend`, so a package that depends on no
 # backend still obtains one at run time from what the session loaded, with no
-# key coined for it and no registration. It needs `InteractiveUtils.subtypes`.
+# key coined for it and no registration. The subtypes come from the walk of
+# the domain slice, which needs no `InteractiveUtils`.
 
 """
     default_backend(prefer = (:SdlBackend, :WebBackend, :ConsoleBackend)) -> Backend
@@ -25,7 +26,7 @@ ride through reflection — pass an already-constructed backend via `backend=`
 when you need them.
 """
 function default_backend(prefer = (:SdlBackend, :WebBackend, :ConsoleBackend))
-    loaded = subtypes(Backend)
+    loaded = DomainModule.subtypes(Backend)
     for name in prefer
         i = findfirst(loaded) do T
             nameof(T) === name || Symbol(parentmodule(T), '.', nameof(T)) === name

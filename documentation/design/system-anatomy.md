@@ -59,7 +59,7 @@ depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one kernel, one platform package of
-thirty-eight slices, seventeen domain packages, five backends and eight
+thirty-nine slices, seventeen domain packages, five backends and eight
 adapters**, plus an umbrella and the tools. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
@@ -69,7 +69,7 @@ diagram itself: one line per layer, bottom to top, and a module's own file
 carries its fragment include list.
 Every other package is **one concept**, so it declares no layer index; the
 guard checks its include order and its file inventory alone. The platform
-declares no layer either: its thirty-eight slices form an acyclic graph of
+declares no layer either: its thirty-nine slices form an acyclic graph of
 their own, which the same guard checks.
 
 Each main package is one third of a **triad**: `package/Projected<Name>`,
@@ -88,7 +88,7 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
-ProjecturedPlatform (platform/) one package, 38 slices, below every domain
+ProjecturedPlatform (platform/) one package, 39 slices, below every domain
         ▲                      one concept each, an acyclic slice graph
         │                      the vocabulary — collection, primitive, domain,
         │                      serialization;
@@ -102,7 +102,7 @@ ProjecturedPlatform (platform/) one package, 38 slices, below every domain
         │                      natural, filesystem, display, gesturetracking,
         │                      mousetargettracking;
         │                      the application — undo, log, statistics, shell,
-        │                      help, conversation, assistant.
+        │                      help, conversation, assistant, application.
         │                      Each slice declares the exact set it imports; the table
         │                      is in [package-rules.md](../rule/package-rules.md).
 The seventeen domain packages  one package per concrete source domain
@@ -139,7 +139,7 @@ The four-level division rule: **package** = one concept, or an
 external dependency boundary; **layer** = direction-of-dependency boundary
 inside a package, which the kernel alone declares; **slice** = vertical split
 of a layer, or of a package with no layer of its own — the kernel's layers,
-and the thirty-eight feature folders of the platform, are both slices;
+and the thirty-nine feature folders of the platform, are both slices;
 **module** = namespace/import surface. Files sit below all four levels as
 readability boundaries only: fragments (0-module files that share their
 aggregator's namespace) let a module split across files with zero API cost.
@@ -182,8 +182,8 @@ Optional engines plug into **factory seams** owned by the kernel
 generic code requests one by symbol and the opt-in package registers the method
 on load. Display backends use a lighter mechanism — no seam: name the type
 directly (`SdlBackend()`) where the package is a dependency, or let
-`ProjecturedExample.default_backend` pick a loaded `Backend` subtype by
-type-name reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
+[`default_backend`](../package/platform/application/application.md) pick a
+loaded `Backend` subtype by type-name reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
 `ProjecturedSql` and `ProjecturedDbCatalog` (they need nothing external) — only
 **live ODBC querying** lives in `Odbc`. Likewise each editor's *tool surface* is
 kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
@@ -365,7 +365,7 @@ ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄─�
                          opt-in: the others)
 ```
 
-The platform's thirty-eight slices form their own DAG, and so do the
+The platform's thirty-nine slices form their own DAG, and so do the
 seventeen domains. [package-rules.md](../rule/package-rules.md) has the
 platform's table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
@@ -426,7 +426,7 @@ includes them in:
                wall-clock schedule
 ```
 
-**The thirty-eight slices of `ProjecturedPlatform`**, in a topological order.
+**The thirty-nine slices of `ProjecturedPlatform`**, in a topological order.
 Each is one concept, and each declares the exact set of slices it imports;
 [package-rules.md](../rule/package-rules.md) has the table. (Console and Pdf,
 the two backends with no third-party dependency, are packages of their own,
@@ -477,6 +477,8 @@ not slices of the platform.)
    help            the document-type list, the projection list, and the about page
    conversation    the evaluator documents and the chat transcript
    assistant       the chat with a model, and the turn that streams a reply
+   application     the window of files, the navigator and the assistant, and
+                   the command line of a binary
 ```
 
 **The seventeen domain packages** — one package per concrete source domain,

@@ -363,7 +363,7 @@ and the downstream repositories land in the same landing.
       three errors of the baseline. The eight display errors of `main` are
       gone: the display tests write `using ProjecturedKernel`, which now gives
       them `get_wrapped_document`.
-- [ ] **Step 5, the application (F10).** `run_application_command` and what it
+- [x] **Step 5, the application (F10).** `run_application_command` and what it
       needs move from `ProjecturedExample` to the umbrella; the builder of the
       binary follows.
       **Changed by the owner (2026-10-01): the application goes to the
@@ -404,8 +404,11 @@ and the downstream repositories land in the same landing.
             `source/platform/application/`; the four domain rows go, and the
             natural renderer draws those documents (the visible difference:
             long lines of a JSON or an XML file no longer wrap, because the
-            natural renderer never wraps code). The platform gains
-            `InteractiveUtils` (a standard library) for `default_backend`.
+            natural renderer never wraps code). `default_backend` finds the
+            loaded backends with the subtype walk of the domain slice, which
+            needs no `InteractiveUtils` (the domain slice keeps that standard
+            library and its `Markdown` out of every downstream program, and
+            the platform keeps the rule).
             `PLATFORM_SLICE_EDGES` gains the row of the slice.
             Done: `ApplicationModule` in `source/platform/application/`,
             included after the undo slice; `default_backend` is a fragment of
@@ -438,8 +441,19 @@ and the downstream repositories land in the same landing.
             leaves the binary.
             Done: `main` is `Projectured.run_application_command`, the workload
             `Projectured.warm_application()`. Builder tests 225 pass.
-      - [ ] 5f. The tests, the examples that call the application, and the
+      - [x] 5f. The tests, the examples that call the application, and the
             documents follow.
+            Done: the guide `documentation/package/platform/application/`
+            and seventeen documents (the slice count is thirty-nine; the
+            references to the moved files; the registry in the assistant
+            guide; the Julia registration in the Julia guide). The guards of
+            CI asked for two more changes: `start_application!` takes
+            `mcp`, `assistant` and `model` as keywords, and the walk of
+            `evaluate_reachable_cells!` keeps its state in one value, so no
+            function takes four positional arguments; and the exports follow
+            the order of the definitions. Tests: `test_application`,
+            `test_referenced_document_editor` and `test_builder` 665 pass and
+            2 broken (the 2 of the navigator scenario, as before step 5).
 - [x] **Step 6, the words.** The docstrings of `conversation` and `filesystem`
       stop calling them domains; `system-anatomy.md` and the other documents
       describe the kernel, the platform, the domains, the backends and the

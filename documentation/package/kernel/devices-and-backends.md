@@ -607,7 +607,7 @@ Declares `Backend <: Any` and the backend generics `initialize_backend!`,
 [Backends](#backends)). A backend is constructed by
 naming its type directly (`SdlBackend()`, `ConsoleBackend()`). Code that must
 pick a backend without depending on its package uses
-[`ProjecturedExample.default_backend`](../../../example/projectured/DefaultBackend.jl),
+[`default_backend`](../platform/application/application.md),
 which matches a caller-supplied ordered list of type names (`:SdlBackend`, …)
 against the loaded `Backend` subtypes by reflection — no coined `:kind` key and
 no per-backend registration.

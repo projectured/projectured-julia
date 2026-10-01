@@ -43,6 +43,12 @@ Alt+Return on a Julia part makes `EvaluateDraftTurnOperation`. While a turn stre
 
 The model gets `list_tools(editor.tools)`, the tool set of the editor. The assistant keeps no registry of its own, and `run_turn!` registers the default tools. An MCP client gets the same set; see [mcp.md](../../adapter/mcp/mcp.md). A tool changes the document with `evaluate_operation(editor, operation)`, the same call that a key press makes. `run_turn!` runs each tool call on the editor task, as the MCP server does for a client, so a tool behaves the same for both.
 
+### The API a loaded package offers
+
+`register_assistant_api!(declaration)` and `get_registered_assistant_api()`, in `source/platform/assistant/AssistantApi.jl`, let a package offer names to the model of an assistant without a host naming that package. `declaration` is one entry or a vector of entries, in the form that `declare_api!` takes: a module, which offers every name it exports, or `module => (names...)`, which offers only those names. A package calls `register_assistant_api!` from its own `__init__`, so its names are offered exactly while the package is loaded, and an entry that is already registered is not added twice.
+
+`get_registered_assistant_api()` answers every registered entry, in the order of the registrations. A host, such as the [application slice](../application/application.md), concatenates it with its own vocabularies and passes the whole list to `declare_api!`, so a domain that a session loads helps the model read and change the documents of that domain with no change to the host. The JSON domain registers its seven document types this way; see [json.md](../../domain/json/json.md).
+
 ### From the conversation to the messages
 
 `build_messages(conversation)` makes the `LlmMessage`s of a request:
@@ -75,7 +81,7 @@ A copy of an assistant is a fork: it has the conversation so far and a draft of 
 
 The assistant slice depends on the kernel and on the conversation, collection, domain, natural, layout, primitive, projection, serialization, style, text and widget slices of `ProjecturedPlatform`. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, and [llm.md](../../kernel/llm/llm.md) describes both.
 
-The shell slice puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). `example/projectured/Application.jl` puts the explorer, the files and the assistant in one pane tree.
+The shell slice puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). The [application slice](../application/application.md) puts the explorer, the files and the assistant in one pane tree.
 
 The package registers the natural row `:assistant`, `Assistant => AssistantToWidgetSplitPane()`, and `Assistant` as a `.pred` type. It adds the methods `make_submit_operation(::Assistant)` and `make_evaluate_operation(::Assistant)` to the conversation package.
 
@@ -107,7 +113,7 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 - **A part that fails to apply does not end the turn.** A streamed part is posted and not waited for, so an exception while the drain applies it goes to the fault log of the editor, and the turn goes on.
 - No view draws `status`. A person sees a running turn only by the parts that arrive.
 - `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them. `SubmitProseOperation` does nothing while a turn streams, as Return does.
-- The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` in `example/projectured/Application.jl` does.
+- The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` of the [application slice](../application/application.md) does.
 - The draft has no frame, no focus ring and no hint line. Stage 4 of [plan/pending/conversation-flat-transcript.md](../../../../plan/pending/conversation-flat-transcript.md) puts them on this pane, and they are not done.
 - `DEFAULT_ASSISTANT_SYSTEM` is written for Claude and is long. A small local model can follow it less well, and [plan/done/ollama-backend.md](../../../../plan/done/ollama-backend.md) keeps this as an open question.
 - No test is marked `@test_broken`.

@@ -108,7 +108,7 @@ function make_rehearsal_editor(directory, llm)
     editor.iomap = print_document(composed, nothing, scene,
                                   PrinterContext(EmptyReference(), Cell(WIDTH), Cell(HEIGHT),
                                                  Dict{Symbol,Any}(), Clock()))
-    start_application!(editor, false, :ollama, "")
+    start_application!(editor; assistant = :ollama)
     assistant_document = only(search_documents(document, node -> node isa Assistant))
     (editor, assistant_document)
 end

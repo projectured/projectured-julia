@@ -203,9 +203,9 @@ guard of the platform checks every edge below against the code.
 
 This is not every slice of the platform: `gesturetracking`, `mousetargettracking`,
 `filesystem`, `undo`, `log`, `statistics`, `shell`, `help`, `conversation` and
-`assistant` are the rest, and `PLATFORM_SLICE_EDGES` in
+`assistant` and `application` are the rest, and `PLATFORM_SLICE_EDGES` in
 [PlatformSuite.jl](../../test/platform/PlatformSuite.jl) has every one of the
-thirty-eight. `ProjecturedConsole` and `ProjecturedPdf` are backend packages,
+thirty-nine. `ProjecturedConsole` and `ProjecturedPdf` are backend packages,
 not slices of the platform, even though neither carries a third-party
 dependency.
 

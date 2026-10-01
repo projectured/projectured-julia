@@ -33,7 +33,7 @@ and no synonyms.
   Slices are **not ordered** — a slice may depend on another slice of the
   same layer or package only if the slice→slice edges stay **acyclic** (a
   DAG, not a stack). Slice is not a kernel-only notion: `ProjecturedPlatform`
-  is thirty-eight slices in one package, and each source domain, each
+  is thirty-nine slices in one package, and each source domain, each
   backend, each adapter and each tool is one slice and a package of its own.
 
 - **Module** — a Julia `module`, the namespace/import boundary. One layer
