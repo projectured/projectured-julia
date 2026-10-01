@@ -109,6 +109,36 @@ function test_web_backend()
         @test scroll isa MouseScroll && scroll.dy > 0
     end
 
+    @testset "the zoom of the display goes to the browser, and a new zoom sends each window in full" begin
+        # The client draws at the zoom, and sends sizes and places divided by it,
+        # so the server works in logical pixels at every zoom.
+        backend = WebBackend(port = 0)
+        backend.conn = _WEB.WebConnection(nothing)
+        canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(100)), Cell(Int32(50)),
+                                CellVector(Any[GraphicsRect(0, 0, 10, 10; color = color_black)]),
+                                layout_none, true, Cell(nothing))
+        screen = ScreenDocument([WindowDocument(; id = :main, content = canvas)])
+        display = Display(zoom = 1.5)
+        devices = Device[display, Keyboard(), Mouse()]
+        take_message() = _WEB.JSON3.read(take!(backend.conn.outbox))
+        write_to_devices(backend, devices, screen)
+        first_message = take_message()
+        @test first_message[:zoom] == 1.5
+        @test length(first_message[:full]) == 1
+        # With no change, nothing is sent.
+        write_to_devices(backend, devices, screen)
+        @test !isready(backend.conn.outbox)
+        # A new zoom sends the window in full, with the new zoom.
+        display.zoom = 2.0
+        write_to_devices(backend, devices, screen)
+        message = take_message()
+        @test message[:zoom] == 2.0
+        @test length(message[:full]) == 1
+        # With no `Display`, the zoom is 1.
+        write_to_devices(backend, Device[Keyboard()], screen)
+        @test take_message()[:zoom] == 1.0
+    end
+
     @testset "a motion holds every button that the mask of the browser holds" begin
         backend = WebBackend(port = 0)
         # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.

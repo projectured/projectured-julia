@@ -18,7 +18,7 @@ The backend holds one connection. A second WebSocket gets the message `{"type":"
 
 ### Measure
 
-A projection of the server measures text with a `FontFileMeasure()` of the style slice, so the backend needs no SDL; see [style.md](../../platform/style/style.md#measurement-without-a-display). The layout measures text while it prints, before the browser gets anything, so the server must measure. It serves the same font files, and the client loads them with the `FontFace` API, so the browser draws with the metrics that the layout used. `FontFileMeasure` measures at `font.size`: a font already scaled for its appearance, so a change of the font scale needs a new print from the server, not a relayout the measure discovers on its own. The zoom and the pixel density of the display belong to the browser, and the server stays in logical pixels.
+A projection of the server measures text with a `FontFileMeasure()` of the style slice, so the backend needs no SDL; see [style.md](../../platform/style/style.md#measurement-without-a-display). The layout measures text while it prints, before the browser gets anything, so the server must measure. It serves the same font files, and the client loads them with the `FontFace` API, so the browser draws with the metrics that the layout used. `FontFileMeasure` measures at `font.size`: a font already scaled for its appearance, so a change of the font scale needs a new print from the server, not a relayout the measure discovers on its own. The pixel density of the display belongs to the browser, and the zoom of the editor goes to the browser in each update, so the server stays in logical pixels.
 
 Each drawn text sends the ascent of its box (`b`), the pen offset of each character (`o`) from `compute_caret_offsets`, and its font and its fallback fonts as a CSS font family stack (`f`). The client sets `textBaseline = "alphabetic"` and draws each character alone at its own offset from the pen position, on the baseline `y + b`, so the browser's own kerning and ligatures never move a glyph.
 
@@ -26,7 +26,8 @@ Each drawn text sends the ascent of its box (`b`), the pen offset of each charac
 
 `write_to_devices(backend, devices, screen::ScreenDocument)` sends one message of type `update` for each frame that changed something, and nothing when no client is connected or nothing changed:
 
-- **`full`** holds the whole draw list of a window. A window goes in full on its first paint, after a connection, after a `resync` from the client, and after the queue overflowed.
+- **`zoom`** is the zoom of the `Display` in `devices`, or 1 with none. The `appearance` wrapper copies the zoom of the editor into that `Display`. The client draws each logical pixel as `devicePixelRatio × zoom` pixels of the page, divides each size and each pointer position that it sends by `zoom`, and multiplies the size and the place of a window that it opens by `zoom`. A new zoom makes the client send the new logical size of each window and a `resync`.
+- **`full`** holds the whole draw list of a window. A window goes in full on its first paint, after a connection, after a `resync` from the client, after the queue overflowed, and after a new zoom.
 - **`patches`** holds, for every other window, one clip rectangle and the primitives that cross it. `_collect_window_dirty` finds the rectangle from the cells that are not up to date, as the SDL backend does. `prev_bounds` keeps the last bounds of each unit, so a moved unit also clears its old place.
 - **`close`** holds the ids of the windows that left the screen document.
 

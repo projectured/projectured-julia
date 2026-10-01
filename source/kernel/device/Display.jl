@@ -11,8 +11,9 @@ constructor throws an `ArgumentError` for another value, `NaN` too.
 
 The SDL backend draws each logical pixel as `get_device_pixel_ratio(display)`
 device pixels. Layout works in logical pixels, so a change of `density` or `zoom`
-changes the size on the screen and not the layout. The web, console and video
-backends do not read the `Display`.
+changes the size on the screen and not the layout. The web backend sends `zoom`
+to the browser, which draws at the ratio of the browser times `zoom`. The console
+and video backends do not read the `Display`.
 """
 mutable struct Display <: Device
     width::Int

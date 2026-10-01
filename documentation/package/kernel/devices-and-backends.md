@@ -46,9 +46,11 @@ are in `event/KeyboardEvent.jl`, and the `Mouse*` events are in
 of device pixels that a backend draws for one logical pixel. Layout and events
 work in logical pixels. The SDL backend keeps the `Display` that
 `configure_devices!` gives it. It sizes its windows, rasterizes its text and
-converts its input coordinates with the ratio of that `Display`. Ctrl+= and
-Ctrl+- step the `zoom` of that `Display`, so each editor has its own zoom. The
-web and console backends leave the `Display` at its defaults.
+converts its input coordinates with the ratio of that `Display`. The zoom of an
+editor is in its `Appearance`, and the `appearance` wrapper copies it into the
+`Display` of the editor, so Ctrl+= and Ctrl+- change the zoom of one editor. The
+web backend sends the `zoom` of its `Display` to the browser, which draws with it.
+The console backend leaves the `Display` at its defaults.
 
 ### Backend-agnostic events
 
@@ -259,8 +261,11 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
   browser, so the server must measure glyphs the same way the browser renders
   them. `TextToGraphics` measures with a `FontFileMeasure()`, the pure-Julia
   TrueType measurer of the platform's style slice, so it needs no SDL; the same TTFs are served to the browser (`/font/<name>`,
-  loaded via the `FontFace` API) so metrics line up. The browser handles HiDPI
-  with `devicePixelRatio`, so the server stays in logical pixels.
+  loaded via the `FontFace` API) so metrics line up. The browser draws each
+  logical pixel as `devicePixelRatio × zoom` pixels, with the `zoom` of the
+  `Display` that each update carries, and divides each size and each pointer
+  position that it sends by `zoom`, so the server stays in logical pixels. A new
+  zoom sends every window in full.
 - **`write_to_devices`** serializes the projection-output `ScreenDocument` into a
   per-window draw-list mirroring the SDL element set (`text`, `rect`, `line`,
   `circle`, `clip`=viewport, `group`=nested canvas, `image`; `GraphicsFence`
@@ -282,6 +287,7 @@ Server → client, one ordered message per frame:
 
 ```json
 { "type":"update",
+  "zoom":    1.5,
   "full":    [ {"id":"json","title":"…","w":…,"h":…,"bg":[…],"draw":[ …primitives… ]} ],
   "patches": [ {"window":"json","clip":[x,y,w,h],"draw":[ …primitives… ]} ],
   "close":   ["someWindowId"] }

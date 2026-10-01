@@ -1043,8 +1043,13 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   - Tests: a press on + changes the value label and the layout at the next
     frame. A color typed into its field changes the drawn color. The tab keeps
     its focus and its place after the new print. The pixels, offscreen.
-- [ ] **W4. The zoom in the web backend** (4.6). The field of the update
-  message, the client, and the keys `,`, `[` and `]`.
+- [x] **W4. The zoom in the web backend** (4.6). The field of the update
+  message, the client, and the keys `,`, `[` and `]`. Done (finding 24): the
+  update message holds `zoom`, the zoom of the `Display` in the devices; a new
+  zoom sends each window in full. The client draws at `devicePixelRatio × zoom`,
+  divides each size and each pointer position that it sends by the zoom, and
+  multiplies the size and the place of a window that it opens. W1 already gave
+  the keys `,`, `[` and `]` their names.
   - Tests: `test_web_backend()` with a zoom of 1.5: the logical size that the
     server gets, and a press at a drawn control.
 - [ ] **W5. Exports** (4.10).
@@ -1279,3 +1284,11 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     top. The scroll position must live outside the print: in the projection, which
     is made once for each renderer, or in the `Appearance` as view state, as
     `DataFrameView.scroll_position` does for its table. The owner chooses.
+24. **The client of the web backend has no test runner** (W4). The repository runs
+    no JavaScript. `test_web_backend` checks the server: the zoom in each update, a
+    window in full after a new zoom, and 1 with no `Display`. The client was
+    checked once with `gjs` and stubs of the page (`/var/tmp/appearance-w4/harness.js`,
+    not in the repository): at a ratio of 2 and a zoom of 1.5, a page of 1200×900
+    reports 800×600, the canvas keeps 2400×1800 pixels, the paint scale is 3, and
+    a press at (150, 300) of the page goes as (100, 200). A browser on a real
+    display is the owner's check.
