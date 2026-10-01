@@ -1032,8 +1032,12 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   - Move `plan/pending/font-zoom-per-editor.md` to `plan/done/` with a note that
     this plan replaced it.
 - [ ] **W3. The appearance tab** (4.8). Part 1 is written: the seven rows,
-  "Reset all", "Save" and "Load", the presets, the sizes and the fonts; the color
-  as text (D33) is part 2. `AppearanceToWidget`: the seven rows,
+  "Reset all", "Save" and "Load", the presets, the sizes and the fonts. Part 2 is
+  written: the color as text (D33, finding 22), with a test in an editor that a
+  typed digit writes the color, that the caret stays in the text after the new
+  print, and that a character that is no hex digit and a deletion leave the
+  color. Open: the place of the tab after the new print (finding 23), and the
+  pixels offscreen. `AppearanceToWidget`: the seven rows,
   "Reset all", "Save", "Load" and the theme sections. The toolbar item and the
   View menu item in `WindowChrome.jl`, a Lucide glyph, and Ctrl+,.
   - Tests: a press on + changes the value label and the layout at the next
@@ -1268,3 +1272,10 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     so the text keeps nine characters. A text that is no color gives no
     operation. `format_style_color` and `convert_text_to_style_color` in the
     style slice write and read the text, for the tab and for the file.
+23. **The tab loses its place at each write** (W3). The tab makes a new
+    `WidgetScrollPane` at each print, with the scroll position `Point2D(0, 0)`,
+    and each write of the appearance prints the whole view again. So a step of a
+    spin box or a typed digit of a color far down the tab scrolls the tab to its
+    top. The scroll position must live outside the print: in the projection, which
+    is made once for each renderer, or in the `Appearance` as view state, as
+    `DataFrameView.scroll_position` does for its table. The owner chooses.

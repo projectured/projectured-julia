@@ -52,14 +52,23 @@ the window (`find_editor_appearance`).
 - A section for each theme: its presets as a radio group, which writes every
   field of the preset into the theme in place, so the views that read the theme
   follow; a spin box for each part of a size; buttons that step through the font
-  files and a spin box for the size of a font; the swatch and the value of a
-  color.
+  files and a spin box for the size of a font; the swatch of a color and its
+  text, `#rrggbbaa`, which a person edits.
 
 A press of a button answers the operation of the button, and the reader of the
 tab turns a step of a spin box or a choice of a preset into a write of the theme
 field. Each write is view state, so the history does not record it. A select is
 not used: it writes from the window of its popup, where the reader of the tab
 sees nothing.
+
+The text of a color takes hex digits. A typed digit replaces the digit after the
+caret, so the text keeps nine characters, and a pasted `#rrggbb` or `#rrggbbaa`
+replaces the color; an edit that leaves no color is declined. The tab builds its
+widgets again at each print, and a color has no node in the `Appearance` that can
+hold a selection. So the `Appearance` holds the caret as a path that
+`AppearanceToWidget` introduces, a path in its widget tree from the pane, and the
+print gives each widget the part of that path below it. The tree has the same form
+at each print, so the caret stays in its text after the print that a write starts.
 
 ## Save and load
 

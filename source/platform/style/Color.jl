@@ -1,6 +1,7 @@
-# Fragment of `StyleModule` — `StyleColor` and the colours. Four functions
-# compare, interpolate and shade a colour; everything else here is data: about
-# 1076 named constants, in curated ramps and one large list of colour names.
+# Fragment of `StyleModule` — `StyleColor` and the colours. Two functions write
+# a colour as text and read it back, and four compare, interpolate and shade a
+# colour; everything else here is data: about 1076 named constants, in curated
+# ramps and one large list of colour names.
 
 """
     StyleColor(red, green, blue, alpha = 1.0)
@@ -34,6 +35,32 @@ make_style_color(red, green, blue, alpha) = StyleColor(red, green, blue, alpha)
 
 # Internal helper: construct from 0-255 integer components with alpha = 1.0
 _color(r, g, b) = StyleColor(r / 255.0, g / 255.0, b / 255.0, 1.0)
+
+# ── Text ──────────────────────────────────────────────────────────────────────
+
+"""
+    format_style_color(color) -> String
+
+`color` as text, `#rrggbbaa`: each of the four parts as two hex digits.
+[`convert_text_to_style_color`](@ref) reads it back.
+"""
+format_style_color(color::StyleColor) =
+    "#" * join(string(round(Int, clamp(c, 0, 1) * 255); base = 16, pad = 2)
+               for c in (color.red, color.green, color.blue, color.alpha))
+
+"""
+    convert_text_to_style_color(text) -> StyleColor or nothing
+
+The colour that `text` names as `#rrggbb` or `#rrggbbaa`, with hex digits in
+either case, or `nothing` for a text of another form. With no alpha the colour is
+opaque.
+"""
+function convert_text_to_style_color(text::AbstractString)
+    found = match(r"^#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?$", text)
+    found === nothing && return nothing
+    digits = found[1] * something(found[2], "ff")
+    StyleColor((parse(Int, digits[i:i+1]; base = 16) / 255 for i in 1:2:7)...)
+end
 
 # ── Default ───────────────────────────────────────────────────────────────────
 

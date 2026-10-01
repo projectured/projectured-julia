@@ -36,6 +36,7 @@ using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
 using ..OperationModule
+using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule

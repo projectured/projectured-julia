@@ -145,5 +145,45 @@ end
     @test !("Name" in first.(texts))
 end
 
+@testset "a colour is a text: a typed digit writes the colour, and the caret stays after the new print" begin
+    @test format_style_color(StyleColor(1.0, 0.0, 0.0, 0.5)) == "#ff000080"
+    @test is_color_equal(convert_text_to_style_color("#00FF00"), StyleColor(0.0, 1.0, 0.0, 1.0))
+    @test convert_text_to_style_color("#00ff0") === nothing
+    @test convert_text_to_style_color("green") === nothing
+
+    backend = HeadlessBackend()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 900, height = 2400), tabs = (; title = "Doc"))
+    run_frame!(editor)
+    appearance = find_editor_appearance(editor)
+    theme = get_theme(appearance, WidgetTheme)
+    before = format_style_color(theme.primary)
+    time = Ref(1.0)
+    send!(events...) = begin
+        for event in events
+            push_event!(backend, WindowInput(:T, event))
+        end
+        run_frame!(editor)
+        run_frame!(editor)
+        time[] += 1.0
+    end
+    send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
+    texts = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+    x, y = _at_find_row_button(texts, "primary", before)
+    send!(_at_click(x - 1, y, time[])...)
+    send!(KeyDown(:home, ModifierKeys(); time = time[]), KeyDown(:right, ModifierKeys(); time = time[] + 0.1))
+    send!(KeyPress('f'; time = time[]))
+    @test format_style_color(theme.primary) == "#f" * before[3:end]
+    # The caret is after the first digit in the text of the new print.
+    send!(KeyPress('0'; time = time[]))
+    @test format_style_color(theme.primary) == "#f0" * before[4:end]
+    texts = first.(_at_collect_texts(only(last(rendered_output(backend)).windows).content))
+    @test ("#f0" * before[4:end]) in texts
+    # A character that is no hex digit, and a deletion, leave the colour.
+    send!(KeyPress('g'; time = time[]))
+    send!(KeyDown(:backspace, ModifierKeys(); time = time[]))
+    @test format_style_color(theme.primary) == "#f0" * before[4:end]
+end
+
 end
 end

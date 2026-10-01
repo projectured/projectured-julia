@@ -16,7 +16,7 @@ import TOML
 import ..CellModule: set_cell_computation!
 import ..SerializationModule: is_pred_constructible
 
-export StyleColor, make_style_color,
+export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
        color_lighten_selection, color_darken_selection,
        color_default,

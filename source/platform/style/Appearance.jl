@@ -196,9 +196,7 @@ end
 
 # A value of a theme as the TOML file says it, or `nothing` for a kind that the
 # file can not say.
-_encode_appearance_value(color::StyleColor) =
-    "#" * join(string(round(Int, clamp(c, 0, 1) * 255); base = 16, pad = 2)
-               for c in (color.red, color.green, color.blue, color.alpha))
+_encode_appearance_value(color::StyleColor) = format_style_color(color)
 function _encode_appearance_value(font::StyleFont)
     file = normpath(dirname(font.filename)) == normpath(_FONT_DIR) ? basename(font.filename) : font.filename
     Dict{String,Any}("file" => file, "size" => font.size)
@@ -216,14 +214,8 @@ _encode_appearance_value(_) = nothing
 
 # The value that the TOML value `saved` says, of the kind of `current`, or
 # `nothing` when it says no such value.
-function _decode_appearance_value(current::StyleColor, saved)
-    saved isa AbstractString || return nothing
-    m = match(r"^#([0-9a-fA-F]{6})([0-9a-fA-F]{2})?$", saved)
-    m === nothing && return nothing
-    channels = [parse(Int, m[1][i:i+1]; base = 16) for i in (1, 3, 5)]
-    alpha = m[2] === nothing ? 255 : parse(Int, m[2]; base = 16)
-    StyleColor((channels ./ 255)..., alpha / 255)
-end
+_decode_appearance_value(current::StyleColor, saved) =
+    saved isa AbstractString ? convert_text_to_style_color(saved) : nothing
 function _decode_appearance_value(current::StyleFont, saved)
     saved isa AbstractDict || return nothing
     file = get(saved, "file", nothing)

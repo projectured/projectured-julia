@@ -13,17 +13,22 @@ Show an `Appearance` as widgets, in a pane that scrolls:
 - a section for each theme of the appearance: its presets, as a choice that
   writes every field of the preset into the theme, and a row for each field. A
   size has a spin box for each of its parts, a font has buttons that step through
-  the font files and a spin box for its size, and a color shows its swatch and
-  its value.
+  the font files and a spin box for its size, and a colour has its swatch and its
+  value as a text, `#rrggbbaa`, that a person edits.
 
-A press of a button answers the operation of the button, and a step of a spin box
-or a choice of a preset answers a write of the theme, so the `appearance` wrapper
-of the editor prints the view again, with this tab. Every write is view state: a
-change of the appearance is no edit of a document, and the history does not take
-it back. The gaps of the tab are those of the widget theme of the appearance, so
-they follow its spacing scale. `scroll_pane` is the printer of a `WidgetScrollPane`
-with the widget theme of the editor, which draws the pane and, through the
-recursion, the widgets in it.
+A press of a button answers the operation of the button, and a step of a spin box,
+a choice of a preset or an edit of a colour answers a write of the theme, so the
+`appearance` wrapper of the editor prints the view again, with this tab. Every
+write is view state: a change of the appearance is no edit of a document, and the
+history does not take it back. The gaps of the tab are those of the widget theme
+of the appearance, so they follow its spacing scale. `scroll_pane` is the printer
+of a `WidgetScrollPane` with the widget theme of the editor, which draws the pane
+and, through the recursion, the widgets in it.
+
+The appearance holds the caret of a colour text, and the part under the pointer,
+as a path that this projection introduces: a path in its widget tree, from the
+pane. The tree has the same form at each print, so the path names the same text
+after the print that a write starts.
 """
 struct AppearanceToWidget <: Projection
     scroll_pane::Any        # the printer of the pane, with the widget theme of the editor
@@ -34,7 +39,10 @@ AppearanceToWidget(; scroll_pane) = AppearanceToWidget(scroll_pane)
 # `commands` holds the operation of each button of the print, by the `Action` of
 # the button: a press answers `InvokeActionOperation` with that `Action`. `writes`
 # holds, for each spin box and each choice, the function from the value that it
-# writes to the operation that the tab answers.
+# writes to the operation that the tab answers. `edits` holds, for each colour
+# text, the function from an edit of the text (its start, its stop and the new
+# characters) to the write of the colour and the place of the caret after it, or
+# to `nothing` when the edit names no colour.
 @iomap struct AppearanceToWidgetIoMap
     projection::Any
     input::Any
@@ -42,6 +50,7 @@ AppearanceToWidget(; scroll_pane) = AppearanceToWidget(scroll_pane)
     child_iomap::Any
     commands::Any
     writes::Any
+    edits::Any
 end
 
 get_child_iomaps(iomap::AppearanceToWidgetIoMap) = Any[iomap.child_iomap]
@@ -58,11 +67,6 @@ _make_step_operation(appearance::Appearance, field::Symbol, delta::Integer) =
 
 # A factor as a person reads it, in percent.
 _get_percent_text(factor::Real) = string(round(Int, factor * 100), "%")
-
-# A color as `#rrggbbaa`.
-_get_color_text(color::StyleColor) =
-    "#" * join(string(round(Int, clamp(c, 0, 1) * 255); base = 16, pad = 2)
-               for c in (color.red, color.green, color.blue, color.alpha))
 
 # A write of the field `field` of `theme`. It is view state, so the history does
 # not record it.
@@ -103,6 +107,8 @@ _get_length_part(value::Real, ::Symbol) = value
 function print_document(p::AppearanceToWidget, recursion, appearance::Appearance, ctx)
     commands = IdDict{Any,Any}()
     writes = IdDict{Any,Any}()
+    edits = IdDict{Any,Any}()
+    theme = _get_widget_theme(appearance)
     # A button whose press answers `operation`. Its callback evaluates the same
     # operation, for a view that shows the tab with no reader of this projection.
     function button(label, operation)
@@ -115,7 +121,21 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         writes[box] = write
         box
     end
-    theme = _get_widget_theme(appearance)
+    # A choice of `labels`, with none chosen; the choice of an index answers
+    # `write(index)`.
+    function choice(labels, write)
+        group = WidgetRadioGroup(labels; selected = 0)
+        writes[group] = write
+        group
+    end
+    # The text of the colour in the field `field` of `target`.
+    function color_text(target, field)
+        text = WidgetText(format_style_color(getproperty(target, field)); validator = _is_color_input)
+        edits[text] = (start, stop, replacement) ->
+            _compute_color_edit(target, field, start, stop, replacement)
+        text
+    end
+    controls = (; button, spin_box, choice, color_text, theme)
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
         push!(cells, WidgetLabel(name),
@@ -133,70 +153,140 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
                                      button("Load", LoadAppearanceOperation(appearance))];
                                  gap = theme.label_gap)]
     for entry in sort!(collect(values(appearance.themes)); by = e -> string(get_theme_type(e.theme)))
-        push!(parts, _make_theme_section(entry.theme, theme, button, spin_box, writes))
+        push!(parts, _make_theme_section(controls, entry.theme))
     end
     content = VerticalLayout(parts; gap = theme.section_gap)
     pane = WidgetScrollPane(content)
+    _follow_tab_paths!(p, appearance, pane)
     child = print_document(p.scroll_pane, recursion, pane, ctx)
-    AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes)
+    AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes, edits)
 end
 
 # The section of `theme`: its name, its presets, and a row for each field.
-function _make_theme_section(theme, widget_theme, button, spin_box, writes)
+# `controls` makes the controls of the tab and holds its widget theme.
+function _make_theme_section(controls, theme)
     T = get_theme_type(theme)
     parts = Any[WidgetLabel(string(nameof(T)))]
     presets = get_theme_presets(T)
-    if !isempty(presets)
-        choice = WidgetRadioGroup(first.(presets); selected = 0)
-        writes[choice] = index -> begin
-            preset = last(presets[index])()
-            CompoundOperation(Any[_write_theme_field(theme, field, getproperty(preset, field))
-                                  for field in get_theme_field_names(T)])
-        end
-        push!(parts, choice)
-    end
+    isempty(presets) || push!(parts, controls.choice(first.(presets), index -> begin
+        preset = last(presets[index])()
+        CompoundOperation(Any[_write_theme_field(theme, field, getproperty(preset, field))
+                              for field in get_theme_field_names(T)])
+    end))
     cells = Any[]
     for field in get_theme_field_names(T)
-        value = getproperty(theme, field)
         push!(cells, WidgetLabel(replace(String(field), "_" => " ")),
-              _make_field_control(theme, field, value, button, spin_box, widget_theme))
+              _make_field_control(controls, theme, field, getproperty(theme, field)))
     end
-    push!(parts, GridLayout(cells, 2; horizontal_gap = widget_theme.label_gap,
-                            vertical_gap = widget_theme.item_gap, vertical_align = :center))
-    VerticalLayout(parts; gap = widget_theme.item_gap)
+    push!(parts, GridLayout(cells, 2; horizontal_gap = controls.theme.label_gap,
+                            vertical_gap = controls.theme.item_gap, vertical_align = :center))
+    VerticalLayout(parts; gap = controls.theme.item_gap)
 end
 
-# The control of one field of a theme.
-function _make_field_control(theme, field::Symbol, value::ThemeLength, button, spin_box, widget_theme)
+# The control of the field `field` of `theme`, which holds `value`.
+function _make_field_control(controls, theme, field::Symbol, value::ThemeLength)
     kind = Base.typename(typeof(value)).wrapper
-    controls = Any[]
+    parts = Any[]
     for (part, name) in _get_length_parts(value.value)
-        isempty(name) || push!(controls, WidgetLabel(name))
-        push!(controls, spin_box(_get_length_part(value.value, part),
-                                 v -> _write_theme_field(theme, field,
-                                          kind(_replace_length_part(getproperty(theme, field).value, part, v)))))
+        isempty(name) || push!(parts, WidgetLabel(name))
+        push!(parts, controls.spin_box(_get_length_part(value.value, part),
+                                       v -> _write_theme_field(theme, field,
+                                                kind(_replace_length_part(getproperty(theme, field).value, part, v)))))
     end
-    HorizontalLayout(controls; gap = widget_theme.label_gap)
+    HorizontalLayout(parts; gap = controls.theme.label_gap)
 end
 
-function _make_field_control(theme, field::Symbol, value::StyleFont, button, spin_box, widget_theme)
+function _make_field_control(controls, theme, field::Symbol, value::StyleFont)
     HorizontalLayout(Any[
-        button("‹", _write_theme_field(theme, field, _step_font_file(value, -1))),
+        controls.button("‹", _write_theme_field(theme, field, _step_font_file(value, -1))),
         WidgetLabel(splitext(basename(value.filename))[1]),
-        button("›", _write_theme_field(theme, field, _step_font_file(value, 1))),
-        spin_box(value.size, v -> _write_theme_field(theme, field,
-                                                     StyleFont(getproperty(theme, field).filename, v));
-                 min = 6, max = 96),
-    ]; gap = widget_theme.label_gap)
+        controls.button("›", _write_theme_field(theme, field, _step_font_file(value, 1))),
+        controls.spin_box(value.size, v -> _write_theme_field(theme, field,
+                                                              StyleFont(getproperty(theme, field).filename, v));
+                          min = 6, max = 96),
+    ]; gap = controls.theme.label_gap)
 end
 
-function _make_field_control(theme, field::Symbol, value::StyleColor, button, spin_box, widget_theme)
+function _make_field_control(controls, theme, field::Symbol, value::StyleColor)
     HorizontalLayout(Any[WidgetLabel("■"; style = WidgetStyle(label_text_color = value)),
-                         WidgetLabel(_get_color_text(value))]; gap = widget_theme.label_gap)
+                         controls.color_text(theme, field)]; gap = controls.theme.label_gap)
 end
 
-_make_field_control(theme, field::Symbol, value, button, spin_box, widget_theme) =
-    WidgetLabel(string(value))
+_make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
+
+# A text that a colour text takes as typed: hex digits and `#`.
+_is_color_input(text::AbstractString) = all(c -> isxdigit(c) || c == '#', text)
+
+# The write of the colour that the text of the field `field` of `theme` names after
+# the edit that puts `replacement` between `start` and `stop`, and the place of the
+# caret after the edit; or `nothing` when that text names no colour. One character
+# typed with no range replaces the digit after the caret, so the text keeps its
+# nine characters.
+function _compute_color_edit(theme, field::Symbol, start::Integer, stop::Integer,
+                           replacement::AbstractString)
+    text = format_style_color(getproperty(theme, field))
+    color = convert_text_to_style_color(splice_string(text, start, stop, replacement))
+    color === nothing ||
+        return (_write_theme_field(theme, field, color), min(start + length(replacement), length(text)))
+    (start == stop && 1 <= start < length(text) && length(replacement) == 1) || return nothing
+    color = convert_text_to_style_color(splice_string(text, start, start + 1, replacement))
+    color === nothing ? nothing : (_write_theme_field(theme, field, color), start + 1)
+end
+
+# ── The paths of the tab ──────────────────────────────────────────────────────
+
+# The selection and the part under the pointer of `pane` are the paths in the
+# widget tree that `appearance` holds through `p`, and each document below the
+# pane holds the part of its parent's path below it. So a layout sends a key to
+# the colour text that holds the caret, and the text draws the caret.
+function _follow_tab_paths!(p::AppearanceToWidget, appearance::Appearance, pane)
+    set_cell_computation!(getfield(pane, :selection),
+                          () -> map_selection_forward(appearance, path -> _get_tab_path(p, path)))
+    hasfield(typeof(pane), :mouse_target) &&
+        set_cell_computation!(getfield(pane, :mouse_target),
+                              () -> map_mouse_target_forward(appearance, path -> _get_tab_path(p, path)))
+    _follow_parent_paths!(pane, Base.IdSet{Any}())
+end
+
+# The path in the widget tree that `reference`, a path of the appearance, names:
+# the path that a step of `p` holds. Any other path names no widget.
+function _get_tab_path(p::AppearanceToWidget, reference)
+    reference isa ConcreteReference || return nothing
+    step = reference.head
+    (step isa ProjectionReferenceStep && step.projection === p) ? step.output_path : nothing
+end
+
+# Each document below `node` holds the part of each path of its parent below the
+# step that reaches it.
+function _follow_parent_paths!(node, seen::Base.IdSet{Any})
+    node in seen && return
+    push!(seen, node)
+    for (step, child) in child_reference_steps(node)
+        child = unwrap_cell(child)
+        (child isa Document && hasfield(typeof(child), :selection) &&
+         getfield(child, :selection) isa Cell) || continue
+        set_cell_computation!(getfield(child, :selection),
+                              () -> map_selection_forward(node, path -> _get_child_path(path, step)))
+        hasfield(typeof(child), :mouse_target) &&
+            set_cell_computation!(getfield(child, :mouse_target),
+                                  () -> map_mouse_target_forward(node, path -> _get_child_path(path, step)))
+        _follow_parent_paths!(child, seen)
+    end
+end
+
+# The part of `path` below its first step when that step is `step`, or `nothing`.
+_get_child_path(path, step) =
+    (path isa ConcreteReference && path.head == step) ? path.tail : nothing
+
+# The path that the appearance holds for `path`, a path in the widget tree from the
+# pane: a step of this projection around it, typed in the tree. The pane whole is
+# the appearance whole.
+function _introduce_tab_path(iomap::AppearanceToWidgetIoMap, path::Reference)
+    path isa EmptyReference && return EmptyReference(get_reference_node_type(iomap.input))
+    pane = iomap.child_iomap.input
+    typed = is_fully_typed_reference(path) ? path : annotate_reference_types(pane, path)
+    make_introduced_reference(iomap.projection, iomap.input, typed)
+end
 
 # The scaled widget theme of `appearance` for the gaps of the tab: the one that it
 # holds, or the default theme at its scales. A print writes nothing into the
@@ -207,8 +297,10 @@ function _get_widget_theme(appearance::Appearance)
 end
 
 # The pane reads each input. A press of a button of the tab answers the operation
-# of the button, and a step of a spin box or a choice of a preset answers the
-# write of the theme; every other answer passes on.
+# of the button, a step of a spin box or a choice of a preset answers the write of
+# the theme, an edit of a colour text answers the write of the colour or nothing,
+# and a path of the tree becomes the path that the appearance holds; every other
+# answer passes on.
 function read_intent(p::AppearanceToWidget, recursion, change::Intent, iomap::AppearanceToWidgetIoMap)
     answer = read_intent(p.scroll_pane, recursion, change, iomap.child_iomap)
     operation = answer isa Intent ? answer.operation : answer
@@ -224,13 +316,72 @@ function _translate_tab_operation(iomap, operation::ReplaceReferencedValueOperat
     write = get(iomap.writes, operation.document, nothing)
     write === nothing ? operation : write(operation.value)
 end
-_translate_tab_operation(iomap, operation::CompoundOperation) =
-    CompoundOperation(Any[_translate_tab_operation(iomap, member) for member in operation.operations])
-_translate_tab_operation(iomap, operation::WrappingOperation) =
-    rewrap_operation(operation, _translate_tab_operation(iomap, get_wrapped_operation(operation)))
+function _translate_tab_operation(iomap, operation::ReplaceStringRangeOperation)
+    found = _find_color_edit(iomap, operation.reference)
+    found === nothing && return operation
+    edit, range = found
+    answer = edit(range.start, range.stop, operation.replacement)
+    answer === nothing && return nothing
+    write, caret = answer
+    path = _place_caret(strip_reference_types(operation.reference), caret)
+    CompoundOperation(Any[write, ReplaceSelectionOperation(_introduce_tab_path(iomap, path))])
+end
+_translate_tab_operation(iomap, operation::ReplacePathOperation) =
+    make_path_operation(operation, _introduce_tab_path(iomap, get_operation_path(operation)))
+# An edit that names no colour declines the whole answer that holds it.
+function _translate_tab_operation(iomap, operation::CompoundOperation)
+    members = Any[_translate_tab_operation(iomap, member) for member in operation.operations]
+    any(isnothing, members) ? nothing : CompoundOperation(members)
+end
+function _translate_tab_operation(iomap, operation::WrappingOperation)
+    inner = _translate_tab_operation(iomap, get_wrapped_operation(operation))
+    inner === nothing ? nothing : rewrap_operation(operation, inner)
+end
 _translate_tab_operation(iomap, operation) = operation
 
-# A reference of the appearance names no widget of the tab, and a widget of the
-# tab names no place of the appearance.
-map_reference_forward(::AppearanceToWidget, ::AppearanceToWidgetIoMap, reference) = nothing
-map_reference_backward(::AppearanceToWidget, ::AppearanceToWidgetIoMap, reference) = nothing
+# The edit function of the colour text that `reference`, a path from the pane, goes
+# through, and the last range of the path, which holds the characters that the
+# edit replaces; or `nothing` for a path through no colour text.
+function _find_color_edit(iomap, reference)
+    node = iomap.child_iomap.input
+    rest = reference
+    while rest isa ConcreteReference
+        edit = get(iomap.edits, node, nothing)
+        if edit !== nothing
+            range = _find_last_range_step(rest)
+            return range === nothing ? nothing : (edit, range)
+        end
+        node = unwrap_cell(evaluate_reference_step(rest.head, node))
+        rest = rest.tail
+    end
+    nothing
+end
+
+# `reference` with its last step, the range of the text, made a caret at `offset`.
+function _place_caret(reference, offset::Integer)
+    reference isa ConcreteReference || return reference
+    reference.tail isa ConcreteReference || return ConcreteReference(PositionReferenceStep(offset), EmptyReference())
+    ConcreteReference(reference.head, _place_caret(reference.tail, offset))
+end
+
+function _find_last_range_step(reference)
+    found = nothing
+    while reference isa ConcreteReference
+        reference.head isa ARangeReferenceStep && (found = reference.head)
+        reference = reference.tail
+    end
+    found
+end
+
+# A path of the appearance through this projection names its path in the widget
+# tree, and the drawing maps it on; a widget of the tab maps back to that path.
+function map_reference_forward(p::AppearanceToWidget, iomap::AppearanceToWidgetIoMap, reference)
+    reference isa EmptyReference && return EmptyReference(get_reference_node_type(iomap.output))
+    inner = _get_tab_path(p, reference)
+    inner === nothing ? nothing : map_reference_forward(p.scroll_pane, iomap.child_iomap, inner)
+end
+
+function map_reference_backward(p::AppearanceToWidget, iomap::AppearanceToWidgetIoMap, reference)
+    inner = map_reference_backward(p.scroll_pane, iomap.child_iomap, reference)
+    inner isa Reference ? _introduce_tab_path(iomap, inner) : nothing
+end
