@@ -57,5 +57,13 @@ end
     @test third_place != first_place
 end
 
+@testset "clipboard: the window is in a clipboard, and Ctrl+C copies the tab that has the focus" begin
+    editor, backend = _ww_editor(PrimitiveString("hello"); clipboard = true)
+    @test editor.document isa ClipboardSlice
+    _ww_focus_first_tab!(editor)
+    _ww_press!(editor, backend, _ww_ctrl(:c))
+    @test editor.document.slice isa PrimitiveString && editor.document.slice.value == "hello"
+end
+
 end # @testset
 end

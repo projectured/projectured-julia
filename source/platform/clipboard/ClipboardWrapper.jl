@@ -53,3 +53,29 @@ function make_clipboard_projection(projection; collection::Bool = false,
         Any => NestingProjection(projection; recursion = IdentityProjection()),
     ]))
 end
+
+"""
+    clipboard = true | (; gestures, collection)
+
+The wrapper of `build_editor` that gives a window the clipboard and the walk of
+its objects. Alt and an arrow walk the objects of the window, an Alt+click
+selects one, and the clipboard copies, cuts and pastes the object that is
+selected. `gestures` says which of [`CLIPBOARD_GESTURES`](@ref) the window
+offers, all of them by default; a window whose documents must not be cut leaves
+`:cut` out. `collection = true` keeps a collection of copies instead of one.
+It is off by default. It acts around the chrome of the `shell` wrapper and the
+cycle of the focus, so the walk and the clipboard reach into the bands too.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:clipboard}, layer::Symbol, setting, parts::EditorParts)
+    options = setting === true ? (;) : setting
+    collection = get(options, :collection, false)
+    parts.projection = make_clipboard_projection(SelectionWalkingProjection(inner = parts.projection);
+                                                 collection,
+                                                 offered_gestures = get(options, :gestures,
+                                                                        CLIPBOARD_GESTURES))
+    parts.document = make_clipboard_document(parts.document; collection)
+    parts
+end
+
+get_wrapper_layers(::Val{:clipboard}) = (:container => 30,)
