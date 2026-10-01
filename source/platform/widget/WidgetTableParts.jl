@@ -1057,11 +1057,25 @@ function _read_table_cell_press(st::WidgetTablePartsState, k::Int, c::Int, g::Mo
     reroot_operation(op, _wt_get_cell_steps(k, c))
 end
 
-# A left press: a header selects its column, and a row header its row; the
-# corner takes the press, and a press that it declines selects the table; in
-# the cells, an Alt+press selects the cell, and a plain press goes to the cell.
-# A cell that declines it — a label has nothing to say to one — leaves it to
-# the row, and the row is selected: a table of text is a table of rows.
+# A left press on the header of column `c`, from the point `(x, y)` in the
+# coordinates of the rules of the header row, read by the header and rooted
+# under `column_headers[c]`; `nothing` when the header has nothing to say.
+function _read_table_header_press(st::WidgetTablePartsState, c::Int, g::MouseClick, x::Int, y::Int)
+    found = _find_table_header_cell(st, c)
+    found === nothing && return nothing
+    cim, left, top = found
+    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
+                                                     g.modifiers; time = g.time))
+    op === nothing && return nothing
+    reroot_operation(op, (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)))
+end
+
+# A left press: a row header selects its row; the corner takes the press, and a
+# press that it declines selects the table. In the header row and in the cells,
+# an Alt+press selects the column or the cell, and a plain press goes to the
+# header or the cell. A header that declines it selects its column, and a cell
+# that declines it — a label has nothing to say to one — leaves it to the row,
+# and the row is selected: a table of text is a table of rows.
 function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  g::MouseClick)
     st = iomap.state
@@ -1078,7 +1092,11 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
-    part === :header && return ReplaceSelectionOperation(_wt_col_ref(c))
+    if part === :header
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_col_ref(c))
+        op = _read_table_header_press(st, c, g, x, y)
+        return op === nothing ? ReplaceSelectionOperation(_wt_col_ref(c)) : op
+    end
     k = _find_table_row_at(st, y)
     k === nothing && return nothing
     g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(k, c))
@@ -1357,12 +1375,20 @@ function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
     (reroot_operation(_wt_read_cell_event(cim, event, local_event), steps), steps)
 end
 
-# An event that is not a gesture of the table goes to the cell that the
-# selection is in, or to the corner, and its answer is rooted under it.
+# An event that is not a gesture of the table goes to the cell or the header
+# that the selection is in, or to the corner, and its answer is rooted under it.
+# A selected header is not in the header: only a path into it is.
 function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, event)
     selection = w.selection
     (selection isa ConcreteReference && selection.head isa FieldReferenceStep &&
      selection.head.name == "corner") && return _read_table_corner(st, event)
+    c = _find_header_in_selection(selection)
+    if c !== nothing
+        found = _find_table_header_cell(st, c)
+        found === nothing && return nothing
+        return reroot_operation(read_intent(found[1].projection, found[1], event),
+                                (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)))
+    end
     prefix = _wt_cell_prefix(selection)
     prefix === nothing && return nothing
     k, c = prefix
@@ -1370,6 +1396,18 @@ function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, ev
     found === nothing && return nothing
     cim = found[1]
     reroot_operation(read_intent(cim.projection, cim, event), _wt_get_cell_steps(k, c))
+end
+
+# The column of the header that `selection` goes into, `column_headers[c]`
+# followed by a path inside the header, or `nothing`.
+function _find_header_in_selection(selection)
+    selection = selection isa Reference ? strip_reference_types(selection) : selection
+    (selection isa ConcreteReference && selection.head isa FieldReferenceStep &&
+     selection.head.name == "column_headers") || return nothing
+    tail = selection.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.tail isa ConcreteReference) ||
+        return nothing
+    tail.head.stop
 end
 
 # An event for the corner, in its coordinates, read by the corner and rooted

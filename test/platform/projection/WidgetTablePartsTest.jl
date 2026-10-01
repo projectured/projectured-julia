@@ -789,5 +789,30 @@ end
     @test "name" in found
 end
 
+
+@testset "a press and a key reach a header, as they reach a cell" begin
+    field = WidgetText("abc")
+    table = WidgetTable(; column_headers = Any[WidgetLabel("name"), field], rows = make_list(5, texts_of),
+                        column_count = 2, column_policies = policies)
+    io = print_document(rec, nothing, table, context())
+    (x, y) = text_at(io, "abc")
+    op = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0))
+    @test op isa ReplaceSelectionOperation
+    steps = get_reference_steps(strip_reference_types(op.path))
+    @test steps[1:3] == [FieldReferenceStep("column_headers"), RangeReferenceStep(1, 2),
+                         FieldReferenceStep("content")]
+    # The selection is in the field, so a key goes to it through the table.
+    set_selection!(table, op.path)
+    key = read(io, KeyPress('X', "X", mods; time = 0.0))
+    @test key isa ReplaceStringRangeOperation
+    @test get_reference_steps(strip_reference_types(key.reference))[1:2] ==
+          [FieldReferenceStep("column_headers"), RangeReferenceStep(1, 2)]
+    # A header that declines a press selects its column.
+    (x, y) = text_at(io, "name")
+    path = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path
+    @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("column_headers"),
+        ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+end
+
 end
 end
