@@ -16,10 +16,15 @@ file wants. When it is `true`, as for the `Settings` that the wrapper makes for 
 caller that gives none, the start step first reads each group from the editor
 and its backend with [`read_settings!`](@ref), so a value that the caller gave a
 target directly stays.
+
+`unused_types` holds the group types that no target of the editor applies,
+which the start step finds with [`is_settings_group_used`](@ref), so a view can
+show them as not used.
 """
 @document struct Settings
     groups::Dict{Type,Any} = Dict{Type,Any}()
     is_read_from_targets::Bool = false
+    unused_types::Vector{Any} = Any[]
 end
 
 """

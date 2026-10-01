@@ -7475,6 +7475,7 @@ const LUCIDE_ICON_GLYPHS = (
     :diamond        => 0xe2d2,  # diamond
     :hexagon        => 0xe0f3,  # hexagon
     :file_sliders   => 0xe5a0,  # file-sliders
+    :settings       => 0xe154,  # settings: a gear
     :sigma          => 0xe201,  # sigma
     # Who speaks
     :user           => 0xe19f,  # user

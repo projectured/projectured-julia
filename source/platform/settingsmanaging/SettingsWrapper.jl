@@ -43,7 +43,7 @@ is_wrapper_default(::Val{:settings}) = true
 The start step of the `settings` wrapper. When `settings.is_read_from_targets`
 is `true`, read each group from `editor` and its backend, and then the
 environment, which wins for one run. Then apply each group to `editor` and to its
-backend.
+backend, and keep the types of the groups that the editor does not use.
 """
 function start_settings!(editor, settings::Settings)
     if settings.is_read_from_targets
@@ -55,5 +55,8 @@ function start_settings!(editor, settings::Settings)
     for group in get_settings_groups(settings)
         apply_settings_to_editor!(editor, group)
     end
+    settings.unused_types = Any[get_settings_group_type(group)
+                                for group in get_settings_groups(settings)
+                                if !is_settings_group_used(editor, group)]
     nothing
 end

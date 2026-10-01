@@ -53,7 +53,8 @@ end
     @test string(file.action.label) == "File"
     @test _labels(file.submenu) == ["New tab", "Close tab"]
     @test string(view.action.label) == "View"
-    @test _labels(view.submenu) == ["Split vertically", "Split horizontally", "Gesture log"]
+    @test _labels(view.submenu) ==
+          ["Split vertically", "Split horizontally", "Gesture log", "Settings"]
     @test string(help.action.label) == "Help"
     @test _labels(help.submenu) == ["Documents", "Projections", "About"]
     @test _labels(make_window_menu_bar()) == ["File", "View", "Help"]
@@ -218,14 +219,15 @@ end
 @testset "the toolbar holds the tools of the window, as pictures" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
     tools = ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
-             "Statistics", "Frame times", "Selection"]
+             "Statistics", "Frame times", "Selection", "Settings"]
     # With no assistant the window has none, and no button for one.
     @test labels(make_window_toolbar()) == tools
     bar = make_window_toolbar(; assistant = _ -> Assistant())
     @test labels(bar) == insert!(copy(tools), 2, "Assistant")
     @test all(item -> item isa WidgetToolbarItem, bar.elements)
     @test [item.action.icon for item in bar.elements] ==
-          [:folder, :chat, :terminal, :list, :keyboard, :warning, :chart, :chart_line, :crosshair]
+          [:folder, :chat, :terminal, :list, :keyboard, :warning, :chart, :chart_line, :crosshair,
+           :settings]
     # The tooltip names the tool first, because the picture does not.
     @test all(item -> startswith(item.tooltip, string(item.action.label, ":")), bar.elements)
     # What the band draws is pictures and no word.

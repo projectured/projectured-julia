@@ -793,7 +793,35 @@ the pixels and the test counts of the baseline of S0.
     not read the file. F1 and the palette list the two commands.
   - The calls that S0 found pass their values in `settings`, or pass
     `settings = false`. omnet-julia follows; check `Pkg.precompile` there.
-- [ ] **S8. The tab** (4.4). `SettingsToWidget`, the toolbar item, the View menu
+- [x] **S8. The tab** (4.4). Done on 2026-10-01: `test_settings_tab()`, the
+  wrapper and settings tests and the guards 169; `test_shell()`,
+  `test_widget_icon()` and `test_application()` 1002 and 2 broken; no failure
+  and no error. What the work decided and found:
+  - `SettingsToWidget` in the slice `settingsmanaging`, which moved after
+    `natural` so that it registers its row with the natural renderer:
+    `Settings => ChainingProjection(SettingsToWidget(), VerticalLayoutToGraphicsCanvas())`.
+  - A `Bool` is a `WidgetSwitch` and a number with a range a `WidgetSpinBox`;
+    each value, `enabled` state and note is a computed cell, so the view follows
+    a change from any path and the unused types that the start step finds after
+    the first print. A `Symbol` or a `String` shows as text: a `WidgetSelect`
+    writes from its popup window, which does not pass the reader of the tab, so
+    the choice waits for S10, the first step with such a setting.
+  - **Reset and "Reset all" are normal edits**: the write of the default, and a
+    `CompoundOperation` of them, from a per-instance gesture of the button. So
+    `ResetSettingsOperation` of 4.6 is not needed.
+  - **`is_settings_group_applied(T)`**, declared by the slice of the group (render
+    and fault), so that `is_settings_group_used` does not depend on which packages
+    with targets are loaded. `Settings.unused_types` keeps the result of the
+    start step.
+  - The toolbar button and the View menu item open the tab with
+    `find_editor_settings(editor)`. The gear glyph `:settings` (0xe154, checked
+    in `asset/font/lucide.ttf`) joined the icon table.
+  - **"Open settings" in the palette is left open.** The palette lists only the
+    rules of gesture tables, and the shell, which can open a tool tab, comes after
+    the slice of the wrapper. The theme tab has the same need.
+  - D14 holds: a test puts an `UndoBuffer` around the tab, and Ctrl+Z and Ctrl+Y
+    take a change back and put it back, with the apply.
+  What the step holds: `SettingsToWidget`, the toolbar item, the View menu
   item and the command "Open settings".
   - Tests, with a press at the drawn pixels: the switch of partial render sets
     the field of the backend at the next frame. A spin box steps in its range. A

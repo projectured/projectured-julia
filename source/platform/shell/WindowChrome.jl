@@ -51,7 +51,10 @@ make_window_file_menu() =
     make_window_view_menu() -> WidgetMenuItem
 
 The View menu: the name on the bar, and the menu that opens below it. Its
-commands split the focused group, and open the gesture log.
+commands split the focused group, and open the gesture log and the settings.
+
+**Settings** opens the settings of the editor in a tab: the settings tab of
+`SettingsToWidget`, the same that the toolbar opens.
 
 **Gesture log** opens the session's log in a tab. The recorder is always on, so
 the tab holds what happened before it opened, and a person opens it after a
@@ -69,6 +72,9 @@ make_window_view_menu() =
                             editor -> _reach_tool!(editor, GestureLog,
                                                    _make_default_tool(GestureLog));
                             tooltip = "Every gesture of this session, and what each one did"),
+        make_window_command("Settings",
+                            editor -> _reach_tool!(editor, Settings, _find_tool_settings);
+                            tooltip = "How this editor works"),
     ]))
 
 """
@@ -133,7 +139,7 @@ make_window_menu_bar(; extra = [], about = _ -> AboutPage()) =
 
 The tools of the window, one button each: the explorer, the assistant, the
 evaluator, the message log, the gesture log, the fault log, the frame
-statistics, the frame times and the selection. Each button shows a picture and
+statistics, the frame times, the selection and the settings. Each button shows a picture and
 says its name as a tooltip, and a press reaches the tool or opens it — see
 [`make_window_tool_command`](@ref).
 
@@ -178,6 +184,9 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
                                  tooltip = "Frame times: the time of each recent frame"),
         make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
                                  tooltip = "Selection: what the selection of this window names"),
+        make_window_tool_command("Settings", Settings; icon = :settings,
+                                 tooltip = "Settings: how this editor works",
+                                 make = _find_tool_settings),
         extra...,
     ]; padding = Inset(4, 4, 4, 4))
 
@@ -258,6 +267,10 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
                              padding = Inset(4, 4, 4, 4))
 
 _make_default_tool(type::Type) = _ -> make_insertion_document(type)
+
+# The settings that the settings tab shows: those of the editor. An editor with no
+# `settings` wrapper gets a `Settings` that nothing applies.
+_find_tool_settings(editor) = something(find_editor_settings(editor), make_settings())
 
 # A list of the Help menu is longer than a pane, and a tab page gets no scroll of
 # its own, so the list opens inside a scroll pane.

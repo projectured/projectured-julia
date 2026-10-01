@@ -482,6 +482,31 @@ function test_application()
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end
 
+            @testset "the settings button opens the settings of the editor in a tab" begin
+                document, projection = make_application_window(paths[1:1]; root = dir,
+                                                               assistant = nothing)
+                editor = build_editor(document, projection; backend = HeadlessBackend(),
+                                      tabs = false,
+                                      window = (; title = "ProjecturEd", width = 1600,
+                                                height = 1000,
+                                                opened_window_projections =
+                                                    make_opened_window_projections()))
+                settings = find_editor_settings(editor)
+                @test settings isa Settings
+                toolbar = only(search_documents(editor.document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Settings")
+                _app_apply!(editor, InvokeActionOperation(button.action))
+                tabs = search_documents(editor.document,
+                                        node -> node isa PaneTab && node.content === settings)
+                @test length(tabs) == 1
+                # A second press reaches the tab and opens no second one.
+                _app_apply!(editor, InvokeActionOperation(button.action))
+                @test length(search_documents(editor.document,
+                                              node -> node isa PaneTab &&
+                                                      node.content === settings)) == 1
+            end
+
             @testset "the pane verbs take and answer complete references, and write at the root" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
                 editor = _app_make_editor(scene, composed, iomap)
@@ -775,7 +800,7 @@ function test_application()
                 # A window opened with no assistant has no assistant button.
                 @test [string(item.action.label) for item in toolbar.elements] ==
                       ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
-                       "Statistics", "Frame times", "Selection"]
+                       "Statistics", "Frame times", "Selection", "Settings"]
                 drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
                 for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times")
                     @test !any(text -> occursin(word, text), drawn)

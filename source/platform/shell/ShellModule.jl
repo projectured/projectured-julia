@@ -51,6 +51,8 @@ using ..FeedModule
 using ..FrameStatisticsModule
 using ..InspectorModule
 using ..MessageLogModule
+using ..SettingsManagingModule
+using ..SettingsModule
 
 
 

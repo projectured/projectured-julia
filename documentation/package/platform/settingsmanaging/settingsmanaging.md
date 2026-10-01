@@ -27,6 +27,16 @@ A start step of the wrapper runs once the editor exists (`start_settings!`):
 
 The `window` wrapper takes the `PointerSettings` of the same editor from `EditorParts.arguments`, so the recognitions of its gesture tracker read the cells of the group.
 
+## The settings tab
+
+`SettingsToWidget` draws the `Settings` of an editor as widgets, and the slice registers it with the natural renderer, so a tab that holds the `Settings` draws them. The toolbar of the window and its View menu open the tab with the `Settings` of the editor (`find_editor_settings`).
+
+- One card for each group, in the order of their names, and one row for each setting: the label, whose tooltip is the text of the setting, the control, and a button that resets it. Under the cards, "Reset all".
+- A `Bool` is a switch, and a number with a range is a spin box with the step of the range. A setting of another type shows its value as text.
+- Each control is a computed cell over its setting, so it follows a change from any path: a command, an undo, a load.
+- The start step keeps the types of the groups that the editor does not use in `Settings.unused_types`: an applied group (`is_settings_group_applied`) that neither the editor nor its backend applies, such as the render group of a backend that draws no windows. The card of such a group says so, and its controls are off.
+- A control edit, a reset and "Reset all" are normal edits of the groups. The wrapper applies them, and a history that holds the tab records them, so Ctrl+Z takes a change back and applies the old value.
+
 ## Tests that check the root
 
 The wrapper changes the root of every editor that `build_editor` makes. A test that checks the root document after `build_editor`, or the depth of a selection path, turns it off with `settings = false`, as it turns off `appearance` and `tabs`.

@@ -13,6 +13,7 @@ The settings slice of `ProjecturedPlatform` holds what a person chooses about ho
 - `apply_settings!(target, group)` copies the values of a group to a target, where they act outside the documents: a field of a backend, the fault policy of an editor. The default does nothing; the owner of a target adds a method. `is_settings_target(target, group)` answers whether a method applies the group to the target.
 - `read_settings!(group, target)` is the reverse: it copies the values that act in a target into a group. The owner of a target adds it beside its `apply_settings!`. `read_settings_from_editor!` reads a group from an editor and from its backend.
 - `get_setting_environment_names(T)` names the environment variables that set settings of a group for one run, and `read_settings_environment!(settings)` reads them, the one place that reads them.
+- `is_settings_group_applied(T)` says that a group acts through `apply_settings!`. The slice that declares the group says so, so the answer does not depend on which packages with targets are loaded. `is_settings_group_used(editor, group)` is false for an applied group that no target of the editor applies.
 - `get_setting_cell(group, name)` gives the cell of a setting to a part that reads it where it acts, such as a recognition of the pointer or an undo history.
 
 ## Why a wrapping operation

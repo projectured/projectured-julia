@@ -25,6 +25,29 @@ is_settings_target(target, group::SettingsGroup) =
         Tuple{typeof(apply_settings!), Any, SettingsGroup}
 
 """
+    is_settings_group_applied(T) -> Bool
+
+Whether the settings of the group type `T` act through `apply_settings!`, in a
+target such as a backend, rather than where a part reads their cells. False by
+default; the slice that declares an applied group adds the method, so the answer
+does not depend on which packages with targets are loaded.
+"""
+is_settings_group_applied(::Type) = false
+
+"""
+    is_settings_group_used(editor, group) -> Bool
+
+Whether `editor` uses `group`. An applied group ([`is_settings_group_applied`](@ref))
+is used when the editor or its backend applies it. A group that a part reads
+where it acts is always used.
+"""
+function is_settings_group_used(editor, group::SettingsGroup)
+    is_settings_group_applied(get_settings_group_type(group)) || return true
+    is_settings_target(editor, group) ||
+        (hasproperty(editor, :backend) && is_settings_target(editor.backend, group))
+end
+
+"""
     read_settings!(group, target) -> nothing
 
 Copy the values that act in `target` into `group`: the reverse of

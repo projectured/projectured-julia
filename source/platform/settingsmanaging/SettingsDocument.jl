@@ -32,6 +32,23 @@ function make_settings_document(document, settings::Settings)
 end
 
 """
+    find_editor_settings(editor) -> Settings or nothing
+
+The `Settings` of `editor`: those of the `SettingsDocument` at its root, or
+under the `content` of the documents around it. `nothing` for an editor with no
+`settings` wrapper.
+"""
+function find_editor_settings(editor)
+    document = editor.document
+    for _ in 1:8
+        document isa SettingsDocument && return document.settings
+        hasproperty(document, :content) || return nothing
+        document = document.content
+    end
+    nothing
+end
+
+"""
     make_toggle_setting_operation(settings, T, name) -> Operation
 
 The `ApplySettingOperation` that turns the `Bool` setting `name` of the group of

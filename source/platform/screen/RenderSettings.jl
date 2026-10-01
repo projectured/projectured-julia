@@ -22,6 +22,8 @@ ignores it.
     supersample::Int = 2 in 1:4
 end
 
+is_settings_group_applied(::Type{RenderSettings}) = true
+
 get_setting_environment_names(::Type{RenderSettings}) =
     (partial_render = "PROJECTURED_PARTIAL_RENDER",
      debug_dirty = "PROJECTURED_DEBUG_DIRTY",

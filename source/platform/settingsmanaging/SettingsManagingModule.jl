@@ -16,6 +16,8 @@ turns it into a write and an apply.
   the reader and the mappings of the wrapper.
 - [`SettingsWrapper.jl`](SettingsWrapper.jl) — the `settings` wrapper of
   `build_editor`, and its start step.
+- [`SettingsToWidget.jl`](SettingsToWidget.jl) — the view of the settings tab, and
+  its row in the natural renderer.
 """
 module SettingsManagingModule
 
@@ -24,14 +26,19 @@ using ..DocumentModule
 using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
+using ..LayoutModule
+using ..NaturalModule
 using ..OperationModule
+using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..ScreenModule
 using ..SelectionModule
 using ..SettingsModule
+using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default,
@@ -39,12 +46,23 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default,
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
-export SettingsDocument, make_settings_document, make_toggle_setting_operation
+export SettingsDocument, make_settings_document, make_toggle_setting_operation,
+       find_editor_settings
 export SettingsManagingProjection, SettingsManagingIoMap, wrap_setting_writes
 export start_settings!
+export SettingsToWidget, SettingsToWidgetIoMap
 
 include("SettingsDocument.jl")
 include("SettingsManagingProjection.jl")
 include("SettingsWrapper.jl")
+include("SettingsToWidget.jl")
+
+# The row that lets a tab draw the settings of an editor. The factory form, so
+# every renderer builds its own projection instances.
+function __init__()
+    register_natural_graphics!(:settings, (; measure, appearance) -> Pair{Type,Any}[
+        Settings => ChainingProjection(SettingsToWidget(), VerticalLayoutToGraphicsCanvas()),
+    ])
+end
 
 end # module SettingsManagingModule
