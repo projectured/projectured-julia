@@ -12,7 +12,7 @@ The documentation tool of the editor names a guide here `<slice>/<file>`, so `ke
 
 | Package | Documents |
 | --- | --- |
-| `ProjecturedKernel` | [architecture.md](kernel/architecture.md) and the other guides in `kernel/`: cells, documents, references, selection, the mouse target, operations, projections, devices and backends, the editor, the agent |
+| `ProjecturedKernel` | [architecture.md](kernel/architecture.md) and the other guides in `kernel/`: cells, documents, references, selection, the mouse target, gestures, operations, projections, devices and backends, the editor, the agent |
 
 ## The platform
 
@@ -34,7 +34,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `versioning` | [versioning.md](platform/versioning/versioning.md) | the versions of a document |
 | `plot` | [plot.md](platform/plot/plot.md) | the axis arithmetic and the colour and marker cycles of the charts |
 | `graphics` | [graphics.md](platform/graphics/graphics.md) | the graphics documents, the hit test and the selection ring |
-| `screen` | [screen.md](platform/screen/screen.md) | the window model |
+| `screen` | [screen.md](platform/screen/screen.md), with [popup-window.md](platform/screen/popup-window.md) | the window model, and a menu, a dropdown list, a dialog, a tooltip and a context menu, each in a window of its own |
 | `layout` | [layout.md](platform/layout/layout.md) | rows, columns, grids, flows, stacks, anchored and constraint layouts |
 | `text` | [text.md](platform/text/text.md) | styled text, the flat caret, and text to graphics |
 | `widget` | [widget.md](platform/widget/widget.md), with [context-menu.md](platform/widget/context-menu.md) | the widgets, their routing, the object views, and the context menu |

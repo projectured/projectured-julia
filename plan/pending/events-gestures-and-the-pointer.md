@@ -1561,6 +1561,19 @@ it holds the example.
   [package/README.md](../../documentation/package/README.md). The named paths of
   [named-paths-in-a-document.md](../tentative/named-paths-in-a-document.md) are
   an idea, and get no document until they are planned.
+
+  Done so far (2026-10-01): every row of the table but the drag. New:
+  `package/kernel/mouse-target.md`, `guide/pointer-guide.md`,
+  `package/kernel/gesture.md`, `guide/gestures-guide.md`,
+  `guide/tooltip-guide.md`, `package/platform/screen/popup-window.md`,
+  `guide/popup-window-guide.md` and `guide/context-menu-guide.md`; a section
+  "The timer and the display event" in `editor.md`, and the forward path
+  through the node of a slot in "The place of a part" of `reference.md`, which
+  had that section already. The design documents of the tooltip and the
+  context menu were written with steps 9c and 9d. The four steps of the context
+  menu moved from `keyboard-and-mouse-guide.md` into its own guide. Open: the
+  rules (`PAR-NO-NEW-SYNTHETIC-EVENT`, D40, D44) and the documents of the drag,
+  which come with step 5b of the pointer plan.
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
 
