@@ -31,7 +31,7 @@ One table and one series of frame times exist for each session, `get_session_fra
 
 ## How it fits
 
-The statistics slice depends on the kernel for the feed contract and the performance layer, on the syntax and text slices for the table, and on the natural slice for its row. It depends on no domain: the chart domain depends on it for the chart of the frame times. The shell slice gives the editor a `FrameStatisticsFeed` in `run_with_window_tools`, and the toolbar has a button that opens the table and one that opens the frame times.
+The statistics slice depends on the kernel for the feed contract and the performance layer, on the syntax and text slices for the table, and on the natural slice for its row. It depends on no domain: the chart domain depends on it for the chart of the frame times. The `frame_statistics` wrapper of `build_editor`, in this slice, gives the editor a `FrameStatisticsFeed`, and the toolbar has a button that opens the table and one that opens the frame times, only when the wrapper is on.
 
 The statistics slice registers one natural row: the syntax row `:statistics` draws a `FrameStatistics` with `FrameStatisticsToSyntax`. The chart domain registers the graphics row `:frame_time_series`, which draws a `FrameTimeSeries` through `FrameTimeSeriesToChart`, `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`. A `.pred` file builds both documents by their names, so a saved window can hold their tabs.
 
@@ -58,6 +58,6 @@ Then open a tab and type `statistics` or `frame times`, or press the toolbar but
 
 ## Limits
 
-- `run_with_window_tools` makes the feed with the default interval. No setting changes it.
+- The `frame_statistics` wrapper of `build_editor` makes the feed with the default interval. No setting changes it.
 - The ring holds 1000 frames. `Editor` makes its store with the default capacity, and no setting changes it.
 - The plot shows only time measurements. The counters are in the table and in the CSV file.

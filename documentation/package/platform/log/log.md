@@ -20,7 +20,7 @@ A message travels through three parts. This is the feed pattern of the editor; [
 
 The log slice depends on the kernel for the feed contract, and on the syntax and text slices for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)`. `pred_arguments` saves only the capacity, so a loaded log starts empty.
 
-The shell slice uses it: `run_with_window_tools` installs the capture and gives the editor a `MessageLogFeed`, and the toolbar has a button that opens the log.
+The `message_log` wrapper of `build_editor`, in this slice, installs the capture in a start step and gives the editor a `MessageLogFeed`, and removes the capture again in a stop step when the loop of the editor ends. The toolbar of the shell slice has a button that opens the log, only when the wrapper is on.
 
 The library of the MCP server installs a logger of its own when its server starts. `start_mcp!` puts the logger that was installed before back, so the capture stays in place when the editor runs with `--mcp`; see [mcp.md](../../adapter/mcp/mcp.md).
 
@@ -39,7 +39,7 @@ run_editor!(document, projection; window = (; title = "Title"),
 remove_message_log_capture!(previous)
 ```
 
-`run_with_window_tools(run)` in the shell slice does these steps for you. `run_message_log_feed_example()` in `example/projectured/FeedExamples.jl` opens a window with a log.
+`message_log = true`, as a wrapper of `build_editor`, does these steps for you. `run_message_log_feed_example()` in `example/projectured/FeedExamples.jl` opens a window with a log.
 
 - Tests: `test_message_log_feed()` and `test_message_log()`, in the application test package. `test_message_log()` installs the capture of the session, drains the feed by hand, and checks the log and its view. `test_mcp_server()` checks that the capture keeps its records after an MCP server starts. The package has no suite of its own.
 

@@ -55,9 +55,13 @@ A projection can draw a widget that no document of the domain stands behind, suc
 
 `make_output_reference(owner, node, output_path)` makes the typed path. `find_output_path(reference, owner)` returns the place in the output. `follow_output_selection!(root, forward; is_followed)` installs a thunk on the `selection` cell of each document of the output tree, so each container holds its part of the path and rings the child that the path names. `is_followed` stops the walk at a document of the domain inside a widget, or at a table whose rows are built on demand. With `forward_mouse_target`, the walk also installs a thunk on the `mouse_target` cell of each document. `follow_output_mouse_target!(root, forward; is_followed)` does that alone, for a view that keeps the selection of its output in its own way: each widget that the view makes then lights while the pointer is on it.
 
+### The `focus_cycling` wrapper of `build_editor`
+
+`focus_cycling = true` is the wrapper of `build_editor` that wraps the projection of a window in a `FocusCyclingProjection`, so Tab and Shift+Tab start over at the ends of the window. It is on by default, in every window, and a caller turns it off with `focus_cycling = false`. It acts in the layer `:container` with the number 20, around the chrome of the `shell` wrapper, so the cycle goes through the bands and the panes.
+
 ## How it fits
 
-The five files of `source/platform/focus/` hold the parts above: `Focus.jl` the Tab walk and the press that gives the focus, `FocusCycling.jl` the start over at the ends, `WholeSelection.jl`, `SelectionWalking.jl` and `OutputSelection.jl`. The focus slice depends only on the kernel and on the collection slice. The layout and widget slices call the Tab walk and the whole-element functions. The shell slice puts a `SelectionWalkingProjection` into the fold of a window when its `selection` keyword is set; see [shell.md](../shell/shell.md). It registers nothing. A domain extends it through two open functions, `is_focusable_document` and `is_selection_walk_stop`.
+The five files of `source/platform/focus/` hold the parts above: `Focus.jl` the Tab walk and the press that gives the focus, `FocusCycling.jl` the start over at the ends, `WholeSelection.jl`, `SelectionWalking.jl` and `OutputSelection.jl`. The focus slice depends only on the kernel and on the collection slice. The layout and widget slices call the Tab walk and the whole-element functions. The clipboard slice puts a `SelectionWalkingProjection` around the window when its `clipboard` wrapper of `build_editor` is on; see [clipboard.md](../clipboard/clipboard.md). It registers nothing. A domain extends it through two open functions, `is_focusable_document` and `is_selection_walk_stop`.
 
 ## Design decisions
 

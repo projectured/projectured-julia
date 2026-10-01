@@ -368,12 +368,16 @@ that pair.
 | `clipboard`, `clipboard_collection` | Clipboard | `:document` | excludes `tooltip` |
 | `hover` | Widget | `:document` | |
 | `caching` | Graphics | `:document` | takes `render_canvas` of the backend |
-| `gesture_help`, `command_palette` | GestureHelp | `:document` | the shared help state is set up in a start step |
-| `gesture_log` | GestureLog | `:document` and `:screen` | overlay and recording |
+| `undo` | Undo | `:container => 5` | step 9 |
+| `shell` | Shell | `:container => 10` | step 9a; the gallery's `shell` becomes it (D6) |
+| `focus_cycling` | Focus | `:container => 20` | on by default (step 9, D3) |
+| `clipboard` | Clipboard | `:container => 30` | step 9, with the walk; the gallery's `clipboard` and `clipboard_collection` become it (D6) |
+| `gesture_help`, `command_palette` | GestureHelp | `:container => 40`, `=> 50` | step 9 |
+| `gesture_log` | GestureLog | `:container => 90` | step 9: the recording of the content of a window (D4); the overlay of the gallery is step 8 |
+| `message_log`, `frame_statistics`, `fault_log` | Log, Statistics, Fault | `:screen => 10, 20, 30` | step 9: a capture, feeds, start and stop steps |
 | `fault_tolerant` | Fault | `:document` | a start step attaches the log |
 | `tooltip` | Tooltip | `:document` | opens sibling windows |
-| `scrolling`, `introspection`, `shell`, `text_highlighting`, `text_filtering` | ProjecturedExample | `:document` | the five exclusive keywords of the gallery become exclusions |
-| the layers of `make_window_wrap` | Shell and the packages above | | step 9 |
+| `scrolling`, `introspection`, `text_highlighting`, `text_filtering` | ProjecturedExample | `:document` | the exclusive keywords of the gallery become exclusions |
 
 ## 5. Points that wait for the owner
 
@@ -820,8 +824,8 @@ Each step ends with its narrowest test and a commit.
     the inspector. My recommendation: while it exists, `inspector = true`
     makes the gallery build its scene itself with `make_editor`, as now, and
     every other keyword goes through `build_editor`.
-- [ ] **9. The shell.** `make_window_wrap` and `run_with_window_tools` become
-  wrappers. Move `make_application_window`.
+- [x] **9. The shell.** `make_window_wrap` and `run_with_window_tools` become
+  wrappers. Move `make_application_window`. Done 2026-10-02 (9a to 9h below).
   - [x] **9a. The chrome, as the wrapper `shell`**, taken first for the
     window of `display_in_editor`. The owner, 2026-10-01: "I think we should
     have a shell around the pane tree, no?", then "I want this part but I also
@@ -956,10 +960,44 @@ Each step ends with its narrowest test and a commit.
           `appearance = false`.
         - Tests: the application 431 (2 broken, as on main), the warm-up, the
           referenced document editor, the kernel build 30.
-      - [ ] 9e. omnet-julia: the IDE window and the campaign window.
-      - [ ] 9f. `make_window_wrap` and `run_with_window_tools` go.
-      - [ ] 9g. The display turns the wrappers on.
-      - [ ] 9h. The documents, and §4.5.
+      - [x] 9e. omnet-julia (branch `seams-step-9`, worktree
+        `omnet-julia-seams-9`): `make_ide_wrappers` names the wrappers of the
+        IDE window, and `run_omnet_ide` passes them through the keywords of
+        `run_campaign_window` to `build_editor`, with no
+        `run_with_window_tools`. `make_ide_opened_window_projections` gives only
+        the rows of the IDE. The campaign window draws no cycle of the focus of
+        its own. The precompile workload and the IDE test build the wrapped
+        window with `make_editor_parts`. The `wrap` of `run_campaign_window`
+        and of the Qtenv window, and `WINDOW_WRAPPERS` of the builder of the
+        binaries, stay for step 12. Found while implementing: the window
+        wrapper of `build_editor` appended the rows of its host after the rows
+        of the other wrappers, and a row matches by the first type, so a host
+        could not decide first as it did in the fold. It puts them in front
+        now. Tests: 370 of the omnet window, study, campaign loop, IDE and
+        workbench suites, and the wrapper part of the IDE workload run without
+        its `try`.
+      - [x] 9f. `make_window_wrap` and `run_with_window_tools` go.
+        `make_opened_window_projections` stays, in the fragment of the `shell`
+        wrapper. The fold test is a test of the wrappers in their order,
+        through `make_editor_parts`. Tests: 267 of the shell, the display, the
+        tabs, the window and the guards; the application 329 (2 broken, as on
+        main; main moved 11 assertions to the builder test package).
+      - [x] 9g. The display turns on every feature with the tabs, by keyword
+        only; a window of one value has none. Found while implementing:
+        `show_document!` of the screen looked at the content of the first
+        window, which is the clipboard now, so a second value opened a window
+        of its own. It looks through every document that wraps the content,
+        with `get_wrapped_document`, and the method of the shell slice for its
+        chrome goes. The catch-all row `Document => later` of the display goes
+        while the window has the features, because the rows of the host come
+        first and it would hide the rows of the help and of the menus. Tests:
+        the display 29 (the logger of the process comes back when the window
+        closes), the data frames 256.
+      - [x] 9h. The documents of the kernel editor, the shell, the
+        application, the screen, the display, and of the slices of each
+        wrapper, the own-project guide, and §4.5. The documentation guard
+        passes; one new line of its report ("decides" in screen.md) repeats a
+        sentence of shell.md.
 - [ ] **10. The builder.** The generated `main` loads the backend packages
   and calls `run_application_command(ARGS)`. `--backend=NAME` matches
   `get_backend_name`. Remove `PROJECTURED_BACKENDS` and `default_backend()`.

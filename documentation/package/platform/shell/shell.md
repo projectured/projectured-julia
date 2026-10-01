@@ -8,39 +8,46 @@ The shell slice of `ProjecturedPlatform` holds everything that a window has besi
 
 ## How it works
 
-### The fold
+### The wrappers of a window
 
-`make_window_wrap(; …)` returns the fold `(document, projection) -> (document, projection)`. A window entry applies it before the window opens, and a binary names by keyword what its window has:
+A window is a document and a projection built by `build_editor` with a keyword for each feature it has; [editor.md](../../kernel/editor.md#running-an-editor) describes the mechanism. A binary names by keyword what its window has. Seven features nest around the pane tree that the `tabs` wrapper of the pane slice makes, each in the layer `:container`, ordered by the number beside it:
 
-| Keyword | What it adds |
-| --- | --- |
-| `gesture_help` | F1 opens a window that lists the gestures that work where the person is |
-| `command_palette` | Ctrl+Shift+P finds a command by name and runs it |
-| `selection` | Alt and an arrow walk the objects, and the clipboard acts on the selected one |
-| `clipboard_gestures` | which of the six gestures of `CLIPBOARD_GESTURES` the window has |
-| `history` | a `projection -> projection` wrapper for what the window remembers |
-| `shell` | the chrome: `(document) -> (menu_bar, toolbar, status_bar, context_menu, size)` |
+| What a person sees | Keyword | Slice | Layer |
+| --- | --- | --- | --- |
+| Ctrl+Z takes back a change that belongs to no file | `undo` | undo | `:container => 5` |
+| The menu bar, the toolbar and the status bar | `shell` | shell | `:container => 10` |
+| Tab and Shift+Tab start over at the ends of the window | `focus_cycling` | focus | `:container => 20` |
+| Alt+click, the Alt+arrow walk, and the clipboard | `clipboard` | clipboard | `:container => 30` |
+| F1 opens the list of the gestures that work here | `gesture_help` | gesturehelp | `:container => 40` |
+| Ctrl+Shift+P opens the command palette | `command_palette` | gesturehelp | `:container => 50` |
+| Every gesture of the session, recorded | `gesture_log` | gesturelog | `:container => 90` |
 
-**The order is fixed.** From the inside out: the history, the shell, the start over of Tab, the selection walk with the clipboard, the help, the palette, and the recorder of the gesture log.
+**The order is fixed by what each wrapper reads.** From the inside out: `undo` sits next to the tabs, because it must hold every change below it, down to the pane tree itself. `shell` is around it and inside everything else, so a command of a band finds the pane tree in its content, and a verb that reads the pane tree goes past the chrome with `get_wrapped_document`. `focus_cycling` is around the chrome, so the cycle of Tab goes through the bands too, and not only through the panes. `clipboard` is around the cycle of the focus, so the Alt+arrow walk and the clipboard reach into the bands. `gesture_help` and `command_palette` are around the clipboard, so their lists name the gestures of the walk and of the clipboard too. `gesture_log` is outermost in this layer, so it sees every operation that the window makes, from any wrapper inside it.
 
-- The **history** is innermost because it is a recursive type dispatch over the tree. A wrapper between it and the tree prints that subtree itself, and the recursion never reaches the type that it dispatches on.
-- The **shell** is outside the document of the window and inside everything that acts on a window. So the walk and the clipboard reach into the chrome, and a verb that reads the pane tree goes past it with `get_wrapped_document`.
-- The **start over of Tab** (`FocusCyclingProjection`) is around the shell, so it sees the whole window: Tab at the last stop of the window goes to the first stop, and Shift+Tab goes the other way. It takes no keyword.
-- **The light under the pointer is not in the wrap.** The screen gives each move to the window that the pointer leaves and to the window at the point, and each container gives it on to its children in the same way. Each document on the path writes its `mouse_target`, so a toolbar button goes dark when the pointer goes to a row in a pane, or from a window to a popup. [widget.md](../widget/widget.md) describes the light.
-- **The tooltip and the context menu are not in the wrap.** A part answers a dwell or a right click from its own gesture table. The wrappers that keep the tooltip window and the context menu window sit at the screen, in `make_tracking_screen(; inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window])`. A host gives them in the `inner_wrappers` setting of the `window` wrapper of `build_editor`. [tooltip.md](../tooltip/tooltip.md) and [context-menu.md](../widget/context-menu.md) describe them.
-- The **recorder** is outermost, where it sees every operation of the window. It takes no keyword and writes into the log of the session, and **View → Gesture log** opens that log in a tab. So the tab holds what happened before it opened, and a person can open it after a fault.
+Three more features fill what a tool of the toolbar shows, instead of nesting around the content. Each adds a feed or a start step to the editor, in the layer `:screen`, which acts once, on the root:
+
+| What a person sees | Keyword | Slice | Layer |
+| --- | --- | --- | --- |
+| The message log fills with what the program logs | `message_log` | log | `:screen => 10` |
+| The statistics and the frame times follow the frames | `frame_statistics` | statistics | `:screen => 20` |
+| The fault log fills with what failed | `fault_log` | fault | `:screen => 30` |
+
+[log.md](../log/log.md), [statistics.md](../statistics/statistics.md) and [fault.md](../fault/fault.md) describe each one; [gesturelog.md](../gesturelog/gesturelog.md) describes `gesture_log` above.
+
+- **The light under the pointer is not a wrapper.** The screen gives each move to the window that the pointer leaves and to the window at the point, and each container gives it on to its children in the same way. Each document on the path writes its `mouse_target`, so a toolbar button goes dark when the pointer goes to a row in a pane, or from a window to a popup. [widget.md](../widget/widget.md) describes the light.
+- **The tooltip and the context menu are not wrappers either.** A part answers a dwell or a right click from its own gesture table. The wrappers that keep the tooltip window and the context menu window sit at the screen, in `make_tracking_screen(; inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window])`. A host gives them in the `inner_wrappers` setting of the `window` wrapper of `build_editor`. [tooltip.md](../tooltip/tooltip.md) and [context-menu.md](../widget/context-menu.md) describe them.
 
 A wrapper that opens a window of its own needs `make_opened_window_projections()`, the value of the `opened_window_projections` setting of the `window` wrapper of `build_editor`. A host that turns the tooltip on passes `make_natural_tooltip_row(; measure)` in `content`, and the rows that draw its own documents, because a tooltip can hold a document of any domain. **A popup holds widgets**: the menu of a menu bar or of a context menu, and the options of a `WidgetSelect`, in a layout. So `make_opened_window_projections` ends with the rows of `WidgetToGraphics`, one for each widget and each layout, in the font and the measure the shell draws its bands with; the rows of `content` come before them, so a host decides first. A popup needs no wrapper of its own: a trigger answers its position in its own frame, each reader on the way up moves the position into its own frame, and the window opens the popup at its screen position. [widget.md](../widget/widget.md) describes the popup operation and how a reader moves it.
 
 ### The chrome is a document
 
-`make_window_shell_document(document; menu_bar, toolbar, status_bar, context_menu, size)` puts the document of the window inside a `WidgetShell`, and `make_window_shell_projection(projection; measure, appearance)` draws it. The bands draw through the dispatch of `WidgetToGraphics`, with the widget theme of the `Appearance` of the window, which `make_window_wrap(; …, appearance)` and `make_opened_window_projections(; …, appearance)` take too, and the `content` slot goes to the projection that drew the window before, so the content draws as it did without the shell.
+`make_window_shell_document(document; menu_bar, toolbar, status_bar, context_menu, size)` puts the document of the window inside a `WidgetShell`, and `make_window_shell_projection(projection; measure, appearance)` draws it. The bands draw through the dispatch of `WidgetToGraphics`, with the widget theme of the `Appearance` of the window, which the `shell` wrapper of `build_editor` and `make_opened_window_projections(; …, appearance)` take too, and the `content` slot goes to the projection that drew the window before, so the content draws as it did without the shell.
 
 **The chrome is data.** A person can select, reference, walk, copy and save it, and a verb can reach it. A shell that only a printer made could be none of those. Wrapping is idempotent: a document that is already a `WidgetShell`, for example one read back from a file, keeps its identity and takes the bands that it is given.
 
-**The shell fills its window.** The printer, `WidgetShellToGraphicsCanvas` in the widget package, takes the extent on each axis from the authored `size`, else from the available size that the parent gives. Only a shell with neither takes the size of its content. The window gives its own size as the available size, so the fold passes no `size`, and the shell follows the window when it resizes. The content gets the extent less the insets and the bands. A band gets the width and no height, so it is as tall as what it holds, and the status bar is on the bottom edge.
+**The shell fills its window.** The printer, `WidgetShellToGraphicsCanvas` in the widget package, takes the extent on each axis from the authored `size`, else from the available size that the parent gives. Only a shell with neither takes the size of its content. The window gives its own size as the available size, so the `shell` wrapper passes no `size`, and the shell follows the window when it resizes. The content gets the extent less the insets and the bands. A band gets the width and no height, so it is as tall as what it holds, and the status bar is on the bottom edge.
 
-**What is saved is the window, and not the bands.** `WidgetShell` writes its `content`, its size, its margins and its style, and none of its bands. A menu bar and a toolbar belong to the binary, and the fold makes the bands again at each start, so one binary never writes its menu into a file that another binary opens. On open, a size that the application gives wins over the saved one.
+**What is saved is the window, and not the bands.** `WidgetShell` writes its `content`, its size, its margins and its style, and none of its bands. A menu bar and a toolbar belong to the binary, and the `shell` wrapper makes the bands again at each start, so one binary never writes its menu into a file that another binary opens. On open, a size that the application gives wins over the saved one.
 
 ### The menu bar
 
@@ -78,26 +85,23 @@ So a host adds a command and needs no widget package of its own.
 
 Two tools need what only the window has. `assistant` makes the assistant of the window, with its backend and its greeting; when it is `nothing`, the toolbar has no assistant button. `explorer` makes the file explorer over the folder of the window; when it is `nothing`, the button opens the working directory.
 
-**A button must not open a tool that stays empty.** The window fills three tools, and not the tab. A capture of the logger and a feed fill the message log, a feed fills the frame statistics, and the fault store of the editor fills the fault log. `run_with_window_tools` gives all three, and a binary opens its window through it:
+**A button must not open a tool that stays empty.** Five tools show what the window records, and each fills only when the wrapper of `build_editor` that fills it is also on: the message log with `message_log`, the gesture log with `gesture_log`, the fault log with `fault_log`, and the statistics and the frame times with `frame_statistics`. `RECORDED_TOOLS` names the four keywords of those wrappers. The `shell` wrapper reads which of them are on in `parts.settings` and passes those as `recorded` to `make_window_toolbar` and `make_window_menu_bar`, so a window built with none of the four has no button and no item for a tool that would stay empty:
 
 ```julia
-run_with_window_tools() do feeds, start
-    editor = build_editor(document, projection; backend = backend, feeds = feeds,
-                          window = (; title = "Title"))
-    start(editor)
-    run_editor!(editor)
-end
+editor = build_editor(document, projection; backend = backend,
+                      window = (; title = "Title"), shell = true,
+                      message_log = true, gesture_log = true,
+                      fault_log = true, frame_statistics = true)
+run_editor!(editor)
 ```
 
-The capture is removed when the window closes, also when it throws, so the logger that the window replaced comes back. [log.md](../log/log.md) and [statistics.md](../statistics/statistics.md) describe the two feeds.
+The message log needs no feed from the caller: its wrapper installs the capture of the logger and gives the editor a `MessageLogFeed`, and removes the capture again when the loop ends, also when it throws, so the logger that the window replaced comes back. [log.md](../log/log.md) and [statistics.md](../statistics/statistics.md) describe the two feeds. The explorer, the evaluator, the selection and the appearance need nothing more than the window.
 
-The gesture log fills only when the recorder of the fold wraps the window. So five tools show what the window records: the message log, the gesture log, the fault log, the statistics and the frame times. A window that has neither `run_with_window_tools` nor the recorder passes `recorded = false` to `make_window_toolbar` and `make_window_menu_bar`, and the bands have no button and no item for those five. The explorer, the evaluator, the selection and the appearance need nothing more than the window.
+### The `shell` wrapper
 
-### The wrapper of `build_editor`
+`shell = true | (; assistant, explorer, about, status_bar, measure, appearance)` is the wrapper of `build_editor` that puts the root document in the chrome of a window. It is off by default. It acts in the layer `:container` with the number 10, so it is around the pane tree that the `tabs` wrapper makes and around the `undo` wrapper when that is on too, and inside the cycle of Tab. The bands are the menu bar, the toolbar and the status bar of this slice, drawn with the widget theme of `appearance`, which defaults to the `Appearance` of the `appearance` wrapper of the same editor. The wrapper adds the rows of `make_opened_window_projections` to the windows that open later, so the menus of the bar draw.
 
-`shell = true | (; recorded, measure)` is the wrapper of `build_editor` that puts the root in the chrome of a window, for a window that the wrappers of `build_editor` make and the fold does not. It is off by default. It acts in the layer `:container` with the number 10, so it is around the pane tree that the `tabs` wrapper makes, and inside the window. The bands are the menu bar, the toolbar and the status bar of this slice, drawn with the widget theme of the `appearance` wrapper of the same editor. The wrapper adds the rows of `make_opened_window_projections` to the windows that open later, so the menus of the bar draw.
-
-The wrapper records nothing, so `recorded` is `false` by default, and the toolbar has the explorer, the evaluator, the selection and the appearance. It has no assistant, because an assistant needs a model. `show_document!` of a window whose content is a shell shows the document in what the shell holds, so a later document opens in a tab and not in a window of its own. The display of the display slice turns the wrapper on.
+A toolbar button and a menu item for a tool that shows what the window records appear only when the wrapper that fills that tool is also on; [the toolbar section above](#the-toolbar-opens-the-tools) says which. `shell` alone, with none of the four, builds a toolbar with the explorer, the evaluator, the selection and the appearance, and no button for any of the four. It has no assistant either, because an assistant needs a model, which the `assistant` setting gives. The screen slice's `show_document!` looks through the shell exactly as it looks through the clipboard and the undo buffer, so a later document still opens in a tab and not in a window of its own; see [screen.md](../screen/screen.md#one-window-on-one-document). The display slice turns the wrapper on.
 
 **An Alt+click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+press over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. A button of the toolbar answers a dwell with its name, so it shows its name as a tooltip.
 
@@ -119,11 +123,11 @@ The `context_menu` field of `WidgetShell` holds the menu of the window itself. T
 
 The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, help, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
 
-The [application slice](../application/application.md) builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The [display slice](../display/display.md) turns the `shell` wrapper on by its keyword, and does not depend on this slice. The shell slice has no `__init__` and registers no row or file type. A binary calls its functions.
+The [application slice](../application/application.md) builds its window with the wrappers of `build_editor` and the chrome of this slice, and a downstream window host uses the same toolbar. The [display slice](../display/display.md) turns the `shell` wrapper on by its keyword, and does not depend on this slice. The shell slice has no `__init__` and registers no row or file type. A binary calls its functions.
 
 ## Design decisions
 
-- **The order of the wrappers is fixed by what each one reads.** The reasons are in [the fold](#the-fold). See [plan/done/both-binaries-offer-one-interface.md](../../../../plan/done/both-binaries-offer-one-interface.md).
+- **The order of the wrappers is fixed by what each one reads.** The reasons are in [the wrappers of a window](#the-wrappers-of-a-window). See [plan/done/both-binaries-offer-one-interface.md](../../../../plan/done/both-binaries-offer-one-interface.md).
 - **The chrome is a document.** A shell inside a printer could not be selected, saved or reached by a verb. See [plan/done/both-binaries-offer-one-interface.md](../../../../plan/done/both-binaries-offer-one-interface.md).
 - **The shell takes the available size of its parent.** The rejected alternative was a shell that gives its content no available size when it has no authored `size`. That shell draws the panes only as wide as their content, and draws no status bar. See [plan/done/the-shell-fills-its-window.md](../../../../plan/done/the-shell-fills-its-window.md), and [layout-rules.md](../../../rule/layout-rules.md), which names the shell.
 - **A press reaches a tool, and never opens a second one.** One rejected option was a press that always opens a new tab: three presses give three message logs with the same lines. The other was a second press that closes the tool, which loses the conversation of an assistant. See [plan/done/the-toolbar-opens-the-tools.md](../../../../plan/done/the-toolbar-opens-the-tools.md).
@@ -133,19 +137,16 @@ The [application slice](../application/application.md) builds its window with th
 ## Usage
 
 ```julia
-wrap = make_window_wrap(; shell = document -> (make_window_menu_bar(),
-                                               make_window_toolbar(; assistant = editor -> Assistant()),
-                                               make_window_status_bar(document), nothing, nothing))
-document, projection = wrap(document, projection)
-run_with_window_tools() do feeds, start
-    editor = build_editor(document, projection; backend = SdlBackend(), feeds = feeds,
-                          window = (; title = "Title"))
-    start(editor)
-    run_editor!(editor)
-end
+editor = build_editor(document, projection; backend = SdlBackend(),
+                      window = (; title = "Title"),
+                      shell = (; assistant = editor -> Assistant()),
+                      undo = true, clipboard = true, gesture_help = true,
+                      command_palette = true, gesture_log = true,
+                      message_log = true, fault_log = true, frame_statistics = true)
+run_editor!(editor)
 ```
 
-- Tests: `test_shell()` runs the layering guard, `test_shell_completeness()`, `test_window_wrap()`, `test_widget_tooltip()`, `test_julia_tooltip()`, `test_tooltip_window()`, `test_context_menu_window()`, `test_window_shell()` and `test_file_dialog()`. `test_shell_completeness()` fails when a `test_*` function under `test/platform/shell/` is not called by `test_shell()` exactly once. The layout of the shell and how it hands the pointer to its bands are in the platform suite, `test_widget_shell_layout()` and `test_widget_shell_pointer()`, and the whole window in `test_application()`.
+- Tests: `test_shell()` runs the layering guard, `test_shell_completeness()`, `test_window_wrap()`, `test_window_wrappers()`, `test_widget_tooltip()`, `test_context_menu_window()`, `test_window_shell()`, `test_file_dialog()`, `test_tracking_screen()` and `test_pointer_light()`. `test_shell_completeness()` fails when a `test_*` function under `test/platform/shell/` is not called by `test_shell()` exactly once. `test_window_wrap()` makes the parts of an editor with `make_editor_parts` and checks the document and the projection that each wrapper, and each pair of wrappers, builds. `test_window_wrappers()` builds a whole editor with `build_editor` and a headless backend, presses real keys through it, and checks what each wrapper does in a real frame. The layout of the shell and how it hands the pointer to its bands are in the platform suite, `test_widget_shell_layout()` and `test_widget_shell_pointer()`, and the whole window in `test_application()`.
 - No example of its own: the application is the example.
 
 ## Limits

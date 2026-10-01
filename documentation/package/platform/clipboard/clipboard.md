@@ -61,6 +61,10 @@ Ctrl+Shift+C answers `CopyReferenceOperation`, which holds the clipboard and no 
 
 With `text = true` over a `TextBlock` content, the clipboard copies and pastes character ranges only, and never a node.
 
+### The `clipboard` wrapper of `build_editor`
+
+`clipboard = true | (; gestures, collection)` is the wrapper of `build_editor` that gives a window the clipboard and the walk of its objects: Alt and an arrow walk the objects of the window, an Alt+click selects one, and the clipboard copies, cuts and pastes the object that is selected. `gestures` says which of `CLIPBOARD_GESTURES` the window offers, all of them by default; `collection = true` keeps a collection of copies instead of one. It is off by default. It acts in the layer `:container` with the number 30, around the chrome of the `shell` wrapper and the cycle of the focus, so the walk and the clipboard reach into the bands too.
+
 ## How it fits
 
 The clipboard slice depends on the domain slice for the paste hooks, the text slice for the text mode, and the collection and projection slices. The pane slice depends on it. `pred_arguments` of the two wrappers saves only `content`, so a loaded window starts with an empty clipboard.
