@@ -502,6 +502,19 @@ One at a time, with the owner.
   2. A part says that it accepts a dragged thing through a function (owner:
      "why not a function simply?"), not through a probe.
   3. A drag that starts local and becomes global is not supported now.
+  4. The light during a drag follows the owner's later model: the mouse target
+     is unaffected by a drag, so the part under the pointer lights. This
+     replaces D29 of the events plan and the test of its step 10 that "a drag
+     over a button does not light it". (Owner, 2026-10-01: "I basically agree".)
+  5. Step 10 of the events plan takes only the two global drags, the tab of a
+     pane and the reorder of the dragging package. The three local drags, the
+     split pane divider, the slider and the pan and zoom of the chart, keep
+     their drag in their own document (point 1). (Owner, 2026-10-01: "I
+     basically agree".)
+  Facts (2026-10-01): a move with a button held still goes by position (step 5a
+  changed only the move with no button held), except in the shell, where the
+  band that takes a `MouseDown` gets every held move and the next `MouseUp`,
+  wherever the pointer is (`_route_shell_down!`).
   So step 5 is two steps: 5a routes a move with no button held (the old part,
   then the new part); a move with a button held keeps today's routing, so no
   move reaches a part twice and no drag breaks. 5b is the drag, once its design
