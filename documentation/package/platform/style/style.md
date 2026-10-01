@@ -68,13 +68,18 @@ field says which scale applies to it:
 | `IconSize` | icon scale |
 
 The five types of length wrap a number, an `Inset` or a `Point2D` in logical pixels.
-Any other value, such as a color, takes no scale. `scale_length` multiplies a length
+Any other value, such as a color, takes no scale. A field of a document is a plain
+cell whose declared type is not checked, so the declared type decides the kind:
+a bare number in a field declared `Radius` scales as a radius
+(`convert_theme_value`). `scale_length` multiplies a length
 and keeps a length above 0 at least 1, so a line or a gap never disappears.
 
 `@theme` also declares the **scaled theme**, `ScaledJsonTheme`: for each field, a
 computed cell that holds the value of the theme times its scale. The cell follows a
 change of the field and of the scale. A projection reads the scaled theme; a person
-edits the theme.
+edits the theme. A scaled theme also keeps the appearance whose scales it follows
+(`get_theme_appearance`), so a projection can scale a length that is not a value
+of its theme.
 
 An **`Appearance`** holds what a person sets about the look of one editor: the
 `zoom`, the six scales (`font_scale`, `icon_scale`, `spacing_scale`, `control_scale`,

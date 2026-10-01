@@ -95,6 +95,23 @@ scale_length(inset::Inset, factor::Real) =
 scale_length(point::Point2D, factor::Real) =
     Point2D(scale_length(point.x[], factor), scale_length(point.y[], factor))
 
+"""
+    convert_theme_value(T, value)
+
+`value` in the kind of length that the declared type `T` of a field names. A field
+of a document is a plain cell, so its declared type is not checked; this gives a
+bare number of a field declared `Radius` the kind `Radius`, so it takes the radius
+scale. A value of the kind already, and a field of any other type, stay as they
+are.
+"""
+convert_theme_value(::Type, value) = value
+convert_theme_value(::Type{<:Spacing}, value) = value isa Spacing ? value : Spacing(value)
+convert_theme_value(::Type{<:Radius}, value) = value isa Radius ? value : Radius(value)
+convert_theme_value(::Type{<:LineWidth}, value) = value isa LineWidth ? value : LineWidth(value)
+convert_theme_value(::Type{<:ControlSize}, value) =
+    value isa ControlSize ? value : ControlSize(value)
+convert_theme_value(::Type{<:IconSize}, value) = value isa IconSize ? value : IconSize(value)
+
 # ── The scaled theme ────────────────────────────────────────────────────────
 
 """
@@ -132,6 +149,14 @@ The theme that a scaled theme scales.
 get_base_theme(scaled::ScaledTheme) = getfield(scaled, :theme)
 
 """
+    get_theme_appearance(scaled) -> Appearance
+
+The appearance whose scales a scaled theme follows. A projection reads a scale
+from it for a length that is not a value of its theme.
+"""
+get_theme_appearance(scaled::ScaledTheme) = getfield(scaled, :appearance)
+
+"""
     @theme struct T … end
 
 Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
@@ -141,7 +166,8 @@ Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
 - `ScaledT` holds, for each field, a computed cell: the value of the field times
   the scale of its kind. The type of the field names the kind: `StyleFont`,
   `StyleText`, `StyleStroke`, `Spacing`, `Radius`, `LineWidth`, `ControlSize` or
-  `IconSize`. Any other value takes no scale.
+  `IconSize`. Any other value takes no scale. A bare number in a field declared
+  with a kind of length takes that kind, so `T(radius = 2)` scales as a radius.
 - `make_scaled_theme(theme::T, appearance)` makes a `ScaledT`,
   `get_theme_field_names(T)` answers the names of the fields, and
   `get_theme_type(theme)` answers `T`.
@@ -166,6 +192,7 @@ macro theme(definition)
         throw(ArgumentError("@theme sets the supertype of `$name` itself: write `struct Name`"))
     definition.args[2] = Expr(:(<:), name, GlobalRef(StyleModule, :Theme))
     fields = Symbol[]
+    types = Any[]
     for line in definition.args[3].args
         line isa LineNumberNode && continue
         declaration = line isa Expr && line.head === :(=) ? line.args[1] : line
@@ -173,15 +200,18 @@ macro theme(definition)
             throw(ArgumentError("@theme: each field is `name::Type = default`, got `$line`"))
         line isa Expr && line.head === :(=) ||
             throw(ArgumentError("@theme: the field `$(declaration.args[1])` needs a default"))
-        declaration.args[1] === :theme &&
-            throw(ArgumentError("@theme: a field can not be named `theme`, the scaled theme holds its theme under that name"))
+        declaration.args[1] in (:theme, :appearance) &&
+            throw(ArgumentError("@theme: a field can not be named `$(declaration.args[1])`, " *
+                                "the scaled theme holds its theme and its appearance under these names"))
         push!(fields, declaration.args[1])
+        push!(types, declaration.args[2])
     end
     scaled_name = Symbol("Scaled", name)
     theme = gensym(:theme)
     appearance = gensym(:appearance)
-    cells = [:($Cell($Computation(() -> $scale_theme_value($theme.$f, $appearance))))
-             for f in fields]
+    cells = [:($Cell($Computation(() -> $scale_theme_value(
+                 $convert_theme_value($type, $theme.$f), $appearance))))
+             for (f, type) in zip(fields, types)]
     scaled_fields = [:($f::$Cell) for f in fields]
     document = Expr(:macrocall, GlobalRef(DocumentModule, Symbol("@document")),
                     __source__, definition)
@@ -189,12 +219,14 @@ macro theme(definition)
         $document
         struct $scaled_name <: $ScaledTheme
             theme::$name
+            appearance::$Appearance
             $(scaled_fields...)
         end
         Base.getproperty(scaled::$scaled_name, field::Symbol) =
-            field === :theme ? getfield(scaled, :theme) : getfield(scaled, field)[]
+            field === :theme || field === :appearance ? getfield(scaled, field) :
+                                                        getfield(scaled, field)[]
         $StyleModule.make_scaled_theme($theme::$name, $appearance::$Appearance) =
-            $scaled_name($theme, $(cells...))
+            $scaled_name($theme, $appearance, $(cells...))
         $StyleModule.get_theme_field_names(::Type{$name}) = $(Tuple(fields))
         $StyleModule.get_theme_type(::$name) = $name
         $name

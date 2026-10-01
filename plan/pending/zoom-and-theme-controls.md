@@ -1006,8 +1006,11 @@ as large. omnet-julia and inet-julia follow where they build these projections.
    `source/platform/appearance/` in `ProjecturedPlatform`, not a new package;
    the owner agreed on 2026-10-01. The style slice and the widget slice are in
    the same package, so "the lowest package" of 4.11 is now "the lowest slice".
-2. **The frame times of A0 wait** until before B1, at the owner's word on
-   2026-10-01. A0 takes the suites and the pixel images.
+2. **The frame times of A0 wait** until the machine is idle, at the owner's word
+   on 2026-10-01; the machine was busy when B1 was due. A0 takes the suites and
+   the pixel images. The "before" run takes the commit before B1, `45376ce8d`, in
+   a temporary checkout, and the "after" run the branch, as one A/B on an idle
+   machine with the owner's word.
 3. **`test_video()` has one failure on `main`** (`3d0d25ae0`), before this work:
    "a take whose window can not paint still ends, with the fault on its frames"
    (`test/backend/video/editor/ApplicationVideoTest.jl:244`, 0 red pixels where

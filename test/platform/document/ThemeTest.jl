@@ -69,6 +69,16 @@ end
     @test scaled.columns == 3
 end
 
+@testset "a bare number takes the kind that the field declares" begin
+    appearance = Appearance(spacing_scale = 2.0, radius_scale = 3.0)
+    scaled = make_scaled_theme(ThSample(gap = 5, corner = 2), appearance)
+    @test scaled.gap == 10
+    @test scaled.corner == 6
+    @test get_theme_appearance(scaled) === appearance
+    @test convert_theme_value(Spacing, 3) == Spacing(3)
+    @test convert_theme_value(Int, 3) === 3
+end
+
 @testset "a length above 0 stays at least 1" begin
     scaled = make_scaled_theme(ThSample(), Appearance(line_scale = 0.1, spacing_scale = 0.1))
     @test scaled.border == 1
