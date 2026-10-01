@@ -277,6 +277,8 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
+  **The fault below is recorded and its solution is deferred** (owner,
+  2026-10-01: "Record this issue but defer the solution").
   Found (2026-09-30, a probe on `[1, 2, 3]` with the pointer on `2`): the chain
   write finds the old branch by resolving the old path in the document as it is
   now, and an edit that inserts or deletes before the part changes what that
@@ -287,7 +289,22 @@ One at a time, with the owner.
   the same way; not checked. With the move after a changed frame (Q14), the
   target stays until the move after the frame of the edit, and for one frame the
   old light can show on a part that moved (Claude's proposed answer to Q11,
-  once the chain is right). The ways to fix the chain, for the owner:
+  once the chain is right).
+  The same fault on a toolbar of three buttons, Cut, Copy and Paste (a probe,
+  2026-10-01; the toolbar holds the slot of its lit part, and a button lights
+  while it holds a target):
+  1. The pointer rests on Copy: the toolbar holds `elements[2]`; Copy lights.
+  2. An edit deletes Copy, and Paste moves to slot 2, under the pointer.
+  3. The move after the frame finds slot 2. The write follows the old path,
+     `elements[2]`, into the toolbar as it is now, which names Paste, so it
+     switches nothing off: Copy (deleted) and Paste hold a target.
+  4. Undo puts Copy back in slot 2, and Paste moves to slot 3.
+  5. The move after the frame finds slot 2, Copy, the same path again: Copy and
+     Paste both light, under one pointer.
+  6. The pointer moves to Cut: Cut and Paste light.
+  7. The pointer leaves the window: Paste stays lit until the pointer passes
+     over it again.
+  The ways to fix the chain, for the owner:
   1. A link: each document on the chain also keeps the child that holds the
      rest, and the write clears that child, not the one that the old path names
      now. Exact for an insert, a delete, an undo and a part that moves; the field
