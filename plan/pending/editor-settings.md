@@ -580,17 +580,31 @@ None. Section 5 holds the answers to O1 to O11.
 Each step is a commit in a worktree. With the default settings, each step gives
 the pixels and the test counts of the baseline of S0.
 
-- [ ] **S0. The baseline on `main`.**
-  - `test_sdl()`, `test_video()`, `test_web_backend()`, the tests of the gesture
-    layer, `test/platform/undo/`, `test/platform/fault/`, one file at a time.
-    `test_video()` has one known failure on `main` (finding 3 of the appearance
-    plan).
-  - Each call that passes `partial_render` or `debug_dirty` to `SdlBackend` or to
-    `VideoBackend` and goes through `build_editor`, in this repository, in
-    `tool/video/` and in omnet-julia.
-  - Whether a history holds a tool tab now. If one does, the step that makes
-    the tab must keep its writes out of that history (D7), and the owner
-    approves how.
+- [x] **S0. The baseline on `main`.** Done on 2026-10-01 at `a7fc28eb2`, in
+  `environment/all` of the worktree, with no failure and no error:
+  `test_kernel()` 4088 pass and 2 broken; `test_platform()` 84484 pass and 8
+  broken; `test_sdl()` 806 pass; `test_video()` 41 pass (finding 3 of the
+  appearance plan no longer fails); `test_web_backend()` 103 pass;
+  `test_write_pdf()` 43 pass. The script is `/var/tmp/editor-settings/s0.jl`,
+  and its log `/var/tmp/editor-settings/s0.log`.
+  - **The calls that set the render flags and go through `build_editor`.**
+    `record_application_video` (`example/backend/sdl/ApplicationVideo.jl`)
+    passes `partial_render`, `debug_dirty` and `debug_dirty_hold` to
+    `VideoBackend` and then calls `build_editor`; three takes of
+    `test/backend/video/editor/ApplicationVideoTest.jl:190-192` use them. S7
+    passes these values in the `settings` argument. `NativeWindowTest.jl` passes
+    the flags to `SdlBackend` with no `build_editor`, so the wrapper does not
+    reach it. omnet-julia makes only `SdlBackend()`, and the scripts of
+    `tool/video/` pass no flag.
+  - **A history holds a tool tab.** `make_application_document`
+    (`source/platform/application/Application.jl:91`) puts the whole pane tree
+    into one `UndoBuffer` of the window, and `_reach_tool!` opens a tool tab in
+    that tree. So the tab of S8 must keep its writes out of that history (D7).
+    The owner decides how before S8.
+  - **The prose of R1** also covers the argument `mcp` of `run_editor!`
+    (`EditorLoop.jl:142`, "Its setting is"), the comment of
+    `EditorDisplay.jl:134`, and the guides `editor.md`, `mcp.md`, `screen.md`,
+    `pane.md`, `tooltip.md`, `context-menu.md` and `appearance.md`.
 - [ ] **R1. The rename of D12**, before any new code uses the word.
   `make_wrapper_setting` → `make_wrapper_argument`, `EditorParts.settings` →
   `EditorParts.arguments`, the keywords of `make_document_projection`, the
