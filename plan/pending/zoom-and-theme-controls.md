@@ -1,10 +1,10 @@
-# A person sets the zoom, the scales and the theme of an editor
+# A person sets the zoom, the scales and the themes of an editor
 
 > **Status:** pending, not started. Written on 2026-09-30 at the owner's
-> request. On 2026-10-01 the owner decided D1 to D16, confirmed my readings in
-> D7 and D13, and approved the unseal of `Display.jl` (N1) and of the four cell
-> and struct files of step C1. Three mechanisms of section 5 (6, 8 and 9) wait
-> for the owner's approval.
+> request. The owner decided the design on 2026-10-01; section 5 logs each
+> decision. The owner approved the unseal of `device/Display.jl` (step N1) and
+> of `cell/CellModule.jl`, `cell/ReactiveCell.jl`, `struct/CellStructPlan.jl`
+> and `struct/CellStruct.jl` (step C1).
 
 ## 1. The request
 
@@ -18,37 +18,30 @@ The owner asked on 2026-09-30:
 > depend on it. Then I would also like to be able to control fonts and colors
 > and actual sizes in the widget theme.
 
-So the plan has two parts:
+During the design the owner widened the request: each domain gets a theme, not
+only the widgets. So the plan has two parts:
 
-- **Part A.** Seven factors for each editor: the zoom of the interface, and six
-  scales: of the fonts, of the icons, of the spacing, of the parts of controls
-  that are not text, of the corner radii and of the line widths. A person
-  changes each one in a tab, and four of them also with a key. The change shows
-  at the next frame.
-- **Part B.** The widget theme of each editor: its fonts, its colors and its
-  sizes, with fewer spacing values than now. A person changes them in the same
-  tab, with the same immediate effect, and saves and loads them with two
+- **The zoom and the scales.** Seven factors for each editor: the zoom of the
+  interface, and six scales: of the fonts, of the icons, of the spacing, of the
+  parts of controls that are not text, of the corner radii and of the line
+  widths. A person changes each one in a tab, and four of them also with a key.
+  The change shows at the next frame.
+- **The themes.** Each domain that draws gets a theme: its fonts, its colors and
+  its sizes, with fewer spacing values than now. A person changes them in the
+  same tab, with the same immediate effect, and saves and loads them with two
   buttons.
 
-On 2026-10-01 the owner gave the design of D4 and D9: a projection reads a
-value of the theme with no dependency edge, and one wrapper projection depends
-on the theme and the scales and prints the whole view again when one of them
-changes.
+## 2. The words
 
-## 2. The words (D1, decided 2026-10-01)
-
-The owner asked: ignoring backward compatibility, zoom or scale or what, and
-which one is which? The owner chose this proposal, with "density" for the
-hardware.
-
-**The rule.**
+The rule, decided on 2026-10-01 (D1):
 
 - A **zoom** magnifies a view after the layout. The layout rules do not change;
   the layout only gets less room. A person chooses it. Examples: the zoom of the
   interface, the zoom of a `WidgetTransformPane`, the zoom of a chart.
 - A **scale** multiplies one kind of length before the layout, so the layout
-  changes. A person chooses it. Examples: the font scale, the icon scale, the
-  spacing scale, the control scale, the radius scale, the line scale.
+  changes. A person chooses it. The six scales are the font scale, the icon
+  scale, the spacing scale, the control scale, the radius scale and the line
+  scale.
 - The **density** of a display is a fact of the hardware: the number of device
   pixels for each logical pixel. The system gives it. A person does not choose
   it in the editor.
@@ -63,27 +56,16 @@ hardware.
 | the size of every font | the person | in layout | `_FONT_ZOOM`, "font zoom" | font scale |
 | the size of every icon | the person | in layout | nothing | icon scale |
 | the size of every space | the person | in layout | nothing | spacing scale |
-| the size of the parts of controls that are not text | the person | in layout | nothing | control scale (D15) |
+| the size of the parts of controls that are not text | the person | in layout | nothing | control scale |
 | the radius of every corner | the person | in layout | nothing | radius scale |
 | the width of every line | the person | in layout | nothing | line scale |
 | device pixels for each logical pixel of an image or a video | the caller | by the backend | `write_image(; scale)`, `record_video(; scale)` | `density` |
 | the function from the share of a slider to its value | the author | — | `WidgetSlider.scale` | `mapping` |
 
-**Why not "scale" for the hardware.** The hardware factor acts after layout, as
-a zoom does. With "scale" for it, the word means two kinds of factor. "Density"
-is the word of Android (`DisplayMetrics.density`), and CSS measures it in
-`dppx`. Material Design uses "density" for the compactness of the spacing, but
-this plan calls that the spacing scale, so the code has no collision.
+**What step N1 renames.** All the uses are in this repository; omnet-julia and
+inet-julia have none (2026-10-01).
 
-**Rejected.** "Display scale" for the hardware, although the settings of the
-operating system show "Scale 200%". Then "scale" would name two kinds: the one
-of the display, which acts after layout, and the six that act before it.
-
-**What the proposal renames** (step N1). All the uses are in this repository;
-omnet-julia and inet-julia have none (2026-10-01).
-
-- `Display.scale` → `Display.density`. The owner unsealed `Display.jl` for this
-  rename on 2026-10-01.
+- `Display.scale` → `Display.density`.
 - `PROJECTURED_DISPLAY_SCALE` → `PROJECTURED_DISPLAY_DENSITY`, and
   `_PROBED_DISPLAY_SCALE` → `_PROBED_DISPLAY_DENSITY`.
 - The `scale` of `write_image`, `record_video`, `make_video` and
@@ -92,9 +74,10 @@ omnet-julia and inet-julia have none (2026-10-01).
   through one table.
 - `WidgetSlider.scale` → `mapping`.
 - "font zoom" → "font scale", and "uniform zoom" → "zoom", in the guides.
-- `AdjustFontZoomOperation` goes in step A2: D16 replaces it.
-- These stay: `AdjustZoomOperation`, `get_device_pixel_ratio`,
-  `font_logical_size`, `font_device_size`.
+
+Other steps remove `_FONT_ZOOM`, `adjust_font_zoom!`, `AdjustFontZoomOperation`
+and the kernel form of `AdjustZoomOperation` (section 4.6).
+`get_device_pixel_ratio` and `font_device_size` stay.
 
 ## 3. What exists
 
@@ -147,7 +130,8 @@ omnet-julia and inet-julia have none (2026-10-01).
 - With the web backend alone, Ctrl+Alt+= does nothing. With the SDL package
   loaded, it changes the font zoom of every editor in the process.
 - `plan/pending/font-zoom-per-editor.md` gives three options to make it per
-  editor. D3 chose its option (A).
+  editor. This plan chose none of them: the font scale lives in the themes
+  (D18, D20).
 
 ### 3.4 Icons
 
@@ -266,214 +250,143 @@ omnet-julia and inet-julia have none (2026-10-01).
 
 ### 3.10 Other plans
 
-- `plan/pending/font-zoom-per-editor.md`: this plan absorbs it. When step A2 is
-  done, that plan moves to `plan/done/` with a note.
+- `plan/pending/font-zoom-per-editor.md`: this plan replaces it. When step W2
+  is done, that plan moves to `plan/done/` with a note.
 - `plan/pending/line-spacing-from-the-theme.md`: a theme value for the line
-  spacing. The theme of Part B is a place for it. This plan does not do it.
+  spacing. The themes of this plan are the place for it. This plan does not do
+  it.
 - `plan/pending/sdl-per-editor-state.md`, Part 2: the SDL session is shared.
   This plan does not need it.
 - `plan/pending/configuration-overlay-widget.md` and
   `plan/pending/key-chords-from-bindings.md`: this plan does not use them.
 
-## 4. The decisions
+## 4. The design
 
-### D1. The words — decided 2026-10-01
+### 4.1 The appearance of an editor
 
-The words of section 2, with "density" for the hardware. The owner approved on
-2026-10-01 that `Display.jl` is unsealed for the rename of `Display.scale` to
-`Display.density` (step N1).
+An `Appearance` holds everything that a person sets about the look of one
+editor:
 
-### D2. Where the zoom, the scales and the theme live — decided 2026-10-01
+- the zoom;
+- the six scales: font, icon, spacing, control, radius and line;
+- for each domain, its theme and its scaled theme, found by the type of the
+  theme.
 
-One document for each editor, held by the `Editor`: the zoom and the six scales
-as cells, and the theme in one cell. The editor copies the zoom into
-`display.zoom`, and the backends read the `Display` as now. The kernel can not
-name `WidgetTheme`, so the theme cell has no type in the kernel, and the widget
-package reads it. The name of the document is open: `Appearance` or
-`EditorAppearance`, in the editor layer of the kernel.
+The main builder of an editor creates the `Appearance`, builds the projection
+with it, and returns it. The `appearance` wrapper of `build_editor` wraps the
+root document in an `AppearanceDocument`, with the fields `appearance` and
+`content`, and wraps the projection in an `AppearanceManagingProjection` (4.5).
+The collection reaches that wrapper as the setting of its keyword:
+`build_editor(document, projection; appearance = collection)`. The kernel only
+passes the setting on, as it does for `window`. On the path with no projection,
+`build_editor(document)`, a seam of the build makes the `Appearance` before the
+projection is built (4.13).
 
-### D3. How a layout deep in the tree finds it — decided 2026-10-01
+**The editor knows nothing about themes.** It gets a document and a projection,
+as now. It holds no appearance, binds no value for a frame, and evaluates no
+zoom and no scale.
 
-The editor binds its appearance in a scoped value for each frame, as it binds
-the performance counters. `font_logical_size`, `_sc`, the icon box and the
-widget projections read it. Outside a frame the default appearance applies:
-each factor is 1.0, and the theme is the theme of the factory. This is option
-(A) of `font-zoom-per-editor.md`.
+### 4.2 A theme and a scaled theme
 
-The scoped value only finds the appearance of the editor. A reader reads a value
-of the appearance with no edge. Only the wrapper of D4 reads them with edges.
+A domain declares its theme with the macro `@theme`. The type of each field
+says which scale applies to it:
 
-### D4. One wrapper holds the edges — decided 2026-10-01
-
-The owner's design:
-
-1. A projection reads a value of the appearance, a value of the theme or a
-   scale, with no dependency edge (`peek`). A theme that thousands of cells read
-   adds no edges.
-2. One wrapper projection wraps the whole view of the editor. Its cell reads the
-   theme and the six scales with ordinary edges, and prints the inner
-   projection. When one of them changes, the cell computes again and prints the
-   inner projection again from the start. This is the complete invalidation that
-   the owner allowed, done by a projection.
-3. The zoom has no edge in the wrapper. Layout does not read it, and the backend
-   applies it. A value label that shows the zoom reads its cell with an ordinary
-   edge.
-
-So no operation sets `editor.iomap = nothing`, and nothing compares snapshots.
-
-**Where the wrapper sits.** It is a wrapper of `build_editor` in the `:screen`
-layer, on by default, so it wraps the whole view, the window manager included.
-`make_editor` applies no wrapper, so a test that wants it applies it.
-
-**The one difference from other wrappers.** The owner asked what the difficulty
-is, because this is a wrapper like the others, plus the read of the theme. It
-is, with one difference:
-
-- Every other wrapper prints its inner projection once, in the body of its
-  print. The fault barrier does so at `Catching.jl:121`.
-- This wrapper must print its inner projection a second time, when the
-  appearance changes. The cell layer runs no function on a change. The only code
-  that runs again after a change is the computation of a cell, when something
-  reads it. So the second print runs inside the cell of the wrapper.
-- A cell records each read that its computation makes, and a print makes reads.
-  So the cell of the wrapper records the reads of the inner print too, not only
-  the appearance. These are the reads in the bodies of the prints at the top of
-  the chain, down to the first container that prints its children in cells of
-  their own (3.9). Nothing records them today.
-- If one of those reads changes during ordinary editing, such as the list of
-  windows or the selection, each such edit prints the whole view again.
-
-**D4.1. How to handle those reads — decided 2026-10-01: (c).**
-
-- (a) Build a plain wrapper. Count the prints of its inner projection, and test
-  that ordinary edits do not print it again: type, move the caret, open and
-  close a tab, open a popup, resize the window. If the test passes, nothing
-  more is needed.
-- (b) If the test fails, change the print that reads too much, so that it reads
-  inside a cell of its own.
-- (c) The wrapper reads the appearance with edges, then runs the inner print
-  with `run_untracked` (D9.1). Its cell then records the 7 edges of the
-  appearance and nothing else. The reads at the top of the chain stay
-  unrecorded, as they are now.
-
-The owner chose (c) from the start, because D9.1 brings `run_untracked`
-anyway. The test of (a) stays, as a check.
-
-**What else follows from the design.**
-
-- A cell that reads a value of the appearance with no edge, and that the new
-  print does not make again, keeps an old value with no error. Examples: a
-  computed cell in a document, or a cache keyed by a font that stores a scaled
-  size. Step A2 lists them. A test compares an editor that changes a value while
-  it runs with an editor that starts with that value, pixel for pixel.
-- `run_frame!` reads up to 32 events in one frame. After an operation that
-  changes the appearance, it must end that loop, as it does now when the IO map
-  is gone. Else the next events of the frame are read against the old output
-  with the new theme.
-- A theme for one part of the view does not work, because a cell that computes
-  later can not know which wrapper holds it. One theme for each editor is what
-  the owner decided (D12, answer 4).
-- A new print makes again the widgets that a printer made. A drag in such a
-  widget loses its state (D8).
-
-### D5. What each scale multiplies — decided 2026-10-01
-
-| Length | Examples now | Factor |
-| --- | --- | --- |
-| text | all fonts | font scale |
-| named icons, the icon column of a tree, chevrons | the box from the caller, 20, `chevron` 4 | icon scale |
-| paddings and margins | `pad_x` 14, `pad_y` 9, card 16, alert 14, badge 3/10, menu 4, tab 4 | spacing scale |
-| gaps between items | `gap` 4, title gap 6, icon to label 6/8, radio rows 12, accordion 4/10 | spacing scale |
-| indents | tree indent 22, tree row padding 4 | spacing scale |
-| parts of controls that are not text | checkbox 18, radio 18/5, switch 44×24, slider 24/4/9, progress 8, scroll bar 12/8 | control scale |
-| corner radii | `radius` 8, 6, row radius 4 | radius scale |
-| line widths | `border_width` 1, `stroke` 2, ring 2, separators, splitters, table rules | line scale |
-| a size that a document gives | the height of a viewport, a split size, a spin box width | none: only the zoom |
-
-- A length above 0 stays at least 1 logical pixel after its scale.
-- A scale multiplies a theme value where the value is read (D9). So most lengths
-  take their scale in the theme (D10, D14), and `_sc` covers only the numbers
-  that stay outside it.
-- The owner decided on 2026-10-01 that the parts of controls get a scale of
-  their own, and that the corner radii and the line widths get one each. Before,
-  I had proposed the icon scale for the parts of controls, and no scale for the
-  radii and the lines.
-
-### D6. The icon scale — decided 2026-10-01
-
-The box of a named icon is the box that the caller gives, times the icon scale.
-A row that holds an icon grows to the larger of the icon and the text line. The
-icon column of a tree, an icon written as text with `find_icon_character`, and
-the chevrons follow. The parts of a checkbox, a radio, a switch and a slider
-follow the control scale (D5).
-
-### D7. The keys — decided 2026-10-01
-
-- Zoom: Ctrl+`=`/`-`/`0`, as now.
-- Font scale: Ctrl+Alt+`=`/`-`/`0`, as now.
-- Icon scale: Ctrl+Alt+`.` larger, Ctrl+Alt+`,` smaller.
-- Spacing scale: Ctrl+Alt+`]` larger, Ctrl+Alt+`[` smaller.
-- Control scale, radius scale and line scale: no key. They are rows of the tab
-  and commands of the palette only. The owner wrote on 2026-10-01: "Not all
-  needs a keyboard binding". The icon scale and the spacing scale keep their
-  keys; the owner confirmed this reading on 2026-10-01.
-- The other resets and "Reset all" are commands of the palette and buttons of
-  the tab, with no key.
-- Ctrl+, opens the appearance tab.
-- The keys move into a `@gestures` table of the window, so F1 and the palette
-  show them, if the order of the gesture tables gives "after the content" with
-  no new syntax. Else they stay in `read!`, and the window gets commands with no
-  key. Step A5 checks the order first.
-
-Ctrl+Alt is AltGr on some layouts, and a bracket needs AltGr on a Hungarian or a
-German layout. The owner tries the keys on the owner's keyboard in step A5.
-
-### D8. The appearance tab — decided 2026-10-01
-
-A tool tab, as the fault log is: a toolbar item, a View menu item, a command of
-the palette and Ctrl+,. It shows the appearance of its own editor.
-
-- One row for the zoom and one for each of the six scales: the name, a −
-  button, the value in percent, a + button and a reset button. Under the rows:
-  "Reset all", "Save" and "Load" (D13).
-- The theme sections (D11).
-- The buttons run the same operations as the keys, through their `Action`.
-- No slider. A change prints the whole view again (D4), with the controls of
-  the tab, and a control that a printer made loses the state of a drag. A press
-  is one event and needs no state across frames.
-- One table of steps for all seven rows: 50% to 300%, as the zoom uses now.
-
-### D9. How a widget reads the theme — decided 2026-10-01
-
-The owner's design:
-
-- Each widget printer reads the style fields of its projection, as now.
-- A style field that no keyword of the constructor set reads a field of the
-  theme each time something reads it. That read records no edge, and no read
-  inside it records an edge.
-- The factory, which builds the projections from a theme, sets this up.
-- Only the wrapper of D4 depends on the theme and the scales.
-- The benefit is fewer edges. Now each printer cell that reads a style field has
-  an edge to that field; after the change it has none. The cost is one small
-  function call for each read of a style field while a printer runs. The memory
-  must not grow, and the other reactive cells must not pay anything.
-
-A keyword of a constructor still sets a plain value, which never reads the
-theme. A size value of the theme multiplies by its scale (D5) in the same small
-function, so `_sc` covers only the numbers that stay outside the theme (D10,
-D14).
-
-**D9.1. The cell kind `UntrackedCell` — decided 2026-10-01.**
-
-A new kind of cell, in a new file `source/kernel/cell/UntrackedCell.jl`:
+| Type of the field | Scale |
+| --- | --- |
+| `StyleFont` | font scale |
+| `StyleText` | font scale on its font; the color stays |
+| `StyleStroke` | line scale on its width |
+| `StyleColor` | none |
+| `Spacing` (a number or an `Inset`) | spacing scale |
+| `Radius` | radius scale |
+| `LineWidth` | line scale |
+| `ControlSize` | control scale |
+| `IconSize` | icon scale |
 
 ```julia
-"""
-    UntrackedCell{T}
+@theme struct JsonTheme
+    key_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    indent::Spacing     = Spacing(16)
+    border::LineWidth   = LineWidth(1)
+end
+# The macro generates two structs:
+# - JsonTheme: one cell for each field; the tab edits these cells.
+# - ScaledJsonTheme: one computed cell for each field, the base value times the
+#   scale of its kind, for example
+#     key_text = StyleText(scale_font(theme.key_text.font, scales.font), theme.key_text.color)
+#     indent   = round(Int, theme.indent.value * scales.spacing)
+#     border   = max(1, round(Int, theme.border.value * scales.line))
+```
 
-A cell that runs its computation at each read, with `run_untracked`. It keeps no
-value and records no reader, and no read inside its computation records one.
-"""
+- A length above 0 stays at least 1 logical pixel after its scale.
+- The computed cells of a scaled theme keep their edges to their base value and
+  to their scale. These edges stay inside the theme.
+- A font of a scaled theme has its final size. So the measure, the drawing and
+  the export use `font.size` as it is. `_FONT_ZOOM` goes, and
+  `font_logical_size` reads no scale.
+- A size that a document gives, such as the height of a viewport, a split size
+  or `WidgetSpinBox(width = 80)`, takes no scale. Only the zoom changes it.
+
+**What each kind covers in the widgets:**
+
+| Length | Examples now | Kind |
+| --- | --- | --- |
+| text | all fonts | font |
+| named icons, the icon column of a tree, chevrons | the box from the caller, 20, `chevron` 4 | icon |
+| paddings and margins | `pad_x` 14, `pad_y` 9, card 16, alert 14, badge 3/10, menu 4, tab 4 | spacing |
+| gaps between items | `gap` 4, title gap 6, icon to label 6/8, radio rows 12, accordion 4/10 | spacing |
+| indents | tree indent 22, tree row padding 4 | spacing |
+| parts of controls that are not text | checkbox 18, radio 18/5, switch 44×24, slider 24/4/9, progress 8, scroll bar 12/8 | control |
+| corner radii | `radius` 8, 6, row radius 4 | radius |
+| line widths | `border_width` 1, `stroke` 2, ring 2, separators, splitters, table rules | line |
+
+The box of a named icon is the box that the caller gives, times the icon scale.
+A row that holds an icon grows to the larger of the icon and the text line. An
+icon written as text with `find_icon_character` follows the icon scale too.
+
+**Sizes in the theme, and fewer of them.** The widget theme gets a value for
+each size that a person can want to change. The spacing values become about 8
+named values, one for each use: the padding of a control (x and y), the padding
+of a container, the gap between items, the gap under a title, the gap between
+an icon and its label, the indent and the padding of a row. The radii become
+`radius` and `radius_small`, and the lines `border_width`, `stroke` and
+`ring_width`. Each named value is one row of the tab. This changes the default
+look a little, for example 9 becomes 8, so step B0 shows images before and
+after, and the owner accepts the new baseline.
+
+### 4.3 How the projections get and read their themes
+
+- **A constructor takes its theme as a keyword, with a default.** A default is a
+  new theme object for each projection, never one object for the process. A
+  projection that uses its default is outside the `Appearance`: the tab does not
+  edit it and the scales do not change it. The defaults serve tests, examples
+  and projections built on their own; the main builder passes a theme for each
+  domain that it shows.
+- **A composite builder passes the themes down.** A builder that names its parts,
+  such as the window chrome, takes their themes as separate keywords.
+  `NaturalToGraphics`, whose domains register themselves, passes the
+  `Appearance` to each registered factory, and a factory takes its own scaled
+  theme from it, or its default. This is the path that `measure` takes now. A
+  row that a domain registers as one ready-made projection becomes a factory,
+  because a projection now holds the scaled themes of one editor.
+- **A style field reads the scaled theme with no edge.** A projection is declared
+  `@projection UntrackedCell struct …`. The factory builds one `UntrackedCell`
+  for each theme value and each derived value, such as the ring stroke at the
+  ring width, and each projection that uses it holds the same cell. A keyword
+  of a constructor sets a plain value, which never reads the theme. The
+  printers do not change: they read `p.content_color` as now.
+- **A font in a document is as its author set it.** An author can copy a font
+  from a theme or from a scaled theme, or give a document a reactive font that
+  follows the scaled theme. A scale does not change a font of a document by
+  itself.
+
+### 4.4 `UntrackedCell`
+
+A new kind of cell, in `source/kernel/cell/UntrackedCell.jl`. It runs its
+computation at each read, keeps no value and records no edge, and no read
+inside its computation records one:
+
+```julia
 struct UntrackedCell{T} <: AbstractCell{T}
     computation::Function
     UntrackedCell{T}(marker::Computation) where {T} = new{T}(marker.computation)
@@ -488,10 +401,10 @@ is_computed_cell(c::UntrackedCell) = !(c.computation isa Returns)
 copy_cell_as(c::UntrackedCell{T}, v) where {T} = UntrackedCell{T}(v)
 ```
 
-The helper, in `ReactiveCell.jl` beside `_get_computing_stack`, because the stack
-and its key belong there. It swaps the task-local computing stack for an empty
-one, so no read inside `f` finds a reader; a cell that computes inside `f` puts
-itself on the new stack and still records its own dependencies:
+`run_untracked` lives in `ReactiveCell.jl`, beside `_get_computing_stack`, and is
+not exported. It swaps the task-local computing stack for an empty one, so no
+read inside `f` finds a reader. A cell that computes inside `f` puts itself on
+the new stack and still records its own dependencies:
 
 ```julia
 function run_untracked(f)
@@ -507,224 +420,335 @@ function run_untracked(f)
 end
 ```
 
-- **The struct layer.** A `@projection` field finds its kind by name
-  (`_find_cell_kind`, `struct/CellStructPlan.jl`). The name `UntrackedCell`
-  joins the list. `@projection UntrackedCell struct …` then sets the kind of
-  every field of a widget projection with one word, as `@document ImmutableCell`
-  does. The constructor that `@projection` generates keeps an
-  `UntrackedCell{T}` that it gets, and wraps a plain value as a constant.
-  `@document UntrackedCell` also becomes possible; no coded prefix such as
-  `UCFoo` is added for it.
-- **The factory.** One cell for each theme value and each derived value, such as
-  `UntrackedCell{StyleStroke}(@computation StyleStroke(get_theme().ring, 2))`.
-  The kind is an immutable struct with one pointer, so each projection that
-  holds it keeps the pointer to the same function inline, with no cell object.
-- **The cost.** Other reactive cells: none, `getindex` of `ReactiveCell` does not
-  change. A read of an untracked cell with a reader: one lookup and two writes
-  in the task storage, a small empty vector, and one call through the abstract
-  type `Function`. With no reader: one lookup and the call. A spare empty vector
-  for each task can remove the allocation, if B1 shows that it matters.
-- **What a person loses.** A style field can not be written after the factory
-  built the projection: a write is a `MethodError`. Nothing writes one now
-  (checked 2026-10-01).
-- **The name.** "Untracked" is the word of the kernel for a read that records no
-  dependency: `cell.md` calls `peek` "the untracked read".
+- The struct layer finds a kind by name, so `UntrackedCell` joins
+  `_find_cell_kind`. `@projection UntrackedCell struct …` then sets the kind of
+  every field with one word. `@document UntrackedCell` also becomes possible; no
+  coded prefix such as `UCFoo` is added.
+- The kind is an immutable struct with one pointer, so a projection keeps the
+  pointer to the shared function inline, with no cell object. A view uses less
+  memory than now.
+- Other reactive cells pay nothing: `getindex` of `ReactiveCell` does not change.
+  A read of an untracked cell costs a lookup and two writes in the task storage,
+  a small empty vector, and one call through the abstract type `Function`. A
+  spare empty vector for each task can remove the allocation, if the frame times
+  show that it matters.
+- A style field can not be written after the factory built the projection.
+  Nothing writes one now (checked 2026-10-01).
 
-**Rejected, with the reason:**
+### 4.5 The wrapper
 
-- A form of `ReactiveCell` that computes at each read: each read of each
-  reactive cell would pay one more load and type test.
-- `MutableCell`s in the theme, shared by the style fields: each derived value
-  would become a theme value, and a write of the theme that does not also write
-  a reactive revision cell would be lost with no error.
-- `peek` inside the function: an ordinary read inside it, or inside a function
-  that it calls, still records an edge to the printer cell, and each field read
-  of a cell struct is an ordinary read.
-- Let the reads register and cut the edges back afterwards: an edge is kept in
-  the `Set` of the reader and in one vector for each cell that was read, and a
-  registration can move entries in that vector. So an undo must find the new
-  edges and remove each one, and its cost grows with the reads.
-- `DerivedCell`, `VolatileCell`, `UncachedCell`, `FunctionCell`: "derived" means
-  a kept and tracked value in reactive systems and has 85 other uses in the
-  code; the other names do not say that the cell records no edge.
+`AppearanceManagingProjection` wraps the whole view: it is a wrapper of
+`build_editor` in the `:screen` layer, on by default, so it also wraps the window
+manager. `make_editor` applies no wrapper, so a test that wants it applies it.
+It is the one place that handles a change of the appearance and makes the view
+print again. It holds no cell and no edge.
 
-### D10. Which sizes the theme holds — decided 2026-10-01
+```julia
+function read_intent(p::AppearanceManagingProjection, recursion, intent, iomap)
+    answer = <the answer of the content>
+    answer === nothing && (answer = <the answer of the wrapper's own key bindings>)
+    changes_appearance(p, answer) ?
+        CompoundOperation(Any[answer, InvalidateProjectionOperation()]) : answer
+end
+```
 
-The theme gets a value for each size that a person can want to change, with
-fewer spacing values than now (D14). Step B0 makes the list. Each size value
-takes its scale where it is read (D5, D9).
+- The content gets each event first. The wrapper's key bindings (4.7) run only
+  when the content declines the key, so `WidgetTransformPane` keeps its Ctrl+=.
+- An answer changes the appearance when it holds one of the wrapper's own zoom
+  and scale operations, or a write whose root object is the `Appearance` or one
+  of its themes, such as a theme value from the tab, or Load.
+- `InvalidateProjectionOperation` is a kernel operation, beside
+  `DoNothingOperation`. Its evaluation calls `invalidate_projection!(editor)`,
+  which exists. The existing code then stops the read loop
+  (`EditorLoop.jl:93`), leaves the remaining input for the next frame, and
+  prints the whole view again from the start, in the print phase. Its inverse
+  is `DoNothingOperation`.
 
-**The order of the steps.** B0, B1 and B2 come before A3 and A4. So each number
-gets its scale once, in the theme, and A4 routes only the numbers that stay
-outside the theme through `_sc`.
+So a print happens at most once in a frame, and the events after a change wait
+for the new view.
 
-### D11. The theme sections of the tab — decided 2026-10-01
+### 4.6 The zoom
 
-- The preset: a `WidgetSelect` of the four presets. A preset replaces the whole
-  theme.
-- A color: a swatch and a text field that takes `#rrggbb` or `#rrggbbaa`. A
-  picker widget, with a hue strip and a shade area, can come later.
-- A font: a `WidgetSelect` of the families in `asset/font`, one for the style,
-  and a `WidgetSpinBox` for the size.
-- A size: a `WidgetSpinBox`.
-- The derived values follow the base values. `hover_layer`, `pressed_layer` and
-  the four text styles are computed from the palette and the fonts, so a change
-  of `primary` changes the hover layer.
+- The zoom lives in the `Appearance`, beside the scales. The tab shows it, and
+  Save and Load keep it.
+- `AdjustZoomOperation` and `AdjustScaleOperation(scale, delta)` belong to the
+  package of the wrapper and carry the `Appearance`. The scale operation writes
+  the scale. The zoom operation writes the zoom and copies it into the `Display`
+  of the editor, because the backends read it there. A Load copies it the same
+  way, and a start step of the wrapper copies the saved zoom when the editor
+  starts.
+- **SDL** finds a new pixel ratio when it draws. It then keeps the device size of
+  each window and repaints in full: `_reflow_for_scale!` moves from its zoom
+  operation into its drawing, and its two `evaluate_operation` methods go.
+- **The web backend.** The server reads the zoom from the `Display` in the
+  devices that `write_to_devices` gets, and sends it as a field of the update
+  message. The client applies it: it draws with the ratio
+  `devicePixelRatio × zoom`, reports `innerWidth / zoom` and
+  `innerHeight / zoom` as the logical size, and divides each pointer position by
+  the zoom. The server stays in logical pixels. After a zoom step, the client
+  reports its new logical size and the server lays the view out for it. The zoom
+  of the browser menu multiplies with it.
+- **The kernel has no zoom.** `_zoom_operation` in `read!`, the kernel forms of
+  `AdjustZoomOperation` and `AdjustFontZoomOperation`, and their lines in
+  `Operations.jl`, `Description.jl`, `Inversion.jl`, `Rerooting.jl` and
+  `OperationModule.jl` go. The keys work only in an editor with the wrapper.
+
+### 4.7 The keys
+
+| Factor | Larger | Smaller | Reset |
+| --- | --- | --- | --- |
+| zoom | Ctrl+`=` | Ctrl+`-` | Ctrl+`0` |
+| font scale | Ctrl+Alt+`=` | Ctrl+Alt+`-` | Ctrl+Alt+`0` |
+| icon scale | Ctrl+Alt+`.` | Ctrl+Alt+`,` | palette, tab |
+| spacing scale | Ctrl+Alt+`]` | Ctrl+Alt+`[` | palette, tab |
+| control, radius and line scale | palette, tab | palette, tab | palette, tab |
+
+- "Reset all" is a command of the palette and a button of the tab.
+- Ctrl+, opens the appearance tab.
+- The keys are bindings of the wrapper, so F1 and the palette list them.
+- Ctrl+Alt is AltGr on some layouts, and a bracket needs AltGr on a Hungarian or
+  a German layout. The owner tries the keys on the owner's keyboard.
+- The web server decodes `,`, `[` and `]`, which are `:char` now.
+
+### 4.8 The appearance tab
+
+A tool tab, as the fault log is: a toolbar item, a View menu item, a command of
+the palette and Ctrl+,. Its projection is `AppearanceToWidget`, and it shows the
+`Appearance` of its own editor.
+
+- One row for the zoom and one for each of the six scales: the name, a −
+  button, the value in percent, a + button and a reset button. Under the rows:
+  "Reset all", "Save" and "Load". One table of steps for all seven: 50% to 300%.
+- No slider. A change prints the whole view again, with the controls of the
+  tab, and a control that a printer made loses the state of a drag. A press is
+  one event and needs no state across frames.
+- The theme sections, one for each theme in the `Appearance`:
+  - the preset: a `WidgetSelect` that replaces the whole theme;
+  - a color: a swatch and a text field that takes `#rrggbb` or `#rrggbbaa`;
+  - a font: a `WidgetSelect` of the families in `asset/font`, one for the
+    style, and a `WidgetSpinBox` for the size;
+  - a size: a `WidgetSpinBox`.
+- The derived values follow the base values. For example, `hover_layer`,
+  `pressed_layer` and the four text styles of the widget theme are computed from
+  its palette and its fonts.
 - A write from the tab is a change of the view, as a zoom is, so Ctrl+Z does not
   take it back.
 
-### D12. The four answers — decided 2026-10-01
-
-1. **The appearance survives a restart.** D13 says how.
-2. **A web editor shows the zoom.** The owner asked why the row would hide.
-   There is no good reason: the web backend does not read `Display.zoom` now, so
-   the row would do nothing there. The fix is small. The server sends the zoom
-   of the editor to the client. The client draws with `devicePixelRatio` times
-   the zoom, reports `innerWidth / zoom` and `innerHeight / zoom` as its logical
-   size, and divides the pointer position by the zoom. The SDL backend does the
-   same. The zoom of the browser menu multiplies it, as the density of the
-   display does in SDL. Step A7.
-3. **An export of the view of an editor uses the appearance of that editor.**
-   `write_image` and the PDF export bind the appearance of the editor, so the
-   scales and the theme apply. An export with no editor uses the default
-   appearance. The zoom does not multiply the density of the image, because the
-   zoom belongs to a view on a screen; the caller gives the density (agreed
-   2026-10-01). Step A8.
-4. **One appearance for each editor**, not for each window.
-
-### D13. Where the appearance is saved — decided 2026-10-01
+### 4.9 Save and load
 
 - A TOML file, `appearance.toml`, in the configuration folder of the platform:
   on Linux `$XDG_CONFIG_HOME/projectured/`, by default `~/.config/projectured/`.
-  A keyword of `build_editor` names another file, so an application can keep its
-  own.
-- The tab has a "Save" button and a "Load" button. Save writes the appearance of
-  this editor: the zoom, the six scales and the theme. Load reads the file and
-  replaces the appearance of this editor.
-- An editor reads the file when it starts, so a saved appearance survives a
-  restart (D12, answer 1).
-- A key that is missing takes its default, and a key that is not known is
-  ignored. A color is `#rrggbbaa`, and a font is a file name and a size.
-- The editor saves only when the person presses Save, and it never saves on
-  its own; the owner confirmed this reading on 2026-10-01. So the save needs no
-  check at each frame and no new hook in the editor loop.
+  An application can name another file.
+- The file holds the zoom, the six scales and the base values of each theme. A
+  color is `#rrggbbaa`, and a font is a file name and a size. A key that is
+  missing takes its default, and a key that is not known is ignored.
+- The main builder fills the `Appearance` from the file before it builds the
+  projection, so a saved appearance survives a restart.
+- "Save" writes the `Appearance` of this editor. "Load" reads the file and
+  writes its values into the `Appearance`. The editor never saves on its own.
 - Two editors that use one file each write when their person presses Save. The
   last save wins at the next start.
-- The save and the load live in the package that knows the theme, because the
-  kernel can not name it.
 
-### D14. Fewer spacing values — decided 2026-10-01: (a)
+### 4.10 Exports
 
-The owner wrote on 2026-10-01: "maybe we should also consolidate the so many
-spacings a bit". Now the widgets use about 12 different numbers for space: 2, 3,
-4, 6, 8, 9, 10, 12, 14, 16, 22 and more (3.5). Most of them are fixed in one
-widget.
+An export of the view of an editor, with `write_image` or to PDF, uses the
+projections of that editor, so it has the same themes and scales. The zoom does
+not multiply the density of the image: the zoom belongs to a view on a screen,
+and the caller gives the density. An export with no editor uses the default
+themes.
 
-- (a) A short list of named values in the theme, one for each use: the padding
-  of a control (x and y), the padding of a container, the gap between items, the
-  gap under a title, the gap between an icon and its label, the indent, and the
-  padding of a row. About 8 values. Each widget takes its space from one of
-  them.
-- (b) A ramp of sizes, such as 2, 4, 8, 12, 16 and 24. Each widget takes one
-  step of it, as Tailwind does.
-- (c) Both: named values, each set to a step of the ramp.
+### 4.11 The packages
 
-The same holds for the radii (8, 6 and 4 become `radius` and `radius_small`)
-and for the lines (1, 2, and the ring width 2 in 17 places become
-`border_width`, `stroke` and `ring_width`).
+| Part | Package |
+| --- | --- |
+| `@theme`, `Spacing`, `Radius`, `LineWidth`, `ControlSize`, `IconSize`, `Appearance`, the lookup of a scaled theme | `ProjecturedStyle`, beside `StyleFont` |
+| `UntrackedCell`, `run_untracked` | the kernel, cell layer |
+| `InvalidateProjectionOperation` | the kernel, `operation/Operations.jl` |
+| `AppearanceDocument`, `AppearanceManagingProjection`, the `appearance` wrapper, `AdjustZoomOperation`, `AdjustScaleOperation`, the keys, Save and Load, `AppearanceToWidget` | a new package, `ProjecturedAppearance`, code in `source/appearance/`, above the widget package |
+| the toolbar item and the View menu item | `ProjecturedShell` (`WindowChrome.jl`), which depends on `ProjecturedAppearance` |
+| the theme of a domain | the package of that domain; `WidgetTheme` stays in `ProjecturedWidget` |
 
-A consolidation changes the default look a little: for example 9 becomes 8, and
-14 becomes 12 or 16. So step B0 shows images before and after, and the steps of
-Part B compare against the new baseline that the owner accepts.
+`plan/pending/fold-the-internal-packages.md` is a draft that moves code between
+packages only through `Project.toml` and the entry files, so the new slice is
+one more slice for it to place.
 
-The owner chose (a). A person changes "the padding of controls" in the tab,
-not "step 3 of a ramp", and each named value is one row of the tab.
-
-### D15. The name of the scale for the parts of controls — decided 2026-10-01: (a)
-
-- (a) "control scale". `widget.md` calls the interactive widgets "controls", and
-  the scale is for their parts that are not text.
-- (b) "indicator scale". Qt uses the word, and `WidgetCheckboxToGraphicsCanvas`
-  has `indicator_*` fields. But a slider, a progress bar and a scroll bar are
-  not indicators.
-
-The owner chose (a): the control scale.
-
-### D16. One operation for the scales — decided 2026-10-01: (a)
-
-- (a) One operation with the name of the scale beside `AdjustZoomOperation`:
-  `AdjustScaleOperation(scale::Symbol, delta)`, such as
-  `AdjustScaleOperation(:font, 1)`. It replaces `AdjustFontZoomOperation`.
-- (b) One operation type for each scale: `AdjustFontScaleOperation`,
-  `AdjustIconScaleOperation` and four more.
-
-The owner chose (a). The keys, the tab and the palette name the scale, and
-`describe_operation` says "font scale larger". Six types would be six copies of
-the same code.
-
-## 5. The new mechanisms
+### 4.12 The new mechanisms
 
 The rule PAR-NO-NEW-SYNTHETIC-EVENT and the word of the owner on 2026-09-23 need
-each new mechanism named before it is added:
+each new mechanism named and approved before it is added. The owner approved
+each of these on 2026-10-01:
 
-1. A kernel document type for the appearance, and a field `appearance` on the
-   `Editor`. Approved with D2.
-2. A scoped value that holds the appearance of the editor during a frame.
-   Approved with D3.
-3. The appearance wrapper: a wrapper of `build_editor` whose cell reads the theme
-   and the six scales with edges, and runs the inner print with
-   `run_untracked`. Approved with D4 and D4.1.
-4. A read of an appearance value with no edge, and style fields that read the
-   theme (D9). Approved with D4 and D9.
-5. The cell kind `UntrackedCell` and the helper `run_untracked` (D9.1).
-   Approved, with the unseal of `cell/CellModule.jl`, `cell/ReactiveCell.jl`,
-   `struct/CellStructPlan.jl` and `struct/CellStruct.jl` on 2026-10-01.
-6. The end of the read loop of `run_frame!` after an operation that changes the
-   appearance (D4). Needs approval.
-7. `AdjustScaleOperation` (D16). Approved with D16.
-8. The kernel evaluates the operations of the zoom and the scales for every
-   backend. The SDL backend keeps the reflow of its windows and the full
-   repaint, and finds a new ratio when it writes. Needs approval.
-9. A field for the zoom in the message from the web server to the client (D12).
-   Needs approval.
-10. The save and the load of the appearance: a TOML file, two buttons, and a
-    read when the editor starts, and a keyword of `build_editor` that names the
-    file (D13). Approved with D13.
+1. `Appearance` and `AppearanceDocument`, and the `appearance` wrapper of
+   `build_editor`.
+2. `@theme`, the five types of length, and the scaled theme.
+3. The cell kind `UntrackedCell` and the helper `run_untracked`, with the unseal
+   of the four cell and struct files.
+4. Style fields of projections that are `UntrackedCell`s over a scaled theme.
+5. `AppearanceManagingProjection`, whose reader adds
+   `InvalidateProjectionOperation` to each answer that changes the appearance.
+6. `InvalidateProjectionOperation`.
+7. `AdjustZoomOperation` and `AdjustScaleOperation` in the new package, and the
+   copy of the zoom into the `Display`.
+8. A field for the zoom in the message from the web server to the client.
+9. Save and Load to a TOML file.
+10. The seam of the build that makes the value of a wrapper setting before the
+    projection is built (4.13), and the settings passed on to
+    `make_document_projection`.
 
 The plan adds no `SyntheticEvent`, no reader payload and no `read_intent` method
 for a new type.
 
+### 4.13 The path with no projection
+
+`build_editor(document)` and `run_editor!(document)` build the projection with
+the kernel seam `make_document_projection(document)`
+(`EditorBuild.jl:130-136`, `EditorLoop.jl:354-357`). The kernel can not make an
+`Appearance`. So on this path the projection would use its default themes and
+the `appearance` wrapper would make a default of its own: the tab and the scales
+would not reach the projection.
+
+- (a) Before it builds the default projection, `build_editor` asks each wrapper
+  for the value of its setting, through a new seam of the build, such as
+  `make_wrapper_setting(Val(keyword), setting)`, whose default answers the
+  setting as it is. The package of the wrapper answers a new `Appearance` for
+  the setting `true`. `build_editor` then passes the settings to
+  `make_document_projection(document; settings...)` and to the wrappers, so the
+  projection and the wrapper share one `Appearance`. The kernel passes the
+  values on and never reads them.
+- (b) This path gets no appearance that the tab and the scales reach. A caller
+  that wants them builds the projection with an `Appearance` and passes both to
+  `build_editor`. The guide says so. The zoom still works on this path.
+
+The owner chose (a) on 2026-10-01 (D29). The seam lives in `EditorBuild.jl`
+(⬜), beside the other seams of the wrappers, and the `appearance` package adds
+its method in step W1.
+
+## 5. The decision log
+
+All decisions are of 2026-10-01, by the owner, unless the entry says otherwise.
+Each entry says what was decided and what was rejected, with the reason.
+
+- **D1. The words.** Zoom, scale, density and device pixel ratio as in section 2.
+  Rejected: "display scale" for the hardware, which gives "scale" two kinds.
+- **D2, D3. An appearance on the editor, bound for each frame.** Replaced by
+  D20.
+- **D4. The wrapper handles every change of the appearance** (4.5). The design
+  took five forms. The first compared the appearance with the printed one before
+  each print. The second gave the wrapper a cell with edges that printed the
+  inner projection again; that cell also recorded the reads of the inner print.
+  The third let the editor ask its root IO map whether it was still current, and
+  the fourth gave the editor a cell that watched the appearance. The owner
+  rejected the third, a new mechanism for what an operation can already do, and
+  the fourth, which makes the editor know the theme. The fifth is the decision:
+  the wrapper adds `InvalidateProjectionOperation`, a new operation whose
+  evaluation calls the existing `invalidate_projection!`.
+- **D5. What each scale multiplies** (the table in 4.2). The owner gave the
+  parts of controls, the radii and the line widths scales of their own; I had
+  proposed the icon scale for the parts of controls and no scale for the radii
+  and the lines.
+- **D6. The icon scale** (4.2).
+- **D7. The keys** (4.7). The control, radius and line scales have no key: "Not
+  all needs a keyboard binding". The icon and spacing scales keep theirs (the
+  owner confirmed this reading).
+- **D8. The tab** (4.8). Rejected: a slider, which loses its drag when the view
+  prints again; a `WidgetSelect` of the steps in place of − and +.
+- **D9. Style fields read the theme with no edge** (4.3). **D9.1:** the cell
+  kind `UntrackedCell` (4.4), and the name. Rejected:
+  - a form of `ReactiveCell` that computes at each read: each read of each
+    reactive cell would pay a type test;
+  - `MutableCell`s in the theme shared by the style fields: each derived value
+    would become a theme value, and a write that does not also write a reactive
+    revision cell would be lost with no error;
+  - `peek` inside the function: an ordinary read inside it, or inside a
+    function that it calls, still records an edge to the printer cell;
+  - letting the reads register and cutting the edges back: an edge is kept in
+    the `Set` of the reader and in one vector for each cell read, and a
+    registration can move entries, so an undo costs as much as the reads;
+  - the names `DerivedCell`, `VolatileCell`, `UncachedCell` and `FunctionCell`.
+- **D10. Sizes in the theme** (4.2), and the order of the steps: the themes
+  before the scales that act on their values.
+- **D11. The theme sections of the tab** (4.8).
+- **D12. Four answers.** The appearance survives a restart (4.9). A web editor
+  shows the zoom (4.6). An export of an editor uses its appearance (4.10). One
+  appearance for each editor, not for each window.
+- **D13. Save and load** (4.9): TOML, two buttons, and no save on its own (the
+  owner confirmed this reading). Rejected: the binary document file `.pdoc`.
+- **D14. Fewer spacing values:** named values, one for each use (4.2). Rejected:
+  a ramp of sizes, and named values on a ramp.
+- **D15. The name "control scale".** Rejected: "indicator scale", because a
+  slider, a progress bar and a scroll bar are not indicators.
+- **D16. One `AdjustScaleOperation` with the name of the scale.** Rejected: one
+  operation type for each scale.
+- **D17. A theme for each domain** that draws, not only for the widgets.
+- **D18. A theme and a scaled theme are two structs.** An author can copy a font
+  from either.
+- **D19. A font in a document is as its author set it** (4.3). Rejected: a span
+  with no font, which takes the font of the theme; scaling every font where text
+  is drawn, which scales a theme font twice when a widget passes it into a text
+  view.
+- **D20. The editor holds nothing for the appearance** (4.1). Rejected: an
+  opaque field on the editor that the editor binds for each frame; a font scale
+  on the editor.
+- **D21. How the themes reach the projections** (4.3). Rejected: one keyword
+  for each theme on `NaturalToGraphics`, whose domains register themselves.
+- **D22. The collection lives in `AppearanceDocument`** and reaches the wrapper
+  through its keyword (4.1). Rejected: a field of the root document of the
+  application, which the wrapper must search for.
+- **D23. `@theme` makes the scaled theme** from the types of the fields (4.2).
+  Rejected: a scaled struct and a scaling function by hand for each domain, where
+  a forgotten field does not scale and nothing reports it; one generic
+  `Scaled{T}` with a dictionary of cells, where each read is a lookup with no
+  fixed type.
+- **D24. The zoom lives in the `Appearance`** and is copied into the `Display`
+  (4.6). Rejected: the zoom only on the `Display`, which the tab can not show
+  unless the kernel gives the printers the `Display`.
+- **D25. The kernel fallback for the zoom keys goes** (4.6). Rejected: a small
+  zoom in the kernel for an editor with no wrapper, which gives the zoom two
+  homes.
+- **D26. The web client applies the zoom** (4.6). Rejected: the server converts
+  the sizes and the positions while the client still scales its drawing.
+- **D27. The names** `Appearance`, `AppearanceDocument`,
+  `AppearanceManagingProjection`, `AppearanceToWidget` and the keyword
+  `appearance`. Rejected: `ThemeCollection` and `ThemingProjection`, because the
+  collection and the wrapper also hold and handle the zoom and the scales.
+- **D28. The packages** (4.11). Rejected: no new package, with the wrapper in
+  the screen package and the tab in the shell package.
+- **D29. The path with no projection** (4.13): a seam of the build makes the
+  value of each wrapper setting first, so the default projection and the wrapper
+  share one `Appearance`. Rejected: no appearance on this path, where the tab and
+  the scale keys would do nothing visible.
+- **Also rejected:** a cell of its own for each child print in the IO map
+  reconcile, so that a changed read prints the child again. The wrapper of D4
+  made it unnecessary.
+
 ## 6. Steps
 
-Each step is a commit in a worktree. The steps follow the decisions and the
-recommendations. A different choice changes the step that names it. At a zoom
-and scales of 1.0 and the default theme, each step before B0 must give the
-pixels of the baseline of A0, and each step after B0 the pixels of the baseline
-that the owner accepts in B0.
+Each step is a commit in a worktree. With the default themes and every factor at
+1.0, each step before B0 gives the pixels of the baseline of A0, and each step
+from B0 on gives the pixels of the baseline that the owner accepts in B0.
 
-**The order of the work:** A0, N1, C1, A1, A2, B0, B1, B2, A3, A4, A5, A6, A7,
-A8, A9, A10, B3, B4, B5. Parts A and B interleave, because the scales of D5
-apply to the size values of the theme (D10).
+**The order of the work:** A0, N1, C1, T1, T2, B0, B1, B2, P1, P2, P3, P4, W1,
+W2, W3, W4, W5, W6, G1. Every domain gets its theme before the wrapper takes the
+keys (W1), so that the font scale reaches all text from the first day.
 
 - [ ] **A0. The baseline on main.**
   - `test_kernel()`, `test_sdl()`, `test_web_backend()`, the PDF test, and the
     widget tests of `test/substrate/projection/`, one file at a time.
   - Pixel hashes of four examples: the live-window check of the device audit,
     and `write_image` with `supersample = 1`.
-  - Frame times of the same four examples during a scripted edit.
+  - Frame times of the same four examples during a scripted edit, and the count
+    of the edges and of the memory of one view.
 
 ### Part N: the names
 
-- [ ] **N1. The renames of D1**, with `workspace/bin/julia-rename.jl` and a
-  second pass for the prose. The owner unsealed `Display.jl` for the rename of
-  `Display.scale` on 2026-10-01; `SEALING.md` records it in this step.
+- [ ] **N1. The renames of section 2**, with `workspace/bin/julia-rename.jl` and
+  a second pass for the prose. `SEALING.md` records the unseal of `Display.jl`.
 
 ### Part C: the cell layer
 
-- [ ] **C1. `run_untracked` and `UntrackedCell`** (D9.1). The owner unsealed
-  the four files for this step on 2026-10-01; `SEALING.md` records it in this
-  step.
-  - `run_untracked` in `ReactiveCell.jl`, exported. The new file
+- [ ] **C1. `UntrackedCell` and `run_untracked`** (4.4). `SEALING.md` records
+  the unseal of the four files.
+  - `run_untracked` in `ReactiveCell.jl`, not exported. The new file
     `UntrackedCell.jl`, its `include` and `export` in `CellModule.jl`, the name
     in `_find_cell_kind`, and the list of kinds in the error text of
     `CellStruct.jl`.
@@ -736,168 +760,156 @@ apply to the size values of the theme (D10).
     a `MethodError`. `is_computed_cell` and `copy_cell_as`.
   - The guide `documentation/package/kernel/cell.md`: the fourth kind.
 
-### Part A: the zoom and the scales
+### Part T: the theme machinery
 
-- [ ] **A1. The appearance and its wrapper** (D2, D3, D4).
-  - The appearance document: the zoom, the six scales and the theme cell. The
-    `Editor` field, and a keyword `appearance` of `Editor`, `make_editor` and
-    `build_editor`.
-  - The scoped value. `run_frame!` and the first print of `make_editor` bind it.
-    Check `run_on_editor_task!` and the feeds.
-  - A getter for each scale, such as `get_font_scale()`, reads the bound
-    appearance with no edge, else 1.0.
-  - The appearance wrapper, a wrapper of `build_editor` in the `:screen` layer.
-    Its cell reads the theme and the six scales with edges and runs the inner
-    print with `run_untracked` (D4.1). A count of the prints of its inner
-    projection.
-  - `run_frame!` ends its read loop after an operation that changes the
-    appearance.
-  - The editor copies the zoom into `display.zoom`.
-  - Tests: an ordinary edit does not print the inner projection again: type,
-    move the caret, open and close a tab, open a popup, resize the window. A
-    write of a scale prints it once. Two editors in one process: a write in one
-    leaves the other.
-  - If the first test fails, stop and give the numbers to the owner.
-- [ ] **A2. The font scale** on the appearance (D16).
-  - `AdjustScaleOperation`. The kernel evaluates it and `AdjustZoomOperation`:
-    it writes the cells. `AdjustFontZoomOperation` and the two SDL methods go.
-    SDL finds a new ratio at its next write, reflows its windows and repaints in
-    full. It also repaints in full after a new output of the wrapper.
-  - `font_logical_size` and `font_device_size` read `get_font_scale()`.
-    `_FONT_ZOOM` and `adjust_font_zoom!` go, and no operation drops the IO map.
-    The PDF test sets the font scale of an appearance.
-  - The list of D4: each cell outside the output of the wrapper that reads a
-    font size with no edge.
-  - Tests: two editors in one process, a font scale in one, and the other keeps
-    its layout and its pixels. The same with two web backends, where the font
-    scale now works. An export outside an editor has no scale. An editor that
-    changes its font scale while it runs draws the same pixels as an editor that
-    starts at that scale.
-  - Move `font-zoom-per-editor.md` to `plan/done/` with a note that this plan
-    did its option (A).
-- [ ] **A3. The icon scale** (D6), after B2.
-  - The icon box multiplies by `get_icon_scale()`. The five callers and the tree
-    column grow the row to the larger of the icon and the text.
-  - A label that writes an icon as text scales its icon style.
-  - Tests: at 1.5, the icon box of a button, a menu item, a toolbar item, a tab,
-    a card title and a tree row is 1.5 times its size at 1.0. A press on the
-    drawn icon hits its control. A change while the editor runs gives the pixels
-    of an editor that starts at 1.5.
-- [ ] **A4. The spacing, control, radius and line scales** (D5), after B2.
-  - Each size value of the theme multiplies by its scale in the function of its
-    `UntrackedCell` (B1).
-  - The numbers that stay outside the theme go through one function for each
-    kind of length: `_sc` for space, and one each for the parts of controls, the
-    radii and the lines. Each multiplies by its scale and rounds, and a length
-    above 0 stays at least 1.
-  - The gaps of `GridLayout` in the layout package take the spacing scale.
-  - Tests: at 1.5 for each scale alone, only the lengths of its kind change. A
-    press at the drawn place of each control hits it, so the reader and the
-    printer agree. A change while the editor runs gives the pixels of an editor
-    that starts at 1.5.
-- [ ] **A5. The keys** (D7).
-  - The owner tries the keys on the owner's keyboard.
-  - Find how a binding of the window document orders against a reader of the
-    content. Then put the keys in the window table or in `read!`.
-  - The keys of the zoom, the font scale, the icon scale and the spacing scale.
-    The commands of the palette for all seven factors and "Reset all". Ctrl+,
-    for the tab. The web server decodes `,`, `[` and `]`.
-  - `describe_operation` for `AdjustScaleOperation`. Its inverse is
-    `DoNothingOperation`, as for `AdjustZoomOperation`.
-  - Tests: each key gives its operation when the content declines it.
-    `WidgetTransformPane` keeps Ctrl+=. F1 and the palette list the commands.
-- [ ] **A6. The appearance tab** (D8).
-  - The projection of the appearance to widgets: seven rows, "Reset all",
-    "Save" and "Load". The toolbar item, the View menu item, and a Lucide glyph
-    for them.
+- [ ] **T1. The style package** (4.2). `@theme`, the five types of length and
+  their rule of at least 1, `Appearance` with the zoom, the six scales and the
+  themes found by type, and the lookup of a scaled theme, which makes a default
+  theme for a domain that the `Appearance` does not hold yet, while a projection
+  is built and never while it prints.
+  - Tests: each kind takes its scale. A change of a base value or of a scale
+    changes the scaled cell. A read of a scaled cell through an `UntrackedCell`
+    records no edge. Two `Appearance` objects are independent.
+- [ ] **T2. `InvalidateProjectionOperation`** in the kernel (4.5): its evaluation,
+  its description, its inverse `DoNothingOperation`, and its pass through every
+  projection unchanged. Tests beside those of `DoNothingOperation`.
+
+### Part B: the widget theme
+
+- [ ] **B0. The sizes of the widgets, fewer of them** (4.2). Each number of 3.5,
+  what it sizes, and the named theme value that takes it. Images of the examples
+  before and after. The owner accepts the new baseline.
+- [ ] **B1. `WidgetTheme` with `@theme`.**
+  - The theme values of B0, each with its kind of length. The four presets.
+  - The widget projections are declared `@projection UntrackedCell struct`. The
+    factory builds one `UntrackedCell` for each value of the scaled widget theme
+    and each derived value, and each projection that uses it holds the same
+    cell. `WidgetToGraphics(font; measure, theme)` takes a scaled theme; its
+    default is a new default theme.
+  - The icon box multiplies by the icon scale. `_sc` remains only for numbers
+    that stay outside the theme, if B0 leaves any.
+  - Tests: at the default theme, the pixels of B0. At 1.5 for each scale alone,
+    only the lengths of its kind change. A press at the drawn place of each
+    control hits it. The edges and the memory of a view do not grow.
+  - omnet-julia: `build_qtenv_widget_theme` and its widget projections follow.
+- [ ] **B2. The builders pass the themes** (4.3). `NaturalToGraphics`,
+  `WindowWrap`, `WindowShell`, `FileSystemToSyntax` and `DataFrameViewToWidget`
+  take the `Appearance` or the themes of their parts. The registry factories get
+  the `Appearance`, and a row built at registration becomes a factory.
+  - Tests: two editors with two `Appearance` objects draw with their own
+    themes. A builder that leaves a domain at its default is found by a test
+    that changes the font scale and looks for text that did not grow.
+
+### Part P: the themes of the domains
+
+Each step gives each domain of its group a theme with `@theme`, makes its
+projections take the theme and read it through `UntrackedCell`s, and makes its
+factory take the theme from the `Appearance`. Tests for each domain: at the
+default theme, the pixels of B0; at a font scale of 1.5, its text is 1.5 times
+as large. omnet-julia and inet-julia follow where they build these projections.
+
+- [ ] **P1. Text and syntax:** `text`, `syntax`, `natural`.
+- [ ] **P2. The document domains:** `json`, `xml`, `yaml`, `sql`, `julia`,
+  `markdown`, `rst`, `book`, `math`, `formula`.
+- [ ] **P3. The charts:** `chart`, `sequencechart`, `plot`, `graphics`.
+- [ ] **P4. The tools and the overlays:** `fault`, `gesturelog`,
+  `gesturehelp` (with the command palette), `inspector`, `log`, `statistics`,
+  `undo`, `process`, `fsm`, `help`, `dbcatalog`, `filesystem`.
+
+### Part W: the wrapper and its controls
+
+- [ ] **W1. The package `ProjecturedAppearance`** (4.1, 4.5, 4.6, 4.7).
+  `AppearanceDocument`, `AppearanceManagingProjection`, the `appearance` wrapper
+  of `build_editor` with its start step that copies the zoom into the `Display`,
+  `AdjustZoomOperation`, `AdjustScaleOperation` and the key bindings. The seam
+  of 4.13 in `EditorBuild.jl`, its method for `:appearance`, and the
+  `Appearance` passed to `make_document_projection`; a test that
+  `run_editor!(document)` gives a tab and scales that change the view.
+  - Tests: an ordinary edit does not print the view again: type, move the
+    caret, open and close a tab, open a popup, resize the window. A change of a
+    scale prints the view once, and the events after it in the same frame wait
+    for the next frame. Each key gives its operation when the content declines
+    it. `WidgetTransformPane` keeps Ctrl+=. F1 and the palette list the keys.
+    Two editors in one process: a change in one leaves the other. A change
+    while the editor runs gives the pixels of an editor that starts with it.
+- [ ] **W2. The old zoom goes** (4.6).
+  - `_zoom_operation`, the kernel forms of `AdjustZoomOperation` and
+    `AdjustFontZoomOperation`, and their lines in `Operations.jl`,
+    `Description.jl`, `Inversion.jl`, `Rerooting.jl` and `OperationModule.jl`.
+    Their kernel tests go or move to the new package.
+  - `_FONT_ZOOM` and `adjust_font_zoom!` go; `font_logical_size` reads no
+    scale. The PDF test sets the font scale of an `Appearance`.
+  - SDL: its two `evaluate_operation` methods go, and `_reflow_for_scale!`
+    moves into its drawing, which finds a new pixel ratio. Test: a zoom step
+    keeps the device size of each window.
+  - Move `plan/pending/font-zoom-per-editor.md` to `plan/done/` with a note that
+    this plan replaced it.
+- [ ] **W3. The appearance tab** (4.8). `AppearanceToWidget`: the seven rows,
+  "Reset all", "Save", "Load" and the theme sections. The toolbar item and the
+  View menu item in `WindowChrome.jl`, a Lucide glyph, and Ctrl+,.
   - Tests: a press on + changes the value label and the layout at the next
-    frame. The tab keeps its focus and its place after the new print. The
-    pixels, offscreen.
-- [ ] **A7. The zoom in the web backend** (D12, answer 2).
-  - The server sends the zoom. The client multiplies its ratio, divides the
-    size that it reports and the pointer position.
+    frame. A color typed into its field changes the drawn color. The tab keeps
+    its focus and its place after the new print. The pixels, offscreen.
+- [ ] **W4. The zoom in the web backend** (4.6). The field of the update
+  message, the client, and the keys `,`, `[` and `]`.
   - Tests: `test_web_backend()` with a zoom of 1.5: the logical size that the
     server gets, and a press at a drawn control.
-- [ ] **A8. An export uses the appearance of its editor** (D12, answer 3).
-  - `write_image` and the PDF export of the view of an editor bind its
-    appearance.
+- [ ] **W5. Exports** (4.10).
   - Tests: the export of an editor at a font scale of 1.5 equals the export of
-    an editor that starts at 1.5.
-- [ ] **A9. Save and load the appearance** (D13).
-  - The TOML form of the appearance, the Save and Load buttons, the read when
-    the editor starts, and the keyword of `build_editor` that names the file.
+    an editor that starts at 1.5, and the zoom does not change the size of the
+    image.
+- [ ] **W6. Save and load** (4.9). The TOML form, generated by `@theme` for each
+  theme, the folder, the keyword that names another file, and the fill before
+  the build.
   - Tests: Save writes the file. Load gives the pixels of an editor that starts
     with that file. A new editor reads it. A missing key takes the default. A
     file with an unknown key loads.
-- [ ] **A10. The guides.** `style.md`, `widget.md`, `sdl.md`, `web.md`,
-  `editor.md`, the page of the kernel on the build wrappers, and "See more of
-  it, or less" in `keyboard-and-mouse-guide.md`.
 
-### Part B: the theme
+### Part G: the guides
 
-- [ ] **B0. The list of sizes and fewer spacing values** (D10, D14), after A2.
-  Each number of 3.5, what it sizes, and the theme value that takes it. Images
-  of the examples before and after. The owner accepts the new baseline.
-- [ ] **B1. Style fields that read the theme** (D9). The widget projections
-  are declared `@projection UntrackedCell struct`. The factory builds one
-  `UntrackedCell` for each theme value and each derived value, and each
-  projection that uses it holds the same cell. The function of the cell reads
-  the theme of the bound appearance with no edge, else the theme of the
-  factory. At the default theme, the pixels of the baseline of B0. A count of
-  the edges and of the memory of a view, before and after: both must not grow.
-  The theme of omnet-julia still builds.
-- [ ] **B2. The size values** of D10 and D14 in `WidgetTheme` and
-  `_widget_theme`. `build_qtenv_widget_theme` of omnet-julia follows.
-- [ ] **B3. A theme change while the editor runs.** A test that changes the
-  slate light theme to the slate dark theme in a live editor, and gets the
-  pixels of an editor that starts dark.
-- [ ] **B4. The theme sections of the tab** (D11): the preset, the palette, the
-  fonts, the sizes, the color control, the font control, and the derived values.
-  The Save and Load buttons of A9 cover the theme.
-- [ ] **B5. The guides:** `widget.md` (the theme while the editor runs) and
-  `style.md`.
+- [ ] **G1.** A new design document `documentation/package/appearance/`. The
+  changes in `style.md`, `widget.md`, `sdl.md`, `web.md`, `editor.md`, `cell.md`
+  and the design document of each domain that has a theme. "See more of it, or
+  less" in `keyboard-and-mouse-guide.md`.
 
 ## 7. Risks
 
-- The scoped value must cover each place where the cells of an editor compute. A
-  cell that computes outside the frame gets the default appearance.
-  PAR-STORE-THEN-DRAIN keeps the cells of an editor on its task, but step A1
-  must list the places: `run_frame!`, the first print, `run_on_editor_task!`,
-  and each feed.
-- The wrapper runs its inner print untracked, so the reads at the top of the
-  print chain stay unrecorded, as they are now. The test of A1 checks that an
-  ordinary edit does not print the whole view again.
-- A cell outside the output of the wrapper that reads an appearance value with
-  no edge keeps an old value with no error (D4). The pixel test of each step
-  finds such a cell only where the example draws it.
-- Each change of the theme or of a scale prints the whole view again. A held key
-  repeats the change, and each step prints once, because the read loop ends.
+- An operation that does not pass through the reader chain, such as one that a
+  tool puts into the inbox of the editor, does not make the view print again
+  (4.5).
+- A cell outside the view that reads a value of a theme with no edge keeps an
+  old value with no error. The pixel test of each step finds such a cell only
+  where an example draws it.
+- A projection built with its default theme ignores the tab and the scales with
+  no error (4.3). The test of B2 looks for text that did not grow.
+- Each change of a theme or a scale prints the whole view again. A held key
+  repeats the change, and the view prints once in each frame.
 - The SDL text textures are keyed by size, so each step of the font scale adds
   textures. The cache is bounded.
-- The fewer spacing values of D14 change the default look. The screenshots of
-  the examples (`asset/image/example/`), the videos and the look of omnet-julia
-  change with it.
-- The sweeps of B1 and A4 touch most of `WidgetToGraphics.jl`, which has about
-  9,400 lines. A branch that changes that file conflicts. Each sweep needs a
+- Fewer spacing values change the default look. The screenshots of the examples
+  (`asset/image/example/`), the videos and the look of omnet-julia change with
+  it.
+- Parts B and P touch most of the drawing code: about 29 packages, and most of
+  `WidgetToGraphics.jl`, which has about 9,400 lines. A branch that changes
+  those files conflicts, and so does the fold of the packages. Each step needs a
   pixel diff against a clean main.
+- omnet-julia and inet-julia build widget projections and themes. Steps B1, B2
+  and P change those constructors, so both follow in the same steps; check
+  `Pkg.precompile` there.
 - A press must hit what is drawn at each factor. A test must press at the drawn
   pixels, not at a computed coordinate.
-- Ctrl+Alt is AltGr on some keyboards (D7).
-- Sealed files: the rename of `Display.scale` (N1) changes `Display.jl` (🔒),
-  unsealed by the owner. Step C1 changes `cell/CellModule.jl`,
+- Ctrl+Alt is AltGr on some keyboards (4.7).
+- Sealed files: `Display.jl` (N1) and `cell/CellModule.jl`,
   `cell/ReactiveCell.jl`, `struct/CellStructPlan.jl` and `struct/CellStruct.jl`
-  (🔒), unsealed by the owner on 2026-10-01. The other kernel files that the
-  plan changes are ⬜ on 2026-10-01: `Editor.jl`, `EditorLoop.jl`,
-  `ReadEvaluatePrint.jl`, `EditorBuild.jl`, `Operations.jl`,
-  `OperationDefaults.jl`, `GestureBinding.jl`. Read `SEALING.md` again before
-  each edit.
+  (C1) are unsealed by the owner for their steps. The other kernel files that
+  the plan changes are ⬜ on 2026-10-01: `Operations.jl`, `Description.jl`,
+  `Inversion.jl`, `Rerooting.jl`, `OperationModule.jl`, `ReadEvaluatePrint.jl`
+  and `EditorBuild.jl`. Read `SEALING.md` again before each edit.
 
 ## 8. Not in this plan
 
-- The colors of the syntax, the charts, the sequence charts, the fault log, the
-  gesture log, the command palette and the inspector. They are not widgets
-  (`widget-color-design.md`, D5). A later plan can give each domain a theme of
-  its own.
-- The line spacing of a theme (`line-spacing-from-the-theme.md`).
 - A theme that follows the dark mode of the operating system.
-- A different appearance for each window.
+- A different appearance for each window, or a theme for one part of the view.
+- A color picker widget, with a hue strip and a shade area.
+- The line spacing as a theme value (`plan/pending/line-spacing-from-the-theme.md`).
+  The themes of this plan are the place for it.
