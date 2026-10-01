@@ -552,7 +552,7 @@ recommendations, and chose two separate tabs for O8.
   the backend keeps its read; the variables go.
 - **D7. No history records a change of a setting** (O7), as the appearance plan
   decided for a theme. The inverse exists for a later step. Rejected: a history
-  that holds the tab records it.
+  that holds the tab records it. **Replaced by D14.**
 - **D8. Two separate tabs** (O8): the settings tab and the appearance tab. The
   settings tab opens from the toolbar, the View menu and the palette, with no
   key. Rejected: a key of its own; one tab with the appearance.
@@ -570,6 +570,20 @@ recommendations, and chose two separate tabs for O8.
   that the environment changed, where the tab can show a value that does not
   act; callers that move their values into `settings`, where a value given to a
   target is lost with no error.
+- **D14. A history that holds the tab records a change of a setting**
+  (2026-10-01, replaces D7). The facts that moved the view, found before S8:
+  the window history of the application holds the pane tree, so it holds the
+  tab; its reader answers a `RecordUndoOperation`, a wrapping operation, and the
+  settings wrapper turns the write inside it into an `ApplySettingOperation`, so
+  the history keeps an inverse that writes the old value and applies it. Ctrl+Z
+  in the tab takes back the last change of a setting, with no code for it. The
+  window history already keeps the steps of the window, such as a moved
+  splitter. Accepted with it: a file with an empty history passes Ctrl+Z to the
+  window history, which can take back a setting; a change from a palette
+  command, the inbox or the assistant is not recorded. The theme tab of the
+  appearance plan takes the same answer. Rejected: a write into a group that the
+  undo slice treats as no edit; a write that the tab marks as view state; a tab
+  outside the history.
 - **D12. The kernel word "setting" of a wrapper becomes "argument"** (O11).
   The value of a keyword of `build_editor` is an argument of its wrapper:
   `make_wrapper_setting` becomes `make_wrapper_argument`, `EditorParts.settings`
@@ -608,8 +622,8 @@ the pixels and the test counts of the baseline of S0.
   - **A history holds a tool tab.** `make_application_document`
     (`source/platform/application/Application.jl:91`) puts the whole pane tree
     into one `UndoBuffer` of the window, and `_reach_tool!` opens a tool tab in
-    that tree. So the tab of S8 must keep its writes out of that history (D7).
-    The owner decides how before S8.
+    that tree. The owner then decided that the history records a change of a
+    setting (D14).
   - **The prose of R1** also covers the argument `mcp` of `run_editor!`
     (`EditorLoop.jl:142`, "Its setting is"), the comment of
     `EditorDisplay.jl:134`, and the guides `editor.md`, `mcp.md`, `screen.md`,

@@ -1207,3 +1207,10 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     `make_document_projection(document; arguments...)`, and the argument
     `setting` of `wrap_editor!` is `argument`. The decisions above keep the old
     names, as they were written; the code and the guides use the new ones.
+19. **Ctrl+Z takes back a change of a setting in its tab** (2026-10-01, D14 of
+    `plan/pending/editor-settings.md`). The window history of the application
+    holds the pane tree, so it holds a tool tab and records its writes, and the
+    owner decided to keep that for the settings tab, and that the theme tab of
+    W3 takes the same answer. This changes the last point of 4.8 for W3: a write
+    from the theme tab is a step of the window history. For the inverse to bring
+    the view back, the step must print the view again, as the forward write does.
