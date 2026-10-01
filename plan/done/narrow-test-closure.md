@@ -102,7 +102,7 @@ the move.
       Done, each in its own environment with no network: Console 140, PDF 50,
       Web 110, MCP 410 passed. The SDL, ODBC and Tulip suites alone: 803, 41
       and 14, the counts of CI on `main`.
-- [ ] **Step 7, the check.** The closure script of R30 again: the unregistered
+- [x] **Step 7, the check.** The closure script of R30 again: the unregistered
       packages, the registered ones, and the size for each package. The
       guards. The CI-like run of the 28 jobs, and the new ones, against the
       run of `main`.
@@ -131,6 +131,10 @@ the move.
       names `ProjecturedConversationExample`, which the umbrella test package
       did not import. Fixed in `8740e5d16`; the four tests that moved to the
       umbrella then pass, the transcript with its 120 assertions.
+      The last CI-like run `ci10` (`/var/tmp/r30/ci10`, the branch at
+      `b7303f070`, 34 jobs in one lane, with R30 done too): every job passes;
+      the umbrella `test_integration()` fails at the 7 known sites of `main`
+      with the same counts, and the guards give the findings of `main`.
 
 ## 5. Decisions made during the work
 

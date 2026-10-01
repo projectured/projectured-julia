@@ -6,7 +6,7 @@ Each registered package has a `test/runtests.jl` that passes when `Pkg.test`
 runs it on the installed package alone. The maintainers of General ask for it,
 because `Pkg.test` and PkgEval run each package alone and do not find the
 `Projectured*Test` packages. This is R30 of
-[release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md),
+[release-the-binary-and-the-packages.md](../pending/release-the-binary-and-the-packages.md),
 and the next item of "The work toward the local registry" in its Part R. The
 owner asked for this plan on 2026-10-01, and accepted every recommendation
 of §3 the same day: "I agree with your decisions, start implementing".
@@ -200,4 +200,19 @@ The owner accepted each recommendation on 2026-10-01.
 
 ## 5. Decisions made during the work
 
-(filled in as the work goes)
+- **The owner accepted T1 to T7** on 2026-10-01; T4 and T5 were decided again
+  with the numbers and the facts of Step 2 (see Step 2).
+- **A support package is a package of its own in `test/support/`**, not files
+  that `runtests.jl` includes: Step 0 showed that Pkg reads the `[sources]` of
+  `test/Project.toml` in an installed folder, on Julia 1.13 and 1.11.
+- **The tests read the loaded packages, never the repository.** Four tests
+  read `package/`, `documentation/` or a package by its name in the
+  environment; each one now reads the loaded packages, so the same test runs in
+  the repository and in an installed package.
+- **The full check runs from the shell, not from a user service,** because
+  `unshare` may not write the user map in a service, and with no network,
+  because an Ollama server listens on this machine.
+- Open, found on the way and not changed here: the garbage-collector test of
+  the kernel fails on Julia 1.11 (`CellTest.jl:97-98`); the ODBC adapter calls
+  `set_output_path_computations!` without its import, which 10 tests read as
+  "DB unavailable".
