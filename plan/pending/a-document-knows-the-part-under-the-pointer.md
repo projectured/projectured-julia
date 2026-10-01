@@ -1170,6 +1170,27 @@ already; the sealed selection files do not change (Q4).
   `make_tracking_screen` keeps the gesture tracker. The hosts follow: the
   gallery, the application, the shell tests, and the omnet IDE and campaign
   tests.
+  Facts (2026-10-01, an inventory): the tracker is the only maker of the three
+  crossings and the only reader of `DisplayUpdate`; no gesture table binds a
+  crossing. The readers of a crossing: the button clears `pressed` on a
+  `MouseLeave`, which the move off it does already (step 5a); the chart cancels
+  its drag and clears its cursor on a `MouseLeave`, and the sequence chart
+  clears its cursor; the tables and the list layout pass crossings on or drop
+  them. Only the gallery passes its `hover` keyword, which switches the tracker
+  on. In omnet only `IdeWindowWrapTest` names the tracker, through
+  `mouse_target_tracking`.
+  The design (Claude, from settled points):
+  - The package folder, its module, the three gestures and their patterns go;
+    `make_tracking_screen` loses `mouse_target_tracking`, and the gallery loses
+    `hover`, because the light needs no tracker.
+  - The chart and the sequence chart clear the cursor on a move off the plot,
+    which the leave move at (-1, -1) is; a move with no button held during a
+    drag of the chart ends the drag with no change, as a lost release does
+    (Q13 point 10); leaving the plot alone does not end it (Q13 point 6).
+  - `DisplayUpdate` stays: it runs the loop again after a changed frame (D42),
+    and D45 rests on it; it has no reader after this step.
+  - The test driver of the tracker keeps the window emulation of a move and a
+    leave, which writes the mouse target, and loses the crossings.
 - [ ] 9. **The brackets** (Q8). A syntax node draws its delimiters in the light
   colour at level 0 and fades them to the gray of the delimiter over the
   levels further out. Tests: in `[1, [2, [3]]]`, a move onto `3` lights the
