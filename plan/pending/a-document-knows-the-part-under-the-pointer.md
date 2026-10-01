@@ -1008,6 +1008,19 @@ already; the sealed selection files do not change (Q4).
     the divider the sizes in its `drag_anchor`, and the slider its value at the
     press, which it now keeps. Rejected: option a, where the wrapper sends each
     signal as it comes and each part reads all three.
+  - **A part reads its drag from three gestures of the wrapper** (owner
+    2026-10-01: "Agreed", on Claude's option a). While a drag is on, a held
+    move must reach the dragged part by the drag path (point 7) and also go by
+    position, so that the mouse target follows the pointer (point 4); held moves
+    go by position in any case, because the scroll bar reads them so
+    (`WidgetToGraphics.jl`, the reader of `WidgetScrollBarToGraphicsCanvas`).
+    So the wrapper sends the dragged part `DragMove(x, y, time)` for each held
+    move and `DragEnd(x, y, time)` for the release by the drag path, beside
+    `DragCancel`, and a part reads its drag only from these three. The raw
+    `MouseMove` and `MouseUp` go by position, as for every part. Rejected:
+    option b, the raw events by the path, where the part under the pointer gets
+    each move and the release twice and is right only because of
+    `PAR-REPEATED-MOVE-WRITES-NOTHING`.
   - Tests: each of the five drags; a slider thumb dragged past the end of the
     slider and released over another widget; a press on a tab with no move
     still selects the tab; a part under a drag lights; Escape and a lost release
