@@ -28,7 +28,7 @@ end
 # run it, so the two stored kinds throw.
 _reject_computation(kind) =
     throw(ArgumentError("$kind can not hold a Computation: only a ReactiveCell " *
-                        "computes. To store a function as a value, pass the " *
+                        "and an UntrackedCell compute. To store a function as a value, pass the " *
                         "function itself"))
 
 MutableCell(::Computation)                = _reject_computation("MutableCell")

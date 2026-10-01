@@ -1037,9 +1037,11 @@ as large. omnet-julia and inet-julia follow where they build these projections.
    more than 384 are expected). It fails the same before and after N1, so it is
    not a regression of this plan. The baseline of the video suite is 40 pass and
    1 fail.
-4. **`device/DeviceModule.jl` (🔒) names the "scale" of a display** in its
-   docstring. N1 had no permission for that file, so the word stays until the
-   owner allows the change.
+4. **`device/DeviceModule.jl` names the "density" of a display** in its
+   docstring. N1 had no permission for that sealed file. The owner allowed the
+   change on 2026-10-01, and the file is ⬜ until the owner seals it again. On the
+   same day the owner accepted that the files which the work changed stay ⬜,
+   and seals them later.
 5. **An `Appearance` keeps its themes by the declared name.** `@document` gives the
    name that a declaration writes to the cell layout of the document, so the
    concrete type of `JsonTheme()` is a variant of `JsonTheme`, not `JsonTheme`
@@ -1081,3 +1083,12 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     that follows the scaled theme, and the style field reads that cell with no
     edge. The value is then made once for each state of the theme, as the
     factory made it once before B1.
+12. **The error of `_reject_computation` names both computing kinds** (C1). It
+    said that only a `ReactiveCell` computes; it says a `ReactiveCell` and an
+    `UntrackedCell`. `cell/CellDefaults.jl` was ⬜ since C1.
+13. **omnet-julia follows N1 and B1** (B1). `SimulationEmbedToWidget.jl` gives
+    its speed slider the keyword `mapping`, the name that N1 gives the field
+    `scale` of `WidgetSlider`. `build_qtenv_widget_theme` sets the named sizes of
+    the theme, so the padding of an accordion item in qtenv follows
+    `control_padding` and changes from 10 to 4. The owner accepted this on
+    2026-10-01.

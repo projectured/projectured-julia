@@ -90,7 +90,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `event/WindowInput.jl`
   - ⬜ `event/EventDefaults.jl`
 - **Layer 7 — device** (`device/`)
-  - 🔒 `device/DeviceModule.jl`
+  - ⬜ `device/DeviceModule.jl`
   - 🔒 `device/DeviceInterface.jl`
   - 🔒 `device/Keyboard.jl`
   - 🔒 `device/Mouse.jl`

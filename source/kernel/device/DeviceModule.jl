@@ -12,7 +12,7 @@ The module lives in four fragments that share this namespace:
   device.
 - [`Keyboard.jl`](Keyboard.jl) — the `Keyboard` device and its layout.
 - [`Mouse.jl`](Mouse.jl) — the `Mouse` device, its buttons and its scroll wheel.
-- [`Display.jl`](Display.jl) — the `Display` device, its size, its scale and its
+- [`Display.jl`](Display.jl) — the `Display` device, its size, its density and its
   zoom, and `get_device_pixel_ratio`.
 """
 module DeviceModule
