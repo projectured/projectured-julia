@@ -83,4 +83,14 @@ Linux does it, and a fresh clone anywhere has the new names.
 
 ## 5. Decisions made during the work
 
-(filled in as the work goes)
+- **Only the package names change.** The owner asked for "the package
+  renames"; the modules, the types, the functions and the `source/` folders
+  keep the case of the slice, as the naming rules derive them.
+- **The files of `plan/` keep the old names.** A plan records the work of its
+  time, so the script does not touch it; a new plan uses the new names.
+- **The suite rule compares the slice regardless of case.** The other choice,
+  `JSONSuite.jl` beside `JsonModule`, gives two cases to one slice.
+- **The uuids stay.** No package is registered yet, so a uuid has no user to
+  keep apart from the old name.
+- **Downstream follows on branches of its own**, and the three branches land
+  together, because a downstream branch alone does not resolve against `main`.
