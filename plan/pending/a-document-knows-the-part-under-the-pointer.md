@@ -974,9 +974,16 @@ already; the sealed selection files do not change (Q4).
     wrapper; the band capture of the shell (`_route_shell_down!`) goes. The tab
     of a pane and the reorder of the dragging package find their target through
     the wrapper; the probe and the phases of the dragging package go.
-  - To settle with the owner before the code, because each is a new mechanism:
+  - ~~To settle with the owner before the code, because each is a new mechanism:
     the name and the signature of the accept function, and the name and the
-    fields of the operation that starts a drag.
+    fields of the operation that starts a drag.~~ **Settled** (owner
+    2026-10-01: "The two names are fine", on Claude's proposal):
+    `find_drop_zone(document, dragged, point)` answers `nothing` when the part
+    does not take the dragged thing, and else the zone, from which the
+    document that draws the preview draws it (the pane tree draws its blue
+    rectangle); `StartDragOperation(path, dragged)` starts a drag, where `path`
+    is the part whose drag is on and `dragged` is the thing that a global drag
+    carries, `nothing` for a local drag such as a slider thumb.
   - Tests: each of the five drags; a slider thumb dragged past the end of the
     slider and released over another widget; a press on a tab with no move
     still selects the tab; a part under a drag lights; Escape and a lost release
