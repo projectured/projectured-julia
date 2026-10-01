@@ -21,6 +21,7 @@ show something: the message log capture, the feeds and the fault log.
 """
 module ShellModule
 
+using ..AppearanceModule
 using ..CellModule
 using ..ClipboardModule
 using ..DomainModule

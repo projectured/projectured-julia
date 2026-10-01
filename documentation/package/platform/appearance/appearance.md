@@ -40,6 +40,38 @@ The content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` mu
 
 A main builder that builds its own projection makes one `Appearance`, builds with it, and passes it as `appearance = …` to `build_editor`.
 
+## The appearance tab
+
+The natural renderer draws an `Appearance` as the appearance tab, with
+`AppearanceToWidget` inside a pane that scrolls. A toolbar button with a palette,
+the item "Appearance" of the View menu and Ctrl+, open it on the `Appearance` of
+the window (`find_editor_appearance`).
+
+- A row for the zoom and one for each scale: the name, −, the value in percent, +
+  and a reset button. Under the rows: "Reset all", "Save" and "Load".
+- A section for each theme: its presets as a radio group, which writes every
+  field of the preset into the theme in place, so the views that read the theme
+  follow; a spin box for each part of a size; buttons that step through the font
+  files and a spin box for the size of a font; the swatch and the value of a
+  color.
+
+A press of a button answers the operation of the button, and the reader of the
+tab turns a step of a spin box or a choice of a preset into a write of the theme
+field. Each write is view state, so the history does not record it. A select is
+not used: it writes from the window of its popup, where the reader of the tab
+sees nothing.
+
+## Save and load
+
+`save_appearance!(appearance, path)` writes the zoom, the scales and the base
+value of each field of each theme into a TOML file, by default
+`~/.config/projectured/appearance.toml` (`get_appearance_file`).
+`load_appearance!(appearance, path)` reads it back in place: a held theme takes
+its values at once, and the table of a theme that a builder makes later waits in
+`saved_themes`. A main builder, such as `run_application`, loads the file before
+it builds, so a saved appearance survives a restart. `SaveAppearanceOperation`
+and `LoadAppearanceOperation` are the buttons of the tab.
+
 ## How it fits
 
 The slice depends on the kernel and on the style slice. The backends read the zoom from the `Display`: the SDL backend finds a new zoom when it draws, and keeps the device size of each window. The domains and the widgets get their themes from the `Appearance` that their builders pass; see [style.md](../style/style.md#themes-and-the-appearance) and [widget.md](../widget/widget.md).

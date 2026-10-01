@@ -124,7 +124,7 @@ end
 # of its own. A window that opens later draws its document with a renderer of
 # its own, because a renderer keeps state for the documents it draws.
 function _start_session(document, title::String, backend, tabs::Bool)
-    appearance = Appearance()
+    appearance = load_appearance!(Appearance())
     projection = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
     later = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
     window = (; title = "Values", width = 1000, height = 600,
@@ -139,7 +139,7 @@ function _start_session(document, title::String, backend, tabs::Bool)
     logger = Base.CoreLogging.ConsoleLogger(stderr, Base.CoreLogging.Warn)
     editor = Base.CoreLogging.with_logger(logger) do
         run_editor!(document, projection; wait = false, backend = backend,
-                    window = window,
+                    window = window, appearance = appearance,
                     tabs = has_tabs && tabs ? (; title, appearance) : false)
     end
     _EditorSession(editor, editor.loop_task, IdDict{Any,Pair{String,Any}}(), Set{String}())

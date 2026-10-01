@@ -142,6 +142,15 @@ is a variant of that name; an `Appearance` keeps its themes by the declared name
 function get_theme_type end
 
 """
+    get_theme_presets(T) -> Vector{Pair{String,Any}}
+
+The presets of the theme type `T`: the name of each and a function with no
+argument that makes it. The appearance tab offers them at the head of the section
+of `T`. A theme type with no method has none.
+"""
+get_theme_presets(::Type) = Pair{String,Any}[]
+
+"""
     get_base_theme(scaled) -> Theme
 
 The theme that a scaled theme scales.

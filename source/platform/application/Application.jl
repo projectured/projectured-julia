@@ -377,7 +377,7 @@ make_application_system() =
                     assistant = :ollama, model = "", mcp = false,
                     mcp_host = nothing, mcp_port = nothing, root = pwd(),
                     width = nothing, height = nothing, fault_policy = FaultPolicy(),
-                    appearance = Appearance())
+                    appearance = load_appearance!(Appearance()))
 
 Open the ProjecturEd application with the files at `paths`, and run it until the
 window closes.
@@ -396,8 +396,9 @@ window closes.
 - `fault_policy` is what the editor does with a fault. The default survives it
   and shows it; `make_strict_fault_policy()` stops at the first one.
 - `appearance` is the `Appearance` of the window: every widget of the window and
-  of the windows it opens draws with its scaled widget theme. The default is a
-  fresh one.
+  of the windows it opens draws with its scaled widget theme. The default is the
+  appearance that the file of `get_appearance_file` saved, or the default one when
+  there is no file.
 
 # Example
 
@@ -412,7 +413,7 @@ function run_application(paths::AbstractString...;
                          width = nothing, height = nothing,
                          fault_policy::FaultPolicy = FaultPolicy(),
                          measure = FontFileMeasure(),
-                         appearance::Appearance = Appearance())
+                         appearance::Appearance = load_appearance!(Appearance()))
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
     document, projection = make_application_window(collect(String, paths);
@@ -425,7 +426,7 @@ function run_application(paths::AbstractString...;
         # The window is the application's own pane tree inside its shell, so
         # it has no tabs around it.
         editor = build_editor(document, projection;
-                              backend = backend, tabs = false,
+                              backend = backend, tabs = false, appearance = appearance,
                               feeds = feeds, fault_policy = fault_policy,
                               # The tooltip window and the context menu window
                               # are kept at the screen, so they open in every

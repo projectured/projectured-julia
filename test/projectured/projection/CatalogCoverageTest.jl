@@ -80,7 +80,7 @@ end
 # unregistered type still lands as an unmarked `Fail` at `unregistered ==
 # String[]` below — the way `_CATALOG_EDIT_BROKEN` records a failing one.
 const _NO_ATOM = Set{String}([
-    "AboutPage", "Assistant", "CommandPalette", "DataFrameView", "EvaluatorForm",
+    "AboutPage", "AppearanceDocument", "Assistant", "CommandPalette", "DataFrameView", "EvaluatorForm",
     "EvaluatorToplevel", "FaultLog", "FaultReport", "FileSystemChooser",
     "FrameStatistics", "FrameTimeSeries", "GestureLog", "JuliaToplevel",
     "MessageLog", "ObjectField", "PaneGroup", "PaneSplit", "PaneTree",

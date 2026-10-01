@@ -51,11 +51,14 @@ make_window_file_menu() =
     make_window_view_menu() -> WidgetMenuItem
 
 The View menu: the name on the bar, and the menu that opens below it. Its
-commands split the focused group, and open the gesture log.
+commands split the focused group, open the gesture log, and open the appearance.
 
 **Gesture log** opens the session's log in a tab. The recorder is always on, so
 the tab holds what happened before it opened, and a person opens it after a
 fault rather than before one.
+
+**Appearance** (Ctrl+,) opens the `Appearance` of the window in a tab: the zoom
+and the scales, each with its buttons.
 """
 make_window_view_menu() =
     WidgetMenuItem("View"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
@@ -69,6 +72,10 @@ make_window_view_menu() =
                             editor -> _reach_tool!(editor, GestureLog,
                                                    _make_default_tool(GestureLog));
                             tooltip = "Every gesture of this session, and what each one did"),
+        make_window_command("Appearance",
+                            editor -> _reach_tool!(editor, Appearance, _make_appearance_tool);
+                            shortcut = Shortcut(:comma; ctrl = true),
+                            tooltip = "The zoom and the scales of this window"),
     ]))
 
 """
@@ -133,7 +140,7 @@ make_window_menu_bar(; extra = [], about = _ -> AboutPage()) =
 
 The tools of the window, one button each: the explorer, the assistant, the
 evaluator, the message log, the gesture log, the fault log, the frame
-statistics, the frame times and the selection. Each button shows a picture and
+statistics, the frame times, the selection and the appearance. Each button shows a picture and
 says its name as a tooltip, and a press reaches the tool or opens it — see
 [`make_window_tool_command`](@ref).
 
@@ -178,6 +185,9 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
                                  tooltip = "Frame times: the time of each recent frame"),
         make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
                                  tooltip = "Selection: what the selection of this window names"),
+        make_window_tool_command("Appearance", Appearance; icon = :palette,
+                                 tooltip = "Appearance: the zoom and the scales of this window",
+                                 make = _make_appearance_tool),
         extra...,
     ]; padding = Inset(4, 4, 4, 4))
 
@@ -258,6 +268,10 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
                              padding = Inset(4, 4, 4, 4))
 
 _make_default_tool(type::Type) = _ -> make_insertion_document(type)
+
+# The appearance tab shows the `Appearance` of the editor. An editor with no
+# `appearance` wrapper has none, and the tab shows a new one.
+_make_appearance_tool(editor) = something(find_editor_appearance(editor), Appearance())
 
 # A list of the Help menu is longer than a pane, and a tab page gets no scroll of
 # its own, so the list opens inside a scroll pane.
