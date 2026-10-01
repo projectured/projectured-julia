@@ -198,6 +198,16 @@ The owner accepted each recommendation on 2026-10-01.
 - [x] **Step 5, the guides.** `builder.md` and `build-guide.md`.
       Done (`3793081e6`), with the test folder, the version rule and the scan.
 
+**The check before the landing** (2026-10-01). The branch was rebased on a
+`main` that had taken the appearance work, the context menu and the inspector;
+`ContextMenuProbeTest` had become `ContextMenuWindowTest` and the Julia suite had
+gained `test_julia_code_pieces`, and the merge keeps both. The CI-like run `ci11`
+(`/var/tmp/r30/ci11`, the rebased head `76e593f02`, 34 jobs): every job passes,
+the umbrella fails at the 7 known sites of `main`, and the guards give the
+findings of `main`, the export order of `AppearanceModule.jl` among them, which
+the appearance work brought. omnet-julia (118 packages) and inet-julia (12)
+precompile against the branch. The full check of Step 4 ran before this rebase.
+
 ## 5. Decisions made during the work
 
 - **The owner accepted T1 to T7** on 2026-10-01; T4 and T5 were decided again
