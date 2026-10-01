@@ -1092,6 +1092,35 @@ already; the sealed selection files do not change (Q4).
   gesture to the child at its point; `_read_dwell` of the tracker and the walk
   of `read_routed_child` for a gesture go. Tests: the tooltip tests, and a dwell
   in a second window.
+  Facts (2026-10-01, an inventory): about 20 container readers route a click
+  by position, each with its own hit test and its own way to put the child's
+  answer in its frame; none of them reads the gesture tables outward, which only
+  `read_routed_child` does, for a route. Most widget readers drop a dwell or give
+  it to the selected child (`_positioned_event` lists no `MouseDwell`), and the
+  scroll pane and the transform pane give it on with the pane's coordinates. The
+  screen and the window give any event on. The command "show the tooltip" runs
+  a binding on the selection with no pointer, by route (a verb with a fixed
+  place, D76), so the outward walk of `read_routed_child` stays for it.
+  Decision (owner, 2026-10-01): a container finds the child of a dwell by a hit
+  test at the point, as for a click; "don't rely on mouse target, use position
+  for routing the dwell". Claude had proposed to take the child that the
+  container's own mouse target names, in one place in the kernel.
+  The design:
+  - The shared hand-off of a pointer gesture to a child (`read_child_event`)
+    reads the tables inside the child when the child answers nothing: the
+    backward map of the point names the part in the child's input
+    (`compute_part_at_point`, as for a move), and the documents on that path read
+    the gesture, the deepest first, up to the child's input. So a text, which
+    draws a whole document as one leaf, gives the dwell to the part under the
+    point.
+  - Each container then reads the tables of its own stretch, from the document
+    above the child's input up to its own input, through a kernel helper,
+    `read_gesture_outward`, with the steps that lead to the child. The rule of
+    D64 holds: a document reads when nothing deeper answered or when the deeper
+    answer collects, and a collected answer of the same kind is joined.
+  - Every container gives a `MouseDwell` to the child at its point, as it gives a
+    `MouseClick`; the scroll pane and the transform pane move its point into
+    the frame of the content.
 - [ ] 8. **The tracker goes.** `ProjecturedMouseTargetTracking`, the gestures
   `MouseEnter`, `MouseLeave` and `MouseHover` with their patterns, the routes of
   the crossings, the leave route of Q35 and the timer of the waiting crossings.
