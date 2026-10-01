@@ -107,5 +107,10 @@ end
     @test Base.CoreLogging.global_logger() === replaced
 end
 
+@testset "frame_statistics: a feed of the frames" begin
+    editor, _ = _ww_editor(PrimitiveString("x"); frame_statistics = true)
+    @test any(feed -> feed isa FrameStatisticsFeed, editor.feeds)
+end
+
 end # @testset
 end

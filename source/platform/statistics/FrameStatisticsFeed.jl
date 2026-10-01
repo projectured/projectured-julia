@@ -76,3 +76,18 @@ end
 compute_wake_deadline(feed::FrameStatisticsFeed, editor) =
     _is_frame_statistics_due(feed, editor.frame_measurements) ||
     _is_frame_time_series_due(feed, editor.frame_measurements) ? feed.flush_interval : nothing
+
+"""
+    frame_statistics = true
+
+The wrapper of `build_editor` that gives the editor a
+[`FrameStatisticsFeed`](@ref), so the statistics and the frame times of the
+session follow the frames of the window. It is off by default.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:frame_statistics}, layer::Symbol, setting, parts::EditorParts)
+    push!(parts.feeds, FrameStatisticsFeed())
+    parts
+end
+
+get_wrapper_layers(::Val{:frame_statistics}) = (:screen => 20,)
