@@ -389,9 +389,17 @@ and the downstream repositories land in the same landing.
             package calls it from `__init__`). JSON registers in its
             `__init__`; tests `test_assistant_api` (platform) and
             `test_json_assistant_api` (JSON).
-      - [ ] 5b. **The chat rows** `conversation_draft_entry` and
+      - [x] 5b. **The chat rows** `conversation_draft_entry` and
             `conversation_widget_entry` move from the conversation example
             into the conversation slice, with the names of a product.
+            Done: `make_conversation_row(; measure)` and
+            `make_conversation_draft_row(; measure)` in
+            `ConversationRows.jl`. What a part holds goes through the plain
+            natural renderer, which names no domain: the example's renderer
+            named Julia, JSON, YAML and XML projections that are the natural
+            chain already, and a markdown override that wrapped at 800 pixels
+            (the natural rows of markdown wrap at the width of the page). The
+            example's other two projections keep their renderer.
       - [ ] 5c. **The slice**: `Application.jl` and `DefaultBackend.jl` move to
             `source/platform/application/`; the four domain rows go, and the
             natural renderer draws those documents (the visible difference:

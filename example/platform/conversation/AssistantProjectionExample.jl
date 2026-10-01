@@ -1,29 +1,4 @@
 """
-    conversation_draft_entry(; measure=FontFileMeasure()) -> Pair
-
-Dispatch entry rendering a `ConversationDraft` (the assistant panel's composer
-input): the composer produces a widget chat bubble, then `widget_graphics`
-renders it. Place **before** any `ConversationDocument` entry, since
-`ConversationDraft <: ConversationDocument`.
-"""
-conversation_draft_entry(; measure=FontFileMeasure()) =
-    ConversationDraft => ChainingProjection(
-        RecursiveProjection(ConversationComposerToWidget()),
-        _conversation_widget_graphics(measure=measure))
-
-"""
-    conversation_widget_entry(; measure=FontFileMeasure()) -> Pair
-
-Dispatch entry rendering the conversation history (`ConversationDocument`) as the
-Stage-2 widget chat bubbles (`ConversationToWidget → widget_graphics`). Shared by
-the assistant and the application, so both show the widget chat the same way.
-"""
-conversation_widget_entry(; measure=FontFileMeasure()) =
-    ConversationDocument => ChainingProjection(
-        RecursiveProjection(ConversationToWidget()),
-        _conversation_widget_graphics(measure=measure))
-
-"""
     make_assistant_projection_example(; measure=FontFileMeasure())
 
 Build a projection chain that takes a `Assistant` to a
@@ -45,8 +20,8 @@ function make_assistant_projection_example(; measure=FontFileMeasure())
     inner_chain = RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
         Pair{Type,Any}[
-            conversation_draft_entry(measure=measure),
-            conversation_widget_entry(measure=measure),
+            make_conversation_draft_row(measure=measure),
+            make_conversation_row(measure=measure),
         ],
     )))
     ChainingProjection(

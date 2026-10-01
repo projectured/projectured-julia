@@ -83,7 +83,7 @@ The conversation slice depends on the kernel and on the collection, domain, focu
 
 The assistant slice holds a `ConversationConversation` and a `ConversationDraft`, and adds the two host methods; see [assistant.md](../assistant/assistant.md). The shell slice puts an Evaluator button on the toolbar; see [shell.md](../shell/shell.md).
 
-The conversation slice registers two natural rows under `:evaluator`, one for `EvaluatorToplevel` and one for `EvaluatorForm`. Each chains its widget projection to `VerticalLayoutToGraphicsCanvas`, because a tab reads its content through `print_child` and needs graphics. It also registers the insertion aliases `repl` and `evaluator`. It registers no row for `ConversationConversation` or `ConversationDraft`: a host adds those two. `conversation_widget_entry` and `conversation_draft_entry` in `ProjecturedConversationExample` are the rows that the examples and the application use.
+The conversation slice registers two natural rows under `:evaluator`, one for `EvaluatorToplevel` and one for `EvaluatorForm`. Each chains its widget projection to `VerticalLayoutToGraphicsCanvas`, because a tab reads its content through `print_child` and needs graphics. It also registers the insertion aliases `repl` and `evaluator`. It registers no row for `ConversationConversation` or `ConversationDraft`: a host adds those two. `make_conversation_row(; measure)` and `make_conversation_draft_row(; measure)` give them: each draws its document as chat bubbles, and what a part of a bubble holds goes through the natural renderer, so a part shows a document of every domain that the session loaded. Put the draft row first, because a draft is a conversation document too.
 
 ## Design decisions
 

@@ -64,6 +64,7 @@ export ConversationConversationToWidgetComposite,
        ConversationPartToWidget,
        ConversationToWidget, compute_transcript_walk
 export EvaluatorFormToVerticalLayout, EvaluatorToplevelToWidgetComposite
+export make_conversation_row, make_conversation_draft_row
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
        finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
        make_draft_caret_reference,
@@ -81,5 +82,6 @@ include("ConversationDocument.jl")
 include("ConversationToWidget.jl")
 include("EvaluatorToWidget.jl")
 include("ConversationEditor.jl")
+include("ConversationRows.jl")
 
 end # module

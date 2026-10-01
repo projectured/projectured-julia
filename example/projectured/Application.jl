@@ -146,8 +146,8 @@ function make_application_content_projections(; measure = FontFileMeasure())
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure))
     conversation_rows = Pair{Type,Any}[
-        conversation_draft_entry(measure = measure),
-        conversation_widget_entry(measure = measure),
+        make_conversation_draft_row(measure = measure),
+        make_conversation_row(measure = measure),
     ]
     Pair{Type,Any}[
         # A history around what a tab holds is invisible: it prints what it holds
