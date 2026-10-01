@@ -10,8 +10,10 @@
 
 The view of `frame`, an `AbstractDataFrame`. `query`, a [`DataFrameQuery`](@ref),
 says what the view keeps of the frame: the columns that it shows, and the rows
-that pass its filters. `kept_rows` holds those rows, by their number in the
-frame and in its order; it follows the frame and the query. A column of the view
+that pass its filters. `expression_result` holds the rows that the expression of
+the query passes, or the reason why it does not run, and `kept_rows` the rows
+that pass every filter, by their number in the frame and in its order; both
+follow the frame and the query. A column of the view
 is named by its name, with a `DataFrameColumnReferenceStep`.
 
 `anchor` is the place, among the kept rows, of the row at the head of the list
@@ -26,6 +28,7 @@ record them.
 @document struct DataFrameView <: Document
     frame::Any
     query::DataFrameQuery
+    expression_result::Any
     kept_rows::Vector{Int}
     anchor::Int
     column_anchor::Int
@@ -34,12 +37,18 @@ record them.
 end
 
 function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1)
-    view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell(Int[]), Cell(Int(anchor)),
-                         Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1), Cell(nothing))
-    # The rows that pass, computed again when the frame or the query changes. A
-    # value of a type that a package loaded later prints in the newest world.
+    view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
+                         Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
+                         Cell(nothing))
+    # The result of the expression, computed again when the frame or the text of
+    # the expression changes, and the rows that pass, computed again when the
+    # frame, the query or that result changes. A value of a type that a package
+    # loaded later prints in the newest world.
+    set_cell_computation!(getfield(view, :expression_result),
+                          () -> _evaluate_expression(view.frame, view.query.expression))
     set_cell_computation!(getfield(view, :kept_rows),
-                          () -> Base.invokelatest(_compute_kept_rows, view.frame, view.query))
+                          () -> Base.invokelatest(_compute_kept_rows, view.frame, view.query,
+                                                  first(view.expression_result)))
     view
 end
 

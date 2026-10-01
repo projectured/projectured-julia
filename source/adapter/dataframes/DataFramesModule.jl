@@ -31,6 +31,7 @@ export DataFrameViewToWidget, make_data_frame_view_projection
 
 include("DataFrameQuery.jl")
 include("DataFrameFilter.jl")
+include("DataFrameExpression.jl")
 include("DataFrameView.jl")
 include("DataFrameColumn.jl")
 include("DataFrameFilterRow.jl")

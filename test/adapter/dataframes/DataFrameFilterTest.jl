@@ -153,7 +153,7 @@ function test_data_frame_filter()
             view = DataFrameView(make_frame())
             set_filter!(view, "id", "> x")
             io = print_document(projection, nothing, view, context())
-            table = _data_frame_grid_iomap(io).child_iomaps[1][3].input
+            table = _data_frame_table_iomap(io).input
             field = table.column_headers[1].children[2]
             @test field.tooltip isa String
             @test field.style !== nothing
@@ -190,6 +190,54 @@ function test_data_frame_filter()
             dialog, take = module_._make_value_list_dialog(view, "id")
             @test dialog.content isa AbstractString
             @test take() === nothing
+        end
+
+        @testset "the expression keeps the rows where it is true" begin
+            frame = make_frame()
+            evaluate(text, frame = frame) = module_._evaluate_expression(frame, text)
+            pass, reason = evaluate(":id > 995 && endswith(:name, \"9\")")
+            @test reason === nothing && findall(pass) == [999]
+            @test evaluate("") == (nothing, nothing)
+            # A missing hides its row.
+            @test findall(first(evaluate(":x > 0", DataFrame(x = Union{Int,Missing}[1, missing, 3])))) == [1, 3]
+            # A symbol that names no column stays a symbol.
+            @test findall(first(evaluate(":id < 3 && :other == :other"))) == [1, 2]
+            # A function of the session.
+            Core.eval(Main, :(_data_frame_filter_test_is_even(n) = iseven(n)))
+            @test findall(first(evaluate("_data_frame_filter_test_is_even(:id) && :id < 7"))) == [2, 4, 6]
+            # A text that does not parse, an error, and a value that is not true
+            # or false give a reason, and no rows.
+            for text in (":id >", "startswith(:id, 1)", ":id + 1")
+                pass, reason = evaluate(text)
+                @test pass === nothing && reason isa String
+            end
+        end
+
+        @testset "a row passes the expression and the filters of the columns" begin
+            view = DataFrameView(make_frame())
+            getfield(view.query, :expression)[] = ":price > 990"
+            @test view.kept_rows == 991:1000
+            set_filter!(view, "id", "< 995")
+            @test view.kept_rows == 991:994
+            # An expression that does not parse keeps every row.
+            getfield(view.query, :expression)[] = ":price >"
+            @test view.kept_rows == 1:994
+        end
+
+        @testset "a key in the expression bar edits the expression, and the bar marks an error" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            set_selection!(view, module_._make_expression_reference(RangeReferenceStep(0, 0)))
+            op = read_event(io, KeyPress('q', "q", ModifierKeys(); time = 0.0))
+            @test op isa CompoundOperation
+            evaluate_operation(_DataFrameFilterEditor(view), op)
+            @test view.query.expression == "q"
+            # `q` names nothing in the session: the expression raises an error,
+            # keeps every row, and the bar says why.
+            @test last(view.expression_result) isa String
+            @test length(view.kept_rows) == 1000
+            bar = _data_frame_grid_iomap(io).child_iomaps[1][3].input
+            @test bar.children[2].tooltip isa String
         end
 
         @testset "the pattern keeps the columns whose names match it" begin

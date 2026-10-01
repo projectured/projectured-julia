@@ -21,7 +21,7 @@ function test_data_frame_columns()
                                  Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0), nothing), io)
             change isa Intent ? change.operation : change
         end
-        table_of(io) = _data_frame_grid_iomap(io).child_iomaps[1][3].input
+        table_of(io) = _data_frame_table_iomap(io).input
         header_reference(c) = ConcreteReference(FieldReferenceStep("column_headers"),
             ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
         module_ = ProjecturedDataFrames.DataFramesModule

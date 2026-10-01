@@ -44,12 +44,16 @@ end
 # and the scroll bar, and the grid that places them.
 _data_frame_view_iomap(io) = io.step_iomaps[1][]
 _data_frame_grid_iomap(io) = io.step_iomaps[end][]
+# The IO maps of the table and of the scroll bar: the grid holds the expression
+# bar and an empty cell in its first row, and the table and the bar in its second.
+_data_frame_table_iomap(io) = _data_frame_grid_iomap(io).child_iomaps[3][3]
+_data_frame_bar_entry(io) = _data_frame_grid_iomap(io).child_iomaps[4]
 
 # The viewport of the cells: the rows as they are drawn under the header row.
 # The table is the first cell of the grid; the region of the cells is its last
 # element, and it holds the graphics of the rows and the pane of the cells.
 function _data_frame_body(io)
-    cells = _data_frame_grid_iomap(io).child_iomaps[1][3].output.elements[end]
+    cells = _data_frame_table_iomap(io).output.elements[end]
     pane = only(e for e in cells.elements if e isa GraphicsCanvas)
     only(e for e in pane.elements if e isa GraphicsViewport)
 end
@@ -243,7 +247,7 @@ function test_data_frame_view()
             evaluate_operation(nothing, _read_data_frame_key(projection, io, :end))
             @test bar.value == 1.0
             # A press in the middle of the bar jumps to the middle of the frame.
-            (x_cell, y_cell, cim) = _data_frame_grid_iomap(io).child_iomaps[2]
+            (x_cell, y_cell, cim) = _data_frame_bar_entry(io)
             x = Int(x_cell[]) + Int(cim.output.w) ÷ 2
             y = Int(y_cell[]) + Int(cim.output.h) ÷ 2
             press = read_intent(projection, nothing,

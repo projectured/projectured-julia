@@ -11,7 +11,10 @@
     DataFrameViewToWidget(; row_height = 0, row_step = 0)
 
 Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts, and
-a vertical `WidgetScrollBar` beside it, in a `GridLayout` of one row.
+a vertical `WidgetScrollBar` beside it, under the expression bar, in a
+`GridLayout` of two rows. The expression bar is a field of the expression of
+the query, and the header row holds a field of the filter of each column, so a
+person filters the rows by typing there.
 The header of a column shows its name and its element type, as a data frame
 prints them in the REPL: `price :: Float64`, and `discount :: Float64?` for a
 column that allows `missing`. Every column takes an equal share of the width
@@ -75,9 +78,10 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     table = ncol(view.frame) > _LIST_COLUMN_COUNT ? _make_column_list_table(p, view) :
                                                     _make_view_table(p, view)
     height = ctx === nothing ? nothing : get_exact_height(ctx)
-    # The rows that the table shows: the height less the header row, in rows.
+    # The rows that the table shows: the height less the expression bar and the
+    # header row, which holds the filter row too, about four rows.
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
-                                max(1, Int(height[]) ÷ p.row_step - 1))
+                                max(1, Int(height[]) ÷ p.row_step - 4))
     count = Cell(@computation length(view.kept_rows))
     # Positional: orientation, value, thumb_size, position, size, visible,
     # margin, border, padding, style, tooltip, selection.
@@ -86,14 +90,18 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
                           Cell(@computation count[] == 0 ? 1.0 : min(1.0, visible[] / count[])),
                           Cell(nothing), Cell(nothing), Cell(true), Cell(nothing), Cell(nothing),
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    grid = GridLayout(Any[table, bar], 2; column_policies = Any[Fill, Fixed(_SCROLL_BAR_WIDTH)],
-                      row_policy = Fill)
-    # The grid gives a key to the table, by the selection of the table.
+    # The expression bar over the table, and the table and the scroll bar under
+    # it; the cell beside the expression bar is empty.
+    expression = _make_expression_bar(view)
+    grid = GridLayout(Any[expression, WidgetLabel(""), table, bar], 2;
+                      column_policies = Any[Fill, Fixed(_SCROLL_BAR_WIDTH)], row_policies = Any[Content, Fill])
+    # The grid gives a key to the expression bar or to the table, by their
+    # selection.
     set_cell_computation!(getfield(grid, :selection), () -> begin
+        inner = expression.selection
+        inner === nothing || return _make_grid_child_reference(1, inner)
         selection = table.selection
-        selection === nothing ? nothing :
-            ConcreteReference(FieldReferenceStep("children"),
-                              ConcreteReference(RangeReferenceStep(0, 1), selection))
+        selection === nothing ? nothing : _make_grid_child_reference(3, selection)
     end)
     DataFrameViewToWidgetIoMap(p, view, grid, table, bar, visible)
 end
@@ -183,6 +191,7 @@ function _get_table_selection(view::DataFrameView, column_list::Bool)
     selection isa EmptyReference && return EmptyReference()
     found = _find_query_text_selection(view)
     if found !== nothing
+        found[1] === :expression && return nothing
         field = _make_field_child_reference(_make_content_range_reference(found[2]))
         found[1] === :pattern && return ConcreteReference(FieldReferenceStep("corner"), field)
         return _make_header_reference(view, view.query.column_filters[found[1]].column, field, column_list)
@@ -240,26 +249,34 @@ _get_column_align(type::Type) =
 read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, event::KeyDown) =
     read_gesture(iomap.input, event)
 
-# A selection in the table selects in the view: a header selects its column, and
-# the corner or the whole table selects the view. Any other place in the table
-# has no place in the view yet.
+# A selection in the table selects in the view: a header selects its column, a
+# field of the filter row or of the expression bar its text, and the corner or
+# the whole table the view. Any other place in the table has no place in the
+# view yet.
 function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
                      operation::ReplaceSelectionOperation)
+    expression = _find_expression_path(operation.path)
+    expression === nothing ||
+        return ReplaceSelectionOperation(annotate_reference_types(iomap.input, expression))
     path = _find_table_path(operation.path)
     path === nothing && return nothing
     target = _find_view_path(iomap, path)
     target === nothing ? nothing : ReplaceSelectionOperation(annotate_reference_types(iomap.input, target))
 end
 
-# The path inside the table from a path in the grid of the view, whose first
+# The path in the grid of the view of its child `k`, followed by `tail`.
+_make_grid_child_reference(k::Int, tail) =
+    ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(k - 1, k), tail))
+
+# The path inside the table from a path in the grid of the view, whose third
 # child is the table; `nothing` for a path that does not go into the table.
 function _find_table_path(path)
     path = strip_reference_types(path)
     (path isa ConcreteReference && path.head isa FieldReferenceStep && path.head.name == "children") ||
         return nothing
     tail = path.tail
-    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.head.start == 0 &&
-     tail.head.stop == 1) || return nothing
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.head.start == 2 &&
+     tail.head.stop == 3) || return nothing
     tail.tail
 end
 
@@ -291,13 +308,17 @@ function _find_shown_column(iomap::DataFrameViewToWidgetIoMap, c::Int)
     1 <= c <= length(columns) ? columns[c] : nothing
 end
 
-# An edit of a field of the filter row is an edit of the text of the query, and
-# the view shows the result of the new query from its start.
+# An edit of a field of the filter row or of the expression bar is an edit of
+# the text of the query, and the view shows the result of the new query from
+# its start.
 function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
                      operation::ReplaceStringRangeOperation)
-    path = _find_table_path(operation.reference)
-    path === nothing && return nothing
-    target = _find_view_path(iomap, path)
+    target = _find_expression_path(operation.reference)
+    if target === nothing
+        path = _find_table_path(operation.reference)
+        path === nothing && return nothing
+        target = _find_view_path(iomap, path)
+    end
     (target isa ConcreteReference && target.head == FieldReferenceStep("query")) || return nothing
     view = iomap.input
     _make_query_edit_operation(view, ReplaceStringRangeOperation(annotate_reference_types(view, target),

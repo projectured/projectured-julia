@@ -160,11 +160,12 @@ end
 
 # ── The rows that pass ───────────────────────────────────────────────────────
 
-# The rows of `frame` that pass every filter of `query`, in the order of the
-# frame. A filter that names no column of the frame, or whose text does not
-# parse, keeps every row.
-function _compute_kept_rows(frame, query)
-    keep = trues(nrow(frame))
+# The rows of `frame` that pass every filter of `query` and `expression`, the
+# rows that its expression passes or `nothing`, in the order of the frame. A
+# filter that names no column of the frame, or whose text does not parse, keeps
+# every row.
+function _compute_kept_rows(frame, query, expression = nothing)
+    keep = expression === nothing ? trues(nrow(frame)) : copy(expression)
     columns = Set(names(frame))
     for filter in query.column_filters
         filter.column in columns || continue

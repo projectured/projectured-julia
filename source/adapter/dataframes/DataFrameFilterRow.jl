@@ -26,10 +26,13 @@ _make_filter_text_reference(i::Int, range::RangeReferenceStep) =
 _make_pattern_reference(range::RangeReferenceStep) =
     Reference(FieldReferenceStep("query"), FieldReferenceStep("column_pattern"), range)
 
+_make_expression_reference(range::RangeReferenceStep) =
+    Reference(FieldReferenceStep("query"), FieldReferenceStep("expression"), range)
+
 # The text of the query that the selection of `view` is in, as `(place, range)`:
-# the place of a filter in the query, or `:pattern`, and the range `(start,
-# stop)` of the selection in the text; `nothing` when the selection is in no text
-# of the query.
+# the place of a filter in the query, `:pattern` or `:expression`, and the range
+# `(start, stop)` of the selection in the text; `nothing` when the selection is
+# in no text of the query.
 function _find_query_text_selection(view)
     selection = view.selection
     selection === nothing && return nothing
@@ -38,6 +41,7 @@ function _find_query_text_selection(view)
         return nothing
     range = (steps[end].start, steps[end].stop)
     length(steps) == 3 && steps[2] == FieldReferenceStep("column_pattern") && return (:pattern, range)
+    length(steps) == 3 && steps[2] == FieldReferenceStep("expression") && return (:expression, range)
     (length(steps) == 5 && steps[2] == FieldReferenceStep("column_filters") &&
      steps[3] isa RangeReferenceStep && steps[4] == FieldReferenceStep("text")) || return nothing
     (steps[3].stop, range)
@@ -47,17 +51,17 @@ end
 # `nothing`.
 function _find_filter_range(view, name::String)
     found = _find_query_text_selection(view)
-    (found === nothing || found[1] === :pattern) && return nothing
+    (found === nothing || found[1] isa Symbol) && return nothing
     filters = view.query.column_filters
     1 <= found[1] <= length(filters) && filters[found[1]].column == name || return nothing
     found[2]
 end
 
-# The range of the selection of `view` in the pattern of the column names, or
-# `nothing`.
-function _find_pattern_range(view)
+# The range of the selection of `view` in the text `place` of the query,
+# `:pattern` or `:expression`, or `nothing`.
+function _find_query_text_range(view, place::Symbol)
     found = _find_query_text_selection(view)
-    (found === nothing || found[1] !== :pattern) ? nothing : found[2]
+    (found === nothing || found[1] !== place) ? nothing : found[2]
 end
 
 # The path in the view of a path in the table that goes into a field of the
@@ -92,12 +96,11 @@ _make_field_child_reference(path) =
     path === nothing ? nothing :
         ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(1, 2), path))
 
-# A text field of the filter row: `text()` is its text, `range()` the range of
-# its caret or `nothing`, and `reason()` why its text does not parse, or
-# `nothing`. A text that does not parse colors the field, and its tooltip says
-# the reason.
-function _make_query_field(text, range, reason)
-    field = WidgetText(""; width = _QUERY_FIELD_WIDTH)
+# A text field of the query: `text()` is its text, `range()` the range of its
+# caret or `nothing`, and `reason()` why its text does not parse, or `nothing`.
+# A text that does not parse colors the field, and its tooltip says the reason.
+function _make_query_field(text, range, reason; width::Int = _QUERY_FIELD_WIDTH)
+    field = WidgetText(""; width)
     set_cell_computation!(getfield(field, :content), text)
     set_cell_computation!(getfield(field, :selection),
                           () -> (r = range(); r === nothing ? nothing : _make_content_range_reference(r)))
@@ -139,6 +142,31 @@ function _make_query_corner(view)
         keep = _parse_name_pattern(view.query.column_pattern)
         keep isa String ? keep : nothing
     end
-    field = _make_query_field(() -> view.query.column_pattern, () -> _find_pattern_range(view), reason)
+    field = _make_query_field(() -> view.query.column_pattern, () -> _find_query_text_range(view, :pattern),
+                              reason)
     _make_labeled_field(label, field)
+end
+
+# The width of the field of the expression.
+const _EXPRESSION_FIELD_WIDTH = 480
+
+# The expression bar above the table: the field of the expression of the query,
+# after the words that it ends, so it reads "Rows where :age > 30".
+function _make_expression_bar(view)
+    field = _make_query_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
+                              () -> last(view.expression_result); width = _EXPRESSION_FIELD_WIDTH)
+    bar = HorizontalLayout(Any[WidgetLabel("Rows where"), field]; gap = 8)
+    set_cell_computation!(getfield(bar, :selection), () -> _make_field_child_reference(field.selection))
+    bar
+end
+
+# The path in the view of a path in the grid of the view that goes into the
+# field of the expression, `children[0].children[1].content[a:b]`, with the same
+# range in the text of the expression; `nothing` for any other path.
+function _find_expression_path(path)
+    steps = get_reference_steps(strip_reference_types(path))
+    length(steps) == 6 && steps[1] == FieldReferenceStep("children") && steps[2] == RangeReferenceStep(0, 1) &&
+        steps[3] == FieldReferenceStep("children") && steps[4] == RangeReferenceStep(1, 2) &&
+        steps[5] == FieldReferenceStep("content") && steps[6] isa RangeReferenceStep || return nothing
+    _make_expression_reference(steps[6])
 end

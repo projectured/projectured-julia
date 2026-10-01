@@ -1156,12 +1156,28 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       Tests: the list, the counts, the text written and read back, the start
       from a filter, the limit; 154 data frame tests pass. Not checked: the
       dialog in a running editor.
-    - [ ] **5.6 The expression bar** (F4 a). A text field above the table.
+    - [x] **5.6 The expression bar** (F4 a). A text field above the table.
       `Meta.parse`, then the symbols that name columns become the arguments
       of one function, which the view compiles once in a module of its own
       and calls with `invokelatest` over the rows of the column vectors. A
       result that is `missing` hides the row (mine). An error shows a mark
       and its reason.
+      Done 2026-10-01 (`DataFrameExpression.jl`): the bar is the first row
+      of the grid of the view, "Rows where" and a field 480 pixels wide (mine).
+      `:name` that names a column becomes the element of its vector in one
+      loop, compiled once for a text and its columns and cached, and called
+      with one `invokelatest`. It compiles in `Main`, not in a module of its
+      own as the design said, so the expression can call a function of the
+      session (changed while implementing, mine). `missing` hides a row; a
+      value that is not `true`, `false` or `missing` is an error. The result
+      of the expression is the computed field `expression_result` of the
+      view, so an edit of a column filter does not run the expression again;
+      its reason marks the bar. Tests: the evaluation, missing, a symbol that
+      names no column, a function of the session, the reasons, the expression
+      with the column filters, a key in the bar; 170 data frame tests pass.
+      A picture shows the bar and its result (59 rows of 1,200, correct).
+      Open, small: the label is not centred on the field, and the bar row
+      has the background of the cells.
     - [ ] **5.7 Column resize** (F6), in the widget substrate: a press within
       3 pixels of the right edge of a header starts a drag, as the splitter
       does, and the drag writes the width of the column. The view keeps it
