@@ -58,6 +58,8 @@ An integration joins ProjecturEd to another package: `ProjecturedSDL` to `Simple
   using SimpleDirectMediaLayer, DataFrames, ProjecturedDataFrames, ProjecturedWeb
   ```
 
+The model adapters `ProjecturedOllama`, `ProjecturedAnthropic` and `ProjecturedOpenRouter` have no package of their own to trigger them: the umbrella loads each one that you installed, and a loaded adapter does nothing until you ask for it by name (`assistant = :ollama`). The web backend loads only when you name it, because a loaded web backend becomes the default backend when SDL is absent.
+
 The umbrella loads an integration so that it works; the names of the integration stay in it. To write `SdlBackend()` yourself, add `using ProjecturedSDL`.
 
 ## Open a window from your code

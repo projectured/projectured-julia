@@ -34,3 +34,13 @@ for _src in _SOURCES
         Core.eval(@__MODULE__, Expr(:export, _syms...))
     end
 end
+
+# The model adapters that the user installed load with the umbrella. They have no
+# package of their own to trigger them, and a loaded one changes nothing until a
+# session asks for it by name (`assistant = :ollama`).
+const _INSTALLED_ADAPTERS = ("ProjecturedOllama", "ProjecturedAnthropic", "ProjecturedOpenRouter")
+
+function __init__()
+    foreach(ProjecturedPlatform.load_installed_package!, _INSTALLED_ADAPTERS)
+    nothing
+end

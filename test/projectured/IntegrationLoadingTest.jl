@@ -1,11 +1,13 @@
 # The umbrella loads an installed integration when its trigger is loaded, in either
-# order, and a session without the umbrella loads only what it names. Each case is
+# order, and each installed model adapter with no trigger; a session without the
+# umbrella loads only what it names. Each case is
 # a new Julia process in the development environment, which names every trigger and
 # every integration; one case uses an environment that names the trigger and not
 # the integration.
 
-const _INTEGRATION_NAMES = ("Projectured", "ProjecturedDataFrames", "ProjecturedMCP",
-                            "ProjecturedODBC", "ProjecturedSDL", "ProjecturedTulip",
+const _INTEGRATION_NAMES = ("Projectured", "ProjecturedAnthropic", "ProjecturedDataFrames",
+                            "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama",
+                            "ProjecturedOpenRouter", "ProjecturedSDL", "ProjecturedTulip",
                             "ProjecturedVideo", "ProjecturedWeb")
 
 # The ProjecturEd packages of `_INTEGRATION_NAMES` that a new process with
@@ -42,7 +44,11 @@ function test_umbrella_loads_integrations()
     @testset "the umbrella loads the installed integration of each trigger" begin
         repository = normpath(joinpath(@__DIR__, "..", ".."))
         environment = joinpath(repository, "environment", "all")
-        both = ["Projectured", "ProjecturedDataFrames", "ProjecturedSDL"]
+        # The model adapters load with the umbrella when they are installed.
+        with_umbrella(names...) = sort!(["Projectured", "ProjecturedAnthropic",
+                                         "ProjecturedOllama", "ProjecturedOpenRouter",
+                                         names...])
+        both = with_umbrella("ProjecturedDataFrames", "ProjecturedSDL")
         @test _read_loaded_integrations(environment,
             "using SimpleDirectMediaLayer, DataFrames, Projectured") == both
         # The order of the `using` lines does not matter.
@@ -52,14 +58,15 @@ function test_umbrella_loads_integrations()
         @test _read_loaded_integrations(environment,
             "using SimpleDirectMediaLayer, DataFrames, ProjecturedDataFrames, ProjecturedWeb") ==
               ["ProjecturedDataFrames", "ProjecturedWeb"]
-        # The umbrella alone loads no integration.
-        @test _read_loaded_integrations(environment, "using Projectured") == ["Projectured"]
+        # The umbrella alone loads no integration that has a trigger.
+        @test _read_loaded_integrations(environment, "using Projectured") == with_umbrella()
         # Each of the other triggers; Video loads SDL, which it needs.
         @test _read_loaded_integrations(environment,
             "using FFMPEG, ODBC, Tulip, ModelContextProtocol, Projectured") ==
-              ["Projectured", "ProjecturedMCP", "ProjecturedODBC", "ProjecturedSDL",
-               "ProjecturedTulip", "ProjecturedVideo"]
-        # An integration that the environment does not name stays out, with no error.
+              with_umbrella("ProjecturedMCP", "ProjecturedODBC", "ProjecturedSDL",
+                            "ProjecturedTulip", "ProjecturedVideo")
+        # An integration or an adapter that the environment does not name stays
+        # out, with no error.
         @test _read_loaded_integrations(_make_environment_without_sdl(repository),
             "using SimpleDirectMediaLayer, Projectured") == ["Projectured"]
     end

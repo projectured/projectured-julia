@@ -117,7 +117,8 @@ Projectured (projectured/)     umbrella: `using Projectured` re-exports every
                                package above as a single flat public API, and
                                its extensions load each installed integration
                                (SDL, Video, DataFrames, ODBC, Tulip, MCP) when
-                               the package it joins is loaded too.
+                               the package it joins is loaded too, and each
+                               installed model adapter with it.
 
 The five backends (depend on the kernel and the platform):
   Console (console/) → required, no third-party dependency   the ANSI terminal backend

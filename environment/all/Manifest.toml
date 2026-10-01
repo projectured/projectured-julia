@@ -917,7 +917,7 @@ deps = ["ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "Projecture
 path = "../../package/Projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
-weakdeps = ["DataFrames", "FFMPEG", "ModelContextProtocol", "ODBC", "ProjecturedDataFrames", "ProjecturedMCP", "ProjecturedODBC", "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo", "SimpleDirectMediaLayer", "Tulip"]
+weakdeps = ["DataFrames", "FFMPEG", "ModelContextProtocol", "ODBC", "ProjecturedAnthropic", "ProjecturedDataFrames", "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter", "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo", "SimpleDirectMediaLayer", "Tulip"]
 
     [deps.Projectured.extensions]
     ProjecturedDataFramesExt = "DataFrames"
