@@ -63,16 +63,26 @@ Projectured.jl/          one git repository
 
 ## 4. Steps
 
-- [ ] **Step 1, the generator.** `build_package_release!` writes
+- [x] **Step 1, the generator.** `build_package_release!` writes
       `<output>/<Name>/`, copies the licence files to the root, checks
       `output` once for an uncommitted change, and replaces the folder of each
       changed package. The digest no longer skips a `.git`. The README of
       `build_projectured_package_release!` names the folder. The docstrings
       follow.
-- [ ] **Step 2, the test.** `test_package_release()` checks the layout, the
+      Done: the two private helpers of the repositories,
+      `_get_release_repository` and `_replace_release_content!`, are gone; the
+      build removes and copies the folder of a changed package, and copies the
+      licence files to the root after every package passed.
+- [x] **Step 2, the test.** `test_package_release()` checks the layout, the
       licence files at the root, the git history in one repository, a file at
       the root that the build does not own, and the refusal of an uncommitted
       change.
+      Done: `test_package_release()` passes 45 of 45, and the release copy of
+      this repository 93 of 93 (run with `environment/build` and the test file
+      alone). After a change of `FakeTop`, `git status` of the release
+      repository shows exactly `FakeTop/Project.toml` and
+      `FakeTop/source/faketop/FakeTopCode.jl`; a `README.md` at the root stays.
+      The guards find only the four argument findings of `main`.
 - [ ] **Step 3, the guides.** `builder.md` and `build-guide.md` describe one
       repository; the registration names the folder, with LocalRegistry and
       with Registrator.
