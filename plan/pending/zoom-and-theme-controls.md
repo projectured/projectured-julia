@@ -1052,7 +1052,8 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   the keys `,`, `[` and `]` their names.
   - Tests: `test_web_backend()` with a zoom of 1.5: the logical size that the
     server gets, and a press at a drawn control.
-- [ ] **W5. Exports** (4.10).
+- [x] **W5. Exports** (4.10). Done with no change of code (finding 25), and
+  with a test in `test_write_image`.
   - Tests: the export of an editor at a font scale of 1.5 equals the export of
     an editor that starts at 1.5, and the zoom does not change the size of the
     image.
@@ -1292,3 +1293,12 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     reports 800×600, the canvas keeps 2400×1800 pixels, the paint scale is 3, and
     a press at (150, 300) of the page goes as (100, 200). A browser on a real
     display is the owner's check.
+25. **An export already follows the appearance and not the zoom** (W5).
+    `write_image(document, projection, …)`, `write_pdf(document, projection, …)`
+    and `record_video(document, projection; …)` print the projection that the
+    caller gives, and take the density from the caller. None reads a `Display`.
+    So an export with the projection of an editor has the scales of its
+    `Appearance` at the time of the export, and the zoom does not reach the
+    image. The test exports a button: a projection whose appearance changes to a
+    font scale of 1.5 gives the bytes of one that starts at 1.5, and a zoom of 2
+    gives the same bytes.

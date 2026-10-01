@@ -11,6 +11,31 @@ function test_write_image()
     rm(filename)
 end
 
+@testset "an image has the scales of the appearance at its export, and not its zoom" begin
+    # An export prints the projection of a view, so it has the scales that the
+    # projection reads when it prints. The zoom belongs to a view on a screen:
+    # the caller gives the density of an image.
+    document = WidgetButton("Appearance")
+    # The width, the height and the bytes of the BMP file of an export.
+    function export_image(projection)
+        filename = tempname() * ".bmp"
+        write_image(document, projection, filename)
+        bytes = read(filename)
+        rm(filename)
+        le(i) = sum(Int(bytes[i + k]) << (8k) for k in 0:3)
+        (le(19), abs(Int32(le(23) % UInt32)), bytes)
+    end
+    make_projection(appearance) = NaturalToGraphics(; measure = FontFileMeasure(), appearance)
+    started = export_image(make_projection(Appearance(font_scale = 1.5)))
+    live = Appearance()
+    projection = make_projection(live)
+    before = export_image(projection)
+    @test before[1:2] != started[1:2]
+    live.font_scale = 1.5
+    @test export_image(projection) == started
+    @test export_image(make_projection(Appearance(font_scale = 1.5, zoom = 2.0))) == started
+end
+
 @testset "write_image(canvas, filename)" begin
     canvas = GraphicsCanvas()
     filename = tempname() * ".bmp"
