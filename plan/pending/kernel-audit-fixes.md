@@ -1762,7 +1762,8 @@ Each question shows its options and my recommendation, marked **Recommended (min
   - These clauses stay rules: a `Bool` is never positional; two arguments of one type that a caller could swap take a name; more than five keywords means a type is missing.
   - "At most one optional positional argument, and never one beside a keyword argument" is a recommendation, not a hard rule: "I can easily imagine exception, those should be marked". An exception carries a marker.
   - `test_arguments()` no longer fails on the count; `julia test/suite/arguments.jl --report` still prints the picture. The `# @positional:` markers of the count go: 57 in 21 files of projectured-julia, 23 in omnet-julia.
-  - Open: whether the guard fails on an unmarked exception of the optional clause, and the word of its marker. Today 57 public definitions break the clause with no marker (24 projectured-julia, 30 omnet-julia, 3 inet-julia).
+  - Open: the word of the marker of the optional clause.
+  - **Decided by the owner, 2026-10-01: the guard checks the optional clause.** `test_arguments()` fails on a public definition that breaks the clause and has no marker. Today 57 public definitions do so with no marker (24 projectured-julia, 30 omnet-julia, 3 inet-julia); each gets a marker with one line of reason, or a change where a change is better. omnet-julia and inet-julia have no guard of their own; how they run it is a question of the work.
 - Settles: L18-3, L22-1, L10-8.
 - Cost: S to M in total: the three items below, and the two sites of N-3 (outside the questions) that the guard also reports.
 
