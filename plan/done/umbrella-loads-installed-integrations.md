@@ -141,7 +141,14 @@ The owner accepted both recommendations on 2026-10-01 ("O2: no message", "O1: ye
 - [x] **Step 5, the binary.** Build it, and run the check of the copied
       binary.
       Done: `bin/build_projectured` in 468 s, `--help`, and
-      `check_projectured_copy` (web client, fonts, guides, MCP server) pass.
+      `check_projectured_copy` (web client, fonts, guides, MCP server) pass;
+      again after the change of the adapters (422 s, passes).
+
+**The check before the landing** (2026-10-02): the guards give the findings of
+`main`; `test_integration()` fails at the 7 known sites of `main`;
+`test_repository()` 363, `test_platform()` and `test_builder()` 399 pass;
+omnet-julia (83 packages) and inet-julia (12) precompile against the branch,
+and `OmnetIde`, which uses the platform and not the umbrella, loads.
 - [x] **Step 6, the guides.** The setup guide and the own-project guide show
       the two ways; `documentation/package/` names the extensions; the naming
       rule loses "No package here has one yet".
