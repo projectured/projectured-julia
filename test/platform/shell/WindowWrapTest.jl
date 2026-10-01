@@ -1,5 +1,5 @@
-# The fold that stacks a window's wrappers, and the popup a widget in a window
-# opens.
+# The wrappers of `build_editor` that a window stacks, and the popup a widget in
+# a window opens.
 #
 # A popup is a native window, so the operation that opens one reaches the window
 # manager in screen coordinates. The widget answers a position in its own frame,
@@ -30,40 +30,41 @@ function _wrap_iomap_of(iomap, document, depth = 0)
     iomap.input === document ? iomap : nothing
 end
 
-# The recorder is always outermost, so what a keyword added is one step in. A
-# gesture log a person opens in a tab shows the session's own log, which must
-# already hold what happened before the tab existed.
-_under_recorder(projection) = begin
-    @test projection isa GestureLogRecordingProjection
-    projection.inner
-end
+# The document and the projection of a window with the wrappers of `keywords`,
+# as `build_editor` stacks them, and no editor: the tabs and the appearance are
+# off, and a test builds the window scene itself.
+_wrap_window(document, projection; keywords...) =
+    (parts = make_editor_parts(document, projection; tabs = false, appearance = false, keywords...);
+     (parts.document, parts.projection))
 
-@testset "every wrapper is off, so only the recorder and the start over of Tab are added" begin
+# The wrappers that a window has in the application, but its chrome and its undo.
+_WRAP_ALL = (; gesture_help = true, command_palette = true, clipboard = true, gesture_log = true)
+
+@testset "with no keyword, only the start over of Tab is added" begin
     document, base = _document(), IdentityProjection()
-    answer_document, answer_projection =
-        make_window_wrap(; gesture_help = false, command_palette = false,
-                           selection = false)(document, base)
+    answer_document, answer_projection = _wrap_window(document, base)
     @test answer_document === document
-    # Tab starts over at the ends of the window, so the cycling takes no keyword.
-    cycling = _under_recorder(answer_projection)
-    @test cycling isa FocusCyclingProjection
-    @test cycling.inner === base
+    # Tab starts over at the ends of the window, on by default.
+    @test answer_projection isa FocusCyclingProjection
+    @test answer_projection.inner === base
+    @test _wrap_window(document, base; focus_cycling = false)[2] === base
 end
 
-@testset "a keyword adds the wrapper it names" begin
+@testset "a keyword adds the wrapper it names, around the cycle of the focus" begin
     document, base = _document(), IdentityProjection()
-    wrap(; keywords...) = make_window_wrap(; gesture_help = false, command_palette = false,
-                                             selection = false,
-                                             keywords...)(document, base)
-
-    @test _under_recorder(wrap(; gesture_help = true)[2]) isa GestureHelpDecoratorProjection
-    @test _under_recorder(wrap(; command_palette = true)[2]) isa CommandPaletteDecoratorProjection
-    # The history is a wrapper the host gives, and the default changes nothing.
-    marked = wrap(; history = projection -> GestureHelpDecoratorProjection(
-                      inner = projection, state = GestureHelpState()))[2]
-    @test _under_recorder(marked).inner isa GestureHelpDecoratorProjection
-    # The clipboard is the one wrapper that wraps the document as well.
-    @test wrap(; selection = true)[1] isa ClipboardSlice
+    wrap(; keywords...) = _wrap_window(document, base; keywords...)
+    for (keyword, type) in ((:gesture_help, GestureHelpDecoratorProjection),
+                            (:command_palette, CommandPaletteDecoratorProjection),
+                            (:gesture_log, GestureLogRecordingProjection))
+        projection = wrap(; keyword => true)[2]
+        @test projection isa type
+        @test projection.inner isa FocusCyclingProjection
+    end
+    # The undo and the clipboard wrap the document as well.
+    @test wrap(; undo = true)[1] isa UndoBuffer
+    @test wrap(; clipboard = true)[1] isa ClipboardSlice
+    # The gesture log is outermost, so it sees every operation of the window.
+    @test wrap(; _WRAP_ALL...)[2] isa GestureLogRecordingProjection
 end
 
 @testset "a timer and a display update that no reader takes answer nothing" begin
@@ -71,7 +72,7 @@ end
     # a display update in the input of its window. Every reader that does not take
     # them must let them pass.
     shell = WidgetShell(WidgetLabel("content"); size = Point2D(400, 300))
-    document, projection = make_window_wrap()(shell, make_layout_projection_example())
+    document, projection = _wrap_window(shell, make_layout_projection_example(); _WRAP_ALL...)
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
@@ -86,8 +87,7 @@ end
     # The screen peels `windows[i].content`, and the window's own projection maps
     # the point in the window's frame, so every window maps its points alike.
     shell = WidgetShell(WidgetList(Any["a", "b", "c"]); size = Point2D(400, 300))
-    document, projection = make_window_wrap(; gesture_help = false, command_palette = false,
-                                              selection = false)(shell, make_layout_projection_example())
+    document, projection = _wrap_window(shell, make_layout_projection_example(); gesture_log = true)
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     menu = WidgetMenu(Any[WidgetMenuItem("Alpha"), WidgetMenuItem("Beta"), WidgetMenuItem("Gamma")];
                       orientation = :vertical)
@@ -116,8 +116,7 @@ end
     # window lights its row, and the light moves from one window to the other.
     list = WidgetList(Any["a", "b", "c"])
     shell = WidgetShell(list; size = Point2D(400, 300))
-    document, projection = make_window_wrap(; gesture_help = false, command_palette = false,
-                                              selection = false)(shell, make_layout_projection_example())
+    document, projection = _wrap_window(shell, make_layout_projection_example(); gesture_log = true)
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     menu = WidgetMenu(Any[WidgetMenuItem("Alpha"), WidgetMenuItem("Beta"), WidgetMenuItem("Gamma")];
                       orientation = :vertical)
@@ -149,9 +148,7 @@ end
 
 @testset "the palette sits outside the help" begin
     document, base = _document(), IdentityProjection()
-    _, projection = make_window_wrap(; gesture_help = true, command_palette = true,
-                                       selection = false)(document, base)
-    palette = _under_recorder(projection)
+    _, palette = _wrap_window(document, base; gesture_help = true, command_palette = true)
     @test palette isa CommandPaletteDecoratorProjection
     @test palette.inner isa GestureHelpDecoratorProjection
 end

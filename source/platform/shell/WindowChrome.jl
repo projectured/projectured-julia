@@ -222,52 +222,6 @@ _make_recorded_tool_commands(recorded) = (
                                   tooltip = "Frame times: the time of each recent frame")) : ())...)
 
 """
-    run_with_window_tools(run) -> the answer of `run`
-
-Open a window with what the tools of [`make_window_toolbar`](@ref) need, and
-answer what `run` answers.
-
-`run(feeds, start)` opens the window: it gives `feeds` to `make_editor`, it
-calls `start(editor)` with the editor that `make_editor` answers, and then it
-runs the loop with `run_editor!(editor)`. Then:
-
-- the message log holds what the program logs while the window is open. The
-  capture is installed before `run` and removed after it, also when it throws,
-  so the logger the window replaced comes back.
-- the message log and the frame statistics follow the window, one feed each.
-- the fault log holds every fault the editor catches, because `start` attaches
-  the session's log to the store of the editor.
-
-Every binary with the toolbar opens its window through this, so a button on it
-never opens a tool that stays empty in one of them.
-
-# Example
-
-    run_with_window_tools() do feeds, start
-        editor = build_editor(document, projection; backend = backend, feeds = feeds,
-                              tabs = false, window = (; title = "Title"))
-        start(editor)
-        run_editor!(editor)
-    end
-"""
-function run_with_window_tools(run)
-    previous = install_message_log_capture!()
-    try
-        run(Feed[MessageLogFeed(), FrameStatisticsFeed()], _start_window_tools!)
-    finally
-        remove_message_log_capture!(previous)
-    end
-end
-
-# A fault reaches a log only when the log is attached to the store of the
-# editor, and only an editor has a store.
-function _start_window_tools!(editor)
-    hasproperty(editor, :faults) || return nothing
-    attach_fault_target!(editor.faults, get_session_fault_log())
-    nothing
-end
-
-"""
     make_window_tool_command(label, type; icon = nothing, tooltip = nothing,
                              make = editor -> make_insertion_document(type))
         -> WidgetToolbarItem

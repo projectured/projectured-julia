@@ -1,12 +1,13 @@
 """
     ShellModule
 
-The shell of a window: everything a window has besides the document in it.
+The shell of a window: the chrome that a window has around the document in it.
 
-[`make_window_wrap`](@ref) is the fold `(document, projection) -> (document,
-projection)` that stacks the window's wrappers: the gesture help, the command
-palette, the gesture log, the selection walk and the clipboard. A binary names
-the wrappers it wants by keyword, so two binaries cannot drift into two lists.
+The wrapper `shell` of `build_editor` puts the root of an editor in the chrome
+of a window, with the menu bar, the toolbar and the status bar. The other
+features of a window are wrappers of `build_editor` too, each in the slice that
+owns it, so a binary names the ones it wants by keyword and two binaries cannot
+drift into two lists.
 
 A popup needs no wrapper of its own. A widget answers its popup at a position in
 its own frame, each reader on the way up moves the position into its own frame,
@@ -15,13 +16,8 @@ and the window opens the popup at its screen position.
 popup holds.
 
 The bands the shell draws are built here too. [`make_window_toolbar`](@ref)
-holds the tools of the window, one picture each, and
-[`run_with_window_tools`](@ref) opens a window with what those tools need to
-show something: the message log capture, the feeds and the fault log.
-
-The wrapper `shell` of `build_editor` puts the root of an editor in the chrome
-of a window, with the menu bar, the toolbar and the status bar, for a window
-that the wrappers of `build_editor` make.
+holds the tools of the window, one picture each. A tool that shows what the
+window records is there only when the wrapper that fills it is on.
 """
 module ShellModule
 
@@ -64,14 +60,13 @@ import ..ScreenModule: show_document!
 
 
 
-export make_window_wrap, make_opened_window_projections
 export make_window_shell_document, make_window_shell_projection
 export make_window_menu_bar, make_window_file_menu, make_window_view_menu, make_window_help_menu,
        make_window_toolbar, RECORDED_TOOLS, make_window_status_bar, make_window_command,
-       make_window_tool_command, run_with_window_tools
+       make_window_tool_command
 export make_file_dialog, open_file_dialog!, save_file_dialog!
+export make_opened_window_projections
 
-include("WindowWrap.jl")
 include("WindowShell.jl")
 include("WindowChrome.jl")
 include("FileDialog.jl")

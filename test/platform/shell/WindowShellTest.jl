@@ -300,37 +300,17 @@ end
     @test press_explorer(named) == [folder]
 end
 
-@testset "a window run with its tools gets the feeds, the capture and the fault log" begin
-    before = Base.CoreLogging.global_logger()
-    seen = Any[]
-    answer = run_with_window_tools() do feeds, start
-        push!(seen, map(typeof, feeds))
-        push!(seen, Base.CoreLogging.global_logger())
-        editor = (faults = FaultStore(),)
-        start(editor)
-        push!(seen, editor.faults)
-        :ran
-    end
-    @test answer === :ran
-    @test seen[1] == [MessageLogFeed, FrameStatisticsFeed]
-    @test seen[2] isa MessageLogLogger
-    @test any(target -> target === get_session_fault_log(), seen[3].targets)
-    # The logger the window replaced comes back, also when the window throws.
-    @test Base.CoreLogging.global_logger() === before
-    @test_throws ErrorException run_with_window_tools((feeds, start) -> error("the window failed"))
-    @test Base.CoreLogging.global_logger() === before
-end
-
 @testset "the pointer lights what it is over, in the bands and in the content" begin
-    # The whole fold, with a toolbar and the tooltip window, because the moves
+    # A window with a toolbar of its own and the tooltip window, because the moves
     # that the screen gives on must reach the bands, and the tooltip must not take
-    # them.
+    # them. The wrappers of the window go around the shell.
     press = WidgetButton("Press"; size = Point2D(120, 40))
     command = make_window_command("Run", editor -> nothing)
-    bands(document) = (nothing, WidgetToolbar(Any[command]), nothing, nothing, nothing)
-    document, projection = make_window_wrap(;
-        gesture_help = false, command_palette = false, selection = false,
-        shell = bands)(VerticalLayout(Any[press]), make_layout_projection_example())
+    parts = make_editor_parts(make_window_shell_document(VerticalLayout(Any[press]);
+                                                         toolbar = WidgetToolbar(Any[command])),
+                              make_window_shell_projection(make_layout_projection_example());
+                              tabs = false, appearance = false, gesture_log = true)
+    document, projection = parts.document, parts.projection
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
@@ -462,19 +442,14 @@ end
     @test get_wrapped_document(plain.document).windows[1].content isa PaneTree
 end
 
-@testset "the shell is a document, and the fold puts the window inside it" begin
-    document, projection = make_window_wrap(;
-        gesture_help = false, command_palette = false,
-        selection = false,
-        shell = document -> (make_window_menu_bar(), make_window_toolbar(),
-                             make_window_status_bar(document), nothing,
-                             Point2D(400, 300)))(PrimitiveString("x"),
-                                                 make_layout_projection_example())
+@testset "the shell is a document, and the wrapper puts the window inside it" begin
+    parts = make_editor_parts(PrimitiveString("x"), make_layout_projection_example();
+                              tabs = false, appearance = false, focus_cycling = false, shell = true)
+    document, projection = parts.document, parts.projection
     # The chrome is structured data, so it can be reached like anything else.
     @test document isa WidgetShell
     @test document.content isa PrimitiveString
     @test document.menu_bar isa WidgetMenu
-    @test Int(document.size.x[]) == 400 && Int(document.size.y[]) == 300
     @test !isempty(search_documents(document, node -> node isa WidgetToolbar))
     @test print_document(projection, document).output !== nothing
 end

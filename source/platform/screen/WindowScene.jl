@@ -156,8 +156,9 @@ documents of the inner wrappers around the screen.
   document, else "ProjecturEd".
 - `width` and `height` default to the size of the display that the backend
   reports.
-- `opened_window_projections` adds rows to those of the other wrappers, for the
-  windows that open later.
+- `opened_window_projections` puts rows in front of those of the other
+  wrappers, for the windows that open later. A row matches by the first type
+  that the document is, so the rows of the host decide first.
 - `inner_wrappers` goes to `make_tracking_screen`, for example the wrappers that
   keep the tooltip window and the context menu window.
 """
@@ -176,8 +177,8 @@ function wrap_editor!(::Val{:window}, layer::Symbol, setting, parts::EditorParts
         width = something(width, display_width)
         height = something(height, display_height)
     end
-    append!(parts.opened_window_projections,
-            get(options, :opened_window_projections, Pair{Type,Any}[]))
+    prepend!(parts.opened_window_projections,
+             get(options, :opened_window_projections, Pair{Type,Any}[]))
     parts.document, parts.projection = make_tracking_screen(
         make_window_scene(parts.document, string(title); width = width, height = height),
         make_window_scene_projection(parts.projection;
