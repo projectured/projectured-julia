@@ -21,12 +21,18 @@ ProjectionModule.print_document(p::BreakableLeafToSyntax, recursion, input, ctx)
                     SimpleIoMap(p, input, SyntaxLeaf(TextString("leaf")))
 ProjectionModule.read_intent(::BreakableLeafToSyntax, recursion, change::Intent, iomap) = change
 
-_make_barrier_pipeline() = ChainingProjection(
-    RecursiveProjection(FaultCatchingProjection(inner = JsonToSyntax(),
-                                                substitute = FaultToSyntax())),
-    RecursiveProjection(FaultCatchingProjection(inner = SyntaxToText(),
-                                                substitute = FaultToText())),
-    RecursiveProjection(TextToString()))
+# A substitute that can not draw its mark.
+struct BrokenMarkToSyntax <: Projection end
+ProjectionModule.print_document(::BrokenMarkToSyntax, recursion, report, ctx) =
+    error("the mark is broken")
+
+_make_barrier_pipeline(syntax_barrier = FaultCatchingProjection(inner = JsonToSyntax(),
+                                                                substitute = FaultToSyntax())) =
+    ChainingProjection(
+        RecursiveProjection(syntax_barrier),
+        RecursiveProjection(FaultCatchingProjection(inner = SyntaxToText(),
+                                                    substitute = FaultToText())),
+        RecursiveProjection(TextToString()))
 
 # A JSON string whose value throws while `broken[]` holds. `runs` counts how
 # often its computation ran.
@@ -39,9 +45,9 @@ _make_breakable_string(broken, runs) =
 _make_json_array(elements...) =
     JsonArray(elements = CellVector(Cell[Cell(element) for element in elements]))
 
-function _make_part_editor(document)
+function _make_part_editor(document, pipeline = _make_barrier_pipeline())
     backend = HeadlessBackend()
-    editor = Editor(document, _make_barrier_pipeline(); backend, devices = Device[])
+    editor = Editor(document, pipeline; backend, devices = Device[])
     editor.fault_policy = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
     (editor, backend)
 end
@@ -86,14 +92,11 @@ function test_fault_part()
             JsonString("first"), _make_breakable_string(broken, runs), JsonString("third")))
         _run_frames!(editor, 2)
         records = _get_print_records(editor)
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken length(records) == 1
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken _get_last_paint(backend) ==
+        @test length(records) == 1
+        @test _get_last_paint(backend) ==
                      replace(_HEALTHY_ARRAY, "\"repaired\"" => _get_mark_label(only(records)))
         # The fault is the printer's, not the device's.
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken get_consecutive_fault_count(editor.faults, :device_write) == 0
+        @test get_consecutive_fault_count(editor.faults, :device_write) == 0
     end
 
     @testset "an early fault in one leaf costs that leaf" begin
@@ -113,13 +116,10 @@ function test_fault_part()
             _make_breakable_string(broken, Ref(0))))
         _run_frames!(editor, 4)
         records = _get_print_records(editor)
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken length(records) == 1
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken !isempty(records) && only(records).count == 2
+        @test length(records) == 1
+        @test !isempty(records) && only(records).count == 2
         painted = _get_last_paint(backend)
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken painted !== nothing && !isempty(records) &&
+        @test painted !== nothing && !isempty(records) &&
                      count(_get_mark_label(only(records)), painted) == 2
     end
 
@@ -131,10 +131,8 @@ function test_fault_part()
         healthy = _paint_healthy(_make_json_array(
             _make_json_array(JsonString("first"), JsonString("repaired")), JsonString("third")))
         records = _get_print_records(editor)
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken length(records) == 1
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken _get_last_paint(backend) ==
+        @test length(records) == 1
+        @test _get_last_paint(backend) ==
                      replace(healthy, "\"repaired\"" => _get_mark_label(only(records)))
     end
 
@@ -145,10 +143,8 @@ function test_fault_part()
         _run_frames!(editor, 2)
         before = runs[]
         _run_frames!(editor, 3)
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken runs[] == before
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken get_consecutive_fault_count(editor.faults, :device_write) == 0
+        @test runs[] == before
+        @test get_consecutive_fault_count(editor.faults, :device_write) == 0
     end
 
     @testset "after an operation the editor tries the mark again" begin
@@ -159,8 +155,7 @@ function test_fault_part()
         broken[] = false
         # With no operation the mark stays: nothing pulls the cell that failed.
         run_frame!(editor)
-        # @broken: a late fault is not noted, so no mark stands and nothing tries again; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken _get_last_paint(backend) != _HEALTHY_ARRAY
+        @test _get_last_paint(backend) != _HEALTHY_ARRAY
         post_operation!(editor, DoNothingOperation())
         drain_operations!(editor)
         run_frame!(editor)
@@ -177,9 +172,30 @@ function test_fault_part()
         post_operation!(editor, DoNothingOperation())
         drain_operations!(editor)
         run_frame!(editor)
-        # @broken: a late fault passes every barrier and reaches the device; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken length(rendered_output(backend)) == painted + 1
+        @test length(rendered_output(backend)) == painted + 1
         @test [record.count for record in _get_print_records(editor)] == counts
+    end
+
+    @testset "a mark that can not be drawn goes to the barrier above" begin
+        # Two barriers at each node: the inner one draws its mark with a
+        # substitute that throws, the outer one with a substitute that works.
+        nested = FaultCatchingProjection(
+            inner = FaultCatchingProjection(inner = JsonToSyntax(),
+                                            substitute = BrokenMarkToSyntax()),
+            substitute = FaultToSyntax())
+        broken = Cell(true)
+        editor, backend = _make_part_editor(
+            _make_json_array(JsonString("first"), _make_breakable_string(broken, Ref(0)),
+                             JsonString("third")),
+            _make_barrier_pipeline(nested))
+        _run_frames!(editor, 4)
+        origins = [record.origin for record in _get_print_records(editor)]
+        @test :BrokenMarkToSyntax in origins
+        @test get_consecutive_fault_count(editor.faults, :device_write) == 0
+        painted = _get_last_paint(backend)
+        @test painted !== nothing
+        @test startswith(painted, "[\n  \"first\", \n  ⚠")
+        @test endswith(painted, ", \n  \"third\"\n]")
     end
 
     @testset "a click on the mark tries the part again" begin
@@ -191,11 +207,9 @@ function test_fault_part()
         @test iomap.output isa SyntaxLeaf
         click = MouseClick(:left, 0, 0, 1, ModifierKeys(); time = 0.0)
         operation = read_intent(barrier, iomap, click)
-        # @broken: the mark answers no click and no right click yet; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken operation isa ReplaceViewStateOperation
+        @test operation isa ReplaceViewStateOperation
         is_broken[] = false
-        # @broken: the mark answers no click and no right click yet; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken begin
+        @test begin
             evaluate_operation(nothing, operation)
             !occursin("⚠", string(iomap.output))
         end
@@ -209,8 +223,7 @@ function test_fault_part()
                                _make_tolerant_context(FaultStore()))
         right = MouseClick(:right, 0, 0, 1, ModifierKeys(); time = 0.0)
         operation = read_intent(barrier, iomap, right)
-        # @broken: the mark answers no click and no right click yet; plan/pending/a-printer-fault-costs-the-smallest-part.md
-        @test_broken get_wrapped_operation(operation) isa OpenContextMenuOperation
+        @test get_wrapped_operation(operation) isa OpenContextMenuOperation
     end
 end
 end

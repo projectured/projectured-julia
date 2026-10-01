@@ -409,6 +409,58 @@ children in an IoMap of its own adds a method for that IoMap.
 """
 function get_child_iomaps end
 
+"""
+    get_content_iomap(iomap) -> IoMap
+
+The IO map that `iomap` shows through: the IO map of the same input that a
+wrapper holds while it adds nothing to the output, as a fault barrier does while
+its part prints. Every other IO map answers itself.
+
+Use it where a reader or a printer looks at the type or at a field of the IO map
+of a child, so that a barrier around the child does not hide what the child is.
+
+# Example
+
+    content = get_content_iomap(child_iomap)
+    content isa SyntaxCompoundToTextIoMap && splice_indents!(buffer, content)
+
+See also [`show_barrier_mark!`](@ref).
+"""
+function get_content_iomap end
+
+# ── The fault barrier seam (methods in a higher package) ───────────────────
+
+"""
+    show_barrier_mark!(barrier)
+
+Make a fault barrier that took a fault show its mark in place of the output of
+its part.
+
+The editor calls it between two frames, outside every computation, for each
+barrier that took a fault in the frame before; see `record_computation_fault!`.
+The barrier writes its output cell, so the parent reads the mark and nothing
+reads the cells that failed. A barrier that shows its mark already does nothing.
+
+See also [`retry_barrier_print!`](@ref).
+"""
+function show_barrier_mark! end
+
+"""
+    retry_barrier_print!(barrier) -> Bool
+
+Try the part of a fault barrier again, and answer whether it prints now.
+
+A barrier that shows its mark reads the cell that failed again, or prints its
+part again when the print itself failed. When that works, it shows the output of
+its part again, and the next frame reads it. When it fails, the mark stays, and
+no fault is recorded. A barrier whose part prints answers `true`. The editor
+calls it outside every computation, after an operation and when a person asks
+for it.
+
+See also [`show_barrier_mark!`](@ref).
+"""
+function retry_barrier_print! end
+
 # ── The children-container seam (methods in a higher package) ──────────
 
 """

@@ -281,8 +281,11 @@ skips the paint for it and does not raise `:device_write`.
 
 ### 6.6 What it costs
 
-- For a node that prints: its IoMap and one cell that holds the output, a value
-  with no computation. That is three cells fewer than the barrier has now.
+- For a node that prints: its IoMap, a small object that holds its state, and
+  one reactive cell for the output. The cell computes the inner output, and
+  holds the mark as a value after the switch. It must compute, because an inner
+  output can be a computed cell that changes, as the output of a
+  `SwitchingProjection` does. That is three cells fewer than the barrier had.
 - Each computation that is made in a scope keeps one reference to the IoMap: a
   wrapper around its function, or one field in the cell. The step measures both.
 - For each open mark, one pull after each operation.
@@ -401,11 +404,61 @@ runs2[]               # 3: each pull runs the computation again
       early fault already costs one leaf. The renderer test and the interaction
       test come with their steps (7 and 6), because they need the SDL backend
       and the application pipeline.
-- [ ] **Step 2: the scope and the note**: a computation keeps its scope, the
+- [x] **Step 2: the scope and the note**: a computation keeps its scope, the
       barrier makes one IoMap for each call, the innermost computation notes.
       With the measurement of the wrapper and of the field.
-- [ ] **Step 3: the switch** in the drain of the frame, and the device barrier
+- [x] **Step 3: the switch** in the drain of the frame, and the device barrier
       that skips a noted fault.
+
+      Done together, in one commit: a barrier takes a fault only when the
+      editor gave it a list, so the tests of step 1 change only with both.
+      `test_fault()` 93 pass; the 15 markers of step 1 pass and are `@test`.
+      What the code is:
+      - `source/kernel/cell/CellFaultScope.jl`: `run_in_fault_scope`,
+        `record_computation_fault!`, `RecordedFaultException`,
+        `get_fault_scope`. `Computation` keeps the scope by wrapping its
+        function in `_FaultScopedComputation`, which catches and hands the
+        fault on. The wrapper and not a field of the cell, because an
+        `UntrackedCell` computes with no `_recompute!`, and a field costs every
+        cell, also a cell that holds a value. A computation made outside every
+        scope stays a bare function, so a strict editor runs as before. The
+        cost of the wrapper is measured in step 6.
+      - The scope of a new computation: the barrier that prints, or the
+        computation that runs when the stack is deeper than where the barrier
+        set its scope. The depth is kept with the scope for that.
+      - A scope that can not show the mark answers `false`, and the exception
+        goes on unchanged: a barrier with no list of an editor, as in a print
+        outside an editor.
+      - `source/kernel/projection/ProjectionInterface.jl`: `show_barrier_mark!`,
+        `retry_barrier_print!`, `get_content_iomap` (default: the IoMap
+        itself). Step 6 uses the last one.
+      - `source/platform/fault/Catching.jl`: the barrier keeps its state in a
+        plain mutable object. Under the strict policy it still wraps the IoMap
+        of its part, with no scope and no catch, so a test sees the IO maps of
+        a running editor. The origin of a late fault is the projection that the
+        inner IoMap names, the rule that a dispatcher chose. A
+        `RecordedFaultException` in a print gives a mark with no second record.
+      - Retry C is in the reader of the barrier: a plain left click with no
+        modifier answers `RetryBarrierPrintOperation` in
+        `ReplaceViewStateOperation`, a right click the menu with "Try again".
+        A container of the widget and graphics stages routes a click by its
+        point to the IoMap of the child, so a click reaches the barrier there. A
+        mark of a syntax stage is reached by the selection path, not by a
+        point: to check in the live editor.
+      - The editor: `noted_barriers`, `marked_barriers` (weak),
+        `is_retry_pending`. `print!` puts the list in the context under
+        `:noted_barriers`. `report_frame_faults!` shows the marks.
+        `_evaluate_operation_guarded!` sets the flag, and `run_frame!` tries
+        the marks after its operations and before the paint.
+        `_write_output_to_devices` skips the paint for a noted fault and counts
+        no device fault. `invalidate_projection!` forgets the barriers.
+      - The tests of `FaultCatchingTest.jl` that read a late fault with no
+        editor now show the marks between two reads (`_read_with_marks`), as
+        the frames of an editor do.
+      - Retry A tries every mark after the operations of a frame. One bug in
+        thousands of nodes then costs one computation and two throws per mark
+        and per frame with an operation. A bound on it waits for the
+        measurement.
 - [ ] **Step 4: retry A** after each operation.
 - [ ] **Step 5: retry C**, the context menu item and the plain click on the
       mark.

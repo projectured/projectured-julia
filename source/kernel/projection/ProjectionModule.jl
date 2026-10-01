@@ -87,7 +87,9 @@ using ..SelectionModule
 
 export Projection, print_document, print_child, print_document_pure, print_child_pure,
        read_intent, map_reference_forward, map_reference_backward, read_routed_intent,
-       get_child_iomaps, read_routed_child, read_child_by_route, read_gesture_outward
+       get_child_iomaps, read_routed_child, read_child_by_route, read_gesture_outward,
+       get_content_iomap
+export show_barrier_mark!, retry_barrier_print!
 export @projection, print_pure
 export make_output_path_cells, set_output_path_computations!, map_mouse_target_forward,
        set_output_tree_path_computations!

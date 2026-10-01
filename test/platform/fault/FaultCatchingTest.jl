@@ -84,10 +84,29 @@ _probe_branch(count::Integer) =
 
 # A printer context whose barriers catch, as the one of a running editor. With
 # no policy in its context a barrier catches nothing, the way a test editor does.
+# The list holds the barriers that took a fault, as the list of an editor does.
 _make_tolerant_context(store) =
-    with_property(with_property(PrinterContext(), :fault_store, store),
-                  :fault_policy, FaultPolicy(is_console_enabled = false,
-                                             is_sound_enabled = false))
+    with_property(with_property(with_property(PrinterContext(), :fault_store, store),
+                                :fault_policy, FaultPolicy(is_console_enabled = false,
+                                                           is_sound_enabled = false)),
+                  :noted_barriers, Any[])
+
+# Run `read` as the frames of an editor do: a read that reaches a cell that
+# failed throws, the barriers that took the fault show their marks, and the next
+# read draws them. One read finds one fault, so it can take a read per fault.
+function _read_with_marks(read, context)
+    noted = get_property(context, :noted_barriers)
+    for _ in 1:16
+        try
+            return read()
+        catch exception
+            exception isa RecordedFaultException || rethrow()
+            foreach(show_barrier_mark!, noted)
+            empty!(noted)
+        end
+    end
+    read()
+end
 
 # The content of the one layer that the dwell binding of `document` answers, or
 # `nothing` when the binding does not answer.
@@ -123,7 +142,7 @@ function test_fault_catching()
                                     substitute = FaultToSyntax()))
         context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
-        children = _drawn_children(iomap.output)
+        children = _read_with_marks(() -> _drawn_children(iomap.output), context)
         @test length(children) == 6
         # The three even leaves printed their value; the three odd ones carry a
         # mark, and the mark kept the slot the leaf had.
@@ -139,7 +158,7 @@ function test_fault_catching()
                                     substitute = FaultToSyntax()))
         context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
-        _drawn_children(iomap.output)
+        _read_with_marks(() -> _drawn_children(iomap.output), context)
         records = get_fault_records(store)
         @test length(records) == 1
         @test records[1].site === :print
@@ -153,7 +172,7 @@ function test_fault_catching()
         context = _make_tolerant_context(store)
         leaf = FaultProbeLeaf(value = 1)
         iomap = print_document(barrier, barrier, leaf, context)
-        _force = iomap.output isa Cell ? iomap.output[] : iomap.output
+        _read_with_marks(() -> _force_cell(iomap.output), context)
 
         # An Alt+press names the mark, as it names anything else on the screen.
         # The report is no child of the node that failed, so the path is a
@@ -173,11 +192,11 @@ function test_fault_catching()
         # The mark is the whole image of the node, so the container rings it.
         @test map_reference_forward(barrier, iomap, operation.path) == EmptyReference()
 
-        # Everything else about a node that failed stays inert: a plain gesture
-        # is declined, and a path into the node has no image, so no edit can
-        # address one.
+        # Everything else about a node that failed stays inert: a key is
+        # declined, and a path into the node has no image, so no edit can
+        # address one. A plain click tries the part again (`test_fault_part`).
         @test read_intent(barrier, iomap, nothing) === nothing
-        @test read_intent(barrier, iomap, MouseClick(:left, 0, 0, 1, ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(barrier, iomap, KeyPress('x'; time = 0.0)) === nothing
         @test map_reference_forward(barrier, iomap, EmptyReference()) === nothing
     end
 
@@ -206,9 +225,9 @@ function test_fault_catching()
         projection = RecursiveProjection(
             FaultCatchingProjection(inner = _probe_dispatch(),
                                     substitute = FaultToSyntax()))
-        iomap = print_document(projection, nothing, _probe_branch(4),
-                               _make_tolerant_context(nothing))
-        @test length(_drawn_children(iomap.output)) == 4
+        context = _make_tolerant_context(nothing)
+        iomap = print_document(projection, nothing, _probe_branch(4), context)
+        @test length(_read_with_marks(() -> _drawn_children(iomap.output), context)) == 4
     end
 
     @testset "the fault reaches the log with its count" begin
@@ -220,7 +239,7 @@ function test_fault_catching()
                                     substitute = FaultToSyntax()))
         context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
-        _drawn_children(iomap.output)
+        _read_with_marks(() -> _drawn_children(iomap.output), context)
         drain_faults!(store)
         # One line, and the number on it is the number of places the bug was
         # found in. That is the whole point of a key that holds no reference.
@@ -305,6 +324,9 @@ function test_fault_catching()
         tolerant.fault_policy = FaultPolicy(is_console_enabled = false,
                                             is_sound_enabled = false)
         print!(tolerant)
+        @test_throws RecordedFaultException _drawn_children(tolerant.iomap.output)
+        # The frame shows the mark of the barrier that took the fault.
+        report_frame_faults!(tolerant)
         @test length(_drawn_children(tolerant.iomap.output)) == 2
         @test length(get_fault_records(tolerant.faults)) == 1
     end
@@ -328,7 +350,7 @@ function test_fault_catching()
                                     substitute = FaultToSyntax()))
         context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
-        _drawn_children(iomap.output)
+        _read_with_marks(() -> _drawn_children(iomap.output), context)
         drain_faults!(store)
         @test any(entry -> entry isa FaultLogEntry && entry.site === :print && entry.count >= 3,
                   collect(log.entries))

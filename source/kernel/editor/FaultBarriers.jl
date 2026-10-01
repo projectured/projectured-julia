@@ -29,6 +29,11 @@ Call it once per frame, before anything reads the projection. This is the one
 place a fault is reported on the console, because it is the one place that knows
 which records are new — a printer's fault arrives here too, recorded from inside
 a computation that could not report anything itself.
+
+It also shows the mark of each fault barrier that took a fault since the last
+frame ([`show_barrier_mark!`](@ref)). A barrier writes its output cell for it,
+which a computation must not do, and this is the one point of a frame that runs
+outside every computation.
 """
 function report_frame_faults!(editor::Editor)
     records = drain_faults!(editor.faults; policy = editor.fault_policy)
@@ -36,7 +41,36 @@ function report_frame_faults!(editor::Editor)
         report_fault!(editor.faults, record; policy = editor.fault_policy,
                       backend = editor.backend)
     end
+    _show_noted_marks!(editor)
     length(records)
+end
+
+# The barriers that took a fault show their marks, and from now on the editor
+# tries them again after an operation. The list is emptied first, so a mark that
+# throws leaves no barrier on it for the next frame.
+function _show_noted_marks!(editor::Editor)
+    noted = editor.noted_barriers
+    isempty(noted) && return nothing
+    barriers = copy(noted)
+    empty!(noted)
+    for barrier in barriers
+        push!(editor.marked_barriers, WeakRef(barrier))
+        show_barrier_mark!(barrier)
+    end
+    nothing
+end
+
+# Each barrier that shows a mark tries its part again, once after the operations
+# of a frame. A part that prints again leaves the list; a part that fails keeps
+# its mark and adds no record. A barrier that no part holds any more is gone from
+# the weak list.
+function _retry_marked_barriers!(editor::Editor)
+    editor.is_retry_pending = false
+    filter!(editor.marked_barriers) do reference
+        barrier = reference.value
+        barrier === nothing ? false : !retry_barrier_print!(barrier)
+    end
+    nothing
 end
 
 const _CONSECUTIVE_FAULT_LIMITS = (print = 4, device_read = 8, device_write = 8)
@@ -93,6 +127,8 @@ function _evaluate_operation_guarded!(editor::Editor, operation)
     editor.fault_policy.is_barrier_enabled ||
         return evaluate_operation(editor, operation)
     inverse = _make_operation_inverse(editor, operation)
+    # A mark tries its part again after an operation, which can have repaired it.
+    operation === nothing || (editor.is_retry_pending = true)
     answer = _run_barrier(editor, :evaluate;
                           origin = operation === nothing ? :nothing : typeof(operation),
                           fallback = _BARRIER_FAILED) do

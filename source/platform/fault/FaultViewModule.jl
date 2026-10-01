@@ -61,6 +61,8 @@ using ..WidgetModule
 using ..FocusModule
 using ..EditorModule
 using ..SettingsModule
+using ..EventModule
+using ..GestureModule
 
 # The names this module EXTENDS are imported, never merely used: a bare
 # `using` binds the name for reading and a definition beside it makes a NEW
@@ -72,14 +74,17 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FaultModule: append_fault!
 import ..SettingsModule: apply_settings!, read_settings!, is_settings_group_applied
+import ..CellModule: record_computation_fault!
+import ..OperationModule: evaluate_operation
 import ..SerializationModule: pred_arguments
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent,
-                           map_reference_forward, map_reference_backward
+                           map_reference_forward, map_reference_backward,
+                           get_content_iomap, show_barrier_mark!, retry_barrier_print!
 
 export FaultReport, FaultLog, FaultLogEntry, get_session_fault_log,
        format_fault_label, format_fault_report_message, clear_fault_log!,
-       FaultCatchingProjection, FaultCatchingIoMap,
+       FaultCatchingProjection, FaultCatchingIoMap, RetryBarrierPrintOperation,
        FaultToSyntax, FaultToText, FaultToWidget, FaultToGraphics,
        FaultTheme, ScaledFaultTheme,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,

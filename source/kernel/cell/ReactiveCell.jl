@@ -290,7 +290,7 @@ the computation of an expression, and the guide `kernel/cell`.
 """
 function set_cell_computation!(c::ReactiveCell{T}, computation::Function) where {T}
     _detach_upstream!(c)
-    c.computation = computation
+    c.computation = _capture_fault_scope(computation)
     nothing isa T && (c.value = nothing)
     c.valid = false
     _invalidate_dependents!(c)

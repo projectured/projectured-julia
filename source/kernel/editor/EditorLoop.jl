@@ -96,6 +96,8 @@ function run_frame!(editor::Editor)
     # turn of the loop runs a frame without a wait.
     is_input_left && (editor.wake_pending[] = true)
     editor.operation = applied
+    # Outside the paint, so a part that prints again shows in this frame.
+    editor.is_retry_pending && _retry_marked_barriers!(editor)
     @measure_performance_time :print_time begin
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do
             print!(editor)

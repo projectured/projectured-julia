@@ -38,6 +38,17 @@ Holds the state for a read-eval-print loop:
                    the policy of its editor.
   - `replaced_projection` — the projection the safe mode put aside, or
                    `nothing` when the editor is not in the safe mode.
+  - `noted_barriers` — the fault barriers that took a fault since the last
+                   frame. The printer context carries it under
+                   `:noted_barriers`, a barrier puts itself on it from inside a
+                   computation, and the next frame shows the mark of each one
+                   ([`show_barrier_mark!`](@ref)) (internal).
+  - `marked_barriers` — the fault barriers that show a mark, held weakly, so a
+                   part that is printed no more is not kept. The editor tries
+                   each one again after an operation
+                   ([`retry_barrier_print!`](@ref)) (internal).
+  - `is_retry_pending` — an operation was applied since the editor last tried
+                   the marks (internal).
   - `feeds`      — the registered inflows, drained once per frame by
                    [`drain_feeds!`](@ref). The built-in [`InboxFeed`](@ref) is
                    always first; the rest is given at construction and fixed
@@ -75,6 +86,9 @@ mutable struct Editor
     faults::FaultStore
     fault_policy::FaultPolicy
     replaced_projection::Union{Projection, Nothing}
+    noted_barriers::Vector{Any}
+    marked_barriers::Vector{WeakRef}
+    is_retry_pending::Bool
     feeds::Vector{Feed}
     wake_pending::Threads.Atomic{Bool}
     frame_measurements::FrameMeasurementStore
@@ -103,6 +117,7 @@ function Editor(document, projection; backend::Backend,
     editor = Editor(backend, document, projection, devices, clock, tools,
                     Channel{Operation}(INBOX_CAPACITY),
                     nothing, nothing, faults, fault_policy, nothing,
+                    Any[], WeakRef[], false,
                     # The wake starts pending: the first frame runs before the
                     # first wait, so the editor paints once before anything
                     # has happened.
@@ -132,7 +147,14 @@ end
 # `invalidate_projection!` is a no-op for an object that caches nothing; this method
 # is what an operation like a whole-root `ReplaceReferencedValueOperation` swap
 # actually reaches when it runs against a real `Editor`.
-OperationModule.invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
+# A print from the start makes every barrier new, so the barriers of the IoMap
+# that goes are forgotten with it.
+function OperationModule.invalidate_projection!(editor::Editor)
+    editor.iomap = nothing
+    empty!(editor.noted_barriers)
+    empty!(editor.marked_barriers)
+    nothing
+end
 
 # An editor is where a model reads a reference from: its document, read at the
 # call, so a reference is read from the document the editor holds now and not

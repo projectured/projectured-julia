@@ -175,16 +175,33 @@ function print!(editor::Editor)
         # does not change.
         ctx = with_property(
                   with_property(
-                      with_property(with_clock(PrinterContext(), editor.clock),
-                                    :root, editor.document),
-                      :fault_store, editor.faults),
-                  :fault_policy, editor.fault_policy)
+                      with_property(
+                          with_property(with_clock(PrinterContext(), editor.clock),
+                                        :root, editor.document),
+                          :fault_store, editor.faults),
+                      :fault_policy, editor.fault_policy),
+                  :noted_barriers, editor.noted_barriers)
         editor.iomap = print_document(editor.projection, nothing,
                                       editor.document, ctx)
     end
     is_editor_degraded(editor, :device_write) && return nothing
     _run_barrier(editor, :device; counter = :device_write,
                  origin = typeof(editor.backend)) do
+        _write_output_to_devices!(editor)
+    end
+end
+
+# A fault that a fault barrier took while the device read the output belongs to
+# the printer, not to the device. The barrier recorded it and is on the list, so
+# the frame skips the paint, the screen keeps the frame before it, and the next
+# frame draws the mark. With no barrier on the list nothing will draw a mark, so
+# the fault counts as a fault of the device, and the device barrier bounds it.
+function _write_output_to_devices!(editor::Editor)
+    try
         write_to_devices(editor.backend, editor.devices, editor.iomap.output)
+    catch exception
+        (exception isa RecordedFaultException && !isempty(editor.noted_barriers)) ||
+            rethrow()
+        nothing
     end
 end

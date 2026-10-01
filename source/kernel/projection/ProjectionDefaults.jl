@@ -279,6 +279,7 @@ function read_routed_intent(projection, recursion, change::Intent, iomap)
 end
 
 get_child_iomaps(iomap) = nothing
+get_content_iomap(iomap) = iomap
 get_child_iomaps(iomap::ContentIoMap) = Any[iomap.inner_iomap]
 get_child_iomaps(iomap::ChildrenIoMap) = _find_entry_iomaps(iomap.child_iomaps)
 

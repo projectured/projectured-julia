@@ -23,11 +23,16 @@ The cell keeps the function and not the marker. Only a `ReactiveCell` and an
 `UntrackedCell` can compute, so a `MutableCell` or an `ImmutableCell` throws an
 `ArgumentError` when it gets a `Computation`.
 
+A marker made inside a fault scope keeps the scope with its function, so the
+function that the cell keeps hands its fault to that scope; see
+`run_in_fault_scope`.
+
 See also `@computation`, and `set_cell_computation!`, which gives a computation
 to a cell that exists.
 """
 struct Computation
     computation::Function
+    Computation(computation::Function) = new(_capture_fault_scope(computation))
 end
 
 Base.show(io::IO, marker::Computation) =
