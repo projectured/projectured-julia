@@ -322,7 +322,7 @@ is safe only when nothing writes the frame at the same time.
   expression; a range for a number; a list of the values with their counts
   when a column has few distinct values; "missing" or "not missing".
 - An expression filter: a Julia expression over the column names, for example
-  `:age > 30 && startswith(:city, "B")`. The Julia domain edits it.
+  `age > 30 && startswith(city, "B")`. The Julia domain edits it.
 - Hide, show, move and freeze columns.
 - While the text of a cell is pending, the row stays where it is. The commit
   writes the frame, and the view sorts and filters again at once (D6). D10
@@ -573,8 +573,8 @@ chose seams in place of registries (§5.1). The design is in
     `abc` for "contains", `/re/` for a regular expression, `= x` for an exact
     value, `missing` and `!missing`. A condition that does not parse shows a
     mark. The filters of all columns combine with "and".
-  - **F4. The expression filter**, such as `:age > 30 && startswith(:city,
-    "B")`, is (a) a bar above the table with a plain text field, and (c) the
+  - **F4. The expression filter**, such as `age > 30 && startswith(city,
+    "B")` (a bare name since 5.6b; it was `:age` first), is (a) a bar above the table with a plain text field, and (c) the
     Julia domain gives the bar its editor through a seam when it is loaded.
     The data frame package does not depend on the Julia domain. The
     expression compiles once into a function of the columns that it names,
@@ -1211,6 +1211,41 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       A picture shows the bar and its result (59 rows of 1,200, correct).
       Open, small: the label is not centred on the field, and the bar row
       has the background of the cells.
+    - [x] **5.6b A bare name is the column, and the empty bar shows an
+      example.** The owner, 2026-10-01: "It expects :stem for a stem column.
+      I could not guess that, why not just stem?", then "Yes" to the
+      proposal of the writer:
+      - A bare name that names a column is the column; `:name` still works,
+        as DataFramesMeta.jl writes it. A name that Julia uses for something
+        else stays: the function of a call or of a broadcast, the field after
+        a dot, the name of a keyword argument (after a comma or a semicolon)
+        and of a macro. `var"unit price"` names a column whose name is no
+        identifier. A column wins over a global of the same name, and
+        `Main.name` reaches the global.
+      - Found while implementing (mine): with bare names, the typo
+        `age = 30` for `age == 30` writes 30 into the column of the frame,
+        because the name becomes the element of the column vector. `:age =
+        30` did the same before. An expression that assigns to a column,
+        with `=`, an update such as `+=`, or in a tuple on the left, does
+        not compile now; its reason says "write == to compare".
+      - The placeholder: `WidgetText` had none (`placeholder_color` is for
+        images only). `WidgetText` has the field `placeholder` after
+        `language`, and `WidgetTextToGraphicsCanvas` the style
+        `placeholder_text` (the muted foreground of the theme). An empty
+        field of plain text draws it where its text begins, below the
+        content, so the caret draws over it, and the box is at least as wide
+        as it. A press in the box puts the caret at the start, as before. It
+        is no part of the content.
+      - The example of the bar is made of the columns of the frame (mine):
+        the first column of numbers compared with its first value that is
+        not `missing`, and a test of the first letter of the first column of
+        strings, such as `age > 30 && startswith(city, "B")`; `nothing` when
+        the frame has neither. It reads `frame_version`, so a refresh with a
+        new column makes it again.
+      - Tests: bare names, `:name`, the call, the dot, the keyword names,
+        `var"..."`, the column over the global and `Main.name`, the
+        assignments, the example, and the placeholder (drawn, muted, below
+        the content, gone with a text, a press at the start).
     - [ ] **5.7 Column resize** (F6), in the widget substrate: a press within
       3 pixels of the right edge of a header starts a drag, as the splitter
       does, and the drag writes the width of the column. The view keeps it

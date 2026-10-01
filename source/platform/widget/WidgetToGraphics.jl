@@ -365,6 +365,7 @@ WidgetLabelToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     content_disabled_color::StyleColor
     label_text::StyleText                         # the text of the non-editable form
     label_disabled_text::StyleText
+    placeholder_text::StyleText                   # the example that an empty field shows
     focus_ring_stroke::StyleStroke                # the widget holds the focus
     selection_ring_stroke::StyleStroke            # the widget is selected as a whole
     corner_radius::Int
@@ -383,6 +384,8 @@ WidgetTextToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            label_text = _themed(StyleText, theme, _get_body_text),
                            label_disabled_text =
                                _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                           placeholder_text =
+                               _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                            focus_ring_stroke =
                                _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                            selection_ring_stroke =
@@ -391,7 +394,7 @@ WidgetTextToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     WidgetTextToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                padding_color, content_color, padding_disabled_color,
                                content_disabled_color, label_text, label_disabled_text,
-                               focus_ring_stroke, selection_ring_stroke, corner_radius)
+                               placeholder_text, focus_ring_stroke, selection_ring_stroke, corner_radius)
 
 @projection UntrackedCell struct WidgetCheckboxToGraphicsCanvas
     margin::Inset
@@ -1749,17 +1752,28 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         # directions, and a form field of nothing cannot be clicked.
         inset_width, inset_height = _inset_total(p, w)
         content_x, content_y = _content_offset(p, w)
+        # An empty field of plain text shows its placeholder, an example of what
+        # it takes, where its text begins, and is as wide as the example.
+        placeholder = w.placeholder
+        shows_placeholder = placeholder !== nothing && !(w.content isa Document) && isempty(string(w.content))
+        inner_w = Int(inner.w[])
+        shows_placeholder && (inner_w = max(inner_w, _text_size(p.measure, p.placeholder_text.font,
+                                                                String(placeholder))[1]))
         # `w.width` is an authored inner width, so it and the offer are both
         # outer measures here: resolve the outer extent by the one rule, then
         # take the inner box back out of it.
-        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + inset_width : 0,
-                                 Int(inner.w[]) + inset_width)
+        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + inset_width : 0, inner_w + inset_width)
         outer_h = _resolve_height(ctx, 0,
                                   max(Int(inner.h[]),
                                       _text_size(p.measure, p.label_text.font, "X")[2]) + inset_height)
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w; state),
                          outer_w - inset_width, outer_h - inset_height; radius)
+        if shows_placeholder
+            style = p.placeholder_text
+            push!(elems, GraphicsText(String(placeholder), content_x, content_y; font = style.font,
+                                      color = style.color))
+        end
         push!(elems, _make_canvas(content_x, content_y, Any[inner]))
         _push_focus_ring!(elems, w, outer_w, outer_h, p.focus_ring_stroke, radius;
                           whole = p.selection_ring_stroke)

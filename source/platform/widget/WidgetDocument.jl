@@ -93,7 +93,7 @@ set_cell_computation!(w::WidgetLabel, f::Function) = (set_cell_computation!(getf
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
 """
-    WidgetText(content; position, width, language, <base kwargs>)
+    WidgetText(content; position, width, language, placeholder, <base kwargs>)
 
 One line of text a person edits.
 
@@ -115,6 +115,10 @@ clicked. `WidgetSpinBox` carries the same field for the same reason.
 the package of the language extends, and it is plain text while no such
 package is loaded. The text, its caret and its edits are the same either way.
 
+`placeholder` is a text that the field shows in a muted color while it is
+empty, such as an example of what it takes, or `nothing`. It is no part of the
+content: the caret, a key and a save see an empty field.
+
 See also `WidgetTextarea` for several lines, `WidgetLabel` for text that is
 only read, and `WidgetSpinBox` for a number.
 """
@@ -124,6 +128,7 @@ only read, and `WidgetSpinBox` for a number.
     width::Int
     validator::Any
     language::Any
+    placeholder::Any
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -137,13 +142,14 @@ function WidgetText(content; position::Point2D=Point2D(0, 0),
                     width::Integer=0,
                     validator=nothing,
                     language::Union{Nothing,Symbol}=nothing,
+                    placeholder::Union{Nothing,AbstractString}=nothing,
                     visible::Bool=true,
                     enabled::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
                     style=nothing, tooltip=nothing)
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
     WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator), Cell(language),
-               Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+               Cell(placeholder), Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                Cell(style), Cell(tooltip), Cell(nothing))
 end
 

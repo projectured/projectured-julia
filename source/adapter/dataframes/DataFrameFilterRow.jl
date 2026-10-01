@@ -99,9 +99,11 @@ _make_field_child_reference(path) =
 # A text field of the query: `text()` is its text, `range()` the range of its
 # caret or `nothing`, and `reason()` why its text does not parse, or `nothing`.
 # A text that does not parse colors the field, and its tooltip says the reason.
+# `placeholder()` is the example that the empty field shows, or `nothing`.
 function _make_query_field(text, range, reason; width::Int = _QUERY_FIELD_WIDTH,
-                           language::Union{Nothing,Symbol} = nothing)
+                           language::Union{Nothing,Symbol} = nothing, placeholder = nothing)
     field = WidgetText(""; width, language)
+    placeholder === nothing || set_cell_computation!(getfield(field, :placeholder), placeholder)
     set_cell_computation!(getfield(field, :content), text)
     set_cell_computation!(getfield(field, :selection),
                           () -> (r = range(); r === nothing ? nothing : _make_content_range_reference(r)))
@@ -154,14 +156,16 @@ end
 const _EXPRESSION_FIELD_WIDTH = 480
 
 # The bar above the table: the field of the expression of the query, after the
-# words that it ends, so it reads "Rows where :age > 30", and at the right end
+# words that it ends, so it reads "Rows where age > 30", and at the right end
 # the glyph that reads the frame again, as F5 does. The field is Julia code,
-# which the Julia domain colors when it is loaded. The bar is a grid of one row,
-# whose third column takes the room between the field and the glyph.
+# which the Julia domain colors when it is loaded. An empty field shows an
+# example made of the columns of the frame. The bar is a grid of one row, whose
+# third column takes the room between the field and the glyph.
 function _make_expression_bar(view)
     field = _make_query_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
                               () -> last(view.expression_result); width = _EXPRESSION_FIELD_WIDTH,
-                              language = :julia)
+                              language = :julia,
+                              placeholder = () -> (view.frame_version; _make_expression_example(view.frame)))
     bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), _make_refresh_glyph(view)], 4;
                      horizontal_gap = 8, vertical_align = :center,
                      column_policies = Any[Content, Content, Fill, Content])
