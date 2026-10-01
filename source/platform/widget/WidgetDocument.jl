@@ -2192,8 +2192,9 @@ that the grids report ("layout is just layout").
   `ListNode` of headers that moves in step with it: its head is the header of
   the head row.
 - `corner` — `nothing`, or the `Document` drawn where the header row and the
-  header column meet, which a table whose rows are a list takes. It is at least
-  as wide as the header column and as tall as the header row.
+  header column meet. A corner makes the table a table of a list, whose rows
+  are a list or, at first, an empty vector. The header column is at least as
+  wide as the corner, and the header row at least as tall.
 - `rows` — the body: a `CellVector` of rows, or a `ListNode` whose values are
   rows; a row is a `CellVector` of `Document` cells either way. A list is drawn
   one row at a time as a viewport reaches it, and `rows[i]` counts from the
@@ -2347,9 +2348,9 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
         error("WidgetTable: a table whose rows are a list takes its row headers as a list")
     rows isa Vector && row_headers isa ListNode &&
         error("WidgetTable: a table whose rows are a vector takes its row headers as a vector")
-    rows isa Vector && corner !== nothing &&
-        error("WidgetTable: a table whose rows are a vector draws its corner as graphics, ",
-              "and takes no corner document")
+    rows isa Vector && !isempty(rows) && corner !== nothing &&
+        error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
+              "of rows or an empty vector")
     WidgetTable(Cell(position),
                 column_headers isa ListNode ? Cell(column_headers) :
                     CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),

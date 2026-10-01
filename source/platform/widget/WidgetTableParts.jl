@@ -89,16 +89,19 @@ function _check_table_parts(w::WidgetTable, height)
     headers = w.row_headers
     headers isa ListNode || isempty(headers) ||
         error("WidgetTable: a table whose rows are a list takes its row headers as a list")
-    if headers isa ListNode
+    w.rows isa ListNode || isempty(w.rows) ||
+        error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
+              "of rows or an empty vector")
+    if headers isa ListNode || w.corner !== nothing
         policy = w.row_policy
         (policy isa SizePolicy && policy.preferred !== nothing &&
          (policy.weight === nothing || policy.weight == 0)) ||
             error("WidgetTable: a table whose rows and row headers are lists needs a Fixed ",
                   "row policy, so the header column and the cells have the same rows")
     end
-    w.corner === nothing || (headers isa ListNode && _has_table_column_headers(w)) ||
+    w.corner === nothing || _has_table_column_headers(w) ||
         error("WidgetTable: a corner sits where the header row and the header column meet, ",
-              "so it needs column headers and row headers")
+              "so it needs column headers")
     isempty(w.row_policies) ||
         error("WidgetTable: the rows of a list are all alike; name one row policy")
     nothing
@@ -189,6 +192,11 @@ function _read_cells_wheel(table, pane, x::Int, y::Int, evt::MouseScroll)
                                                    time = evt.time))
 end
 
+# The rows that the grid of the cells walks: the list of rows, or `nothing`, a
+# list with no rows, while the rows are a vector. So the grid is a list from its
+# first print on, and draws a list that the rows hold later.
+_get_row_list(w::WidgetTable) = Cell(@computation (rows = w.rows; rows isa ListNode ? rows : nothing))
+
 # ── The header column and the corner ─────────────────────────────────────────
 
 # Whether the table has a header row: a list of headers, or a vector with one.
@@ -231,8 +239,10 @@ end
 # the header of the head row, which the grid measures once it prints.
 function _print_header_column(recursion, w::WidgetTable, inner, corner, height::Cell,
                               pad_x::Int, pad_y::Int, bw::Int)
-    # A move of the head writes the row headers, and the parts do not depend on it.
-    peek(getfield(w, :row_headers)) isa ListNode || return nothing
+    # A move of the head writes the row headers, and the parts do not depend on
+    # it. A corner makes a header column, which holds no rows while the rows are
+    # an empty vector.
+    peek(getfield(w, :row_headers)) isa ListNode || w.corner !== nothing || return nothing
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
     grid_iomap = Cell(nothing)
@@ -242,7 +252,7 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height::
         max(_get_part_child_width(corner), cell === nothing ? 0 : _get_part_child_width(cell[3]))
     end)
     rows = Cell(@computation (headers = w.row_headers;
-                              headers isa ListNode ? _make_header_row_node(headers) : CellVector()))
+                              headers isa ListNode ? _make_header_row_node(headers) : nothing))
     grid = GridLayout(rows, Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(Symbol[]),
                       Cell(@computation Fixed(width[])), getfield(w, :row_policy), Cell(Any[]),
                       Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))
@@ -281,7 +291,8 @@ function _make_header_column_row_graphics(p::WidgetTableToGraphicsCanvas, w::Wid
     elements = CellVector(@computation begin
         h = Int(height[])
         width = Int(st.header_width[])
-        out = Any[GraphicsRect(0, 0, width, h; color), bands..., GraphicsRect(0, 0, width, bw; color = divider)]
+        out = Any[GraphicsRect(0, 0, width, h; color), bands...,
+                  GraphicsRect(0, 0, width, bw; color = divider)]
         row_node.next === nothing && push!(out, GraphicsRect(0, h - bw, width, bw; color = divider))
         out
     end)
@@ -575,7 +586,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     header_grid = column_header_pane === nothing ? nothing : column_header_pane.content_iomap
     get_header(c) = header_grid === nothing ? nothing : header_grid.child_iomaps[c][3]
     policies = Cell(@computation Any[_get_cells_column_policy(w, c, get_header(c)) for c in 1:n])
-    grid = GridLayout(getfield(w, :rows), Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
+    grid = GridLayout(_get_row_list(w), Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
                       Cell(aligns), getfield(w, :column_policy), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
     cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
@@ -797,7 +808,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     header_grid[] = column_header_pane.content_iomap
     header_height = Cell(@computation Int(column_header_pane.output.h))
 
-    grid = GridLayout(getfield(w, :rows), Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
+    grid = GridLayout(_get_row_list(w), Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
                       getfield(w, :column_align), Cell(Fixed(width)), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))
     cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
@@ -968,8 +979,9 @@ end
 # answer of the pane of the header row for `children[c].…`, or for
 # `children[1][c].…` when the columns are a list. `row_headers[k].…` is the
 # answer of the pane of the header column for `children[k][1].…`, and
-# `corner.…` the answer of the corner. The table itself is its own canvas. A whole row has no node of its own, because its band is drawn in the
-# graphics of the rows, so it has no image.
+# `corner.…` the answer of the corner. The table itself is its own canvas. A
+# whole row has no node of its own, because its band is drawn in the graphics
+# of the rows, so it has no image.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
@@ -991,8 +1003,8 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
         st.row_header_pane === nothing && return nothing
         tail = reference.tail
         (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
-        return _map_part_forward(iomap, st.row_header_pane,
-                                 ConcreteReference(tail.head, ConcreteReference(RangeReferenceStep(0, 1), tail.tail)))
+        inner = ConcreteReference(tail.head, ConcreteReference(RangeReferenceStep(0, 1), tail.tail))
+        return _map_part_forward(iomap, st.row_header_pane, inner)
     elseif head.name == "corner"
         st.corner === nothing && return nothing
         image = map_reference_forward(st.corner.projection, st.corner, reference.tail)
@@ -1104,10 +1116,10 @@ end
 # A scroll of the cells, and the write of the row at the top of the offset it
 # writes when that row changes. When the row is more than
 # `_TABLE_RELOCATION_DISTANCE` rows from the head, the answer moves the head of
-# `rows`, and of `row_headers` when they are a list, to it instead, and moves the offset by the place of that row, so the
-# same row stays at the same place on the screen; a selection of a row moves
-# with it. A projection that owns the rows turns the write of `rows` into an
-# edit of its own.
+# `rows`, and of `row_headers` when they are a list, to it instead, and moves
+# the offset by the place of that row, so the same row stays at the same place
+# on the screen; a selection of a row moves with it. A projection that owns
+# the rows turns the write of `rows` into an edit of its own.
 function _add_top_row(iomap::WidgetTableListIoMap, op)
     w = iomap.input
     offset = _find_written_offset(op)

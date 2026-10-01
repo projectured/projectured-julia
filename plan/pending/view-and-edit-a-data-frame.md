@@ -1077,9 +1077,36 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         the eager table, 290 pass.
       - Not checked: whether undo takes back a hide, because a posted
         operation is applied outside the reader of the window.
-    - [ ] **5.3 The query and the rows that pass.** `DataFrameQuery`, the
+    - [x] **5.3 The query and the rows that pass.** `DataFrameQuery`, the
       computed vector of rows, the hidden columns and the pattern of the
       names (`abc` contains, `/re/` a regular expression).
+      Done 2026-10-01:
+      - `DataFrameQuery` holds `hidden_columns`, `column_pattern`,
+        `column_filters` (a `DataFrameColumnFilter` of each column, by name,
+        made with the view) and `expression` (read in 5.6).
+      - The language of F3 is parsed in this step, because the rows can not
+        be computed or tested without it (`DataFrameFilter.jl`): a text is
+        read once into a callable struct, which runs over the column vector.
+        Choices (mine): "contains" ignores case; `!= a` is part of it; a
+        comparison and a range read a `Float64`; `= a, b` compares by value
+        for numbers and `true`/`false`, else by the printed text, and a
+        value in double quotes keeps its commas.
+      - `kept_rows` is a computed field of the view, so the projection, the
+        scroll bar and Ctrl+End read one vector. It runs in the newest world,
+        because a value can print with a method that a later package adds.
+        `anchor` is now a place among the kept rows.
+      - The corner shows the count of the kept rows, padded with figure
+        spaces to the digits of the count of all rows (mine), so the header
+        column stays as wide as the widest row number.
+      - Found: a grid chooses its form by the type of its children at the
+        first print, so a table whose first print keeps no row could not
+        draw rows later. Now a grid whose children are `nothing` is a list
+        with no rows, and a corner makes a table of a list; a test prints a
+        filter that keeps no row first.
+      - Tests: `test_data_frame_filter()` (the language, missing, the
+        reasons, the kept rows and the table, Ctrl+End, a first print with
+        no row, the pattern), the data frames 131, the tables and the list
+        layouts 252 pass.
     - [ ] **5.4 The filter row.** Each header is the label above a
       `WidgetText` of the filter text of its column. The selection of the
       view goes into the text of the query, and the view maps it to the text

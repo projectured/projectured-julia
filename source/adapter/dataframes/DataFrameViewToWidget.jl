@@ -78,7 +78,7 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     # The rows that the table shows: the height less the header row, in rows.
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
                                 max(1, Int(height[]) ÷ p.row_step - 1))
-    count = Cell(@computation nrow(view.frame))
+    count = Cell(@computation length(view.kept_rows))
     # Positional: orientation, value, thumb_size, position, size, visible,
     # margin, border, padding, style, tooltip, selection.
     bar = WidgetScrollBar(Cell(:vertical),
@@ -110,7 +110,8 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
                                           for name in _get_shown_columns(view)])
     align = Cell(@computation Symbol[_get_column_align(eltype(view.frame[!, name]))
                                      for name in _get_shown_columns(view)])
-    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.anchor))
+    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.kept_rows,
+                                            view.anchor))
     row_headers, corner = _make_row_numbers(view)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, rows, column_count, border_width,
@@ -131,15 +132,20 @@ end
 print_document(p::DataFrameViewToWidget, view::DataFrameView) =
     print_document(p, nothing, view, nothing)
 
-# The header of each row, its row number in the frame, as a list that moves in
-# step with the rows, and the corner, which shows the count of the rows and so
-# is as wide as the widest row number. A frame with no rows has neither.
+# The header of each kept row, its row number in the frame, as a list that moves
+# in step with the rows, and the corner, which shows the count of the kept rows.
+# The count is padded with figure spaces, which are as wide as a digit, to the
+# digits of the count of all rows, so the header column is as wide as the widest
+# row number. A frame with no rows has neither.
 function _make_row_numbers(view::DataFrameView)
-    headers = Cell(@computation (count = nrow(view.frame);
-                                 count == 0 ? CellVector() :
-                                     _make_index_list(count, view.anchor, i -> WidgetLabel(string(i)))))
+    headers = Cell(@computation (kept = view.kept_rows;
+                                 isempty(kept) ? CellVector() :
+                                     _make_index_list(length(kept), view.anchor,
+                                                      k -> WidgetLabel(string(kept[k])))))
     corner = Cell(@computation (count = nrow(view.frame);
-                                count == 0 ? nothing : WidgetLabel(string(count))))
+                                count == 0 ? nothing :
+                                    WidgetLabel(lpad(string(length(view.kept_rows)), ndigits(count),
+                                                     '\u2007'))))
     (headers, corner)
 end
 
@@ -152,8 +158,8 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                          c -> WidgetLabel(_get_header_text(columns[c], type_of(columns[c]))))))
     align = Cell(@computation (columns = _get_shown_columns(view);
         _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
-    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.anchor,
-                                            view.column_anchor))
+    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.kept_rows,
+                                            view.anchor, view.column_anchor))
     row_headers, corner = _make_row_numbers(view)
     # Positional, as in `_make_view_table` above.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows, Cell(0), Cell(1),
@@ -272,7 +278,7 @@ end
 function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::Operation)
     bar = _find_written_field(iomap.bar, operation)
     if bar !== nothing && bar[1] == "value"
-        count = nrow(iomap.input.frame)
+        count = length(iomap.input.kept_rows)
         return jump_to_row(iomap.input, _get_scroll_bar_row(bar[2], count, Int(iomap.visible)))
     end
     _convert_table_writes(iomap, operation)

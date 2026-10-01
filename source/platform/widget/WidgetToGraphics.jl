@@ -9146,10 +9146,9 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     # The printer reads the type of `rows` and nothing else says which table
     # this is: a list draws the rows a viewport shows, a vector draws them all.
-    w.rows isa ListNode && return _print_table_parts(p, recursion, w, ctx)
-    w.corner === nothing ||
-        error("WidgetTable: a table whose rows are a vector draws its corner as graphics, ",
-              "and takes no corner document")
+    # A corner makes a table of a list, whose rows can be an empty vector at
+    # first.
+    (w.rows isa ListNode || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.

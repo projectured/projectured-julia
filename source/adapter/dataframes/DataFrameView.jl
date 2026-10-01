@@ -9,39 +9,50 @@
     DataFrameView(frame; anchor = 1, column_anchor = 1)
 
 The view of `frame`, an `AbstractDataFrame`. `query`, a [`DataFrameQuery`](@ref),
-says what the view keeps of the frame, such as the columns that it hides; a
-column of the view is named by its name, with a `DataFrameColumnReferenceStep`.
-`anchor` is the row of the frame at
-the head of the list of rows, and `scroll_position` is the offset of the table
-from that row, in pixels. A frame with many columns draws its columns as a list
-too, and `column_anchor` is the column of the frame at the head of that list.
-`top_row` is the row at the top of the table, counted from the anchor, which the
-table writes as it scrolls; the scroll bar shows it. They are the state of the
-view: a jump writes them together, and a history does not record them.
+says what the view keeps of the frame: the columns that it shows, and the rows
+that pass its filters. `kept_rows` holds those rows, by their number in the
+frame and in its order; it follows the frame and the query. A column of the view
+is named by its name, with a `DataFrameColumnReferenceStep`.
+
+`anchor` is the place, among the kept rows, of the row at the head of the list
+of rows, and `scroll_position` is the offset of the table from that row, in
+pixels. A frame with many columns draws its columns as a list too, and
+`column_anchor` is the place, among the shown columns, of the column at the head
+of that list. `top_row` is the row at the top of the table, counted from the
+anchor, which the table writes as it scrolls; the scroll bar shows it. They are
+the state of the view: a jump writes them together, and a history does not
+record them.
 """
 @document struct DataFrameView <: Document
     frame::Any
     query::DataFrameQuery
+    kept_rows::Vector{Int}
     anchor::Int
     column_anchor::Int
     scroll_position::Point2D
     top_row::Int
 end
 
-DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1) =
-    DataFrameView(Cell(frame), Cell(DataFrameQuery()), Cell(Int(anchor)), Cell(Int(column_anchor)),
-                  Cell(Point2D(0, 0)), Cell(1), Cell(nothing))
+function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1)
+    view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell(Int[]), Cell(Int(anchor)),
+                         Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1), Cell(nothing))
+    # The rows that pass, computed again when the frame or the query changes. A
+    # value of a type that a package loaded later prints in the newest world.
+    set_cell_computation!(getfield(view, :kept_rows),
+                          () -> Base.invokelatest(_compute_kept_rows, view.frame, view.query))
+    view
+end
 
 """
     jump_to_row(view::DataFrameView, row::Integer) -> Operation or nothing
 
-The operation that shows row `row` of the frame at the top of the table: a new
-anchor, and the table at the anchor. The table stops at the last row, so a jump
-near the end shows the last row at the bottom. A row out of range is the first
-or the last row. `nothing` for a frame with no rows.
+The operation that shows the kept row at place `row` at the top of the table: a
+new anchor, and the table at the anchor. The table stops at the last kept row,
+so a jump near the end shows the last row at the bottom. A place out of range is
+the first or the last row. `nothing` for a view that keeps no row.
 """
 function jump_to_row(view::DataFrameView, row::Integer)
-    count = nrow(view.frame)
+    count = length(view.kept_rows)
     count == 0 && return nothing
     x = Int(view.scroll_position.x[])
     CompoundOperation(Any[
@@ -52,7 +63,7 @@ end
 
 @gestures DataFrameView begin
     KeyDown(:home; ctrl) => "Jump to the first row" => jump_to_row(doc, 1)
-    KeyDown(:end; ctrl) => "Jump to the last row" => jump_to_row(doc, nrow(doc.frame))
+    KeyDown(:end; ctrl) => "Jump to the last row" => jump_to_row(doc, length(doc.kept_rows))
 end
 
 # ── The cells ────────────────────────────────────────────────────────────────
@@ -79,17 +90,17 @@ end
 
 # ── The list of rows ─────────────────────────────────────────────────────────
 
-# The list of rows of `frame` with its head at row `anchor`, or an empty vector
-# for a frame with no rows: a table draws an empty vector as no rows. A row is a
-# vector of its cells in the `columns` that the view shows, or, when
+# The list of the `kept` rows of `frame` with its head at the place `anchor`, or
+# an empty vector when it keeps no row: a table draws an empty vector as no rows.
+# A row is a vector of its cells in the `columns` that the view shows, or, when
 # `column_anchor` is given, a list of them with its head at that column.
-function _make_row_list(frame::AbstractDataFrame, columns::Vector{String}, anchor::Int,
-                        column_anchor = nothing)
-    nrow(frame) == 0 && return CellVector()
+function _make_row_list(frame::AbstractDataFrame, columns::Vector{String}, kept::Vector{Int},
+                        anchor::Int, column_anchor = nothing)
+    isempty(kept) && return CellVector()
     row_of(i) = column_anchor === nothing ?
         make_widget_table_row(Any[make_data_frame_cell(frame[i, name]) for name in columns]) :
         _make_index_list(length(columns), column_anchor, c -> make_data_frame_cell(frame[i, columns[c]]))
-    _make_index_list(nrow(frame), anchor, row_of)
+    _make_index_list(length(kept), anchor, k -> row_of(kept[k]))
 end
 
 # The list of the values of the indices `1:count`, with its head at the index

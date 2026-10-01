@@ -5,18 +5,54 @@
 # window keeps it.
 
 """
-    DataFrameQuery(; hidden_columns = String[])
+    DataFrameColumnFilter(; column, text = "")
 
-What a `DataFrameView` keeps of its frame: `hidden_columns` names the columns
-that it does not show.
+The filter of the rows by one column: `text` is a condition in the language of
+the filter row, which the element type of `column` reads. An empty text keeps
+every row.
+"""
+@document struct DataFrameColumnFilter <: Document
+    column::String
+    text::String = ""
+end
+
+"""
+    DataFrameQuery(; hidden_columns = String[], column_pattern = "", column_filters, expression = "")
+
+What a `DataFrameView` keeps of its frame. `hidden_columns` names the columns
+that it does not show, and `column_pattern` keeps the columns whose names match
+it: a text that a name contains, or `/re/`, a regular expression. A row passes
+when it passes the `DataFrameColumnFilter` of every column in `column_filters`
+and the Julia `expression` over the columns.
 """
 @document struct DataFrameQuery <: Document
     hidden_columns::Vector{String} = String[]
+    column_pattern::String = ""
+    column_filters::CellVector = CellVector()
+    expression::String = ""
 end
 
-# The names of the columns that `view` shows, in the order of its frame.
-_get_shown_columns(view) =
-    String[name for name in names(view.frame) if !(name in view.query.hidden_columns)]
+# The query of a new view of `frame`: a filter for each column, with no text.
+_make_frame_query(frame) =
+    DataFrameQuery(; column_filters = CellVector(Cell[Cell(DataFrameColumnFilter(; column = String(name)))
+                                                      for name in names(frame)]))
+
+# The filter of column `name` in `query`, or `nothing`.
+function _find_column_filter(query, name::String)
+    for filter in query.column_filters
+        filter.column == name && return filter
+    end
+    nothing
+end
+
+# The names of the columns that `view` shows, in the order of its frame: the
+# columns that it does not hide, and whose names the pattern keeps.
+function _get_shown_columns(view)
+    query = view.query
+    keep = _parse_name_pattern(query.column_pattern)
+    String[name for name in names(view.frame)
+           if !(name in query.hidden_columns) && (keep isa String || keep(name))]
+end
 
 # The operation that writes `hidden` as the hidden columns of the query of
 # `view`.

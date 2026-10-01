@@ -2,7 +2,9 @@
 #
 # The list form of a grid layout: `children` is a `ListNode` of rows, and each
 # row is a vector of the documents of its cells, one for each column. The grid
-# draws the rows that a viewport shows and no others.
+# draws the rows that a viewport shows and no others. `nothing` is a list with
+# no rows: the grid is printed in the list form, and draws the rows of a list
+# that `children` holds later.
 #
 # **The head is the anchor**, as in the list form of a linear layout
 # (`LayoutList.jl`): `children[k][c]` names the cell in column `c` of the row

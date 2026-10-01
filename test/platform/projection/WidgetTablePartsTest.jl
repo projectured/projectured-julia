@@ -747,16 +747,25 @@ end
     @test text_at(io, "#305")[2] == text_at(io, "row 305")[2]
 end
 
-@testset "row headers on a list need Fixed rows, and a corner needs both strips" begin
+@testset "row headers on a list need Fixed rows, and a corner needs a header row" begin
     rows() = make_indexed_list(10, texts_of)
     headers() = make_list_of(10, i -> WidgetLabel("#$(i)"))
     @test_throws ErrorException print_document(rec, nothing, make_table(rows(); row_headers = headers()),
                                                context())
-    lone_corner = make_table(rows(); corner = WidgetLabel("c"), row_policy = Fixed(20))
-    @test_throws ErrorException print_document(rec, nothing, lone_corner, context())
+    no_header_row = WidgetTable(; column_headers = Any[], rows = rows(), column_count = 2,
+                                column_policies = policies, corner = WidgetLabel("c"), row_policy = Fixed(20))
+    @test_throws ErrorException print_document(rec, nothing, no_header_row, context())
     @test_throws ErrorException make_table(rows(); row_headers = Any["#1"])
     @test_throws ErrorException WidgetTable(; column_headers = Any["a"], rows = Any[Any["x"]],
                                             column_count = 1, corner = WidgetLabel("c"))
+end
+
+@testset "a corner makes a table of a list, also while its rows are an empty vector" begin
+    table = make_table(Any[]; corner = WidgetLabel("none yet"), row_policy = Fixed(20))
+    io = print_document(rec, nothing, table, context())
+    @test io isa WidgetTableListIoMap
+    @test Set(t[3] for t in texts(io.output)) == Set(["none yet", "name", "value"])
+    @test text_at(io, "none yet")[1] < Int(io.state.header_width[]) <= text_at(io, "name")[1]
 end
 
 
