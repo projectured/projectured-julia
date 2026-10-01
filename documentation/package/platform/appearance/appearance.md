@@ -36,7 +36,7 @@ For `CollectIntents`, the projection joins the keys of the content and its own, 
 
 ## One appearance for each editor
 
-The content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` must draw from one `Appearance`. `build_editor` makes each setting of a wrapper with `make_wrapper_setting` before it builds anything; for the setting `true` this slice makes a new `Appearance`. With no projection named, `make_document_projection(document; settings...)` gives the renderer the same object. `EditorParts.settings` holds the settings, so the `tabs` wrapper takes the appearance from there when its own setting names none. A start step of the wrapper copies the zoom of the appearance into the `Display`, so an editor starts at the zoom that its appearance holds.
+The content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` must draw from one `Appearance`. `build_editor` makes the argument of each wrapper with `make_wrapper_argument` before it builds anything; for the argument `true` this slice makes a new `Appearance`. With no projection named, `make_document_projection(document; arguments...)` gives the renderer the same object. `EditorParts.arguments` holds the arguments, so the `tabs` wrapper takes the appearance from there when its own argument names none. A start step of the wrapper copies the zoom of the appearance into the `Display`, so an editor starts at the zoom that its appearance holds.
 
 A main builder that builds its own projection makes one `Appearance`, builds with it, and passes it as `appearance = …` to `build_editor`.
 
@@ -46,5 +46,5 @@ The slice depends on the kernel and on the style slice. The backends read the zo
 
 ## Design decisions
 
-- **The editor knows nothing about themes.** The wrapper handles every change of the appearance, and the kernel only passes the settings of the wrappers on. See [plan/pending/zoom-and-theme-controls.md](../../../../plan/pending/zoom-and-theme-controls.md), D4, D20, D29 and D32.
+- **The editor knows nothing about themes.** The wrapper handles every change of the appearance, and the kernel only passes the arguments of the wrappers on. See [plan/pending/zoom-and-theme-controls.md](../../../../plan/pending/zoom-and-theme-controls.md), D4, D20, D29 and D32.
 - **A change prints the whole view again.** The view has no edge to the theme, so a print of the whole view is the one way a change reaches it, and it costs one print for a rare event.

@@ -154,10 +154,10 @@ documents of the inner wrappers around the screen.
   keep the tooltip window and the context menu window.
 """
 # @positional: the arity of the wrapper seam of the kernel.
-function wrap_editor!(::Val{:window}, layer::Symbol, setting, parts::EditorParts)
+function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorParts)
     _is_window_backend(parts.backend) || return parts
     get_wrapped_document(parts.document) isa ScreenDocument && return parts
-    options = setting === true ? (;) : setting
+    options = argument === true ? (;) : argument
     title = get(options, :title, nothing)
     title === nothing &&
         (title = something(get_document_title(parts.document), "ProjecturEd"))

@@ -44,9 +44,9 @@ of the `appearance` wrapper of the same editor, so the keys of the zoom and of t
 scales reach the tab strip too.
 """
 # @positional: the arity of the wrapper seam of the kernel.
-function wrap_editor!(::Val{:tabs}, layer::Symbol, setting, parts::EditorParts)
+function wrap_editor!(::Val{:tabs}, layer::Symbol, argument, parts::EditorParts)
     (parts.document isa PaneTree || parts.document isa ScreenDocument) && return parts
-    options = setting === true ? (;) : setting
+    options = argument === true ? (;) : argument
     document = parts.document
     title = get(options, :title, nothing)
     title === nothing && (title = something(get_document_title(document), "Document"))
@@ -57,7 +57,7 @@ function wrap_editor!(::Val{:tabs}, layer::Symbol, setting, parts::EditorParts)
     inner === nothing || set_selection!(tree, @reference(tree, root.tabs[1].content.^(inner)))
     parts.document = tree
     parts.projection = make_tabs_projection(parts.projection;
-        appearance = get(options, :appearance, get(parts.settings, :appearance, Appearance())),
+        appearance = get(options, :appearance, get(parts.arguments, :appearance, Appearance())),
         measure = get(options, :measure, FontFileMeasure()))
     parts
 end

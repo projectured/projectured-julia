@@ -131,7 +131,7 @@ function _start_session(document, title::String, backend, tabs::Bool)
               opened_window_projections = Pair{Type,Any}[Document => later])
     # The tabs wrapper is on by default: the pane slice of `ProjecturedPlatform`
     # is always loaded with this one, so `get_wrapper_layers` always has a
-    # method for `:tabs`. Its setting names the first tab.
+    # method for `:tabs`. Its argument names the first tab.
     has_tabs = hasmethod(get_wrapper_layers, Tuple{Val{:tabs}})
     # The loop logs each operation that it applies as an info line, and a hover
     # is an operation. The task of the loop keeps the logger of the scope that

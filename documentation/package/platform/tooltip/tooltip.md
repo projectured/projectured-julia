@@ -34,7 +34,7 @@ The gesture tracker recognizes the dwell when the pointer rests. The dwell then 
 
 ### The window
 
-`TooltipWindowProjection` keeps the tooltip window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`. The `window` wrapper of `build_editor` gives its setting `inner_wrappers` to `make_tracking_screen`.
+`TooltipWindowProjection` keeps the tooltip window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`. The `window` wrapper of `build_editor` gives its option `inner_wrappers` to `make_tracking_screen`.
 
 - **Opening.** The wrapper takes the `OpenTooltipOperation` out of the answer of its content and opens a window with `style = :tooltip`, `offset` from the point, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens below the part, with the left edges aligned (`find_part_place` of the screen slice).
 - **What it shows.** The window holds a `TooltipContent`: all the layers, and how many of them show. The natural projection draws it: the content of each shown layer, and a separator and the title before each layer when more than one shows. The row is `make_natural_tooltip_row(; measure)`, and a host gives it in `make_opened_window_projections(; content)`.

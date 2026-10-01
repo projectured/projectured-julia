@@ -369,7 +369,7 @@ caller:
 - `build_editor(document, projection; backend = nothing, devices, feeds,
   fault_policy, wrappers...)` chooses the backend when none is given, applies
   the wrappers, and then calls `make_editor`. `build_editor(document; ...)`
-  takes the projection from `make_document_projection(document; settings...)`.
+  takes the projection from `make_document_projection(document; arguments...)`.
 - `run_editor!(document, projection; wait = true, mcp = false, keywords...)` and
   `run_editor!(document; ...)` are `build_editor` and then the loop. With
   `wait = false` the call returns the editor at once, and the editor is built
@@ -410,20 +410,20 @@ when one more package is loaded. A backend with no method of
 
 | Seam | What it answers |
 |---|---|
-| `wrap_editor!(::Val{k}, layer, setting, parts::EditorParts)` | changes the document, the projection, the feeds and the start steps of the editor that is made |
+| `wrap_editor!(::Val{k}, layer, argument, parts::EditorParts)` | changes the document, the projection, the feeds and the start steps of the editor that is made |
 | `get_wrapper_layers(::Val{k})` | the layers it acts in, each with a number that orders it in the layer, as `(:document => 70,)` |
 | `get_excluded_wrappers(::Val{k})` | the keywords that can not be on with it; none by default |
 | `is_wrapper_default(::Val{k})` | whether it is on when the caller does not name it; off by default |
-| `make_wrapper_setting(::Val{k}, setting)` | the setting as the wrapper uses it, made before anything of the editor is built; by default the setting as it is |
+| `make_wrapper_argument(::Val{k}, argument)` | the argument as the wrapper uses it, made from the value of the keyword before anything of the editor is built; by default the value as it is |
 
-`build_editor` makes every setting first, and `EditorParts.settings` holds them
-all, so a wrapper can read the setting of another wrapper; the kernel never reads
-them. With no projection named, `make_document_projection(document; settings...)`
-gets the same settings, so the projection and a wrapper can share an object, such
+`build_editor` makes every argument first, and `EditorParts.arguments` holds them
+all, so a wrapper can read the argument of another wrapper; the kernel never reads
+them. With no projection named, `make_document_projection(document; arguments...)`
+gets the same arguments, so the projection and a wrapper can share an object, such
 as the `Appearance` of the `appearance` wrapper. The layers are `:document`,
 `:container`, `:window` and `:screen`, from the
-inside out. The value of a keyword is its setting: `true` for the defaults, a
-`NamedTuple` of settings, or `false` to turn off a wrapper that is on by
+inside out. The value of a keyword is the argument of its wrapper: `true` for the
+defaults, a `NamedTuple` of options, or `false` to turn off a wrapper that is on by
 default. A keyword that no loaded package declares is an error when it is on,
 and is ignored when it is off.
 
@@ -441,7 +441,7 @@ output (the pipeline is expected to end in one).
 `run_editor!(editor)` runs the loop, and calls `quit_backend!(editor.backend)` in
 a `finally` block when the loop ends. `make_editor` quits the backend too when the
 build or the print throws. Pass `mcp = true` to `run_editor!(editor)` to start
-an MCP server alongside the loop. The setting can also be a `NamedTuple`:
+an MCP server alongside the loop. The value can also be a `NamedTuple`:
 `instructions` overrides the text the MCP server's `initialize` response sends a
 connecting client (see [MCP server](#mcp-server)), and `host` and `port` say
 where the server listens. A field that is left out keeps the server's default:
@@ -546,7 +546,7 @@ In the example packages this is wired up for you — see `play_live_example` and
 
 When `run_editor!` starts with `mcp=true`, it constructs an `McpServer` bound to
 the editor when the loop starts, so the server serves the tools that a caller
-registers between `make_editor` and `run_editor!`. It launches the server at the `host` and `port` of the setting,
+registers between `make_editor` and `run_editor!`. It launches the server at the `host` and `port` of the argument,
 `http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
 seam (see
 [source/kernel/agent/AgentInterface.jl](../../../source/kernel/agent/AgentInterface.jl)). The server

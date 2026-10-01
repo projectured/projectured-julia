@@ -47,7 +47,7 @@ Only a left click moves the selection. A row of a list, of a table or of a tree,
 
 ### The window
 
-`ContextMenuWindowProjection` keeps the context menu window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_context_menu_window`. The `window` wrapper of `build_editor` gives its setting `inner_wrappers` to `make_tracking_screen`.
+`ContextMenuWindowProjection` keeps the context menu window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_context_menu_window`. The `window` wrapper of `build_editor` gives its option `inner_wrappers` to `make_tracking_screen`.
 
 - **Opening.** The wrapper takes the `OpenContextMenuOperation` out of the answer of its content and opens a window with `style = :popup` and `auto_dismiss = true` at the point of the click, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens below the part, with the left edges aligned and 4 pixels between them (`find_part_place` of the screen slice). The window takes the extent of the menu, up to `maximum_size`, `(640, 800)` by default.
 - **What it shows.** The window shows the menu of the nearest part, the first layer, as it is.

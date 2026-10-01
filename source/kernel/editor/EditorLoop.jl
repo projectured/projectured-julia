@@ -139,7 +139,7 @@ that does not wait, because a wake is pending or a deadline is due, yields once
 for the same reason.
 
 `mcp` starts an MCP server alongside the loop, so external clients can drive
-the editor; off by default. Its setting is `true` for the server's own defaults,
+the editor; off by default. Its value is `true` for the server's own defaults,
 or a `NamedTuple` of `instructions`, `host` and `port`, and a field that is left
 out takes the server's default.
 
@@ -252,17 +252,17 @@ function _end_editor_loop!(editor::Editor, server)
     first_exception
 end
 
-# The server gets the settings the caller gave. A setting that is left out, or
-# that is `nothing`, takes the server's own default.
+# The server gets the options that the caller gave. An option that is left out,
+# or that is `nothing`, takes the server's own default.
 function _make_mcp_server(editor::Editor, mcp::Union{Bool,NamedTuple})
-    settings = mcp === true ? (;) : mcp
-    for name in keys(settings)
+    options = mcp === true ? (;) : mcp
+    for name in keys(options)
         name in (:instructions, :host, :port) ||
-            error("The setting `mcp` has no field `$(name)`. Its fields are instructions, ",
+            error("The argument `mcp` has no field `$(name)`. Its fields are instructions, ",
                   "host and port.")
     end
     make_agent_server(:mcp, editor;
-                      (name => value for (name, value) in pairs(settings)
+                      (name => value for (name, value) in pairs(options)
                        if value !== nothing)...)
 end
 

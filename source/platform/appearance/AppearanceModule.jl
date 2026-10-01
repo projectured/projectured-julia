@@ -39,7 +39,7 @@ using ..SelectionModule
 using ..StyleModule
 
 import ..DocumentModule: get_wrapped_document
-import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_wrapper_setting
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_wrapper_argument
 import ..OperationModule: evaluate_operation, describe_operation, make_inverse_operation,
                           operation_travels_unchanged
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,

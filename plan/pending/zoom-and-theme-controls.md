@@ -1199,3 +1199,11 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     size. The test is in `DeviceConfigTest`.
     `OmnetPresentationTest.test_all()` does not end with `-t 2`:
     `test_parallel_sim_dashboard_panel` spins, as on `main`.
+18. **The value of a wrapper keyword is its argument** (2026-10-01, D12 of
+    `plan/pending/editor-settings.md`). The settings plan gives the word
+    "settings" to what a person chooses, so the kernel word of W1 changed:
+    `make_wrapper_setting` is `make_wrapper_argument`, `EditorParts.settings` is
+    `EditorParts.arguments`, `make_document_projection(document; settings...)` is
+    `make_document_projection(document; arguments...)`, and the argument
+    `setting` of `wrap_editor!` is `argument`. The decisions above keep the old
+    names, as they were written; the code and the guides use the new ones.

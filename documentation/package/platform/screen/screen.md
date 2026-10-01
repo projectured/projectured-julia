@@ -62,7 +62,7 @@ A wrapper at the screen that keeps one window, such as the tooltip window and th
 
 `show_document!(editor, document; title)` shows a document in an editor that runs. It asks the content of the first window: a package that gives a container adds a method for the type of its container, as the pane package does for its tabs. With no such method, the document opens in a window of its own, beside the first window and as large as it, and a document that a window shows already opens no second window.
 
-The wrapper `window` of `build_editor` builds both. It is on by default, and it puts the root document in one window when the backend draws windows. Its setting `(; title, width, height, opened_window_projections)` names the window, gives its size, which defaults to the display, and adds rows for the windows that open later. It does nothing when the root is a `ScreenDocument` already, or when the backend draws text. `window = false` turns it off, and `make_editor` applies no wrapper, so a caller that builds its own screen passes that screen.
+The wrapper `window` of `build_editor` builds both. It is on by default, and it puts the root document in one window when the backend draws windows. Its argument `(; title, width, height, opened_window_projections)` names the window, gives its size, which defaults to the display, and adds rows for the windows that open later. It does nothing when the root is a `ScreenDocument` already, or when the backend draws text. `window = false` turns it off, and `make_editor` applies no wrapper, so a caller that builds its own screen passes that screen.
 
 ## How it fits
 

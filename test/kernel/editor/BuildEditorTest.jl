@@ -58,9 +58,9 @@ is_wrapper_default(::Val{:build_probe_default}) = _IS_BUILD_PROBE_DEFAULT_ON[]
 
 for keyword in (:build_probe_inner, :build_probe_first, :build_probe_both,
                 :build_probe_default, :build_probe_excluding)
-    @eval function wrap_editor!(::Val{$(QuoteNode(keyword))}, layer::Symbol, setting,
+    @eval function wrap_editor!(::Val{$(QuoteNode(keyword))}, layer::Symbol, argument,
                                 parts::EditorParts)
-        push!(_BUILD_PROBE_STEPS, ($(QuoteNode(keyword)), layer, setting))
+        push!(_BUILD_PROBE_STEPS, ($(QuoteNode(keyword)), layer, argument))
         push!(parts.start_steps, editor -> push!(_BUILD_PROBE_STEPS,
                                                  (:started, $(QuoteNode(keyword)), editor)))
         parts
@@ -112,7 +112,7 @@ function test_build_editor()
                                        (:build_probe_inner, :document),
                                        (:build_probe_both, :document),
                                        (:build_probe_both, :screen)]
-        # The setting is the value of the keyword.
+        # The argument is the value of the keyword.
         @test (:build_probe_both, :screen, (; level = 2)) in _BUILD_PROBE_STEPS
         # Each start step runs once the editor exists, with the editor.
         started = [(keyword, argument) for (tag, keyword, argument) in _BUILD_PROBE_STEPS

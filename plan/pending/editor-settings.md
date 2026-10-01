@@ -605,7 +605,14 @@ the pixels and the test counts of the baseline of S0.
     (`EditorLoop.jl:142`, "Its setting is"), the comment of
     `EditorDisplay.jl:134`, and the guides `editor.md`, `mcp.md`, `screen.md`,
     `pane.md`, `tooltip.md`, `context-menu.md` and `appearance.md`.
-- [ ] **R1. The rename of D12**, before any new code uses the word.
+- [x] **R1. The rename of D12**, before any new code uses the word. Done on
+  2026-10-01: `test_kernel()` 4088 pass and 2 broken, `test_platform()` 84496
+  pass and 8 broken, no failure and no error. The platform count is 12 above S0
+  with no new test, so a count of that suite varies from run to run. The parser
+  renamed the three functions; the field, the keywords, the argument of the
+  three wrapper methods and of the test probe, the local names, the `mcp`
+  options of `run_editor!` and the prose of seven guides changed by hand.
+  Finding 18 of the appearance plan records the new names for its work.
   `make_wrapper_setting` → `make_wrapper_argument`, `EditorParts.settings` →
   `EditorParts.arguments`, the keywords of `make_document_projection`, the
   argument `setting` of `wrap_editor!` and of its methods, and the prose that

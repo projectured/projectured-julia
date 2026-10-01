@@ -198,7 +198,7 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 ### The tabs of an editor
 
-The wrapper `tabs` of `build_editor` puts the root document in the one tab of a pane tree. It is on by default, so an editor that is built with this package loaded shows its documents as tabs, and `tabs = false` turns it off. A root that is a `PaneTree` or a `ScreenDocument` already is left as it is. Its setting `(; title, appearance, measure)` names the tab and gives the `Appearance` whose widget theme the pane's widgets draw with, and their measure.
+The wrapper `tabs` of `build_editor` puts the root document in the one tab of a pane tree. It is on by default, so an editor that is built with this package loaded shows its documents as tabs, and `tabs = false` turns it off. A root that is a `PaneTree` or a `ScreenDocument` already is left as it is. Its argument `(; title, appearance, measure)` names the tab and gives the `Appearance` whose widget theme the pane's widgets draw with, and their measure.
 
 `make_tabs_projection(projection)` draws the tree. `PaneToWidget` makes the widgets and leaves the content of each tab as it is. The stage after it draws every widget and layout with the widget renderer, and every other document with `projection`. So the tabs work with a projection that draws no widget, and a content that is itself a widget draws as a widget. A content can not be told by its place, because the widget printers hand their own context to a child.
 
