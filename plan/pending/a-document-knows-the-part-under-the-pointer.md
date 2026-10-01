@@ -480,7 +480,7 @@ One at a time, with the owner.
   - Found: `Sdl.jl` called `is_view_state_field` with no import since step 1
     (`ca0e04648`), so the walk of the changed parts of a window failed in
     `_node_dirty` on its first element. `test_native_window` found it; the import is added.
-- **Q13. A drag.** Open in part. Under M6 and M7 alone, a dragged part (a
+- **Q13. A drag.** Settled (2026-10-01; points 1 to 10 below). Under M6 and M7 alone, a dragged part (a
   slider thumb) gets only the first move off it: then the mouse target follows
   the pointer and the part is on no path. Claude's options were a capture (the
   mouse target stays on the pressed part while a button is held) and no capture
@@ -546,6 +546,12 @@ One at a time, with the owner.
      rectangle from it, as `_drop_indicator_rectangle` does now. A part inside a
      group that accepted a tab would take the drop at its place before the
      group; no such part exists.
+  10. A drag ends with no change in three ways: a release where no part accepts
+      the dragged thing (as the tab drag does now), Escape during the drag, and
+      a release that the window never gets, for example when another window
+      takes the focus during the drag. (Owner, 2026-10-01: "A agreed".)
+  With points 1 to 10, Q13 has no open point (2026-10-01). Step 5b and step 10
+  of the events plan become one step, planned from these points.
   Facts (2026-10-01): a move with a button held still goes by position (step 5a
   changed only the move with no button held), except in the shell, where the
   band that takes a `MouseDown` gets every held move and the next `MouseUp`,
