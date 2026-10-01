@@ -6,6 +6,8 @@ for _n in names(Projectured; all = true)
 end
 
 using ProjecturedExample
+# The transcript test names the factories of the conversation example by package.
+import ProjecturedConversationExample
 # The generic test drivers ((label, document, projection) forms), the reflexive
 # cell walker, the event battery, and the kernel unit suites live in
 # ProjecturedKernelTest — the base of the test-package DAG. The umbrella keeps
