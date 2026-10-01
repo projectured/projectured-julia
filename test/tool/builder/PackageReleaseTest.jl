@@ -334,8 +334,10 @@ function test_package_release()
                 @test dependency in names
             end
         end
+        # A package of the table is released, or a package that a released test
+        # needs.
         for name in keys(PROJECTURED_PACKAGE_ASSETS)
-            @test name in names
+            @test has_package_directory(context, name)
         end
         # The scan passes on the code as it is, so a path that leaves a package
         # shows here and not at the release.
