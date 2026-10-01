@@ -357,6 +357,12 @@ One at a time, with the owner.
   3. A list in the editor of the documents that the last write reached. Exact;
      the state is outside the documents, and every caller of
      `replace_mouse_target!` keeps it.
+- **Q15. A document that a view shows inside a widget, drawn by a second
+  view.** Open (found in step 6). The reflected tree of the omnet inspector pane
+  gets no mouse target: the chain stops at the introduced part of the outer
+  view, and the outer walk stays out of the document, because the chain write
+  holds the mouse target of such a document when a mapped view (the form) shows
+  it.
 - **Q14. A view that changes under a still pointer.** Settled and built, and on
   main since 2026-10-01 (the merge `e7962bdaa`)
   (found in step 6; the owner, 2026-09-30: "not sure, let's investigate
@@ -938,7 +944,45 @@ already; the sealed selection files do not change (Q4).
   an editor; step 6 tests the light through a real editor. The click route of
   the graph now also types a widget's path against the content of the vertex,
   which no test covers.
-- [ ] 6. **The light** (M9). The button, the menu item and the toolbar item
+  **5b, the drag: planned (2026-10-01), from the ten points of Q13.** It replaces
+  step 10 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md).
+  - A package `ProjecturedDragTracking` holds `DragTrackingState` and
+    `DragTrackingProjection`, a wrapper inside the gesture tracker around the
+    screen (D26). `make_tracking_screen` and the `window` wrapper of
+    `build_editor` put it there, so every editor with a window has it.
+  - A part starts its drag with an answer that names its own path (D21): at the
+    press for a part whose press has no other meaning, such as a slider thumb
+    or a split pane divider; after the small move of D20 for a part whose click
+    has a meaning, such as the tab of a pane or an item that a list reorders
+    (Q13 point 8). The wrapper keeps that path (point 7).
+  - While a drag is on, the wrapper sends every held move and the release to
+    the part by its path, wherever the pointer is; each container on the path
+    gives the point in the frame of its child, as for a gesture with a route.
+    The part keeps its own drag state (point 1). The wrapper swallows the click
+    gestures (D14). The mouse target follows the pointer as always, so the part
+    under the pointer lights (point 4).
+  - A global drag finds its drop target outward: the wrapper asks each part on
+    the path under the pointer, from the deepest outward, through the accept
+    function of the part (points 2 and 9). The document that draws the preview
+    keeps the target and its zone as view state: the pane tree keeps `drag`, and
+    the drop of a tab and its blue rectangle stay as they are.
+  - A drag ends with no change on a release where no part accepts the dragged
+    thing, on Escape, and on a release that the window never gets, for example
+    a loss of focus during the drag (point 10).
+  - The five drags of today: the split pane divider, the slider and the pan and
+    zoom of the chart keep their own state and get their moves from the
+    wrapper; the band capture of the shell (`_route_shell_down!`) goes. The tab
+    of a pane and the reorder of the dragging package find their target through
+    the wrapper; the probe and the phases of the dragging package go.
+  - To settle with the owner before the code, because each is a new mechanism:
+    the name and the signature of the accept function, and the name and the
+    fields of the operation that starts a drag.
+  - Tests: each of the five drags; a slider thumb dragged past the end of the
+    slider and released over another widget; a press on a tab with no move
+    still selects the tab; a part under a drag lights; Escape and a lost release
+    end a drag with no change; a tab dropped into a group and onto each edge,
+    with the blue rectangle.
+- [x] 6. **The light** (M9). The button, the menu item and the toolbar item
   light while their mouse target is set; the list, the table, the table list and
   the tree light the row that their mouse target names; the chart and the
   sequence chart light the part that their mouse target names. `hovered` goes
@@ -1038,9 +1082,9 @@ already; the sealed selection files do not change (Q4).
   the omnet presentation tests keeps these three sweeps. The omnet test sets have
   the failures of the older wide run only, and the projectured sweeps have their
   baselines with the three new assertions of the reflection tree.
-  Left: a document of the domain that a view shows inside a widget, and that a
-  second view draws later, gets no mouse target: the reflected tree of the
-  inspector pane. The chain stops at the introduced part of the outer view, and
+  Left, as Q15: a document of the domain that a view shows inside a widget, and
+  that a second view draws later, gets no mouse target: the reflected tree of
+  the inspector pane. The chain stops at the introduced part of the outer view, and
   the outer walk stays out of the document, because the chain write holds the
   mouse target of such a document when a mapped view (the form) shows it.
 - [ ] 7. **The dwell and the right click by position** (M3, D76). The outward

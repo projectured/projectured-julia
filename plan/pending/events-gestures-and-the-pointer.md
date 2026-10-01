@@ -1483,7 +1483,12 @@ it holds the example.
     as today, and reaches the same outward reading (D76; owner 2026-09-28).
   - [ ] 9e. The hover inspector goes away.
   - [ ] 9f. The hosts, the checks and the documents.
-- [ ] 10. **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
+- [ ] 10. **Replaced by step 5b of
+  [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md)**
+  (Q13 there, settled 2026-10-01: the drag wrapper keeps the path of the part
+  whose drag is on, local drags keep their own state, the part under the
+  pointer lights during a drag, which replaces D29). The first plan of the step:
+  **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
   `ProjecturedDragTracking`, with `DragTrackingState` and
   `DragTrackingProjection`. A drag starts after a small move; the reader answers
   a drag start operation that names the target; then `DragMove`, `DragHover`
