@@ -553,6 +553,39 @@ chose seams in place of registries (§5.1). The design is in
 - **D8 is deferred** (the owner, 2026-09-29): "(a) but let's defer this for a
   better design". The direction is one query model with two layouts. Group and
   pivot (§4.6, §4.7, phases 7 and 8) wait for a design of their own.
+- **The filter comes next** (the owner, 2026-10-01): "I would rather focus on
+  data frame tables. Especially the filtering of rows and columns." The
+  points F1 to F5 were put to the owner with the recommendations of the
+  writer, and the owner decided:
+  - **F1. To filter columns** is (a) to hide and show one column from its
+    header, and (b) a filter on the column names, a text or a regular
+    expression, as `select(df, r"price")` does. A filter on the element type
+    is not part of it. "show hidden columns on table context menu at header
+    corner": the context menu of the corner of the table, where the header
+    row and the header column meet, lists the hidden columns and shows them
+    again.
+  - **F2. A row filter is edited** (a) in a filter row under the header, a
+    cell for each column, and (c) from the context menu of a header, which
+    offers the list of the values with their counts and "Hide column". There
+    is no funnel icon.
+  - **F3. The language of a cell of the filter row** is a short text that the
+    element type of the column parses: `> 30` and `10..20` for a number,
+    `abc` for "contains", `/re/` for a regular expression, `= x` for an exact
+    value, `missing` and `!missing`. A condition that does not parse shows a
+    mark. The filters of all columns combine with "and".
+  - **F4. The expression filter**, such as `:age > 30 && startswith(:city,
+    "B")`, is (a) a bar above the table with a plain text field, and (c) the
+    Julia domain gives the bar its editor through a seam when it is loaded.
+    The data frame package does not depend on the Julia domain. The
+    expression compiles once into a function of the columns that it names,
+    which runs over the column vectors.
+  - **F5. The order of the work**: the path of a column (E1), then the query
+    document with the row filters, the column filters and the expression,
+    then sort on the same vector of rows, then refresh (phase 3) and edit
+    (phase 4). This changes D1, which put edit before sort and filter.
+  - **F6. Column resize** (the owner, with F1 to F5): "Plus drag column
+    headers for resize". A drag of the edge of a header sets the width of
+    the column; the widths are view state of the view (`layout` in §3.2).
 
 ### 5.2 The options, for the record
 
@@ -741,7 +774,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   - Found and left for phase 2: over a list, `_scroll_room` answers `nothing`
     for both axes, so a horizontal wheel turn is not clamped either. A wide
     data frame needs that clamp.
-- [ ] **2. The package and a read-only view.** The stem with its example and
+- [x] **2. The package and a read-only view.** The stem with its example and
   test packages, `DataFrameView`, the anchored row list with its jumps, its
   re-anchor and its scroll bar (§3.5), the visible shadow,
   `DataFrameViewToWidget`, cells by element type, the natural row, the
@@ -852,7 +885,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       which is why the package posts through `invokelatest`. The SDL window
       has an empty `WM_NAME`, so a tool that finds a window by that name does
       not find it; the driver found it by its class and its size.
-  - [ ] **2.6 As few dependencies as possible** (§4.10, the owner,
+  - [x] **2.6 As few dependencies as possible** (§4.10, the owner,
     2026-09-30). The registries and the run function of D13, then
     `ProjecturedDataFrames` without `ProjecturedSdl`, `ProjecturedScreen` and
     `ProjecturedPane` where D13 allows it. D13 is made; the work is the plan
@@ -863,6 +896,11 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     `EditorDisplay`; the natural row is the method of
     `make_graphics_projection`. Serialization leaves the closure with
     Widget's part of step 4a, which waits for the owner.
+    Done 2026-10-01: the fold of the internal packages put every slice that
+    the package used into `ProjecturedPlatform`, so the package depends on
+    DataFrames, `ProjecturedKernel` and `ProjecturedPlatform`, and it adds no
+    backend, no pane and no display. At the owner's word it exports
+    `display_in_editor` and `close_display_editor!` of the display slice.
 - [ ] **3. Refresh.** The three levels of §4.3, as the method of
   `refresh_document!` for `DataFrameView`. The triggers A, B and D, with no
   busy flag. C is a keyword that is off by default (D3).
