@@ -85,5 +85,15 @@ end
     @test !issubset(Set(_shell_texts(last(rendered_output(backend)))), before)
 end
 
+@testset "gesture_log: an operation of the window is an entry of the gesture log" begin
+    log = get_session_gesture_log()
+    editor, backend = _ww_editor(PrimitiveString("x"); undo = true, gesture_log = true)
+    entries = length(log.entries)
+    _ww_focus_first_tab!(editor)
+    _ww_press!(editor, backend, _ww_ctrl(:t))
+    @test _ww_tabs(editor) == 2
+    @test length(log.entries) > entries
+end
+
 end # @testset
 end

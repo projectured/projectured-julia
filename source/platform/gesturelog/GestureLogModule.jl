@@ -38,12 +38,14 @@ using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..EditorModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export GestureLogEntry, GestureLog, get_session_gesture_log,
        record_gesture!, clear_gesture_log!,

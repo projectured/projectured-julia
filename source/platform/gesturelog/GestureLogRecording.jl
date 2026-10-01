@@ -82,3 +82,25 @@ map_reference_forward(p::GestureLogRecordingProjection,
 map_reference_backward(p::GestureLogRecordingProjection,
                        iomap::GestureLogRecordingIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
+
+# ── The gesture log of a window, as a wrapper of `build_editor` ──────────────
+
+"""
+    gesture_log = true
+
+The wrapper of `build_editor` that records each operation of a window in the
+gesture log of the session ([`get_session_gesture_log`](@ref)), with the key or
+the click that made it. It records no move of the selection, and a run of typed
+characters is one entry. View → Gesture log and the toolbar of the `shell`
+wrapper open the log. It is off by default. It acts outermost in the content of
+the window, so it sees every operation that the window makes.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:gesture_log}, layer::Symbol, setting, parts::EditorParts)
+    parts.projection = GestureLogRecordingProjection(inner = parts.projection,
+                                                     log = get_session_gesture_log(),
+                                                     fold_typing = true)
+    parts
+end
+
+get_wrapper_layers(::Val{:gesture_log}) = (:container => 90,)
