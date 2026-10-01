@@ -541,6 +541,23 @@ and the downstream repositories land in the same landing.
       (`/var/tmp/release-plan/ci3/`), the times of Step 0 again, then the
       landing of this repository and the downstream ones together, with the
       owner's word.
+      **Changed by the owner (2026-10-01): "let's land early".** So the
+      landing comes first, after a short check, and the CI-like run and the
+      times follow it. Before the landing: `main` merged into the branch
+      (`73a62e67c`; `ProjecturedDisplayTest` is a part of the platform test
+      package here, so the one line that `main` added to it is not needed);
+      the five guards of CI show no finding of the fold (the four argument
+      findings and the two export findings are `main`'s); `environment/all`
+      precompiles in a clean clone; `test_platform()` in its own environment
+      97,485 pass and 1 error, a qualified call to a name that its module
+      did not export (`DomainModule.subtypes`, PAR-MODULE-BOUNDARY-IS-API),
+      mended by `compute_loaded_subtypes` (`352abadde`); omnet-julia and
+      inet-julia precompile against the clone, every package. The three
+      errors of the old baseline (`WindowShellTest.jl:417`,
+      `WidgetTablePartsTest.jl:564`, `WidgetRoundTripTest.jl:121`) are gone
+      after the merge. The owner's answer on the DataFrames question:
+      `ProjecturedDataFrames` exports `display_in_editor` and
+      `close_display_editor!` (`fb921c6b5`).
 
 **Risk: the open branches.** Step 2 moves about 1,000 files. Each branch of
 another session that is open then must rebase onto it. The pure-move commits
