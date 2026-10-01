@@ -586,6 +586,13 @@ chose seams in place of registries (§5.1). The design is in
   - **F6. Column resize** (the owner, with F1 to F5): "Plus drag column
     headers for resize". A drag of the edge of a header sets the width of
     the column; the widths are view state of the view (`layout` in §3.2).
+    Deferred until the drag refactor lands (step 5.7).
+  - **G1, G2 and G4** (the owner, 2026-10-01: "yes, agreed", to the
+    recommendations of the writer): the row headers show the source row
+    number of each row (G1); the pattern of the column names is typed in a
+    text field in the corner cell of the filter row (G2); "Filter by
+    values…" writes the picked values into the filter row as `= a, b`, for a
+    column of at most 1,000 distinct values (G4).
 
 ### 5.2 The options, for the record
 
@@ -1003,7 +1010,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       draws a header column whose cells come from each row, and the corner
       where it meets the header row. A click on the corner maps to the whole
       table, as in the eager table. The view shows the source row number of
-      each row there, as a data frame prints it.
+      each row there, as a data frame prints it (G1). The corner cell of the
+      filter row holds the text field of the pattern of the names (G2).
     - [ ] **5.2 The path of a column (E1).**
       `DataFrameColumnReferenceStep(name)` evaluates on the view to a
       `DataFrameColumn` (the view and the name). The view maps the path of a
@@ -1023,7 +1031,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     - [ ] **5.5 The list of the values.** "Filter by values…" of the header
       menu opens a popup with the distinct values of the column and their
       counts, counted when it opens, for a column of at most 1,000 distinct
-      values (mine). The choice writes the filter text, `= a, b` (mine), so
+      values (G4). The choice writes the filter text, `= a, b` (G4), so
       the filter row stays the one place that holds a filter.
     - [ ] **5.6 The expression bar** (F4 a). A text field above the table.
       `Meta.parse`, then the symbols that name columns become the arguments
