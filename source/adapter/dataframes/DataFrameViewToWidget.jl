@@ -15,7 +15,10 @@ a vertical `WidgetScrollBar` beside it, in a `GridLayout` of one row.
 The header of a column shows its name and its element type, as a data frame
 prints them in the REPL: `price :: Float64`, and `discount :: Float64?` for a
 column that allows `missing`. Every column takes an equal share of the width
-and is at least as wide as its header. A number aligns right.
+and is at least as wide as its header. A number aligns right. Each row shows
+its row number in the frame in a header column, and the corner over it shows
+the count of the rows, so the header column is as wide as the widest row
+number. Every row is `row_height` tall, as a header column of a list needs.
 
 A frame of more than 64 columns draws its columns as a list, from the column
 `column_anchor` of the view, so it builds only the columns that the table
@@ -64,7 +67,7 @@ const _LIST_COLUMN_WIDTH = 120
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
     table = ncol(view.frame) > _LIST_COLUMN_COUNT ? _make_column_list_table(p, view) :
-                                                    _make_view_table(view)
+                                                    _make_view_table(p, view)
     height = ctx === nothing ? nothing : get_exact_height(ctx)
     # The rows that the table shows: the height less the header row, in rows.
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
@@ -96,21 +99,22 @@ _get_scroll_bar_row(value::Real, count::Int, visible::Int) =
 
 # The table of a frame whose columns share its width: every column a weight,
 # and at least as wide as its header.
-function _make_view_table(view::DataFrameView)
+function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
     headers = CellVector(@computation Any[WidgetLabel(_get_header_text(name, eltype(column)))
                                           for (name, column) in pairs(eachcol(view.frame))])
     align = Cell(@computation Symbol[_get_column_align(eltype(column))
                                      for column in eachcol(view.frame)])
     rows = Cell(@computation _make_row_list(view.frame, view.anchor))
+    row_headers, corner = _make_row_numbers(view)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, rows, column_count, border_width,
     # column_policy, row_policy, column_policies, row_policies, cell_policy,
     # column_cell_policies, column_align, visible, margin, border, padding,
     # style, scroll_position, top_row, tooltip. The table scrolls its
     # own parts, and its offset is the cell of the view.
-    table = WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), Cell(nothing), rows,
+    table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
                         Cell(@computation ncol(view.frame)), Cell(1),
-                        Cell(_COLUMN_POLICY), Cell(Content), Cell(Any[]), Cell(Any[]),
+                        Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(Any[]), Cell(Any[]),
                         Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
@@ -119,6 +123,18 @@ end
 
 print_document(p::DataFrameViewToWidget, view::DataFrameView) =
     print_document(p, nothing, view, nothing)
+
+# The header of each row, its row number in the frame, as a list that moves in
+# step with the rows, and the corner, which shows the count of the rows and so
+# is as wide as the widest row number. A frame with no rows has neither.
+function _make_row_numbers(view::DataFrameView)
+    headers = Cell(@computation (count = nrow(view.frame);
+                                 count == 0 ? CellVector() :
+                                     _make_index_list(count, view.anchor, i -> WidgetLabel(string(i)))))
+    corner = Cell(@computation (count = nrow(view.frame);
+                                count == 0 ? nothing : WidgetLabel(string(count))))
+    (headers, corner)
+end
 
 # The table of a frame whose columns are a list: the headers, the alignments
 # and the cells of every row are lists with their heads at `column_anchor`.
@@ -129,9 +145,9 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     align = Cell(@computation _make_index_list(ncol(view.frame), view.column_anchor,
                                                c -> _get_column_align(eltype(view.frame[!, c]))))
     rows = Cell(@computation _make_row_list(view.frame, view.anchor, view.column_anchor))
-    # Positional, as in `print_document` above.
-    table = WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), Cell(nothing), rows, Cell(0),
-                        Cell(1),
+    row_headers, corner = _make_row_numbers(view)
+    # Positional, as in `_make_view_table` above.
+    table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows, Cell(0), Cell(1),
                         Cell(Fixed(_LIST_COLUMN_WIDTH)), Cell(Fixed(p.row_height)),
                         Cell(Any[]), Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
@@ -234,6 +250,9 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
             view, "column_anchor", view.column_anchor + c - 1))
     end
     columns && field in ("rows", "column_align") && return nothing
+    # The row headers move in step with the rows, and the view builds both
+    # again from its anchor.
+    field == "row_headers" && return nothing
     field == "rows" || return operation
     k = _find_row_index(iomap.table.rows, value)
     k === nothing && return nothing

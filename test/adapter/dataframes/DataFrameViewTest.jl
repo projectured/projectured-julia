@@ -122,6 +122,21 @@ function test_data_frame_view()
             @test plain > 0 && large == 2 * plain
         end
 
+        @testset "each row shows its row number, and the corner the count of the rows" begin
+            frame = DataFrame(id = 1001:1200)
+            io = print_document(projection, nothing, DataFrameView(frame), context())
+            place_of(text) = only((t[1], t[2]) for t in _data_frame_texts(io.output) if t[3] == text)
+            for k in 1:3
+                @test place_of(string(k))[2] == place_of(string(1000 + k))[2]
+                @test place_of(string(k))[1] < place_of(string(1000 + k))[1]
+            end
+            @test place_of("200")[2] == place_of("id :: Int64")[2]
+            @test place_of("200")[1] < place_of("id :: Int64")[1]
+            # From row 150 on, the numbers follow the rows.
+            io = print_document(projection, nothing, DataFrameView(frame; anchor = 150), context())
+            @test place_of("150")[2] == place_of("1150")[2]
+        end
+
         @testset "a frame of ten million rows reads a screenful" begin
             reads = Ref(0)
             frame = DataFrame(id = _CountingColumn(10_000_000, reads); copycols = false)

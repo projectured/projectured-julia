@@ -1006,7 +1006,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       pattern keeps, in the order of the frame.
     - The widths of the columns are view state of the view, by name (F6).
   - **Steps**, each with its tests:
-    - [ ] **5.1 Row headers on a list** (the widget substrate): a list table
+    - [x] **5.1 Row headers on a list** (the widget substrate): a list table
       draws a header column whose cells come from each row, and the corner
       where it meets the header row. A click on the corner maps to the whole
       table, as in the eager table. The view shows the source row number of
@@ -1032,6 +1032,19 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         the nodes of the same row, and the view turns both into its anchor.
       - A press on a row header selects its row. The paths are
         `row_headers[k]…` and `corner…`.
+      - Done 2026-10-01 (`ba85ec461`, and the view after it). Both list
+        printers draw the corner and the header column, and the eager
+        printer refuses a corner document. The view shows the row number of
+        each row and, in the corner, the count of the rows (mine), so the
+        header column is as wide as the widest row number. Every row of the
+        view is `Fixed` now, also when its columns share the width. Tests:
+        the list table (seven new sets: the places, the width, the presses,
+        the paths both ways, the move of the head, the errors), the eager
+        table, the markdown and the cell tables, and the data frames, 329
+        pass. A picture of the view at row 1 and at row 995 shows the
+        numbers at their rows.
+      - Open, small: the row numbers align left; a data frame prints them
+        aligned right. The header column has no alignment of its own yet.
     - [ ] **5.2 The path of a column (E1).**
       `DataFrameColumnReferenceStep(name)` evaluates on the view to a
       `DataFrameColumn` (the view and the name). The view maps the path of a
