@@ -4,7 +4,7 @@
 
 The release copy of the packages is one git repository, `projectured/Projectured.jl`,
 with one folder for each package, `<Name>/`. This is R23 of
-[release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md),
+[release-the-binary-and-the-packages.md](../pending/release-the-binary-and-the-packages.md),
 which the owner decided on 2026-10-01: "I choose the single
 projectured/Projectured.jl repository". It is the second item of "The work
 toward the local registry" in Part R of that plan.
@@ -83,11 +83,22 @@ Projectured.jl/          one git repository
       repository shows exactly `FakeTop/Project.toml` and
       `FakeTop/source/faketop/FakeTopCode.jl`; a `README.md` at the root stays.
       The guards find only the four argument findings of `main`.
-- [ ] **Step 3, the guides.** `builder.md` and `build-guide.md` describe one
+- [x] **Step 3, the guides.** `builder.md` and `build-guide.md` describe one
       repository; the registration names the folder, with LocalRegistry and
       with Registrator.
-- [ ] **Step 4, the release plan.** The second item of Part R is done.
+      Done: the build guide clones the release repository as
+      `../Projectured.jl`, passes `registry` for a local registry, and
+      registers each folder with `register("../Projectured.jl/<Name>"; registry)`
+      or with `@JuliaRegistrator register subdir=<Name>`.
+- [x] **Step 4, the release plan.** The second item of Part R is done.
 
 ## 5. Decisions made during the work
 
-(filled in as the work goes)
+- **The build owns only the package folders and the licence files at the
+  root.** The README of the repository and the CI workflow of R31 can live at
+  the root, written by hand or by a later step, and a release keeps them.
+- **A package that leaves the release set keeps its folder.** The build does
+  not remove it, because the registry still names its versions. To remove one
+  is a decision for the person who makes the release.
+- **The guide names the local registry `<registry>`**, because its name and
+  place are still open (R10).

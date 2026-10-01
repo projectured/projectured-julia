@@ -1342,8 +1342,9 @@ seals go beyond the kernel in time (only kernel files are sealed today).
 ### The work toward the local registry (R27)
 
 - [x] The plan names the one release repository: R9, R23 and Step B6.
-- [ ] The generator writes one repository with a folder for each package, the
-      form that Step B4 tested.
+- [x] The generator writes one repository with a folder for each package, the
+      form that Step B4 tested. Done on 2026-10-01:
+      [one-release-repository.md](../done/one-release-repository.md).
 - [ ] R30: each registered package has its `test/runtests.jl`.
 - [ ] R31: the release repository has its CI workflow.
 - [ ] Each registered package has a short README.
