@@ -558,6 +558,21 @@ and the downstream repositories land in the same landing.
       after the merge. The owner's answer on the DataFrames question:
       `ProjecturedDataFrames` exports `display_in_editor` and
       `close_display_editor!` (`fb921c6b5`).
+      **Landed (2026-10-01)** by fast-forward: projectured-julia `3d0d25ae0`,
+      omnet-julia `c5fb4901`, inet-julia `8ea400c`; not pushed. After the
+      landing the three `environment/all` precompile in the main checkouts,
+      and the walk guards of omnet-julia (67) and inet-julia (11) pass in
+      place. **The CI-like run of the landed `main`** (`/var/tmp/fold/ci6`, the
+      28 jobs from a fresh clone): every job as in the run of Steps 1 to 4 or
+      better — the kernel and the platform jobs are clean now, the umbrella
+      has the known sites less one (`UserInterfaceFileTest.jl:47` passes), and
+      the four argument findings of the guards are `main`'s. One regression:
+      `ApplicationVideoTest.jl:244`. Its way to break a paint (a JSON object
+      with a foreign child) failed only in the closed JSON chain that the
+      application named before Step 5; the natural renderer reflects that
+      child. The test breaks a cell now, which fails in every renderer; the
+      change is on the branch `backend-adapter-modules` (`3e2d4771a`). Open:
+      the times of Step 0, which need the owner's word.
 
 **Risk: the open branches.** Step 2 moves about 1,000 files. Each branch of
 another session that is open then must rebase onto it. The pure-move commits
