@@ -791,7 +791,7 @@ keys (W1), so that the font scale reaches all text from the first day.
 
 ### Part T: the theme machinery
 
-- [ ] **T1. The style package** (4.2). `@theme`, the five types of length and
+- [x] **T1. The style package** (4.2). `@theme`, the five types of length and
   their rule of at least 1, `Appearance` with the zoom, the six scales and the
   themes found by type, and the lookup of a scaled theme, which makes a default
   theme for a domain that the `Appearance` does not hold yet, while a projection
@@ -799,6 +799,11 @@ keys (W1), so that the font scale reaches all text from the first day.
   - Tests: each kind takes its scale. A change of a base value or of a scale
     changes the scaled cell. A read of a scaled cell through an `UntrackedCell`
     records no edge. Two `Appearance` objects are independent.
+  - Done on 2026-10-01 in `source/platform/style/Theme.jl` and `Appearance.jl`:
+    `test_theme()` 44 pass, `test_platform()` 97530 pass and 8 broken (the
+    baseline plus the new tests). The lookup is `get_scaled_theme!`, with a `!`
+    because it stores a default; `set_theme!` puts a preset in place, and
+    `get_theme` answers the theme that a person edits. Section 9, finding 5.
 - [ ] **T2. `InvalidateProjectionOperation`** in the kernel (4.5): its evaluation,
   its description, its inverse `DoNothingOperation`, and its pass through every
   projection unchanged. Tests beside those of `DoNothingOperation`.
@@ -967,3 +972,8 @@ as large. omnet-julia and inet-julia follow where they build these projections.
 4. **`device/DeviceModule.jl` (🔒) names the "scale" of a display** in its
    docstring. N1 had no permission for that file, so the word stays until the
    owner allows the change.
+5. **An `Appearance` keeps its themes by the declared name.** `@document` gives the
+   name that a declaration writes to the cell layout of the document, so the
+   concrete type of `JsonTheme()` is a variant of `JsonTheme`, not `JsonTheme`
+   itself. `@theme` therefore adds `get_theme_type(theme)`, which answers the
+   declared name, and `set_theme!` keeps a theme under it.

@@ -50,6 +50,42 @@ A [`LineSpacing`](../../../../source/platform/style/LineSpacing.jl) sets the dis
 
 **Example.** Ubuntu 20 has an ascent of 18.64, a descent of 3.78 and a line gap of 0.56 logical pixels, so its natural distance is 22.98. `compute_line_box(FontFileMeasure(), "delay", font_ubuntu_regular_20)` at `SingleSpacing()` gives a line box 23 pixels high, with the baseline 19 pixels below its top: half of the line gap, 0.28, and the ascent, rounded.
 
+### Themes and the appearance
+
+A **theme** is a document that holds the fonts, the colors and the sizes that the
+projections of one domain draw with. `@theme struct JsonTheme … end` declares it,
+with a default for each field, so `JsonTheme()` is the default theme. The type of a
+field says which scale applies to it:
+
+| Type of the field | Scale |
+| --- | --- |
+| `StyleFont`, and the font of a `StyleText` | font scale |
+| `StyleStroke`, its width | line scale |
+| `Spacing` | spacing scale |
+| `Radius` | radius scale |
+| `LineWidth` | line scale |
+| `ControlSize` | control scale |
+| `IconSize` | icon scale |
+
+The five types of length wrap a number, an `Inset` or a `Point2D` in logical pixels.
+Any other value, such as a color, takes no scale. `scale_length` multiplies a length
+and keeps a length above 0 at least 1, so a line or a gap never disappears.
+
+`@theme` also declares the **scaled theme**, `ScaledJsonTheme`: for each field, a
+computed cell that holds the value of the theme times its scale. The cell follows a
+change of the field and of the scale. A projection reads the scaled theme; a person
+edits the theme.
+
+An **`Appearance`** holds what a person sets about the look of one editor: the
+`zoom`, the six scales (`font_scale`, `icon_scale`, `spacing_scale`, `control_scale`,
+`radius_scale`, `line_scale`), and for each domain its theme and its scaled theme,
+found by the type that the declaration names (`get_theme_type`).
+`get_scaled_theme!(appearance, JsonTheme)` answers the scaled theme, and makes and
+stores the default theme at the first request; a projection calls it while it is
+built, never while it prints. `set_theme!(appearance, theme)` puts another theme in
+place, such as a preset. `make_scaled_theme(theme)` scales a theme with no
+appearance, at a scale of 1.
+
 ### Two zoom settings
 
 The size of text on the screen comes from two separate settings:

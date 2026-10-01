@@ -115,6 +115,10 @@ export Inset, Point2D, inset_default,
 export ImageDocument, set_cell_computation!
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
+export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize, IconSize,
+       scale_length, @theme, make_scaled_theme, get_theme_field_names, get_theme_type,
+       get_base_theme
+export Appearance, scale_theme_value, get_scaled_theme!, set_theme!, get_theme
 export TextMeasure, FontMetrics, StringBox, measure_string, get_font_metrics,
        compute_caret_offsets, FontFileMeasure, FixedMeasure, compute_text_extent,
        PlacedGlyph, compute_placed_glyphs
@@ -134,5 +138,7 @@ include("Geometry.jl")
 include("Image.jl")
 include("StyleStroke.jl")
 include("StyleText.jl")
+include("Theme.jl")
+include("Appearance.jl")
 
 end # module
