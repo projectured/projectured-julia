@@ -305,7 +305,7 @@ make_application_api() = Any[
     EditorModule => (:insert_elements!, :delete_elements!),
     # What each loaded domain offers for its own documents, such as the shape of
     # a JSON file, which a model reads to find the fields of a record.
-    get_assistant_api()...,
+    get_registered_assistant_api()...,
 ]
 
 """

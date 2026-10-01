@@ -1,7 +1,7 @@
 """
     ProjecturedPlatformTest
 
-The test package of the platform: the thirty-eight slices between the
+The test package of the platform: the thirty-nine slices between the
 kernel and the seventeen domains. It is the second tier of the test-package
 DAG (kernel ← platform ← domain ← umbrella). It hosts:
 

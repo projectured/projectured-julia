@@ -52,7 +52,7 @@ export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
        build_messages, format_conversation, write_conversation,
        parse_markdown_blocks
-export register_assistant_api!, get_assistant_api
+export register_assistant_api!, get_registered_assistant_api
 
 
 include("AssistantDocument.jl")

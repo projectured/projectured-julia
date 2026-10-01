@@ -15,9 +15,9 @@ that `declare_api!` takes. A package calls this from its `__init__`, so the
 names are offered exactly while the package is loaded. An entry that is
 registered already is not added again.
 
-A host takes the entries with [`get_assistant_api`](@ref) and declares them
-beside its own, so a domain that a session loads helps the model read and
-change the documents of that domain.
+A host takes the entries with [`get_registered_assistant_api`](@ref) and
+declares them beside its own, so a domain that a session loads helps the model
+read and change the documents of that domain.
 """
 function register_assistant_api!(declaration)
     entries = declaration isa AbstractVector ? declaration : Any[declaration]
@@ -28,9 +28,9 @@ function register_assistant_api!(declaration)
 end
 
 """
-    get_assistant_api() -> Vector
+    get_registered_assistant_api() -> Vector
 
 Every entry that a loaded package registered with
 [`register_assistant_api!`](@ref), in the order of the registrations.
 """
-get_assistant_api() = copy(_ASSISTANT_API)
+get_registered_assistant_api() = copy(_ASSISTANT_API)
