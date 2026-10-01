@@ -5,7 +5,7 @@
 The packages whose name holds an acronym write it in capitals, as the Julia
 ecosystem does (`JSON.jl`, `YAML.jl`, `ODBC.jl`): `ProjecturedJson` is
 `ProjecturedJSON`. This is R29 of
-[release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md),
+[release-the-binary-and-the-packages.md](../pending/release-the-binary-and-the-packages.md),
 which the maintainers of the General registry asked for. The owner deferred it
 on 2026-09-30 and asked for it on 2026-10-01: "Let's do the package renames
 now". It must come before the first registration anywhere, because a new name
@@ -65,8 +65,17 @@ against "Julia" in a name is a separate question.
       its module (`JsonSuite.jl` beside `JsonModule`). The example of an
       extension in `naming-rules.md` is `ProjecturedSQLSQLiteExt`. No code
       builds a package name from a slice name.
-- [ ] **Step 2, the check.** The guards, a precompile of `environment/all`, and
+- [x] **Step 2, the check.** The guards, a precompile of `environment/all`, and
       the CI-like run of the 28 jobs, against the CI-like run of `main`.
+      Done: the guards find only the four argument findings of `main`. In the
+      CI-like run, 27 jobs give the counts of the run of `main`, and the
+      umbrella fails at the same 7 sites as on `main`. The SDL test job failed
+      at one test: `KeysymTest.jl` read the recording driver at its old path
+      `source/tool/repl/record/driver.jl`. That fault came with the step that
+      moved the scripts to `tool/` (`b4cd7ea0b`), after the CI-like run of
+      `main`, so `main` has it too. The test reads
+      `tool/precompile/recording-driver.jl` now, and the SDL job passes 803 of
+      803.
 - [x] **Step 3, downstream.** The same script in omnet-julia and inet-julia, on
       branches of their own; both precompile against this branch.
       Done: the branch `acronym-package-names` of omnet-julia (`74c88707`, 46

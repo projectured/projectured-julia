@@ -1328,7 +1328,7 @@ seals go beyond the kernel in time (only kernel files are sealed today).
   into `ProjecturedPlatform` ([fold-the-internal-packages.md](../done/fold-the-internal-packages.md)),
   and the twelve packages with an acronym have it in capitals
   (`ProjecturedJSON`, `ProjecturedSQL`, `ProjecturedSDL`, …; the owner: "Let's
-  do the package renames now"; [acronyms-in-package-names.md](acronyms-in-package-names.md)).
+  do the package renames now"; [acronyms-in-package-names.md](../done/acronyms-in-package-names.md)).
   Steps B5 and B6 now wait for R27 alone.
 - Part P stays: it is the CI of the development repository, and the release
   tests of R30 come from its suites.
