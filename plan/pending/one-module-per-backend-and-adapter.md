@@ -119,9 +119,19 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       binds as aliases, as DataFrames and Tulip did. Tests: the four suites,
       the MCP tests of the umbrella, a load of Adaptagrams: 628 pass, 2 broken
       (the markers that were there).
-- [ ] **Step 4, the guard.** Every slice folder of `source/` outside the kernel
+- [x] **Step 4, the guard.** Every slice folder of `source/` outside the kernel
       holds one file that declares a module, the other files declare none, and
       a package entry of a backend or an adapter includes only its module file.
+      Done: `slice_module_violations` in `test/suite/naming.jl`, part of
+      `naming_violations`, so the guards job of CI and `test_naming()` run it.
+      It checks the groups platform, domain, backend and adapter, and every
+      include of a package entry into those groups. On a clone of `main` it
+      reports the nine slices and the ten includes; on this branch nothing.
+      **The tools are not in it, and that is open:** `source/tool/builder/` and
+      `source/tool/repl/` have no module of their own either (the code is a
+      fragment of `ProjecturedBuilder` and of `ProjecturedRepl`). The owner
+      asked about the backends and approved the adapters; the two tools wait
+      for the owner's word.
 - [ ] **Step 5, the words.** `naming-rules.md` (its example of `<Thing>.jl` is
       `source/backend/sdl/Sdl.jl`), the guides of the backends and adapters,
       `system-anatomy.md`.

@@ -77,6 +77,51 @@ function module_violations(root::AbstractString)
     out
 end
 
+"The groups of `source/` that are sliced: each folder in one is a slice."
+const _SLICED_GROUPS = ("platform", "domain", "backend", "adapter")
+
+"""
+    slice_module_violations(root) -> Vector{String}
+
+**A slice is one module.** Every folder of `source/platform/`, `source/domain/`,
+`source/backend/` and `source/adapter/` is a slice: one of its files declares the
+module of the slice, and every other file is a fragment that declares none. A
+package entry that includes a file of a slice includes that module file, so the
+imports and the exports of a slice are in the slice and not in its package. The
+kernel is layered and not sliced, so it does not take the rule.
+"""
+function slice_module_violations(root::AbstractString)
+    out = String[]
+    declares(path) = occursin(r"(?m)^\s*(?:bare)?module\s+\w+", _naming_code(root, path))
+    for group in _SLICED_GROUPS
+        base = joinpath(root, "source", group)
+        isdir(base) || continue
+        for slice in sort!(readdir(base))
+            isdir(joinpath(base, slice)) || continue
+            files = [joinpath("source", group, slice, name)
+                     for name in sort!(readdir(joinpath(base, slice))) if endswith(name, ".jl")]
+            heads = filter(declares, files)
+            length(heads) == 1 && continue
+            push!(out, isempty(heads) ?
+                "source/$group/$slice/ declares no module; a slice has one, in its module file" :
+                "source/$group/$slice/ declares a module in $(length(heads)) files: " *
+                join(basename.(heads), ", ") * "; a slice has one")
+        end
+    end
+    for entry in _naming_files(root, "package")
+        occursin(r"^package/\w+/src/\w+\.jl$", entry) || continue
+        text = read(joinpath(root, entry), String)
+        for found in eachmatch(r"(?m)^include\(\"(?:\.\./)+source/(\w+)/(\w+)/([^\"/]+)\"\)", text)
+            found.captures[1] in _SLICED_GROUPS || continue
+            path = joinpath("source", found.captures[1], found.captures[2], found.captures[3])
+            isfile(joinpath(root, path)) && !declares(path) &&
+                push!(out, "$entry includes $path, a fragment; a package includes the " *
+                           "module file of a slice")
+        end
+    end
+    out
+end
+
 """
     alias_violations(root) -> Vector{String}
 
@@ -492,7 +537,7 @@ Every mechanical rule of `documentation/rule/naming-rules.md`, as lines a
 reader can act on.
 """
 naming_violations(root::AbstractString) =
-    vcat(module_violations(root), alias_violations(root),
+    vcat(module_violations(root), slice_module_violations(root), alias_violations(root),
          abbreviation_violations(root), suite_violations(root),
          duplicate_definition_violations(root),
          shadowed_extension_violations(root))
