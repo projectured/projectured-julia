@@ -813,9 +813,51 @@ keys (W1), so that the font scale reaches all text from the first day.
 
 ### Part B: the widget theme
 
-- [ ] **B0. The sizes of the widgets, fewer of them** (4.2). Each number of 3.5,
+- [x] **B0. The sizes of the widgets, fewer of them** (4.2). Each number of 3.5,
   what it sizes, and the named theme value that takes it. Images of the examples
   before and after. The owner accepts the new baseline.
+  **The values of B0**, accepted by the owner on 2026-10-01. The named values
+  of the widget theme, by kind, with the numbers that each one takes:
+
+  | Kind | Name | Value | Takes now | Change |
+  | --- | --- | --- | --- | --- |
+  | spacing | `control_padding` | 9 above and below, 14 at the sides | `pad_x`, `pad_y`: text, button, tooltip, dialog, toggle, select, option, textarea, list row, table cell, toggle segment, spin box (no right side); the accordion item, 10 above and below | accordion item 10 → 9 |
+  | spacing | `container_padding` | 16 | card 16, alert 14 | alert 14 → 16 |
+  | spacing | `compact_padding` | 3 above and below, 10 at the sides | badge | none |
+  | spacing | `item_gap` | 4 | `gap`: toolbar, shell bands, status bar, select, accordion; dropdown padding 4, tab padding 4, tree row padding 4, the offset of a submenu and of a select popup 4 | none |
+  | spacing | `title_gap` | 6 | title pane 6, card 4, alert 4 | card and alert 4 → 6 |
+  | spacing | `label_gap` | 6 | icon to label 6 (button, menu item, tab, tree), alert icon to title 8, radio circle to label 10 | alert 8 → 6, radio 10 → 6 |
+  | spacing | `section_gap` | 10 | card footer 10, accordion sections 10, radio rows 12 | radio rows 12 → 10 |
+  | spacing | `bar_gap` | 12 | menu bar items 12 | none |
+  | spacing | `indent` | 22 | tree indent | none |
+  | radius | `radius` | 8 | the 13 widgets that read `radius` | none |
+  | radius | `radius_small` | 4 | checkbox (`radius ÷ 2`), table and tree row band 4, highlight 6, skeleton 6 | highlight and skeleton 6 → 4 |
+  | line | `border_width` | 1 | borders, splitters, separators, rules, dividers | none |
+  | line | `stroke` | 2 | checkmark, radio ring, knob ring | none |
+  | line | `ring_width` | 2 | the focus ring and the selection ring of 16 widgets, the highlight outline | none |
+  | control | `indicator_size` | 18 | checkbox box, radio circle | none |
+  | control | `indicator_dot` | 5 | radio dot | none |
+  | control | `switch_track` | 44 × 24 | switch | none |
+  | control | `switch_knob_padding` | 3 | switch | none |
+  | control | `slider_height`, `slider_track`, `slider_knob` | 24, 4, 9 | slider | none |
+  | control | `progress_height` | 8 | progress bar | none |
+  | control | `scroll_bar_thickness`, `scroll_thumb_minimum` | 12, 8 | scroll bar | none |
+  | icon | `chevron` | 4 (half the side) | select, accordion, tree, card | none |
+  | icon | `tree_chevron_column`, `tree_icon_column` | 18, 20 | tree | none |
+  | text | `font`, `font_bold`, `font_small` | Ubuntu 20, Ubuntu Bold 20, Ubuntu 18 | as now | none |
+
+  The small offsets stay numbers in the code, scaled by the spacing scale through
+  `_sc`: the nudge of a card chevron 1, the shadow of a button 2, the inset of a
+  toggle segment 2, the gap above an accordion body 2, and the inset of a spin
+  box glyph 3. The fallback size of a dialog window, 480 × 320, is not a theme
+  value. Images before and after: `/var/tmp/appearance-b0/compare/` (`all.png`
+  holds the seven examples that change; `widget_title_pane_example` does not
+  change).
+
+  **The baseline from B0 on.** `/var/tmp/appearance-b0/after/hashes.txt` for the
+  eight examples of `/var/tmp/appearance-b0/render.jl`, and
+  `/var/tmp/appearance-b0/baseline-a0-set/hashes.txt` for the four examples of
+  the A0 script, where only `widget_example` differs from A0.
 - [ ] **B1. `WidgetTheme` with `@theme`.**
   - The theme values of B0, each with its kind of length. The four presets.
   - The widget projections are declared `@projection UntrackedCell struct`. The
