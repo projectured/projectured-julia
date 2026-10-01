@@ -20,7 +20,7 @@ import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedSql
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedDbCatalog, ProjecturedKernel, ProjecturedPdf, ProjecturedSql)

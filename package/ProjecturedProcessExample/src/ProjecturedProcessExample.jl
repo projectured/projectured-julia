@@ -21,7 +21,7 @@ import ProjecturedPlatform
 import ProjecturedProcess
 import ProjecturedJulia
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf, ProjecturedProcess)

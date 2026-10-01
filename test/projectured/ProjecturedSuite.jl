@@ -12,7 +12,7 @@ using ProjecturedExample
 # the `Example`-typed overloads and the all-examples sweeps (ExampleSweeps.jl),
 # and extends the ground-truth selection enumerators for the domains it owns.
 using ProjecturedKernelTest
-using ProjecturedSubstrateTest
+using ProjecturedPlatformTest
 using ProjecturedJsonTest
 using ProjecturedJsonTest: test_json_content_clicks_clean
 using ProjecturedYamlTest
@@ -24,8 +24,6 @@ using ProjecturedMathTest
 using ProjecturedJuliaTest
 using ProjecturedSqlTest
 using ProjecturedDatabaseTest
-using ProjecturedFileSystemTest
-using ProjecturedShellTest
 using ProjecturedGraphTest
 using ProjecturedChartTest
 using ProjecturedSequenceChartTest
@@ -33,24 +31,21 @@ using ProjecturedDbCatalogTest
 using ProjecturedFormulaTest
 using ProjecturedFsmTest
 using ProjecturedProcessTest
-using ProjecturedConversationTest
-using ProjecturedUndoTest
-using ProjecturedHelpTest
 # The builder's own suite is umbrella-only: it needs no domain and no editor,
 # but it is a repository-wide tool and this is where a repository-wide test runs.
 using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_substrate()` as well as `test_all()`.
-for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedConversationTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedFileSystemTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedHelpTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedShellTest, ProjecturedSqlTest, ProjecturedSubstrateTest, ProjecturedUndoTest, ProjecturedXmlTest, ProjecturedYamlTest)
+for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedPlatformTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedPlatformTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedPlatformTest, ProjecturedSqlTest, ProjecturedPlatformTest, ProjecturedPlatformTest, ProjecturedXmlTest, ProjecturedYamlTest)
     for _n in names(_src)
         _n === nameof(_src) && continue
         isdefined(_src, _n) || continue
         Core.eval(@__MODULE__, Expr(:export, _n))
     end
 end
-import ProjecturedSubstrateTest: test_collection, test_copying_projection
-import ProjecturedSubstrateTest: test_projection_template_hygiene,
+import ProjecturedPlatformTest: test_collection, test_copying_projection
+import ProjecturedPlatformTest: test_projection_template_hygiene,
                               test_syntax, test_text, test_graphics, test_affine_transform,
                               test_graphics_layout, test_layout_allocator,
                               test_layout_constraint_helpers, test_primitive,
@@ -71,17 +66,17 @@ import ProjecturedSubstrateTest: test_projection_template_hygiene,
                               _find_text_iomap, _find_cursor_rect, _pipeline_measure,
                               _segment_x_at, _path_contains_projection_reference
 import ProjecturedKernelTest: test_kernel
-import ProjecturedSubstrateTest: test_substrate
+import ProjecturedPlatformTest: test_platform
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               explore_selections, test_navigation,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
                               test_gesture_case, test_gesture_binding,
                               WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
                               _ALL_READER_EVENTS, _assert_reaches_all
-import ProjecturedSubstrateTest: collect_position_selections, collect_tree_selections,
+import ProjecturedPlatformTest: collect_position_selections, collect_tree_selections,
                                  test_focusing
 # The navigation presets over the generic driver (position + tree gesture sets).
-import ProjecturedSubstrateTest: test_position_navigation, test_tree_navigation,
+import ProjecturedPlatformTest: test_position_navigation, test_tree_navigation,
                               explore_position_selections, explore_tree_selections
 # Opt into the SDL backend package so the test suite can drive rendering /
 # write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).
@@ -115,7 +110,6 @@ using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
 # The suite of the data frame view. It prints its views without a window.
 using ProjecturedDataFramesTest
-using ProjecturedDisplayTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
                    ConcreteReference, EmptyReference, Reference,
@@ -395,7 +389,7 @@ function test_all()
     # The per-package suites: the kernel unit tests, the substrate documents and
     # projections, every domain, and the layering guard of each package.
     test_kernel()
-    test_substrate()
+    test_platform()
     test_json()
     test_yaml()
     test_xml()
@@ -406,7 +400,6 @@ function test_all()
     test_julia()
     test_sql()
     test_database()
-    test_filesystem()
     test_graph()
     test_chart()
     test_sequencechart()
@@ -414,13 +407,9 @@ function test_all()
     test_formula()
     test_fsm()
     test_process()
-    test_conversation()
-    test_undo()
-    test_help()
     test_anthropic()
     test_ollama()
     test_dataframes()
-    test_display()
     test_integration()
     end
 end
@@ -533,7 +522,7 @@ end
 export test_all, test_integration, test_documents, test_projections, test_domain_examples,
        test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
-export test_kernel, test_substrate, test_domain
+export test_kernel, test_platform, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_search_scale, test_search_corpus, test_call_site, test_search_ranking
 export test_type_reference, test_gesture_case, test_gesture_binding, test_focusing, test_console_backend, test_message_log_feed, test_frame_statistics_feed

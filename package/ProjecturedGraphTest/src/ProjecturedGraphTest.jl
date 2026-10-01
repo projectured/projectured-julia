@@ -16,13 +16,13 @@ import ProjecturedPdf
 import ProjecturedConsole
 import ProjecturedPlatform
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 using ProjecturedXmlExample
 import ProjecturedJson
 import ProjecturedXml
 using ProjecturedGraphExample
 using ProjecturedKernelTest
-using ProjecturedSubstrateTest
+using ProjecturedPlatformTest
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJson, ProjecturedKernel, ProjecturedPdf, ProjecturedXml)
 

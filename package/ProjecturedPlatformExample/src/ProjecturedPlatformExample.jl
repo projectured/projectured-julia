@@ -1,5 +1,5 @@
 """
-    ProjecturedSubstrateExample
+    ProjecturedPlatformExample
 
 The visual tier of the example-package DAG that parallels the main DAG
 (kernel ← visual ← domain ← umbrella; see
@@ -18,7 +18,7 @@ plan/done/example-package-split.md). It hosts:
 The tier's registry slice is `substrate_examples`; the global interleaved
 `examples` registry lives in the `ProjecturedExample` umbrella.
 """
-module ProjecturedSubstrateExample
+module ProjecturedPlatformExample
 
 import ProjecturedKernel
 import ProjecturedPlatform
@@ -201,4 +201,58 @@ export word_wrapping_example, write_example_pdf
 export Example, AtomicDocument, substrate_examples, substrate_atomic_documents
 export print_example, write_example_pdf
 
-end # module ProjecturedSubstrateExample
+
+# The examples of the slices that had a package of their own, each in its own
+# namespace, so that the helpers of two of them do not collide. This package
+# exports what each exports.
+
+module FileSystemExamples
+
+import ProjecturedPlatform
+import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+using ProjecturedKernelExample
+using ..ProjecturedPlatformExample
+import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
+
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+
+for _src in _SOURCES
+    _srcname = nameof(_src)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        # An aggregate repeats the modules and the names that this loop binds.
+        nameof(_m) in (:KernelModule, :PlatformModule) && continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+        _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
+        isempty(_syms) && continue
+        Core.eval(@__MODULE__, Expr(:using, Expr(:(:),
+            Expr(:., _srcname, _n), (Expr(:., s) for s in _syms)...)))
+    end
+end
+
+include("../../../example/platform/filesystem/FileSystemDocumentExample.jl")
+include("../../../example/platform/filesystem/FileSystemProjectionExample.jl")
+include("../../../example/platform/filesystem/NavigatorDocumentExample.jl")
+include("../../../example/platform/filesystem/NavigatorProjectionExample.jl")
+
+export filesystem_example_root
+export make_filesystem_document_example, make_filesystem_file_document_example, make_filesystem_directory_document_example
+export make_filesystem_projection_example, make_filesystem_widget_projection_example
+export make_navigator_document_example, make_navigator_projection_example
+export make_workspace_folder_document_example, make_workspace_document_example
+end # module FileSystemExamples
+
+for _part in (FileSystemExamples,)
+    Core.eval(@__MODULE__, Expr(:using, Expr(:., :., nameof(_part))))
+    for _n in names(_part)
+        _n === nameof(_part) || Core.eval(@__MODULE__, Expr(:export, _n))
+    end
+end
+
+end # module ProjecturedPlatformExample

@@ -1351,8 +1351,8 @@ function test_application()
 
                 # A row of the navigator lights up through the mouse target
                 # tracking of the screen, and the history does not grow.
-                pointer = ProjecturedSubstrateTest.MttDriver(composed, scene)
-                hover!(x, y, time) = ProjecturedSubstrateTest._mtt_play!(pointer,
+                pointer = ProjecturedPlatformTest.MttDriver(composed, scene)
+                hover!(x, y, time) = ProjecturedPlatformTest._mtt_play!(pointer,
                     WindowInput(:ProjecturEd, MouseMove(x, y; time)))
                 y, _ = _app_find_file_row(composed, io)
                 before = steps()

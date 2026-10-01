@@ -54,8 +54,7 @@ jobs:
       matrix:
         include:
           - {package: ProjecturedKernelTest, run: test_kernel}
-          - {package: ProjecturedSubstrateTest, run: test_substrate}
-          - {package: ProjecturedFaultTest, run: test_fault}
+          - {package: ProjecturedPlatformTest, run: test_platform}
           - {package: ProjecturedJsonTest, run: test_json}
           - {package: ProjecturedYamlTest, run: test_yaml}
           - {package: ProjecturedXmlTest, run: test_xml}
@@ -67,22 +66,16 @@ jobs:
           - {package: ProjecturedSqlTest, run: test_sql}
           - {package: ProjecturedDatabaseTest, run: test_database}
           - {package: ProjecturedDbCatalogTest, run: test_dbcatalog}
-          - {package: ProjecturedFileSystemTest, run: test_filesystem}
           - {package: ProjecturedGraphTest, run: test_graph}
           - {package: ProjecturedChartTest, run: test_chart}
           - {package: ProjecturedSequenceChartTest, run: test_sequencechart}
           - {package: ProjecturedFormulaTest, run: test_formula}
           - {package: ProjecturedFsmTest, run: test_fsm}
           - {package: ProjecturedProcessTest, run: test_process}
-          - {package: ProjecturedShellTest, run: test_shell}
-          - {package: ProjecturedConversationTest, run: test_conversation}
-          - {package: ProjecturedUndoTest, run: test_undo}
-          - {package: ProjecturedHelpTest, run: test_help}
           - {package: ProjecturedAnthropicTest, run: test_anthropic}
           - {package: ProjecturedOllamaTest, run: test_ollama}
           - {package: ProjecturedOpenRouterTest, run: test_openrouter}
           - {package: ProjecturedDataFramesTest, run: test_dataframes}
-          - {package: ProjecturedDisplayTest, run: test_display}
           - {package: ProjecturedSdlTest, run: test_sdl, project: environment/all}
           - {package: ProjecturedTulipTest, run: test_tulip, project: environment/all}
           - {package: ProjecturedVideoTest, run: test_video, project: environment/all}

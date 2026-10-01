@@ -17,8 +17,8 @@ import ProjecturedPlatform
 import ProjecturedXml
 using ProjecturedKernelExample
 using ProjecturedKernelTest
-using ProjecturedSubstrateExample
-using ProjecturedSubstrateTest
+using ProjecturedPlatformExample
+using ProjecturedPlatformTest
 using ProjecturedXmlExample
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf, ProjecturedXml)

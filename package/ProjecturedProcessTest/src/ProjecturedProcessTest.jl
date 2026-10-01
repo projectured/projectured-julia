@@ -20,8 +20,8 @@ import ProjecturedProcess
 using ProjecturedKernelExample
 using ProjecturedKernelTest
 using ProjecturedProcessExample
-using ProjecturedSubstrateExample
-using ProjecturedSubstrateTest
+using ProjecturedPlatformExample
+using ProjecturedPlatformTest
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf, ProjecturedProcess)
 

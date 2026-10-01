@@ -1,12 +1,12 @@
 """
-    test_substrate_layering()
+    test_platform_layering()
 
-The static layered-architecture guard of every substrate package (see
-`ProjecturedKernelTest.check_layering`). Each package is one concept and
-declares no layer index, so the check is the topological include order of its
-own entry file plus the file inventory of its own folder.
+The static layered-architecture guard of the platform (see
+`ProjecturedKernelTest.check_layering`): the topological include order of its
+entry file, and the file inventory of `source/platform/`. The rule of the edges
+between its slices is `test_platform_slice_edges`.
 """
-function test_substrate_layering()
+function test_platform_layering()
     for pkg in _SOURCES
         pkg === ProjecturedKernel && continue
         main = get_package_source_root(pkg)
@@ -119,14 +119,16 @@ function _find_platform_entry_files(root)
 end
 
 """
-    test_substrate()
+    test_platform()
 
-Run the whole substrate suite: the layering guard of every package, every unit
-test, and the printer walk over the tier's own examples.
+Run the whole suite of the platform: its layering guard and the table of the
+edges between its slices, every unit test, the printer walk over its own
+examples, and the suites of the fault, file system, conversation, help, shell,
+undo and display slices.
 """
-function test_substrate()
-    @testset "ProjecturedSubstrate" begin
-        test_substrate_layering()
+function test_platform()
+    @testset "ProjecturedPlatform" begin
+        test_platform_layering()
         test_platform_slice_edges()
         test_substrate_examples()
         test_collection()
@@ -267,6 +269,15 @@ function test_substrate()
         # generic drivers over visual examples
         test_collapse_roundtrip()
 
+
+        # the suites of the slices that had a test package of their own
+        test_fault()
+        test_filesystem()
+        test_conversation()
+        test_help()
+        test_shell()
+        test_undo()
+        test_display()
     end
 end
 
@@ -286,7 +297,7 @@ function test_substrate_examples()
     end
 end
 
-export test_substrate, test_substrate_layering, test_substrate_examples
+export test_platform, test_platform_layering, test_substrate_examples
 export PLATFORM_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity

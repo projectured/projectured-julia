@@ -18,8 +18,8 @@ import ProjecturedPlatform
 using ProjecturedJsonExample
 using ProjecturedKernelExample
 using ProjecturedKernelTest
-using ProjecturedSubstrateExample
-using ProjecturedSubstrateTest
+using ProjecturedPlatformExample
+using ProjecturedPlatformTest
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJson, ProjecturedKernel, ProjecturedPdf)
 

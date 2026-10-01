@@ -1,2 +1,2 @@
 using ProjecturedSubstrateTest
-test_substrate()
+test_platform()

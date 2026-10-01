@@ -2,7 +2,7 @@
 # domain-test/document/SelectionEnumeration.jl
 #
 # The domain-layer extension of the ground-truth selection enumerators (the
-# generic document walk lives in ProjecturedSubstrateTest): the projection-aware
+# generic document walk lives in ProjecturedPlatformTest): the projection-aware
 # JSON whole-element enumerator used by the tree-navigation completeness
 # suite.
 # ═══════════════════════════════════════════════════════════════════════════

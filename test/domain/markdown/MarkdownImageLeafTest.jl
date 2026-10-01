@@ -29,8 +29,8 @@ function test_markdown_image_leaf()
     # The rendered view shows the image. At every caret of a walk to the right,
     # Backspace and Delete make no element write, and the image stays.
     @testset "an edit of the image declines" begin
-        walk = ProjecturedSubstrateTest._walk_cursor(make_document(), projections.rendered(),
-                                                     ProjecturedSubstrateTest.TEXT_WALK_RIGHT)
+        walk = ProjecturedPlatformTest._walk_cursor(make_document(), projections.rendered(),
+                                                     ProjecturedPlatformTest.TEXT_WALK_RIGHT)
         @test walk.error === nothing
         for place in walk.paths, key in (:backspace, :delete)
             document = make_document()

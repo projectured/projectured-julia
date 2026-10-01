@@ -26,7 +26,7 @@ const BOTTOM_LEFT = (320, 560)          # Around one trillion, under the evaluat
 const REST = (1262, 90)                 # the right end of the tab strip, off the lists
 
 const FORMS = (
-    load = "using ProjecturedSubstrateExample;",
+    load = "using ProjecturedPlatformExample;",
     primes = "primes = sieve(integers_from(2));",
     show_primes = "show_lazy_list!(editor, primes, \"Primes\");",
     sevens = "sevens = lazy_filter(primes, p -> p.value % 10 == 7);",

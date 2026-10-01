@@ -15,7 +15,7 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
-ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 
 [sources]
 ProjecturedConsole = {path = "../ProjecturedConsole"}
@@ -25,4 +25,4 @@ ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedPdf = {path = "../ProjecturedPdf"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
-ProjecturedSubstrateExample = {path = "../ProjecturedSubstrateExample"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}

@@ -20,9 +20,9 @@ The drivers only call kernel API (`print_document`, `read_intent`,
 `evaluate_operation`, `clear_selection!`) plus `Test`, so they live here at the
 bottom of the DAG. The navigation driver carries no domain vocabulary: its
 gesture presets (`test_position_navigation`, `test_tree_navigation`) live in
-`ProjecturedSubstrateTest`, whose readers own those gesture vocabularies, and the
+`ProjecturedPlatformTest`, whose readers own those gesture vocabularies, and the
 ground-truth selection enumerators (`collect_position_selections`,
-`collect_tree_selections`) live in `ProjecturedSubstrateTest`, the lowest tier whose
+`collect_tree_selections`) live in `ProjecturedPlatformTest`, the lowest tier whose
 document walk can express them (visual extends them for `TextString` leaves,
 domain for JSON trees); the driver receives the enumerator as its `collect`
 argument.

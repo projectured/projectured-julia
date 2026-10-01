@@ -18,8 +18,8 @@ import ProjecturedMath
 using ProjecturedKernelExample
 using ProjecturedKernelTest
 using ProjecturedMathExample
-using ProjecturedSubstrateExample
-using ProjecturedSubstrateTest
+using ProjecturedPlatformExample
+using ProjecturedPlatformTest
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedMath, ProjecturedPdf)
 

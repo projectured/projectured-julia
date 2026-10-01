@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedDisplayTest` — a value shown in an editor that runs
+# Fragment of `ProjecturedPlatformTest` — a value shown in an editor that runs
 # beside the caller, with a backend that has no window.
 
 # A value that this test gives a document, as a package does for its own type.

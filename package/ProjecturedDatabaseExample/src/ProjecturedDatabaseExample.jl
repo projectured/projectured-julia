@@ -19,7 +19,7 @@ import ProjecturedPdf
 import ProjecturedConsole
 import ProjecturedPlatform
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedDatabase, ProjecturedKernel, ProjecturedPdf)

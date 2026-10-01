@@ -19,7 +19,7 @@ ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
 ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
-ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
@@ -37,7 +37,7 @@ ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
 ProjecturedMarkdownExample = {path = "../ProjecturedMarkdownExample"}
 ProjecturedPdf = {path = "../ProjecturedPdf"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
-ProjecturedSubstrateExample = {path = "../ProjecturedSubstrateExample"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedXml = {path = "../ProjecturedXml"}
 ProjecturedXmlExample = {path = "../ProjecturedXmlExample"}
 ProjecturedYaml = {path = "../ProjecturedYaml"}

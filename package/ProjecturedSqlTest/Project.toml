@@ -15,8 +15,8 @@ ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
-ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -28,5 +28,5 @@ ProjecturedPdf = {path = "../ProjecturedPdf"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedSql = {path = "../ProjecturedSql"}
 ProjecturedSqlExample = {path = "../ProjecturedSqlExample"}
-ProjecturedSubstrateExample = {path = "../ProjecturedSubstrateExample"}
-ProjecturedSubstrateTest = {path = "../ProjecturedSubstrateTest"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
+ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}

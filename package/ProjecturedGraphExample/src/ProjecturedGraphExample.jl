@@ -21,7 +21,7 @@ import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedXml
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 using ProjecturedXmlExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 

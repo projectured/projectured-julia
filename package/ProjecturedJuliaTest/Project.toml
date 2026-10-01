@@ -15,8 +15,8 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
-ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -28,5 +28,5 @@ ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedPdf = {path = "../ProjecturedPdf"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
-ProjecturedSubstrateExample = {path = "../ProjecturedSubstrateExample"}
-ProjecturedSubstrateTest = {path = "../ProjecturedSubstrateTest"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
+ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}

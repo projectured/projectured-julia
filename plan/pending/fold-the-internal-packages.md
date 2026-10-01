@@ -326,9 +326,33 @@ and the downstream repositories land in the same landing.
       platform's layering guards, the edge table, the export collisions, the
       package graph, JSON, FSM, SQL, Graph and DataFrames pass; `using
       ProjecturedKernel, ProjecturedPlatform` gives a user the names.
-- [ ] **Step 4, the test and example packages (F7).** `ProjecturedPlatformTest`
+- [x] **Step 4, the test and example packages (F7).** `ProjecturedPlatformTest`
       and `ProjecturedPlatformExample`; the CI matrix (28 jobs); the testing
       guide.
+      Found: two of the four example packages can not join the platform's.
+      `ProjecturedFaultExample` uses the umbrella and `ProjecturedExample`, and
+      `ProjecturedConversationExample` uses four domains and their example
+      packages; each of those uses the platform's example package, so either
+      merge makes a cycle (the first try hit it as a load deadlock). They are
+      examples of the application, and stay packages of their own. The eight
+      test packages merge: no main package depends on a test package, so a test
+      package may use a domain (the conversation and shell suites use JSON,
+      Julia and XML). Each merged package is a submodule of the new one
+      (`FaultTests`, …, `FileSystemExamples`), so the helpers of two of them do
+      not collide, and the new package re-exports what each exports.
+      Done: `ProjecturedPlatformTest` (the uuid of the substrate test package;
+      `test/platform/PlatformSuite.jl` defines `test_platform()`, which runs the
+      substrate's tests and then the seven merged suites, and
+      `test_platform_layering()`); the seven suites lost their own layering
+      guard, which now checked the whole platform seven times. CI has 28 jobs.
+      `test_all()` calls `test_platform()` in place of five suites. Two more
+      gaps of Step 2 came to light and are mended: the suite rule of the
+      naming guard looked for `test/<slice>` and skipped every package when it
+      found none (`c832fc48a`), and the report of slices without a guide read
+      the group folders as slices. Tests: `test_platform()` 97,458 pass, the
+      errors are the baseline's (`WidgetRoundTripTest.jl:121`,
+      `WidgetTablePartsTest.jl:564`, `WindowShellTest.jl:417`); the package
+      graph and the export collisions pass.
 - [ ] **Step 5, the application (F10).** `run_application_command` and what it
       needs move from `ProjecturedExample` to the umbrella; the builder of the
       binary follows.

@@ -14,7 +14,7 @@ tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← the 20 domain t
   kernel unit tests + the **shared generic drivers** (`test_printer`,
   `test_reader`, `test_repl`, the navigation explorers, `_walk!`) + the shared
   static `check_layering` guard. Aggregator: `test_kernel()`.
-- [package/substrate/test](../../package/ProjecturedSubstrateTest/src/ProjecturedSubstrateTest.jl) —
+- [package/substrate/test](../../package/ProjecturedPlatformTest/src/ProjecturedPlatformTest.jl) —
   the unit tests of all twenty-eight substrate packages: the collection and
   copying tests, the ground-truth selection enumerators, the syntax, text,
   graphics and layout documents, the text, graphics and widget projections, and

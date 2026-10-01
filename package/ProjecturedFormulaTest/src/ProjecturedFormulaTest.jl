@@ -19,8 +19,8 @@ import ProjecturedPlatform
 using ProjecturedFormulaExample
 using ProjecturedKernelExample
 using ProjecturedKernelTest
-using ProjecturedSubstrateExample
-using ProjecturedSubstrateTest
+using ProjecturedPlatformExample
+using ProjecturedPlatformTest
 import ProjecturedMath
 import ProjecturedMathExample
 

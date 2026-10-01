@@ -26,7 +26,7 @@ import ProjecturedXml
 import ProjecturedYaml
 using ProjecturedJsonExample
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 using ProjecturedXmlExample
 using ProjecturedYamlExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures

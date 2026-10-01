@@ -18,8 +18,8 @@ import ProjecturedSequenceChart
 using ProjecturedKernelExample
 using ProjecturedKernelTest
 using ProjecturedSequenceChartExample
-using ProjecturedSubstrateExample
-using ProjecturedSubstrateTest
+using ProjecturedPlatformExample
+using ProjecturedPlatformTest
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf, ProjecturedSequenceChart)
 

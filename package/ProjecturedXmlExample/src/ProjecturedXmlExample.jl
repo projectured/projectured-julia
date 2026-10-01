@@ -20,7 +20,7 @@ import ProjecturedPlatform
 import ProjecturedXml
 import ProjecturedJson
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJson, ProjecturedKernel, ProjecturedPdf, ProjecturedXml)

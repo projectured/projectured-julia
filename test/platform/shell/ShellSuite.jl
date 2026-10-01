@@ -1,21 +1,4 @@
 """
-    test_shell_layering()
-
-Static layered-architecture guard for `ProjecturedPlatform`.
-"""
-function test_shell_layering()
-    main = get_package_source_root(ProjecturedPlatform)
-    check_layering(main, pathof(ProjecturedPlatform);
-                   name = "shell",
-                   extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedPlatform; all = true)
-                         if isdefined(ProjecturedPlatform, n) &&
-                            getfield(ProjecturedPlatform, n) isa Module &&
-                            getfield(ProjecturedPlatform, n) !== ProjecturedPlatform &&
-                            parentmodule(getfield(ProjecturedPlatform, n)) !== ProjecturedPlatform))
-end
-
-"""
     test_shell_completeness()
 
 Every test function of this slice is called by [`test_shell`](@ref), and each one
@@ -28,8 +11,7 @@ here. This asserts the suite runs what the slice defines.
 """
 function test_shell_completeness()
     @testset "the suite runs every test of this slice, once" begin
-        directory = joinpath(get_package_source_root(ProjecturedPlatform), "..", "..", "..",
-                             "test", "platform", "shell")
+        directory = @__DIR__                # the folder of this suite
         defined = Set{String}()
         for name in readdir(directory)
             endswith(name, ".jl") || continue
@@ -65,7 +47,6 @@ Run this package's whole suite: the layering guard and the window wrap.
 """
 function test_shell()
     @testset "ProjecturedPlatform" begin
-        test_shell_layering()
         test_shell_completeness()
         test_window_wrap()
         test_widget_tooltip()
@@ -79,7 +60,7 @@ function test_shell()
     end
 end
 
-export test_shell, test_shell_layering, test_shell_completeness, test_window_wrap,
+export test_shell, test_shell_completeness, test_window_wrap,
        test_widget_tooltip, test_julia_tooltip, test_tooltip_window,
        test_context_menu_probe, test_window_shell, test_file_dialog, test_tracking_screen,
        test_pointer_light

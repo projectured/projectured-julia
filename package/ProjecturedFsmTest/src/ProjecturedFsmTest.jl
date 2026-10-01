@@ -19,13 +19,13 @@ import ProjecturedConsole
 import ProjecturedPlatform
 using ProjecturedGraphExample
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 using ProjecturedXmlExample
 import ProjecturedJson
 import ProjecturedXml
 using ProjecturedFsmExample
 using ProjecturedKernelTest
-using ProjecturedSubstrateTest
+using ProjecturedPlatformTest
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedFsm, ProjecturedGraph, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf, ProjecturedXml)
 

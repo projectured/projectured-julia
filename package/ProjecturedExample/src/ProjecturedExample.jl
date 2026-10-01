@@ -6,7 +6,7 @@ using Profile
 # points) lives at the bottom of the example-package DAG; the name-lookup
 # variants defined here add methods to the imported functions.
 using ProjecturedKernelExample
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 using ProjecturedJsonExample
 using ProjecturedYamlExample
 using ProjecturedXmlExample
@@ -17,7 +17,6 @@ using ProjecturedMathExample
 using ProjecturedJuliaExample
 using ProjecturedSqlExample
 using ProjecturedDatabaseExample
-using ProjecturedFileSystemExample
 using ProjecturedGraphExample
 using ProjecturedChartExample
 using ProjecturedSequenceChartExample
@@ -28,15 +27,15 @@ using ProjecturedProcessExample
 using ProjecturedConversationExample
 import ProjecturedKernelExample: Example, AtomicDocument, write_example_image,
                                  record_example_video, make_typein_gestures
-import ProjecturedSubstrateExample: print_example, write_example_pdf
+import ProjecturedPlatformExample: print_example, write_example_pdf
 
 # Re-export the lower example packages' entire public API so
 # `using ProjecturedExample` keeps providing every example and factory
 # unchanged — the per-name `import` form also lets this module add the
 # name-lookup method variants below.
-for _src in (ProjecturedKernelExample, ProjecturedSubstrateExample,
+for _src in (ProjecturedKernelExample, ProjecturedPlatformExample,
              ProjecturedJsonExample, ProjecturedYamlExample, ProjecturedXmlExample, ProjecturedMarkdownExample, ProjecturedRstExample, ProjecturedBookExample,
-             ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSqlExample, ProjecturedDatabaseExample, ProjecturedFileSystemExample, ProjecturedGraphExample, ProjecturedChartExample,
+             ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSqlExample, ProjecturedDatabaseExample, ProjecturedPlatformExample, ProjecturedGraphExample, ProjecturedChartExample,
              ProjecturedSequenceChartExample, ProjecturedDbCatalogExample, ProjecturedFormulaExample, ProjecturedFsmExample, ProjecturedProcessExample, ProjecturedConversationExample)
     _srcname = nameof(_src)
     for _n in names(_src)

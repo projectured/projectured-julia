@@ -1,5 +1,5 @@
 """
-    ProjecturedSubstrateTest
+    ProjecturedPlatformTest
 
 The test package of the substrate: the thirty packages between the kernel
 and the twenty domains. It is the second tier of the test-package DAG
@@ -17,11 +17,11 @@ and the twenty domains. It is the second tier of the test-package DAG
   click-roundtrip and navigation-invariant drivers, and the navigation presets
   over `ProjecturedKernelTest`'s `explore_selections`.
 
-Like the umbrella, this is a **function library**: `using ProjecturedSubstrateTest`
+Like the umbrella, this is a **function library**: `using ProjecturedPlatformTest`
 from the repo-root environment, then call `test_substrate()` or any individual
 `test_*` function.
 """
-module ProjecturedSubstrateTest
+module ProjecturedPlatformTest
 
 using Test
 import ProjecturedKernel
@@ -30,7 +30,7 @@ import ProjecturedConsole
 import ProjecturedPdf
 using ProjecturedKernelTest
 # The real substrate example factories and the tier's registry slice.
-using ProjecturedSubstrateExample
+using ProjecturedPlatformExample
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ReferenceModule
@@ -220,6 +220,251 @@ include("../../../test/platform/editor/ClickRoundtripTest.jl")
 # _find_text_iomap; both drive the Syntax→Text→Graphics pipeline).
 include("../../../test/platform/editor/CollapseRoundtripTest.jl")
 include("../../../test/platform/editor/PaneConstructTest.jl")
-include("../../../test/platform/SubstrateSuite.jl")
+include("../../../test/platform/PlatformSuite.jl")
 
-end # module ProjecturedSubstrateTest
+
+# The suites of the slices that had a package of their own, each in its own
+# namespace, so that the helpers of two of them do not collide. This package
+# exports what each exports.
+
+module FaultTests
+
+using Test
+import ProjecturedPlatform
+# The shared static layering guard lives at the bottom of the test-package DAG.
+using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedPlatform.CollectionModule
+using ProjecturedPlatform.FaultViewModule
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.DeviceModule
+using ProjecturedKernel.DocumentModule
+using ProjecturedKernel.EditorModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.FaultModule
+using ProjecturedKernel.GestureModule
+using ProjecturedKernel.IntentModule
+using ProjecturedKernel.IoMapModule
+using ProjecturedKernel.ProjectionModule
+using ProjecturedKernel.ReferenceModule
+using ProjecturedKernelExample
+using ProjecturedPlatform.ProjectionAlgebraModule
+using ProjecturedPlatform.SyntaxModule
+using ProjecturedPlatform.TextModule
+# Through the package under test, which uses both: the tooltip binding that a
+# fault report declares, and the widget a mark is drawn as.
+using ProjecturedPlatform.DomainModule
+using ProjecturedPlatform.GestureBindingModule
+using ProjecturedPlatform.TooltipModule
+using ProjecturedPlatform.WidgetModule
+using ProjecturedPlatform.FocusModule
+using ProjecturedPlatform.OperationModule
+
+import ProjecturedKernel.EditorModule: read!
+
+include("../../../test/platform/fault/FaultCatchingTest.jl")
+include("../../../test/platform/fault/FaultSafeModeTest.jl")
+include("../../../test/platform/fault/FaultSuite.jl")
+end # module FaultTests
+
+module FileSystemTests
+
+using Test
+import ProjecturedPlatform
+import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+using ProjecturedPlatformExample
+using ProjecturedKernelExample
+using ProjecturedKernelTest
+using ProjecturedPlatformExample
+using ..ProjecturedPlatformTest
+
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+
+for _src in _SOURCES
+    _srcname = nameof(_src)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        # An aggregate repeats the modules and the names that this loop binds.
+        nameof(_m) in (:KernelModule, :PlatformModule) && continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+        _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
+        isempty(_syms) && continue
+        Core.eval(@__MODULE__, Expr(:using, Expr(:(:),
+            Expr(:., _srcname, _n), (Expr(:., s) for s in _syms)...)))
+    end
+end
+
+include("../../../test/platform/filesystem/projection/FileSystemToSyntaxTest.jl")
+include("../../../test/platform/filesystem/projection/FileSystemToWidgetTest.jl")
+include("../../../test/platform/filesystem/document/FileSystemDocumentTest.jl")
+include("../../../test/platform/filesystem/document/WorkspaceDuplicateTest.jl")
+include("../../../test/platform/filesystem/projection/WorkspaceToFileSystemTest.jl")
+
+include("../../../test/platform/filesystem/FileSystemSuite.jl")
+end # module FileSystemTests
+
+module ConversationTests
+
+using Test
+import ProjecturedPlatform
+import ProjecturedJson
+import ProjecturedJulia
+import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+import ProjecturedXml
+using ProjecturedConversationExample
+using ProjecturedKernelExample
+using ProjecturedKernelTest
+using ProjecturedPlatformExample
+using ..ProjecturedPlatformTest
+
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf, ProjecturedXml)
+
+for _src in _SOURCES
+    _srcname = nameof(_src)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        # An aggregate repeats the modules and the names that this loop binds.
+        nameof(_m) in (:KernelModule, :PlatformModule) && continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+        _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
+        isempty(_syms) && continue
+        Core.eval(@__MODULE__, Expr(:using, Expr(:(:),
+            Expr(:., _srcname, _n), (Expr(:., s) for s in _syms)...)))
+    end
+end
+
+include("../../../test/platform/conversation/projection/ConversationEditorTest.jl")
+include("../../../test/platform/conversation/projection/ConversationTranscriptTest.jl")
+
+include("../../../test/platform/conversation/ConversationSuite.jl")
+end # module ConversationTests
+
+module HelpTests
+
+using Test
+import ProjecturedPlatform
+# The shared static layering guard lives at the bottom of the test-package DAG.
+using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.DocumentModule
+using ProjecturedKernel.ProjectionModule
+using ProjecturedPlatform.DomainModule
+using ProjecturedPlatform.ProjectionAlgebraModule: ChainingProjection, RecursiveProjection
+using ProjecturedPlatform.SyntaxModule: SyntaxToText
+using ProjecturedPlatform.TextModule: TextToString
+using ProjecturedPlatform.HelpModule
+
+include("../../../test/platform/help/DocstringSummaryTest.jl")
+include("../../../test/platform/help/HelpListToSyntaxTest.jl")
+include("../../../test/platform/help/AboutPageToSyntaxTest.jl")
+include("../../../test/platform/help/HelpSuite.jl")
+end # module HelpTests
+
+module ShellTests
+
+using Test
+import ProjecturedPlatform
+import ProjecturedJulia
+import ProjecturedKernel
+import ProjecturedPdf
+import ProjecturedConsole
+using ProjecturedKernelExample
+using ProjecturedKernelTest
+using ProjecturedPlatformExample
+using ..ProjecturedPlatformTest
+
+const _SOURCES = (ProjecturedPlatform, ProjecturedJulia, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+
+for _src in _SOURCES
+    _srcname = nameof(_src)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        # An aggregate repeats the modules and the names that this loop binds.
+        nameof(_m) in (:KernelModule, :PlatformModule) && continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+        _syms = [s for s in names(_m) if s !== nameof(_m) && isdefined(_m, s)]
+        isempty(_syms) && continue
+        Core.eval(@__MODULE__, Expr(:using, Expr(:(:),
+            Expr(:., _srcname, _n), (Expr(:., s) for s in _syms)...)))
+    end
+end
+
+include("../../../test/platform/shell/WindowWrapTest.jl")
+include("../../../test/platform/shell/WidgetTooltipTest.jl")
+include("../../../test/platform/shell/JuliaTooltipTest.jl")
+include("../../../test/platform/shell/TooltipWindowTest.jl")
+include("../../../test/platform/shell/ContextMenuProbeTest.jl")
+include("../../../test/platform/shell/WindowShellTest.jl")
+include("../../../test/platform/shell/FileDialogTest.jl")
+include("../../../test/platform/shell/TrackingScreenTest.jl")
+include("../../../test/platform/shell/PointerLightTest.jl")
+
+include("../../../test/platform/shell/ShellSuite.jl")
+end # module ShellTests
+
+module UndoTests
+
+using Test
+import ProjecturedPlatform
+# The shared static layering guard lives at the bottom of the test-package DAG.
+using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedPlatform.CollectionModule
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.DocumentModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.IntentModule
+using ProjecturedKernel.OperationModule
+using ProjecturedKernel.ProjectionModule
+using ProjecturedKernel.ReferenceModule
+using ProjecturedKernel.SelectionModule
+using ProjecturedKernel.ToolModule
+using ProjecturedPlatform.ProjectionAlgebraModule: IdentityProjection
+using ProjecturedPlatform.UndoModule
+
+include("../../../test/platform/undo/UndoBufferTest.jl")
+include("../../../test/platform/undo/UndoSuite.jl")
+end # module UndoTests
+
+module DisplayTests
+
+using Test
+using ProjecturedPlatform
+using ProjecturedPlatform.DisplayModule
+using ProjecturedKernel
+using ProjecturedKernel.AgentModule
+using ProjecturedKernel.BackendModule
+using ProjecturedKernelTest
+using ProjecturedPlatform.PaneModule
+using ProjecturedPlatform.PrimitiveModule
+using ProjecturedPlatform.ScreenModule
+using ProjecturedPlatform.WidgetModule
+
+import ProjecturedKernelTest: check_layering, get_package_source_root
+
+include("../../../test/platform/display/EditorDisplayTest.jl")
+include("../../../test/platform/display/DisplaySuite.jl")
+end # module DisplayTests
+
+for _part in (FaultTests, FileSystemTests, ConversationTests, HelpTests, ShellTests, UndoTests, DisplayTests)
+    Core.eval(@__MODULE__, Expr(:using, Expr(:., :., nameof(_part))))
+    for _n in names(_part)
+        _n === nameof(_part) || Core.eval(@__MODULE__, Expr(:export, _n))
+    end
+end
+
+end # module ProjecturedPlatformTest

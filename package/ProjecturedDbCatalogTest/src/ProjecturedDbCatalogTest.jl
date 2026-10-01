@@ -19,8 +19,8 @@ import ProjecturedSql
 using ProjecturedDbCatalogExample
 using ProjecturedKernelExample
 using ProjecturedKernelTest
-using ProjecturedSubstrateExample
-using ProjecturedSubstrateTest
+using ProjecturedPlatformExample
+using ProjecturedPlatformTest
 
 const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedDbCatalog, ProjecturedKernel, ProjecturedPdf, ProjecturedSql)
 

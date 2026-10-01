@@ -13,7 +13,7 @@ ProjecturedChartExample = "0e53a0c9-3d54-4ef6-8a21-e550a94ca62b"
 ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
 ProjecturedDatabaseExample = "ee9f8c84-306f-4f17-8271-ad471b5f4c56"
 ProjecturedDbCatalogExample = "b9bdd725-befb-4dbf-8d36-33f4c892fad9"
-ProjecturedFileSystemExample = "1210db9c-5a25-40af-bbe6-70ed48d554fe"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedFormulaExample = "e12fc55c-24d9-46de-99d8-255849114e23"
 ProjecturedFsmExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
 ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
@@ -28,7 +28,6 @@ ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
 ProjecturedRstExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
 ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
 ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
-ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedYamlExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 
@@ -40,7 +39,7 @@ ProjecturedChartExample = {path = "../ProjecturedChartExample"}
 ProjecturedConversationExample = {path = "../ProjecturedConversationExample"}
 ProjecturedDatabaseExample = {path = "../ProjecturedDatabaseExample"}
 ProjecturedDbCatalogExample = {path = "../ProjecturedDbCatalogExample"}
-ProjecturedFileSystemExample = {path = "../ProjecturedFileSystemExample"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedFormulaExample = {path = "../ProjecturedFormulaExample"}
 ProjecturedFsmExample = {path = "../ProjecturedFsmExample"}
 ProjecturedGraphExample = {path = "../ProjecturedGraphExample"}
@@ -55,6 +54,5 @@ ProjecturedProcessExample = {path = "../ProjecturedProcessExample"}
 ProjecturedRstExample = {path = "../ProjecturedRstExample"}
 ProjecturedSequenceChartExample = {path = "../ProjecturedSequenceChartExample"}
 ProjecturedSqlExample = {path = "../ProjecturedSqlExample"}
-ProjecturedSubstrateExample = {path = "../ProjecturedSubstrateExample"}
 ProjecturedXmlExample = {path = "../ProjecturedXmlExample"}
 ProjecturedYamlExample = {path = "../ProjecturedYamlExample"}

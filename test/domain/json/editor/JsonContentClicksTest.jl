@@ -2,7 +2,7 @@
 # test/editor/JsonContentClicksTest.jl
 #
 # JSON content click → clean path. Uses the TextToGraphics traversal helpers
-# from ProjecturedSubstrateTest and JSON domain vocabulary; migrates to
+# from ProjecturedPlatformTest and JSON domain vocabulary; migrates to
 # ProjecturedDomainTest in phase 3 of plan/pending/test-package-split.md.
 # ═══════════════════════════════════════════════════════════════════════════
 
