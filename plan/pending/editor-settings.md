@@ -642,7 +642,7 @@ the pixels and the test counts of the baseline of S0.
     it needs no stored method.
   - `is_settings_group(settings, document)` answers whether a document is a
     group of a `Settings`, for the wrapper of S7.
-  The plan of S1 continues: `SettingsGroup`, `@settings`,
+  What the step holds: `SettingsGroup`, `@settings`,
   `SettingDescription`, `Settings` with its lookup by type, `apply_settings!`,
   `is_settings_target`, and `ApplySettingOperation` with its evaluation, its
   check, its inverse and its description.
