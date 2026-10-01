@@ -8,6 +8,7 @@ every case exact.
 using Test
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.GestureModule
+using ProjecturedKernel.CellModule: Cell
 
 # Read the inputs of `inputs`, each a `(input, window)`, in order, from the first
 # state: the last step, and every input that the steps gave.
@@ -35,11 +36,12 @@ _gr_chords(names...) =
 # The clicks of a press 0.02 s before each time of `times` and a release at it,
 # all at `(10, 20)`, each in the window of the same index of `windows`: the count
 # of each click.
-function _gr_click_counts(times; windows = fill(:win, length(times)))
+function _gr_click_counts(times; windows = fill(:win, length(times)),
+                          recognition = ClickRecognition())
     inputs = vcat([[_gr_down(:left, 10, 20, t - 0.02; window),
                     _gr_up(:left, 10, 20, t; window)]
                    for (t, window) in zip(times, windows)]...)
-    [input.event.count for input in last(_gr_read(ClickRecognition(), inputs))]
+    [input.event.count for input in last(_gr_read(recognition, inputs))]
 end
 
 function test_gesture_recognition()
@@ -77,6 +79,26 @@ function test_gesture_recognition()
     @testset "clicks in quick succession count up, and a gap starts again" begin
         @test _gr_click_counts([0.05, 0.15, 0.25]) == [1, 2, 3]
         @test _gr_click_counts([0.05, 0.50]) == [1, 1]
+    end
+
+    @testset "a limit that is a cell follows the cell" begin
+        interval = Cell(0.3)
+        distance = Cell(5)
+        recognition = ClickRecognition(; multi_click_max_interval = interval,
+                                         click_max_displacement = distance)
+        @test _gr_click_counts([0.05, 0.50]; recognition) == [1, 1]
+        interval[] = 0.6
+        @test _gr_click_counts([0.05, 0.50]; recognition) == [1, 2]
+        release_far = [_gr_down(:left, 10, 20, 0.0), _gr_up(:left, 18, 20, 0.1)]
+        @test isempty(last(_gr_read(recognition, release_far)))
+        distance[] = 10
+        @test length(last(_gr_read(recognition, release_far))) == 1
+        delay = Cell(0.5)
+        dwell = DwellRecognition(; delay)
+        move = (MouseMove(30, 40; time = 1.0), :win)
+        @test first(_gr_read(dwell, [move])).deadline == 1.5
+        delay[] = 1.0
+        @test first(_gr_read(dwell, [move])).deadline == 2.0
     end
 
     @testset "the next click in another window starts the count again" begin

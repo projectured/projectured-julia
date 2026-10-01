@@ -28,6 +28,7 @@ The module lives in eight fragments that share this namespace:
 """
 module GestureModule
 
+using ..CellModule
 using ..EventModule
 
 import ..EventModule: get_modifier_keys, get_event_time

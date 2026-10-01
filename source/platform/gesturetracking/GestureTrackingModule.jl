@@ -17,6 +17,8 @@ that wait, and a timer of the editor brings them in, one in each read.
   printer, the reader and the mappings.
 - [`GestureTrackingWrapper.jl`](GestureTrackingWrapper.jl) — the document and the
   projection of the wrapper, for a host to apply.
+- [`PointerSettings.jl`](PointerSettings.jl) — `PointerSettings`, the limits of the
+  recognitions of the pointer, and the recognitions that read them.
 """
 module GestureTrackingModule
 
@@ -30,17 +32,21 @@ using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
+using ..SettingsModule
 
 import ..DocumentModule: get_wrapped_document
+import ..GestureModule: make_standard_recognitions
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
 export GestureTrackingState
 export GestureTrackingProjection, GestureTrackingIoMap
 export make_gesture_tracking_document, make_gesture_tracking_projection
+export PointerSettings
 
 include("GestureTrackingDocument.jl")
 include("GestureTracking.jl")
 include("GestureTrackingWrapper.jl")
+include("PointerSettings.jl")
 
 end # module

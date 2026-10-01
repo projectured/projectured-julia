@@ -17,12 +17,16 @@ pointer gets no second dwell and none after a press.
 The recognition reads the end of the wait as a `TimerExpire` at the deadline
 that the motion answered, and it holds that timer. A timer of an older motion
 finds a newer one in the state and gives nothing.
+
+`delay` is a number, or a cell that the recognition reads at each motion and at
+each timer, so a setting changes it while the editor runs.
 """
 struct DwellRecognition <: GestureRecognition
-    delay::Float64
+    delay::Union{Float64, AbstractCell}
 end
 
-DwellRecognition(; delay::Real = 0.5) = DwellRecognition(Float64(delay))
+DwellRecognition(; delay::Union{Real, AbstractCell} = 0.5) =
+    DwellRecognition(_make_limit(Float64, delay))
 
 # The last motion in a window, and whether a dwell can still follow it: only a
 # motion with no button held that gave no dwell yet and that no press followed.
@@ -55,7 +59,7 @@ function recognize(recognition::DwellRecognition, motion, event::MouseMove, wind
     moved = _Motion(window, event.x, event.y, event.modifiers, now,
                     event.buttons == MouseButtons())
     moved.is_waiting || return RecognitionStep(moved)
-    RecognitionStep(moved; deadline = now + recognition.delay)
+    RecognitionStep(moved; deadline = now + _get_limit(recognition.delay))
 end
 
 recognize(::DwellRecognition, motion, ::Union{MouseDown,MouseClick,MouseScroll}, window) =
@@ -65,7 +69,8 @@ recognize(::DwellRecognition, motion, ::WindowLeave, window) = RecognitionStep(n
 
 function recognize(recognition::DwellRecognition, motion, timer::TimerExpire, window)
     now = get_event_time(timer)
-    (motion === nothing || !motion.is_waiting || now < motion.time + recognition.delay) &&
+    (motion === nothing || !motion.is_waiting ||
+     now < motion.time + _get_limit(recognition.delay)) &&
         return RecognitionStep(motion; held = true)
     dwell = MouseDwell(motion.x, motion.y, motion.modifiers; time = now)
     RecognitionStep(_stop_waiting(motion); inputs = [WindowInput(motion.window, dwell)],

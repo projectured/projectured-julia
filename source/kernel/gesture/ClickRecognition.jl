@@ -11,19 +11,28 @@ double or a triple click when it is less than `multi_click_max_displacement`
 pixels and `multi_click_max_interval` seconds away from the click before it,
 with the same button in the same window. The defaults are the usual values of a
 desktop. The recognition holds no input.
+
+Each limit is a number, or a cell that the recognition reads at each input, so
+a setting changes it while the editor runs.
 """
 struct ClickRecognition <: GestureRecognition
-    click_max_displacement::Int
-    click_max_duration::Float64
-    multi_click_max_displacement::Int
-    multi_click_max_interval::Float64
+    click_max_displacement::Union{Int, AbstractCell}
+    click_max_duration::Union{Float64, AbstractCell}
+    multi_click_max_displacement::Union{Int, AbstractCell}
+    multi_click_max_interval::Union{Float64, AbstractCell}
 end
 
-ClickRecognition(; click_max_displacement::Integer = 5, click_max_duration::Real = 0.3,
-                   multi_click_max_displacement::Integer = 5,
-                   multi_click_max_interval::Real = 0.3) =
-    ClickRecognition(click_max_displacement, Float64(click_max_duration),
-                     multi_click_max_displacement, Float64(multi_click_max_interval))
+ClickRecognition(; click_max_displacement::Union{Integer, AbstractCell} = 5,
+                   click_max_duration::Union{Real, AbstractCell} = 0.3,
+                   multi_click_max_displacement::Union{Integer, AbstractCell} = 5,
+                   multi_click_max_interval::Union{Real, AbstractCell} = 0.3) =
+    ClickRecognition(_make_limit(Int, click_max_displacement),
+                     _make_limit(Float64, click_max_duration),
+                     _make_limit(Int, multi_click_max_displacement),
+                     _make_limit(Float64, multi_click_max_interval))
+
+_make_limit(::Type{T}, limit::Real) where {T} = T(limit)
+_make_limit(::Type, limit::AbstractCell) = limit
 
 # A button that went down, and where and when: the start of a click.
 struct _ButtonPress
@@ -88,9 +97,9 @@ end
 # Whether an up in `window` is inside the click window of `press`.
 _is_click(recognition::ClickRecognition, press::_ButtonPress, event::MouseUp, window) =
     press.window === window &&
-    abs(event.x - press.x) < recognition.click_max_displacement &&
-    abs(event.y - press.y) < recognition.click_max_displacement &&
-    (get_event_time(event) - press.time) < recognition.click_max_duration
+    abs(event.x - press.x) < _get_limit(recognition.click_max_displacement) &&
+    abs(event.y - press.y) < _get_limit(recognition.click_max_displacement) &&
+    (get_event_time(event) - press.time) < _get_limit(recognition.click_max_duration)
 
 # The count of the click that `event` completes: one higher than the last click
 # when it has the same button and window and is inside the window of a double
@@ -98,9 +107,10 @@ _is_click(recognition::ClickRecognition, press::_ButtonPress, event::MouseUp, wi
 function _count_click(recognition::ClickRecognition, last, event::MouseUp, window)
     last === nothing && return 1
     last.window === window && last.button === event.button &&
-        abs(event.x - last.x) < recognition.multi_click_max_displacement &&
-        abs(event.y - last.y) < recognition.multi_click_max_displacement &&
-        (get_event_time(event) - last.time) < recognition.multi_click_max_interval ||
+        abs(event.x - last.x) < _get_limit(recognition.multi_click_max_displacement) &&
+        abs(event.y - last.y) < _get_limit(recognition.multi_click_max_displacement) &&
+        (get_event_time(event) - last.time) <
+            _get_limit(recognition.multi_click_max_interval) ||
         return 1
     last.count + 1
 end

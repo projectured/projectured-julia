@@ -65,6 +65,11 @@ RecognitionStep(state; inputs::Vector = WindowInput[], deadline = nothing,
     RecognitionStep(state, WindowInput[input for input in inputs],
                     deadline === nothing ? nothing : Float64(deadline), held)
 
+# A limit of a recognition: a number, or a cell that the recognition reads at each
+# input, so a setting of the person changes the limit while the editor runs.
+_get_limit(limit::Real) = limit
+_get_limit(limit::AbstractCell) = limit[]
+
 """
     make_standard_recognitions() -> Vector{GestureRecognition}
 

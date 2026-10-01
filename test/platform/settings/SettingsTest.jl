@@ -218,6 +218,27 @@ end
     @test editor.iomap !== nothing
 end
 
+@testset "the pointer settings are the limits of the recognitions" begin
+    group = PointerSettings()
+    @test (group.multi_click_max_interval, group.click_max_displacement,
+           group.dwell_delay) == (0.3, 5, 0.5)
+    recognitions = make_standard_recognitions(group)
+    click = only(r for r in recognitions if r isa ClickRecognition)
+    dwell = only(r for r in recognitions if r isa DwellRecognition)
+    @test any(r -> r isa ChordRecognition, recognitions)
+    limit(value) = value isa Real ? value : value[]
+    @test limit(click.multi_click_max_interval) == 0.3
+    evaluate_operation(nothing, ApplySettingOperation(group, :multi_click_max_interval, 0.6))
+    evaluate_operation(nothing, ApplySettingOperation(group, :click_max_displacement, 8))
+    evaluate_operation(nothing, ApplySettingOperation(group, :dwell_delay, 1.0))
+    @test limit(click.multi_click_max_interval) == 0.6
+    @test limit(click.click_max_displacement) == 8
+    @test limit(click.multi_click_max_displacement) == 8
+    @test limit(dwell.delay) == 1.0
+    # The time of a press stays the default of a desktop.
+    @test limit(click.click_max_duration) == 0.3
+end
+
 @testset "a target is a target of a group when a method applies it" begin
     @test is_settings_target(SettingsTestTarget(), SettingsTestProbeSettings())
     @test !is_settings_target(SettingsTestTarget(), SettingsTestOtherSettings())

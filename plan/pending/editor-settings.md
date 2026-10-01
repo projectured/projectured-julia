@@ -698,7 +698,19 @@ the pixels and the test counts of the baseline of S0.
   and its apply.
   - Tests: after `is_barrier_enabled` goes off, a fault in a projection raises.
     After it goes on, the barrier catches it. The view prints again once.
-- [ ] **S5. The pointer settings** (4.8). The limits of the two recognitions and
+- [x] **S5. The pointer settings** (4.8). Done on 2026-10-01: the kernel
+  layering guard, `test_gesture_recognition()`, `test_settings()`, the platform
+  guards and `test_gesture_tracking()`, 202 pass. A limit of `ClickRecognition`
+  and `DwellRecognition` is a number or a cell (`Union{Int, AbstractCell}`), read
+  with `_get_limit` at each input; the gesture layer now uses the cell layer.
+  `make_standard_recognitions(settings::PointerSettings)` gives the cells, read
+  with `getfield` from the group; the click distance limits the click and the
+  next click. The window wrapper takes the group in S7.
+  **Found: `drag_threshold` has no reader in the application.** Only the gallery
+  examples build a `DraggingProjection`; the splitters and the tabs have no
+  threshold. So the setting is left out: a setting that changes nothing that a
+  person uses misleads. The owner confirms or asks for it back.
+  What the step holds: The limits of the two recognitions and
   of `DraggingProjection` take a cell. `PointerSettings` and
   `make_standard_recognitions(settings)` in `gesturetracking`.
   - Tests: a change of `multi_click_max_interval` changes the recognition of the
