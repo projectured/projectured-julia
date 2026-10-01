@@ -165,7 +165,7 @@ The owner accepted each recommendation on 2026-10-01.
       new version. `test_builder()` passes 386 of 386. The `Pkg.test` of a
       package is in Step 4, because the fixture depends on a package that no
       registry holds.
-- [ ] **Step 4, the full check.** In an empty depot with a local registry,
+- [x] **Step 4, the full check.** In an empty depot with a local registry,
       `Pkg.test` for each of the 32 packages; record the size and the time.
       First pass (`/var/tmp/r30/s4/`, a clone of the branch, 2026-10-01): the
       release copy of the clone, registered in a local registry; phase 1, with
@@ -187,6 +187,14 @@ The owner accepted each recommendation on 2026-10-01.
         the 7 known failure sites of `main`, the 10 errors of the missing
         import of the conversation example (fixed in `8740e5d16`), and the
         help text test.
+      Second and third pass (`/var/tmp/r30/s4b/`, `s4c/`, new clones, the same
+      procedure for the packages that had failed): Markdown 222, the umbrella
+      with only the 7 known failure sites of `main` (2305 s), and the platform
+      97291 passed and 8 broken (479 s), after one more fix: the clipboard test
+      loaded `ProjecturedKernel` by name in a new module, which the test
+      environment of the installed platform does not name; it binds the module
+      now. **So every one of the 32 packages passes its tests as an installed
+      package**, with the counts of CI in the repository.
 - [x] **Step 5, the guides.** `builder.md` and `build-guide.md`.
       Done (`3793081e6`), with the test folder, the version rule and the scan.
 
