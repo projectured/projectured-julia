@@ -1026,6 +1026,45 @@ already; the sealed selection files do not change (Q4).
     still selects the tab; a part under a drag lights; Escape and a lost release
     end a drag with no change; a tab dropped into a group and onto each edge,
     with the blue rectangle.
+  - **The sub-steps** (2026-10-01). Each ends with a commit and its tests.
+    - [ ] 5b.1 **A route moves the point.** `read_routed_child` reads the child
+      that a route names through one hook of the projection layer, whose default
+      is the read of today. A graphics container adds a method that moves the
+      event into the frame of that child and moves the positions of the answer
+      back: one method for `ChildrenIoMap`, whose entries hold the offset of each
+      child (`get_child_frame_offset`), and one each for the grid layout, the
+      scroll pane, the transform pane (its affine transform), the accordion, the
+      menu item, the context menu and the dialog; the screen and the shell move
+      the point in their own routed readers. Test: a gesture that a route takes
+      to a part reaches it at the same point as the same gesture by position,
+      through each container.
+    - [ ] 5b.2 **The gestures and the operation.** `DragMove`, `DragEnd` and
+      `DragCancel` in the gesture layer of the kernel, beside `MouseDwell`;
+      `StartDragOperation(path, dragged)` in the operation layer, a path
+      operation, so each container puts its step in front of the path and each
+      projection maps it backward, as `ReplaceMouseTargetOperation`.
+    - [ ] 5b.3 **The drag wrapper.** A platform slice `dragtracking` with
+      `DragTrackingState` (the content, the drag path and the dragged thing, as
+      view state) and `DragTrackingProjection`, which `make_tracking_screen` puts
+      inside the gesture tracker (D26). It takes a `StartDragOperation` out of
+      an answer and keeps its path; while a drag is on, it sends `DragMove`,
+      `DragEnd` and `DragCancel` by the drag path, gives the raw events on by
+      position, and drops the click gestures (D14).
+    - [ ] 5b.4 **The local drags.** The slider, the split pane divider and the
+      pan and zoom of the chart answer `StartDragOperation` at the press and
+      read their drag from the three gestures; the slider keeps its value at the
+      press. The drag fallbacks of the composite and the split pane, and the
+      band capture of the shell, go.
+    - [ ] 5b.5 **The light during a drag** (point 4): a move with a button held
+      names the part under the pointer, as a move with no button held does.
+    - [ ] 5b.6 **The global drags**: the tab of a pane and the reorder of the
+      dragging package, with `find_drop_zone`. The drop target goes by
+      position, so a gesture by position must carry the dragged thing to the
+      parts under the pointer. That gesture is a new mechanism, and its design
+      goes to the owner before the code.
+    - [ ] 5b.7 **The documents and the rules**: `package/platform/dragging/`
+      and `guide/dragging-guide.md`, as the table of step 11 of the events plan
+      lists them.
 - [x] 6. **The light** (M9). The button, the menu item and the toolbar item
   light while their mouse target is set; the list, the table, the table list and
   the tree light the row that their mouse target names; the chart and the
