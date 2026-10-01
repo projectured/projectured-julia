@@ -161,6 +161,37 @@ function test_data_frame_filter()
             @test field.tooltip === nothing && field.style === nothing
         end
 
+        @testset "the list of the values of a column writes the ticked ones into its filter" begin
+            view = DataFrameView(DataFrame(id = 1:6, kind = ["b", "a", "b", "c", missing, "a, b"]))
+            rows_of(dialog) = dialog.content.content.children
+            dialog, take = module_._make_value_list_dialog(view, "kind")
+            # The values that are not missing, sorted, each with the count of its rows.
+            @test [row.children[2].content for row in rows_of(dialog)] ==
+                  ["a  (1)", "a, b  (1)", "b  (2)", "c  (1)"]
+            boxes = [row.children[1] for row in rows_of(dialog)]
+            @test all(box -> box.content, boxes)
+            # Every value ticked is no filter.
+            evaluate_operation(_DataFrameFilterEditor(view), take())
+            @test module_._find_column_filter(view.query, "kind").text == ""
+            getfield(boxes[3], :content)[] = false
+            getfield(boxes[4], :content)[] = false
+            evaluate_operation(_DataFrameFilterEditor(view), take())
+            @test module_._find_column_filter(view.query, "kind").text == "= a, \"a, b\""
+            @test view.kept_rows == [2, 6]
+            # The next list starts from the filter, and no value ticked changes nothing.
+            dialog, take = module_._make_value_list_dialog(view, "kind")
+            @test [row.children[1].content for row in rows_of(dialog)] == [true, true, false, false]
+            foreach(row -> getfield(row.children[1], :content)[] = false, rows_of(dialog))
+            @test take() === nothing
+        end
+
+        @testset "a column of more than 1,000 distinct values has no list" begin
+            view = DataFrameView(DataFrame(id = 1:2000))
+            dialog, take = module_._make_value_list_dialog(view, "id")
+            @test dialog.content isa AbstractString
+            @test take() === nothing
+        end
+
         @testset "the pattern keeps the columns whose names match it" begin
             view = DataFrameView(make_frame())
             io = print_document(projection, nothing, view, context())

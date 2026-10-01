@@ -25,6 +25,8 @@ function test_data_frame_columns()
         header_reference(c) = ConcreteReference(FieldReferenceStep("column_headers"),
             ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
         module_ = ProjecturedDataFrames.DataFramesModule
+        labels_of(menu) = [item.action.label for item in menu.elements]
+        item_of(menu, label) = only(item for item in menu.elements if item.action.label == label)
 
         @testset "a press on a header selects its column, and the header shows it" begin
             view = DataFrameView(make_frame())
@@ -53,9 +55,9 @@ function test_data_frame_columns()
             view = DataFrameView(make_frame())
             io = print_document(projection, nothing, view, context())
             @test compute_context_menu(view) === nothing
-            item = only(compute_context_menu(DataFrameColumn(view, "name")).elements)
-            @test item.action.label == "Hide column"
-            @test item.enabled
+            menu = compute_context_menu(DataFrameColumn(view, "name"))
+            @test labels_of(menu) == ["Filter by values…", "Hide column"]
+            @test item_of(menu, "Hide column").enabled
             evaluate_operation(nothing, module_._make_hide_column_operation(view, "name"))
             @test view.query.hidden_columns == ["name"]
             # The table that was printed follows the query.
@@ -86,7 +88,7 @@ function test_data_frame_columns()
                 (op isa ReplaceViewStateOperation && get_wrapped_operation(op) isa OpenPopupOperation) ?
                     get_wrapped_operation(op) : nothing
             (x, y) = place_of(io, "name :: String")
-            @test only(find_popup(right(x + 2, y + 2)).content.elements).action.label == "Hide column"
+            @test labels_of(find_popup(right(x + 2, y + 2)).content) == ["Filter by values…", "Hide column"]
             # The corner opens the menu of the view once a column is hidden.
             evaluate_operation(nothing, module_._make_hide_column_operation(view, "price"))
             (x, y) = place_of(io, "1000")
@@ -96,7 +98,7 @@ function test_data_frame_columns()
 
         @testset "the last column that the view shows can not be hidden" begin
             view = DataFrameView(DataFrame(id = 1:3))
-            @test !only(compute_context_menu(DataFrameColumn(view, "id")).elements).enabled
+            @test !item_of(compute_context_menu(DataFrameColumn(view, "id")), "Hide column").enabled
         end
 
         @testset "a path to a column that the frame does not have names nothing" begin

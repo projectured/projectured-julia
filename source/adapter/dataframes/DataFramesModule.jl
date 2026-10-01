@@ -34,6 +34,7 @@ include("DataFrameFilter.jl")
 include("DataFrameView.jl")
 include("DataFrameColumn.jl")
 include("DataFrameFilterRow.jl")
+include("DataFrameValueList.jl")
 include("DataFrameViewToWidget.jl")
 
 # A data frame shows as a `DataFrameView`: in the display of a value, and inside

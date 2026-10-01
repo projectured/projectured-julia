@@ -60,6 +60,21 @@ function _get_shown_columns(view)
            if !(name in query.hidden_columns) && (keep isa String || keep(name))]
 end
 
+# `edit`, an edit of the query of `view`, and the view state that shows the
+# result of the new query from its start.
+function _make_query_edit_operation(view, edit)
+    start(field, value) = ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, field, value))
+    CompoundOperation(Any[edit, start("anchor", 1), start("column_anchor", 1),
+                          start("scroll_position", Point2D(0, 0)), start("top_row", 1)])
+end
+
+# The operation that writes the text of the filter of `column` in `view` and
+# shows the result of the new query from its start.
+function _make_filter_write_operation(view, column::String, text::String)
+    filter = _find_column_filter(view.query, column)
+    _make_query_edit_operation(view, ReplaceReferencedValueOperation(filter, "text", text))
+end
+
 # The operation that writes `hidden` as the hidden columns of the query of
 # `view`.
 _make_hidden_columns_operation(view, hidden::Vector{String}) =

@@ -300,10 +300,8 @@ function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
     target = _find_view_path(iomap, path)
     (target isa ConcreteReference && target.head == FieldReferenceStep("query")) || return nothing
     view = iomap.input
-    start(field, value) = ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, field, value))
-    edit = ReplaceStringRangeOperation(annotate_reference_types(view, target), operation.replacement)
-    CompoundOperation(Any[edit, start("anchor", 1), start("column_anchor", 1),
-                          start("scroll_position", Point2D(0, 0)), start("top_row", 1)])
+    _make_query_edit_operation(view, ReplaceStringRangeOperation(annotate_reference_types(view, target),
+                                                                 operation.replacement))
 end
 
 # A scroll of the table writes the cell that the view shares with it, and

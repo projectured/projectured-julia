@@ -47,12 +47,15 @@ _make_menu_item(label::String, make; enabled::Bool = true) =
     WidgetMenuItem(label; enabled,
                    action = Action(label; enabled, callback = editor -> post_operation!(editor, make())))
 
-# The menu of the header of a column: hide the column. The last column that the
-# view shows can not be hidden.
-compute_context_menu(column::DataFrameColumn) =
-    WidgetMenu(Any[_make_menu_item("Hide column",
-                                   () -> _make_hide_column_operation(column.view, column.name);
-                                   enabled = length(_get_shown_columns(column.view)) > 1)])
+# The menu of the header of a column: filter it by its values, and hide it. The
+# last column that the view shows can not be hidden.
+function compute_context_menu(column::DataFrameColumn)
+    view, name = column.view, column.name
+    values = Action("Filter by values…"; callback = editor -> _open_value_list!(editor, view, name))
+    WidgetMenu(Any[WidgetMenuItem("Filter by values…"; action = values),
+                   _make_menu_item("Hide column", () -> _make_hide_column_operation(view, name);
+                                   enabled = length(_get_shown_columns(view)) > 1)])
+end
 
 # The menu of the whole view, which the corner of the table reaches: show one
 # hidden column, or all of them. `nothing` when no column is hidden.

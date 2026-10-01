@@ -1139,11 +1139,23 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       - Open, small: the field does not fill its column, because the header
         grid gives a header no width; the mark colors the text area of the
         field, not the whole field.
-    - [ ] **5.5 The list of the values.** "Filter by values…" of the header
+    - [x] **5.5 The list of the values.** "Filter by values…" of the header
       menu opens a popup with the distinct values of the column and their
       counts, counted when it opens, for a column of at most 1,000 distinct
       values (G4). The choice writes the filter text, `= a, b` (G4), so
       the filter row stays the one place that holds a filter.
+      Done 2026-10-01 (`DataFrameValueList.jl`): "Filter by values…" is the
+      first item of the menu of a header. Its dialog, a window as every popup
+      is, has a box, the value and its count for each distinct value, sorted,
+      counted when it opens, with a stop at 1,000; a wider column gets a
+      dialog that says to type a filter. "Apply" writes `= a, b`, quoting a
+      value with a comma, or an empty filter when every value is ticked.
+      Choices (mine): `missing` is not in the list, because the filter row
+      has `missing` and `!missing`; the list starts from the values of a list
+      filter, else with every value ticked; no value ticked changes nothing.
+      Tests: the list, the counts, the text written and read back, the start
+      from a filter, the limit; 154 data frame tests pass. Not checked: the
+      dialog in a running editor.
     - [ ] **5.6 The expression bar** (F4 a). A text field above the table.
       `Meta.parse`, then the symbols that name columns become the arguments
       of one function, which the view compiles once in a module of its own
