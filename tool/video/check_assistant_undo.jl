@@ -16,7 +16,7 @@ using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedSDL,
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_undo.mp4") : ARGS[1]
 # The window is drawn 15% smaller than its logical size, so a video of 1280×720
 # holds a logical window of 1506×847: more room for the code in the conversation.
-const WIDTH, HEIGHT, SCALE = 1506, 847, 0.85
+const WIDTH, HEIGHT, DENSITY = 1506, 847, 0.85
 const COMPOSER = (1059, 642)          # read off a frame of the window, in logical pixels
 const FILE = (118, 129)               # a point on the text of people.json
 const FILE_DOWN = (353, 353)          # where the wheel scrolls the file
@@ -114,7 +114,7 @@ function main()
         make_scripted_turn(make_scripted_say("Frank, 30, from Paris is the last person."; delay = 0.0)),
     ]; delay = 0.0)
     path = record_application_video([joinpath(directory, "people.json")], make_timeline(), OUTPUT;
-                                    width = WIDTH, height = HEIGHT, scale = SCALE, fps = 30,
+                                    width = WIDTH, height = HEIGHT, density = DENSITY, fps = 30,
                                     assistant = :ollama, llm = llm, root = directory,
                                     initial_hold = 1.0, final_hold = 1.0,
                                     prepare = prepare_window!)

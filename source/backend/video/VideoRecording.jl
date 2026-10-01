@@ -16,7 +16,7 @@ end
                  fps=30, width=1200, height=800,
                  background=(0xfd,0xf6,0xe3,0xff),
                  initial_hold=0.5, final_hold=initial_hold,
-                 supersample=2, scale=1) -> String
+                 supersample=2, density=1) -> String
 
 Record a headless video of an editing session and encode it to `filename` (which
 must end in `.mp4`). No window is required — frames are rendered with the same
@@ -80,7 +80,7 @@ function record_video(document, projection; gestures::AbstractVector,
                       wait_for::Union{Nothing,Function} = nothing,
                       wait_timeout::Real = 5.0,
                       supersample::Integer = 2,
-                      scale::Real = 1,
+                      density::Real = 1,
                       clock::Clock = Clock())
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_video: only .mp4 output is supported (got \"$filename\")")
@@ -99,7 +99,7 @@ function record_video(document, projection; gestures::AbstractVector,
         canvas
     end
 
-    off = open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
+    off = open_offscreen_renderer(width, height; supersample=supersample, density=density)
     tmpdir = mktempdir()
     frame = Ref(0)
     # Print the projection ONCE and keep the resulting canvas; every frame just

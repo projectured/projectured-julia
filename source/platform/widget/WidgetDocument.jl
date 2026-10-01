@@ -1696,23 +1696,23 @@ a share that is only shown.
     # It exists because a track is linear and a great many quantities are not.
     # A playback speed runs from a thousandth of real time to a thousand times
     # it, and on a linear track everything a reader actually wants is crushed
-    # into the middle two millimetres. A scale of `f -> 10^((f - 0.5) * 6)`
+    # into the middle two millimetres. A mapping of `f -> 10^((f - 0.5) * 6)`
     # gives that quantity a track a hand can use.
     #
     # It applies only to what is written to a TARGET. A slider with no target
     # writes its own `value`, and that is the knob's position rather than what
     # the position means.
-    scale::Any
+    mapping::Any
     tooltip::Any
 end
 WidgetSlider(value::Real; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
              enabled::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
              target=nothing, field::AbstractString="value",
-             scale=nothing, tooltip=nothing) =
+             mapping=nothing, tooltip=nothing) =
     WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
                  Cell(enabled), Cell(margin), Cell(border), Cell(padding), Cell(style),
                  Cell(false), Cell(target), Cell(String(field)),
-                 Cell(scale), Cell(tooltip), Cell(nothing))
+                 Cell(mapping), Cell(tooltip), Cell(nothing))
 
 """
     resolve_slider_write(w, value) -> (document, field, value)
@@ -1729,7 +1729,7 @@ function resolve_slider_write(w::WidgetSlider, value::Float64)
     # Its own knob, unscaled: a slider with no target is a fraction of a track
     # and nothing else, and scaling it would make the knob jump under the hand.
     target === nothing && return (w, "value", value)
-    (target, String(w.field), w.scale === nothing ? value : w.scale(value))
+    (target, String(w.field), w.mapping === nothing ? value : w.mapping(value))
 end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────

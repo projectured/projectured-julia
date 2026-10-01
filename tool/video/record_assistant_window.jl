@@ -18,7 +18,7 @@ using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOlla
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_window.mp4") : ARGS[1]
 # The window is drawn 15% smaller than its logical size, so a video of 1280×720
 # holds a logical window of 1506×847: more room for the code in the conversation.
-const WIDTH, HEIGHT, SCALE = 1506, 847, 0.85
+const WIDTH, HEIGHT, DENSITY = 1506, 847, 0.85
 const COMPOSER = (1059, 642)          # read off a frame of the window, in logical pixels
 const FILE = (118, 129)               # a point on the text of people.json
 const FILE_MIDDLE = (353, 353)        # where the wheel scrolls the file
@@ -167,7 +167,7 @@ function record(output, llm, timeline; initial_hold, final_hold)
     directory = mktempdir()
     write(joinpath(directory, "people.json"), PEOPLE)
     record_application_video([joinpath(directory, "people.json")], timeline, output;
-                             width = WIDTH, height = HEIGHT, scale = SCALE, fps = 30,
+                             width = WIDTH, height = HEIGHT, density = DENSITY, fps = 30,
                              assistant = :ollama, llm = llm, root = directory,
                              initial_hold = initial_hold, final_hold = final_hold,
                              prepare = prepare_window!)

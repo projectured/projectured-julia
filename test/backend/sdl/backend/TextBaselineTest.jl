@@ -25,7 +25,7 @@ function _draw_darkness(texts, width, height, ratio)
                             CellVector(Cell[Cell(e) for e in Any[white; texts]]),
                             layout_none, true, Cell(nothing))
     filename = tempname() * ".bmp"
-    write_image(canvas, filename; width = width, height = height, supersample = 1, scale = ratio)
+    write_image(canvas, filename; width = width, height = height, supersample = 1, density = ratio)
     darkness = _read_bmp_darkness(read(filename))
     rm(filename)
     darkness

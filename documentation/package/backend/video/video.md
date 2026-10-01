@@ -12,7 +12,7 @@
 record_video(document, projection, gestures, filename;
              fps = 30, width = 1200, height = 800, initial_hold = 0.5, final_hold = initial_hold,
              initial_selection = nothing, wait_for = nothing, wait_timeout = 5.0,
-             supersample = 2, scale = 1, clock = Clock())
+             supersample = 2, density = 1, clock = Clock())
 ```
 
 `record_video` is a generic of `BackendModule` in the kernel, beside `write_image`; this package adds its one method, and the umbrella `Projectured` exports the name. `filename` must end in `.mp4`. The projection must print a `GraphicsCanvas`, not a `ScreenDocument`, because the recorder has no window; for any other output the call raises an error. Each frame is laid out at `width` by `height`, so the coordinates of a mouse event match the picture.
@@ -43,7 +43,7 @@ The loop over the entries does not yield, so a task that a gesture started, such
 
 ### Encode
 
-`write_offscreen_frames!` writes each frame as a PNG file into a temporary folder, through the offscreen renderer of `ProjecturedSDL` with `supersample` and `scale`; see [sdl.md](../sdl/sdl.md). `FFMPEG.exe` then encodes the files with `libx264` and `yuv420p`. The filter `pad=ceil(iw/2)*2:ceil(ih/2)*2` makes both sides even, which H.264 needs. The command is a vector of strings, because a backtick command literal does not accept the parentheses and asterisks of the filter without quotes. An error in the chain propagates to the caller; a `finally` block closes the renderer and deletes the folder. A timeline that makes no frame raises an error.
+`write_offscreen_frames!` writes each frame as a PNG file into a temporary folder, through the offscreen renderer of `ProjecturedSDL` with `supersample` and `density`; see [sdl.md](../sdl/sdl.md). `FFMPEG.exe` then encodes the files with `libx264` and `yuv420p`. The filter `pad=ceil(iw/2)*2:ceil(ih/2)*2` makes both sides even, which H.264 needs. The command is a vector of strings, because a backtick command literal does not accept the parentheses and asterisks of the filter without quotes. An error in the chain propagates to the caller; a `finally` block closes the renderer and deletes the folder. A timeline that makes no frame raises an error.
 
 ## How it fits
 

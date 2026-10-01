@@ -38,7 +38,7 @@ make_style_font(filename::AbstractString, size::Integer) = StyleFont(filename, s
 # Ctrl+-) is the `zoom` of the `Display` of an editor. A backend multiplies it
 # into the ratio of device pixels to logical pixels, and layout does not read it.
 # The font zoom (Ctrl+Alt+= and Ctrl+Alt+-) is `_FONT_ZOOM` below. Both zooms
-# step through `_ZOOM_STEPS` with `step_zoom`.
+# step through `_FACTOR_STEPS` with `step_factor`.
 
 # `_FONT_ZOOM` is the *font-only* readability zoom (Ctrl+Alt+=/-/0): it scales the
 # *logical* size of text so text-derived layout reflows bigger while fixed
@@ -70,20 +70,20 @@ the glyphs at this size, so that they land one to one on the device pixels.
 font_device_size(font::StyleFont, ratio::Real) =
     max(1, round(Int, font.size * _FONT_ZOOM[] * ratio))
 
-# The zoom factors that `step_zoom` steps through, as in a web browser.
-const _ZOOM_STEPS = (0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
+# The zoom factors that `step_factor` steps through, as in a web browser.
+const _FACTOR_STEPS = (0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
 
 """
-    step_zoom(zoom::Real, delta::Integer) -> Float64
+    step_factor(zoom::Real, delta::Integer) -> Float64
 
 The zoom `delta` steps away from `zoom` in the table of zoom factors: `+1` zooms
 in, `-1` zooms out, and `0` gives `1.0`. A `zoom` between two factors counts as
 the nearest one, and the result stays inside the table.
 """
-function step_zoom(zoom::Real, delta::Integer)
+function step_factor(zoom::Real, delta::Integer)
     delta == 0 && return 1.0
-    i = argmin(abs.(collect(_ZOOM_STEPS) .- zoom))
-    _ZOOM_STEPS[clamp(i + delta, 1, length(_ZOOM_STEPS))]
+    i = argmin(abs.(collect(_FACTOR_STEPS) .- zoom))
+    _FACTOR_STEPS[clamp(i + delta, 1, length(_FACTOR_STEPS))]
 end
 
 """
@@ -94,7 +94,7 @@ cell via `set_cell_value!`, which invalidates the text-layout cells that read it
 next print relayouts. Returns the new font zoom.
 """
 function adjust_font_zoom!(delta::Integer)
-    set_cell_value!(_FONT_ZOOM, step_zoom(_FONT_ZOOM[], delta))
+    set_cell_value!(_FONT_ZOOM, step_factor(_FONT_ZOOM[], delta))
     _FONT_ZOOM[]
 end
 

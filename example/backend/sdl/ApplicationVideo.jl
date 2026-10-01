@@ -13,7 +13,7 @@
     record_application_video(paths, timeline, filename; width=1280, height=720,
                              fps=30, assistant=:none, model="", context=0,
                              llm=nothing, root=pwd(), initial_hold=0.5, final_hold=1.0,
-                             supersample=2, scale=1, video_time=false, pointer=true,
+                             supersample=2, density=1, video_time=false, pointer=true,
                              partial_render=false, debug_dirty=false, debug_dirty_hold=0,
                              status_bar=true, measure=FontFileMeasure(), prepare=document -> nothing) -> String
 
@@ -71,7 +71,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   model::AbstractString = "", context::Integer = 0,
                                   llm = nothing, root::AbstractString = pwd(),
                                   initial_hold::Real = 0.5, final_hold::Real = 1.0,
-                                  supersample::Integer = 2, scale::Real = 1,
+                                  supersample::Integer = 2, density::Real = 1,
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
                                   debug_dirty_hold::Real = 0, status_bar::Bool = true,
@@ -87,7 +87,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,
                            fps = fps, initial_hold = initial_hold, final_hold = final_hold,
-                           supersample = supersample, scale = scale, video_time = video_time,
+                           supersample = supersample, density = density, video_time = video_time,
                            pointer = pointer, partial_render = partial_render,
                            debug_dirty = debug_dirty, debug_dirty_hold = debug_dirty_hold)
     try

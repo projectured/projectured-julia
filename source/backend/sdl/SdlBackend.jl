@@ -53,11 +53,11 @@ Return the usable size of the given display (default 0) in **logical** pixels �
 the coordinate space window sizes are authored in. "Usable" means with
 OS-reserved areas like the taskbar / menu bar subtracted; the right thing for
 picking a default window size. The monitor's device-pixel size is divided by
-the scale that the probe of the display finds, so that a window sized to it fills
+the density that the probe of the display finds, so that a window sized to it fills
 exactly one monitor once the backend scales it back to device pixels. Falls back
 to `(1280, 720)`
 if SDL cannot answer (no display, headless run, etc.). The video subsystem and
-the display scale are initialized lazily; safe to call before `initialize_backend!`.
+the display density are initialized lazily; safe to call before `initialize_backend!`.
 
 On X11 SDL sometimes folds a multi-monitor screen into a single "display"
 whose bounds span every monitor (e.g. 7290×4032 across two), which would
@@ -67,18 +67,18 @@ instead so the default fills one monitor, not the span.
 """
 function get_sdl_display_size(; display::Integer=0)
     SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
-    # Ensure the scale is known before converting device → logical, since this
+    # Ensure the density is known before converting device → logical, since this
     # may run before `initialize_backend!` (early detection is window-free: env
     # + Xft.dpi). The probe latches itself, so repeated calls cost nothing.
-    _detect_display_scale!()
+    _detect_display_density!()
 
     # Detect the SDL-collapses-multiple-monitors case and prefer the real
     # primary-monitor size. Only when SDL reports a single display (so we do
     # not override a setup where SDL already enumerates monitors correctly).
     if display == 0 && SDL_GetNumVideoDisplays() <= 1
         mon = _x11_primary_monitor_size(; require_multi=true)
-        mon === nothing || return (_to_logical(mon[1], _PROBED_DISPLAY_SCALE[]),
-                                   _to_logical(mon[2], _PROBED_DISPLAY_SCALE[]))
+        mon === nothing || return (_to_logical(mon[1], _PROBED_DISPLAY_DENSITY[]),
+                                   _to_logical(mon[2], _PROBED_DISPLAY_DENSITY[]))
     end
 
     rect = Ref(SDL_Rect(Int32(0), Int32(0), Int32(0), Int32(0)))
@@ -86,8 +86,8 @@ function get_sdl_display_size(; display::Integer=0)
     if rc != 0 || rect[].w <= 0 || rect[].h <= 0
         return (1280, 720)
     end
-    (_to_logical(Int(rect[].w), _PROBED_DISPLAY_SCALE[]),
-     _to_logical(Int(rect[].h), _PROBED_DISPLAY_SCALE[]))
+    (_to_logical(Int(rect[].w), _PROBED_DISPLAY_DENSITY[]),
+     _to_logical(Int(rect[].h), _PROBED_DISPLAY_DENSITY[]))
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -186,7 +186,7 @@ that shows two changed frames before a read has one update, with the later time.
 `display` is the `Display` that the backend draws on. Its device pixel ratio
 sizes the windows, rasterizes the text and converts the input coordinates. A new
 backend has a `Display()` of its own, and `initialize_backend!` gives it the
-scale that the probe finds. `configure_devices!` replaces it with the `Display`
+density that the probe finds. `configure_devices!` replaces it with the `Display`
 of the editor, so the zoom of that `Display` is the zoom of the windows.
 """
 mutable struct SdlBackend <: Backend
@@ -561,8 +561,8 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
     end
     _drop_pathological_vsync!(renderer)
 
-    if _update_display_scale!(win, renderer)
-        backend.display.scale = _PROBED_DISPLAY_SCALE[]
+    if _update_display_density!(win, renderer)
+        backend.display.density = _PROBED_DISPLAY_DENSITY[]
         ratio = get_device_pixel_ratio(backend.display)
     end
 
@@ -661,54 +661,55 @@ function BackendModule.get_pointer_position(::SdlBackend)
     (Int(x_ref[]), Int(y_ref[]))
 end
 
-# Find the scale of the display: the number of device pixels in one logical pixel
-# of the hardware. The scale is a fact of the machine, not of an editor, so the
-# probe runs once in a process and keeps its result in `_PROBED_DISPLAY_SCALE`.
-# `configure_devices!` copies it into the `Display` of each editor.
+# Find the density of the display: the number of device pixels in one logical
+# pixel of the hardware. The density is a fact of the machine, not of an editor,
+# so the probe runs once in a process and keeps its result in
+# `_PROBED_DISPLAY_DENSITY`. `configure_devices!` copies it into the `Display` of
+# each editor.
 #
 # Two-phase detection:
 #
-#   _detect_display_scale!() — called from initialize_backend! and from
+#   _detect_display_density!() — called from initialize_backend! and from
 #   get_sdl_display_size, before any window exists:
-#     1. PROJECTURED_DISPLAY_SCALE env var — explicit override, always respected.
+#     1. PROJECTURED_DISPLAY_DENSITY env var — explicit override, always respected.
 #     2. Xft.dpi from X resources — reliable on X11/XWayland (GNOME writes
-#        Xft.dpi = 96 × scale, e.g. 192 for 200%).
+#        Xft.dpi = 96 × density, e.g. 192 for 200%).
 #
-#   _update_display_scale!(win, renderer) — called when a window opens, only if
+#   _update_display_density!(win, renderer) — called when a window opens, only if
 #   the window-free phase found nothing:
 #     3. SDL renderer-output / window-size ratio — macOS Retina, native Wayland.
 #     4. SDL_GetDisplayDPI / 96 — Windows fallback.
 #
 # Falls back to 1.0 (no scaling) if nothing fires.
 #
-# Both phases are latched, because the scale value alone cannot say whether a
+# Both phases are latched, because the density value alone cannot say whether a
 # probe already ran: a 1× display detects as exactly 1.0, which is also the
 # default. Without the latches every caller re-runs `xrdb`, and phase 4
 # overwrites a correct 1.0 with SDL's slightly-off DPI ratio (e.g. 96.04 / 96).
 #
-#   _DISPLAY_SCALE_PROBED   — the window-free probe ran; do not spawn xrdb again.
-#   _DISPLAY_SCALE_DETECTED — a real scale was found; no later phase may change it.
-const _DISPLAY_SCALE_PROBED   = Ref(false)
-const _DISPLAY_SCALE_DETECTED = Ref(false)
-const _PROBED_DISPLAY_SCALE   = Ref(1.0)
+#   _DISPLAY_DENSITY_PROBED   — the window-free probe ran; do not spawn xrdb again.
+#   _DISPLAY_DENSITY_DETECTED — a real density was found; no later phase may change it.
+const _DISPLAY_DENSITY_PROBED   = Ref(false)
+const _DISPLAY_DENSITY_DETECTED = Ref(false)
+const _PROBED_DISPLAY_DENSITY   = Ref(1.0)
 
-function _detect_display_scale!()
-    _DISPLAY_SCALE_PROBED[] && return _DISPLAY_SCALE_DETECTED[]
-    _DISPLAY_SCALE_PROBED[] = true
+function _detect_display_density!()
+    _DISPLAY_DENSITY_PROBED[] && return _DISPLAY_DENSITY_DETECTED[]
+    _DISPLAY_DENSITY_PROBED[] = true
 
     # 1. Explicit override.
-    env_val = get(ENV, "PROJECTURED_DISPLAY_SCALE", "")
+    env_val = get(ENV, "PROJECTURED_DISPLAY_DENSITY", "")
     if !isempty(env_val)
-        scale = tryparse(Float64, env_val)
-        if scale !== nothing && scale > 0
-            _PROBED_DISPLAY_SCALE[] = scale
-            _DISPLAY_SCALE_DETECTED[] = true
-            println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (PROJECTURED_DISPLAY_SCALE)")
+        density = tryparse(Float64, env_val)
+        if density !== nothing && density > 0
+            _PROBED_DISPLAY_DENSITY[] = density
+            _DISPLAY_DENSITY_DETECTED[] = true
+            println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (PROJECTURED_DISPLAY_DENSITY)")
             return true
         end
     end
 
-    # 2. Xft.dpi from X resources — GNOME sets this to 96 × scale on X11 and
+    # 2. Xft.dpi from X resources — GNOME sets this to 96 × density on X11 and
     #    XWayland.  Run xrdb only when a DISPLAY is available and xrdb exists.
     if haskey(ENV, "DISPLAY")
         try
@@ -717,9 +718,9 @@ function _detect_display_scale!()
             if m !== nothing
                 xft_dpi = parse(Float64, m.captures[1])
                 if xft_dpi > 0
-                    _PROBED_DISPLAY_SCALE[] = xft_dpi / 96.0
-                    _DISPLAY_SCALE_DETECTED[] = true
-                    println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (Xft.dpi = $xft_dpi)")
+                    _PROBED_DISPLAY_DENSITY[] = xft_dpi / 96.0
+                    _DISPLAY_DENSITY_DETECTED[] = true
+                    println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (Xft.dpi = $xft_dpi)")
                     return true
                 end
             end
@@ -731,10 +732,10 @@ function _detect_display_scale!()
     return false
 end
 
-# Answers `true` when this call found the scale.
-function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
-    # Skip if a window-free phase already found the scale.
-    _DISPLAY_SCALE_DETECTED[] && return false
+# Answers `true` when this call found the density.
+function _update_display_density!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
+    # Skip if a window-free phase already found the density.
+    _DISPLAY_DENSITY_DETECTED[] && return false
 
     # SDL renderer output size vs logical window size.
     dw = Ref{Cint}(0); dh = Ref{Cint}(0)
@@ -742,9 +743,9 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
     SDL_GetRendererOutputSize(renderer, dw, dh)
     SDL_GetWindowSize(win, ww, wh)
     if ww[] > 0 && dw[] > ww[]
-        _PROBED_DISPLAY_SCALE[] = Float64(dw[]) / Float64(ww[])
-        _DISPLAY_SCALE_DETECTED[] = true
-        println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (SDL renderer ratio)")
+        _PROBED_DISPLAY_DENSITY[] = Float64(dw[]) / Float64(ww[])
+        _DISPLAY_DENSITY_DETECTED[] = true
+        println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (SDL renderer ratio)")
         return true
     end
 
@@ -755,9 +756,9 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
     hdpi = Ref{Cfloat}(0)
     vdpi = Ref{Cfloat}(0)
     if SDL_GetDisplayDPI(display_index, ddpi, hdpi, vdpi) == 0 && ddpi[] > 0
-        _PROBED_DISPLAY_SCALE[] = Float64(ddpi[]) / 96.0
-        _DISPLAY_SCALE_DETECTED[] = true
-        println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (SDL DPI = $(ddpi[]))")
+        _PROBED_DISPLAY_DENSITY[] = Float64(ddpi[]) / 96.0
+        _DISPLAY_DENSITY_DETECTED[] = true
+        println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (SDL DPI = $(ddpi[]))")
         return true
     end
     false
@@ -1057,7 +1058,7 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     sx = M.a == 0.0 ? 1.0 : M.a
     sy = M.d == 0.0 ? 1.0 : M.d
     # Compose the content scale onto the active render scale. Reading the
-    # current scale keeps this correct under the display scale and the
+    # current scale keeps this correct under the display density and the
     # offscreen supersample factor (see `_render_window!` / `write_image`).
     fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
     SDL_RenderGetScale(renderer, fx, fy)
@@ -3015,21 +3016,21 @@ end
 # setup/teardown is factored out here and reused across every frame.
 
 """
-    open_offscreen_renderer(width, height; supersample = 2, scale = 1) -> renderer
+    open_offscreen_renderer(width, height; supersample = 2, density = 1) -> renderer
 
 Open an offscreen, `supersample`-oversized software renderer for a logical
-`width × height` canvas drawn at export `scale`, and answer its handle: the big
+`width × height` canvas drawn at export `density`, and answer its handle: the big
 surface, its renderer, and the sizing it was built with, `width` and `height`
-among them. The saved image is the logical size times `scale` (device pixels),
+among them. The saved image is the logical size times `density` (device pixels),
 so output stays crisp on HiDPI displays independent of the generating machine.
 Pass the handle to [`close_offscreen_renderer`](@ref) at the end.
 """
 function open_offscreen_renderer(width::Integer, height::Integer;
-                                  supersample::Integer = 2, scale::Real = 1)
+                                  supersample::Integer = 2, density::Real = 1)
     SDL_Init(SDL_INIT_VIDEO)
     TTF_Init()
     S  = max(1, Int(supersample))
-    sc = Float64(scale)
+    sc = Float64(density)
     out_w = max(1, round(Int, width  * sc))
     out_h = max(1, round(Int, height * sc))
     surface = SDL_CreateRGBSurface(UInt32(0), Int32(out_w * S), Int32(out_h * S), Int32(32),
@@ -3045,7 +3046,7 @@ function open_offscreen_renderer(width::Integer, height::Integer;
 end
 
 # Clear `off` to `background` and render `canvas` (logical size `width × height`)
-# into it. The glyphs rasterize at the device size for the export scale `off.sc`,
+# into it. The glyphs rasterize at the device size for the export density `off.sc`,
 # which matches the scale of the renderer.
 function _render_canvas_offscreen!(off, canvas::GraphicsCanvas, width::Integer,
                                    height::Integer, background::NTuple{4,UInt8})
@@ -3102,8 +3103,8 @@ function BackendModule.write_image(canvas::GraphicsCanvas, filename::AbstractStr
                      height::Integer = 600,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
                      supersample::Integer = 2,
-                     scale::Real = 1)
-    off = open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
+                     density::Real = 1)
+    off = open_offscreen_renderer(width, height; supersample=supersample, density=density)
     try
         _render_canvas_offscreen!(off, canvas, width, height, background)
         out_surface = _offscreen_output_surface(off)
@@ -3130,7 +3131,7 @@ end
 # ── Content bounds ──────────────────────────────────────────────────────
 #
 # `write_image` sizes an image to the bounds of what SDL draws
-# (`_bounds_of_canvas`), at the scale that the glyphs rasterize at.
+# (`_bounds_of_canvas`), at the density that the glyphs rasterize at.
 
 # The bounds of what SDL draws for `canvas` at `ratio`, from the origin of the
 # canvas: `(minx, miny, maxx, maxy)`, all 0 for an empty canvas.
@@ -3180,7 +3181,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
                      max_height::Integer = 800,
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
                      supersample::Integer = 2,
-                     scale::Real = 1)
+                     density::Real = 1)
     # Initialize before printing: the projection measures text (opening fonts),
     # which requires SDL_ttf to be up.
     SDL_Init(SDL_INIT_VIDEO)
@@ -3203,7 +3204,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     # `_get_drawn_content_bounds` returns (minx, miny, maxx, maxy). The natural size
     # must span the full extent — including any content at negative coordinates —
     # so subtract a negative min rather than dropping it.
-    minx, miny, maxx, maxy = _get_drawn_content_bounds(canvas, Float64(scale))
+    minx, miny, maxx, maxy = _get_drawn_content_bounds(canvas, Float64(density))
     nw = maxx - min(minx, 0)
     nh = maxy - min(miny, 0)
 
@@ -3215,7 +3216,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        minx, miny, maxx, maxy = _get_drawn_content_bounds(canvas, Float64(scale))
+        minx, miny, maxx, maxy = _get_drawn_content_bounds(canvas, Float64(density))
         nw = maxx - min(minx, 0)
         nh = maxy - min(miny, 0)
     end
@@ -3235,7 +3236,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     end
 
     write_image(canvas, filename; width=out_w, height=out_h,
-                background=background, supersample=supersample, scale=scale)
+                background=background, supersample=supersample, density=density)
 end
 
 """
@@ -3415,7 +3416,7 @@ end
 
 Draw `overlay` over the frame saved in the file `picture` and save the result as
 `filename`. The frame has the size of the output of `renderer`, so the overlay
-is drawn at the scale of the output, as
+is drawn at the density of the output, as
 [`write_offscreen_frame_with_overlay!`](@ref) draws it.
 """
 function write_offscreen_picture_with_overlay!(off, picture::AbstractString, overlay::GraphicsCanvas;
@@ -3448,8 +3449,8 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
-    _detect_display_scale!()
-    backend.display.scale = _PROBED_DISPLAY_SCALE[]
+    _detect_display_density!()
+    backend.display.density = _PROBED_DISPLAY_DENSITY[]
     # Start with no input owed: a backend that is opened again must not answer
     # with an event left over from its last life.
     backend.pending_input = nothing
@@ -4235,7 +4236,7 @@ function evaluate_operation(editor, op::AdjustZoomOperation)
     editor.backend isa SdlBackend || return nothing
     display = editor.backend.display
     old = get_device_pixel_ratio(display)
-    display.zoom = step_zoom(display.zoom, op.delta)
+    display.zoom = step_factor(display.zoom, op.delta)
     _reflow_for_scale!(editor, old / get_device_pixel_ratio(display))
     _force_full_repaint!(editor)
     nothing
@@ -4310,9 +4311,9 @@ BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename
 # Display size via the generic seam (delegates to the SDL-specific query).
 BackendModule.get_display_size(::SdlBackend) = get_sdl_display_size()
 
-# Fill the first `Display` in `devices` with the usable size and the scale of the
+# Fill the first `Display` in `devices` with the usable size and the density of the
 # real display, and draw with it from now on: its `zoom` then steps with
-# Ctrl+= and Ctrl+-. The scale is the one the probe finds, so the zoom of an
+# Ctrl+= and Ctrl+-. The density is the one the probe finds, so the zoom of an
 # editor does not reach the `Display` of another. Mouse/Keyboard are left at their
 # defaults — SDL2 cannot reliably report button count or keyboard layout.
 function BackendModule.configure_devices!(backend::SdlBackend, devices)
@@ -4320,7 +4321,7 @@ function BackendModule.configure_devices!(backend::SdlBackend, devices)
     index === nothing && return nothing
     display = devices[index]::Display
     display.width, display.height = get_sdl_display_size()
-    display.scale = _PROBED_DISPLAY_SCALE[]
+    display.density = _PROBED_DISPLAY_DENSITY[]
     backend.display = display
     return nothing
 end

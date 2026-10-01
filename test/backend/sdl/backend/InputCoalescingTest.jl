@@ -75,7 +75,7 @@ function _reset_input!(backend)
     backend.last_hover_motion = 0.0
 end
 
-# The `Display` of the backend below has the scale 2, so an event holds the half of
+# The `Display` of the backend below has the density 2, so an event holds the half of
 # the device coordinates that SDL reports.
 _logical(v) = ProjecturedSDL.SdlModule._to_logical(Int(v), 2.0)
 
@@ -83,7 +83,7 @@ function test_input_coalescing()
 @testset "pointer motion is coalesced" begin
 
     backend = SdlBackend()
-    backend.display.scale = 2.0
+    backend.display.density = 2.0
 
     @testset "a run of motion answers with the newest sample" begin
         _reset_input!(backend)
@@ -229,7 +229,7 @@ function test_input_coalescing()
         # Each backend keeps the time of its own last idle motion, so a hover in
         # the windows of one editor does not hold the motion of another.
         other = SdlBackend()
-        other.display.scale = 2.0
+        other.display.density = 2.0
         _reset_input!(other)
         _push_motion!(12, 34)
         probe = read_from_devices(other, Device[])

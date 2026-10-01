@@ -53,7 +53,7 @@ export StyleColor, make_style_color,
        color_indigo_800, color_indigo_900, color_indigo_950,
        color_destructive, color_destructive_fg
 export StyleFont, make_style_font, _FONT_ZOOM, font_logical_size, font_device_size,
-       step_zoom, adjust_font_zoom!, _FONT_DIR,
+       step_factor, adjust_font_zoom!, _FONT_DIR,
        font_inconsolata_regular_18,
        font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14,
        font_ubuntu_monospace_regular_16, font_ubuntu_monospace_italic_16, font_ubuntu_monospace_bold_16,

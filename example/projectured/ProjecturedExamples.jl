@@ -116,13 +116,13 @@ function record_example_video(name::AbstractString, gestures,
     record_example_video(examples[idx], gestures, filename; kwargs...)
 end
 
-# Export scale for generated screenshots: PNGs are rendered at this many device
+# Export density for generated screenshots: PNGs are rendered at this many device
 # pixels per logical pixel so they stay crisp on HiDPI displays (e.g. GitHub
 # viewed on a retina screen) independent of the machine that generates them.
 # Guide embeds pin the *displayed* width to the logical size (png width ÷ this)
 # via `<img width>`, so the on-page size is unchanged while the extra pixels are
 # available for sharp rendering.
-const SCREENSHOT_SCALE = 2
+const SCREENSHOT_DENSITY = 2
 
 """
     generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080,
@@ -141,7 +141,7 @@ generation to examples whose name matches, e.g. `filter=r"^widget"` regenerates
 only the widget screenshots.
 """
 function generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080, supersample=3,
-                                      scale=SCREENSHOT_SCALE,
+                                      density=SCREENSHOT_DENSITY,
                                       image_dir=joinpath(@__DIR__, "..", "..", "asset", "image", "example"))
     mkpath(image_dir)
     # The default widget theme's background (slate-100); widget screenshots use
@@ -161,7 +161,7 @@ function generate_example_screenshots(; filter=nothing, max_width=1920, max_heig
         try
             write_example_image(ex, png; width=ex.render_width, height=ex.render_height,
                                 max_width=max_width, max_height=max_height,
-                                background=bg, supersample=supersample, scale=scale)
+                                background=bg, supersample=supersample, density=density)
             @info "  ✓ $png"
         catch e
             @warn "  ✗ $(ex.name): $e"
@@ -214,7 +214,7 @@ function _png_pixel_width(path::AbstractString)
     end
 end
 
-# Markdown embed for a screenshot. Screenshots are `SCREENSHOT_SCALE`× their
+# Markdown embed for a screenshot. Screenshots are `SCREENSHOT_DENSITY`× their
 # logical size, so we pin the displayed width to the logical size with an HTML
 # `<img width>` (honored by GitHub): compact on the page, sharp on HiDPI. Falls
 # back to a plain Markdown image if the PNG is missing (so docs still build).
@@ -247,7 +247,7 @@ end
 function _img_embed_raw(alt::AbstractString, rel::AbstractString, md_dir::AbstractString, fallback::AbstractString)
     abs_png = normpath(joinpath(md_dir, rel))
     isfile(abs_png) || return fallback
-    w = max(1, _png_pixel_width(abs_png) ÷ SCREENSHOT_SCALE)
+    w = max(1, _png_pixel_width(abs_png) ÷ SCREENSHOT_DENSITY)
     "<img width=\"$w\" alt=\"$alt\" src=\"$rel\">"
 end
 

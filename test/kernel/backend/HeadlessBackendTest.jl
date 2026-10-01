@@ -59,7 +59,7 @@ function test_headless_backend()
         b = HeadlessBackend()
         s = Display()
         @test configure_devices!(b, Device[s, Mouse(), Keyboard()]) === nothing
-        @test (s.width, s.height, s.scale) == (1280, 800, 1.0)   # unchanged
+        @test (s.width, s.height, s.density) == (1280, 800, 1.0)   # unchanged
     end
 
 end

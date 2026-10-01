@@ -54,10 +54,10 @@ A [`LineSpacing`](../../../../source/platform/style/LineSpacing.jl) sets the dis
 
 The size of text on the screen comes from two separate settings:
 
-- **The uniform zoom.** The zoom of Ctrl+= and Ctrl+- is the `zoom` of the `Display` of an editor, in the kernel. The backend multiplies it with the `scale` of the hardware into the device pixel ratio. Layout does not read it, so a change needs a repaint and no reactive update. Each editor has its own.
+- **The uniform zoom.** The zoom of Ctrl+= and Ctrl+- is the `zoom` of the `Display` of an editor, in the kernel. The backend multiplies it with the `density` of the hardware into the device pixel ratio. Layout does not read it, so a change needs a repaint and no reactive update. Each editor has its own.
 - **The font zoom.** `_FONT_ZOOM` is the zoom of Ctrl+Alt+= and Ctrl+Alt+-. It is a `Cell`, because layout reads it through `font_logical_size(font)`. A change lays out the text again.
 
-`font_device_size(font, ratio)` combines the font zoom with the device pixel ratio, and only a backend reads it. Both settings step through the same table, from 0.5 to 3.0, with `step_zoom(zoom, delta)`.
+`font_device_size(font, ratio)` combines the font zoom with the device pixel ratio, and only a backend reads it. Both settings step through the same table, from 0.5 to 3.0, with `step_factor(zoom, delta)`.
 
 ## How it fits
 

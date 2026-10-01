@@ -7,7 +7,7 @@
 """
     VideoBackend(timeline, window_id; width=1280, height=720, fps=30,
                 initial_hold=0.5, final_hold=initial_hold,
-                supersample=2, scale=1, video_time=false, pointer=true,
+                supersample=2, density=1, video_time=false, pointer=true,
                 partial_render=false, debug_dirty=false, debug_dirty_hold=0,
                 frames_dir=mktempdir()) -> VideoBackend
 
@@ -110,7 +110,7 @@ mutable struct VideoBackend <: Backend
     last_frame_file::Union{String,Nothing}
     off::Any
     supersample::Int
-    scale::Float64
+    density::Float64
     video_time::Bool
     # The pointer of the video: whether it is drawn, whether the left button is
     # held, and the schedule second of the last release or click.
@@ -141,7 +141,7 @@ end
 function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                       width::Integer = 1280, height::Integer = 720, fps::Integer = 30,
                       initial_hold::Real = 0.5, final_hold::Real = initial_hold,
-                      supersample::Integer = 2, scale::Real = 1,
+                      supersample::Integer = 2, density::Real = 1,
                       video_time::Bool = false, pointer::Bool = true,
                       partial_render::Bool = false, debug_dirty::Bool = false,
                       debug_dirty_hold::Real = 0,
@@ -164,7 +164,7 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
     entries[n + 1] = (event = quit, fire_at = acc + Float64(final_hold))
     VideoBackend(Int(width), Int(height), Int(fps), String(frames_dir), window_id,
                 entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
-                Int(supersample), Float64(scale), video_time, pointer, false, -Inf,
+                Int(supersample), Float64(density), video_time, pointer, false, -Inf,
                 partial_render, debug_dirty, Float64(debug_dirty_hold), nothing,
                 Tuple{Float64,Vector{NTuple{4,Int}}}[], 0, nothing, (0x00, 0x00, 0x00, 0xff),
                 nothing, nothing)
@@ -190,7 +190,7 @@ _video_frame_path(dir::AbstractString, index::Integer) =
 function initialize_backend!(backend::VideoBackend)
     backend.off = open_offscreen_renderer(backend.width, backend.height;
                                            supersample = backend.supersample,
-                                           scale = backend.scale)
+                                           density = backend.density)
     # -1 marks the clock as not yet started (see `write_to_devices`): the loop's
     # first `read!` runs before the first `print!`, while `editor.iomap` is
     # still `nothing`, and a window input delivered into that gap is dropped by

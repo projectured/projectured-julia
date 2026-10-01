@@ -29,7 +29,7 @@ backend that draws windows runs the editor.
 
 | Device | Defined in | What it holds |
 |---|---|---|
-| `Display` | `device/Display.jl` | The usable size in logical pixels, the `scale` of the hardware (the device pixels in one logical pixel), and the `zoom` of the editor |
+| `Display` | `device/Display.jl` | The usable size in logical pixels, the `density` of the hardware (the device pixels in one logical pixel), and the `zoom` of the editor |
 | `Keyboard` | `device/Keyboard.jl` | The `layout` of the keys |
 | `Mouse` | `device/Mouse.jl` | The `button_count`, and `has_scroll_wheel` |
 
@@ -42,7 +42,7 @@ are in `event/KeyboardEvent.jl`, and the `Mouse*` events are in
 
 ### The device pixel ratio
 
-`get_device_pixel_ratio(display)` is `display.scale * display.zoom`: the number
+`get_device_pixel_ratio(display)` is `display.density * display.zoom`: the number
 of device pixels that a backend draws for one logical pixel. Layout and events
 work in logical pixels. The SDL backend keeps the `Display` that
 `configure_devices!` gives it. It sizes its windows, rasterizes its text and
@@ -490,7 +490,7 @@ other package docs defer here rather than repeat it.)
 
 Layer 7 of the kernel — **the input/output devices**: `Display`, `Keyboard`,
 and `Mouse` under an abstract `Device`. Each holds its physical properties: the
-size, the scale and the zoom of a display, the buttons and the scroll wheel of a
+size, the density and the zoom of a display, the buttons and the scroll wheel of a
 mouse, and the layout of a keyboard. A device interprets nothing, so this layer
 names no document, no operation and no backend type, and has no imports of its
 own. Its one function is `get_device_pixel_ratio`.

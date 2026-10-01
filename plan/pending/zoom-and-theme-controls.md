@@ -757,8 +757,14 @@ keys (W1), so that the font scale reaches all text from the first day.
 
 ### Part N: the names
 
-- [ ] **N1. The renames of section 2**, with `workspace/bin/julia-rename.jl` and
+- [x] **N1. The renames of section 2**, with `workspace/bin/julia-rename.jl` and
   a second pass for the prose. `SEALING.md` records the unseal of `Display.jl`.
+  Done on 2026-10-01 in 22 files: `test_kernel()` 4100 pass and 2 broken,
+  `test_platform()` 97486 pass and 8 broken, `test_sdl()` 803, `test_web_backend()`
+  103 and `test_write_pdf()` 43 pass, as before; the pixels equal A0. Also renamed,
+  because they carry the same value: `_detect_display_scale!`, the constant
+  `SCREENSHOT_SCALE` of the examples, and the constant `SCALE` of two video tools.
+  omnet-julia and inet-julia use none of the old names.
 
 ### Part C: the cell layer
 
@@ -952,3 +958,12 @@ as large. omnet-julia and inet-julia follow where they build these projections.
    the same package, so "the lowest package" of 4.11 is now "the lowest slice".
 2. **The frame times of A0 wait** until before B1, at the owner's word on
    2026-10-01. A0 takes the suites and the pixel images.
+3. **`test_video()` has one failure on `main`** (`3d0d25ae0`), before this work:
+   "a take whose window can not paint still ends, with the fault on its frames"
+   (`test/backend/video/editor/ApplicationVideoTest.jl:244`, 0 red pixels where
+   more than 384 are expected). It fails the same before and after N1, so it is
+   not a regression of this plan. The baseline of the video suite is 40 pass and
+   1 fail.
+4. **`device/DeviceModule.jl` (🔒) names the "scale" of a display** in its
+   docstring. N1 had no permission for that file, so the word stays until the
+   owner allows the change.

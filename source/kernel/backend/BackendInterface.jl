@@ -119,7 +119,7 @@ function get_display_size end
     configure_devices!(backend, devices)
 
 Fill in the physical properties of each device in `devices` from what `backend`
-finds about the real hardware, such as the size and the scale of a `Display`.
+finds about the real hardware, such as the size and the density of a `Display`.
 The call changes the devices in place. A backend that draws with a device keeps
 that device, so a later change of the device changes what the backend draws. A
 backend that finds nothing leaves the devices at their defaults.
