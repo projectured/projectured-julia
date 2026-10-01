@@ -366,16 +366,89 @@ and the downstream repositories land in the same landing.
 - [ ] **Step 5, the application (F10).** `run_application_command` and what it
       needs move from `ProjecturedExample` to the umbrella; the builder of the
       binary follows.
-- [ ] **Step 6, the words.** The docstrings of `conversation` and `filesystem`
+- [x] **Step 6, the words.** The docstrings of `conversation` and `filesystem`
       stop calling them domains; `system-anatomy.md` and the other documents
       describe the kernel, the platform, the domains, the backends and the
       adapters.
-- [ ] **Step 7, the release copy.** The list of the release packages, the
+      Done (`09cae7767`, 108 files, comments, docstrings and Markdown only:
+      every changed `.jl` file parses to the same code without its
+      docstrings). The domain inventory lists 17 domains; the conversation, the
+      assistant and the file system are slices of the platform. The definition
+      of a slice covers a package with no layer of its own. One consequence is
+      written down where it applies: the platform registers the syntax fallback
+      in its `__init__`, so every session that loads the platform can draw any
+      document, and the tabs wrapper of the display is always there; before,
+      both waited for `ProjecturedSyntax` and `ProjecturedPane` to load.
+      Then the names (`f3e18063f`): `substrate_examples`,
+      `substrate_atomic_documents` and `test_substrate_examples` are
+      `platform_examples`, `platform_atomic_documents` and
+      `test_platform_examples` (with `julia-rename.jl`), the file is
+      `example/platform/PlatformExamples.jl`, and three faults the words pass
+      found are mended: the `runtests.jl` of the platform test package loaded
+      the old package, the loop of `ProjecturedTest` named the platform test
+      package seven times, and the entries of `Pdf` and `Console` bound
+      `StyleModule` five and two times (as on `main`). Tests: the platform
+      examples (90,562 pass), the registries, the naming guard.
+- [x] **Step 7, the release copy.** The list of the release packages, the
       assets (the fonts go with `ProjecturedPlatform`), the exclusions
       (`source/tool/`), and the test helpers of S3.
+      Done: the release copy takes the common folder of what an entry file
+      includes (`446942db3`), `PROJECTURED_PACKAGE_ASSETS` gives the fonts to
+      `ProjecturedPlatform`, and `PROJECTURED_RELEASE_EXCLUSIONS` keeps the
+      builder and the REPL leaf out. The builder tests pass. The test helpers
+      of S3 are not a part of the fold: they belong to R30 of the release
+      plan, which the release copy needs whether or not the fold lands.
 - [ ] **Step 8, downstream (S6).** The script of the package names in
       omnet-julia and inet-julia, and their `Project.toml` files, on branches
       of their own; their suites pass against the branch of this plan.
+      Done so far: branch `fold-follow` in both repositories (omnet-julia
+      `c5fb4901`, inet-julia `8ea400c`), from their `main`. A script maps every
+      old package name to the new one, writes each `Project.toml` with the new
+      name once at the same relative path, joins the repeats in a `using`
+      list, and makes `ProjecturedPane.ProjecturedWidget.WidgetModule` read
+      `ProjecturedPlatform.WidgetModule`; it leaves `plan/`, the recorded
+      measurements and `prototype/` alone. The prose that named several old
+      packages, and the comments over the `[deps]` lines that went, are
+      rewritten by hand. Both repositories precompile against a clone of this
+      branch, every package, no error.
+      **A consequence, and the owner's decision (2026-10-01).** The simulator
+      used four slices of the platform (collection, primitive, serialization,
+      domain: 4,007 lines, which depend on the kernel alone); after the fold
+      `OmnetSimulator`, `OmnetLegacyFormat`, the runner and every inet-julia
+      model package reach the whole platform (63,153 lines). No third-party
+      package comes with it. The alternatives were a second small package
+      under the platform for the four slices, or the four slices in the
+      kernel (which breaks inet-julia's rule that the kernel has no `[deps]`).
+      The owner accepted the larger closure. So the closure guards now say
+      that no domain and no backend is reachable from a runner: the platform
+      names no backend, so nothing in the image can open a window. The
+      closures are 15 names for the omnet runner (17 on `main`), 9 for the
+      campaign window (28), 22 for the interface (54) and 19 for the inet
+      runner (21); the four guards pass with a walk that reads the packages of
+      this branch.
+      Of the recorded precompile statements of omnet-julia, 51% resolve (the
+      list of inet-julia warns as well); the names they miss most are missing
+      on `main` too (`ProjectionApiModule`,
+      `PrinterContextModule`, `ProjecturedWorkbench`), so they must be recorded
+      again whether or not the fold lands.
+      **The suites against the baseline** (a scratch environment per run, the
+      fold side on a clone of this branch, the `main` side on clones of the
+      three `main` branches; no network, cores 24-27). omnet-julia
+      `test/runtests.jl`: 12,343 pass, 42 fail, 83 errors on the fold; 12,325,
+      44, 76 and 7 broken on `main`. The sites differ only where (a) a walk
+      guard reads `ProjecturedPlatform` through the relative `[sources]` path,
+      which reaches the main checkout of projectured-julia, where the package
+      does not exist yet (the four closure guards, the NG and the
+      co-simulation guards; each passes with a walk that reads this branch),
+      (b) a timing ratio at `OmnetSimulatorTest/runtests.jl:2308`, which fails
+      2 of 20 times on `main` and on the fold alike, and (c) the drift checks
+      of the samples, which ran only where an `omnet-cpp` checkout sits beside
+      the clone. inet-julia `test/suite/runtests.jl`: 20,104 pass and 12
+      fail on the fold, 20,105 and 11 on `main`; the one more is
+      `test/runner/closure.jl:75`, the runner guard, which reaches
+      `OmnetSimulator` through the main checkout of omnet-julia and so sees
+      the old names until omnet-julia lands. So the three repositories must
+      land together, and their walk guards pass only after that.
 - [ ] **Step 9, the check and the landing.** The CI-like run from a fresh clone
       (`/var/tmp/release-plan/ci3/`), the times of Step 0 again, then the
       landing of this repository and the downstream ones together, with the
