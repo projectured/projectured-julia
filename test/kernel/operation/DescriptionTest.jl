@@ -52,6 +52,7 @@ function test_description()
         @test describe_operation(SelectNextInsertionOperation(_ -> false)) ==
               "select next insertion"
         @test describe_operation(ToggleCollapseOperation()) == "toggle collapse"
+        @test describe_operation(InvalidateProjectionOperation()) == "print the view again"
         @test describe_operation(AdjustZoomOperation(1)) == "zoom in"
         @test describe_operation(AdjustZoomOperation(-1)) == "zoom out"
         @test describe_operation(AdjustZoomOperation(0)) == "zoom reset"

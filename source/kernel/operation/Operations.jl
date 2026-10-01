@@ -14,6 +14,21 @@ struct DoNothingOperation <: Operation end
 
 evaluate_operation(editor, ::DoNothingOperation) = nothing
 
+"""
+    InvalidateProjectionOperation()
+
+An operation that makes the editor print its view again from the start. Its
+evaluation calls `invalidate_projection!(editor)`: the editor drops its IO map,
+the frame reads no more events, and the next print builds the view anew.
+
+A projection that reads a value with no dependency edge, such as a value of a
+theme, adds it to each answer that changes that value, so the view follows the
+change. It changes no document, so its inverse is `DoNothingOperation()`.
+"""
+struct InvalidateProjectionOperation <: Operation end
+
+evaluate_operation(editor, ::InvalidateProjectionOperation) = invalidate_projection!(editor)
+
 # ── Text-splice helpers ─────────────────────────────────────────────────────
 
 # @positional: a range of a text, in the order a range is written: the text, the

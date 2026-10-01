@@ -108,6 +108,7 @@ function test_inversion()
     @testset "an operation that changes no document is undone by doing nothing" begin
         @test make_inverse_operation(nothing, DoNothingOperation()) isa DoNothingOperation
         @test make_inverse_operation(nothing, QuitEditorOperation()) isa DoNothingOperation
+        @test make_inverse_operation(nothing, InvalidateProjectionOperation()) isa DoNothingOperation
         @test make_inverse_operation(nothing, AdjustZoomOperation(1)) isa DoNothingOperation
         @test make_inverse_operation(nothing, AdjustFontZoomOperation(-1)) isa DoNothingOperation
     end

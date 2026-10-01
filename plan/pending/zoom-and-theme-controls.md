@@ -804,9 +804,12 @@ keys (W1), so that the font scale reaches all text from the first day.
     baseline plus the new tests). The lookup is `get_scaled_theme!`, with a `!`
     because it stores a default; `set_theme!` puts a preset in place, and
     `get_theme` answers the theme that a person edits. Section 9, finding 5.
-- [ ] **T2. `InvalidateProjectionOperation`** in the kernel (4.5): its evaluation,
+- [x] **T2. `InvalidateProjectionOperation`** in the kernel (4.5): its evaluation,
   its description, its inverse `DoNothingOperation`, and its pass through every
-  projection unchanged. Tests beside those of `DoNothingOperation`.
+  projection unchanged. Tests beside those of `DoNothingOperation`. Done on
+  2026-10-01: `test_kernel()` 4110 pass and 2 broken; a test of the frame shows
+  that the request in a `CompoundOperation` ends the frame, prints the view
+  again, and lets the next event wait for the new view.
 
 ### Part B: the widget theme
 

@@ -45,6 +45,15 @@ Produced when the user closes the window or presses Escape. Its evaluation
 throws a `QuitEditorException`, which the `run_editor!` loop catches and uses to
 break out cleanly.
 
+### `InvalidateProjectionOperation()`
+
+Its evaluation calls `invalidate_projection!(editor)`, so the editor drops its IO
+map: the frame reads no more events, and the next print builds the whole view
+anew. A projection that reads a value with no dependency edge, such as a value of
+a theme through an `UntrackedCell`, adds it to each answer that changes that
+value, in a `CompoundOperation`. It changes no document, so its inverse is
+`DoNothingOperation()`.
+
 ## The generic write operation: `ReplaceReferencedValueOperation`
 
 Most operations do one thing: **write a value into one slot of some object**. They
@@ -464,7 +473,8 @@ nothing to re-target, so a stage either passes it up as it is or drops it.
 `operation_travels_unchanged(op)` answers which. The default is `false`, so a
 stage drops what it can not place. `Rerooting.jl` answers `true` for the
 operations of this layer that name no place: `DoNothingOperation`,
-`QuitEditorOperation`, the two zoom operations, `ToggleCollapseOperation` and
+`QuitEditorOperation`, `InvalidateProjectionOperation`, the two zoom operations,
+`ToggleCollapseOperation` and
 `SelectNextInsertionOperation`. A package whose operations carry their subject
 adds one method for them.
 

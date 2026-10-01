@@ -16,7 +16,8 @@ import ProjecturedKernel.EditorModule: Editor, MAX_OPERATIONS_PER_FRAME, post_op
                                        drain_operations!
 import ProjecturedKernel.FaultModule: FaultPolicy, get_fault_records
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation, invalidate_projection!,
-                                          make_inverse_operation
+                                          make_inverse_operation, CompoundOperation,
+                                          InvalidateProjectionOperation
 using ProjecturedKernelExample
 
 @document struct FrameDrainProbe
@@ -73,7 +74,10 @@ function ProjectionModule.read_intent(p::FrameDrainProjection, recursion, change
     gesture isa WindowInput && gesture.event isa MouseUp && error("the reader failed")
     Intent(gesture,
            gesture === :swap ? DrainFrameSwapOperation(p.log) :
-                               DrainFrameOperation(p.log, gesture))
+           gesture === :print_again ?
+               CompoundOperation(Any[DrainFrameOperation(p.log, gesture),
+                                     InvalidateProjectionOperation()]) :
+               DrainFrameOperation(p.log, gesture))
 end
 
 function _frame_editor(log)
@@ -136,6 +140,25 @@ function test_editor_frame_drain()
         @test editor.wake_pending[]          # and the next frame runs at once
         EditorModule.run_frame!(editor)
         @test log == [:before, :swap, :after]
+    end
+
+    @testset "a request to print again ends the frame and prints the view anew" begin
+        # A wrapper adds `InvalidateProjectionOperation` to an answer that changes a
+        # value which the view reads with no edge, such as a value of a theme.
+        log = Any[]
+        editor, backend = _frame_editor(log)
+        printed = editor.iomap
+        push_event!(backend, :before)
+        push_event!(backend, :print_again)
+        push_event!(backend, :after)
+        Threads.atomic_xchg!(editor.wake_pending, false)
+        EditorModule.run_frame!(editor)
+        @test log == [:before, :print_again]  # `:after` waits for the new view
+        @test editor.wake_pending[]
+        @test editor.iomap !== nothing
+        @test editor.iomap !== printed        # the view was printed again
+        EditorModule.run_frame!(editor)
+        @test log == [:before, :print_again, :after]
     end
 
     @testset "a frame is bounded, so a paint is never held off" begin

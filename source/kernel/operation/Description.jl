@@ -13,6 +13,7 @@ needs no change here.
 """
 describe_operation(::Nothing) = "no operation"
 describe_operation(::DoNothingOperation) = "do nothing"
+describe_operation(::InvalidateProjectionOperation) = "print the view again"
 describe_operation(::QuitEditorOperation) = "quit"
 describe_operation(operation::SetTimerOperation) =
     "set the timer " * string(operation.name)
