@@ -32,7 +32,6 @@ using ProjecturedKernelTest
 using ProjecturedPlatform.LayoutModule
 using ProjecturedPlatform.NaturalModule
 using ProjecturedPlatform.PaneModule
-using ProjecturedPlatform.ScreenModule: OpenPopupOperation
 using ProjecturedPlatform.StyleModule
 using ProjecturedPlatform.WidgetModule
 

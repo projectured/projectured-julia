@@ -1287,15 +1287,17 @@ function test_application()
 
                 # The pointer at rest on the picture opens a window of its own
                 # that says the name of the tool and what it shows, in the editor
-                # that `run_application` makes: the wrapper of the tooltip window
-                # sits in the tracking screen. The time of the move is long past,
-                # so the wait of the dwell ends in the same frame.
+                # that `run_application` makes: the wrappers of the tooltip window
+                # and of the context menu window sit in the tracking screen. The
+                # time of the move is long past, so the wait of the dwell ends in
+                # the same frame.
                 document, projection = make_application_window(paths[1:1]; root = dir,
                                                                assistant = nothing)
                 backend = HeadlessBackend()
                 editor = build_editor(document, projection; backend = backend, tabs = false,
                     window = (; title = "ProjecturEd", width = 1600, height = 1000,
-                              inner_wrappers = [wrap_tooltip_window],
+                              inner_wrappers = [wrap_tooltip_window,
+                                                wrap_context_menu_window],
                               opened_window_projections = make_opened_window_projections(;
                                   content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = FontFileMeasure())],
                                                  make_application_content_projections()))))

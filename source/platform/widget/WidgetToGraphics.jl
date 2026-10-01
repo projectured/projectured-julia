@@ -1182,18 +1182,19 @@ function _find_child_hit(entries::Vector, evt, make_evt)
     nothing
 end
 
-# A dwell goes to the child of `entries` at its point, as a click goes
-# (`_find_child_hit`). The answer of the child is re-rooted by the steps from
+# A dwell or a right click goes to the child of `entries` at its point, as a click
+# goes (`_find_child_hit`). The answer of the child is re-rooted by the steps from
 # `input`, the input of the container, to the child, found by identity as a point
 # maps to a child (`_map_point_to_child`), and the container then reads its own
 # stretch (`read_container_gesture`). When no child at the point answers, or the
 # search finds no steps to the child, the container itself is the part.
-function _read_children_dwell(input, entries::Vector, dwell::MouseDwell)
-    hit = _find_child_hit(entries, dwell,
-                          (x, y) -> shift_event_position(dwell, x - dwell.x, y - dwell.y))
+function _read_children_outward(input, entries::Vector, gesture)
+    hit = _find_child_hit(entries, gesture,
+                          (x, y) -> shift_event_position(gesture, x - gesture.x,
+                                                         y - gesture.y))
     steps = hit === nothing ? nothing : _find_child_steps(input, get_iomap_input(hit[2]))
-    steps === nothing && return read_container_gesture(nothing, dwell, input)
-    read_container_gesture(reroot_operation(hit[1], Tuple(steps)), dwell, input; steps)
+    steps === nothing && return read_container_gesture(nothing, gesture, input)
+    read_container_gesture(reroot_operation(hit[1], Tuple(steps)), gesture, input; steps)
 end
 
 # The point `(x, y)` of a container's frame in the frame of the child of `entry`,
@@ -1833,9 +1834,11 @@ function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
                 cox, coy)
             # A document with nothing in it measures nothing, so it has no
             # position to answer with and an empty field could not be clicked
-            # into at all. A click in the box means "the caret goes here", and on
-            # an empty document that is the whole of it.
-            answer === nothing ? ReplaceSelectionOperation(EmptyReference()) : answer
+            # into at all. A left click in the box means "the caret goes here",
+            # and on an empty document that is the whole of it. Another button
+            # moves no caret.
+            answer === nothing && button === :left ?
+                ReplaceSelectionOperation(EmptyReference()) : answer
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
@@ -2120,7 +2123,7 @@ function read_intent(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     is_move_without_button(evt) && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    evt isa MouseDwell && return _read_children_dwell(iomap.input, child_iomaps, evt)
+    evt isa MouseDwell && return _read_children_outward(iomap.input, child_iomaps, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(child_iomaps, evt)
 end
@@ -2206,25 +2209,20 @@ map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = 
 
 read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
-# A right click opens the context menu at the pointer (Step 4d): an
-# `OpenPopupOperation` at the local click, which each reader above moves into its
-# own frame. Every other event routes to the child (its returned op is re-rooted
-# through `.child`), and a popup the child opens is moved out of the content
-# offset.
+# Every event routes to the child: its answer is re-rooted through `.child`, and a
+# popup the child opens is moved out of the content offset. A dwell and a right
+# click go to the child where it drew something at the point, and the wrapper then
+# reads its own stretch, so its gesture table adds its menu to a right click
+# (`make_context_menu_binding`), after the menu of a nearer part.
 function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt)
     is_move_without_button(evt) && return _read_context_menu_move(p, iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
-    if evt isa MouseClick && evt.button === :right
-        (w.enabled === false || w.menu === nothing) && return nothing
-        return _open_context_menu(w.menu, evt.x, evt.y)
-    end
     child_iomap = iomap.child_iomap
     child_iomap === nothing && return nothing
-    # A dwell goes to the child where it drew something at the point, and the menu
-    # then reads its own stretch.
-    evt isa MouseDwell &&
-        return _read_children_dwell(w, Any[(_content_offset(p, w)..., child_iomap)], evt)
+    is_outward_gesture(evt) &&
+        return _read_children_outward(w, Any[(_content_offset(p, w)..., child_iomap)],
+                                      evt)
     dx, dy = _get_context_menu_child_offset(p, iomap)
     op = @gesture_case evt begin
         MouseClick => shift_operation_position(
@@ -2255,12 +2253,6 @@ function _get_context_menu_child_offset(p, iomap::WidgetContextMenuToGraphicsCan
     canvas isa GraphicsCanvas || return (cox, coy)
     (cox + Int(canvas.x), coy + Int(canvas.y))
 end
-
-# Open the menu at the point of the press. The popup window takes the extent of
-# what the menu draws.
-_open_context_menu(menu, lx, ly) =
-    ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=lx, y=ly, auto_dismiss=true, content=menu))
 
 # ── WidgetDialog ──────────────────────────────────────────────────────────────
 
@@ -2433,7 +2425,7 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
         return evt.key === :escape ? CloseWindowOperation(pid) : nothing
     end
     evt isa MouseDwell &&
-        return _read_children_dwell(iomap.input, _get_dialog_entries(iomap), evt)
+        return _read_children_outward(iomap.input, _get_dialog_entries(iomap), evt)
     evt isa MouseClick || return nothing
     evt.button === :left || return nothing
     (cx, cy, cw, ch) = iomap.card
@@ -2601,7 +2593,7 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     end
     # A dwell goes to the content at its point, and invokes nothing.
     evt isa MouseDwell &&
-        return _read_children_dwell(w, getfield(iomap, :child_iomaps)[]::Vector, evt)
+        return _read_children_outward(w, getfield(iomap, :child_iomaps)[]::Vector, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
 end
@@ -2668,9 +2660,7 @@ map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = 
 # first, as on a button.
 #
 # Alt and a left press select the item as a whole, as they select any widget, so
-# the item declines that press and the layers above select it. The tooltip probe
-# finds the document under the pointer with the same press, so an item that
-# answered it with its action would never say its name.
+# the item declines that press and the layers above select it.
 function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.visible == false && return nothing
@@ -2836,7 +2826,7 @@ function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MouseClick && return _route_click_to_children(child_iomaps, evt)
-    evt isa MouseDwell && return _read_children_dwell(iomap.input, child_iomaps, evt)
+    evt isa MouseDwell && return _read_children_outward(iomap.input, child_iomaps, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(child_iomaps, evt)
 end
@@ -3339,9 +3329,11 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         end
     end
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    # A dwell goes to the band at its point, as a click goes, and its answer is
-    # rooted at the field of that band.
-    evt isa MouseDwell && return _read_children_dwell(iomap.input, child_iomaps, evt)
+    # A dwell and a right click go to the band at their point, as a click goes, and
+    # the answer is rooted at the field of that band. The shell then reads its own
+    # table, so the menu of the window is the outermost layer of a right click.
+    is_outward_gesture(evt) &&
+        return _read_children_outward(iomap.input, child_iomaps, evt)
     if is_whole_selection_press(evt)
         selected = _select_in_band(iomap.input, child_iomaps, evt)
         selected === nothing || return selected
@@ -3384,10 +3376,9 @@ end
 
 # An Alt+press over a band selects in that band, and the path names the band's
 # own field. Every other answer is re-rooted into `content`, and a band is not
-# the content: without this, an Alt+press on a toolbar button selected the whole
-# window, and the tooltip probe, which finds the document under the pointer with
-# the same press, never found the button. Only the bands are hit-tested here, so
-# a press over the content reads the content once, on the ordinary route.
+# the content, so an Alt+press on a toolbar button selects the button and not the
+# whole window. Only the bands are hit-tested here, so a press over the content
+# reads the content once, on the ordinary route.
 function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MouseClick)
     for entry in child_iomaps
         entry === nothing && continue
@@ -3549,7 +3540,7 @@ function read_intent(::WidgetTitlePaneToGraphicsCanvas, iomap::ChildrenIoMap, ev
     is_move_without_button(evt) && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    evt isa MouseDwell && return _read_children_dwell(iomap.input, child_iomaps, evt)
+    evt isa MouseDwell && return _read_children_outward(iomap.input, child_iomaps, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(child_iomaps, evt)
 end
@@ -4674,7 +4665,8 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     is_move_without_button(evt) && return _read_tabbed_pane_move(p, iomap, child_iomaps, evt)
     _outside_widget(iomap, evt) && return nothing
-    evt isa MouseDwell && return _read_tabbed_pane_dwell(p, iomap, evt)
+    # A dwell and a right click open, close and select no tab.
+    is_outward_gesture(evt) && return _read_tabbed_pane_outward(p, iomap, evt)
     if evt isa MouseClick
         w = iomap.input
         if !(w isa WidgetTabbedPane)
@@ -4753,19 +4745,19 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
     _tab_prefix(_route_selected_tab(iomap, child_iomaps, evt), iomap.input)
 end
 
-# A dwell on a tab header is read by the header and the documents around it: the
-# pane draws the header itself, so the backward map of the point names it, as it
-# names a part of a child that answers nothing (`read_child_part_gesture`). A dwell
-# on the open page goes to the page, as a click does. A dwell opens, closes and
-# selects no tab.
-function _read_tabbed_pane_dwell(p::WidgetTabbedPaneToGraphicsCanvas,
-                                 iomap::ChildrenIoMap, dwell::MouseDwell)
-    _find_tab_header_at(p, iomap, (x = dwell.x, y = dwell.y)) === nothing ||
-        return read_child_part_gesture(iomap, dwell)
+# A dwell or a right click on a tab header is read by the header and the
+# documents around it: the pane draws the header itself, so the backward map of
+# the point names it, as it names a part of a child that answers nothing
+# (`read_child_part_gesture`). A dwell or a right click on the open page goes to
+# the page, as a click does. Neither opens, closes or selects a tab.
+function _read_tabbed_pane_outward(p::WidgetTabbedPaneToGraphicsCanvas,
+                                   iomap::ChildrenIoMap, gesture)
+    _find_tab_header_at(p, iomap, (x = gesture.x, y = gesture.y)) === nothing ||
+        return read_child_part_gesture(iomap, gesture)
     w = iomap.input
-    w isa WidgetTabbedPane || return read_container_gesture(nothing, dwell, w)
+    w isa WidgetTabbedPane || return read_container_gesture(nothing, gesture, w)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    _read_tab_answer(w, dwell, _route_active_tab(iomap, child_iomaps, dwell))
+    _read_tab_answer(w, gesture, _route_active_tab(iomap, child_iomaps, gesture))
 end
 
 # The answer of the open page that `res` names, `(operation, index)` or `nothing`,

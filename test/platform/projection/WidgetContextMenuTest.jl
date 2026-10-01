@@ -1,9 +1,9 @@
-# WidgetContextMenu (Stage 3, Step 4d). A transparent wrapper around a child: a
-# right click opens `menu` as a popup placed at the pointer via an anchor-relative
-# `OpenPopupOperation` whose offset is the local click coordinates; a content-root
-# `WidgetPopupResolverProjection` maps the wrapper's anchor forward and adds the
-# offset, yielding an absolute `OpenWindowOperation` at the pointer. Non-right
-# events route to the wrapped child.
+# WidgetContextMenu: a transparent wrapper around a child. Its gesture table
+# answers a right click with an `OpenContextMenuOperation` that holds `menu` and the
+# point of the click, in the frame of the wrapper; each reader above moves the
+# point into its own frame. The wrapper that keeps the context menu window at the
+# screen opens the window (`ContextMenuWindowTest`). Every other event routes to
+# the wrapped child.
 
 mutable struct _CtxMenuMockEditor
     document::Any
@@ -35,23 +35,23 @@ function _context_iomap_of(iomap, document, depth = 0)
     iomap.input === document ? iomap : nothing
 end
 
-@testset "a right click opens the menu at the pointer" begin
+@testset "a right click answers the menu at the pointer" begin
     menu  = WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"), WidgetMenuItem("Paste")])
     child = WidgetLabel("right-click me")
     wrap  = WidgetContextMenu(child, menu)
     iomap = print_document(proj, wrap)
 
     op = read_intent(proj, iomap, MouseClick(:right, 12, 7, ModifierKeys(); time = 0.0))
-    # To open a popup is not an edit, so the popup comes marked as view state.
+    # To open a menu is not an edit, so the menu comes marked as view state.
     @test op isa ReplaceViewStateOperation
-    popup = get_wrapped_operation(op)
-    @test popup isa OpenPopupOperation
-    @test popup.id === :widget_popup
-    @test popup.auto_dismiss === true
-    @test popup.x == 12                      # at the local click, in the wrapper's frame
-    @test popup.y == 7
-    @test popup.content === menu             # the popup content is the context menu
-    @test popup.height > 0
+    opened = get_wrapped_operation(op)
+    @test opened isa OpenContextMenuOperation
+    @test opened.point == (12, 7)            # at the local click, in the wrapper's frame
+    title, shown = only(opened.layers)
+    @test title == "WidgetContextMenu"
+    @test shown === menu                     # the menu of the wrapper
+    # The part is the wrapper itself.
+    @test strip_reference_types(opened.source) isa EmptyReference
 end
 
 @testset "a left click routes to the child, not the menu" begin
@@ -62,7 +62,6 @@ end
     iomap = print_document(proj, wrap)
 
     op = read_intent(proj, iomap, MouseClick(:left, 2, 2, ModifierKeys(); time = 0.0))
-    @test !(op isa OpenPopupOperation)
     @test op isa InvokeActionOperation
     @test op.action === btn.action
     evaluate_operation(_CtxMenuMockEditor(btn), op)
@@ -91,11 +90,30 @@ end
     # menu opens at the press, in the frame of the layout.
     (x_cell, y_cell, _) = getfield(_context_iomap_of(iomap, layout), :child_iomaps)[][2]
     ox, oy = Int(x_cell[]), Int(y_cell[])
-    op = get_wrapped_operation(read_intent(proj, iomap, MouseClick(:right, ox + 20, oy + 9, ModifierKeys(); time = 0.0)))
-    @test op isa OpenPopupOperation
-    @test op.content === menu
+    press = MouseClick(:right, ox + 20, oy + 9, ModifierKeys(); time = 0.0)
+    op = get_wrapped_operation(read_intent(proj, iomap, press))
+    @test op isa OpenContextMenuOperation
+    @test only(op.layers)[2] === menu
     @test oy > 0
-    @test (op.x, op.y) == (ox + 20, oy + 9)
+    @test op.point == (ox + 20, oy + 9)
+    # The part is the second child of the layout.
+    @test strip_reference_types(op.source) ==
+          ConcreteReference(FieldReferenceStep("children"),
+                            ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+end
+
+@testset "a nearer wrapper gives the first menu, and the wrapper around it the next" begin
+    inner = WidgetMenu([WidgetMenuItem("Rename")])
+    outer = WidgetMenu([WidgetMenuItem("Close")])
+    wrap = WidgetContextMenu(WidgetContextMenu(WidgetLabel("target"), inner), outer)
+    iomap = print_document(proj, wrap)
+    press = MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)
+    op = get_wrapped_operation(read_intent(proj, iomap, press))
+    @test op isa OpenContextMenuOperation
+    @test length(op.layers) == 2
+    @test op.layers[1][2] === inner && op.layers[2][2] === outer
+    @test strip_reference_types(op.source) ==
+          ConcreteReference(FieldReferenceStep("child"), EmptyReference())
 end
 
 end # @testset

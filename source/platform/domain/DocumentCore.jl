@@ -121,12 +121,14 @@ accepts_opened_file(::Any) = true
 """
     compute_context_menu(document) -> Document | Nothing
 
-The menu to open when a person presses the right button on `document`, or
-`nothing` when it offers none. `nothing` by default.
+The menu of `document` that a right click opens, or `nothing` when it has none.
+`nothing` by default.
 
-A widget reads a `context_menu` field that whoever built it set. Every other
-document computes its menu, which is what makes the menu worth having: a JSON
-array offers to add an element, and no field set from outside could have said
-that.
+A type that has a menu puts `make_context_menu_binding(compute_context_menu)` of
+the widget slice in its own gesture table, so a right click on the document opens
+the menu, and the command palette can run the binding. The window shell reads its
+`context_menu` field, which whoever built it set. A document of a domain computes
+its menu from its own fields: the menu of a column of a data frame hides the
+column.
 """
 compute_context_menu(::Any) = nothing

@@ -25,12 +25,17 @@ Base.show(io::IO, s::DataFrameColumnReferenceStep) = print(io, "column(", repr(s
     DataFrameColumn(view, name)
 
 The column `name` of `view`: what a [`DataFrameColumnReferenceStep`](@ref)
-names. Its context menu hides it.
+names. It is a document with a gesture table and no selection of its own, so a
+right click on the header of the column opens its menu, which hides it.
 """
-struct DataFrameColumn
+struct DataFrameColumn <: Document
     view::DataFrameView
     name::String
 end
+
+get_selection(::DataFrameColumn) = nothing
+
+get_document_title(column::DataFrameColumn) = column.name
 
 evaluate_reference_step(step::DataFrameColumnReferenceStep, view::DataFrameView) =
     step.name in names(view.frame) ? DataFrameColumn(view, step.name) : nothing
@@ -68,3 +73,8 @@ function compute_context_menu(view::DataFrameView)
     end
     WidgetMenu(items)
 end
+
+# A right click on the header of a column opens its menu.
+get_document_gesture_bindings_own(::Type{DataFrameColumn}) =
+    GestureBinding[make_context_menu_binding(compute_context_menu;
+                                             description = "Show the menu of the column")]

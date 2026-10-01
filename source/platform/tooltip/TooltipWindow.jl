@@ -10,8 +10,8 @@ each field, so a history does not record it:
   first;
 - `shown` — how many layers the window shows; `0` when no tooltip is open;
 - `source` — the path of the part that the tooltip describes, from `content`;
-- `window` — the `OpenWindowOperation` that opened the window, which F2 and
-  Shift+F2 open again with other content.
+- `window` — the `OpenWindowOperation` that opened the window last, which F2 and
+  Shift+F2 open again with other content (`show_window_layers`).
 """
 @document struct TooltipWindowState <: Document
     content::Document
@@ -94,31 +94,11 @@ end
 # ── The keys of an open tooltip ───────────────────────────────────────────
 
 # F2 shows one more layer and Shift+F2 one fewer, while a tooltip is open.
-get_document_gesture_bindings_own(::Type{TooltipWindowState}) = GestureBinding[
-    GestureBinding(KeyDownPattern(:f2; modifiers = Symbol[]),
-                   (state, gesture) -> _show_layers(state, state.shown + 1);
-                   applicable = (state, selection) -> state.shown > 0,
-                   description = "Show what the next part around says", domain = "tooltip"),
-    GestureBinding(KeyDownPattern(:f2; modifiers = [:shift]),
-                   (state, gesture) -> _show_layers(state, state.shown - 1);
-                   applicable = (state, selection) -> state.shown > 0,
-                   description = "Show one part fewer", domain = "tooltip"),
-]
+get_document_gesture_bindings_own(::Type{TooltipWindowState}) =
+    make_window_layer_bindings(_make_tooltip_content; domain = "tooltip")
 
-# The window again, with `count` layers, when that is another count.
-function _show_layers(state::TooltipWindowState, count::Int)
-    count = clamp(count, 1, length(state.layers))
-    count == state.shown && return DoNothingOperation()
-    window = state.window
-    content = TooltipContent(; layers = state.layers, shown = count)
-    CompoundOperation(Any[_write_state(state, "shown", count),
-                          OpenWindowOperation(; id = window.id, title = window.title,
-                                                x = window.x, y = window.y,
-                                                width = window.width, height = window.height,
-                                                minimum_size = window.minimum_size,
-                                                maximum_size = window.maximum_size,
-                                                style = window.style, content = content)])
-end
+_make_tooltip_content(layers, shown::Int) =
+    TooltipContent(; layers = layers, shown = shown)
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
@@ -210,7 +190,7 @@ function _open_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, to
                                    width = p.maximum_size[1], height = p.maximum_size[2],
                                    minimum_size = p.minimum_size, maximum_size = p.maximum_size,
                                    style = :tooltip,
-                                   content = TooltipContent(; layers = tooltip.layers, shown = 1))
+                                   content = _make_tooltip_content(tooltip.layers, 1))
     CompoundOperation(Any[_write_state(state, "layers", tooltip.layers),
                           _write_state(state, "shown", 1),
                           _write_state(state, "source", strip_reference_types(tooltip.source)),

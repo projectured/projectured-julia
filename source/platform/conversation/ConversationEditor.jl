@@ -918,7 +918,7 @@ process, and the last writer won.
 function make_evaluate_operation end
 make_evaluate_operation(::Any) = nothing
 
-# A press that reached this level found no text under it — a gap between the
+# A left press that reached this level found no text under it — a gap between the
 # cards, the padding around one. The caret goes to the composer as a whole,
 # which is a worse answer than an offset and a much better one than declining:
 # a reader who clicks near the field still gets to type in it.
@@ -926,7 +926,9 @@ make_evaluate_operation(::Any) = nothing
 # A press that DID find text never arrives here. It is answered by the text
 # layer under the card, and `map_reference_backward` turns that answer into the
 # `parts[i].content.value{k}` the composer's own cursor reads.
-function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, ::MouseClick)
+function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap,
+                     click::MouseClick)
+    click.button === :left || return nothing
     d = iomap.input
     n = length(d.parts)
     n == 0 && return ReplaceSelectionOperation(EmptyReference())

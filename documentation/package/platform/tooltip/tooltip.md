@@ -36,12 +36,14 @@ The gesture tracker recognizes the dwell when the pointer rests. The dwell then 
 
 `TooltipWindowProjection` keeps the tooltip window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`. The `window` wrapper of `build_editor` gives its setting `inner_wrappers` to `make_tracking_screen`.
 
-- **Opening.** The wrapper takes the `OpenTooltipOperation` out of the answer of its content and opens a window with `style = :tooltip`, `offset` from the point, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens at the forward image of the part.
+- **Opening.** The wrapper takes the `OpenTooltipOperation` out of the answer of its content and opens a window with `style = :tooltip`, `offset` from the point, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens below the part, with the left edges aligned (`find_part_place` of the screen slice).
 - **What it shows.** The window holds a `TooltipContent`: all the layers, and how many of them show. The natural projection draws it: the content of each shown layer, and a separator and the title before each layer when more than one shows. The row is `make_natural_tooltip_row(; measure)`, and a host gives it in `make_opened_window_projections(; content)`.
-- **More and fewer.** F2 shows the next layer outward, and Shift+F2 one fewer. `TooltipWindowState` declares both keys in its gesture table while a tooltip is open, so the gesture help lists them. So F2 does not reach the part under the tooltip while the tooltip is open.
+- **More and fewer.** F2 shows the next layer outward, and Shift+F2 one fewer. `TooltipWindowState` declares both keys in its gesture table while a tooltip is open, so the gesture help lists them. So F2 does not reach the part under the tooltip while the tooltip is open. The keys and the reopening of the window are the layer helper of the screen slice (`make_window_layer_bindings`, `show_window_layers`), which the context menu window uses too.
 - **Closing.** A move off the part closes the window: the wrapper maps the point backward, and the path does not go through the source. Escape closes it, and the wrapper takes the Escape. A press, a scroll and the leave of a window close it too. Any other key passes on and leaves it open.
 
 The state of the wrapper, `TooltipWindowState`, holds the layers, the count that shows, the source and the window operation. A view state operation writes each field.
+
+The context menu works the same way, with a right click and a wrapper of its own: [context-menu.md](../widget/context-menu.md).
 
 ### A command runs the same binding
 

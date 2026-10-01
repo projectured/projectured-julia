@@ -74,7 +74,7 @@ A dwell goes by its position, as a click does: each container gives it to the ch
 - `read_child_part_gesture(child_iomap, gesture)` is the answer of the documents inside a child that did not answer: the backward map of the point names the part, and the documents on that path read the gesture with their tables, the part first. `read_child_event` of the layout package calls it, and the window calls it for its content. So a text, which draws a whole document as one leaf, gives a dwell to the part of the document under the pointer.
 - `read_container_gesture(answer, gesture, document; steps)` is the answer of a container after the child at the point answered: the documents of its own stretch, from the one above the child up to its input, read the gesture with their tables. It calls `read_gesture_outward` of the kernel, which keeps the rule of the walk: a document reads when nothing deeper answered or when the deeper answer collects, a collected answer of the same kind is joined, and any other answer ends the walk.
 
-A point in the answer moves back into the frame of each container on the way out, so a tooltip opens beside the pointer.
+A point in the answer moves back into the frame of each container on the way out, so a tooltip opens beside the pointer, and a context menu opens at it ([context-menu.md](../widget/context-menu.md)).
 
 ### The box of a part
 

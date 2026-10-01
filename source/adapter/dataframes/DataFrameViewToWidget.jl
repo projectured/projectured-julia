@@ -40,6 +40,9 @@ The table shows the columns that the query of the view does not hide. A press
 on a header selects its column, as a `DataFrameColumnReferenceStep`, and the
 header shows the selection; a press on the corner selects the view. A
 selection of a row or of a cell has no place in the view yet, and goes nowhere.
+The backward map names the column of a point on a header and the view of a
+point on the corner, so a right click there opens the menu of the column or of
+the view.
 The reader gives the view a key that the table does not take, so the gestures
 of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
 on.
@@ -264,6 +267,19 @@ function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
     path === nothing && return nothing
     target = _find_view_path(iomap, path)
     target === nothing ? nothing : ReplaceSelectionOperation(annotate_reference_types(iomap.input, target))
+end
+
+# A place in the table that has a place in the view maps back to it, as a
+# selection there does (`_find_view_path`): the header of a column to the column,
+# a field of the query to its text, and the corner to the view. So a right click on
+# the header of a column reads the gesture table of the column. Any other place is
+# a part that the view introduced, as the default map of the kernel says.
+function map_reference_backward(p::DataFrameViewToWidget,
+                                iomap::DataFrameViewToWidgetIoMap, reference)
+    path = reference isa Reference ? _find_table_path(reference) : nothing
+    target = path === nothing ? nothing : _find_view_path(iomap, path)
+    target === nothing || return annotate_reference_types(iomap.input, target)
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
 # The path in the grid of the view of its child `k`, followed by `tail`.

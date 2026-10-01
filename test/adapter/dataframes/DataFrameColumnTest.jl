@@ -73,27 +73,51 @@ function test_data_frame_columns()
             @test compute_context_menu(view) === nothing
         end
 
-        @testset "a right click on a header or on the corner opens its menu, through the probe" begin
-            probe = ContextMenuProbeProjection(; inner = projection, compute_context_menu)
+        @testset "a right click on a header or on the corner answers its menu" begin
             view = DataFrameView(make_frame())
-            io = print_document(probe, nothing, view, context())
+            io = print_document(projection, nothing, view, context())
+            # A container gives a right click to the view as to any child: the view
+            # and its table answer nothing, and the documents under the point read
+            # the click with their own gesture tables.
             function right(x, y)
-                answer = read_intent(probe, nothing,
-                                     Intent(MouseClick(:right, x, y, ModifierKeys(); time = 0.0), nothing), io)
-                answer isa Intent ? answer.operation : answer
+                click = MouseClick(:right, x, y, ModifierKeys(); time = 0.0)
+                answer = read_child_event(io, click)
+                answer isa ReplaceViewStateOperation ?
+                    get_wrapped_operation(answer) : answer
             end
-            # The popup that an answer opens, which comes marked as view state.
-            find_popup(op) = op isa CompoundOperation ?
-                only(filter(!isnothing, map(find_popup, op.operations))) :
-                (op isa ReplaceViewStateOperation && get_wrapped_operation(op) isa OpenPopupOperation) ?
-                    get_wrapped_operation(op) : nothing
+            titles_of(opened) = [title for (title, _) in opened.layers]
+            menu_labels(opened) = labels_of(only(opened.layers)[2])
             (x, y) = place_of(io, "name :: String")
-            @test labels_of(find_popup(right(x + 2, y + 2)).content) == ["Filter by values…", "Hide column"]
-            # The corner opens the menu of the view once a column is hidden.
-            evaluate_operation(nothing, module_._make_hide_column_operation(view, "price"))
+            opened = right(x + 2, y + 2)
+            @test opened isa OpenContextMenuOperation
+            @test titles_of(opened) == ["name"]
+            @test menu_labels(opened) == ["Filter by values…", "Hide column"]
+            @test opened.point == (x + 2, y + 2)
+            column = ConcreteReference(DataFrameColumnReferenceStep("name"),
+                                       EmptyReference())
+            @test strip_reference_types(opened.source) == column
+            # The corner opens the menu of the view once a column is hidden, and a
+            # header then gives its own menu first and the menu of the view after it.
+            hide = module_._make_hide_column_operation(view, "price")
+            evaluate_operation(nothing, hide)
             (x, y) = place_of(io, "1000")
-            labels = [item.action.label for item in find_popup(right(x + 2, y + 2)).content.elements]
-            @test labels == ["Show all columns", "Show price"]
+            opened = right(x + 2, y + 2)
+            @test titles_of(opened) == ["DataFrameView"]
+            @test menu_labels(opened) == ["Show all columns", "Show price"]
+            (x, y) = place_of(io, "name :: String")
+            @test titles_of(right(x + 2, y + 2)) == ["name", "DataFrameView"]
+        end
+
+        @testset "the column and the view bind their menus to a right click" begin
+            view = DataFrameView(make_frame())
+            click = MouseClick(:right, 0, 0, ModifierKeys(); time = 0.0)
+            column = DataFrameColumn(view, "name")
+            opened = get_wrapped_operation(read_gesture(column, click))
+            @test opened isa OpenContextMenuOperation
+            labels = labels_of(last(only(opened.layers)))
+            @test labels == ["Filter by values…", "Hide column"]
+            # The view has no menu while every column shows.
+            @test read_gesture(view, click) === nothing
         end
 
         @testset "the last column that the view shows can not be hidden" begin

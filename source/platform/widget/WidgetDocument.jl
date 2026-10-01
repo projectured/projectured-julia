@@ -517,13 +517,14 @@ set_cell_computation!(w::WidgetTooltip, f::Function) = (set_cell_computation!(ge
 """
     WidgetContextMenu(child, menu; <base kwargs>)
 
-Wraps `child`, rendering it unchanged (a transparent behavioural wrapper). A
-**right** click anywhere over it opens `menu` (a `WidgetMenu`) as a popup placed at
-the pointer (Stage 3 Step 4d). It reuses the popup window route: the right click
-emits an `OpenPopupOperation` at the *local* click coordinates, which each reader
-above moves into its own frame, so the window opens the menu at the pointer — no
-pointer injection. Non-right events route to `child`. A disabled wrapper ignores
-the right click (the child still works).
+Wraps `child`, and draws it unchanged. A **right** click anywhere over it opens
+`menu`, a `WidgetMenu`, in the context menu window at the pointer. Its gesture
+table answers the right click (`make_context_menu_binding`) with an
+`OpenContextMenuOperation`, after the child at the point had its turn, so a
+nearer part adds its own menu first and the parts around add theirs after it.
+`ContextMenuWindowProjection` at the screen opens the window. Every event goes
+to `child`, the right click too. A disabled wrapper has no menu, and the child
+still works.
 """
 @document struct WidgetContextMenu <: WidgetDocument
     child::Any
@@ -2910,9 +2911,22 @@ end
 get_document_gesture_bindings_own(::Type{WidgetDocument}) =
     GestureBinding[make_tooltip_binding(_find_widget_tooltip)]
 
-# The shell is the window's own frame, so the menu it holds is the window's: what
-# opens where no widget under the pointer offers one.
+# The shell is the window's own frame, so the menu it holds is the window's. A
+# right click anywhere in the window reaches the shell last, so its menu is the
+# outermost layer of a context menu, which F2 shows from any part of the window.
 compute_context_menu(shell::WidgetShell) = shell.context_menu
+
+get_document_gesture_bindings_own(::Type{WidgetShell}) =
+    GestureBinding[make_context_menu_binding(compute_context_menu;
+                                             description = "Show the window menu")]
+
+# A right click over the child of a `WidgetContextMenu` opens the menu that the
+# wrapper gives the child; a disabled wrapper has none.
+get_document_gesture_bindings_own(::Type{WidgetContextMenu}) =
+    GestureBinding[make_context_menu_binding(_find_widget_context_menu)]
+
+_find_widget_context_menu(widget::WidgetContextMenu) =
+    widget.enabled === false ? nothing : widget.menu
 
 # A shell wraps the window's own document in the chrome it is drawn in, and it is
 # transparent to everything that reads the tree rather than the picture: a verb

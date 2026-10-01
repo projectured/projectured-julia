@@ -5,7 +5,7 @@
     make_window_wrap(; gesture_help = true, command_palette = true,
                      selection = true,
                      clipboard_gestures = CLIPBOARD_GESTURES,
-                     history = identity, context_menu = nothing, shell = nothing,
+                     history = identity, shell = nothing,
                      measure::TextMeasure = FontFileMeasure(),
                      appearance::Appearance = Appearance()) -> Function
 
@@ -22,11 +22,9 @@ projection)` that a window entry applies before it opens.
   this package names none of it. It is given the window's own document, because
   a status bar says where the person is in it. **The shell is a document**: it wraps the window's own
   document and is drawn by the projection paired with it, so the chrome can be
-  selected, referenced and saved like everything else.
-- `context_menu`: what the document under the pointer offers on a right press.
-  It is the function the probe asks, `(document) -> Document | Nothing`;
-  `compute_context_menu` is the one every document answers. A
-  `WidgetContextMenu` closer to the pointer answers first, because it is closer.
+  selected, referenced and saved like everything else. `context_menu` is the menu
+  of the window: a right click anywhere in the window adds it as the outermost
+  layer of the context menu.
 - `history`: a wrapper for what the window remembers, put **innermost**, around
   the content projection itself. It is a function `projection -> projection`, and
   the default changes nothing. A host that has an undo buffer passes the wrapper
@@ -47,17 +45,19 @@ document as it is. The clipboard wraps the document too, so a verb that walks th
 must look inside it.
 
 The order is the history innermost, the shell over it, the focus cycling over the
-shell, the walk and the clipboard over that, the context menu probe over them, the
-help over that, the palette over it, and the log's recorder outermost, where it sees
-every operation the window makes. The focus cycling is always there, so Tab
-starts over at the ends of every window. A window gets its light under the
-pointer from the screen, which gives each move to its windows.
+shell, the walk and the clipboard over that, the help over them, the palette over
+it, and the log's recorder outermost, where it sees every operation the window
+makes. The focus cycling is always there, so Tab starts over at the ends of every
+window. A window gets its light under the pointer from the screen, which gives
+each move to its windows. The wrappers that keep the tooltip window and the
+context menu window sit at the screen, because a window belongs to the screen
+(`make_tracking_screen`). The menu of the shell is the outermost layer of a
+context menu.
 """
 function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = true,
                             selection::Bool = true,
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
-                            history = identity,
-                            context_menu = nothing, shell = nothing,
+                            history = identity, shell = nothing,
                             measure::TextMeasure = FontFileMeasure(),
                             appearance::Appearance = Appearance())
     # One flag for the help window, which the decorator reads each time F1 comes.
@@ -91,12 +91,6 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                                                    offered_gestures = clipboard_gestures)
             document = make_clipboard_document(document)
         end
-        # Over the walk, because the probe asks the document the walk selects in;
-        # under the help and the palette, because a probe must not answer for a
-        # window that one of them opened.
-        context_menu === nothing ||
-            (projection = ContextMenuProbeProjection(inner = projection,
-                                                     compute_context_menu = context_menu))
         gesture_help &&
             (projection = GestureHelpDecoratorProjection(inner = projection, state = help_state))
         command_palette &&

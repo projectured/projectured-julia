@@ -37,7 +37,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `screen` | [screen.md](platform/screen/screen.md) | the window model |
 | `layout` | [layout.md](platform/layout/layout.md) | rows, columns, grids, flows, stacks, anchored and constraint layouts |
 | `text` | [text.md](platform/text/text.md) | styled text, the flat caret, and text to graphics |
-| `widget` | [widget.md](platform/widget/widget.md) | the widgets, their routing, and the object views |
+| `widget` | [widget.md](platform/widget/widget.md), with [context-menu.md](platform/widget/context-menu.md) | the widgets, their routing, the object views, and the context menu |
 | `reflection` | [reflection.md](platform/reflection/reflection.md), with [bounded-sync.md](platform/reflection/bounded-sync.md) | the view of any Julia value, and its bounded sync |
 | `clipboard` | [clipboard.md](platform/clipboard/clipboard.md) | copy, cut, note and paste for any document |
 | `pane` | [pane.md](platform/pane/pane.md) | tabs, split panes, and the pane tree of the window |

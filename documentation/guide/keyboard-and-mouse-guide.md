@@ -16,12 +16,23 @@ A key press goes to the view under the selection, and each view says which keys 
 | Ctrl + Home, Ctrl + End | the first and the last position of the document |
 | Alt + arrow keys | move the selection over whole parts, not positions |
 | Alt + click | select the part under the pointer as a whole |
-| right press | open the menu of the thing under the pointer |
+| right click | open the menu of the part under the pointer, at the pointer; the selection stays where it was |
+| F2, while a menu is open | add the menu of the part around it |
+| Shift + F2, while a menu is open | show one menu fewer |
 | rest the pointer | a tooltip says what the thing under it is |
 | click | put the selection where you click |
 | double click on a file in the navigator | open that file |
 
 A selection is a path into the data, so it survives a filter, a sort and a change somewhere else in the document.
+
+Only a left click moves the selection. A right click opens the menu of the lit part, and each item of the menu acts on that part, so the selection does not need to move. To open the menu of a part:
+
+1. Move the pointer over the part. The part is lit.
+2. Click the right button. The menu of the nearest part that has one opens at the pointer.
+3. Press F2 to add the menu of the next part around it. Each menu then starts with the name of its part. When the window has a menu of its own, that menu is the last one.
+4. Click an item to run it, or press Escape to close the menu.
+
+The command palette runs the same menu on the selected part: type the name of the menu, for example "Show the context menu". The menu then opens below the part.
 
 The part under the pointer is lit. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves.
 
@@ -61,7 +72,7 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | Ctrl + Shift + D | duplicate the focused tab |
 | Ctrl + Page Down, Ctrl + Page Up | the next or the previous tab |
 | Ctrl + Tab, Ctrl + Shift + Tab | the next or the previous group of tabs |
-| F2 | put the caret in the name of the tab, Escape leaves it |
+| F2 | put the caret in the name of the tab, Escape leaves it; while a tooltip or a menu is open, F2 goes to it |
 
 ## Files
 

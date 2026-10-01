@@ -104,8 +104,8 @@ under the pointer. The keywords:
 - `inner_wrappers` — `(document, projection) -> (document, projection)`
   functions that go around the screen and inside the gesture tracker, the first
   innermost. A wrapper there sees each gesture before the screen reads it, and
-  each answer after it comes back, in every window: the wrapper that keeps a
-  tooltip window goes there.
+  each answer after it comes back, in every window: the wrappers that keep the
+  tooltip window and the context menu window go there.
 - `gesture_tracking` — the gesture tracking projection, which runs
   `recognitions`: by default the click with its count, the key chord and the
   mouse dwell. A host adds the recognition of a gesture of its own to the list.
@@ -150,8 +150,8 @@ documents of the inner wrappers around the screen.
   reports.
 - `opened_window_projections` adds rows to those of the other wrappers, for the
   windows that open later.
-- `inner_wrappers` goes to `make_tracking_screen`, for example the wrapper that
-  keeps a tooltip window.
+- `inner_wrappers` goes to `make_tracking_screen`, for example the wrappers that
+  keep the tooltip window and the context menu window.
 """
 # @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:window}, layer::Symbol, setting, parts::EditorParts)

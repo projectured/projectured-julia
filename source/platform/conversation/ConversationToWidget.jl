@@ -491,10 +491,10 @@ end
 for P in (ConversationConversationToWidgetComposite,
           ConversationTurnToWidgetComposite,
           ConversationPartToWidget)
-    # A click that named nothing still landed here, and this node is what it can
-    # honestly claim.
-    @eval read_intent(::$P, iomap, ::MouseClick) =
-        ReplaceSelectionOperation(EmptyReference())
+    # A left click that named nothing still landed here, and this node is what it
+    # can honestly claim. Another button moves no selection.
+    @eval read_intent(::$P, iomap, click::MouseClick) =
+        click.button === :left ? ReplaceSelectionOperation(EmptyReference()) : nothing
     # A click that DID name something: say which part it named. The widget path
     # comes up from below and goes down the walk above.
     @eval function read_intent(p::$P, iomap, op::ReplacePathOperation)

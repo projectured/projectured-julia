@@ -1142,12 +1142,13 @@ _make_selection_operation(plot, inner) = begin
     reference === nothing ? nothing : ReplaceSelectionOperation(reference)
 end
 
-# Clicking picks the most specific thing under the pointer. The order is the one
-# the reference tool settled on and for the same reason: an occurrence is a point and an
-# arrow is a line, so where both are within reach the point was almost certainly
-# what was aimed at.
+# A left click picks the most specific thing under the pointer. The order is the
+# one the reference tool settled on and for the same reason: an occurrence is a
+# point and an arrow is a line, so where both are within reach the point was almost
+# certainly what was aimed at. Another button moves no selection.
 function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
                      gesture::MouseClick)
+    gesture.button === :left || return nothing
     g = iomap.geometry
     g === nothing && return nothing
     plot = iomap.input

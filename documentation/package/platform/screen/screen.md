@@ -43,11 +43,18 @@ Its reader routes a `WindowInput` event by the window id, not by the position in
 
 The projection changes only the input screen. `ScreenToScreen` then updates the output.
 
-**A window operation that reaches the editor opens the window too.** A wrapper outside the screen projection, such as the one that keeps the tooltip window, and a verb, such as `open_file_dialog!`, answer an `OpenWindowOperation` or a `CloseWindowOperation` that passes no window manager. `evaluate_operation` applies it to the screen that the editor's document wraps (`get_wrapped_document`), with the same code as the window manager.
+**A window operation that reaches the editor opens the window too.** A wrapper outside the screen projection, such as the ones that keep the tooltip window and the context menu window, and a verb, such as `open_file_dialog!`, answer an `OpenWindowOperation` or a `CloseWindowOperation` that passes no window manager. `evaluate_operation` applies it to the screen that the editor's document wraps (`get_wrapped_document`), with the same code as the window manager.
 
 ### The place of a part
 
-`find_part_place(projection, iomap, source)` answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../../kernel/reference.md), "The place of a part"). The tooltip window opens a tooltip that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
+`find_part_place(projection, iomap, source)` answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../../kernel/reference.md), "The place of a part"). The tooltip window and the context menu window open a window that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
+
+### The layers of a window
+
+A wrapper at the screen that keeps one window, such as the tooltip window and the context menu window, collects layers: what the part under the pointer and the parts around it answered, the nearest first. Its window shows the first ones. The state document of the wrapper has the fields `layers`, `shown` (how many layers show, `0` when the window is closed) and `window` (the `OpenWindowOperation` that opened the window last).
+
+- `show_window_layers(state, count, make_content)` opens the window again in its place with the first `count` layers, when that is another count. `make_content(layers, shown)` makes what the window holds. A view state operation writes `shown` and `window`, so a history does not record it.
+- `make_window_layer_bindings(make_content; domain)` gives the two keys of such a window: F2 shows one more layer, and Shift+F2 one fewer. A wrapper declares them in the gesture table of its state, so the gesture help lists them, and they apply only while the window is open.
 
 ### One window on one document
 
@@ -59,7 +66,7 @@ The wrapper `window` of `build_editor` builds both. It is on by default, and it 
 
 ## How it fits
 
-The screen slice depends on the graphics slice for `PointReferenceStep` and on the collection slice. A `.pred` file builds `ScreenDocument` and `WindowDocument` by their names, so a saved user interface holds its windows. The slices that open a window of their own use it: tooltip, inspector, gesturehelp, and the popups and dialogs of the widget slice. The SDL and web backends draw its output.
+The screen slice depends on the graphics slice for `PointReferenceStep` and on the collection slice. A `.pred` file builds `ScreenDocument` and `WindowDocument` by their names, so a saved user interface holds its windows. The slices that open a window of their own use it: tooltip, inspector, gesturehelp, and the popups, the context menu window and the dialogs of the widget slice. The SDL and web backends draw its output.
 
 ## Design decisions
 

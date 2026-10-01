@@ -1801,7 +1801,8 @@ key add up to whole-tree navigation — a child that cannot go further left hand
 the key back, and its parent moves to the previous sibling.
 """
 function read_intent(p::MathProjection, iomap::MathIoMap, event)
-    event isa MouseClick && return _select_at(iomap, Int(event.x), Int(event.y))
+    event isa MouseClick && event.button === :left &&
+        return _select_at(iomap, Int(event.x), Int(event.y))
     (event isa KeyDown || event isa KeyPress) || return nothing
     _read_key(iomap, event)
 end

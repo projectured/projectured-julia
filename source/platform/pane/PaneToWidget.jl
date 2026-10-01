@@ -623,11 +623,12 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     answer = read_intent(p, iomap, payload)
     is_whole_selection_press(change.gesture) &&
         (answer = _select_page_content(tree, change.operation, answer))
-    # A press that nothing claimed still says which pane the user pointed at. A
-    # pane is mostly empty space — its content is a document that ends where its
+    # A left press that nothing claimed still says which pane the user pointed at.
+    # A pane is mostly empty space — its content is a document that ends where its
     # text ends — so without this a click beside the text would focus nothing.
-    answer === nothing && change.gesture isa MouseClick &&
-        (answer = _focus_from_press(iomap, change.gesture))
+    press = change.gesture
+    answer === nothing && press isa MouseClick && press.button === :left &&
+        (answer = _focus_from_press(iomap, press))
     Intent(change.gesture, answer)
 end
 

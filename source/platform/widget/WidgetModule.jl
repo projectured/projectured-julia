@@ -40,7 +40,10 @@ import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edite
 import ..DomainModule: compute_context_menu
 import ..SerializationModule: pred_arguments
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
-import ..OperationModule: evaluate_operation
+import ..GraphicsModule: map_operation_position
+import ..OperationModule: evaluate_operation, is_collecting_operation,
+                          join_collected_operations, reroot_operation,
+                          operation_reference, retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection
 
@@ -84,7 +87,10 @@ export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
-export ContextMenuProbeProjection, ContextMenuProbeIoMap
+export OpenContextMenuOperation, make_context_menu_operation, make_context_menu_binding
+export ContextMenuWindowProjection, ContextMenuWindowIoMap,
+       make_context_menu_window_document, make_context_menu_window_projection,
+       wrap_context_menu_window
 export make_value_document, make_graphics_projection, collect_graphics_projection_types,
        refresh_document!
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action, compute_code_pieces
@@ -105,7 +111,8 @@ include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")
 include("CellTableToWidgetTable.jl")
 include("ProjectionConfiguring.jl")
-include("ContextMenuProbe.jl")
+include("ContextMenuOperation.jl")
+include("ContextMenuWindow.jl")
 include("DocumentComposition.jl")
 
 end # module

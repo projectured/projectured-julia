@@ -122,9 +122,10 @@ _rect_hit(r::GraphicsRect, cx::Integer, cy::Integer) =
     cy >= Int(r.y) && cy < Int(r.y) + Int(r.h)
 
 function read_intent(p::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
-    evt isa MouseClick || return nothing
+    evt isa MouseClick && evt.button === :left || return nothing
     # Always emit a plain click (element + pixel offset). Whole-element promotion
-    # (Alt+click) is decided in SyntaxToText off the originating gesture.
+    # (Alt+click) is decided in SyntaxToText off the originating gesture. Only a
+    # left click moves the selection.
     path = map_reference_backward(p, iomap, PointReferenceStep(evt.x, evt.y))
     path === nothing ? nothing : ReplaceSelectionOperation(path)
 end

@@ -1474,13 +1474,26 @@ it holds the example.
     selection, and the dwell and the click travel by position. That plan
     replaces the mouse target tracker of step 8, so steps 8 to 12 are planned
     again from it before 9d goes on.
-  - [ ] 9d. The context menu as bindings. The code written so far (the shared
-    layer helper `WindowLayers.jl` of the screen, `OpenContextMenuOperation`,
-    `ContextMenuWindowProjection`, the bindings of `WidgetContextMenu` and of the
-    shell, and the removal of the probe from the window wrap) is kept out of the
-    branch until 9d goes on, as `/var/tmp/gesture-type/9d-partial/`: a patch of
-    the changed files and copies of the three new ones. The right click travels by position,
-    as today, and reaches the same outward reading (D76; owner 2026-09-28).
+  - [x] 9d. The context menu as bindings. Done (2026-10-01), ported from the
+    kept code: `OpenContextMenuOperation` collects; `make_context_menu_binding`
+    binds a right click, also with no gesture; `WidgetContextMenu` and
+    `WidgetShell` (the window menu, the outermost layer) answer from their own
+    tables, and so do `DataFrameColumn` and `DataFrameView`;
+    `ContextMenuWindowProjection` with `wrap_context_menu_window` opens the
+    window at the click, or below the part with no point, and F2 / Shift+F2 show
+    one more or one fewer layer through the helper of the screen,
+    `WindowLayers.jl`, which the tooltip window uses too. The probe and the
+    `context_menu` keyword of the window wrap are gone; the application and the
+    omnet IDE put the menu window beside the tooltip window. D74: a right click
+    selects nothing in the text field, the tab strip, the math view, the
+    sequence chart, the cached canvas, the conversation and the pane focus
+    (the list, the table, the tree, the chart, the graph and the text view
+    answered only a left click already). Test: `test_context_menu_window` (36).
+    Two points for the owner: `DataFrameColumn` is now a `Document`, because
+    the outward walk reads the tables of documents only, and the data frame view
+    maps a header back to its column; a host with no menu window (the gallery,
+    the screen examples) opens no menu on a right click, because only the
+    wrapper opens it.
   - [x] 9e. The hover inspector goes away. Done (2026-10-01): `HoverProbe.jl`
     with `HoverProbeProjection`, the gallery's `inspector` option and
     `_multi_window_projection_inspector`, the two probe tests, and the text

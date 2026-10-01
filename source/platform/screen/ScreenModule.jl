@@ -28,6 +28,7 @@ using ..EditorModule
 using ..EventModule
 using ..FaultModule
 using ..FeedModule
+using ..GestureBindingModule
 using ..GestureModule
 using ..GestureTrackingModule
 using ..GraphicsModule
@@ -54,6 +55,7 @@ export make_window_scene, make_window_scene_projection, make_tracking_screen,
        show_document!
 export ScreenDocument, WindowDocument
 export find_part_place
+export show_window_layers, make_window_layer_bindings
 
 
 include("ScreenDocument.jl")
@@ -61,6 +63,7 @@ include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
 include("PartPlace.jl")
+include("WindowLayers.jl")
 include("DocumentShow.jl")
 
 

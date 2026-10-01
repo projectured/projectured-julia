@@ -70,9 +70,16 @@ function jump_to_row(view::DataFrameView, row::Integer)
         ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "top_row", 1))])
 end
 
+# A right click on the corner of the table opens the menu of the view
+# (`compute_context_menu`), which shows the hidden columns again.
+const _DATA_FRAME_VIEW_MENU =
+    GestureBinding[make_context_menu_binding(compute_context_menu;
+                                             description = "Show the menu of the view")]
+
 @gestures DataFrameView begin
     KeyDown(:home; ctrl) => "Jump to the first row" => jump_to_row(doc, 1)
     KeyDown(:end; ctrl) => "Jump to the last row" => jump_to_row(doc, length(doc.kept_rows))
+    splice(_DATA_FRAME_VIEW_MENU)
 end
 
 # ── The cells ────────────────────────────────────────────────────────────────

@@ -241,7 +241,6 @@ function make_application_window(paths::AbstractVector;
     make_window_wrap(; gesture_help = true, command_palette = true,
                        selection = true,
                        history = _with_window_history,
-                       context_menu = compute_context_menu,
                        shell = document -> _make_application_shell(document, assistant, root,
                                                                      status_bar),
                        measure = measure, appearance = appearance)(document, projection)
@@ -428,13 +427,14 @@ function run_application(paths::AbstractString...;
         editor = build_editor(document, projection;
                               backend = backend, tabs = false,
                               feeds = feeds, fault_policy = fault_policy,
-                              # The tooltip window is kept at the screen, so a
-                              # tooltip opens in every window, and the natural
-                              # projection draws what it holds. The other windows
-                              # that a wrapper opens draw with the rows a pane
-                              # draws with.
+                              # The tooltip window and the context menu window
+                              # are kept at the screen, so they open in every
+                              # window, and the natural projection draws what a
+                              # tooltip holds. The other windows that a wrapper
+                              # opens draw with the rows a pane draws with.
                               window = (; title = "ProjecturEd", width, height,
-                                        inner_wrappers = [wrap_tooltip_window],
+                                        inner_wrappers = [wrap_tooltip_window,
+                                                          wrap_context_menu_window],
                                         opened_window_projections =
                                             make_opened_window_projections(;
                                                 content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure, appearance = appearance)],
