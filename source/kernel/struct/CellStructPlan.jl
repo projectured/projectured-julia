@@ -186,6 +186,7 @@ end
 _find_cell_kind(name::Symbol) =
     name === :ImmutableCell ? ImmutableCell :
     name === :MutableCell   ? MutableCell   :
+    name === :UntrackedCell ? UntrackedCell :
     name === :ReactiveCell || name === :Cell ? ReactiveCell : nothing
 
 # The kind that a declared field type names, or `nothing`, and the value type.
@@ -227,9 +228,9 @@ get_cell_struct_value_types(plan::CellStructPlan) =
 """
     get_cell_struct_field_kinds(plan; default = ReactiveCell) -> Vector
 
-The kind of each field: `ReactiveCell`, `ImmutableCell` or `MutableCell`. A field
-whose type names a kind, such as `f::ImmutableCell{T}`, has that kind. Every other
-field has the kind `default`.
+The kind of each field: `ReactiveCell`, `ImmutableCell`, `MutableCell` or
+`UntrackedCell`. A field whose type names a kind, such as `f::ImmutableCell{T}`,
+has that kind. Every other field has the kind `default`.
 
 Use it to choose the cell of each field in your macro: the kind that the field
 names, or the kind that the macro gets for the others.

@@ -19,9 +19,9 @@ as it is, a function too, so a cell can hold a callback or a predicate as data.
     count_rows() = length(rows[])
     count = Cell(Computation(count_rows))
 
-The cell keeps the function and not the marker. Only a `ReactiveCell` can
-compute, so a `MutableCell` or an `ImmutableCell` throws an `ArgumentError` when
-it gets a `Computation`.
+The cell keeps the function and not the marker. Only a `ReactiveCell` and an
+`UntrackedCell` can compute, so a `MutableCell` or an `ImmutableCell` throws an
+`ArgumentError` when it gets a `Computation`.
 
 See also `@computation`, and `set_cell_computation!`, which gives a computation
 to a cell that exists.

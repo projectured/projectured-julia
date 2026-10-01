@@ -762,7 +762,13 @@ keys (W1), so that the font scale reaches all text from the first day.
 
 ### Part C: the cell layer
 
-- [ ] **C1. `UntrackedCell` and `run_untracked`** (4.4). `SEALING.md` records
+- [x] **C1. `UntrackedCell` and `run_untracked`** (4.4). Done on 2026-10-01:
+  `test_untracked_cell()` 42 pass, `test_kernel()` 4100 pass and 2 broken (the
+  baseline plus the new tests). The eight sealed files that it changed are ⬜ in
+  `SEALING.md` until they are audited again, and `UntrackedCell.jl` is listed
+  after `ImmutableCell.jl`. The error text of `_reject_computation` in
+  `CellDefaults.jl` still says "only a ReactiveCell computes": it is code, not a
+  docstring, so the owner's permission did not cover it. `SEALING.md` records
   the unseal of the four files.
   - `run_untracked` in `ReactiveCell.jl`, not exported. The new file
     `UntrackedCell.jl`, its `include` and `export` in `CellModule.jl`, the name

@@ -23,9 +23,9 @@ function has_dependent_cells(c::ReactiveCell)
     any(reference -> reference.value !== nothing, ds)
 end
 
-# Only the reactive kind can compute. A stored kind that kept the marker as its
-# value would read back the `Computation` itself and never run it, so the
-# two stored kinds throw.
+# Only the reactive kind and the untracked kind can compute. A stored kind that
+# kept the marker as its value would read back the `Computation` itself and never
+# run it, so the two stored kinds throw.
 _reject_computation(kind) =
     throw(ArgumentError("$kind can not hold a Computation: only a ReactiveCell " *
                         "computes. To store a function as a value, pass the " *

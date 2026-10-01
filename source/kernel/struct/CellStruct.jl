@@ -7,9 +7,9 @@
 
 The declared type of a field of the kind `kind` that holds a value of the type
 `value_type`. A `ReactiveCell` field is a `Cell`, which is `ReactiveCell{Any}`. An
-`ImmutableCell` or `MutableCell` field is a cell of `value_type`, such as
-`ImmutableCell{Int}`. The result holds the types as objects, so it needs no name in
-the scope where it expands.
+`ImmutableCell`, `MutableCell` or `UntrackedCell` field is a cell of `value_type`,
+such as `ImmutableCell{Int}`. The result holds the types as objects, so it needs
+no name in the scope where it expands.
 
 Use it to declare a field of your struct in the kind that your macro chose.
 
@@ -217,8 +217,9 @@ end
     parse_cell_struct_macro_arguments(arguments) -> (kind, definition)
 
 Parse the arguments of a macro of the form `@macro [Kind] struct … end`. `Kind` is
-`ReactiveCell`, `Cell`, `ImmutableCell` or `MutableCell`, and it sets the kind of
-each field whose type names no kind. Without it, the kind is `ReactiveCell`.
+`ReactiveCell`, `Cell`, `ImmutableCell`, `MutableCell` or `UntrackedCell`, and it
+sets the kind of each field whose type names no kind. Without it, the kind is
+`ReactiveCell`.
 
 Use it to let your macro take a kind before `struct`, as `@cell_struct` does.
 
@@ -238,7 +239,7 @@ function parse_cell_struct_macro_arguments(arguments)
     kind = arguments[1] isa Symbol ? _find_cell_kind(arguments[1]) : nothing
     kind === nothing && throw(ArgumentError(
         "expected a cell kind before `struct`: ImmutableCell, MutableCell, " *
-        "ReactiveCell or Cell, got `$(arguments[1])`"))
+        "UntrackedCell, ReactiveCell or Cell, got `$(arguments[1])`"))
     (kind, arguments[2])
 end
 
@@ -261,11 +262,11 @@ to `object.f` makes it compute again.
     counter.count = 3
     doubled[]                                       # 6
 
-Each field is a cell of one kind. A field `f::ImmutableCell{T}` or
-`f::MutableCell{T}` has that kind. Every other field has the kind `Kind`, which is
-`ReactiveCell` when the macro gets no `Kind`. A reactive field is a `Cell`, so its
-declared type is not checked. An immutable or a mutable field is a cell of the
-declared type.
+Each field is a cell of one kind. A field `f::ImmutableCell{T}`,
+`f::MutableCell{T}` or `f::UntrackedCell{T}` has that kind. Every other field has
+the kind `Kind`, which is `ReactiveCell` when the macro gets no `Kind`. A reactive
+field is a `Cell`, so its declared type is not checked. An immutable, a mutable or
+an untracked field is a cell of the declared type.
 
 The macro generates these parts:
 
@@ -311,12 +312,13 @@ get_cell_struct_argument_type(cell::AbstractCell) = get_cell_value_type(cell)
 _get_cell_kind(::Type{<:ReactiveCell})  = ReactiveCell
 _get_cell_kind(::Type{<:MutableCell})   = MutableCell
 _get_cell_kind(::Type{<:ImmutableCell}) = ImmutableCell
+_get_cell_kind(::Type{<:UntrackedCell}) = UntrackedCell
 
 """
     get_cell_struct_kind(x) -> Type{<:AbstractCell} | Nothing
 
-The kind of the cell in the first field of `x`: `ReactiveCell`, `MutableCell` or
-`ImmutableCell`. The result is `nothing` when `x` has no field, or when its first
+The kind of the cell in the first field of `x`: `ReactiveCell`, `MutableCell`,
+`ImmutableCell` or `UntrackedCell`. The result is `nothing` when `x` has no field, or when its first
 field is not a cell.
 
 Use it to make a new struct of cells, such as a copy, in the kind of one that

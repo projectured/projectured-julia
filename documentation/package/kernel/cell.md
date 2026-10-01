@@ -32,8 +32,8 @@ for a function `f` that exists already. A cell stores every other argument, a
 function too, so a cell can hold a callback or a predicate as data. A
 `Computation` is not a value: the cell that gets it keeps the function and drops
 the marker. `MutableCell` and `ImmutableCell` throw an `ArgumentError` for it,
-because only a `ReactiveCell` can run a computation. A write of a `Computation`
-into a `MutableCell` throws the same error.
+because only a `ReactiveCell` and an `UntrackedCell` can run a computation. A
+write of a `Computation` into a `MutableCell` throws the same error.
 
 Inside an argument list, a macro call without parentheses takes every argument
 after it. Where an argument follows, write `@computation(expr)`, as in
@@ -57,6 +57,10 @@ is_cell_up_to_date(c)         # can the next read return the value with no compu
 `peek(c)` is an **untracked** read. It returns the value and records no
 dependency, as `untrack` of the Solid library does. The animation clock uses it
 to *sample* the time, so that the sample does not depend on the clock.
+`run_untracked(f)` does the same for every read inside `f`: it runs `f` with an
+empty computing stack, so no read finds a reader, and puts the stack back after.
+A cell that computes inside `f` puts itself on the new stack and still records its
+own dependencies.
 
 ## Dependency tracking
 
@@ -215,11 +219,22 @@ projection pipeline depends on this for its incremental work.
 mutable box holds state that changes often, and a read-only box holds a value
 that never changes.
 
+`UntrackedCell{T}` holds a computation and keeps no value. Each read runs the
+computation with `run_untracked`, so the cell records no reader, and no read
+inside the computation records one. A change of what the computation reads
+reaches no computation that read the cell: some other part must make the readers
+compute again. A style field of a projection that reads its theme is the use it
+was made for, where one wrapper makes the whole view print again after a change
+of the theme. A plain value makes a constant, and a write is a `MethodError`.
+The kind is an immutable struct with one pointer, so a struct of cells holds it
+inline, and two structs can share its function.
+
 Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
 `get_cell_value_type`, `copy_cell_as`, `is_computed_cell`, `has_dependent_cells`,
 `Computation`, `@computation`, `ReactiveCell`, `Cell`, `set_cell_value!`,
-`set_cell_computation!`, `MutableCell` and `ImmutableCell`. `peek` is an untracked
-read, a method of `Base.peek`.
+`set_cell_computation!`, `MutableCell`, `ImmutableCell` and `UntrackedCell`.
+`peek` is an untracked read, a method of `Base.peek`. `run_untracked` is internal
+to the layer.
 
 ## CellStructModule: the struct of cells
 
@@ -236,11 +251,12 @@ three parts:
 - A keyword constructor, when a field has a default `f = value`. It has the
   optional and required keywords of `Base.@kwdef`.
 
-A kind is a type: `ReactiveCell`, `ImmutableCell` or `MutableCell`. A field
-`f::ImmutableCell{T}` or `f::MutableCell{T}` has that kind. Every other field has
-the kind that the macro gets before `struct`, or `ReactiveCell` without one. A
-reactive field is a `Cell`, and an immutable or a mutable field is a cell of the
-declared value type. The struct keeps its supertype and its type parameters.
+A kind is a type: `ReactiveCell`, `ImmutableCell`, `MutableCell` or
+`UntrackedCell`. A field `f::ImmutableCell{T}`, `f::MutableCell{T}` or
+`f::UntrackedCell{T}` has that kind. Every other field has the kind that the macro
+gets before `struct`, or `ReactiveCell` without one. A reactive field is a `Cell`,
+and an immutable, a mutable or an untracked field is a cell of the declared value
+type. The struct keeps its supertype and its type parameters.
 `T{A}(values…)` always works, and `T(values…)` works when each parameter is the
 value type of a field.
 

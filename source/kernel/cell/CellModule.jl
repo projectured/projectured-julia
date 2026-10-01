@@ -11,7 +11,7 @@ The layer imports only the performance counters, which the reactive kind counts
 into. The guide `kernel/cell` explains the engine and the invariants that it
 depends on.
 
-The module lives in six fragments that share this namespace:
+The module lives in seven fragments that share this namespace:
 
 - [`CellInterface.jl`](CellInterface.jl) — `AbstractCell` and the generics that
   every kind answers.
@@ -22,6 +22,8 @@ The module lives in six fragments that share this namespace:
 - [`MutableCell.jl`](MutableCell.jl) — a box that a write changes and that records
   no reader.
 - [`ImmutableCell.jl`](ImmutableCell.jl) — a box that can not be written.
+- [`UntrackedCell.jl`](UntrackedCell.jl) — a cell that computes at each read and
+  records no reader.
 - [`CellDefaults.jl`](CellDefaults.jl) — the bodies of the generics of the
   interface, one method for each kind.
 """
@@ -35,12 +37,14 @@ export Computation, @computation
 export ReactiveCell, Cell, set_cell_value!, set_cell_computation!
 export MutableCell
 export ImmutableCell
+export UntrackedCell
 
 include("CellInterface.jl")
 include("CellComputation.jl")
 include("ReactiveCell.jl")
 include("MutableCell.jl")
 include("ImmutableCell.jl")
+include("UntrackedCell.jl")
 include("CellDefaults.jl")
 
 end # module

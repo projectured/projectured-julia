@@ -128,6 +128,31 @@ _get_computing_stack() =
     get!(() -> ReactiveCell[], task_local_storage(),
          :projectured_reactive_computing)::Vector{ReactiveCell}
 
+"""
+    run_untracked(f)
+
+Run `f` so that no read inside it records a reader. A cell that computes inside
+`f` puts itself on the stack, so it still records its own dependencies.
+
+Use it to read cells from inside a computation that must not depend on them, when
+`f` reads more than one cell, or reads them in code that it calls. For one cell,
+`peek` does the same. `UntrackedCell` runs its computation with it.
+
+The function puts an empty stack in place of the stack of the task while `f`
+runs, and puts the stack back after `f` returns or throws.
+"""
+function run_untracked(f)
+    stack = _get_computing_stack()
+    isempty(stack) && return f()                 # no reader: nothing to stop
+    storage = task_local_storage()
+    storage[:projectured_reactive_computing] = ReactiveCell[]
+    try
+        return f()
+    finally
+        storage[:projectured_reactive_computing] = stack
+    end
+end
+
 # ── read ─────────────────────────────────────────────────────────────────────
 
 function Base.getindex(c::ReactiveCell)

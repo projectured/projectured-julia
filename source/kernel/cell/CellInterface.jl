@@ -22,8 +22,8 @@ Every kind has the read `c[]`, the untracked read `Base.peek(c)`, which records
 no dependency, and [`is_cell_up_to_date`](@ref). The writes, the computations
 and the dependency tracking belong to each kind.
 
-See also `ReactiveCell`, `MutableCell` and `ImmutableCell`, the three kinds, and
-`unwrap_cell`, for a slot that may hold a value instead of a cell.
+See also `ReactiveCell`, `MutableCell`, `ImmutableCell` and `UntrackedCell`, the
+four kinds, and `unwrap_cell`, for a slot that may hold a value instead of a cell.
 """
 abstract type AbstractCell{T} end
 
@@ -123,7 +123,8 @@ computation reads.
     is_computed_cell(Cell(3))                       # false
     is_computed_cell(Cell(@computation 3))          # true
 
-Only the reactive kind can compute, so the other kinds always return `false`.
+Only the reactive kind and the untracked kind can compute, so the other kinds
+always return `false`.
 
 See also `set_cell_computation!`, which makes a cell compute, and `copy_cell_as`.
 """
