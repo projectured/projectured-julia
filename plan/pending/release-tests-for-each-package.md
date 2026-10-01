@@ -112,17 +112,59 @@ The owner accepted each recommendation on 2026-10-01.
         discarded cell is still alive. Open: a test that depends on the
         collector of one Julia version, or a real leak on 1.11. The bound of
         R13, `julia = "1.11"`, was checked with `add` and `using` only.
-- [ ] **Step 1, the narrow closure (T3, T6).** Its own plan, if the owner
+- [x] **Step 1, the narrow closure (T3, T6).** Its own plan, if the owner
       agrees.
-- [ ] **Step 2, the generator.** `build_package_release!` writes the test
+      Done: [narrow-test-closure.md](narrow-test-closure.md).
+- [x] **Step 2, the generator.** `build_package_release!` writes the test
       folder of each package: the unregistered closure in `test/support/`,
       with the include prefixes changed as for `source/`; `test/Project.toml`
       with the registered dependencies, their `[compat]` bounds and the
       `[sources]` of the support packages; and `runtests.jl`. The test
       packages of each released package come from `context`, by the rule of
       the name (`<Name>Test`).
-- [ ] **Step 3, the test.** `test_package_release()` checks the test folder
+      Done (`b9f1ae5a0`). `build_package_release!` takes `tests`, a function
+      that answers the test package and the text of `runtests.jl`;
+      `build_projectured_package_release!` gives `<Name>Test` and
+      `test_<name>()`, and for the umbrella `ProjecturedTest` and
+      `test_integration()`. The support packages are the unregistered closure
+      of the test package; a path of the repository in their `src/`
+      (`"../../../`) becomes one of the copy, for `include` and for
+      `joinpath(@__DIR__, …)`, and the folders those paths name come along.
+      What was found on the way:
+      - A support package reads files of the repository too. The asset table
+        names them, and an entry may now be one file: two images for the
+        platform example, one for the Markdown test, the recording driver for
+        the SDL keysym test, and `test/suite` for the umbrella test package.
+        `asset/image` as a whole is 4.9 MB, nearly all of it the generated
+        screenshots that nothing reads.
+      - The scan reports the kind of each finding (`:include`, `:path`,
+        `:form`). In `test/`, a form that it can not follow and a runtime path
+        inside the package that names nothing are left to the tests, which
+        Step 4 runs; an `include` that names nothing, and any path that leaves
+        the package, still stop the build.
+      - **A change of a test gives no package a new version** (Decision 1, the
+        owner, 2026-10-01): the content of a package leaves `test/` out, and a
+        released folder keeps the tests of its version until the package
+        itself changes.
+      - **T5 changed** (Decision 2, the owner, 2026-10-01): `test_integration()`
+        held three tests that read the repository. `test_package_graph()` is now
+        `test_repository()`, which CI runs as a job of its own, and the builder
+        tests are the test package `ProjecturedBuilderTest` (`test_builder()`;
+        the binary tests are `test_build_executable()`), so the umbrella test
+        package no longer loads the builder and its fonts.
+      - Size (bytes): the release copy is 91.3 MB with the tests, against 35 MB
+        without them on 2026-09-29. The 32 test folders hold 56.1 MB: 0.7 MB for
+        the kernel, about 2.1 MB for a domain, 4.2 MB for the umbrella. Of the
+        2.1 MB of a domain, 1.8 MB is the copy of the kernel and platform test
+        packages, and 0.04 MB its own tests. This is the number for T4.
+- [x] **Step 3, the test.** `test_package_release()` checks the test folder
       of a fixture package, and that its `Pkg.test` passes.
+      Done (`5cfa55ffe`): the fixture has a test package and an example
+      package for `FakeTop`; the test checks the folder, the `[sources]`, the
+      include prefix, a file a test reads, and that a change of a test gives no
+      new version. `test_builder()` passes 386 of 386. The `Pkg.test` of a
+      package is in Step 4, because the fixture depends on a package that no
+      registry holds.
 - [ ] **Step 4, the full check.** In an empty depot with a local registry,
       `Pkg.test` for each of the 32 packages; record the size and the time.
 - [ ] **Step 5, the guides.** `builder.md` and `build-guide.md`.
