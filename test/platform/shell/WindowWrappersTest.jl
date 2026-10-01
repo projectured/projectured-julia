@@ -95,5 +95,17 @@ end
     @test length(log.entries) > entries
 end
 
+@testset "message_log: a capture of the logger while the loop runs, and a feed" begin
+    replaced = Base.CoreLogging.global_logger()
+    editor, _ = _ww_editor(PrimitiveString("x"); message_log = true)
+    try
+        @test Base.CoreLogging.global_logger() isa MessageLogLogger
+        @test any(feed -> feed isa MessageLogFeed, editor.feeds)
+    finally
+        foreach(step -> step(editor), editor.stop_steps)
+    end
+    @test Base.CoreLogging.global_logger() === replaced
+end
+
 end # @testset
 end
