@@ -391,7 +391,16 @@ runs2[]               # 3: each pull runs the computation again
 
 ## 10. Steps
 
-- [ ] **Step 1: the tests of §8**, with `@test_broken` where they fail today.
+- [x] **Step 1: the tests of §8**, with `@test_broken` where they fail today.
+      Done: `test/platform/fault/FaultPartTest.jl`, `test_fault_part()`: 6 pass,
+      15 broken. The pipeline of the suite is JSON → syntax → text → string,
+      with a barrier at the recursion points of the syntax and text stages. The
+      editor reads the string to paint, so `HeadlessBackend` reads every cell of
+      the output, as a renderer does. Today a late fault in one leaf loses every
+      frame, and the store counts it as a device fault of `HeadlessBackend`. An
+      early fault already costs one leaf. The renderer test and the interaction
+      test come with their steps (7 and 6), because they need the SDL backend
+      and the application pipeline.
 - [ ] **Step 2: the scope and the note**: a computation keeps its scope, the
       barrier makes one IoMap for each call, the innermost computation notes.
       With the measurement of the wrapper and of the field.

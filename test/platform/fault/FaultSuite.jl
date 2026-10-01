@@ -8,9 +8,10 @@ function test_fault()
     @testset "ProjecturedPlatform" begin
         test_fault_catching()
         test_fault_safe_mode()
+        test_fault_part()
         test_fault_tolerant_projection()
     end
 end
 
-export test_fault, test_fault_catching, test_fault_safe_mode,
+export test_fault, test_fault_catching, test_fault_safe_mode, test_fault_part,
        test_fault_tolerant_projection

@@ -270,11 +270,16 @@ using ProjecturedPlatform.TooltipModule
 using ProjecturedPlatform.WidgetModule
 using ProjecturedPlatform.FocusModule
 using ProjecturedPlatform.OperationModule
+# A document of a real domain, whose template printers fail in a cell of their
+# output and not in `print_document`.
+import ProjecturedJSON
+using ProjecturedJSON.JsonModule
 
 import ProjecturedKernel.EditorModule: read!
 
 include("../../../test/platform/fault/FaultCatchingTest.jl")
 include("../../../test/platform/fault/FaultSafeModeTest.jl")
+include("../../../test/platform/fault/FaultPartTest.jl")
 include("../../../test/platform/fault/FaultSuite.jl")
 end # module FaultTests
 
