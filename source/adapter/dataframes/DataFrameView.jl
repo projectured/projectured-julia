@@ -50,10 +50,14 @@ function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anc
     view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
                          Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
                          Cell(0), Cell(nothing), Cell(nothing))
-    # The result of the expression, computed again when the frame or the text of
-    # the expression changes, and the rows that pass, computed again when the
-    # frame, the query or that result changes. A value of a type that a package
-    # loaded later prints in the newest world.
+    _set_kept_row_computations!(view)
+end
+
+# The result of the expression of `view`, computed again when the frame or the
+# text of the expression changes, and the rows that pass, computed again when
+# the frame, the query or that result changes. A value of a type that a package
+# loaded later prints in the newest world.
+function _set_kept_row_computations!(view::DataFrameView)
     set_cell_computation!(getfield(view, :expression_result),
                           () -> (view.frame_version; _evaluate_expression(view.frame, view.query.expression)))
     set_cell_computation!(getfield(view, :kept_rows),
@@ -62,6 +66,21 @@ function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anc
                                                    first(view.expression_result))))
     view
 end
+
+# ── The duplicate ────────────────────────────────────────────────────────────
+#
+# The duplicate of a view is a second view of the same frame: it shares the
+# frame, which it reads, and owns a copy of the query and of the place in the
+# rows and the columns, so a filter, a sort or a scroll in one does not move the
+# other. Its rows are computed again from its own query, and its first refresh
+# reads the frame again.
+has_document_duplicate(::Union{DataFrameView,DataFrameQuery,DataFrameColumnFilter,DataFrameSortKey}) = true
+
+copy_document(policy::DuplicatePolicy, view::DataFrameView) =
+    _set_kept_row_computations!(copy_document_fields(policy, view; frame = view.frame,
+                                                     expression_result = (nothing, nothing),
+                                                     kept_rows = Int[], frame_version = 0,
+                                                     frame_snapshot = nothing))
 
 """
     jump_to_row(view::DataFrameView, row::Integer) -> Operation or nothing

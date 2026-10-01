@@ -944,6 +944,20 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     row, a value that a filter reads and the table does not show, a new
     column, F5) and the display (a call and the timer); 203 data frame and
     21 display tests pass.
+  - The duplicate (the owner, 2026-10-01, after a check in a live window:
+    "the table display tab pane should support duplication protocol (the
+    little +) on the header"). `DataFrameView`, `DataFrameQuery`,
+    `DataFrameColumnFilter` and `DataFrameSortKey` declare a duplicate. The
+    duplicate of a view shares the frame and owns a copy of the query, the
+    anchors, the scroll position and the top row (mine: the place is what a
+    person controls in a view, as the duplicate protocol says). Its two
+    computed fields, the result of the expression and the kept rows, get new
+    computations over its own query, by the helper that the constructor uses;
+    its version starts at 0 with no snapshot, so its first refresh reads the
+    frame. Tests: `test_data_frame_duplicate()` (the shared frame, an
+    independent filter and anchor, both read a change after a refresh, the tab
+    duplicates into the next tab); 256 data frame tests pass. A picture shows
+    the "+" on the tab.
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
   form. There is no busy flag (D3 changes, §5.1). An edit writes the frame

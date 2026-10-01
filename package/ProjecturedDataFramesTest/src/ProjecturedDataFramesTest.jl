@@ -3,7 +3,7 @@
 
 The DataFrames tier of the test-package DAG: the layering guard, the shape of
 `make_data_frame_example`, the view of a data frame drawn through the natural
-renderer, and a data frame shown through the seams of the display.
+renderer, its duplicate, and a data frame shown through the seams of the display.
 
 Everything is aggregated by `test_dataframes()`.
 """
@@ -43,6 +43,7 @@ include("../../../test/adapter/dataframes/DataFrameColumnTest.jl")
 include("../../../test/adapter/dataframes/DataFrameFilterTest.jl")
 include("../../../test/adapter/dataframes/DataFrameSortTest.jl")
 include("../../../test/adapter/dataframes/DataFrameRefreshTest.jl")
+include("../../../test/adapter/dataframes/DataFrameDuplicateTest.jl")
 include("../../../test/adapter/dataframes/DataFrameDisplayTest.jl")
 include("../../../test/adapter/dataframes/DataFramesSuite.jl")
 

@@ -19,7 +19,7 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title
+import ..DocumentModule: get_document_title, copy_document, has_document_duplicate
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..ProjectionModule: print_document, read_intent, map_reference_backward
 import ..ReferenceModule: evaluate_reference_step, get_reference_step_kind

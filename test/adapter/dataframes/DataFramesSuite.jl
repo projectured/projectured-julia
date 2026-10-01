@@ -22,7 +22,7 @@ end
 
 Run this package's whole suite: the layering guard, the shape of the example
 factory, the view of a data frame, its columns, its filters, its order, its
-refresh, and a frame shown through the display.
+refresh, its duplicate, and a frame shown through the display.
 """
 function test_dataframes()
     @testset "ProjecturedDataFrames" begin
@@ -33,10 +33,11 @@ function test_dataframes()
         test_data_frame_filter()
         test_data_frame_sort()
         test_data_frame_refresh()
+        test_data_frame_duplicate()
         test_data_frame_display()
     end
 end
 
 export test_dataframes, test_dataframes_layering, test_data_frame_example, test_data_frame_view,
        test_data_frame_columns, test_data_frame_filter,
-       test_data_frame_sort, test_data_frame_refresh, test_data_frame_display
+       test_data_frame_sort, test_data_frame_refresh, test_data_frame_duplicate, test_data_frame_display
