@@ -912,7 +912,7 @@ W1 lands on `main`, so W1 lands as soon as it is done (my reading of that plan,
       The script is `/var/tmp/appearance-b1/measure/edges4.jl`.
   - [x] omnet-julia: `build_qtenv_widget_theme` and its widget projections follow
     (omnet-julia `95c62ead` on its branch `appearance`, finding 14).
-- [ ] **B2. The builders pass the themes** (4.3). `NaturalToGraphics`,
+- [x] **B2. The builders pass the themes** (4.3). `NaturalToGraphics`,
   `WindowWrap`, `WindowShell`, `FileSystemToSyntax` and `DataFrameViewToWidget`
   take the `Appearance` or the themes of their parts. The registry factories get
   the `Appearance`, and a row built at registration becomes a factory.
@@ -952,7 +952,13 @@ W1 lands on `main`, so W1 lands as soon as it is done (my reading of that plan,
     - [x] The data frame view follows a change of the spacing scale and of the
       font scale of its appearance.
   - [ ] The images of the examples whose widgets change font (D30), for the
-    owner's review.
+    owner's review: `/var/tmp/appearance-b2/compare/` holds the tabs, a data
+    frame table and the workspace explorer, before on the left and after on the
+    right. The owner had them when the branch landed, and has not answered yet.
+- **The landing after B2** (2026-10-01, at the owner's word): projectured-julia
+  `main` at `3c2557b32` and omnet-julia `main` at `635f342a`, by fast-forward,
+  not pushed. The owner asked to land before the broad sweep; a sub-agent runs
+  `test_all()` and the omnet tests on frozen checkouts of these two commits.
   - [x] omnet-julia follows: its registered factories and its main builders
     (`run_omnet_ide`, `run_campaign_window`). The omnet tests that cover the
     change give 714 pass and 1 fail, the catalog fault of finding 14.
