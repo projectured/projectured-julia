@@ -66,6 +66,16 @@ A move of the pointer with no button held names the part under the pointer, and 
 
 The container finds the child that the pointer leaves from its own mouse target (`get_mouse_target` of the kernel), and joins the two answers with `join_move_answers`, the answer of the child that the pointer leaves first.
 
+### A dwell and a right click
+
+A dwell goes by its position, as a click does: each container gives it to the child at its point, in the frame of that child, and the readers decide. A reader can deny a dwell with an answer that ends the walk, such as `DoNothingOperation`. Then the gesture tables answer, from the part under the point outward (decision D64 of the events plan). Three functions serve every container:
+
+- `is_outward_gesture(gesture)` is true for a dwell and for a click of the right button.
+- `read_child_part_gesture(child_iomap, gesture)` is the answer of the documents inside a child that did not answer: the backward map of the point names the part, and the documents on that path read the gesture with their tables, the part first. `read_child_event` of the layout package calls it, and the window calls it for its content. So a text, which draws a whole document as one leaf, gives a dwell to the part of the document under the pointer.
+- `read_container_gesture(answer, gesture, document; steps)` is the answer of a container after the child at the point answered: the documents of its own stretch, from the one above the child up to its input, read the gesture with their tables. It calls `read_gesture_outward` of the kernel, which keeps the rule of the walk: a document reads when nothing deeper answered or when the deeper answer collects, a collected answer of the same kind is joined, and any other answer ends the walk.
+
+A point in the answer moves back into the frame of each container on the way out, so a tooltip opens beside the pointer.
+
 ### The box of a part
 
 `find_reference_box(document, reference; measure, visible)` reads the box `(x, y, width, height)` of the node that a reference reaches in a printed document, in the frame of the document's place. Each node on the way moves the frame by its place, and a viewport moves its content by its transform too. A text has the box of what it draws, measured with `measure`, and `text{a:b}` the box of those characters. A `RegionReferenceStep` is its box. A canvas with no size of its own on an axis has the bounds of what it draws there (`get_canvas_content_bounds`), except over a lazy list, which can have no end. With `visible = true`, each viewport on the way cuts the box to its own, and a box that no viewport shows is `nothing`.

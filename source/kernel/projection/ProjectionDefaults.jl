@@ -344,6 +344,41 @@ function read_routed_child(recursion, change::Intent, iomap)
     Intent(change.gesture, _read_outward(change, nothing, nodes, taken, true))
 end
 
+"""
+    read_gesture_outward(answer, gesture, document; steps, with_part = false) -> operation or answer
+
+The answer to a pointer `gesture` that a container gave by position to the child
+at its point, read outward over the container's own stretch. `document` is the
+input of the container, `steps` lead from it to the input of the child, and
+`answer` is the child's answer in the frame of the container. The documents on
+the steps above the child's input read the gesture with their own tables
+(`read_gesture`), the deepest first, up to `document`, by the rule of
+[`read_routed_child`](@ref): a document reads when nothing deeper answered, and
+after an answer that collects; an answer of the same kind is joined, and any
+other answer ends the walk. The child's input does not read here: the hand-off to
+the child (`read_child_event`) reads the documents inside the child when the
+child answers nothing. With `with_part`, the document at the end of `steps` reads
+too, as the part itself.
+
+Use it in a container that gives a pointer gesture to a child at its point, as a
+click and a dwell, after it put the child's answer in its own frame.
+"""
+function read_gesture_outward(answer, gesture, document; steps, with_part::Bool = false)
+    nodes = Any[document]
+    taken = ReferenceStep[]
+    node = document
+    for step in steps
+        node = try
+            evaluate_reference_step(step, node)
+        catch
+            break
+        end
+        push!(taken, step)
+        push!(nodes, node)
+    end
+    _read_outward(Intent(gesture), answer, nodes, taken, with_part)
+end
+
 # The documents of a walk read the gesture of `change`, from the deepest out to
 # the input of the container: `nodes[i]` is reached by `taken[1:i-1]`. The last
 # node reads only `with_last`: when no child took the route, or when the child

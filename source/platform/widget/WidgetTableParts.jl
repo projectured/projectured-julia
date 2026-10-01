@@ -1008,10 +1008,20 @@ function _enter_table_cell(st::WidgetTablePartsState, k::Int, c::Int)
     reroot_operation(op, _wt_get_cell_steps(k, c))
 end
 
-# A press of another button than the left, a button down or a button up goes
-# to the cell under it, a header as well as a body cell, in the coordinates of
-# the cell, and its answer is rooted under the cell.
+# A press of another button than the left, a button down, a button up or a dwell
+# goes to the cell under it, a header as well as a body cell, in the coordinates of
+# the cell, and its answer is rooted under the cell. For a dwell and a right click
+# the table then reads its own stretch (`read_container_gesture`).
 function _read_table_point_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
+    found = _read_table_point_cell(p, iomap, event)
+    found === nothing && return read_container_gesture(nothing, event, iomap.input)
+    read_container_gesture(found[1], event, iomap.input; steps = found[2])
+end
+
+# The answer of the cell under `event`, rooted under the cell, and the steps to the
+# cell; `nothing` when the event reaches no cell.
+function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
+                                iomap::WidgetTableListIoMap, event)
     st = iomap.state
     found = _find_table_part_at(p, iomap, Int(event.x), Int(event.y))
     found === nothing && return nothing
@@ -1029,7 +1039,7 @@ function _read_table_point_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     cim, left, top = cell
     local_event = _wt_translate_event(event, x - left, y - top)
     local_event === nothing && return nothing
-    reroot_operation(read_intent(cim.projection, cim, local_event), steps)
+    (reroot_operation(_wt_read_cell_event(cim, event, local_event), steps), steps)
 end
 
 # An event that is not a gesture of the table goes to the cell that the
@@ -1049,8 +1059,9 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
     g = change.gesture
     if change.operation === nothing
         g isa MouseClick && g.button === :left && return Intent(g, _read_table_parts_press(p, iomap, g))
-        # A crossing, a dwell and a pointer motion do not go into the cells: the
-        # part under the pointer is the backward map of the point.
+        # A crossing and a pointer motion do not go into the cells: the part under
+        # the pointer is the backward map of the point. A dwell goes to the cell
+        # under it.
         g isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover} &&
             return Intent(g, nothing)
         g isa MouseScroll && return Intent(g, _read_table_parts_wheel(p, iomap, g))

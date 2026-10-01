@@ -1121,6 +1121,47 @@ already; the sealed selection files do not change (Q4).
   - Every container gives a `MouseDwell` to the child at its point, as it gives a
     `MouseClick`; the scroll pane and the transform pane move its point into
     the frame of the content.
+  Claude then proposed to give the dwell to the window's content through the
+  backward map of the point alone, with one walk and no reader; the owner
+  (2026-10-01): "disagree, option 1, we have to let the readers decide, a dwell
+  can be denied by a projection". So each reader on the way gets the dwell and
+  can deny it with an answer that ends the walk, such as `DoNothingOperation`;
+  an answer of `nothing` means that the reader has nothing to say.
+  Built (2026-10-01):
+  - The kernel helper `read_gesture_outward` (the rule of `read_routed_child`
+    over a container's stretch); in the graphics package `is_outward_gesture`
+    (a dwell, a right click), `read_child_part_gesture` (the documents inside a
+    child that did not answer, by the backward map of the point) and
+    `read_container_gesture` (a container's stretch); `read_child_event` calls
+    the second when the child answers nothing.
+  - The layouts (the router of the vertical, horizontal and grid layouts, the
+    list and the grid list), about 17 widget containers (`_positioned_event`
+    holds `MouseDwell`; `_find_child_hit` and `_read_children_dwell` serve the
+    containers that route by entries; the scroll pane and the transform pane map
+    the point of a dwell into the content), the screen and the window (their own
+    stretch, and the documents inside the content), and the graph (a dwell and a
+    right click go to the vertex at the point; a right click went to the
+    selected vertex before). A dwell never presses, selects or opens a part.
+  - The tracker's `_read_dwell` is gone; the route walk of `read_routed_child`
+    stays for the command that shows the tooltip of the selection.
+  - A container that knows the child at the point reads its stretch for a right
+    click too (the composite, the panes, the toolbar, the card, the accordion
+    and the tables); the menu, the shell, the dialog, the menu item, the tooltip
+    widget and the title pane read none at their level for a right click, which
+    matters only for a collecting answer to a right click (none exists yet).
+  - Tests: "a dwell goes to the part at its point, not to the selected part"
+    and "a dwell in a scrolled pane reaches the part drawn at its point" in
+    `TooltipWindowTest`. The tooltip window 46, the widget and Julia tooltips,
+    the gesture and the mouse target trackers, the move, the toolbar, the routed
+    change, the kernel, the platform (97492; the only failure is the file system
+    test under `unshare -r`), the repls (23172 with 5 broken, as before) and
+    eleven domain suites pass; the guards are as on main.
+  - Limits: when the child at the point answers nothing, a container reads only
+    its own input, not the documents between it and the child; `WidgetText`
+    gives a dwell to its content untranslated; `WidgetSelect`, `WidgetSpinBox`
+    and `WidgetTextarea` are not checked; a view that makes widgets reads the
+    widget documents on the way, and the documents of its domain only when
+    nothing answered (through the backward map at its parent).
 - [ ] 8. **The tracker goes.** `ProjecturedMouseTargetTracking`, the gestures
   `MouseEnter`, `MouseLeave` and `MouseHover` with their patterns, the routes of
   the crossings, the leave route of Q35 and the timer of the waiting crossings.

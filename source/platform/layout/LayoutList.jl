@@ -269,14 +269,14 @@ function read_intent(::_LinearLayoutToGraphicsCanvas, iomap::LayoutListIoMap, ev
     else
         _find_selected_layout_list_index(iomap.input)
     end
-    k === nothing && return nothing
+    k === nothing && return read_container_gesture(nothing, evt, iomap.input)
     entry = _find_layout_list_child(state, k)
-    entry === nothing && return nothing
+    entry === nothing && return read_container_gesture(nothing, evt, iomap.input)
     answer = hasproperty(evt, :x) && hasproperty(evt, :y) ?
         _read_layout_list_pointer(entry, evt) :
         read_intent(entry[3].projection, entry[3], evt)
-    answer isa Operation || return nothing
-    _reroot_into_child(iomap.input, answer, k)
+    answer = answer isa Operation ? _reroot_into_child(iomap.input, answer, k) : nothing
+    read_container_gesture(answer, evt, iomap.input; steps = _get_layout_child_steps(k))
 end
 
 # The pointer event in the frame of the child, read by the child, with a
@@ -304,6 +304,8 @@ _translate_layout_list_event(evt::MouseDown, x, y) =
     MouseDown(evt.button, x, y, evt.modifiers; time = evt.time)
 _translate_layout_list_event(evt::MouseUp, x, y) =
     MouseUp(evt.button, x, y, evt.modifiers; time = evt.time)
+_translate_layout_list_event(evt::MouseDwell, x, y) =
+    shift_event_position(evt, x - evt.x, y - evt.y)
 _translate_layout_list_event(evt, x, y) = nothing
 
 # The child that the selection names as `children[k]`, or `nothing`.

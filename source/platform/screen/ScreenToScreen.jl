@@ -210,7 +210,10 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
             op = read_intent(wim.projection, recursion, change, wim).operation
             # A window that names no part under the pointer is that part itself.
             is_move_without_button(event) && (op = add_mouse_target(op))
-            op = _prefix_op(op, (FieldReferenceStep("windows"), ElementReferenceStep(index)))
+            steps = (FieldReferenceStep("windows"), ElementReferenceStep(index))
+            op = read_container_gesture(_prefix_op(op, steps), event, iomap.input; steps)
+        else
+            op = read_container_gesture(nothing, event, iomap.input)
         end
         if is_move_without_button(event) || event isa WindowLeave
             op = _read_window_leave(recursion, iomap, index, event, op)
@@ -291,7 +294,15 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
            !has_mouse_target(operation)
             operation = add_mouse_target(operation, compute_part_at_point(cim, event.x, event.y))
         end
-        op = _prefix_op(shift_operation_position(operation, x, y), (FieldReferenceStep("content"),))
+        # A dwell or a right click that the content does not answer goes to the
+        # documents inside it, as the hand-off of a container gives it.
+        if is_outward_gesture(event) && !(operation isa Operation)
+            own = read_child_part_gesture(cim, event)
+            own === nothing || (operation = own)
+        end
+        steps = (FieldReferenceStep("content"),)
+        op = _prefix_op(shift_operation_position(operation, x, y), steps)
+        op = read_container_gesture(op, window_input.event, iomap.input; steps)
         return Intent(change.gesture, _open_popup_windows(op, iomap.input))
     end
     payload = change.operation === nothing ? change.gesture : change.operation

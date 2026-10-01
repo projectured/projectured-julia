@@ -334,6 +334,14 @@ map_reference_backward(::GridLayoutToGraphicsCanvas, ::GridLayoutListIoMap, refe
 # A pointer event goes to the cell under the pointer, and a key to the cell that
 # the selection of the grid names. The answer is rooted at `children[k][c]`.
 function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, evt)
+    found = _read_grid_list_cell(iomap, evt)
+    found === nothing && return read_container_gesture(nothing, evt, iomap.input)
+    read_container_gesture(found[1], evt, iomap.input; steps = found[2])
+end
+
+# The answer of the cell that `evt` reaches, rooted at `children[k][c]`, with the
+# steps to that cell; `nothing` when it reaches no cell.
+function _read_grid_list_cell(iomap::GridLayoutListIoMap, evt)
     state = iomap.state
     pointer = hasproperty(evt, :x) && hasproperty(evt, :y)
     k, c = if pointer
@@ -363,8 +371,8 @@ function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, e
     else
         read_intent(entry[3].projection, entry[3], evt)
     end
-    answer isa Operation || return nothing
-    _annotate_operation(iomap.input,
-        reroot_operation(answer, (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k),
-                                  RangeReferenceStep(c - 1, c))))
+    steps = (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k),
+             RangeReferenceStep(c - 1, c))
+    answer isa Operation || return (nothing, steps)
+    (_annotate_operation(iomap.input, reroot_operation(answer, steps)), steps)
 end

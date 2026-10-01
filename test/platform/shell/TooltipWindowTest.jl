@@ -127,6 +127,34 @@ end
     @test only(tip.content.layers)[2].value == "what this label is for"
 end
 
+# A dwell goes by its position, as a click does: each container gives it to the
+# child at its point, not to the child that the selection names.
+@testset "a dwell goes to the part at its point, not to the selected part" begin
+    labels = _tw_labels()
+    second = ConcreteReference(FieldReferenceStep("elements"),
+                               ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+    replace_selection!(labels, annotate_reference_types(labels, second))
+    editor, backend, scene = _tw_editor(labels)
+    _tw_rest!(editor, backend, 20, 10, 1.0)
+    @test only(only(_tw_tooltips(scene)).content.layers)[2].value == "what this label is for"
+end
+
+# A pane that scrolls gives the dwell to its content in the frame of the content,
+# so the part drawn at the point answers, and the window opens beside the pointer.
+@testset "a dwell in a scrolled pane reaches the part drawn at its point" begin
+    content = WidgetComposite(Any[
+        WidgetLabel("silent"),
+        WidgetLabel("lower"; tooltip = "the lower label", position = Point2D(0, 40)),
+    ])
+    pane = WidgetScrollPane(content; size = Point2D(200, 30))
+    getfield(pane, :scroll_position)[] = Point2D(0, 40)
+    editor, backend, scene = _tw_editor(pane)
+    _tw_rest!(editor, backend, 20, 10, 1.0)
+    tip = only(_tw_tooltips(scene))
+    @test only(tip.content.layers)[2].value == "the lower label"
+    @test (tip.x, tip.y) == (100 + 20 + 16, 100 + 10 + 20)
+end
+
 @testset "a move on the part keeps the window, and a move off closes it" begin
     editor, backend, scene = _tw_editor()
     _tw_rest!(editor, backend, 20, 10, 1.0)

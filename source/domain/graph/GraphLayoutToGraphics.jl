@@ -278,6 +278,7 @@ map_reference_backward(::GraphLayoutToGraphicsCanvas, iomap, reference) = nothin
 # translated into the content canvas's local frame (mirrors TableToGraphics).
 function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
     is_move_without_button(event) && return _read_graph_move(iomap, event)
+    is_outward_gesture(event) && return _route_outward(iomap, event)
     if event isa MouseClick && event.button === :left
         op = _route_click(iomap, event)
         op === nothing || return op
@@ -384,6 +385,24 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
         return op !== nothing && operation_travels_unchanged(op) ? op : nothing
     _reroot_vertex_answer(op, i, cim.input)
 end
+
+# A dwell and a right click go to the content of the vertex at their point, as a
+# click does, and the documents of the graph around that vertex read them outward.
+# The answer is rerooted as it is, because a tooltip is no path into the content.
+function _route_outward(iomap::GraphLayoutToGraphicsCanvasIoMap, gesture)
+    hit = _find_vertex_at(iomap, gesture.x, gesture.y)
+    (hit === nothing || hit[2] === nothing) &&
+        return read_container_gesture(nothing, gesture, iomap.input)
+    (i, cim, x, y) = hit
+    answer = read_child_event(cim, shift_event_position(gesture, x - gesture.x, y - gesture.y))
+    steps = _get_vertex_content_steps(i)
+    answer = reroot_operation(shift_operation_position(answer, gesture.x - x, gesture.y - y), steps)
+    read_container_gesture(answer, gesture, iomap.input; steps)
+end
+
+_get_vertex_content_steps(i::Integer) =
+    (FieldReferenceStep("vertex_layouts"), RangeReferenceStep(i - 1, i),
+     FieldReferenceStep("vertex"), FieldReferenceStep("content"))
 
 # Dispatch a coordless event to every node's content reader; the active node (the
 # one whose content carries the cursor) answers. Mirrors TableToGraphics.

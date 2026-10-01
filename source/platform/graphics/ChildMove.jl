@@ -30,6 +30,52 @@ function _drop_end_points(path::Reference)
 end
 
 """
+    is_outward_gesture(gesture) -> Bool
+
+Whether the documents around the part under the point read `gesture` with their
+own tables when the part answers nothing (D64): a dwell, and a click of the right
+button. A container that gives such a gesture to the child at its point reads its
+own stretch with `read_gesture_outward`.
+"""
+is_outward_gesture(gesture) =
+    gesture isa MouseDwell || (gesture isa MouseClick && gesture.button === :right)
+
+"""
+    read_child_part_gesture(child_iomap, gesture) -> operation or nothing
+
+The answer of the documents inside a child to a pointer `gesture` that the child's
+reader did not answer. The backward map of the point names the part under it in
+the child's input ([`compute_part_at_point`](@ref)), and the documents on that path
+read the gesture with their own tables, the part first and then outward up to the
+child's input, by the rule of `read_gesture_outward`. So a child that draws a whole
+document as one leaf, such as a text, gives a dwell to the part under the point.
+`nothing` when no document answers.
+"""
+function read_child_part_gesture(child_iomap, gesture)
+    path = strip_reference_types(compute_part_at_point(child_iomap, gesture.x, gesture.y))
+    steps = path isa ConcreteReference ? collect(get_reference_steps(path)) : ReferenceStep[]
+    answer = read_gesture_outward(nothing, gesture, get_iomap_input(child_iomap);
+                                  steps, with_part = true)
+    answer isa Operation ? answer : nothing
+end
+
+"""
+    read_container_gesture(answer, gesture, document; steps = ()) -> operation or answer
+
+The answer of a container to `gesture`, read outward over its own stretch when
+the gesture is a dwell or a right click ([`is_outward_gesture`](@ref)); any other
+answer comes back as it is. `document` is the input of the container. `answer` is
+the answer of the child at the point in the frame of the container, and `steps`
+lead from `document` to that child's input; with no steps, no child took the
+gesture, and the container's own input is the part. The documents above the
+child's input read the gesture by the rule of `read_gesture_outward`.
+"""
+read_container_gesture(answer, gesture, document; steps = ()) =
+    is_outward_gesture(gesture) ?
+        read_gesture_outward(answer, gesture, document; steps, with_part = isempty(steps)) :
+        answer
+
+"""
     read_child_move(child_iomap, move::MouseMove) -> operation
 
 The answer of the child under the pointer to `move`, a move with no button held

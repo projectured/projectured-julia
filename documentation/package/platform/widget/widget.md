@@ -57,7 +57,7 @@ An icon is a `Symbol`, not an image. `register_icon!(:name, renderer)` stores a 
 
 ### A press goes by coordinate
 
-A container keeps an entry `(x, y, child_iomap)` for each child. For a pointer event, `_route_to_children` translates the point into the frame of each child and tests it with `hit_element_at` on the canvas of the child. The topmost child that is hit gets the event first: the one drawn last. It calls `read_child_event` of the layout package, which applies the Alt+press rule below. The container then roots the answer under its own field, for example `elements[i]`, and moves a position in the answer back into its own frame with `shift_operation_position`.
+A container keeps an entry `(x, y, child_iomap)` for each child. For a pointer event, `_route_to_children` translates the point into the frame of each child and tests it with `hit_element_at` on the canvas of the child. The topmost child that is hit gets the event first: the one drawn last. It calls `read_child_event` of the layout package, which applies the Alt+press rule below. The container then roots the answer under its own field, for example `elements[i]`, and moves a position in the answer back into its own frame with `shift_operation_position`. A dwell takes the same way as a click, and a dwell never presses, selects or opens anything: only the gesture tables answer it. After the child at the point answered a dwell or a right click, the container reads its own stretch of tables outward with `read_container_gesture` ([graphics.md](../graphics/graphics.md)).
 
 **A widget reads a point in the frame of its own canvas.** The container takes off the offset at which it placed the child and the place of the child's canvas, and `shift_event_position` of the graphics package moves the event. At the root, the window of the screen takes off the place of the root canvas of its content. A widget never takes its own place off a point. The backward map of a point follows the same frame and the same order, so a point maps to the child that a press there reaches.
 
@@ -207,7 +207,7 @@ The `rows` of a `WidgetTable` can be a `ListNode`, and `WidgetTableParts.jl` pri
 
 ### The transform pane
 
-`WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content. Each pointer event, that is a press, a button down, a button up, a move and the two crossings, gets its point mapped through the inverse transform. So a button down gives the focus to the control that is drawn under the pointer, and a move of a drag reaches the content at the point that is drawn under the pointer.
+`WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content. Each pointer event, that is a press, a button down, a button up, a move, a dwell and the two crossings, gets its point mapped through the inverse transform. So a button down gives the focus to the control that is drawn under the pointer, and a move of a drag reaches the content at the point that is drawn under the pointer.
 
 ## How it fits
 

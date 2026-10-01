@@ -26,9 +26,8 @@ position, because the view can change under a still pointer; it gives a hover
 when the target changed. A `WindowLeave` of that window gives every part a leave
 and clears the target.
 
-**The dwell.** A `MouseDwell` of the window of the pointer goes to the target by
-route, and not by its position, because its meaning belongs to the part under
-the pointer (a tooltip). It keeps the point in its window.
+**The dwell.** A `MouseDwell` goes on to the content as any input of a window
+does: the containers give it to the child at its point, as a click.
 
 **The delivery.** Each crossing goes to its part by route. The content reads the
 input first; the crossings wait in the state, and a timer at the time of the
@@ -72,8 +71,6 @@ function read_intent(p::MouseTargetTrackingProjection, recursion, change::Intent
     input = change.gesture
     input isa TimerExpire && input.name === _WAITING_TIMER &&
         return Intent(input, _read_waiting(p, recursion, iomap, input))
-    input isa WindowInput && input.event isa MouseDwell &&
-        return Intent(input, _read_dwell(p, recursion, iomap, input.window_id, input.event))
     content = _read_content(p, recursion, change, iomap)
     input isa WindowInput || return Intent(input, content)
     event = input.event
@@ -234,19 +231,6 @@ function _leave_target(state::MouseTargetTrackingState, time::Float64)
     crossings = [_Crossing(part, MouseLeave(x, y, b, m; time)) for part in Iterators.reverse(state.parts)]
     (_write_state(state, "target", nothing), _write_state(state, "parts", ()),
      _write_state(state, "position", nothing), _wait_for_content(state, crossings, time)...)
-end
-
-# A dwell goes to the target by route, and only by route: its meaning is at the
-# part under the pointer. It keeps the point in its window, where a reader places
-# what it opens. A dwell in no window of the pointer, or over no part, reaches
-# nothing.
-function _read_dwell(p::MouseTargetTrackingProjection, recursion, iomap::MouseTargetTrackingIoMap,
-                     window, dwell::MouseDwell)
-    state = iomap.input
-    _is_pointer_window(state.position, window) && state.target !== nothing || return nothing
-    route = _find_typed_route(state.content, state.target)
-    route === nothing && return nothing
-    _read_content(p, recursion, Intent(dwell, nothing, "", "", route), iomap)
 end
 
 # The next crossing that waits, to its part by route.

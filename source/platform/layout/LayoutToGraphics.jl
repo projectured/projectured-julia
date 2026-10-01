@@ -170,7 +170,11 @@ as a whole, so a key after the click goes to it.
 
 A move with no button held answers with `read_child_move`: when the child names no
 part under the pointer, its own backward map of the point names it, such as a row
-of a list, and a child that maps the point to no part is the part itself. A
+of a list, and a child that maps the point to no part is the part itself.
+
+A dwell and a right click that the child does not answer go to the documents
+inside it (`read_child_part_gesture`): the part under the point reads its gesture
+table, and the documents around it read theirs, out to the child's input. A
 container calls this only for the child under the point; the child that the
 pointer leaves gets the move through its reader alone (`read_child_leave`), so
 it names no part.
@@ -178,6 +182,10 @@ it names no part.
 function read_child_event(child_iomap, event)
     is_move_without_button(event) && return read_child_move(child_iomap, event)
     answer = read_intent(child_iomap.projection, child_iomap, event)
+    if is_outward_gesture(event) && !(answer isa Operation)
+        own = read_child_part_gesture(child_iomap, event)
+        own === nothing || (answer = own)
+    end
     child = get_iomap_input(child_iomap)
     is_focusing_press(event) && _is_event_on_child(child_iomap, event) &&
         return convert_to_focus_selection(answer, child)
@@ -284,6 +292,11 @@ _route_click(entries, evt::MouseClick) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
+# A dwell goes to the child at its point, as a click does.
+_route_dwell(entries, evt::MouseDwell) =
+    _route_to_children(entries, evt.x, evt.y,
+        (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
+
 # A pointer motion carries coordinates, so it hit-tests the laid-out children like
 # a click: it goes to the child under the pointer, not to the selected one.
 _route_move(entries, evt::MouseMove) =
@@ -340,9 +353,7 @@ end
 # Annotating against the layout document is what fills the types in, and it is
 # right by construction because the path resolves against that document.
 _reroot_into_child(document, op, index::Integer) =
-    _annotate_operation(document,
-        reroot_operation(op, (FieldReferenceStep("children"),
-                              RangeReferenceStep(index - 1, index))))
+    _annotate_operation(document, reroot_operation(op, _get_layout_child_steps(index)))
 
 _annotate_operation(::Any, ::Nothing) = nothing
 _annotate_operation(::Any, op) = op
@@ -414,6 +425,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     is_move_without_button(evt) && return _read_layout_move(iomap.input, entries, evt, _route_move)
     res = @gesture_case evt begin
         MouseClick  => _route_click(entries, evt)
+        MouseDwell  => _route_dwell(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
         MouseMove   => _route_move(entries, evt)
         MouseDown   => _route_downup(entries, evt)
@@ -427,10 +439,14 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
                         _forward_layout_event_slot(entries, evt, slot)
         end
     end
-    res === nothing && return nothing
+    res === nothing && return read_container_gesture(nothing, evt, iomap.input)
     op, i = res
-    _reroot_into_child(iomap.input, op, i)
+    read_container_gesture(_reroot_into_child(iomap.input, op, i), evt, iomap.input;
+                           steps = _get_layout_child_steps(i))
 end
+
+_get_layout_child_steps(i::Integer) =
+    (FieldReferenceStep("children"), RangeReferenceStep(i - 1, i))
 
 """
 Recurse into a child document via the dispatcher.
