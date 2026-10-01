@@ -189,5 +189,56 @@ end
     @test dwell(WidgetToolbarItem(""; icon = :keyboard)) === nothing
 end
 
+# An edit under the pointer keeps one item lit. The pointer rests on Copy, and the
+# items change by splices, as the editor makes an edit, an undo and a redo: a
+# delete, an insert before the pointer, a delete of the last item, and a write of
+# the whole list. After each one the move of the frame names the slot under the
+# pointer again, and the item there is the only one lit.
+@testset "an edit under the pointer leaves one item lit" begin
+    slot(i) = ConcreteReference(FieldReferenceStep("elements"),
+                                ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
+    span(a, b) = ConcreteReference(FieldReferenceStep("elements"),
+                                   ConcreteReference(RangeReferenceStep(a, b), EmptyReference()))
+    splice_items!(bar, a, b, values) =
+        evaluate_operation(nothing, ReplaceReferencedValueOperation(bar, span(a, b), Any[values...]))
+    labels(bar) = [string(item.action.label) for item in bar.elements]
+    lit(shown) = [string(item.action.label) for item in shown if get_mouse_target(item) !== nothing]
+    cut, copy, paste = WidgetToolbarItem("Cut"), WidgetToolbarItem("Copy"), WidgetToolbarItem("Paste")
+    items = (cut, copy, paste)
+    bar = WidgetToolbar(Any[cut, copy, paste])
+    replace_mouse_target!(bar, slot(2))
+    @test lit(items) == ["Copy"]
+
+    # A delete takes Copy from under the pointer, and Paste moves into its slot.
+    splice_items!(bar, 1, 2, ())
+    @test labels(bar) == ["Cut", "Paste"] && lit(items) == []
+    replace_mouse_target!(bar, slot(2))
+    @test lit(items) == ["Paste"]
+
+    # The undo puts Copy back: the path moves with Paste until the next move.
+    splice_items!(bar, 1, 1, (copy,))
+    @test labels(bar) == ["Cut", "Copy", "Paste"] && lit(items) == ["Paste"]
+    @test get_mouse_target(bar) == slot(3)
+    replace_mouse_target!(bar, slot(2))
+    @test lit(items) == ["Copy"]
+    replace_mouse_target!(bar, slot(1))
+    @test lit(items) == ["Cut"]
+    replace_mouse_target!(bar, nothing)
+    @test lit(items) == []
+
+    # A delete of the last item under the pointer leaves the list of items itself.
+    replace_mouse_target!(bar, slot(3))
+    splice_items!(bar, 2, 3, ())
+    @test lit(items) == []
+    @test get_mouse_target(bar) == ConcreteReference(FieldReferenceStep("elements"), EmptyReference())
+
+    # A write of the whole list clears the item that the old list held.
+    replace_mouse_target!(bar, slot(2))
+    @test lit(items) == ["Copy"]
+    evaluate_operation(nothing, ReplaceReferencedValueOperation(bar,
+        ConcreteReference(FieldReferenceStep("elements"), EmptyReference()), CellVector(Any[cut])))
+    @test lit(items) == []
+end
+
 end # @testset
 end # function

@@ -261,6 +261,13 @@ selected by the `document` field:
   rooted there, so container/generic projections reroot the reference as the
   operation flows up (see `reroot_operation`). An empty `reference` then means a
   **whole-root swap**: rebind `editor.document` and drop the cached iomap.
+
+The write keeps the mouse target right where it passes through the slot: the
+document of the slot holds the path of the slot that its child holds after the
+write, a splice moving a path into a later element, and a child that the write
+takes from the slot holds no mouse target. So an edit, an undo and a redo leave
+one part lit, and the move after the frame finds the part under the pointer. An
+edit made in any other way, such as a write into a cell, keeps no such path.
 """
 struct ReplaceReferencedValueOperation <: Operation
     document::Any
@@ -318,7 +325,10 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     parent_path, terminal = _split_terminal_step(reference)
     parent = parent_path isa EmptyReference ? root :
              evaluate_reference(root, parent_path)
+    # The mouse target that passes through the slot follows the write.
+    written = _find_written_chain(parent, terminal, op.value)
     _write_slot!(parent, terminal, op.value)
+    written === nothing || _follow_written_chain!(parent, written; root, parent_path)
 end
 
 """

@@ -277,8 +277,32 @@ One at a time, with the owner.
   edit is normal).
 - **Q11. An edit that deletes the part under the pointer.** Open: does the edit
   clear the mouse target at once, or does it stay until the next move?
-  **The fault below is recorded and its solution is deferred** (owner,
-  2026-10-01: "Record this issue but defer the solution").
+  **The fault below is fixed** (2026-10-01). The owner first deferred it ("Record
+  this issue but defer the solution"), then, after Claude said that the fix in
+  the splice is small: "Hmm, build it now. This is one of the main reasons why the
+  assistant should create operations as if they were produced by the UI on behalf
+  of the user, so that all associated extra stuff can be done, like this."
+  Built:
+  - The evaluation of `ReplaceReferencedValueOperation`, which every delete,
+    insert, undo and redo of an element goes through, keeps the mouse target
+    where it passes through the written slot (`_find_written_chain` before the
+    write, `_follow_written_chain!` after it, in `PathChain.jl`). The document of
+    the slot is the parent of the write: for a list of items, the `CellVector`,
+    which is a document with a mouse target of its own.
+  - A path into an element after a splice moves by the change in length; a path
+    whose slot is gone becomes the empty path; the documents above the parent on
+    the path of the operation get the same tail; a child that the write takes
+    from the slot, or that a write of a whole field replaces, holds no target.
+    The move after the frame (Q14) then lights the part under the pointer, so for
+    one frame the old light can show on a part that moved.
+  - Test: "an edit under the pointer leaves one item lit" in
+    `WidgetToolbarTest` plays the toolbar example with splices: a delete, an
+    undo, an insert, a delete of the last item and a write of the whole list.
+  - Limits: an edit that is no operation (a write into a cell, a list that a
+    computation builds again) keeps no path, which is why the assistant edits
+    through operations; a document above the root of an operation that carries
+    its own root keeps the old tail, which the next move replaces; the selection
+    chain is not changed.
   Found (2026-09-30, a probe on `[1, 2, 3]` with the pointer on `2`): the chain
   write finds the old branch by resolving the old path in the document as it is
   now, and an edit that inserts or deletes before the part changes what that

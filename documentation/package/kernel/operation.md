@@ -78,6 +78,19 @@ end
 - empty `reference` (only meaningful when `document === nothing`) → **whole-root
   swap**: rebind `editor.document` and drop the cached iomap.
 
+**The write keeps the mouse target right.** Each document on the path of the part
+under the pointer holds its own part of that path (`replace_mouse_target!`), and a
+write into a slot changes what a path through that slot names. So when the mouse
+target of the document of the slot passes through the slot, the write moves it:
+a path into an element after a splice moves by the change in length, a path whose
+slot is gone becomes the empty path, and the documents above it on the path of the
+operation get the same tail. A child that the write takes from the slot holds no
+mouse target. It can be shown at another place, and the move that the backend
+sends after the frame finds the part under the pointer there. So a delete, an
+undo and a redo leave one part lit. An edit that is no operation, such as a write
+into a cell, does none of this: an assistant or a script edits through operations,
+as the interface does on behalf of the user.
+
 **Builders** package the common shapes (and any cursor follow-up) so the producing
 readers stay small:
 

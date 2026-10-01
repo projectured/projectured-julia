@@ -108,3 +108,94 @@ function _clear_path_chain!(document, field::Symbol)
     child = _find_path_child(document, old)
     child === nothing || _clear_path_chain!(child, field)
 end
+
+# ── A write under a chain ────────────────────────────────────────────────────
+# A write that replaces the slot of a document, or that splices a range of its
+# elements, changes what a path through that document names. So the write keeps
+# the chain right where it passes: the document holds the path of the slot that
+# its child holds after the write, a slot after a splice moving with it, and a
+# child that the write takes from the slot holds no path. That child can still be
+# shown at another place, and the move that follows the frame finds it there.
+
+# The chain of `field` through `parent` as a write of `value` at its slot
+# `terminal` meets it: the path that `parent` holds, that path after the write,
+# and the document that the path reaches before the write; `nothing` when the
+# path does not pass through the slot. A splice moves each element after it, so
+# a range meets every path into an element.
+function _find_written_chain(parent, terminal, value; field::Symbol = :mouse_target)
+    (parent isa Document && hasfield(typeof(parent), field)) || return nothing
+    cell = getfield(parent, field)
+    cell isa AbstractCell || return nothing
+    path = strip_reference_types(cell[])
+    path isa ConcreteReference || return nothing
+    _is_written_step(get_reference_head(path), terminal) || return nothing
+    (field = field, path = path, moved = _move_spliced_path(path, terminal, value),
+     child = _find_path_child(parent, path))
+end
+
+_is_written_step(step, terminal::AFieldReferenceStep) =
+    step isa AFieldReferenceStep && step.name == terminal.name
+_is_written_step(step, ::ARangeReferenceStep) =
+    step isa ARangeReferenceStep && is_element_reference_step(step)
+_is_written_step(step, terminal) = false
+
+# The path into an element after a splice of `items` over the range `terminal`:
+# an element after the range moves by the change in length.
+function _move_spliced_path(path, terminal::ARangeReferenceStep, items::AbstractVector)
+    k = get_reference_head(path).start + 1
+    k > terminal.stop || return path
+    k += length(items) - (terminal.stop - terminal.start)
+    ConcreteReference(RangeReferenceStep(k - 1, k), get_reference_tail(path))
+end
+_move_spliced_path(path, terminal, value) = path
+
+# Keep the chain that `_find_written_chain` met right after the write: `parent`
+# and each document above it on `parent_path` from `root` hold the path after the
+# write, the empty path in `parent` when its slot is gone, and the child that the
+# write took from the slot holds none.
+function _follow_written_chain!(parent, written; root, parent_path::Reference)
+    path = _reaches_path_head(parent, written.moved) ? written.moved : EmptyReference()
+    if path != written.path
+        getfield(parent, written.field)[] = annotate_reference_types(parent, path)
+        for (document, steps) in _find_documents_above(root, parent_path)
+            hasfield(typeof(document), written.field) || continue
+            cell = getfield(document, written.field)
+            cell isa AbstractCell || continue
+            above = Reference(steps...)
+            strip_reference_types(cell[]) == concat_references(above, written.path) &&
+                (cell[] = annotate_reference_types(document, concat_references(above, path)))
+        end
+    end
+    child = _find_path_child(parent, path)
+    written.child === nothing || written.child === child ||
+        _clear_path_chain!(written.child, written.field)
+    nothing
+end
+
+# Whether the first step of `path` reaches a value of `document`.
+function _reaches_path_head(document, path)
+    path isa ConcreteReference || return true
+    try
+        evaluate_reference_step(get_reference_head(path), document)
+        true
+    catch
+        false
+    end
+end
+
+# Each document on `path` from `root` before its end, with the steps from it to
+# the end, for a document that holds a chain.
+function _find_documents_above(root, path::Reference)
+    steps = collect(get_reference_steps(path))
+    found = Tuple{Any,Vector{Any}}[]
+    node = root
+    for (index, step) in enumerate(steps)
+        node isa Document && push!(found, (node, steps[index:end]))
+        node = try
+            unwrap_cell(evaluate_reference_step(step, node))
+        catch
+            return found
+        end
+    end
+    found
+end
