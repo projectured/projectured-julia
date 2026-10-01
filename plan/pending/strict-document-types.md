@@ -75,7 +75,7 @@ Other domains hold Julia code in their own loose fields: `FsmTransition.guard` a
 `CellVector`. The pilot does not change them.
 
 **The paste already checks a slot.** `_is_slot_accepting` in
-[Clipboard.jl:210](../../source/clipboard/Clipboard.jl#L210) refuses a value that is not of the
+[Clipboard.jl:210](../../source/platform/clipboard/Clipboard.jl#L210) refuses a value that is not of the
 value type of the cell. For a `ReactiveCell{Any}` that type is `Any`, so the check passes
 everything today.
 
