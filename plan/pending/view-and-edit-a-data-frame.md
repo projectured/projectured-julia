@@ -1239,6 +1239,18 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       projection and the places; 188 data frame tests pass. A picture shows
       the glyphs and an order of two keys. The sort runs at once: the mark
       while a sort of ten million rows runs is not done.
+  - **Landed** (the owner, 2026-10-01: "land first and run tests
+    afterwards"): main `b3f539b0d`, rebased onto 50 commits of main (a
+    conflict in the point reader of the list table, which main split into
+    `_read_table_point_event` and `_read_table_point_cell`). Tests after the
+    landing, on the landed code: the whole platform suite 84,447 pass, 8
+    broken, no failure; data frames 190, Julia 419, widget text and list
+    table 243; omnet-julia 262. The umbrella's `test_table_cell_editing`
+    fails in "a JSON string", which the baseline of the fold lists as a
+    failure of main; it uses the eager table, which this work does not
+    change. inet-julia's presentation tests have 8 errors, all
+    `make_natural_to_syntax_dispatch()` without the `appearance` that main's
+    theme work (`b964b257f`) requires; inet-julia does not follow it yet.
 - [ ] **6. Find.** §4.5, without replace.
 - [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
   their own (D8).
