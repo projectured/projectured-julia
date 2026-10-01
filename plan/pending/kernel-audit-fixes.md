@@ -1795,6 +1795,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep two optional positional arguments with a marker, and change §4 so that a marker also excuses the clause on optional arguments.
 - **D:** One walk value: copy_document(K, value, bound), where a new type holds the policy and the depth.
 - **Recommended (mine): B.** §4 already excuses the count of a protocol method, and both names are on the protocol list of the guard. Only the defaults break the clause 'at most one optional positional argument'. B removes them, keeps dispatch on positional arguments, and keeps each extension signature except its '= nothing' and '= 0' (ListNode.jl, omnet-julia's ASweep; CellVector.jl has no default already). The three-argument sugar of BoundedSync.jl stays legal. A reaches about 50 calls in the three repositories. D adds a type for two values.
+- **Decided by the owner, 2026-10-01: B.** Under the relaxed §4 the optional clause is a recommendation with marked exceptions, and B needs no marker: the short forms are methods of their own. After the fold, ListNode.jl is source/platform/collection/ListNode.jl.
 - Depends on: POLICY-3.
 - Cost: S. DocumentCopy.jl, DocumentSync.jl, DocumentInterface.jl (the docstring names the two entries and the protocol method), ListNode.jl (the defaults of sync_document!), omnet-julia source/simulator/configuration/Configuration.jl (the defaults of the ASweep method). No sealed file.
 
