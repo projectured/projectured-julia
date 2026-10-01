@@ -58,5 +58,5 @@ end
 # renderer builds its own projection instance.
 
 function __init__()
-    register_natural_syntax!(:messagelog, () -> Pair{Type,Any}[MessageLog => MessageLogToSyntax()])
+    register_natural_syntax!(:messagelog, (; appearance) -> Pair{Type,Any}[MessageLog => MessageLogToSyntax()])
 end

@@ -105,7 +105,7 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` re
 - `CollectionToSyntax()` prints a `CellVector` as a node in brackets and keeps a `ListNode` lazy.
 - `PrimitiveToSyntax()` prints a `PrimitiveBool`, `PrimitiveNumber` or `PrimitiveString` as a leaf.
 
-`make_natural_to_syntax_dispatch()` builds the table of the general renderer. The rows that domains register with `register_natural_syntax!` come first. Then come `PrimitiveToSyntax`, the placeholder and insertion rows of `Text` and `Document`, `CollectionToSyntax` and the `ObjectToSyntax` table. The `DocumentNothing` and `DocumentInsertion` rows are what an empty pane tab shows.
+`make_natural_to_syntax_dispatch(; appearance)` builds the table of the general renderer, and passes the `Appearance` of the editor to every registered row. The rows that domains register with `register_natural_syntax!` come first. Then come `PrimitiveToSyntax`, the placeholder and insertion rows of `Text` and `Document`, `CollectionToSyntax` and the `ObjectToSyntax` table. The `DocumentNothing` and `DocumentInsertion` rows are what an empty pane tab shows.
 
 ## How it fits
 

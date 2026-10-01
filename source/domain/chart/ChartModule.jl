@@ -53,7 +53,7 @@ include("FrameTimeSeriesToChart.jl")
 # The row that lets a tab draw the frame times of the statistics as a chart.
 # The factory form, so every renderer builds its own projection instances.
 function __init__()
-    register_natural_graphics!(:frame_time_series, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:frame_time_series, (; measure, appearance) -> Pair{Type,Any}[
         FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
                                               ChartPlotToGraphicsCanvas(measure = measure)),
     ])

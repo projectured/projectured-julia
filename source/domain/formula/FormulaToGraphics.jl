@@ -57,11 +57,11 @@ _formula_value_text(value::AbstractFloat) = string(round(value; sigdigits = 6))
 _formula_value_text(value) = string(value)
 
 """
-    make_formula_graphics_entry(; measure) -> Vector{Pair{Type,Any}}
+    make_formula_graphics_entry(; measure, appearance) -> Vector{Pair{Type,Any}}
 
 The renderer rows that make a formula and a sheet draw themselves on any page.
 """
-make_formula_graphics_entry(; measure = nothing) = Pair{Type,Any}[
+make_formula_graphics_entry(; measure, appearance) = Pair{Type,Any}[
     FormulaFormula     => ChainingProjection(FormulaFormulaToLayout(), HorizontalLayoutToGraphicsCanvas()),
     FormulaEnvironment => ChainingProjection(FormulaEnvironmentToLayout(), VerticalLayoutToGraphicsCanvas()),
 ]

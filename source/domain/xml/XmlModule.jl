@@ -38,7 +38,7 @@ include("XmlFile.jl")
 function __init__()
     register_natural_domain!(XmlDocument;
                              rung      = :syntax,
-                             make      = () -> XmlToSyntax(),
+                             make      = (; appearance) -> XmlToSyntax(),
                              format    = :xml,
                              extension = ".xml",
                              parse     = parse_xml)

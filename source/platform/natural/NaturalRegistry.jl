@@ -21,8 +21,8 @@
 # - **to-syntax** — the domain has a `*ToSyntax` projection and the shared
 #   `Syntax → Text → Graphics` tail draws it. This is most domains.
 # - **to-graphics** — the domain draws itself, because a page of blocks or a
-#   diagram is not a syntax tree. These entries need the backend's text measure,
-#   so a domain registers a factory rather than a pair.
+#   diagram is not a syntax tree. Its factory also gets the backend's text
+#   measure.
 #
 # The third is the **fallback**: what to draw for a document no row claimed. It is
 # registered like the others and nothing registers it by default, so a renderer
@@ -30,50 +30,27 @@
 # is what registers the reflection tail, and a session that never loads it never
 # carries it.
 #
-# A row can be registered as a ready-made pair or as a factory. A factory runs on
-# every table build, so each renderer gets its own projection instances; a pair is
-# shared by every renderer that uses it. Pairs are registered first, so a domain
-# that wants to override another domain's row can.
-# Ready-made rows. A row registered twice keeps the first, so a reload does not
-# stack duplicates.
-const _SYNTAX_PAIRS = Pair{Type,Any}[]
-# Keyed factories, `key => () -> Vector{Pair{Type,Any}}`.
+# A row is registered as a factory, which runs on every table build with the
+# `Appearance` of the editor, so each renderer gets its own projection instances
+# and each instance takes the scaled theme of its domain from that editor.
+
+# Keyed factories, `key => (; appearance) -> Vector{Pair{Type,Any}}`.
 const _SYNTAX_FACTORIES = Pair{Symbol,Any}[]
-# Keyed factories, `key => (; measure) -> Vector{Pair{Type,Any}}`.
+# Keyed factories, `key => (; measure, appearance) -> Vector{Pair{Type,Any}}`.
 const _GRAPHICS_FACTORIES = Pair{Symbol,Any}[]
-# Keyed factories, `key => (; measure, font, wrap) -> Vector{Pair{Type,Any}}`.
+# Keyed factories, `key => (; measure, font, wrap, appearance) -> Vector{Pair{Type,Any}}`.
 const _FALLBACK_FACTORIES = Pair{Symbol,Any}[]
-
-"""
-    register_natural_syntax!(pairs::Pair...) -> nothing
-
-Teach the natural renderer how a domain becomes syntax, as ready-made rows. Call
-it from the registering module's `__init__` — the table is runtime state, not
-something to bake into a precompiled image. A type registered twice keeps the
-first row. [`get_natural_syntax_entries`](@ref) gives these rows before the rows
-of the syntax factories and of the rung table, so a row here overrides another
-row of its type. The rows serve the renderer only: the notation that
-[`make_natural_projection`](@ref) reads is [`register_natural_notation!`](@ref).
-
-Without this a document from a package the renderer cannot see falls through to
-the reflection tail and renders as its field names instead of as itself.
-"""
-function register_natural_syntax!(pairs::Pair...)
-    for pr in pairs
-        document_type = first(pr)::Type
-        any(e -> first(e) === document_type, _SYNTAX_PAIRS) && continue
-        push!(_SYNTAX_PAIRS, Pair{Type,Any}(document_type, last(pr)))
-    end
-    nothing
-end
 
 """
     register_natural_syntax!(key::Symbol, factory) -> nothing
 
-The factory form: `factory()` returns the domain's rows, and runs on every table
-build, so each renderer gets its own projection instances. Use it when a row
-holds a projection with reactive state. `key` names the registering domain and
-makes the registration idempotent.
+Teach the natural renderer how a domain becomes syntax. `factory(; appearance)`
+returns the domain's rows, and runs on every table build with the `Appearance`
+of the editor, so each renderer gets its own projection instances. `key` names
+the registering domain and makes the registration idempotent. Call it from the
+registering module's `__init__`: the table is runtime state. The rows serve the
+renderer only: the notation that [`make_natural_projection`](@ref) reads is
+[`register_natural_notation!`](@ref).
 """
 function register_natural_syntax!(key::Symbol, factory)
     any(e -> first(e) === key, _SYNTAX_FACTORIES) && return nothing
@@ -86,8 +63,8 @@ end
 
 Teach the natural renderer how a domain becomes graphics **directly**, without
 the syntax tail — a page of blocks, a diagram, a typeset formula.
-`factory(; measure)` returns the domain's rows; `measure::TextMeasure` is the
-backend's text measure.
+`factory(; measure, appearance)` returns the domain's rows; `measure::TextMeasure`
+is the backend's text measure, and `appearance` the `Appearance` of the editor.
 """
 function register_natural_graphics!(key::Symbol, factory)
     any(e -> first(e) === key, _GRAPHICS_FACTORIES) && return nothing
@@ -100,7 +77,7 @@ end
 
 Teach the natural renderer what to do with a document no row above it claimed.
 
-`factory(; measure, font, wrap)` returns rows, so what a fallback covers is the
+`factory(; measure, font, wrap, appearance)` returns rows, so what a fallback covers is the
 fallback's own decision — `ProjecturedPlatform` registers the reflection tail under
 `Any`, and the placeholder types that only its leaves can draw.
 
@@ -116,47 +93,47 @@ function register_natural_fallback!(key::Symbol, factory)
 end
 
 """
-    get_natural_syntax_entries() -> Vector{Pair{Type,Any}}
+    get_natural_syntax_entries(; appearance) -> Vector{Pair{Type,Any}}
 
-Every registered to-syntax row: the ready-made ones first, then what the
-factories build now, then the `:syntax` rows of the rung table.
+Every registered to-syntax row, built now with `appearance`: what the factories
+build, then the `:syntax` rows of the rung table.
 """
-function get_natural_syntax_entries()
-    out = Pair{Type,Any}[e for e in _SYNTAX_PAIRS]
+function get_natural_syntax_entries(; appearance::Appearance)
+    out = Pair{Type,Any}[]
     for (_, factory) in _SYNTAX_FACTORIES
-        for pr in factory()
+        for pr in factory(; appearance = appearance)
             push!(out, Pair{Type,Any}(first(pr), last(pr)))
         end
     end
-    append!(out, get_natural_entries(:syntax))
+    append!(out, get_natural_entries(:syntax; appearance = appearance))
     out
 end
 
 """
-    get_natural_graphics_entries(; measure) -> Vector{Pair{Type,Any}}
+    get_natural_graphics_entries(; measure, appearance) -> Vector{Pair{Type,Any}}
 
-Every registered to-graphics row, built now against `measure`.
+Every registered to-graphics row, built now against `measure` and `appearance`.
 """
-function get_natural_graphics_entries(; measure::TextMeasure)
+function get_natural_graphics_entries(; measure::TextMeasure, appearance::Appearance)
     out = Pair{Type,Any}[]
     for (_, factory) in _GRAPHICS_FACTORIES
-        for pr in factory(; measure = measure)
+        for pr in factory(; measure = measure, appearance = appearance)
             push!(out, Pair{Type,Any}(first(pr), last(pr)))
         end
     end
-    append!(out, get_natural_entries(:graphics; measure = measure))
+    append!(out, get_natural_entries(:graphics; measure = measure, appearance = appearance))
     out
 end
 
 """
-    get_natural_fallback_entries(; measure, font, wrap) -> Vector{Pair{Type,Any}}
+    get_natural_fallback_entries(; measure, font, wrap, appearance) -> Vector{Pair{Type,Any}}
 
 Every registered fallback row, built now. Empty when nothing registered one.
 """
-function get_natural_fallback_entries(; measure::TextMeasure, font, wrap)
+function get_natural_fallback_entries(; measure::TextMeasure, font, wrap, appearance::Appearance)
     out = Pair{Type,Any}[]
     for (_, factory) in _FALLBACK_FACTORIES
-        for pr in factory(; measure = measure, font = font, wrap = wrap)
+        for pr in factory(; measure = measure, font = font, wrap = wrap, appearance = appearance)
             push!(out, Pair{Type,Any}(first(pr), last(pr)))
         end
     end

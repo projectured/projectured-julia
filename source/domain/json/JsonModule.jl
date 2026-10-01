@@ -45,7 +45,7 @@ include("JsonFile.jl")
 function __init__()
     register_natural_domain!(JsonDocument;
                              rung      = :syntax,
-                             make      = () -> JsonToSyntax(),
+                             make      = (; appearance) -> JsonToSyntax(),
                              format    = :json,
                              extension = ".json",
                              parse     = parse_json)

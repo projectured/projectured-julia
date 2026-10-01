@@ -25,10 +25,10 @@ function print_document(p::TooltipContentToVerticalLayout, recursion, content::T
 end
 
 """
-    make_natural_tooltip_row(; measure) -> Pair
+    make_natural_tooltip_row(; measure, appearance = Appearance()) -> Pair
 
 The row that draws a tooltip window with the natural projection, for the
 `opened_window_projections` of a host that keeps a tooltip window.
 """
-make_natural_tooltip_row(; measure::TextMeasure) =
-    TooltipContent => NaturalToGraphics(measure = measure)
+make_natural_tooltip_row(; measure::TextMeasure, appearance::Appearance = Appearance()) =
+    TooltipContent => NaturalToGraphics(measure = measure, appearance = appearance)

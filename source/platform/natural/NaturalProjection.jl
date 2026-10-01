@@ -89,14 +89,19 @@ _unsupported_message(document) =
 
 """
     NaturalToGraphics(; measure, font=font_ubuntu_monospace_regular_20,
-                        wrap=true, extra=Pair{Type,Any}[])
+                        wrap=true, extra=Pair{Type,Any}[], appearance=Appearance())
         -> RecursiveProjection
 
 Build the natural projection: a recursive type-dispatching projection mapping
 almost any document to a `GraphicsCanvas`. `measure` is the `TextMeasure` the
 layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
 
-- `font`    — base font for widget/text rendering.
+- `font`    — base font for text that no domain styles: the line of prose of a
+              placeholder, and the fallback.
+- `appearance` — the `Appearance` of the editor. Every widget draws with its
+              `WidgetTheme`, and every registered row takes the scaled theme of
+              its domain from it. The default is a new `Appearance`, which no
+              tab edits.
 - `wrap`    — word-wrap prose (`TextDocument`). Structured syntax/code is always
               rendered no-wrap (its layout carries meaning; overflow is the
               viewport's job).
@@ -108,8 +113,9 @@ layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
 function NaturalToGraphics(; measure::TextMeasure,
                            font = font_ubuntu_monospace_regular_20,
                            wrap::Bool = true,
-                           extra = Pair{Type,Any}[])
-    w2g = WidgetToGraphics(font; measure = measure)
+                           extra = Pair{Type,Any}[],
+                           appearance::Appearance = Appearance())
+    w2g = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme))
 
     # Prose: optionally word-wrapped. Structured syntax/code: never wrapped.
     prose_chain = wrap ?
@@ -121,7 +127,8 @@ function NaturalToGraphics(; measure::TextMeasure,
     # A fallback registers rows for exact types and, usually, one for `Any`. The
     # two go to different places in the table: the exact ones before this
     # package's abstract rows, the `Any` after them.
-    registered = get_natural_fallback_entries(measure = measure, font = font, wrap = wrap)
+    registered = get_natural_fallback_entries(measure = measure, font = font, wrap = wrap,
+                                              appearance = appearance)
     specific = Pair{Type,Any}[p for p in registered if first(p) !== Any]
     tail     = Pair{Type,Any}[p for p in registered if first(p) === Any]
 
@@ -137,9 +144,10 @@ function NaturalToGraphics(; measure::TextMeasure,
         # node be a widget, a page hold a live card, and a number inside a
         # formula render through the shared primitive path. The rows of the
         # seam `make_graphics_projection` come first.
-        Pair{Type,Any}[type => make_graphics_projection(type; measure = measure)
+        Pair{Type,Any}[type => make_graphics_projection(type; measure = measure,
+                                                        appearance = appearance)
                        for type in collect_graphics_projection_types()],
-        get_natural_graphics_entries(measure = measure),
+        get_natural_graphics_entries(measure = measure, appearance = appearance),
         # A fallback's own rows: the placeholders only it can draw. They name
         # exact types, so they come before the abstract rows below — a
         # `TextInsertion` is a `TextDocument`, and prose is not what it is, and a

@@ -77,5 +77,5 @@ end
 # A fault log is not saved to a file, so it registers no `.pred` schema. It is
 # runtime state that a person reads and then fixes what it points at.
 function __init__()
-    register_natural_syntax!(:fault, () -> Pair{Type,Any}[FaultLog => FaultLogToSyntax()])
+    register_natural_syntax!(:fault, (; appearance) -> Pair{Type,Any}[FaultLog => FaultLogToSyntax()])
 end

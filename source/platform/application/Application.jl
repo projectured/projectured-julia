@@ -135,7 +135,9 @@ function _make_application_pane_tree(tabs, navigator, assistant)
 end
 
 """
-    make_application_content_projections(; measure = FontFileMeasure()) -> Vector{Pair{Type,Any}}
+    make_application_content_projections(; measure = FontFileMeasure(),
+                                         appearance::Appearance = Appearance())
+        -> Vector{Pair{Type,Any}}
 
 How the application draws what a tab holds, in front of the defaults of
 `NaturalToGraphics`: the history around a file, the navigator, the assistant
@@ -143,12 +145,13 @@ and its conversation, and plain text. A document of a domain draws through the
 natural renderer, which every loaded domain registers itself with, so the
 application names no domain.
 """
-function make_application_content_projections(; measure = FontFileMeasure())
+function make_application_content_projections(; measure = FontFileMeasure(),
+                                               appearance::Appearance = Appearance())
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure))
     conversation_rows = Pair{Type,Any}[
-        make_conversation_draft_row(measure = measure),
-        make_conversation_row(measure = measure),
+        make_conversation_draft_row(measure = measure, appearance = appearance),
+        make_conversation_row(measure = measure, appearance = appearance),
     ]
     Pair{Type,Any}[
         # A history around what a tab holds is invisible: it prints what it holds
@@ -163,7 +166,8 @@ function make_application_content_projections(; measure = FontFileMeasure())
             RecursiveProjection(WorkspaceToFileSystem()),
             RecursiveProjection(FileSystemToWidget(
                 open_file = path -> OpenFileOperation(path; wrap = UndoBuffer))),
-            RecursiveProjection(WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure))),
+            RecursiveProjection(WidgetToGraphics(; measure = measure,
+                                                 theme = get_scaled_theme!(appearance, WidgetTheme)))),
         # A tab of its own: the pane group hands the assistant's own split pane
         # to a fresh renderer, rather than re-entering the one already dispatching
         # on it — a tab's content is read through `print_child`, which does not
@@ -171,7 +175,8 @@ function make_application_content_projections(; measure = FontFileMeasure())
         # print does, so a bare `Assistant => AssistantToWidgetSplitPane()` row
         # would hand the tab a widget, not the graphics it draws.
         Assistant         => ChainingProjection(RecursiveProjection(AssistantToWidgetSplitPane()),
-                                                NaturalToGraphics(measure = measure, extra = conversation_rows)),
+                                                NaturalToGraphics(measure = measure, extra = conversation_rows,
+                                                                  appearance = appearance)),
         conversation_rows...,
         # A tab title and a plain text file are prose, not a quoted string.
         PrimitiveDocument => ChainingProjection(RecursiveProjection(PrimitiveToText()),
@@ -180,7 +185,8 @@ function make_application_content_projections(; measure = FontFileMeasure())
 end
 
 """
-    make_application_projection(; measure = FontFileMeasure())
+    make_application_projection(; measure = FontFileMeasure(),
+                                appearance::Appearance = Appearance())
 
 How the content of the application window is drawn: the pane tree or the
 workbench, and the domains inside it.
@@ -190,15 +196,17 @@ command palette, the walk and the clipboard — come from
 [`make_window_wrap`](@ref), which needs the document as well as the projection.
 [`make_application_window`](@ref) is where the two meet.
 """
-function make_application_projection(; measure = FontFileMeasure())
-    content = make_application_content_projections(measure = measure)
-    _make_application_pane_projection(content, measure)
+function make_application_projection(; measure = FontFileMeasure(),
+                                     appearance::Appearance = Appearance())
+    content = make_application_content_projections(measure = measure, appearance = appearance)
+    _make_application_pane_projection(content, measure, appearance)
 end
 
 """
     make_application_window(paths; root = pwd(), assistant = nothing,
                             status_bar = true,
-                            measure = FontFileMeasure())
+                            measure = FontFileMeasure(),
+                            appearance::Appearance = Appearance())
         -> (document, projection)
 
 The application window, wrappers and all: the document of
@@ -218,20 +226,25 @@ changes with every move of the caret.
 included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
 what is stored. An interface over a record of a run leaves those two out, because
 a cut would write into the record.
+
+`appearance` is the one `Appearance` of this window: it is passed to the content
+projection and to the wrappers, so every widget of the window draws with the
+same scaled widget theme.
 """
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
                                  status_bar::Bool = true,
-                                 measure = FontFileMeasure())
+                                 measure = FontFileMeasure(),
+                                 appearance::Appearance = Appearance())
     document = make_application_document(paths; root = root, assistant = assistant)
-    projection = make_application_projection(; measure = measure)
+    projection = make_application_projection(; measure = measure, appearance = appearance)
     make_window_wrap(; gesture_help = true, command_palette = true,
                        selection = true,
                        history = _with_window_history,
                        context_menu = compute_context_menu,
                        shell = document -> _make_application_shell(document, assistant, root,
                                                                      status_bar),
-                       measure = measure)(document, projection)
+                       measure = measure, appearance = appearance)(document, projection)
 end
 
 # The chrome of the application's window. The status bar is given the window's
@@ -268,8 +281,8 @@ _with_window_history(base) = RecursiveProjection(TypeDispatchingProjection(
 # The pane stage leaves what a tab holds as it is, and the renderer draws it. A
 # file tab, the navigator and the assistant each register their own natural
 # row, so the renderer draws them without this application naming them.
-function _make_application_pane_projection(content, measure)
-    renderer = NaturalToGraphics(measure = measure, extra = content)
+function _make_application_pane_projection(content, measure, appearance::Appearance)
+    renderer = NaturalToGraphics(measure = measure, extra = content, appearance = appearance)
     ChainingProjection(RecursiveProjection(PaneToWidget()), renderer)
 end
 
@@ -364,7 +377,8 @@ make_application_system() =
     run_application(paths...; backend = nothing,
                     assistant = :ollama, model = "", mcp = false,
                     mcp_host = nothing, mcp_port = nothing, root = pwd(),
-                    width = nothing, height = nothing, fault_policy = FaultPolicy())
+                    width = nothing, height = nothing, fault_policy = FaultPolicy(),
+                    appearance = Appearance())
 
 Open the ProjecturEd application with the files at `paths`, and run it until the
 window closes.
@@ -382,6 +396,9 @@ window closes.
   memory on this machine.
 - `fault_policy` is what the editor does with a fault. The default survives it
   and shows it; `make_strict_fault_policy()` stops at the first one.
+- `appearance` is the `Appearance` of the window: every widget of the window and
+  of the windows it opens draws with its scaled widget theme. The default is a
+  fresh one.
 
 # Example
 
@@ -395,12 +412,13 @@ function run_application(paths::AbstractString...;
                          root::AbstractString = pwd(), context::Integer = 0,
                          width = nothing, height = nothing,
                          fault_policy::FaultPolicy = FaultPolicy(),
-                         measure = FontFileMeasure())
+                         measure = FontFileMeasure(),
+                         appearance::Appearance = Appearance())
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
     document, projection = make_application_window(collect(String, paths);
                                                    root = root, assistant = chat,
-                                                   measure = measure)
+                                                   measure = measure, appearance = appearance)
     # The tools of the toolbar are filled by the window: the message log by a
     # capture of the Julia logger and a feed, the statistics by a feed, and the
     # fault log by the store of the editor. The shell gives all of them.
@@ -419,9 +437,9 @@ function run_application(paths::AbstractString...;
                                         inner_wrappers = [wrap_tooltip_window],
                                         opened_window_projections =
                                             make_opened_window_projections(;
-                                                content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure)],
-                                                               make_application_content_projections(measure = measure)),
-                                                measure = measure)))
+                                                content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure, appearance = appearance)],
+                                                               make_application_content_projections(measure = measure, appearance = appearance)),
+                                                measure = measure, appearance = appearance)))
         start(editor)
         start_application!(editor; mcp, assistant, model)
         run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)

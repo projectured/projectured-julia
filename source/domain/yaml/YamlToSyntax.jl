@@ -280,7 +280,7 @@ end
 function __init__()
     register_natural_domain!(YamlDocument;
                              rung      = :syntax,
-                             make      = () -> YamlToSyntax(),
+                             make      = (; appearance) -> YamlToSyntax(),
                              format    = :yaml,
                              extension = ".yaml",
                              parse     = parse_yaml)

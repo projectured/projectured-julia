@@ -667,10 +667,10 @@ end
 # One module, one `__init__`. The slice registers its natural-notation seams
 # here, the format its reader reads, and the file extension it owns.
 function __init__()
-    register_natural_syntax!(:math, () -> Pair{Type,Any}[MathDocument => MathToSyntax()])
-    register_natural_graphics!(:math, (; measure) ->
+    register_natural_syntax!(:math, (; appearance) -> Pair{Type,Any}[MathDocument => MathToSyntax()])
+    register_natural_graphics!(:math, (; measure, appearance) ->
         make_math_to_graphics_dispatch(measure = measure))
-    register_natural_domain!(MathDocument; rung = :syntax, make = () -> MathToSyntax(),
+    register_natural_domain!(MathDocument; rung = :syntax, make = (; appearance) -> MathToSyntax(),
                              format = :math, extension = ".math", parse = parse_math)
     register_file_document_type!(".math", MathFile)
 end

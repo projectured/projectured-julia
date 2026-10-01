@@ -15,24 +15,25 @@
 # its place.
 
 """
-    make_tabs_projection(projection; font, measure) -> Projection
+    make_tabs_projection(projection; appearance, measure) -> Projection
 
 The projection of a pane tree whose tabs hold documents that `projection`
 draws: the tree, its tabs and every widget or layout draw with the widget
-renderer, in `font` and measured with `measure`, and every other document
-draws with `projection`.
+renderer, in the scaled widget theme of `appearance` and measured with
+`measure`, and every other document draws with `projection`.
 """
-function make_tabs_projection(projection; font::StyleFont = font_ubuntu_monospace_regular_20,
+function make_tabs_projection(projection; appearance::Appearance = Appearance(),
                               measure::TextMeasure = FontFileMeasure())
     rows = Pair{Type,Any}[LayoutToGraphics().dispatch;
-                          WidgetToGraphics(font; measure = measure).dispatch;
+                          WidgetToGraphics(; measure = measure,
+                                           theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch;
                           Any => NestingProjection(projection; recursion = IdentityProjection())]
     ChainingProjection(RecursiveProjection(PaneToWidget()),
                        RecursiveProjection(TypeDispatchingProjection(rows)))
 end
 
 """
-    tabs = true | (; title, font, measure)
+    tabs = true | (; title, appearance, measure)
 
 The wrapper of `build_editor` that puts the root document in the one tab of a
 pane tree, drawn with [`make_tabs_projection`](@ref). It is on by default, and
@@ -53,7 +54,7 @@ function wrap_editor!(::Val{:tabs}, layer::Symbol, setting, parts::EditorParts)
     inner === nothing || set_selection!(tree, @reference(tree, root.tabs[1].content.^(inner)))
     parts.document = tree
     parts.projection = make_tabs_projection(parts.projection;
-        font = get(options, :font, font_ubuntu_monospace_regular_20),
+        appearance = get(options, :appearance, Appearance()),
         measure = get(options, :measure, FontFileMeasure()))
     parts
 end

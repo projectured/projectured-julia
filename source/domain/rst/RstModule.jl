@@ -73,7 +73,7 @@ include("RstToLayout.jl")
 # What this slice registers when it loads: the file extensions it owns, and
 # the natural notation it reads and writes.
 function __init__()
-    register_natural_syntax!(:rst, () -> Pair{Type,Any}[RstDocument => RstToSyntax(style = :rendered)])
+    register_natural_syntax!(:rst, (; appearance) -> Pair{Type,Any}[RstDocument => RstToSyntax(style = :rendered)])
 
     register_file_document_type!(".rst", RstFile)
     # What this domain's natural notation is: the syntax rung, the format, and
@@ -81,12 +81,12 @@ function __init__()
     # the call below it.
     register_natural_domain!(RstDocument;
                              rung      = :syntax,
-                             make      = () -> RstToSyntax(),
+                             make      = (; appearance) -> RstToSyntax(),
                              format    = :rst,
                              extension = ".rst",
                              parse     = parse_rst)
 
-    register_natural_graphics!(:rst_page, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:rst_page, (; measure, appearance) -> Pair{Type,Any}[
         RstRoot    => ChainingProjection(RstRootToVerticalLayout(),
                                          VerticalLayoutToGraphicsCanvas()),
         RstSection => ChainingProjection(RstSectionToVerticalLayout(),

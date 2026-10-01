@@ -54,7 +54,7 @@ include("FrameStatisticsToSyntax.jl")
 # projection instance.
 function __init__()
     register_natural_syntax!(:statistics,
-        () -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax()])
+        (; appearance) -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax()])
 end
 
 end # module

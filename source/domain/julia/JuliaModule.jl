@@ -71,7 +71,7 @@ function __init__()
 
     register_natural_domain!(JuliaDocument;
                              rung      = :syntax,
-                             make      = () -> JuliaToSyntax(),
+                             make      = (; appearance) -> JuliaToSyntax(),
                              format    = :jl,
                              extension = ".jl",
                              parse     = parse_julia,
@@ -80,7 +80,7 @@ function __init__()
     # Julia code draws as a whole: a document that stands in the code, such as
     # an object that a person pasted into a form, stays one leaf of the code,
     # `⟨Table⟩`, and does not draw as itself in the middle of a line.
-    register_natural_graphics!(:julia_code, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:julia_code, (; measure, appearance) -> Pair{Type,Any}[
         JuliaDocument => ChainingProjection(RecursiveProjection(JuliaToSyntax()),
                                             RecursiveProjection(SyntaxToText()),
                                             TextToGraphics(measure = measure))])

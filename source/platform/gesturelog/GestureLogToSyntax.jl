@@ -73,5 +73,5 @@ _cut_text(text::AbstractString, width::Integer) =
 # renderer builds its own projection instance.
 
 function __init__()
-    register_natural_syntax!(:gesturelog, () -> Pair{Type,Any}[GestureLog => GestureLogToSyntax()])
+    register_natural_syntax!(:gesturelog, (; appearance) -> Pair{Type,Any}[GestureLog => GestureLogToSyntax()])
 end

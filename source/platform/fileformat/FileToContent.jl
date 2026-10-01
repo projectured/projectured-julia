@@ -101,7 +101,7 @@ end
 # ── Natural-graphics registration ───────────────────────────────────────────
 
 function __init__()
-    register_natural_graphics!(:fileformat, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:fileformat, (; measure, appearance) -> Pair{Type,Any}[
         FileDocument => FileToContent(),
     ])
 end

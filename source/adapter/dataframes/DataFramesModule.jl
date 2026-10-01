@@ -31,7 +31,7 @@ include("DataFrameViewToWidget.jl")
 # A data frame shows as a `DataFrameView`: in the display of a value, and inside
 # any document that the natural renderer draws.
 make_value_document(frame::AbstractDataFrame) = DataFrameView(frame)
-make_graphics_projection(::Type{DataFrameView}; measure) =
-    make_data_frame_view_projection(; measure)
+make_graphics_projection(::Type{DataFrameView}; measure, appearance) =
+    make_data_frame_view_projection(; measure, appearance)
 
 end # module DataFramesModule

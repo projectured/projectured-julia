@@ -34,13 +34,12 @@ The reader gives the view a key that the table does not take, so the gestures
 of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
 on. The view has no selection yet, so a selection in the table goes nowhere.
 """
-struct DataFrameViewToWidget <: Projection
+@projection UntrackedCell struct DataFrameViewToWidget
     row_height::Int
     row_step::Int
 end
 
-DataFrameViewToWidget(; row_height::Integer = 0, row_step::Integer = 0) =
-    DataFrameViewToWidget(Int(row_height), Int(row_step))
+DataFrameViewToWidget(; row_height = 0, row_step = 0) = DataFrameViewToWidget(row_height, row_step)
 
 @iomap struct DataFrameViewToWidgetIoMap
     projection::Any
@@ -140,21 +139,24 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
 end
 
 """
-    make_data_frame_view_projection(; measure, font) -> Projection
+    make_data_frame_view_projection(; measure, appearance = Appearance()) -> Projection
 
 The row of the natural renderer for a `DataFrameView`: `DataFrameViewToWidget`,
 then the printer of a grid, which prints the table and the scroll bar through
 the recursion. A row of the natural renderer ends in graphics, because a type
-dispatch does not print an output again. The height of a row is a line of
-`font`, and its step adds the padding of a cell of the theme and a rule.
+dispatch does not print an output again. The table draws with the widget theme
+of `appearance`. The height of a row is a line of the font of that theme, and
+its step adds the padding of a cell of the theme and a rule; both read the
+scaled theme at each print, with no edge, as a style field of a widget does.
 """
 function make_data_frame_view_projection(; measure::TextMeasure,
-                                         font = font_ubuntu_monospace_regular_20)
-    widgets = WidgetToGraphics(font; measure)
+                                         appearance::Appearance = Appearance())
+    theme = get_scaled_theme!(appearance, WidgetTheme)
+    widgets = WidgetToGraphics(; measure, theme)
     table = last(only(p for p in widgets.dispatch if first(p) === WidgetTable))
     grid = last(only(p for p in LayoutToGraphics().dispatch if first(p) === GridLayout))
-    row_height = ceil(Int, compute_line_box(measure, "M", font).height)
-    row_step = row_height + 2 * Int(table.cell_padding.top[]) + 1
+    row_height = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M", theme.font).height))
+    row_step = UntrackedCell{Int}(@computation row_height[] + 2 * Int(table.cell_padding.top[]) + 1)
     ChainingProjection(DataFrameViewToWidget(; row_height, row_step), grid)
 end
 

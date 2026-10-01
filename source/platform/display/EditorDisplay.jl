@@ -121,8 +121,9 @@ end
 # of its own. A window that opens later draws its document with a renderer of
 # its own, because a renderer keeps state for the documents it draws.
 function _start_session(document, title::String, backend, tabs::Bool)
-    projection = NaturalToGraphics(; measure = FontFileMeasure())
-    later = NaturalToGraphics(; measure = FontFileMeasure())
+    appearance = Appearance()
+    projection = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
+    later = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
     window = (; title = "Values", width = 1000, height = 600,
               opened_window_projections = Pair{Type,Any}[Document => later])
     # The tabs wrapper is on by default: the pane slice of `ProjecturedPlatform`
@@ -130,7 +131,8 @@ function _start_session(document, title::String, backend, tabs::Bool)
     # method for `:tabs`. Its setting names the first tab.
     has_tabs = hasmethod(get_wrapper_layers, Tuple{Val{:tabs}})
     editor = run_editor!(document, projection; wait = false, backend = backend,
-                         window = window, tabs = has_tabs && tabs ? (; title) : false)
+                         window = window,
+                         tabs = has_tabs && tabs ? (; title, appearance) : false)
     _EditorSession(editor, editor.loop_task, IdDict{Any,Pair{String,Any}}(), Set{String}())
 end
 

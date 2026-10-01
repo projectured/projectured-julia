@@ -38,7 +38,7 @@ what is not loaded is not supported.
 
     register_natural_domain!(JsonDocument;
                              rung      = :syntax,
-                             make      = () -> JsonToSyntax(),
+                             make      = (; appearance) -> JsonToSyntax(),
                              format    = :json,
                              extension = ".json",
                              parse     = parse_json)

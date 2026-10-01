@@ -641,5 +641,5 @@ end
 # factory form, so every renderer builds its own projection instance.
 
 function __init__()
-    register_natural_syntax!(:book, () -> Pair{Type,Any}[BookDocument => BookToSyntax()])
+    register_natural_syntax!(:book, (; appearance) -> Pair{Type,Any}[BookDocument => BookToSyntax()])
 end

@@ -217,11 +217,11 @@ end
 # projection instances.
 
 function __init__()
-    register_natural_syntax!(:filesystem, () -> Pair{Type,Any}[FileSystemDocument => FileSystemToSyntax()])
-    register_natural_graphics!(:workspace, (; measure) -> Pair{Type,Any}[
+    register_natural_syntax!(:filesystem, (; appearance) -> Pair{Type,Any}[FileSystemDocument => FileSystemToSyntax()])
+    register_natural_graphics!(:workspace, (; measure, appearance) -> Pair{Type,Any}[
         WorkspaceDocument => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
                                                 RecursiveProjection(FileSystemToWidget()),
-                                                RecursiveProjection(WidgetToGraphics(font_ubuntu_monospace_regular_20;
-                                                                                     measure = measure))),
+                                                RecursiveProjection(WidgetToGraphics(; measure = measure,
+                                                                                     theme = get_scaled_theme!(appearance, WidgetTheme)))),
     ])
 end

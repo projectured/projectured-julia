@@ -10161,17 +10161,23 @@ for projection in (WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
 end
 
 """
+    WidgetToGraphics(; measure, theme = WidgetTheme())
     WidgetToGraphics(font; measure, theme = make_slate_light_theme(font = font))
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
 subtree to a `GraphicsCanvas`. `measure` ([`TextMeasure`](@ref)) is used for all
 text sizing. `theme` is a [`WidgetTheme`](@ref), which the factory scales with the
 scales of 1, or a `ScaledWidgetTheme` of an `Appearance`, whose changes every
-widget follows. The default is the slate light theme.
+widget follows. A builder of an editor passes the scaled widget theme of its
+`Appearance`, so every widget of the editor draws with one theme. A projection
+built on its own can name the font of its default theme, the slate light preset.
 """
-function WidgetToGraphics(font::StyleFont; measure::TextMeasure,
-                          theme::Union{WidgetTheme, ScaledWidgetTheme} =
-                              make_slate_light_theme(font = font))
+WidgetToGraphics(font::StyleFont; measure::TextMeasure,
+                 theme::Union{WidgetTheme, ScaledWidgetTheme} = make_slate_light_theme(font = font)) =
+    WidgetToGraphics(; measure, theme)
+
+function WidgetToGraphics(; measure::TextMeasure,
+                          theme::Union{WidgetTheme, ScaledWidgetTheme} = WidgetTheme())
     theme isa ScaledWidgetTheme || (theme = make_scaled_theme(theme))
     widgets = TypeDispatchingProjection(
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measure),

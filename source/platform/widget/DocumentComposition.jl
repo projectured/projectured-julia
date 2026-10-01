@@ -16,10 +16,11 @@ is shown in another way, such as its reflected tree.
 function make_value_document end
 
 """
-    make_graphics_projection(::Type{T}; measure::TextMeasure) -> Projection
+    make_graphics_projection(::Type{T}; measure::TextMeasure, appearance::Appearance) -> Projection
 
-The projection that draws a document of type `T` as graphics, and measures its
-text with `measure`. A package that owns a type of document adds the method for
+The projection that draws a document of type `T` as graphics, measures its text
+with `measure`, and takes its scaled themes from `appearance`, the `Appearance`
+of the editor. A package that owns a type of document adds the method for
 that type. The natural renderer adds a row for each type that has a method, so
 a document of that type draws inside any document that the renderer draws.
 """

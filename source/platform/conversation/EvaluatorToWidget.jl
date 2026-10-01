@@ -251,7 +251,7 @@ _is_options_path(steps) =
 # them re-enter the renderer through the recursion both stages share.
 
 function __init__()
-    register_natural_graphics!(:evaluator, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:evaluator, (; measure, appearance) -> Pair{Type,Any}[
         EvaluatorToplevel => ChainingProjection(EvaluatorToplevelToWidgetComposite(),
                                                 GridLayoutToGraphicsCanvas()),
         EvaluatorForm     => ChainingProjection(EvaluatorFormToVerticalLayout(),

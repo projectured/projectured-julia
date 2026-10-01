@@ -52,17 +52,19 @@ end
 
 """
     make_window_shell_projection(projection; measure::TextMeasure = FontFileMeasure(),
-                                 font = font_ubuntu_regular_20) -> Projection
+                                 appearance::Appearance = Appearance()) -> Projection
 
-How a window inside its chrome is drawn: the shell's own bands are widgets, and
-the content slot defers to `projection`, so what the window holds is drawn
-exactly as it was before the shell.
+How a window inside its chrome is drawn: the shell's own bands are widgets,
+drawn with the scaled widget theme of `appearance`, and the content slot defers
+to `projection`, so what the window holds is drawn exactly as it was before the
+shell.
 
 Pairs with [`make_window_shell_document`](@ref).
 """
 make_window_shell_projection(projection; measure::TextMeasure = FontFileMeasure(),
-                             font = font_ubuntu_regular_20) =
+                             appearance::Appearance = Appearance()) =
     RecursiveProjection(TypeDispatchingProjection(vcat(
-        WidgetToGraphics(font; measure = measure).dispatch,
+        WidgetToGraphics(; measure = measure,
+                         theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch,
         Pair{Type,Any}[Any => NestingProjection(projection;
                                                 recursion = IdentityProjection())])))

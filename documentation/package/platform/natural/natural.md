@@ -54,18 +54,19 @@ The parser is keyed by the format and not by a type, so a package can register a
 
 ### The renderer table
 
-`NaturalToGraphics(; measure, font, wrap, extra)` returns a `RecursiveProjection` over one `TypeDispatchingProjection` that draws almost any document to a `GraphicsCanvas`. The first row whose type matches the document wins, and each child of a matched row enters the same dispatcher again. So a JSON value inside a page and a widget inside a diagram each draw in their own domain. The dispatcher adds no printer, reader or reference map of its own; see [plan/done/natural-projection.md](../../../../plan/done/natural-projection.md).
+`NaturalToGraphics(; measure, font, wrap, extra, appearance)` returns a `RecursiveProjection` over one `TypeDispatchingProjection` that draws almost any document to a `GraphicsCanvas`. The first row whose type matches the document wins, and each child of a matched row enters the same dispatcher again. So a JSON value inside a page and a widget inside a diagram each draw in their own domain. The dispatcher adds no printer, reader or reference map of its own; see [plan/done/natural-projection.md](../../../../plan/done/natural-projection.md).
 
-A list of ready-made rows and three keyed factory lists fill the table. The key of a factory is a `Symbol` that names the domain and makes a second call do nothing. A factory runs on each table build, so each renderer gets its own projection instances.
+Three keyed factory lists fill the table. The key of a factory is a `Symbol` that names the domain and makes a second call do nothing. A factory runs on each table build with the `Appearance` of the editor, so each renderer gets its own projection instances, and each instance takes the scaled theme of its domain from that editor. A row is never registered ready-made, because a projection holds the scaled themes of one editor.
 
 | List | Filled by | Read by |
 | --- | --- | --- |
-| ready-made syntax rows | `register_natural_syntax!(pairs...)` | `get_natural_syntax_entries()` |
-| syntax factories | `register_natural_syntax!(key, () -> rows)` | `get_natural_syntax_entries()` |
-| graphics factories | `register_natural_graphics!(key, (; measure) -> rows)` | `get_natural_graphics_entries(; measure)` |
-| fallback factories | `register_natural_fallback!(key, (; measure, font, wrap) -> rows)` | `get_natural_fallback_entries(; …)` |
+| syntax factories | `register_natural_syntax!(key, (; appearance) -> rows)` | `get_natural_syntax_entries(; appearance)` |
+| graphics factories | `register_natural_graphics!(key, (; measure, appearance) -> rows)` | `get_natural_graphics_entries(; measure, appearance)` |
+| fallback factories | `register_natural_fallback!(key, (; measure, font, wrap, appearance) -> rows)` | `get_natural_fallback_entries(; …)` |
 
-**The renderer table takes the rows of the rung table.** `get_natural_syntax_entries()` returns the ready-made rows, then the rows of the syntax factories, then every `:syntax` row of the rung table. `get_natural_graphics_entries` does the same with the `:graphics` rows. So one `register_natural_domain!` call is enough for a file, for text export and for a tab. The factory rows come first, so a factory row wins over a rung row of the same type. Markdown and RST use this: their syntax factory gives the rendered style to a tab, and their rung row gives the source form to a file. The form `register_natural_syntax!(pairs...)` adds ready-made rows, which come first, so a ready-made row wins over every other row of its type. A ready-made row serves the renderer only, and gives the type no notation in the rung table.
+The `make` of a row of the rung table takes the same keywords: `(; appearance)` for the `:syntax` and `:text` rungs, and `(; measure, appearance)` for `:graphics` and for a step of the ladder. So does a method of `make_graphics_projection(T; measure, appearance)`. `NaturalToGraphics` and `make_natural_projection` default to a new `Appearance`; inside the registries the keyword is required, so no step loses the appearance of the editor in silence. Every widget of the renderer draws with the `WidgetTheme` of the appearance.
+
+**The renderer table takes the rows of the rung table.** `get_natural_syntax_entries(; appearance)` returns the rows of the syntax factories, then every `:syntax` row of the rung table. `get_natural_graphics_entries` does the same with the `:graphics` rows. So one `register_natural_domain!` call is enough for a file, for text export and for a tab. The factory rows come first, so a factory row wins over a rung row of the same type. Markdown and RST use this: their syntax factory gives the rendered style to a tab, and their rung row gives the source form to a file. A syntax factory serves the renderer only, and gives the type no notation in the rung table.
 
 `NaturalToGraphics` puts the rows in this order:
 
@@ -77,7 +78,7 @@ A list of ready-made rows and three keyed factory lists fill the table. The key 
 6. the fallback rows for `Any`;
 7. `Any` as the phrase "no natural rendering for T".
 
-The syntax rows reach the renderer through the fallback. The syntax slice registers a fallback whose `Any` row is the syntax fabric: `make_natural_to_syntax_dispatch()`, then `SyntaxToText`, then `TextToGraphics`. That dispatch starts with `get_natural_syntax_entries()` and ends with the collection rows and the reflection table of `ObjectToSyntax`. So a `JsonObject` in a tab matches no row above step 6, goes into the fabric, and draws through `JsonToSyntax`. A value of no domain draws as its reflected fields; see [reflection.md](../reflection/reflection.md). A session that loads no platform at all has no fallback at all: the same document then draws as the phrase of step 7, and the renderer never raises an error.
+The syntax rows reach the renderer through the fallback. The syntax slice registers a fallback whose `Any` row is the syntax fabric: `make_natural_to_syntax_dispatch(; appearance)`, then `SyntaxToText`, then `TextToGraphics`. That dispatch starts with `get_natural_syntax_entries(; appearance)` and ends with the collection rows and the reflection table of `ObjectToSyntax`. So a `JsonObject` in a tab matches no row above step 6, goes into the fabric, and draws through `JsonToSyntax`. A value of no domain draws as its reflected fields; see [reflection.md](../reflection/reflection.md). A session that loads no platform at all has no fallback at all: the same document then draws as the phrase of step 7, and the renderer never raises an error.
 
 A `ListNode` stays in the syntax fabric and does not become a stack of blocks, because a list can be lazy or infinite. A conversation or a pane is not drawn by this dispatcher: its own projection makes widgets, and a caller that needs one inside a content slot adds a row with `extra`.
 
@@ -117,7 +118,7 @@ renderer = NaturalToGraphics(measure = FontFileMeasure())
 ```
 
 - Example: `natural_example` draws a `CellVector` of a JSON, a math, a Julia, a text and an XML document with `NaturalToGraphics` alone.
-- Tests: no `test/natural/` folder exists. `test_natural_renders_every_atom()` checks that every atomic example draws through `NaturalToGraphics`, and `test_natural_round_trips_every_atom()` checks that every atom with a format prints and parses back. Both are in `test/projectured/projection/CatalogCoverageTest.jl`. `test_natural_notation()` checks that the most derived registered type gives the notation and the format, and `test_natural_registry()` checks the order of the ready-made rows; both are in `test/projectured/projection/`. The two tests register types of their own, and they put the tables back as they found them when they end.
+- Tests: no `test/natural/` folder exists. `test_natural_renders_every_atom()` checks that every atomic example draws through `NaturalToGraphics`, and `test_natural_round_trips_every_atom()` checks that every atom with a format prints and parses back. Both are in `test/projectured/projection/CatalogCoverageTest.jl`. `test_natural_notation()` checks that the most derived registered type gives the notation and the format, and `test_natural_registry()` checks that each build calls a syntax factory with its own `Appearance` and that a key registered twice keeps the first factory; both are in `test/projectured/projection/`. The two tests register types of their own, and they put the tables back as they found them when they end.
 
 ## Limits
 

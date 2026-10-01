@@ -93,6 +93,35 @@ function test_data_frame_view()
                                                                     context()).output))
         end
 
+        @testset "the table follows the widget theme of its appearance at each print" begin
+            appearance = Appearance()
+            scaled = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), appearance)
+            view = DataFrameView(make_data_frame_example(rows = 3))
+            io = print_document(scaled, nothing, view, context())
+            view_projection = _data_frame_view_iomap(io).projection
+            step = view_projection.row_step
+            # The padding of a cell is the control padding of the theme, 9 above
+            # and 9 below, so a spacing scale of 2 adds 18 to the step of a row.
+            appearance.spacing_scale = 2.0
+            @test view_projection.row_step == step + 18
+            size_of(text, canvas) = begin
+                found = Ref(0)
+                walk(node) = if node isa GraphicsCanvas
+                    foreach(e -> walk(e isa Cell ? e[] : e), node.elements isa ListNode ? Any[] : node.elements)
+                elseif node isa GraphicsViewport
+                    walk(node.content)
+                elseif node isa GraphicsText && string(node.text) == text
+                    found[] = Int(node.font.size)
+                end
+                walk(canvas)
+                found[]
+            end
+            plain = size_of("id :: Int64", io.output)
+            appearance.font_scale = 2.0
+            large = size_of("id :: Int64", print_document(scaled, nothing, view, context()).output)
+            @test plain > 0 && large == 2 * plain
+        end
+
         @testset "a frame of ten million rows reads a screenful" begin
             reads = Ref(0)
             frame = DataFrame(id = _CountingColumn(10_000_000, reads); copycols = false)

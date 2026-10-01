@@ -18,8 +18,8 @@ function test_natural_notation()
     saved = map(copy, tables)
     try
         # The root is registered first: a lookup that takes the first match fails.
-        register_natural_notation!(NaturalNotationTestRoot, :syntax, () -> NaturalNotationTestRootProjection())
-        register_natural_notation!(NaturalNotationTestLeaf, :syntax, () -> NaturalNotationTestLeafProjection())
+        register_natural_notation!(NaturalNotationTestRoot, :syntax, (; appearance) -> NaturalNotationTestRootProjection())
+        register_natural_notation!(NaturalNotationTestLeaf, :syntax, (; appearance) -> NaturalNotationTestLeafProjection())
         register_natural_format!(NaturalNotationTestRoot, :natural_notation_test_root, ".nntroot")
         register_natural_format!(NaturalNotationTestLeaf, :natural_notation_test_leaf, ".nntleaf")
 

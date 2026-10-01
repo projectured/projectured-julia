@@ -1,41 +1,47 @@
 struct NaturalRegistryTestDocument <: Document end
 struct NaturalRegistryTestProjection <: Projection
     name::Symbol
+    appearance::Appearance
 end
 
 """
     test_natural_registry()
 
-A ready-made row of `register_natural_syntax!(pairs...)` is a row of the renderer
-table, and it comes before the rows of the syntax factories. The test puts the
-table back as it found it, so no test type stays in it.
+A syntax row is registered as a factory, which runs on every table build with
+the `Appearance` that the build is given, so two editors get two projections,
+each with the appearance of its editor. A key registered twice keeps the first
+factory. The test puts the table back as it found it, so no test row stays in it.
 """
 function test_natural_registry()
-    saved = copy(NaturalModule._SYNTAX_PAIRS)
+    saved = copy(NaturalModule._SYNTAX_FACTORIES)
     try
-        first_row = NaturalRegistryTestProjection(:first)
-        register_natural_syntax!(NaturalRegistryTestDocument => first_row)
-        register_natural_syntax!(NaturalRegistryTestDocument => NaturalRegistryTestProjection(:second))
-        entries = get_natural_syntax_entries()
+        register_natural_syntax!(:natural_registry_test, (; appearance) ->
+            Pair{Type,Any}[NaturalRegistryTestDocument =>
+                           NaturalRegistryTestProjection(:first, appearance)])
+        register_natural_syntax!(:natural_registry_test, (; appearance) ->
+            Pair{Type,Any}[NaturalRegistryTestDocument =>
+                           NaturalRegistryTestProjection(:second, appearance)])
+        rows_of(entries) = [last(e) for e in entries if first(e) === NaturalRegistryTestDocument]
 
-        @testset "a type registered twice keeps the first row" begin
-            rows = [last(e) for e in entries if first(e) === NaturalRegistryTestDocument]
+        @testset "a key registered twice keeps the first factory" begin
+            rows = rows_of(get_natural_syntax_entries(appearance = Appearance()))
             @test length(rows) == 1
-            @test only(rows) === first_row
+            @test only(rows).name === :first
         end
 
-        @testset "a ready-made row comes before the factory rows" begin
-            # The markdown domain registers a syntax factory for `MarkdownDocument`.
-            row = findfirst(e -> first(e) === NaturalRegistryTestDocument, entries)
-            factory_row = findfirst(e -> first(e) === MarkdownDocument, entries)
-            @test row !== nothing && factory_row !== nothing
-            @test row < factory_row
+        @testset "each build gets its own row, with the appearance it is given" begin
+            one, two = Appearance(), Appearance()
+            first_row = only(rows_of(get_natural_syntax_entries(appearance = one)))
+            second_row = only(rows_of(get_natural_syntax_entries(appearance = two)))
+            @test first_row !== second_row
+            @test first_row.appearance === one
+            @test second_row.appearance === two
         end
     finally
-        copy!(NaturalModule._SYNTAX_PAIRS, saved)
+        copy!(NaturalModule._SYNTAX_FACTORIES, saved)
     end
 
     @testset "the test leaves the natural table as it found it" begin
-        @test NaturalModule._SYNTAX_PAIRS == saved
+        @test NaturalModule._SYNTAX_FACTORIES == saved
     end
 end

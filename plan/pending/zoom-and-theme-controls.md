@@ -727,6 +727,16 @@ Each entry says what was decided and what was rejected, with the reason.
 - **Also rejected:** a cell of its own for each child print in the IO map
   reconcile, so that a changed read prints the child again. The wrapper of D4
   made it unnecessary.
+- **D30. One widget theme for each editor** (B2, 2026-10-01). Before this
+  work an editor drew its widgets in two fonts: the window frame (`WindowWrap`,
+  `WindowShell`) in Ubuntu Regular 20, and the tabs, the natural renderer,
+  `FileSystemToSyntax`, the application and the data frame view in Ubuntu Mono
+  20. Every widget of an editor now draws with the one `WidgetTheme` of its
+  `Appearance`, so the widgets inside documents and the tabs take the fonts of
+  the theme. The fonts of code and of text come from their own domain themes in
+  part P. Rejected: a widget theme for each role, a frame theme and a content
+  theme, which would key a theme by its type and a role and show two widget
+  sections in the tab.
 
 ## 6. Steps
 
@@ -896,9 +906,44 @@ keys (W1), so that the font scale reaches all text from the first day.
   `WindowWrap`, `WindowShell`, `FileSystemToSyntax` and `DataFrameViewToWidget`
   take the `Appearance` or the themes of their parts. The registry factories get
   the `Appearance`, and a row built at registration becomes a factory.
-  - Tests: two editors with two `Appearance` objects draw with their own
-    themes. A builder that leaves a domain at its default is found by a test
-    that changes the font scale and looks for text that did not grow.
+  - [x] Every registry calls its factories with the `Appearance` of the editor:
+    `factory(; appearance)` for a syntax row, `factory(; measure, appearance)`
+    for a graphics row and a rung of the ladder, `factory(; measure, font, wrap,
+    appearance)` for the fallback, and `make_graphics_projection(T; measure,
+    appearance)`. Inside the registries the keyword is required; the entry points
+    (`NaturalToGraphics`, `make_natural_projection`, the builders below) default
+    to a new `Appearance`. The ready-made form of `register_natural_syntax!` is
+    removed: no domain used it any more.
+  - [x] Every widget of an editor draws with the one `WidgetTheme` of its
+    `Appearance` (D30). `WidgetToGraphics(; measure, theme)` is the form for a
+    builder; the form with a font stays for a projection built on its own. The
+    `font` keyword of `make_tabs_projection`, of the `tabs` wrapper and of
+    `make_window_shell_projection` is removed.
+  - [x] The builders take `appearance` and pass it on: `NaturalToGraphics`,
+    `make_tabs_projection` and the `tabs` wrapper (from its options),
+    `make_window_shell_projection`, `make_window_wrap`,
+    `make_opened_window_projections`, `make_natural_tooltip_row`, the
+    conversation rows, the `:workspace` row, `make_data_frame_view_projection`,
+    `make_natural_to_syntax_dispatch`, `make_natural_prose_graphics`. A main
+    builder makes one `Appearance` for its window and passes the same object to
+    every builder: `run_application`, the display editor, and in omnet-julia
+    `run_omnet_ide` and `run_campaign_window`.
+  - [x] The data frame view reads the height and the step of a row from the
+    scaled theme at each print (untracked fields), so a scale reaches them.
+  - Tests:
+    - [x] Two renderers with two `Appearance` objects draw with their own
+      widget themes, and every text that the natural renderer, the tabs, the
+      window shell and an opened window draw grows with the font scale
+      (`test_builder_appearance`). An icon is left out: it follows the line of
+      its label and the icon scale, which `test_widget_scales` covers.
+    - [x] A registered factory runs on each build with the appearance that the
+      build gets (`test_natural_registry`), and every registered factory takes
+      the appearance (a check that builds every row of every registry).
+    - [x] The data frame view follows a change of the spacing scale and of the
+      font scale of its appearance.
+  - [ ] The images of the examples whose widgets change font (D30), for the
+    owner's review.
+  - [ ] omnet-julia follows: its registered factories and its main builders.
 
 ### Part P: the themes of the domains
 

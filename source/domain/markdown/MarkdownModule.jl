@@ -42,7 +42,7 @@ include("MarkdownToLayout.jl")
 # What this slice registers when it loads: the file extensions it owns, and
 # the natural notation it reads and writes.
 function __init__()
-    register_natural_syntax!(:markdown, () -> Pair{Type,Any}[MarkdownDocument => MarkdownToSyntax(style = :rendered)])
+    register_natural_syntax!(:markdown, (; appearance) -> Pair{Type,Any}[MarkdownDocument => MarkdownToSyntax(style = :rendered)])
 
     register_file_document_type!(".md",       MarkdownFile)
     register_file_document_type!(".markdown", MarkdownFile)
@@ -52,7 +52,7 @@ function __init__()
     # markdown reaches two.
     register_natural_domain!(MarkdownDocument;
                              rung      = :syntax,
-                             make      = () -> MarkdownToSyntax(),
+                             make      = (; appearance) -> MarkdownToSyntax(),
                              format    = :md,
                              extension = ".md",
                              parse     = parse_markdown)
@@ -60,13 +60,13 @@ function __init__()
     # A page is a stack of blocks, and a block of prose breaks its lines at the
     # width the page offers. The four prose blocks say so; a code block and a
     # thematic break do not, and fall to the fabric, which never breaks a line.
-    register_natural_graphics!(:markdown_page, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:markdown_page, (; measure, appearance) -> Pair{Type,Any}[
         MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
                                            VerticalLayoutToGraphicsCanvas()),
-        MarkdownHeading   => make_natural_prose_graphics(; measure),
-        MarkdownParagraph => make_natural_prose_graphics(; measure),
-        MarkdownQuote     => make_natural_prose_graphics(; measure),
-        MarkdownList      => make_natural_prose_graphics(; measure),
+        MarkdownHeading   => make_natural_prose_graphics(; measure, appearance),
+        MarkdownParagraph => make_natural_prose_graphics(; measure, appearance),
+        MarkdownQuote     => make_natural_prose_graphics(; measure, appearance),
+        MarkdownList      => make_natural_prose_graphics(; measure, appearance),
     ])
 end
 

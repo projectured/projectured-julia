@@ -77,12 +77,12 @@ end
 # syntax.
 function __init__()
     NaturalModule.register_natural_rung!(:text, :graphics,
-        (; measure) -> TextModule.TextToGraphics(measure = measure))
+        (; measure, appearance) -> TextModule.TextToGraphics(measure = measure))
     NaturalModule.register_natural_rung!(:text, :string,
-        (; measure) -> TextModule.TextToString())
+        (; measure, appearance) -> TextModule.TextToString())
     NaturalModule.register_natural_notation!(
         TextModule.TextDocument, :text,
-        () -> ProjectionAlgebraModule.IdentityProjection())
+        (; appearance) -> ProjectionAlgebraModule.IdentityProjection())
     SyntaxModule.register_syntax_fallback!()
     nothing
 end

@@ -43,7 +43,7 @@ include("AboutPageToSyntax.jl")
 
 # The rows that let a tab draw what the Help menu opens.
 function __init__()
-    register_natural_syntax!(:help, () -> Pair{Type,Any}[
+    register_natural_syntax!(:help, (; appearance) -> Pair{Type,Any}[
         DocumentTypeList => HelpListToSyntax(),
         ProjectionList   => HelpListToSyntax(),
         AboutPage        => AboutPageToSyntax(),

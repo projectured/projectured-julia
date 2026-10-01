@@ -18,22 +18,23 @@
 # The rows a domain registers with `register_natural_syntax!` are consumed here,
 # which is why the fabric knows every loaded domain without naming one.
 """
-    make_natural_to_syntax_dispatch() -> Vector{Pair{Type,Any}}
+    make_natural_to_syntax_dispatch(; appearance::Appearance) -> Vector{Pair{Type,Any}}
 
 The shared *to-syntax* dispatch table: every syntax-producible domain → its
 `*ToSyntax`, collections → `CollectionToSyntax`, and the `ObjectToSyntax`
 reflection table as the tail (so plain `Bool`/`Number`/`String`/… render as
 leaves and any unknown value as a reflected node). Exposed so callers can splice
-or extend it the way `WidgetToGraphics(…).dispatch` is spliced.
+or extend it the way `WidgetToGraphics(…).dispatch` is spliced. `appearance` is
+the `Appearance` of the editor, passed on to every registered row.
 
 No domain is named here. Every source domain registers its own row from a file it
 already has, which is also how a domain living downstream of this package — a NED
 file, an INI config — gets rendered. The registered rows come FIRST, so a domain
 can override another domain's row.
 """
-function make_natural_to_syntax_dispatch()
+function make_natural_to_syntax_dispatch(; appearance::Appearance)
     vcat(
-        get_natural_syntax_entries(),
+        get_natural_syntax_entries(; appearance = appearance),
         Pair{Type,Any}[
             PrimitiveDocument  => PrimitiveToSyntax(),
             # The Text domain's `@domain` pair. Text has no `TextToSyntax` table
@@ -54,7 +55,7 @@ function make_natural_to_syntax_dispatch()
 end
 
 """
-    make_natural_prose_graphics(; measure) -> Projection
+    make_natural_prose_graphics(; measure, appearance::Appearance) -> Projection
 
 The same fabric with one more stage: the lines are broken to the width the
 context offers. It is what a domain registers for a block whose text is
@@ -67,10 +68,10 @@ break invented by a measurement would say something the document does not.
 Prose has no such layout, so a line that runs past the box is simply lost.
 
 `measure::TextMeasure` is the backend's own, so the break points line up with
-what is drawn.
+what is drawn. `appearance` is the `Appearance` of the editor.
 """
-make_natural_prose_graphics(; measure::TextMeasure) = ChainingProjection(
-    RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch())),
+make_natural_prose_graphics(; measure::TextMeasure, appearance::Appearance) = ChainingProjection(
+    RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
     RecursiveProjection(SyntaxToText()),
     WordWrapping(measure = measure),
     TextToGraphics(measure = measure),
@@ -84,9 +85,9 @@ make_natural_prose_graphics(; measure::TextMeasure) = ChainingProjection(
 # exact types, so the renderer takes them before its own abstract rows, and a
 # person who presses Insert in an empty tab sees the name buffer rather than a
 # reflected struct.
-function _fallback_rows(; measure::TextMeasure, font, wrap)
+function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearance)
     fabric = ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch())),
+        RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure = measure),
     )
@@ -117,6 +118,6 @@ registers it.
 """
 function register_syntax_fallback!()
     register_natural_fallback!(:syntax, _fallback_rows)
-    register_natural_rung!(:syntax, :text, (; measure) -> SyntaxToText())
+    register_natural_rung!(:syntax, :text, (; measure, appearance) -> SyntaxToText())
     nothing
 end

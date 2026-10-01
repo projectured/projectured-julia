@@ -36,7 +36,7 @@ A wrapper that opens a window of its own needs `make_opened_window_projections()
 
 ### The chrome is a document
 
-`make_window_shell_document(document; menu_bar, toolbar, status_bar, context_menu, size)` puts the document of the window inside a `WidgetShell`, and `make_window_shell_projection(projection)` draws it. The bands draw through the dispatch of `WidgetToGraphics`, and the `content` slot goes to the projection that drew the window before, so the content draws as it did without the shell.
+`make_window_shell_document(document; menu_bar, toolbar, status_bar, context_menu, size)` puts the document of the window inside a `WidgetShell`, and `make_window_shell_projection(projection; measure, appearance)` draws it. The bands draw through the dispatch of `WidgetToGraphics`, with the widget theme of the `Appearance` of the window, which `make_window_wrap(; …, appearance)` and `make_opened_window_projections(; …, appearance)` take too, and the `content` slot goes to the projection that drew the window before, so the content draws as it did without the shell.
 
 **The chrome is data.** A person can select, reference, walk, copy and save it, and a verb can reach it. A shell that only a printer made could be none of those. Wrapping is idempotent: a document that is already a `WidgetShell`, for example one read back from a file, keeps its identity and takes the bands that it is given.
 

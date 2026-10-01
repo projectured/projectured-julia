@@ -6,7 +6,8 @@
                      selection = true,
                      clipboard_gestures = CLIPBOARD_GESTURES,
                      history = identity, context_menu = nothing, shell = nothing,
-                     measure::TextMeasure = FontFileMeasure()) -> Function
+                     measure::TextMeasure = FontFileMeasure(),
+                     appearance::Appearance = Appearance()) -> Function
 
 The wrappers a window gets, as the fold `(document, projection) -> (document,
 projection)` that a window entry applies before it opens.
@@ -57,7 +58,8 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
                             history = identity,
                             context_menu = nothing, shell = nothing,
-                            measure::TextMeasure = FontFileMeasure())
+                            measure::TextMeasure = FontFileMeasure(),
+                            appearance::Appearance = Appearance())
     # One flag for the help window, which the decorator reads each time F1 comes.
     help_state = GestureHelpState()
     # The session's own log, and not one this fold made: a tab that opens a
@@ -79,7 +81,8 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                                                   status_bar = status_bar,
                                                   context_menu = context_menu_document,
                                                   size = size)
-            projection = make_window_shell_projection(projection; measure = measure)
+            projection = make_window_shell_projection(projection; measure = measure,
+                                                       appearance = appearance)
         end
         # Tab starts over at the ends of the window, the bands with the panes.
         projection = FocusCyclingProjection(inner = projection)
@@ -108,7 +111,8 @@ end
 
 """
     make_opened_window_projections(; gesture_help = true, content = [],
-                                   measure::TextMeasure = FontFileMeasure()) -> Vector
+                                   measure::TextMeasure = FontFileMeasure(),
+                                   appearance::Appearance = Appearance()) -> Vector
 
 What draws the content of a window that a wrapper of [`make_window_wrap`](@ref)
 opens. It is the value of the `opened_window_projections` setting of the
@@ -125,15 +129,17 @@ window they wrap and open none.
 
 **A popup holds widgets**: the menu of a menu bar or of a context menu, and the
 options of a `WidgetSelect`, in a layout. So the rows end with the rows of
-`WidgetToGraphics`, one for each widget and each layout, in the font and the
-measure the shell draws its bands with. The rows of `content` come before them,
-so a host decides first.
+`WidgetToGraphics`, one for each widget and each layout, in the scaled widget
+theme of `appearance` and the measure the shell draws its bands with. The rows
+of `content` come before them, so a host decides first.
 """
 make_opened_window_projections(; gesture_help::Bool = true,
                                  content = Pair{Type,Any}[],
-                                 measure::TextMeasure = FontFileMeasure()) =
+                                 measure::TextMeasure = FontFileMeasure(),
+                                 appearance::Appearance = Appearance()) =
     vcat(gesture_help ?
              Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure)] :
              Pair{Type,Any}[],
          Pair{Type,Any}[content...],
-         Pair{Type,Any}[WidgetToGraphics(font_ubuntu_regular_20; measure = measure).dispatch...])
+         Pair{Type,Any}[WidgetToGraphics(; measure = measure,
+                                         theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch...])

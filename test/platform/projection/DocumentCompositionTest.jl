@@ -25,9 +25,9 @@ ProjecturedKernel.ProjectionModule.print_document(p::CompositionProbeProjection,
                                                  input, ctx) =
     SimpleIoMap(p, input, p.name)
 
-make_graphics_projection(::Type{<:CompositionProbeKind}; measure) =
+make_graphics_projection(::Type{<:CompositionProbeKind}; measure, appearance) =
     CompositionProbeProjection("the kind")
-make_graphics_projection(::Type{CompositionLeafProbe}; measure) =
+make_graphics_projection(::Type{CompositionLeafProbe}; measure, appearance) =
     CompositionProbeProjection("the leaf")
 
 function test_document_composition()

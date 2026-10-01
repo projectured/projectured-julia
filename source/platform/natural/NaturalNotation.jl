@@ -5,7 +5,7 @@
 const RUNGS = (:syntax, :text, :graphics)
 
 # What a domain can produce by itself: `Type => [(rung, make), …]`. A `make` for
-# `:graphics` takes `(; measure)`; the others take no argument.
+# `:graphics` takes `(; measure, appearance)`; the others take `(; appearance)`.
 const _NOTATIONS = Pair{Type,Vector{Tuple{Symbol,Any}}}[]
 # `Type => (format, extension)`.
 const _FORMATS = Pair{Type,Tuple{Symbol,String}}[]
@@ -13,7 +13,7 @@ const _FORMATS = Pair{Type,Tuple{Symbol,String}}[]
 const _PARSERS = Pair{Symbol,Any}[]
 # `format => make(document) -> Expr`.
 const _EXPRESSIONS = Pair{Symbol,Any}[]
-# `(from, to) => make(; measure) -> Projection`.
+# `(from, to) => make(; measure, appearance) -> Projection`.
 const _LADDER = Pair{Tuple{Symbol,Symbol},Any}[]
 
 _lookup(table, key) = for entry in table
@@ -26,9 +26,10 @@ end
     register_natural_notation!(T::Type, rung::Symbol, make) -> nothing
 
 Teach the natural machinery what `T` produces by itself. `rung` is `:syntax`,
-`:text` or `:graphics`; `make` builds the projection — `make()` for the first
-two, `make(; measure)` for `:graphics`, which draws and so needs the backend's
-text measurement.
+`:text` or `:graphics`; `make` builds the projection — `make(; appearance)` for
+the first two, `make(; measure, appearance)` for `:graphics`, which draws and so
+needs the backend's text measurement. `appearance` is the `Appearance` of the
+editor, from which a projection takes the scaled theme of its domain.
 
 Call it from the registering module's `__init__`: the tables are runtime state,
 not something to bake into a precompiled image. A `(type, rung)` registered twice
@@ -95,8 +96,8 @@ end
 """
     register_natural_rung!(from::Symbol, to::Symbol, make) -> nothing
 
-Teach the machinery one step of the ladder: `make(; measure) -> Projection` turns
-a `from` document into a `to` one. This package registers `text → graphics` and
+Teach the machinery one step of the ladder: `make(; measure, appearance) ->
+Projection` turns a `from` document into a `to` one. This package registers `text → graphics` and
 `text → string` itself; `syntax → text` belongs to whoever can supply it, and no
 domain ever registers a rung.
 """
@@ -161,21 +162,22 @@ _notation(T::Type, rung::Symbol) =
         first(row) === rung && return last(row)
     end
 
-_build(make, rung::Symbol, measure) =
-    rung === :graphics ? make(; measure = measure) : make()
+_build(make, rung::Symbol, measure, appearance::Appearance) =
+    rung === :graphics ? make(; measure = measure, appearance = appearance) :
+                         make(; appearance = appearance)
 
 """
-    get_natural_entries(rung::Symbol; measure = nothing) -> Vector{Pair{Type,Any}}
+    get_natural_entries(rung::Symbol; measure = nothing, appearance) -> Vector{Pair{Type,Any}}
 
-Every registered row for one rung, built now, as the type-keyed pairs a
-dispatching projection is spliced from.
+Every registered row for one rung, built now with the `Appearance` of the
+editor, as the type-keyed pairs a dispatching projection is spliced from.
 """
-function get_natural_entries(rung::Symbol; measure = nothing)
+function get_natural_entries(rung::Symbol; measure = nothing, appearance::Appearance)
     out = Pair{Type,Any}[]
     for entry in _NOTATIONS
         for row in last(entry)
             first(row) === rung || continue
-            push!(out, Pair{Type,Any}(first(entry), _build(last(row), rung, measure)))
+            push!(out, Pair{Type,Any}(first(entry), _build(last(row), rung, measure, appearance)))
         end
     end
     out
@@ -258,12 +260,12 @@ end
 # ── The ladder ──────────────────────────────────────────────────────────────
 
 # The stages from `rung` up to `target`, or `nothing` when a step is missing.
-function _climb(rung::Symbol, target::Symbol, measure)
+function _climb(rung::Symbol, target::Symbol, measure, appearance::Appearance)
     stages = Any[]
     while rung !== target
         make = _lookup(_LADDER, (rung, _next(rung, target)))
         make === nothing && return nothing
-        push!(stages, make(; measure = measure))
+        push!(stages, make(; measure = measure, appearance = appearance))
         rung = _next(rung, target)
     end
     stages
@@ -278,7 +280,8 @@ function _next(rung::Symbol, target::Symbol)
 end
 
 """
-    make_natural_projection(document, target::Symbol; measure = nothing) -> Projection | Nothing
+    make_natural_projection(document, target::Symbol; measure = nothing,
+                            appearance = Appearance()) -> Projection | Nothing
 
 The projection that takes `document` up to `target` — `:syntax`, `:text`,
 `:graphics` or `:string` — or `nothing` when the ladder has no path.
@@ -286,8 +289,11 @@ The projection that takes `document` up to `target` — `:syntax`, `:text`,
 It picks the highest rung the document itself declares, so a domain that draws
 itself is drawn by its own stage rather than through the syntax tail, and then
 chains the registered steps above it. A `:graphics` target needs `measure`.
+Each stage takes its scaled theme from `appearance`; the default is a new
+`Appearance`, which no tab edits.
 """
-function make_natural_projection(document, target::Symbol; measure = nothing)
+function make_natural_projection(document, target::Symbol; measure = nothing,
+                                 appearance::Appearance = Appearance())
     rows = _notations(typeof(document))
     isempty(rows) && return nothing
     best = nothing
@@ -295,9 +301,9 @@ function make_natural_projection(document, target::Symbol; measure = nothing)
         rung === :graphics && target !== :graphics && continue
         make = _notation(typeof(document), rung)
         make === nothing && continue
-        stages = target === rung ? Any[] : _climb(rung, target, measure)
+        stages = target === rung ? Any[] : _climb(rung, target, measure, appearance)
         stages === nothing && continue
-        best = ChainingProjection(RecursiveProjection(_build(make, rung, measure)),
+        best = ChainingProjection(RecursiveProjection(_build(make, rung, measure, appearance)),
                                   (RecursiveProjection(s) for s in stages)...)
         break
     end

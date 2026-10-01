@@ -53,7 +53,7 @@ include("HoverProbe.jl")
 # The factory form, so every renderer builds its own projection instances.
 
 function __init__()
-    register_natural_graphics!(:inspector, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:inspector, (; measure, appearance) -> Pair{Type,Any}[
         ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
                                                  WordWrapping(measure = measure),
                                                  TextToGraphics(measure = measure)),

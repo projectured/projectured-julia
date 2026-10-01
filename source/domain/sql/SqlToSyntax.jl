@@ -1932,7 +1932,7 @@ make_document_seed(::Val{:sql}) = SqlInsertion()
 function __init__()
     register_natural_domain!(SqlDocument;
                              rung      = :syntax,
-                             make      = () -> SqlToSyntax(),
+                             make      = (; appearance) -> SqlToSyntax(),
                              format    = :sql,
                              extension = ".sql",
                              parse     = parse_sql_text)

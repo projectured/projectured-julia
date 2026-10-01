@@ -447,7 +447,7 @@ GraphToGraphics(engine::GraphLayoutEngine = GridEmbedding();
 # node be a widget, or prose, or a table.
 
 function __init__()
-    register_natural_graphics!(:graph, (; measure) -> Pair{Type,Any}[
+    register_natural_graphics!(:graph, (; measure, appearance) -> Pair{Type,Any}[
         GraphGraph => ChainingProjection(GraphGraphToGraphLayout(),
                                          GraphLayoutToGraphicsCanvas()),
     ])
