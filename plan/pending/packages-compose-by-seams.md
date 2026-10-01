@@ -908,7 +908,30 @@ Each step ends with its narrowest test and a commit.
         `Editor.stop_steps` in `build_editor`, and `_end_editor_loop!` runs
         each after it answers the waiting calls, each in its own `try`. An
         editor whose loop never runs never runs them.
-      - [ ] 9c. The wrappers, one commit each, with their tests.
+      - [x] 9c. The wrappers, one commit each, with their tests
+        (`test_window_wrappers()`, which builds an editor with the headless
+        backend, pushes real keys and runs real frames). Found while
+        implementing:
+        - Each wrapper is in the fragment of the feature that it wraps, not in
+          a new fragment, so the export blocks keep one statement for each
+          fragment.
+        - The clipboard slice uses the walk of the focus slice: a new edge
+          `clipboard => focus` in `PLATFORM_SLICE_EDGES`.
+        - `focus_cycling` on by default changes the projection of every editor
+          that `build_editor` makes. The tests that build a bare editor turn it
+          off as they turn off `tabs` and `appearance`. The appearance wrapper
+          test turns it off too: its `AwKeyProjection` makes no IO map of its
+          own, and the cycle reads a key through the projection of the inner IO
+          map, so it passes over that test projection; a real projection owns
+          its IO map.
+        - `recorded` of the bands is the tuple of the keywords of the wrappers
+          that fill a tool, `RECORDED_TOOLS` by default, and the `shell`
+          wrapper reads it from the settings of the editor.
+        - The setting of `shell` is `(; assistant, explorer, about, status_bar,
+          measure)`.
+        - Tests: the kernel build 26, and 295 of the wrappers, the shell, the
+          fold, the display, the tabs, the window, the appearance and the
+          slice edges.
       - [ ] 9d. The application builds its window with the keywords;
         `make_application_window` goes.
       - [ ] 9e. omnet-julia: the IDE window and the campaign window.
