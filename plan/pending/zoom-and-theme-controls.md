@@ -953,7 +953,9 @@ W1 lands on `main`, so W1 lands as soon as it is done (my reading of that plan,
       font scale of its appearance.
   - [ ] The images of the examples whose widgets change font (D30), for the
     owner's review.
-  - [ ] omnet-julia follows: its registered factories and its main builders.
+  - [x] omnet-julia follows: its registered factories and its main builders
+    (`run_omnet_ide`, `run_campaign_window`). The omnet tests that cover the
+    change give 714 pass and 1 fail, the catalog fault of finding 14.
 
 ### Part P: the themes of the domains
 
