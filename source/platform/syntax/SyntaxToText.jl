@@ -240,14 +240,23 @@ struct SyntaxCompoundToText <: Projection
     collapsed_marker::TextString
     marker_eligible::Any
     ellipsis_text::TextString
+    # The delimiters of the compounds around the part under the pointer: the
+    # innermost pair is in this colour, and each level further out mixes it more
+    # with the colour of the delimiter, which it reaches after this many levels.
+    # Zero levels draw every delimiter in its own colour.
+    delimiter_light_color::StyleColor
+    delimiter_light_levels::Int
 end
 
 SyntaxCompoundToText(; indent_size::Int = 2,
                        expanded_marker::TextString = TextString(""),
                        collapsed_marker::TextString = TextString(""),
                        marker_eligible = _default_marker_eligible,
-                       ellipsis_text::TextString = _default_ellipsis()) =
-    SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible, ellipsis_text)
+                       ellipsis_text::TextString = _default_ellipsis(),
+                       delimiter_light_color::StyleColor = color_solarized_orange,
+                       delimiter_light_levels::Int = 4) =
+    SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
+                         ellipsis_text, delimiter_light_color, delimiter_light_levels)
 
 # One IoMap for every compound, and it must be one: a parent reads its child's
 # `indent_indices` off the child's IoMap to widen them on splice
@@ -546,9 +555,14 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # syntax content and `child_iomaps` — never any selection cell — so the output
     # element vector is stable across caret moves (spans-stability property); the
     # separate selection cell below is what recomputes on a caret move.
+    # The level of this node around the part under the pointer, which colours its
+    # delimiters. Only the colour cells of the delimiters read it, so a move of the
+    # pointer lays out nothing again.
+    level = Cell(@computation _compute_delimiter_level(node))
+
     spans = Cell(@computation begin
         empty!(deco.seen)
-        res = _splice_compound(node, p, deco, child_iomaps[])
+        res = _splice_compound(node, p, deco, child_iomaps[], level)
         for k in collect(keys(deco.spans))
             k in deco.seen || delete!(deco.spans, k)
         end
@@ -714,14 +728,14 @@ _splice_result(buf::SpliceBuffer) =
 # delimiter? a separator? indentation? — and emits exactly that. A `SyntaxNode`
 # answers all five; a `SyntaxConcatenation` answers only "children", and so renders
 # as its children, end to end, with no chrome and no caret that is not a child's.
-function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims)
+function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims, level::Cell)
     buf = SpliceBuffer(deco; nid = objectid(doc), deco_font = _deco_font(doc),
                        indent_size = p.indent_size)
     indent = get_indentation(doc)
     separator = get_separator(doc)
 
     _push_marker!(buf, _active_marker(p, doc))       # collapse marker, before the open delimiter
-    _push_delimiter!(buf, get_opening_delimiter(doc))
+    _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_opening_delimiter(doc), level))
 
     if is_syntax_collapsed(doc)
         # A collapsed node projects no children; a single ellipsis stands in for
@@ -741,8 +755,68 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
         indent > 0 && _push_line_chrome!(buf, 0, 0)
     end
 
-    _push_delimiter!(buf, get_closing_delimiter(doc))
+    _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_closing_delimiter(doc), level))
     _splice_result(buf)
+end
+
+# ── The delimiters around the part under the pointer ─────────────────────────
+#
+# Each compound finds its level from its own mouse target: the number of
+# compounds with a visible delimiter that the path enters below it. The compound
+# that holds the part under the pointer is at level 0. A node whose mouse target
+# is `nothing` is not around the part, and its delimiters keep their colour.
+
+# Whether a delimiter of `node` shows a character. An entry of a JSON object has
+# empty delimiters, so it is no level.
+_has_visible_delimiter(::SyntaxDocument) = false
+function _has_visible_delimiter(node::SyntaxCompound)
+    for delimiter in (get_opening_delimiter(node), get_closing_delimiter(node))
+        delimiter === nothing && continue
+        isempty(delimiter.second.content::AbstractString) || return true
+    end
+    false
+end
+
+# The level of `node` around the part under the pointer, or `nothing` when the
+# pointer is not inside it. The walk ends at a step that enters no child, such as
+# a step into a delimiter of the node.
+function _compute_delimiter_level(node::SyntaxCompound)
+    path = node.mouse_target
+    path === nothing && return nothing
+    level = 0
+    document = node
+    while (step = peel_child_step(path)) !== nothing
+        index, path = step
+        children = get_syntax_children(document)
+        1 <= index <= length(children) || break
+        document = children[index]
+        document isa SyntaxCompound || break
+        _has_visible_delimiter(document) && (level += 1)
+    end
+    level
+end
+
+# The colour of a delimiter at `level`: the light colour at level 0, mixed more
+# with `color` at each level, and `color` from the last level on.
+function _compute_delimiter_color(p::SyntaxCompoundToText, level, color::StyleColor)
+    (level === nothing || level >= p.delimiter_light_levels) && return color
+    color_interpolate(p.delimiter_light_color, color, level / p.delimiter_light_levels)
+end
+
+# The span that draws a delimiter of a compound. It holds the cells of the
+# document's span, so an edit of the delimiter shows at once, and a colour that
+# the level computes. It is cached like a decorative span, so a layout keeps it.
+_make_lit_delimiter(::SpliceBuffer, ::SyntaxCompoundToText, ::Nothing, ::Cell) = nothing
+function _make_lit_delimiter(buf::SpliceBuffer, p::SyntaxCompoundToText,
+                             pair::Pair{Symbol,<:Any}, level::Cell)
+    span = pair.second
+    (p.delimiter_light_levels > 0 && span isa TextString) || return pair
+    lit = _deco_span(buf.deco, (buf.nid, pair.first, objectid(span)), () ->
+        TextString(getfield(span, :content), getfield(span, :font),
+                   Cell(@computation _compute_delimiter_color(p, level[], span.font_color)),
+                   getfield(span, :fill_color), getfield(span, :line_color),
+                   getfield(span, :padding), Cell(nothing)))
+    pair.first => lit
 end
 
 # Whitespace decorations track the content's font, because TextToGraphics measures
@@ -1209,14 +1283,18 @@ function SyntaxToText(; indent_size::Int = 2,
                         expanded_marker::TextString = TextString(""),
                         collapsed_marker::TextString = TextString(""),
                         marker_eligible = _default_marker_eligible,
-                        ellipsis_text::TextString = _default_ellipsis())
+                        ellipsis_text::TextString = _default_ellipsis(),
+                        delimiter_light_color::StyleColor = color_solarized_orange,
+                        delimiter_light_levels::Int = 4)
     # Every compound is printed by the same projection instance — the configuration
     # is the projection's, the structure is the document's.
     compound = SyntaxCompoundToText(indent_size=indent_size,
                                     expanded_marker=expanded_marker,
                                     collapsed_marker=collapsed_marker,
                                     marker_eligible=marker_eligible,
-                                    ellipsis_text=ellipsis_text)
+                                    ellipsis_text=ellipsis_text,
+                                    delimiter_light_color=delimiter_light_color,
+                                    delimiter_light_levels=delimiter_light_levels)
     TypeDispatchingProjection(
         SyntaxLeaf          => SyntaxLeafToText(),
         SyntaxNode          => compound,

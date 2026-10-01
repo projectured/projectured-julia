@@ -1493,7 +1493,10 @@ it holds the example.
     the outward walk reads the tables of documents only, and the data frame view
     maps a header back to its column; a host with no menu window (the gallery,
     the screen examples) opens no menu on a right click, because only the
-    wrapper opens it.
+    wrapper opens it. On main as `63de70c7e`, with omnet `69e7e65c` (the IDE
+    window keeps the menu window); the context menu, tooltip, platform (only
+    the file system test under `unshare -r` fails) and omnet pointer, IDE and
+    campaign tests pass.
   - [x] 9e. The hover inspector goes away. Done (2026-10-01): `HoverProbe.jl`
     with `HoverProbeProjection`, the gallery's `inspector` option and
     `_multi_window_projection_inspector`, the two probe tests, and the text

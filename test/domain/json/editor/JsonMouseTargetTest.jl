@@ -67,4 +67,64 @@ function test_json_mouse_target()
     @test get_mouse_target(two) === nothing
     @test get_mouse_target(one) === nothing
 end
+
+@testset "the brackets around the part under the pointer light by their level" begin
+    three = JsonNumber(3)
+    document = JsonArray([JsonNumber(1), JsonArray([JsonNumber(2), JsonArray([three])])])
+    projection = make_json_projection_example(measure = FixedMeasure(10, 18, 6, 0))
+    iomap = print_document(projection, document)
+    text = _find_text_iomap(iomap)
+    function move_onto!(shown)
+        segment = only(sc for sc in text.char_to_coord if sc.text == shown)
+        _jmt_apply!(document, read_child_move(iomap,
+            MouseMove(segment.x + 2, segment.y + segment.font.size ÷ 2; time = 0.0)))
+    end
+    move_onto!("3")
+    @test get_mouse_target(three) !== nothing
+
+    # The colour of each bracket that the view draws, in the order of the text.
+    function bracket_colors(bracket)
+        drawn = _jmt_drawn_characters(unwrap_cell(get_iomap_output(iomap)))
+        sort!(drawn; by = d -> (d[1], d[2], d[3]))
+        [d[5] for d in drawn if d[4] == bracket]
+    end
+    light(level) = color_interpolate(color_solarized_orange, color_solarized_gray, level / 4)
+    is_lit(colors, levels) = length(colors) == length(levels) &&
+        all(is_color_equal(c, light(l)) for (c, l) in zip(colors, levels))
+
+    # The pointer is on the `3`: its array is at level 0, and the two arrays
+    # around it are at levels 1 and 2.
+    @test is_lit(bracket_colors('['), [2, 1, 0])
+    @test is_lit(bracket_colors(']'), [0, 1, 2])
+
+    # Onto the `1`: the outer array holds it, and the inner arrays are not around
+    # the part under the pointer any more.
+    move_onto!("1")
+    @test is_lit(bracket_colors('['), [0, 4, 4])
+    @test is_lit(bracket_colors(']'), [4, 4, 0])
+
+    # Off the document, every bracket is in the gray of the delimiter. A move off
+    # the view clears the part under the pointer at the root.
+    replace_mouse_target!(document, nothing)
+    @test all(c -> is_color_equal(c, color_solarized_gray), bracket_colors('['))
+    @test all(c -> is_color_equal(c, color_solarized_gray), bracket_colors(']'))
+end
 end # test_json_mouse_target
+
+# Every character that `node` draws, as (y, x, index in its run, character,
+# colour).
+function _jmt_drawn_characters(node, x = 0, y = 0, found = [])
+    node isa AbstractCell && return _jmt_drawn_characters(node[], x, y, found)
+    if node isa GraphicsCanvas
+        for element in node.elements
+            _jmt_drawn_characters(element, x + Int(node.x), y + Int(node.y), found)
+        end
+    elseif node isa GraphicsViewport
+        _jmt_drawn_characters(node.content, x + Int(node.x), y + Int(node.y), found)
+    elseif node isa GraphicsText
+        for (index, character) in enumerate(node.text)
+            push!(found, (y + Int(node.y), x + Int(node.x), index, character, node.color))
+        end
+    end
+    found
+end

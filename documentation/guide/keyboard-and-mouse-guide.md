@@ -34,7 +34,7 @@ Only a left click moves the selection. A right click opens the menu of the lit p
 
 The command palette runs the same menu on the selected part: type the name of the menu, for example "Show the context menu". The menu then opens below the part.
 
-The part under the pointer is lit. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves.
+The part under the pointer is lit. In the text of a tree, such as a JSON document, the brackets around the part under the pointer are lit too: the innermost pair is orange, and each pair further out is grayer. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves.
 
 ## Change
 
