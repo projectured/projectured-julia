@@ -12,7 +12,7 @@ The documentation tool of the editor names a guide here `<slice>/<file>`, so `ke
 
 | Package | Documents |
 | --- | --- |
-| `ProjecturedKernel` | [architecture.md](kernel/architecture.md) and the other guides in `kernel/`: cells, documents, references, selection, operations, projections, devices and backends, the editor, the agent |
+| `ProjecturedKernel` | [architecture.md](kernel/architecture.md) and the other guides in `kernel/`: cells, documents, references, selection, the mouse target, operations, projections, devices and backends, the editor, the agent |
 
 ## The platform
 

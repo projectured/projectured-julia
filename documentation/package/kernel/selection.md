@@ -10,6 +10,11 @@ Every `Document` carries a `selection` field, and the writers canonicalize and
 validate every path they store there, so a document's `selection` cell always
 holds a path that matches the live document or is empty.
 
+A cell-layout document carries a second path in the same shape, next to the
+selection: the part under the pointer. It is written, read and projected the
+same way the selection is, but it has no dormant state and it is not saved. See
+[mouse-target.md](mouse-target.md).
+
 This page is the single home for how selection is **stored, read, written, and
 projected**: the selection contract, the read/set/clear/replace operations and
 the atomicity and canonicalization they share, dormant selections, how the

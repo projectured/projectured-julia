@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending; steps 1 to 9 are built and on main (2026-10-01), and step 10, the documents, is open. Step 5b, the drag, waits for two names from the owner. It replaces the mouse target tracker of
+> **Status:** pending; steps 1 to 10 are done and on main (2026-10-01). Step 5b, the drag, is open: it waits for two names from the owner. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -1249,9 +1249,20 @@ already; the sealed selection files do not change (Q4).
     `3`, then on `1` (the outer pair at level 0, the inner pairs gray), then
     off. The colours are read from the `GraphicsText` nodes that the view
     draws.
-- [ ] 10. **The documents.** `package/kernel/mouse-target.md` and
+- [x] 10. **The documents.** `package/kernel/mouse-target.md` and
   `guide/pointer-guide.md`, as step 11 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
   them, and the widget, selection and screen documents. Then steps 8 to 12 of
   that plan are planned again from this model: 9d, 9e and 9f, the drag of step
   10, the rules and the documents of step 11, and the check of step 12.
+  Done (2026-10-01): `documentation/package/kernel/mouse-target.md` (the field,
+  the chain, a move becomes a path, a leave, the forward map, the light, a
+  container that reads its own parts, the brackets, an edit keeps the path
+  right, a view that changes under a still pointer, a dwell and a right click by
+  position, and the limits) and `documentation/guide/pointer-guide.md`, with
+  links from the two indexes, `keyboard-and-mouse-guide.md`, `selection.md`,
+  `widget.md` and `screen.md`. The steps of the events plan from this model:
+  9d and 9e are done; 10 is step 5b here; 9f (the hosts with no menu window),
+  the other documents of the table of step 11 (the gesture, the tooltip guide,
+  the popup window, the context menu guide, the sections in `reference.md` and
+  `editor.md`, and the drag) and the check of step 12 stay in that plan.
