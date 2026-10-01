@@ -984,6 +984,19 @@ already; the sealed selection files do not change (Q4).
     rectangle); `StartDragOperation(path, dragged)` starts a drag, where `path`
     is the part whose drag is on and `dragged` is the thing that a global drag
     carries, `nothing` for a local drag such as a slider thumb.
+  - **A route moves the point** (owner 2026-10-01: "Agreed", on Claude's
+    option A). A fact found before the code: a route moved no point
+    (`read_routed_child` walks the steps of the path, and `ScreenToScreen.jl`
+    said "a route moves no point"), and no code sent a pointer gesture by a
+    route, only `RoutedGestureTest`. So when a container follows a step of a
+    route to a child, it moves the point into the frame of that child, with the
+    same move that gives a move to the part that the pointer leaves in 5a; the
+    route names the child, not the mouse target of the container. Each
+    container changes, about as many as the dwell of step 7. Rejected: option B,
+    where the wrapper moves the point into the box of the part
+    (`find_reference_box`) and no container changes, because the box is in
+    window pixels and a container that scales its child gives a wrong point.
+    The drop target of a global drag needs no route: it goes by position.
   - Tests: each of the five drags; a slider thumb dragged past the end of the
     slider and released over another widget; a press on a tab with no move
     still selects the tab; a part under a drag lights; Escape and a lost release
