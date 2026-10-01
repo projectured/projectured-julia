@@ -45,7 +45,10 @@ end
 end
 
 @testset "a field docstring is not a field" begin
-    plan = make_cell_struct_plan(:(struct D; "the width" width::Int; end))
+    plan = make_cell_struct_plan(:(struct D
+                                       "the width"
+                                       width::Int
+                                   end))
     @test plan.field_names == [:width]
 end
 
