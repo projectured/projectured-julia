@@ -19,7 +19,6 @@ const EditorModule = ProjecturedKernel.EditorModule
 const EventModule = ProjecturedKernel.EventModule
 const GestureModule = ProjecturedKernel.GestureModule
 const StyleModule = ProjecturedPlatform.StyleModule
-const StyleModule = ProjecturedPlatform.StyleModule
 const TextModule = ProjecturedPlatform.TextModule
 
 const KernelModule = ProjecturedKernel.KernelModule

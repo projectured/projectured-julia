@@ -52,7 +52,7 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 17 domain te
 
 The examples follow the same split (`package/kernel/example` — the `Example`
 harness core; `package/platform/example` / `package/domain/example` — the
-per-package example sets with `substrate_examples` / `domain_examples` registry
+per-package example sets with `platform_examples` / `domain_examples` registry
 subsets; the
 opt-in example packages — `package/odbc/example`, `package/tulip/example`,
 `package/adaptagrams/example`, and `package/sdl/example` (the `LiveExample`
@@ -105,7 +105,7 @@ gives what each of them costs.
 | Function | What it covers |
 |---|---|
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
-| `test_platform()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of every slice of the platform, and the package's example printer sweep (`test_substrate_examples()`). |
+| `test_platform()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of every slice of the platform, and the package's example printer sweep (`test_platform_examples()`). |
 | `test_json()` … `test_yaml()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database()` is the domain aggregator like the rest; the ODBC live-connection suite is the separate `test_odbc_database*` family (`test_odbc_database()`, `test_odbc_database_connection()`, `test_odbc_database_no_db()`). |
 | `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all seventeen. |
 | `test_help()` | the help slice's suite: the layering guard, the docstring description, and the two lists and the page that the Help menu opens. |

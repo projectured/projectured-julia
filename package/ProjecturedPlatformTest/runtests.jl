@@ -1,2 +1,2 @@
-using ProjecturedSubstrateTest
+using ProjecturedPlatformTest
 test_platform()

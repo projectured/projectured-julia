@@ -119,7 +119,7 @@ end
 
 function test_widget_round_trip()
 @testset "every part of a widget example maps forward and back again" begin
-    examples = filter(example -> startswith(example.name, "widget"), substrate_examples)
+    examples = filter(example -> startswith(example.name, "widget"), platform_examples)
     @test length(examples) >= 40
     failures = String[]
     for example in examples

@@ -110,7 +110,7 @@ const lazy_bidirectional_example = Example("lazy_bidirectional", make_lazy_bidir
 const rotating_vector_example = Example("rotating_vector", make_rotating_vector_document, IdentityProjection)
 
 # The visual tier's slice of the example registry, in registry order.
-const substrate_examples = Example[
+const platform_examples = Example[
     syntax_example,
     text_example,
     plain_text_example,
@@ -189,7 +189,7 @@ const substrate_examples = Example[
 # directly to text (a single-step `Primitive*ToText*`), so they exercise the
 # catalog's "direct single-step to text" path; the umbrella concatenates every
 # tier's slice into `atomic_documents`.
-const substrate_atomic_documents = AtomicDocument[
+const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:primitive, "string", make_primitive_string_document_example),
     AtomicDocument(:primitive, "number", make_primitive_number_document_example),
     AtomicDocument(:primitive, "bool",   make_primitive_bool_document_example),

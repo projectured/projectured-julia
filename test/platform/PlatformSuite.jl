@@ -130,7 +130,7 @@ function test_platform()
     @testset "ProjecturedPlatform" begin
         test_platform_layering()
         test_platform_slice_edges()
-        test_substrate_examples()
+        test_platform_examples()
         test_collection()
         test_mouse_target_field()
         test_mouse_target_chain()
@@ -282,14 +282,14 @@ function test_platform()
 end
 
 """
-    test_substrate_examples()
+    test_platform_examples()
 
-Walk the printer over every platform example (`substrate_examples`) — one
+Walk the printer over every platform example (`platform_examples`) — one
 `@test` per forced reactive cell, through the generic `test_printer` driver.
 """
-function test_substrate_examples()
-    @testset "SubstrateExamples" begin
-        for ex in substrate_examples
+function test_platform_examples()
+    @testset "PlatformExamples" begin
+        for ex in platform_examples
             @testset "$(ex.name)" begin
                 test_printer(ex)
             end
@@ -297,7 +297,7 @@ function test_substrate_examples()
     end
 end
 
-export test_platform, test_platform_layering, test_substrate_examples
+export test_platform, test_platform_layering, test_platform_examples
 export PLATFORM_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity

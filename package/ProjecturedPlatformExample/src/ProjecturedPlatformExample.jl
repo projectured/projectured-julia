@@ -15,7 +15,7 @@ plan/done/example-package-split.md). It hosts:
   of the projected output) and `write_example_pdf` (the dependency-free Pdf
   backend; text is measured from the font files, with no SDL).
 
-The tier's registry slice is `substrate_examples`; the global interleaved
+The tier's registry slice is `platform_examples`; the global interleaved
 `examples` registry lives in the `ProjecturedExample` umbrella.
 """
 module ProjecturedPlatformExample
@@ -97,7 +97,7 @@ include("../../../example/platform/SortingProjectionExample.jl")
 # domain, and both the graph example and the table example need it.
 include("../../../example/platform/TableProjectionExample.jl")
 
-include("../../../example/platform/SubstrateExamples.jl")
+include("../../../example/platform/PlatformExamples.jl")
 include("../../../example/platform/Harness.jl")
 
 export Address, AppSettings, FormServer, Person, SearchSettings, WindowSettings, collection_example
@@ -198,7 +198,7 @@ export widget_text_example, widget_textarea_example, widget_title_pane_example
 export widget_toggle_example, widget_toggle_group_example, widget_toolbar_example
 export widget_tooltip_example, widget_transform_pane_example, widget_tree_example
 export word_wrapping_example, write_example_pdf
-export Example, AtomicDocument, substrate_examples, substrate_atomic_documents
+export Example, AtomicDocument, platform_examples, platform_atomic_documents
 export print_example, write_example_pdf
 
 

@@ -243,7 +243,7 @@ write_example_image(widget_tree_example, "tree.png")
 
 `save_all!` and `server` stand for your own function and object.
 
-- Examples: one for each widget in `example/platform/SubstrateExamples.jl`, such as `widget_example`, `widget_table_example`, `widget_popup_example` and `object_to_widget_example`. The screenshots are `asset/image/example/widget-*.png`.
+- Examples: one for each widget in `example/platform/PlatformExamples.jl`, such as `widget_example`, `widget_table_example`, `widget_popup_example` and `object_to_widget_example`. The screenshots are `asset/image/example/widget-*.png`.
 - Tests: the `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/platform/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_platform()` runs them all; the package has no suite of its own.
 
 ## Limits

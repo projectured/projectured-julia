@@ -20,10 +20,6 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const GraphicsModule = ProjecturedPlatform.GraphicsModule
 const StyleModule = ProjecturedPlatform.StyleModule
-const StyleModule = ProjecturedPlatform.StyleModule
-const StyleModule = ProjecturedPlatform.StyleModule
-const StyleModule = ProjecturedPlatform.StyleModule
-const StyleModule = ProjecturedPlatform.StyleModule
 
 const KernelModule = ProjecturedKernel.KernelModule
 const PlatformModule = ProjecturedPlatform.PlatformModule
