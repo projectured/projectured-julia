@@ -121,6 +121,16 @@ the move.
       Before: 25 unregistered and 24 registered packages for a domain. All 32
       test folders together are about 55 MB. The guards give the findings of
       `main` and no new one.
+      The CI-like run `ci9` (`/var/tmp/r30/ci9`, the branch at `7e361d170`, 32
+      jobs), against `ci8`: every difference has its cause. Kernel +1 (the
+      meaning folder test), Julia 410 → 501 and platform −211 against `main`
+      (the moved tests), Video 41 → 39 (the assistant video), the four new
+      packages 140, 50, 110 and 410, all passed; SDL, Tulip and ODBC give the
+      counts of `environment/all` in their own projects. The umbrella had the 7
+      known failure sites of `main` and 10 new errors: the moved transcript test
+      names `ProjecturedConversationExample`, which the umbrella test package
+      did not import. Fixed in `8740e5d16`; the four tests that moved to the
+      umbrella then pass, the transcript with its 120 assertions.
 
 ## 5. Decisions made during the work
 
