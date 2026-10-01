@@ -15,7 +15,8 @@ What a wrapper can change before the editor exists:
 
 - `document` and `projection` — what the editor edits, and how it shows it;
 - `backend` — the backend the editor runs on, which a wrapper reads and does not
-  replace;
+  replace, or `nothing` for parts that [`make_editor_parts`](@ref) makes with no
+  backend;
 - `feeds` — the feeds of the editor;
 - `start_steps` — the functions `editor -> nothing` that run once the editor
   exists, such as the attachment of a log to the fault store of the editor;
@@ -32,7 +33,7 @@ What a wrapper can change before the editor exists:
 mutable struct EditorParts
     document::Document
     projection::Projection
-    backend::Backend
+    backend::Union{Backend,Nothing}
     feeds::Vector{Feed}
     start_steps::Vector{Any}
     stop_steps::Vector{Any}
@@ -137,14 +138,8 @@ function build_editor(document::Document, projection;
                       fault_policy::FaultPolicy = FaultPolicy(),
                       wrappers...)
     backend === nothing && (backend = make_default_backend(:windows))
-    settings = _make_wrapper_settings(_collect_wrapper_settings(wrappers))
-    _check_excluded_wrappers(settings)
-    parts = EditorParts(document, projection, backend, copy(feeds), Any[], Any[], Pair{Type,Any}[],
-                        settings)
-    for (keyword, layer) in _order_wrapper_steps(settings)
-        wrap_editor!(Val(keyword), layer, settings[keyword], parts)
-    end
-    editor = make_editor(parts.document, parts.projection; backend = parts.backend,
+    parts = make_editor_parts(document, projection; backend, feeds, wrappers...)
+    editor = make_editor(parts.document, parts.projection; backend,
                          devices = devices, feeds = parts.feeds,
                          fault_policy = fault_policy)
     append!(editor.stop_steps, parts.stop_steps)
@@ -163,6 +158,30 @@ function build_editor(document::Document; keywords...)
     settings = _make_wrapper_settings(_collect_wrapper_settings(wrappers))
     projection = make_document_projection(document; settings...)
     build_editor(document, projection; keywords..., settings...)
+end
+
+"""
+    make_editor_parts(document, projection; backend = nothing, feeds = Feed[],
+                      wrappers...) -> EditorParts
+
+The parts of an editor on `document` with its wrappers, and no editor: steps 2
+and 3 of [`build_editor`](@ref). A caller that draws the parts itself, such as a
+test or a warm-up that prints a window scene of its own, takes the document and
+the projection that the wrappers made. With no `backend`, a wrapper that needs
+one, such as the window, does nothing. Nothing runs the start steps and the stop
+steps of the parts.
+"""
+function make_editor_parts(document::Document, projection;
+                           backend::Union{Backend,Nothing} = nothing,
+                           feeds::Vector{Feed} = Feed[], wrappers...)
+    settings = _make_wrapper_settings(_collect_wrapper_settings(wrappers))
+    _check_excluded_wrappers(settings)
+    parts = EditorParts(document, projection, backend, copy(feeds), Any[], Any[], Pair{Type,Any}[],
+                        settings)
+    for (keyword, layer) in _order_wrapper_steps(settings)
+        wrap_editor!(Val(keyword), layer, settings[keyword], parts)
+    end
+    parts
 end
 
 # The keywords of `build_editor` that name no wrapper.

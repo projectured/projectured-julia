@@ -191,6 +191,8 @@ is_wrapper_default(::Val{:window}) = true
 
 # A backend that declares no output, such as a recorder or a test double, draws
 # what the editor gives it, and a screen of windows is what an editor gives.
+# Parts that `make_editor_parts` makes with no backend have no window.
+_is_window_backend(::Nothing) = false
 _is_window_backend(backend::Backend) =
     !hasmethod(get_backend_output, Tuple{Type{typeof(backend)}}) ||
     get_backend_output(typeof(backend)) === :windows

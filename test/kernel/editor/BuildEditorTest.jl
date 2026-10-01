@@ -15,7 +15,8 @@ import ProjecturedKernel.EditorModule: Editor, post_operation!, run_editor!,
                                        collect_backend_types, make_default_backend,
                                        EditorParts, wrap_editor!, get_wrapper_layers,
                                        get_excluded_wrappers, is_wrapper_default,
-                                       make_document_projection, build_editor, make_editor
+                                       make_document_projection, build_editor, make_editor,
+                                       make_editor_parts
 
 @document struct BuildProbe
     value::Int = 0
@@ -126,6 +127,16 @@ function test_build_editor()
         started = [(keyword, argument) for (tag, keyword, argument) in _BUILD_PROBE_STEPS
                    if tag === :started]
         @test length(started) == 4 && all(argument === editor for (_, argument) in started)
+    end
+
+    @testset "make_editor_parts applies the wrappers, and makes and starts no editor" begin
+        empty!(_BUILD_PROBE_STEPS)
+        parts = make_editor_parts(BuildProbe(), BuildProbeProjection(); tabs = false, appearance = false,
+                                  focus_cycling = false, build_probe_first = true)
+        @test parts isa EditorParts && parts.backend === nothing
+        @test _build_probe_steps() == [(:build_probe_first, :document)]
+        @test length(parts.start_steps) == 1
+        @test !any(tag === :started for (tag, _, _) in _BUILD_PROBE_STEPS)
     end
 
     @testset "a wrapper on by default joins unless its keyword is false" begin

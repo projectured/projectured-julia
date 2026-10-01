@@ -29,7 +29,7 @@ The module lives in ten fragments that share this namespace:
 - [`BackendChoice.jl`](BackendChoice.jl) — the seams by which a backend type
   says what it is, and `make_default_backend`.
 - [`EditorBuild.jl`](EditorBuild.jl) — `EditorParts`, the seams of a wrapper,
-  `make_document_projection` and `build_editor`.
+  `make_document_projection`, `build_editor` and `make_editor_parts`.
 """
 module EditorModule
 
@@ -65,7 +65,7 @@ export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!
        get_backend_name, get_backend_output, collect_backend_types, make_default_backend,
        EditorParts, EDITOR_WRAPPER_LAYERS, wrap_editor!, get_wrapper_layers,
        get_excluded_wrappers, is_wrapper_default, make_wrapper_setting,
-       make_document_projection, build_editor
+       make_document_projection, build_editor, make_editor_parts
 
 include("Editor.jl")
 include("Inbox.jl")
