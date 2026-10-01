@@ -537,7 +537,7 @@ and the downstream repositories land in the same landing.
       `OmnetSimulator` through the main checkout of omnet-julia and so sees
       the old names until omnet-julia lands. So the three repositories must
       land together, and their walk guards pass only after that.
-- [ ] **Step 9, the check and the landing.** The CI-like run from a fresh clone
+- [x] **Step 9, the check and the landing.** The CI-like run from a fresh clone
       (`/var/tmp/release-plan/ci3/`), the times of Step 0 again, then the
       landing of this repository and the downstream ones together, with the
       owner's word.
@@ -571,8 +571,27 @@ and the downstream repositories land in the same landing.
       with a foreign child) failed only in the closed JSON chain that the
       application named before Step 5; the natural renderer reflects that
       child. The test breaks a cell now, which fails in every renderer; the
-      change is on the branch `backend-adapter-modules` (`3e2d4771a`). Open:
-      the times of Step 0, which need the owner's word.
+      change landed with `7e7dfe46f` (`3e2d4771a`).
+      **The times** (at the owner's word, 2026-10-01; `/var/tmp/fold/times/`):
+      the baseline was measured again in the same session as the result,
+      because Step 0 ran on a busy machine (load average 7.8; it gave 279 s).
+      Each run is a fresh clone with an empty compiled folder, on cores 28,
+      30 and 31, three precompile tasks; a load is the median of five, and
+      the five agree within 0.05 s. The load average was 0.5 to 2.0 in both.
+
+      | | before (`0bb7b7362`) | after (`7e7dfe46f`) |
+      | --- | --- | --- |
+      | precompile of `environment/all` | 253 s | 234 s (−7.5%) |
+      | compiled files | 309 | 264 |
+      | size of the compiled files | 513 MB | 514 MB |
+      | load `ProjecturedKernel` | 0.02 s | 0.02 s |
+      | load `ProjecturedPlatform` | — | 0.09 s |
+      | load `ProjecturedJson` | 0.28 s | 0.15 s (−46%) |
+      | load `Projectured` | 2.51 s | 2.16 s (−14%) |
+
+      The fold costs nothing in time and saves some: one package image of the
+      platform loads faster than the 38 that it replaces, and JSON, which
+      loaded a part of them, loads the whole platform in half the time.
 
 **Risk: the open branches.** Step 2 moves about 1,000 files. Each branch of
 another session that is open then must rebase onto it. The pure-move commits
