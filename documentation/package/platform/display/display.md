@@ -18,13 +18,15 @@ The first call starts the editor with `run_editor!(document, projection; wait = 
 
 The loop logs each operation that it applies as an info line, and a hover is an operation. The display starts the editor inside `with_logger` with a console logger at the `Warn` level. The task of the loop keeps the logger of that scope, so the REPL shows the warnings and the errors of the editor and no line for each operation. The REPL keeps its own logger.
 
-A later call shows its value with `show_document!` of the screen slice. Its `tabs` wrapper holds the values as tabs of one window, because the pane slice is always loaded with it; with `tabs = false`, each value has a window of its own instead. A value that is shown already gets the focus again, and a title that the editor has already gets a number.
+A later call shows its value with `show_document!` of the screen slice. Its `tabs` wrapper holds the values as tabs of one window, because the pane slice is always loaded with it. The `shell` wrapper of the shell slice puts the tabs in the chrome of a window: the menu bar, the toolbar with the tools that need nothing more than the window, and the status bar. With `tabs = false`, each value has a window of its own instead, with no chrome, because the commands of the chrome act on the tabs. A value that is shown already gets the focus again, and a title that the editor has already gets a number.
 
 The loop keeps the world of its start, so every call that the display posts to the editor goes through `Base.invokelatest`. `close_display_editor!()` stops the editor, and a call after the window was closed starts a new one.
 
+A value that a program changes in place stays the same object, so its document does not see the change. `refresh_display_editor!()` asks every shown document with a method of `refresh_document!` to read its value again, on the task of the editor, and waits until it did. With `refresh_every`, a number of seconds, the editor that `display_in_editor` starts does the same at that interval; it is off by default, because a program that writes a value while the editor reads it races the editor.
+
 ## How it fits
 
-The display slice depends on the kernel for the run function and the inbox, on the screen slice for `show_document!`, on the widget slice for `make_value_document`, on the natural slice for the renderer and on the style slice for the measure. A package that wants its values shown adds a method of `make_value_document` and uses only the widget slice of `ProjecturedPlatform`.
+The display slice depends on the kernel for the run function and the inbox, on the screen slice for `show_document!`, on the widget slice for `make_value_document`, on the natural slice for the renderer and on the style slice for the measure. It names the `tabs` and the `shell` wrappers only by their keywords of `build_editor`, so it does not depend on the pane and shell slices. A package that wants its values shown adds a method of `make_value_document` and uses only the widget slice of `ProjecturedPlatform`.
 
 ## Design decisions
 
@@ -34,12 +36,16 @@ The display slice depends on the kernel for the run function and the inbox, on t
 
 ## Usage
 
-`ProjecturedDataFrames` exports `display_in_editor` and `close_display_editor!`
-too, so a person who looks at a frame loads no more than this:
+`ProjecturedDataFrames` exports `display_in_editor`, `refresh_display_editor!`
+and `close_display_editor!` too, so a person who looks at a frame loads no more
+than this:
 
 ```julia
 using DataFrames, ProjecturedDataFrames, ProjecturedSDL
-display_in_editor(DataFrame(a = 1:3))
+frame = DataFrame(a = 1:3)
+display_in_editor(frame)
+push!(frame, (a = 4,))
+refresh_display_editor!()
 close_display_editor!()
 ```
 
@@ -54,5 +60,5 @@ display(EditorDisplay(), DataFrame(b = ["x", "y"]))
 
 ## Limits
 
-- The refresh after each REPL input does not exist yet. It comes with the first method of `refresh_document!`, the refresh of a `DataFrameView`.
+- No refresh runs by itself after each REPL input yet: a person calls `refresh_display_editor!()`, presses F5 in a data frame view, or passes `refresh_every`.
 - `show_document!` applies no wrapper of the `:document` layer to a later value.

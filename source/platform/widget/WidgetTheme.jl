@@ -164,6 +164,11 @@ make_slate_dark_theme(; font::StyleFont = font_ubuntu_regular_20) =
                   ring = color_indigo_400,        track_off = color_slate_700,
                   font)
 
+# The four presets, for the appearance tab.
+get_theme_presets(::Type{WidgetTheme}) =
+    Pair{String,Any}["Slate light" => make_slate_light_theme, "Slate dark" => make_slate_dark_theme,
+                     "Light" => make_light_theme, "Dark" => make_dark_theme]
+
 # ── Values that a widget derives from a scaled theme ────────────────────────
 
 # The same color at another alpha: what makes a layer or a highlight read over the

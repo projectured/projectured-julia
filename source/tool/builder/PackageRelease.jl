@@ -16,7 +16,7 @@
 
 """
     build_package_release!(context; packages, output, assets, licences, readme,
-                           manifest, julia_compat, registry) -> Vector
+                           tests, manifest, julia_compat, registry) -> Vector
 
 Write the release copy of `packages` into `output`, one folder per package, and
 answer one `(name, status, version)` for each package, dependencies first. That
@@ -33,11 +33,17 @@ is the order in which a registry must take them. `status` is `:new`,
   only the folders of the changed packages and the licence files at the root.
 - `assets` —
   `"<package>" => ["<folder of the repository>" => "<folder in the package>", …]`,
-  the folders that a package reads while it runs.
+  the folders that a package reads while it runs, a package of `tests` too.
 - `licences` — files of `context.root` that go into every package folder and
   into `output` itself.
 - `readme` — `nothing`, or a function `readme(name)` whose text goes into the
   `README.md` of each package folder.
+- `tests` — `nothing`, or a function `tests(name)` that answers `nothing` or
+  `"<test package>" => "<text of runtests.jl>"`: the package of `context` whose
+  suite tests `name`. The copy writes `test/` with that `runtests.jl`, the test
+  package and every package it needs that `packages` leaves out in
+  `test/support/<Name>/`, and a `test/Project.toml` that names them by
+  `[sources]`, so `Pkg.test` runs the suite in the installed folder.
 - `manifest` — the manifest whose versions give the `[compat]` bounds of the
   packages from other registries.
 - `julia_compat` — the `[compat]` bound of Julia, for a package that names none.
@@ -55,12 +61,16 @@ ignores, such as a coverage file, never reaches a user.
 `Project.toml`. A package whose content changed gets the next patch version of
 its released one, and caret bounds on its sibling packages from their versions
 in this release. A package whose content did not change keeps its released
-folder as it is, `[compat]` included. The content is every file of the folder,
-and the `Project.toml` without `version`, `[compat]` and `[sources]`.
+folder as it is, `[compat]` and `test/` included. The content is every file of
+the folder but those of `test/`, and the `Project.toml` without `version`,
+`[compat]` and `[sources]`: a change of a test gives no package a new version,
+and the next version of the package takes the tests of its time.
 
 **The check.** Every path that a package reads, in the forms that
 [`collect_outside_paths`](@ref) follows, must stay inside its package folder,
-and the file or folder it names must exist. The build writes every package into
+and the file or folder it names must exist. In `test/`, a form that the scan can
+not follow is accepted: a test reads the folder of its own file, and an
+installed package by `pathof`. The build writes every package into
 a staging folder and checks them all first; `output` changes only when every
 package passed.
 """
@@ -69,6 +79,7 @@ function build_package_release!(context::BuildContext; packages,
                                   assets = Dict{String,Vector{Pair{String,String}}}(),
                                   licences = String[],
                                   readme = nothing,
+                                  tests = nothing,
                                   manifest::AbstractString = joinpath(context.root,
                                       "environment", "all", "Manifest.toml"),
                                   julia_compat::AbstractString = "1.11",
@@ -101,7 +112,10 @@ function build_package_release!(context::BuildContext; packages,
                                    assets = get(assets, name, Pair{String,String}[]),
                                    licences)
             readme === nothing || write(joinpath(staged, "README.md"), readme(name))
-            outside = collect_outside_paths(staged)
+            tests === nothing ||
+                _write_release_tests(context, staged, tests(name), names; assets)
+            outside = filter(path -> !_is_accepted_test_path(staged, path),
+                             collect_outside_paths(staged))
             isempty(outside) ||
                 error("build_package_release!: $name reads outside its folder, which " *
                       "an installed " *
@@ -144,7 +158,10 @@ end
     collect_outside_paths(folder) -> Vector
 
 Every path in the Julia files of `folder` that leaves `folder`, names nothing
-there, or can not be followed, as `(file, line, target)`. It follows:
+there, or can not be followed, as `(file, line, target, kind)`. `kind` is
+`:include` for a file that a file includes, `:path` for a path that the code
+reads when it runs, and `:form` for a form that the scan can not follow; the
+`target` of a `:form` says the form. It follows:
 
 - `include` and `Base.include` of a string literal, or of a `joinpath` of
   literals, relative to the file;
@@ -156,7 +173,7 @@ A `@__DIR__` or a `@__FILE__` anywhere else, and a path through `pkgdir` or
 """
 function collect_outside_paths(folder::AbstractString)
     folder = abspath(String(folder))
-    found = NamedTuple{(:file, :line, :target),Tuple{String,Int,String}}[]
+    found = NamedTuple{(:file, :line, :target, :kind),Tuple{String,Int,String,Symbol}}[]
     for (directory, _, files) in walkdir(folder), file in files
         endswith(file, ".jl") || continue
         path = joinpath(directory, file)
@@ -170,7 +187,8 @@ function _collect_outside_paths!(found, expression, folder, file, line)
     expression isa LineNumberNode && (line[] = expression.line; return found)
     expression isa Expr || return found
     walk(argument) = _collect_outside_paths!(found, argument, folder, file, line)
-    report(target) = (push!(found, (file = file, line = line[], target = target)); found)
+    report(target) =
+        (push!(found, (file = file, line = line[], target = target, kind = :form)); found)
     if expression.head === :macrocall
         name = _get_macro_name(expression)
         name === Symbol("@__DIR__") && return report("@__DIR__ outside joinpath")
@@ -184,7 +202,7 @@ function _collect_outside_paths!(found, expression, folder, file, line)
             literals = _get_literal_path(last(arguments))
             literals === nothing ||
                 _check_release_path!(found, folder, file, line[],
-                                     joinpath(dirname(file), literals...))
+                                     joinpath(dirname(file), literals...), :include)
             foreach(walk, arguments)
             return found
         end
@@ -196,7 +214,7 @@ function _collect_outside_paths!(found, expression, folder, file, line)
                 push!(literals, argument)
             end
             _check_release_path!(found, folder, file, line[],
-                                 joinpath(dirname(file), literals...))
+                                 joinpath(dirname(file), literals...), :path)
             foreach(walk, arguments[2:end])
             return found
         end
@@ -237,14 +255,15 @@ function _get_literal_path(expression)
     nothing
 end
 
-function _check_release_path!(found, folder, file, line, target)
+function _check_release_path!(found, folder, file, line, target, kind)
     target = normpath(target)
-    inside = target == normpath(folder * "/") ||
-             startswith(target, normpath(folder * "/"))
-    (inside && ispath(target)) ||
-        push!(found, (file = file, line = line, target = target))
+    (_is_inside_folder(folder, target) && ispath(target)) ||
+        push!(found, (file = file, line = line, target = target, kind = kind))
     found
 end
+
+_is_inside_folder(folder, target) =
+    target == normpath(folder * "/") || startswith(target, normpath(folder * "/"))
 
 # Every dependency of a released package that is a package of `context` must be
 # released too.
@@ -350,10 +369,11 @@ function _collect_tracked_files(context::BuildContext, folder::AbstractString)
     String.(tracked)
 end
 
+# `from` is a folder or a file of the repository, and `to` the same in the copy.
 function _copy_tracked_files(context::BuildContext, from::AbstractString,
                              to::AbstractString)
     for path in _collect_tracked_files(context, from)
-        destination = joinpath(to, relpath(path, from))
+        destination = path == from ? to : joinpath(to, relpath(path, from))
         mkpath(dirname(destination))
         cp(joinpath(context.root, path), destination)
     end
@@ -401,14 +421,109 @@ function _write_package_content(context::BuildContext, name, destination;
        joinpath(destination, "Project.toml"))
 end
 
-# A digest of what a user of the package gets: every file, each with its length,
-# and the `Project.toml` without `version`, `[compat]` and `[sources]`.
+# The test folder of one released package: `runtests.jl` from `test`, the test
+# package and every package it needs that `released` leaves out in `support/`,
+# and a `Project.toml` that names them by `[sources]`. `Pkg.test` reads those
+# paths in the installed folder, so the suite needs no registry for them.
+function _write_release_tests(context::BuildContext, staged, test, released; assets)
+    test === nothing && return nothing
+    test_package, runtests = test
+    support = _collect_support_packages(context, test_package, released)
+    folder = joinpath(staged, "test")
+    for name in support
+        _write_support_package(context, name, joinpath(folder, "support", name), support;
+                               assets = get(assets, name, Pair{String,String}[]))
+    end
+    project = Dict{String,Any}(
+        "deps" => Dict{String,Any}(name => _read_package_uuid(context, name) for name in support),
+        "sources" => Dict{String,Any}(name => Dict{String,Any}("path" => "support/$name")
+                                      for name in support))
+    open(io -> TOML.print(io, project; sorted = true), joinpath(folder, "Project.toml"), "w")
+    write(joinpath(folder, "runtests.jl"), runtests)
+    nothing
+end
+
+# The test package and every package of `context` that it needs and `released`
+# leaves out, by name.
+function _collect_support_packages(context::BuildContext, test_package, released)
+    found = String[]
+    function visit(name)
+        name in found && return
+        push!(found, name)
+        project = TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))
+        for dependency in keys(get(project, "deps", Dict{String,Any}()))
+            has_package_directory(context, dependency) && !(dependency in released) &&
+                visit(dependency)
+        end
+    end
+    visit(test_package)
+    sort!(found)
+end
+
+_read_package_uuid(context::BuildContext, name) =
+    TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))["uuid"]
+
+# One support package of a test folder: its `src/` with the prefix `../../../` of
+# a path into this repository changed to `../`, the folders that those paths
+# name, the folders it reads while it runs, and its `Project.toml` with
+# `[sources]` for the other support packages only. A package that the release
+# holds comes from the registry.
+function _write_support_package(context::BuildContext, name, destination, support; assets)
+    package = relpath(get_package_directory(context, name), context.root)
+    mkpath(destination)
+    folders = String[]
+    for path in _collect_tracked_files(context, joinpath(package, "src"))
+        text = read(joinpath(context.root, path), String)
+        for found in eachmatch(r"\"\.\./\.\./\.\./([^\"]+)\"", text)
+            target = rstrip(found.captures[1], '/')
+            push!(folders, isdir(joinpath(context.root, target)) ? target : dirname(target))
+        end
+        target = joinpath(destination, relpath(path, package))
+        mkpath(dirname(target))
+        write(target, replace(text, "\"../../../" => "\"../"))
+    end
+    for folder in _collect_covering_folders(folders)
+        _copy_tracked_files(context, folder, joinpath(destination, folder))
+    end
+    for (from, to) in assets
+        _copy_tracked_files(context, from, joinpath(destination, to))
+    end
+    project = TOML.parsefile(joinpath(context.root, package, "Project.toml"))
+    sources = Dict{String,Any}(dependency => Dict{String,Any}("path" => "../$dependency")
+                               for dependency in keys(get(project, "deps", Dict{String,Any}()))
+                               if dependency in support)
+    isempty(sources) ? delete!(project, "sources") : (project["sources"] = sources)
+    open(joinpath(destination, "Project.toml"), "w") do io
+        TOML.print(io, project; sorted = true,
+                   by = key -> (get(_PROJECT_KEY_ORDER, key, 99), key))
+    end
+end
+
+# The folders of `folders` that no other folder of the list holds.
+function _collect_covering_folders(folders)
+    candidates = sort!(unique(String.(folders)))
+    filter(folder -> !any(other -> startswith(folder, other * "/"), candidates), candidates)
+end
+
+# A finding of the scan in `test/` that the tests answer for themselves: a form
+# that the scan can not follow, such as the folder of the file or `pathof` of an
+# installed package, and a path inside the package that names nothing yet, which
+# a test reads only when it runs. An `include` must name a file, and no path may
+# leave the package.
+_is_accepted_test_path(staged, path) =
+    startswith(path.file, joinpath(staged, "test") * Base.Filesystem.path_separator) &&
+    (path.kind === :form || (path.kind === :path && _is_inside_folder(staged, path.target)))
+
+# A digest of what a user of the package gets: every file but those of `test/`,
+# each with its length, and the `Project.toml` without `version`, `[compat]` and
+# `[sources]`.
 function _compute_content_digest(folder, project)
     content = IOBuffer()
     for (directory, _, files) in walkdir(folder), file in sort(files)
         path = joinpath(directory, file)
         relative = relpath(path, folder)
-        relative == "Project.toml" && continue
+        (relative == "Project.toml" ||
+         startswith(relative, "test" * Base.Filesystem.path_separator)) && continue
         bytes = read(path)
         write(content, relative, "\n", string(length(bytes)), "\n", bytes)
     end

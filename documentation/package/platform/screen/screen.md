@@ -28,7 +28,7 @@ Its reference map gives a path of the content the prefix `windows[i].content`, i
 
 Its reader routes a `WindowInput` event by the window id, not by the position in the list. The window moves a pointer event into the frame of the root canvas of its content with `shift_event_position`, and moves a position in the answer back. It then adds the prefix `windows[i]` to the operation that comes back. When that operation is an `OpenPopupOperation` inside `ReplaceViewStateOperation`, it adds the window's own screen origin to the popup and turns it into an `OpenWindowOperation` with `style = :popup` and a `maximum_size` of the width and the height of the popup, and drops the mark. So the window takes the extent of what the popup draws, up to that bound, which is `(640, 800)` by default. The mark keeps a popup out of a history only above the window; below the window manager, a popup opens exactly as any other window does.
 
-**The part under the pointer.** A move with no button held names the part under the pointer, and the screen holds the whole path. A window whose content names no part is the part itself. A move in another window, and the leave of the window that the pointer is in, give the old window a move to `(-1, -1)`, a point off it: the backend does not say where the pointer is after a leave, and a popup can lie over the old window. After the leave the screen answers the empty path, because the pointer is still on the screen. A leave of a window that the pointer is not in changes nothing.
+**The part under the pointer.** A move with no button held names the part under the pointer, and the screen holds the whole path. A window whose content names no part is the part itself. A move in another window, and the leave of the window that the pointer is in, give the old window a move to `(-1, -1)`, a point off it: the backend does not say where the pointer is after a leave, and a popup can lie over the old window. After the leave the screen answers the empty path, because the pointer is still on the screen. A leave of a window that the pointer is not in changes nothing. See [mouse-target.md](../../kernel/mouse-target.md) for how each window on the path keeps its own part of it.
 
 ### WindowManagingProjection
 
@@ -66,7 +66,7 @@ The wrapper `window` of `build_editor` builds both. It is on by default, and it 
 
 ## How it fits
 
-The screen slice depends on the graphics slice for `PointReferenceStep` and on the collection slice. A `.pred` file builds `ScreenDocument` and `WindowDocument` by their names, so a saved user interface holds its windows. The slices that open a window of their own use it: tooltip, inspector, gesturehelp, and the popups, the context menu window and the dialogs of the widget slice. The SDL and web backends draw its output.
+The screen slice depends on the graphics slice for `PointReferenceStep` and on the collection slice. A `.pred` file builds `ScreenDocument` and `WindowDocument` by their names, so a saved user interface holds its windows. The slices that open a window of their own use it: tooltip, inspector, gesturehelp, and the popups, the context menu window and the dialogs of the widget slice. The SDL and web backends draw its output. See [popup-window.md](popup-window.md) for how a menu, a dropdown list, a dialog, a tooltip and a context menu each use this model to open a window of their own, beside or below the part they belong to.
 
 ## Design decisions
 

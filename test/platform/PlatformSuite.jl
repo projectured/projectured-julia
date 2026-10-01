@@ -32,8 +32,8 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "collection" => [],
     "component" => [],
     "serialization" => [],
-    "style" => ["serialization"],
-    "appearance" => ["style"],
+    "style" => ["serialization", "settings"],
+    "appearance" => ["layout", "natural", "primitive", "projection", "screen", "style", "widget"],
     "settingsmanaging" => ["collection", "layout", "natural", "projection", "screen",
                            "settings", "widget"],
     "domain" => [],
@@ -80,7 +80,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
                     "widget"],
     "conversation" => ["collection", "domain", "focus", "layout", "natural", "primitive",
                        "projection", "style", "text", "widget"],
-    "shell" => ["assistant", "clipboard", "conversation", "domain", "fault", "fileformat",
+    "shell" => ["appearance", "assistant", "clipboard", "conversation", "domain", "fault", "fileformat",
                 "filesystem", "focus", "gesturehelp", "gesturelog", "help", "inspector",
                 "log", "pane", "projection", "screen", "settings", "settingsmanaging",
                 "statistics", "style", "tooltip", "widget"],
@@ -107,24 +107,11 @@ allows it, and the kernel; it uses no module of a domain, a backend or an
 adapter.
 """
 function test_platform_slice_edges()
-    root = normpath(joinpath(@__DIR__, "..", ".."))
-    check_slice_edges(joinpath(root, "source", "platform"),
-                      _find_platform_entry_files(root), PLATFORM_SLICE_EDGES; name = "platform",
-                      below_files = [joinpath(root, "package", "ProjecturedKernel", "src",
-                                              "ProjecturedKernel.jl")])
-end
-
-# The entry file of each package whose source is a slice of the platform.
-function _find_platform_entry_files(root)
-    files = String[]
-    for package in readdir(joinpath(root, "package"))
-        file = joinpath(root, "package", package, "src", package * ".jl")
-        isfile(file) || continue
-        slice = match(r"include\(\"\.\./\.\./\.\./source/platform/(\w+)/", read(file, String))
-        slice !== nothing && haskey(PLATFORM_SLICE_EDGES, slice.captures[1]) &&
-            push!(files, file)
-    end
-    files
+    # The files of the loaded packages, so the test reads the same files in this
+    # repository and in an installed package.
+    check_slice_edges(get_package_source_root(ProjecturedPlatform),
+                      [pathof(ProjecturedPlatform)], PLATFORM_SLICE_EDGES; name = "platform",
+                      below_files = [pathof(ProjecturedKernel)])
 end
 
 """
@@ -232,6 +219,8 @@ function test_platform()
         test_widget_scales()
         test_builder_appearance()
         test_appearance_wrapper()
+        test_appearance_tab()
+        test_appearance_file()
         test_settings()
         test_settings_wrapper()
         test_settings_tab()
@@ -341,7 +330,7 @@ export test_object_field_to_widget, test_object_field_to_syntax
 export test_object_to_widget, test_projection_configuring,
        test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
-       test_widget_dialog, test_widget_action, test_widget_icon, test_widget_colors, test_widget_scales, test_builder_appearance, test_appearance_wrapper, test_settings, test_settings_wrapper, test_settings_tab, test_widget_tree,
+       test_widget_dialog, test_widget_action, test_widget_icon, test_widget_colors, test_widget_scales, test_builder_appearance, test_appearance_wrapper, test_appearance_tab, test_appearance_file, test_settings, test_settings_wrapper, test_settings_tab, test_widget_tree,
        test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_cell_editing, test_widget_table_column_align, test_widget_table_fills_offer, test_widget_table_content_floor, test_shell_offers_only_its_size, test_widget_shell_layout, test_widget_shell_pointer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_header_floor, test_layout_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_split_pane, test_widget_transform_pane,
        test_layout_closeout, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard, test_tooltip, test_window_fit, test_window_wrapper, test_document_composition,

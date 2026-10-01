@@ -85,10 +85,16 @@ function test_meaning_search()
     try
 
     @testset "a binary reads its guides and keeps its vectors outside the checkout" begin
-        # A Julia session has no bundle, so it uses the checkout.
+        # A Julia session has no bundle. In a checkout, which has `package/`, the
+        # vectors stay in the checkout; an installed package keeps them in the
+        # cache folder of the user.
         @test _MeaningTools._get_bundle_directory() === nothing
-        @test endswith(_MeaningTools._get_default_meaning_folder(nothing),
-                       joinpath("build", "meaning"))
+        checkout = mktempdir()
+        mkpath(joinpath(checkout, "package"))
+        @test _MeaningTools._get_default_meaning_folder(nothing, checkout) ==
+              joinpath(checkout, "build", "meaning")
+        @test endswith(_MeaningTools._get_default_meaning_folder(nothing, mktempdir()),
+                       joinpath("projectured", "meaning"))
         @test isfile(joinpath(_MeaningTools._get_documentation_directory(nothing), "README.md"))
 
         # A binary has `share/projectured/` beside its `bin/`.

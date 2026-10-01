@@ -506,6 +506,19 @@ The forward map answers **the most specific output reference** of a part:
   reference, such as element 40 of a lazy list, whose index counts from the
   head of the list.
 
+**A container built from a list of children answers the path through the
+node of the child's own slot.** A layout, a grid and a list hold their
+children in entries, each with an offset and the child's own IoMap.
+`descend_reference_forward(canvas, entries, field, reference; drawn)` of the
+platform layout slice reads the index of `field[i]` at the head of the
+reference, asks the child's own forward map for the rest, and
+`make_slot_reference` puts the node of the child's own slot, among the drawn
+children of `canvas`, in front of that answer: a canvas that only places the
+child, or, where the slot clips the child (`clip_child_to_slot`), a viewport
+one `content` step further in. So the path that reaches a part inside such a
+child always runs through the node of its own slot, never through the child's
+own output node directly.
+
 **The backward map of a point answers the most specific part that is drawn at
 the point.** A projection reads the point in the frame of its own output node,
 as a pointer event reaches it: each container takes the place of the child off,

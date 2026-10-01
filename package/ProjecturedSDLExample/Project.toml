@@ -10,15 +10,25 @@ authors = []
 # ProjecturedExample harness + examples.
 
 [deps]
-Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
-ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedJSONExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 
 [sources]
 ProjecturedConsole = {path = "../ProjecturedConsole"}
+ProjecturedJSON = {path = "../ProjecturedJSON"}
+ProjecturedJSONExample = {path = "../ProjecturedJSONExample"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
+ProjecturedSDL = {path = "../ProjecturedSDL"}
+ProjecturedVideo = {path = "../ProjecturedVideo"}

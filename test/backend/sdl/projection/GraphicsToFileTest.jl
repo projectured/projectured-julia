@@ -2,13 +2,38 @@ function test_write_image()
 
 @testset "write_image(document, projection, filename)" begin
     doc  = make_json_document_example()
-    proj = make_graphics_image_projection_example()
+    proj = make_json_projection_example()
     filename = tempname() * ".bmp"
     img = write_image(doc, proj, filename; width=400, height=300)
     @test img isa ImageFile
     @test isfile(filename)
     @test filesize(filename) > 0
     rm(filename)
+end
+
+@testset "an image has the scales of the appearance at its export, and not its zoom" begin
+    # An export prints the projection of a view, so it has the scales that the
+    # projection reads when it prints. The zoom belongs to a view on a screen:
+    # the caller gives the density of an image.
+    document = WidgetButton("Appearance")
+    # The width, the height and the bytes of the BMP file of an export.
+    function export_image(projection)
+        filename = tempname() * ".bmp"
+        write_image(document, projection, filename)
+        bytes = read(filename)
+        rm(filename)
+        le(i) = sum(Int(bytes[i + k]) << (8k) for k in 0:3)
+        (le(19), abs(Int32(le(23) % UInt32)), bytes)
+    end
+    make_projection(appearance) = NaturalToGraphics(; measure = FontFileMeasure(), appearance)
+    started = export_image(make_projection(Appearance(font_scale = 1.5)))
+    live = Appearance()
+    projection = make_projection(live)
+    before = export_image(projection)
+    @test before[1:2] != started[1:2]
+    live.font_scale = 1.5
+    @test export_image(projection) == started
+    @test export_image(make_projection(Appearance(font_scale = 1.5, zoom = 2.0))) == started
 end
 
 @testset "write_image(canvas, filename)" begin
@@ -68,7 +93,7 @@ end
     # GraphicsCanvasToImageFile is exported by the Sdl package, which the
     # test module opts into via `using ProjecturedSDL`.
     proj = ChainingProjection(
-        make_graphics_image_projection_example(),
+        make_json_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),
     )
     iomap = print_document(proj, doc)
@@ -82,7 +107,7 @@ end
     # The methods extend the generics of the projection layer: the slice holds
     # no function of its own under these names.
     for name in (:map_reference_forward, :map_reference_backward)
-        generic = getfield(Projectured.ProjectionModule, name)
+        generic = getfield(ProjecturedKernel.ProjectionModule, name)
         method = which(generic, Tuple{GraphicsCanvasToImageFile, Any, Any})
         @test method.module === ProjecturedSDL.SdlModule
         @test !isdefined(ProjecturedSDL.SdlModule, name) ||

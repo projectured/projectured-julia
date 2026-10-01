@@ -93,7 +93,7 @@ set_cell_computation!(w::WidgetLabel, f::Function) = (set_cell_computation!(getf
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
 """
-    WidgetText(content; position, width, language, <base kwargs>)
+    WidgetText(content; position, width, language, placeholder, <base kwargs>)
 
 One line of text a person edits.
 
@@ -115,6 +115,10 @@ clicked. `WidgetSpinBox` carries the same field for the same reason.
 the package of the language extends, and it is plain text while no such
 package is loaded. The text, its caret and its edits are the same either way.
 
+`placeholder` is a text that the field shows in a muted color while it is
+empty, such as an example of what it takes, or `nothing`. It is no part of the
+content: the caret, a key and a save see an empty field.
+
 See also `WidgetTextarea` for several lines, `WidgetLabel` for text that is
 only read, and `WidgetSpinBox` for a number.
 """
@@ -124,6 +128,7 @@ only read, and `WidgetSpinBox` for a number.
     width::Int
     validator::Any
     language::Any
+    placeholder::Any
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -137,13 +142,14 @@ function WidgetText(content; position::Point2D=Point2D(0, 0),
                     width::Integer=0,
                     validator=nothing,
                     language::Union{Nothing,Symbol}=nothing,
+                    placeholder::Union{Nothing,AbstractString}=nothing,
                     visible::Bool=true,
                     enabled::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
                     style=nothing, tooltip=nothing)
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
     WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator), Cell(language),
-               Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+               Cell(placeholder), Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                Cell(style), Cell(tooltip), Cell(nothing))
 end
 
@@ -1292,6 +1298,10 @@ cell. A document that owns whether its view follows its end passes its own
 field's cell: a scroll that leaves the end writes it, and the document's owner
 writes it back to bring the end into view.
 
+`scroll_position` may be a cell too, and a scroll then writes that cell. A
+projection that makes a new pane at each print passes the cell of a field of
+its document, so the pane keeps its place across the prints.
+
 See also `WidgetCard`, whose `height` bounds a body that scrolls.
 """
 @document struct WidgetScrollPane <: WidgetDocument
@@ -1311,13 +1321,14 @@ end
 function WidgetScrollPane(content;
                           position=nothing,
                           size=nothing,
-                          scroll_position::Point2D=Point2D(0, 0),
+                          scroll_position::Union{Point2D,AbstractCell}=Point2D(0, 0),
                           follow_end::Union{Bool,AbstractCell}=false,
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
                           style=nothing, tooltip=nothing)
     WidgetScrollPane(Cell(content),
-                     Cell(position), Cell(size), Cell(scroll_position),
+                     Cell(position), Cell(size),
+                     scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style), Cell(tooltip), Cell(nothing))

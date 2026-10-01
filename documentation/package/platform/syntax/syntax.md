@@ -60,6 +60,16 @@ The reader has the same shape. An edit in a span of child `i` goes to the reader
 
 At the seam between a value and its closing delimiter, the backward map of a leaf returns `value{n}` and not `close{0}`. The two are the same place on the screen, but only the value is editable. Without this, the only caret of an empty string could not be reached.
 
+### The delimiters around the pointer
+
+**The delimiters of the compounds around the part under the pointer are lit by their level.** Each compound finds its level from its own mouse target: the number of compounds with a visible delimiter that the path enters below it. The compound that holds the part under the pointer is at level 0, and its delimiters are in `delimiter_light_color`. At each level further out, the colour mixes more with the colour of the delimiter. From level `delimiter_light_levels` on, the delimiter has its own colour. A compound with no mouse target is not around the part, so its delimiters keep their colour too. In `[1, [2, [3]]]` with the pointer on the `3`, the array `[3]` is at level 0, `[2, [3]]` is at level 1, and the outer array is at level 2.
+
+A compound with empty delimiters, such as the entry of a JSON object, is not a level. So the light steps from one pair of brackets to the next pair that shows.
+
+The span that draws a delimiter is not the span of the document. It holds the cells of the document span, so an edit of the delimiter shows at once, but its colour is a computed cell that reads the level. The span is cached with the decorative spans, so a layout keeps it. A move of the pointer computes only the colour cells. It does not lay out the node again, and the output elements stay the same objects.
+
+The defaults are the orange of the solarized palette and 4 levels. `SyntaxToText(; delimiter_light_color, delimiter_light_levels)` sets them, and `delimiter_light_levels = 0` keeps every delimiter in its own colour.
+
 ### Tree gestures
 
 The keyboard half of the reader is two `@gestures` tables in `source/platform/syntax/SyntaxDocument.jl`. They walk selection paths and read no pixels.
@@ -117,6 +127,7 @@ Its `__init__` calls `register_syntax_fallback!()`. That registers the reflectio
 
 - **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See [plan/done/syntaxtotext-delegation.md](../../../../plan/done/syntaxtotext-delegation.md).
 - **The depth adds up level by level.** An indenting ancestor widens the indentation spans that its children report, which gives the same width as `depth * indent_size`. No compound needs its absolute depth.
+- **The light of a delimiter is a colour cell, not a layout.** A move of the pointer changes the mouse target of each compound on the path. If the spans read the level, each move would lay out every compound on the path again. See [plan/pending/a-document-knows-the-part-under-the-pointer.md](../../../../plan/pending/a-document-knows-the-part-under-the-pointer.md), question Q8.
 - **The printer records where each span went.** With optional delimiters no position identifies the opening or the closing span, so `own_spans` holds the field of each one.
 - **The contract is five functions, not one type with five fields.** A wrapper adds one thing to any document and is a real level of the tree. `SyntaxConcatenation` and `SyntaxSeparation` can not get a delimiter by accident. See [plan/pending/simplest-syntax-document.md](../../../../plan/pending/simplest-syntax-document.md), whose first two phases are done.
 - **Content is positional and chrome is a keyword.** `SyntaxLeaf(value; open, close)` and `SyntaxNode(children; open, close, sep)` put the content first. See [plan/done/syntax-constructor-keywords.md](../../../../plan/done/syntax-constructor-keywords.md).

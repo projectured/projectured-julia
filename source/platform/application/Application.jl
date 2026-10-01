@@ -422,7 +422,8 @@ make_history_wrap(settings::Settings) =
                     assistant = :ollama, model = "", mcp = false,
                     mcp_host = nothing, mcp_port = nothing, root = pwd(),
                     width = nothing, height = nothing, fault_policy = nothing,
-                    appearance = Appearance(), settings_file = get_settings_file())
+                    appearance = load_appearance!(Appearance()),
+                    settings_file = get_settings_file())
 
 Open the ProjecturEd application with the files at `paths`, and run it until the
 window closes.
@@ -445,8 +446,9 @@ window closes.
   the file, then the environment variables, then `fault_policy`; a later source
   wins for this run. `nothing` reads and names no file.
 - `appearance` is the `Appearance` of the window: every widget of the window and
-  of the windows it opens draws with its scaled widget theme. The default is a
-  fresh one.
+  of the windows it opens draws with its scaled widget theme. The default is the
+  appearance that the file of `get_appearance_file` saved, or the default one when
+  there is no file.
 
 # Example
 
@@ -461,7 +463,7 @@ function run_application(paths::AbstractString...;
                          width = nothing, height = nothing,
                          fault_policy::Union{FaultPolicy,Nothing} = nothing,
                          measure = FontFileMeasure(),
-                         appearance::Appearance = Appearance(),
+                         appearance::Appearance = load_appearance!(Appearance()),
                          settings_file::Union{AbstractString,Nothing} = get_settings_file())
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
@@ -477,8 +479,8 @@ function run_application(paths::AbstractString...;
         # The window is the application's own pane tree inside its shell, so
         # it has no tabs around it.
         editor = build_editor(document, projection;
-                              backend = backend, tabs = false, settings = settings,
-                              feeds = feeds,
+                              backend = backend, tabs = false, appearance = appearance,
+                              settings = settings, feeds = feeds,
                               # The tooltip window and the context menu window
                               # are kept at the screen, so they open in every
                               # window, and the natural projection draws what a

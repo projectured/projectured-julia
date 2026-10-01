@@ -21,6 +21,7 @@ and the editor prints the whole view again.
   printer, the reader and the mappings of the wrapper.
 - [`AppearanceWrapper.jl`](AppearanceWrapper.jl) — the `appearance` wrapper of
   `build_editor`.
+- [`AppearanceToWidget.jl`](AppearanceToWidget.jl) — the appearance tab.
 """
 module AppearanceModule
 
@@ -32,11 +33,17 @@ using ..EventModule
 using ..GestureBindingModule
 using ..IntentModule
 using ..IoMapModule
+using ..LayoutModule
+using ..NaturalModule
 using ..OperationModule
+using ..PrimitiveModule
+using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..ScreenModule
 using ..SelectionModule
 using ..StyleModule
+using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_wrapper_argument
@@ -45,13 +52,26 @@ import ..OperationModule: evaluate_operation, describe_operation, make_inverse_o
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
-export AppearanceDocument, make_appearance_document
-export AdjustZoomOperation, AdjustScaleOperation, APPEARANCE_SCALES, copy_zoom_to_display!
+export AppearanceDocument, make_appearance_document, find_editor_appearance
+export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_to_display!,
+       SaveAppearanceOperation, LoadAppearanceOperation
 export AppearanceManagingProjection, AppearanceManagingIoMap, is_appearance_change
+export AppearanceToWidget, AppearanceToWidgetIoMap
 
 include("AppearanceDocument.jl")
 include("AppearanceOperations.jl")
 include("AppearanceManagingProjection.jl")
 include("AppearanceWrapper.jl")
+include("AppearanceToWidget.jl")
+
+# The natural renderer draws an `Appearance` as the appearance tab, with the
+# widgets of the editor.
+function __init__()
+    register_natural_graphics!(:appearance, (; measure, appearance) -> begin
+        widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme))
+        pane = last(only(row for row in widgets.dispatch if first(row) === WidgetScrollPane))
+        Pair{Type,Any}[Appearance => AppearanceToWidget(; scroll_pane = pane)]
+    end)
+end
 
 end # module AppearanceModule

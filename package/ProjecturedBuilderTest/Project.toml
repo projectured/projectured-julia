@@ -1,0 +1,18 @@
+name = "ProjecturedBuilderTest"
+uuid = "4b4f0ad5-ca0e-4e1f-bd3e-51e22c785921"
+version = "0.1.0"
+authors = []
+
+# The tests of the builder: the binaries it builds and the release copy of the
+# packages. They read this repository, so no release holds them.
+
+[deps]
+ProjecturedBuilder = "0a3f89a0-eb60-4886-852e-6c06a63572e2"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedBuilder = {path = "../ProjecturedBuilder"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

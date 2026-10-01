@@ -24,6 +24,14 @@ of that list. `top_row` is the row at the top of the table, counted from the
 anchor, which the table writes as it scrolls; the scroll bar shows it. They are
 the state of the view: a jump writes them together, and a history does not
 record them.
+
+A frame that a program changes in place stays the same object, so the view
+does not see the change until [`refresh_document!`](@ref) of it, or the key F5,
+reads the frame again: `frame_snapshot` is what the last read saw, or
+`nothing` before the first, and `frame_version` moves when a read finds a
+change; the first read moves it in any case, so a new view reads no cell for a
+refresh. Every computation that reads
+the data of the frame reads `frame_version` too.
 """
 @document struct DataFrameView <: Document
     frame::Any
@@ -34,23 +42,45 @@ record them.
     column_anchor::Int
     scroll_position::Point2D
     top_row::Int
+    frame_version::Int
+    frame_snapshot::Any
 end
 
 function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1)
     view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
                          Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
-                         Cell(nothing))
-    # The result of the expression, computed again when the frame or the text of
-    # the expression changes, and the rows that pass, computed again when the
-    # frame, the query or that result changes. A value of a type that a package
-    # loaded later prints in the newest world.
+                         Cell(0), Cell(nothing), Cell(nothing))
+    _set_kept_row_computations!(view)
+end
+
+# The result of the expression of `view`, computed again when the frame or the
+# text of the expression changes, and the rows that pass, computed again when
+# the frame, the query or that result changes. A value of a type that a package
+# loaded later prints in the newest world.
+function _set_kept_row_computations!(view::DataFrameView)
     set_cell_computation!(getfield(view, :expression_result),
-                          () -> _evaluate_expression(view.frame, view.query.expression))
+                          () -> (view.frame_version; _evaluate_expression(view.frame, view.query.expression)))
     set_cell_computation!(getfield(view, :kept_rows),
-                          () -> Base.invokelatest(_compute_kept_rows, view.frame, view.query,
-                                                  first(view.expression_result)))
+                          () -> (view.frame_version;
+                                 Base.invokelatest(_compute_kept_rows, view.frame, view.query,
+                                                   first(view.expression_result))))
     view
 end
+
+# ── The duplicate ────────────────────────────────────────────────────────────
+#
+# The duplicate of a view is a second view of the same frame: it shares the
+# frame, which it reads, and owns a copy of the query and of the place in the
+# rows and the columns, so a filter, a sort or a scroll in one does not move the
+# other. Its rows are computed again from its own query, and its first refresh
+# reads the frame again.
+has_document_duplicate(::Union{DataFrameView,DataFrameQuery,DataFrameColumnFilter,DataFrameSortKey}) = true
+
+copy_document(policy::DuplicatePolicy, view::DataFrameView) =
+    _set_kept_row_computations!(copy_document_fields(policy, view; frame = view.frame,
+                                                     expression_result = (nothing, nothing),
+                                                     kept_rows = Int[], frame_version = 0,
+                                                     frame_snapshot = nothing))
 
 """
     jump_to_row(view::DataFrameView, row::Integer) -> Operation or nothing
@@ -79,6 +109,7 @@ const _DATA_FRAME_VIEW_MENU =
 @gestures DataFrameView begin
     KeyDown(:home; ctrl) => "Jump to the first row" => jump_to_row(doc, 1)
     KeyDown(:end; ctrl) => "Jump to the last row" => jump_to_row(doc, length(doc.kept_rows))
+    KeyDown(:f5) => "Read the frame again" => RefreshDataFrameViewOperation(doc)
     splice(_DATA_FRAME_VIEW_MENU)
 end
 

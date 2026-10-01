@@ -9,7 +9,7 @@ The settingsmanaging slice of `ProjecturedPlatform` connects the `Settings` of a
 - `SettingsDocument(settings, content)` is the root document of an editor with the wrapper. The `Settings` are a part of the document, so a view can show them and a reference can name them. `get_wrapped_document` goes through it to the content.
 - `SettingsManagingProjection(inner)` prints the content through `inner` and returns its output, and maps references through the `content` field. Its reader asks the content first, and then the gesture table of the `SettingsDocument`.
 - `wrap_setting_writes(settings, operation)` replaces each `ReplaceReferencedValueOperation` of one setting of a group of `settings` with an `ApplySettingOperation` of it, also inside a `CompoundOperation` or a `WrappingOperation`. The reader of the wrapper calls it on every answer. Every other operation stays as it is.
-- The `settings` wrapper of `build_editor` puts both around everything else, the appearance wrapper too (`:screen => 10`). It is on by default.
+- The `settings` wrapper of `build_editor` puts both around everything but the appearance wrapper (`:screen => -10`), so the `AppearanceDocument` stays the root and the `SettingsDocument` is its content. It is on by default.
 - The commands "Toggle partial render" and "Toggle repaint outline" have no key; a person runs them from the palette.
 
 ## Why the wrapper turns the edit

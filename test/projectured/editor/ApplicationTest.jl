@@ -373,26 +373,6 @@ function test_application()
             end
             @test first(report) == 2
             @test occursin("no display", last(report)) && occursin("Stacktrace", last(report))
-            # The `--help` text of a binary names exactly the options the
-            # parser takes.
-            usage = make_projectured_usage([:sdl, :web])
-            flags = Set(first(split(label, '=')) for (label, _) in usage.options)
-            @test flags == Set(["--backend", "--assistant", "--model",
-                                "--root", "--mcp", "--context",
-                                "--strict-fault-policy"])
-            # The binary takes both forms of `--mcp`: the flag alone, and the
-            # flag with the address.
-            @test "--mcp" in collect_option_flags(usage)
-            @test "--mcp=" in collect_option_flags(usage)
-            # A flag and the keyword it sets spell the same words, a flag with
-            # a hyphen and a keyword with an underscore, so
-            # `--strict-fault-policy` is `strict_fault_policy`.
-            for flag in flags
-                @test haskey(pairs(parse_application_arguments(String[])),
-                             Symbol(replace(flag[3:end], '-' => '_')))
-            end
-            @test !any(label -> startswith(first(label), "--backend"),
-                       make_projectured_usage([:sdl]).options)
         end
 
         @testset "the warm-up of a build" begin
@@ -472,7 +452,7 @@ function test_application()
                 @test editor.iomap !== nothing
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
                 # The screen is inside the state of the gesture tracker, inside the
-                # appearance document, inside the settings document, and each holds
+                # settings document, inside the appearance document, and each holds
                 # the same path under its `content` step.
                 screen = get_wrapped_document(editor.document)
                 @test _app_is_one_path(screen)
@@ -827,9 +807,10 @@ function test_application()
                 # A window opened with no assistant has no assistant button.
                 @test [string(item.action.label) for item in toolbar.elements] ==
                       ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
-                       "Statistics", "Frame times", "Selection", "Settings"]
+                       "Statistics", "Frame times", "Selection", "Appearance", "Settings"]
                 drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
-                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times")
+                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times",
+                             "Appearance")
                     @test !any(text -> occursin(word, text), drawn)
                 end
             end

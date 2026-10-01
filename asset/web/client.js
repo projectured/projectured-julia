@@ -10,10 +10,14 @@
 //   - forwards raw mouse/keyboard/resize events back to the server.
 //
 // Protocol (JSON over one WebSocket). Server -> client:
-//   {type:"update", full:[win...], patches:[{window,clip,draw}...], close:[id...]}
+//   {type:"update", zoom, full:[win...], patches:[{window,clip,draw}...], close:[id...]}
 // A `full` entry carries a window's complete draw-list and a `primary` flag (the
 // in-tab window); a `patch` repaints only its clip rectangle over the retained
 // canvas (incremental rendering). See package/web/src/ProjecturedWeb.jl.
+//
+// The server works in logical pixels. `zoom` is the zoom of the editor: the
+// client draws each logical pixel as `devicePixelRatio × zoom` pixels, and
+// divides each size and each pointer position that it sends by `zoom`.
 
 (() => {
   "use strict";
@@ -27,6 +31,7 @@
   const windowsMeta = new Map();        // id -> full window object {id,...,draw}
   const popups = new Map();             // id -> { win, canvas, ctx, dpr }
   const pendingPopups = new Map();      // id -> meta, awaiting a user gesture to open
+  let zoom = 1;                         // the zoom of the editor, from the server
 
   // The page itself is a popup-shaped surface ({win,canvas,ctx,dpr}) so the
   // render/event helpers below are shared between the tab and the popups.
@@ -69,8 +74,9 @@
     const p = reserved;
     reserved = null;
     try {
-      p.win.resizeTo(meta.w > 0 ? meta.w : 320, meta.h > 0 ? meta.h : 120);
-      if (meta.x >= 0 && meta.y >= 0) p.win.moveTo(meta.x, meta.y);
+      p.win.resizeTo(Math.round((meta.w > 0 ? meta.w : 320) * zoom),
+                     Math.round((meta.h > 0 ? meta.h : 120) * zoom));
+      if (meta.x >= 0 && meta.y >= 0) p.win.moveTo(Math.round(meta.x * zoom), Math.round(meta.y * zoom));
       p.win.document.title = meta.title || "ProjecturEd";
       // A tooltip says something about the window under it; it must not take the
       // keyboard away from it.
@@ -140,6 +146,7 @@
   }
 
   function handleUpdate(msg) {
+    if (typeof msg.zoom === "number" && msg.zoom > 0 && msg.zoom !== zoom) setZoom(msg.zoom);
     const fulls = msg.full || [];
     // Bind the in-tab window the first time we see a frame: the server-flagged
     // primary, or (older server / no flag) the first window in the batch.
@@ -185,7 +192,7 @@
     // The server lays out at the WindowDocument's default size (e.g. 2400×1600);
     // tell it the real tab size so it re-lays-out to fit, then ask for fresh
     // full state at that size.
-    send({ type: "resize", window: id, w: window.innerWidth, h: window.innerHeight });
+    sendResize(id, window);
     send({ type: "resync" });
   }
 
@@ -194,8 +201,38 @@
     sizeCanvas(pageSurface);
     const m = windowsMeta.get(mainId);
     if (m) paint(pageSurface, m);          // repaint retained state so it isn't blank
-    send({ type: "resize", window: mainId, w: window.innerWidth, h: window.innerHeight });
+    sendResize(mainId, window);
     send({ type: "resync" });              // server relayout -> fresh full state
+  }
+
+  // The size of the window `win` in logical pixels, sent as the size of `id`.
+  function sendResize(id, win) {
+    send({ type: "resize", window: id, w: Math.round(win.innerWidth / zoom),
+           h: Math.round(win.innerHeight / zoom) });
+  }
+
+  // A new zoom of the editor: each surface draws at the new ratio, shows its last
+  // frame at once, and sends its new logical size, so the server lays it out
+  // again and sends it in full.
+  function setZoom(value) {
+    zoom = value;
+    let resized = false;
+    if (mainId !== null) {
+      sizeCanvas(pageSurface);
+      const m = windowsMeta.get(mainId);
+      if (m) paint(pageSurface, m);
+      sendResize(mainId, window);
+      resized = true;
+    }
+    for (const [id, p] of popups) {
+      if (!p.win || p.win.closed) continue;
+      sizeCanvas(p);
+      const m = windowsMeta.get(id);
+      if (m) paint(p, m);
+      sendResize(id, p.win);
+      resized = true;
+    }
+    if (resized) send({ type: "resync" });
   }
 
   // ── Popups (additional windows) ─────────────────────────────────────────────
@@ -225,11 +262,11 @@
   }
 
   function openPopup(meta) {
-    const width = meta.w > 0 ? meta.w : 1024;
-    const height = meta.h > 0 ? meta.h : 768;
+    const width = Math.round((meta.w > 0 ? meta.w : 1024) * zoom);
+    const height = Math.round((meta.h > 0 ? meta.h : 768) * zoom);
     let features = `width=${width},height=${height}`;
-    if (meta.x >= 0) features += `,left=${meta.x}`;
-    if (meta.y >= 0) features += `,top=${meta.y}`;
+    if (meta.x >= 0) features += `,left=${Math.round(meta.x * zoom)}`;
+    if (meta.y >= 0) features += `,top=${Math.round(meta.y * zoom)}`;
     const win = window.open("", meta.id, features);
     if (!win) return null;
 
@@ -251,14 +288,14 @@
       sizeCanvas(p);
       const m = windowsMeta.get(meta.id);
       if (m) paint(p, m);                 // repaint retained state so it isn't blank
-      send({ type: "resize", window: meta.id, w: win.innerWidth, h: win.innerHeight });
+      sendResize(meta.id, win);
       send({ type: "resync" });           // server relayout -> fresh full state
     });
     win.addEventListener("beforeunload", () => {
       send({ type: "close", window: meta.id });
       popups.delete(meta.id);
     });
-    send({ type: "resize", window: meta.id, w: win.innerWidth, h: win.innerHeight });
+    sendResize(meta.id, win);
     return p;
   }
 
@@ -268,19 +305,21 @@
     popups.delete(id);
   }
 
+  // The canvas has the pixels of the page, and `p.dpr` is the number of them in
+  // one logical pixel: the ratio of the browser times the zoom.
   function sizeCanvas(p) {
-    const dpr = p.win.devicePixelRatio || 1;
+    const ratio = p.win.devicePixelRatio || 1;
     const w = p.win.innerWidth, h = p.win.innerHeight;
-    p.canvas.width = Math.max(1, Math.round(w * dpr));
-    p.canvas.height = Math.max(1, Math.round(h * dpr));
-    p.dpr = dpr;
+    p.canvas.width = Math.max(1, Math.round(w * ratio));
+    p.canvas.height = Math.max(1, Math.round(h * ratio));
+    p.dpr = ratio * zoom;
   }
 
   function clearSurface(p) {
     if (!p.win || p.win.closed) return;
     const ctx = p.ctx;
     ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
-    ctx.clearRect(0, 0, p.win.innerWidth, p.win.innerHeight);
+    ctx.clearRect(0, 0, p.win.innerWidth / zoom, p.win.innerHeight / zoom);
   }
 
   // ── Rendering ──────────────────────────────────────────────────────────────
@@ -306,7 +345,7 @@
     if (!p.win || p.win.closed) return;
     const ctx = p.ctx;
     ctx.setTransform(p.dpr, 0, 0, p.dpr, 0, 0);
-    const w = p.win.innerWidth, h = p.win.innerHeight;
+    const w = p.win.innerWidth / zoom, h = p.win.innerHeight / zoom;
     if (meta.bg) { ctx.fillStyle = col(meta.bg); ctx.fillRect(0, 0, w, h); }
     else { ctx.clearRect(0, 0, w, h); }
     renderList(ctx, meta.draw || []);
@@ -587,9 +626,10 @@
   function buttonSym(b) {
     return b === 0 ? "left" : b === 1 ? "middle" : b === 2 ? "right" : null;
   }
+  // The place of the pointer in logical pixels.
   function pos(ev, canvas) {
     const r = canvas.getBoundingClientRect();
-    return { x: Math.round(ev.clientX - r.left), y: Math.round(ev.clientY - r.top) };
+    return { x: Math.round((ev.clientX - r.left) / zoom), y: Math.round((ev.clientY - r.top) / zoom) };
   }
 
   const PREVENT_KEYS = new Set([

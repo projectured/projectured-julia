@@ -858,6 +858,26 @@ the pixels and the test counts of the baseline of S0.
   - Tests: Save writes the file. Load applies its values. A key that is missing
     takes its default. A file with a key that is not known loads. An environment
     variable wins over the file.
+- [x] **M1. `main` merged into the branch** (2026-10-02, `main` at `cd427b547`, 42
+  commits: the release tests, the split test packages, and W3, W4, W5 and W6 of
+  the appearance plan). On the merged tree: `test_kernel()` 4095 and 2 broken,
+  `test_platform()` 84679 and 8 broken, `test_sdl()` 826, `test_video()` 45,
+  `test_web()` 116, `test_pdf()` 50, `test_mcp()` 434, `test_application()` 340
+  and 2 broken, `test_referenced_document_editor()` 101; no failure and no
+  error. What the merge decided:
+  - **The settings wrapper sits inside the appearance wrapper** (`:screen =>
+    -10`), so the `AppearanceDocument` stays the root, as the tests and
+    `find_editor_appearance` of the appearance plan expect; the order of the two
+    changes neither effect. `find_editor_settings` walks the `content` chain.
+  - `get_appearance_file()` takes its folder from `get_configuration_folder()` of
+    the settings slice, the one place of the folder, as both plans agreed; an
+    empty `XDG_CONFIG_HOME` now counts as unset there too. The style slice uses
+    the settings slice.
+  - The `shell` wrapper of `main` takes `argument` and reads
+    `EditorParts.arguments` (D12).
+  - The toolbar, the View menu and their tests hold both Appearance and
+    Settings; the settings tab is in the toolbar of a window that records
+    nothing, because it is never empty.
 - [ ] **S10. The start settings**, a later part after S0 to S9 (D1).
   `StartSettings` in `application`, read by `run_application`.
   - Tests: the file, the environment and the command line in their order.

@@ -80,6 +80,27 @@ end
     @test [span.content for span in empty.content_iomap.input.elements] == [""]
 end
 
+@testset "an empty field shows its placeholder below its caret, and a press puts the caret at its start" begin
+    doc = WidgetText(""; placeholder = "age > 30")
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
+    find_placeholder() = findfirst(e -> e isa GraphicsText && e.text == "age > 30", collect(iomap.output.elements))
+    k = find_placeholder()
+    @test k !== nothing
+    @test iomap.output.elements[k].color != color_default
+    # The content, which holds the caret, draws after it, and the box is as wide as it.
+    @test findfirst(e -> e isa GraphicsCanvas, collect(iomap.output.elements)) > k
+    @test iomap.output.w >= 8 * 10
+    op = read_intent(_proj(), iomap, MouseClick(:left, 60, 5, 1, ModifierKeys(); time = 0.0))
+    @test op isa ReplaceSelectionOperation
+    @test strip_reference_types(op.path) == ConcreteReference(FieldReferenceStep("content"),
+        ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
+    # A field with a text shows no placeholder.
+    doc.content = "a"
+    @test find_placeholder() === nothing
+    doc.content = ""
+    @test find_placeholder() !== nothing
+end
+
 @testset "a disabled WidgetText accepts no edits" begin
     content = TextBlock(TextString("edit me", _font, color_default))
     doc = WidgetText(content; enabled=false)

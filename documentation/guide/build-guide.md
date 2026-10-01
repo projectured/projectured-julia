@@ -147,7 +147,8 @@ The packages reach a Julia programmer through a registry. They live in one
 release repository, `projectured/Projectured.jl`, with one folder for each
 package, `<Name>/`, and the licence files at its root. Each package folder holds
 everything the package reads, because Pkg installs only the folder of a
-package. [builder.md](../package/tool/builder/builder.md) says how the copy is
+package, and its tests: `Pkg.test` runs the suite of its test package on the
+installed package. [builder.md](../package/tool/builder/builder.md) says how the copy is
 made.
 
 **Warning: do not rewrite the history of the release repository.** The registry
@@ -227,13 +228,13 @@ package. That is what lets another repository use the same builder.
 | [bin/](../../bin/) | one script to run a program, one to build it |
 | [package/ProjecturedBuilder/](../../package/ProjecturedBuilder/) | the package that holds them |
 | [environment/build/](../../environment/build/) | the environment of a build: the builder and PackageCompiler |
-| [test/tool/builder/BuilderTest.jl](../../test/tool/builder/BuilderTest.jl) | `test_builder()`: what a build writes, and which inputs stop it |
+| [test/tool/builder/BuilderTest.jl](../../test/tool/builder/BuilderTest.jl) | `test_build_executable()`: what a build writes, and which inputs stop it |
 | [test/tool/builder/PackageReleaseTest.jl](../../test/tool/builder/PackageReleaseTest.jl) | `test_package_release()`: the release copy, its versions and its scan |
 
-The tests compile nothing. Run them with the rest of the suite, or alone:
+The tests compile nothing. Their test package is `ProjecturedBuilderTest`, and
+`test_builder()` runs both with the layering guard of the builder:
 
 ```julia
-using ProjecturedTest                         # julia --project=environment/all
+using ProjecturedBuilderTest     # julia --project=package/ProjecturedBuilderTest
 test_builder()
-test_package_release()
 ```

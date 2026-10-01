@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending; the steps are written and every open point is settled (2026-09-29). Nothing is built. It replaces the mouse target tracker of
+> **Status:** pending; steps 1 to 10 are done and on main (2026-10-01). Step 5b, the drag, is open: it waits for two names from the owner. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -974,9 +974,16 @@ already; the sealed selection files do not change (Q4).
     wrapper; the band capture of the shell (`_route_shell_down!`) goes. The tab
     of a pane and the reorder of the dragging package find their target through
     the wrapper; the probe and the phases of the dragging package go.
-  - To settle with the owner before the code, because each is a new mechanism:
+  - ~~To settle with the owner before the code, because each is a new mechanism:
     the name and the signature of the accept function, and the name and the
-    fields of the operation that starts a drag.
+    fields of the operation that starts a drag.~~ **Settled** (owner
+    2026-10-01: "The two names are fine", on Claude's proposal):
+    `find_drop_zone(document, dragged, point)` answers `nothing` when the part
+    does not take the dragged thing, and else the zone, from which the
+    document that draws the preview draws it (the pane tree draws its blue
+    rectangle); `StartDragOperation(path, dragged)` starts a drag, where `path`
+    is the part whose drag is on and `dragged` is the thing that a global drag
+    carries, `nothing` for a local drag such as a slider thumb.
   - Tests: each of the five drags; a slider thumb dragged past the end of the
     slider and released over another widget; a press on a tab with no move
     still selects the tab; a part under a drag lights; Escape and a lost release
@@ -1223,14 +1230,46 @@ already; the sealed selection files do not change (Q4).
     `31555391e`, with omnet `60d893bb` (the IDE test without the keyword); the
     omnet tests of the pointer, the IDE window, the campaign and the view lights
     pass against it.
-- [ ] 9. **The brackets** (Q8). A syntax node draws its delimiters in the light
+- [x] 9. **The brackets** (Q8). A syntax node draws its delimiters in the light
   colour at level 0 and fades them to the gray of the delimiter over the
   levels further out. Tests: in `[1, [2, [3]]]`, a move onto `3` lights the
   innermost brackets fully and the two outer pairs less and less; a move off
   the document leaves every delimiter gray.
-- [ ] 10. **The documents.** `package/kernel/mouse-target.md` and
+  Done (2026-10-01), in `SyntaxCompoundToText`:
+  - The level counts only the compounds with a visible delimiter that the path
+    enters (Claude's choice). The entry of a JSON object is a `SyntaxNode` with
+    empty delimiters; if it counted, the light of `{"a": [1]}` would skip a
+    level between the array and the object. The walk ends at a step that enters
+    no child, such as a step into a delimiter of the node, so the pointer on a
+    bracket puts its own node at level 0.
+  - The parameters are `delimiter_light_color` (default the solarized orange,
+    Claude's choice) and `delimiter_light_levels` (4) of `SyntaxToText` and
+    `SyntaxCompoundToText`; 0 levels turn the light off. The light is on for
+    every domain that prints through `SyntaxToText`, not only JSON.
+  - The printer puts a span of its own in the place of each delimiter. It holds
+    the cells of the document span (as `TextHighlighting` does) and a colour
+    cell that reads a level cell of the node. The spans of the node do not read
+    the level, so a move of the pointer computes the colour cells and lays out
+    nothing. The span is cached with the decorative spans by the node, the
+    field and the document span, so a layout keeps it.
+  - Test: `test_json_mouse_target`, the second test set (7): the pointer on
+    `3`, then on `1` (the outer pair at level 0, the inner pairs gray), then
+    off. The colours are read from the `GraphicsText` nodes that the view
+    draws.
+- [x] 10. **The documents.** `package/kernel/mouse-target.md` and
   `guide/pointer-guide.md`, as step 11 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
   them, and the widget, selection and screen documents. Then steps 8 to 12 of
   that plan are planned again from this model: 9d, 9e and 9f, the drag of step
   10, the rules and the documents of step 11, and the check of step 12.
+  Done (2026-10-01): `documentation/package/kernel/mouse-target.md` (the field,
+  the chain, a move becomes a path, a leave, the forward map, the light, a
+  container that reads its own parts, the brackets, an edit keeps the path
+  right, a view that changes under a still pointer, a dwell and a right click by
+  position, and the limits) and `documentation/guide/pointer-guide.md`, with
+  links from the two indexes, `keyboard-and-mouse-guide.md`, `selection.md`,
+  `widget.md` and `screen.md`. The steps of the events plan from this model:
+  9d and 9e are done; 10 is step 5b here; 9f (the hosts with no menu window),
+  the other documents of the table of step 11 (the gesture, the tooltip guide,
+  the popup window, the context menu guide, the sections in `reference.md` and
+  `editor.md`, and the drag) and the check of step 12 stay in that plan.

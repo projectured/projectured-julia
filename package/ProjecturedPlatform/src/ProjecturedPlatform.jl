@@ -45,8 +45,8 @@ include("../../../source/platform/clipboard/ClipboardModule.jl")
 include("../../../source/platform/tooltip/TooltipModule.jl")
 include("../../../source/platform/versioning/VersioningModule.jl")
 include("../../../source/platform/widget/WidgetModule.jl")
-include("../../../source/platform/appearance/AppearanceModule.jl")
 include("../../../source/platform/natural/NaturalModule.jl")
+include("../../../source/platform/appearance/AppearanceModule.jl")
 include("../../../source/platform/settingsmanaging/SettingsManagingModule.jl")
 include("../../../source/platform/conversation/ConversationModule.jl")
 include("../../../source/platform/assistant/AssistantModule.jl")
@@ -91,6 +91,6 @@ end
 
 # The display of a value beside the REPL, at the level of the package.
 using .DisplayModule
-export EditorDisplay, display_in_editor, close_display_editor!
+export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
 
 end # module ProjecturedPlatform

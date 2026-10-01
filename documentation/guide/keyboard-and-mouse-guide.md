@@ -25,16 +25,9 @@ A key press goes to the view under the selection, and each view says which keys 
 
 A selection is a path into the data, so it survives a filter, a sort and a change somewhere else in the document.
 
-Only a left click moves the selection. A right click opens the menu of the lit part, and each item of the menu acts on that part, so the selection does not need to move. To open the menu of a part:
+Only a left click moves the selection. A right click opens the menu of the lit part, and leaves the selection where it was. See [the context menu](context-menu-guide.md) for the steps, the keys that add more menus, and the command that opens one with no pointer.
 
-1. Move the pointer over the part. The part is lit.
-2. Click the right button. The menu of the nearest part that has one opens at the pointer.
-3. Press F2 to add the menu of the next part around it. Each menu then starts with the name of its part. When the window has a menu of its own, that menu is the last one.
-4. Click an item to run it, or press Escape to close the menu.
-
-The command palette runs the same menu on the selected part: type the name of the menu, for example "Show the context menu". The menu then opens below the part.
-
-The part under the pointer is lit. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves.
+The part under the pointer is lit. In the text of a tree, such as a JSON document, the brackets around the part under the pointer are lit too: the innermost pair is orange, and each pair further out is grayer. When the view changes under a pointer that does not move, for example a list that scrolls or a popup that opens or closes, the light goes to the part that is now under the pointer. A tooltip comes once for each place where the pointer rests. It does not come again at the same place, and it does not come after a click, until the pointer moves. See [the pointer](pointer-guide.md) for more, [the tooltip](tooltip-guide.md) for the window a rest of the pointer opens, and [gestures](gestures-guide.md) for a double click, a sequence of keys and the rest of them in one place. A menu, a dropdown list, a dialog, a tooltip and a context menu each stand and close the same way; see [the popup window](popup-window-guide.md).
 
 ## Change
 

@@ -358,6 +358,36 @@ The pane package's verbs (`focus_pane!`, `open_pane!`, `close_pane!`,
 edit from a pane tree to the root; see
 [pane.md](../platform/pane/pane.md#the-verbs-of-a-program).
 
+## The timer and the display event
+
+A reader that waits for a pattern with no event of its own, such as a pointer
+that stops moving, uses a timer. It answers `SetTimerOperation(name, time)`,
+and the loop reads a bare `TimerExpire(name, time)` when that time comes,
+before any device input (see [the loop above](#the-read-eval-print-loop)). A
+timer set again under the same name replaces the one before, so a reader that
+renews it on every event gets one `TimerExpire`, after the last one, and a
+`TimerExpire` of a name that a newer event made stale matches nothing in the
+reader that set it.
+
+`DwellRecognition` of the gesture layer is the one case the kernel's default
+recognitions build on this: a motion with no button held answers a deadline,
+the loop turns it into a timer under the name of the recognition, and the
+`TimerExpire` at that deadline goes back to `DwellRecognition` alone, which
+turns it into a `MouseDwell`. See
+[gesture.md](gesture.md#the-three-recognitions).
+
+`DisplayUpdate(; time)` is the event of a display that shows a frame
+different from the one before. A backend reports it, wrapped in a
+`WindowInput` of the window that changed, after it draws that frame, and no
+other code makes one. `read!` reads it as it reads any other input, but no
+reader has a pattern for it, so it answers no operation and the read moves on
+to whatever is queued behind it, such as the move described in
+[mouse-target.md](mouse-target.md#a-view-that-changes-under-a-still-pointer).
+Its purpose is only to run the loop again right away instead of waiting: the
+backend's own wait does not block while a `DisplayUpdate` is queued, as
+[the loop above](#the-read-eval-print-loop) describes, so a frame that changed
+a window is always followed by one more read before the loop sleeps.
+
 ## Running an editor
 
 Three functions make an editor, and they differ in what they decide for the

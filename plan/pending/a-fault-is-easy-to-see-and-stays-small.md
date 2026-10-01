@@ -1,7 +1,8 @@
 # A fault is easy to see, and it stays small
 
 > **Status:** pending. Written 2026-09-26. Not started. The decisions below are
-> proposals; the owner decides them (§6).
+> proposals; the owner decides them (§6). On 2026-10-02 the owner moved D3, D4
+> and D6 to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md), which decides them.
 
 ## 1. The request
 
@@ -60,20 +61,21 @@ names the fault, so a take always ends.
   first 12 lines of the traceback. A long keyword value is cut again by the
   console logger. The same key is reported again at each power of ten of its
   count.
-- **Seals.** Every file of `source/kernel/fault/` is 🔒: `FaultModule.jl`,
+- **Seals.** Seven files of `source/kernel/fault/` are 🔒: `FaultModule.jl`,
   `FaultInterface.jl`, `FaultDefaults.jl`, `FaultRecord.jl`, `FaultStore.jl`,
-  `FaultPolicy.jl`, `FaultCascade.jl`, `FaultBarrier.jl`. A change to one of
-  them needs the owner's word for that file. `editor/FaultBarriers.jl`,
+  `FaultCascade.jl`, `FaultBarrier.jl`. A change to one of them needs the
+  owner's word for that file. `FaultPolicy.jl` is ⬜. `editor/FaultBarriers.jl`,
   `editor/SafeMode.jl`, `editor/EditorLoop.jl` and `editor/DocumentEdits.jl`
   are ⬜.
 
 ## 4. The problems
 
 - **P1. No barrier in the pipelines of the application.** One bad node takes
-  the whole window.
+  the whole window. [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md) handles it.
 - **P2. A printer fault is counted as a device fault** when it throws while the
   device reads the output. The safe mode starts only on `:print`, so it never
-  starts, and the device stops after eight.
+  starts, and the device stops after eight. [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md)
+  handles it: a fault that a barrier noted is not a device fault.
 - **P3. A half of the device that stopped is never tried again.** Its count
   resets only after a call that works, and no call is made. A repaired document
   does not bring the window back.
@@ -109,30 +111,14 @@ Each one is a proposal of the author, for the owner to decide.
   which stays until the log is opened or the line is dismissed. Nothing of it
   can stop a paint: the button and the line read the log, which the frame writes
   outside every thunk.
-- **D3. A fault stays at the node that failed.** The content pipelines of the
-  application get a `FaultCatchingProjection` with the substitute of its domain
-  at each recursion point, as `fault.md` says to do, and one around the content
-  of each pane tab, so a fault that no node barrier catches costs one pane, not
-  the window. The cost is measured on a large file before and after (cells,
-  frame time, memory); if every recursion point costs too much, the pane barrier
-  alone is the fallback.
+- **D3. A fault stays at the node that failed.** Moved to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md).
 - **D4. The renderer of the device skips an element that it can not read.**
-  A printer that throws while the renderer reads its output is below every
-  barrier of the pipeline. The SDL renderer and the offscreen renderer catch
-  around each element: the element is not drawn, a red outline marks its box
-  when the box is known, and the fault is recorded as `:print` with the type of
-  the element as its origin. The window then paints everything else, and P2 goes
-  away, because such a fault no longer reaches the device barrier. The walk is
-  hot, so the cost of the catch is measured.
+  Moved to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md).
 - **D5. A half of the device that stopped is tried again after the document
   changes.** After the next operation that the editor applies, the editor calls
   that half one time. If it throws again, it stays stopped until the next
   change. The safe mode keeps its rule: Escape leaves it.
-- **D6. The keys stay alive.** With D3, a reader that throws answers
-  `Intent(gesture, nothing)` and the layer above gets its turn, so the history
-  of the file and the keys of the window still work. A test holds it: after a
-  broken paint, `Ctrl+Z` in the tab takes the change back and the pane paints
-  again.
+- **D6. The keys stay alive.** Moved to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md).
 - **D7. The one who made the change is told.** `execute_julia_code` and the
   tools of the MCP server wait for the next frame after the code ran and add
   each new fault of that frame to their answer, with the whole text of D1 and a
@@ -148,11 +134,8 @@ Each one is a proposal of the author, for the owner to decide.
 
 1. Is a category the key of a record (site, origin, exception type)?
 2. On the screen: the count on the button only, or the status line too?
-3. D3: a barrier at each recursion point, or at each pane only, if the cost is
-   high?
-4. D4: shall the renderer catch around each element?
-5. D7: tell the model, or take the edit back?
-6. Which sealed files may change: `FaultRecord.jl`, `FaultStore.jl`,
+3. D7: tell the model, or take the edit back?
+4. Which sealed files may change: `FaultRecord.jl`, `FaultStore.jl`,
    `FaultCascade.jl` for D1, and any other that a step names.
 
 ## 7. Steps
@@ -163,10 +146,7 @@ To be filled when the owner has decided §6. The order the author proposes:
       checks that the console gets the whole traceback once, and one line for
       the next report of the key.
 - [ ] **Step 2: D2**, the count on the button and the status line.
-- [ ] **Step 3: D3 and D6**, the barriers of the application, with the
-      measurement, and the test of the keys after a broken paint.
-- [ ] **Step 4: D4**, the renderer catch, with the measurement.
-- [ ] **Step 5: D5**, a stopped half of the device is tried again.
-- [ ] **Step 6: D7**, the actor is told.
-- [ ] **Step 7: the documentation**: `fault.md`, `shell.md`, and the
+- [ ] **Step 3: D5**, a stopped half of the device is tried again.
+- [ ] **Step 4: D7**, the actor is told.
+- [ ] **Step 5: the documentation**: `fault.md`, `shell.md`, and the
       orientation guide of the assistant.

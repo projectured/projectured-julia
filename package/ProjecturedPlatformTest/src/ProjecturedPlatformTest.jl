@@ -176,6 +176,8 @@ include("../../../test/platform/projection/WidgetColorTest.jl")
 include("../../../test/platform/projection/WidgetScaleTest.jl")
 include("../../../test/platform/projection/BuilderAppearanceTest.jl")
 include("../../../test/platform/appearance/AppearanceWrapperTest.jl")
+include("../../../test/platform/appearance/AppearanceTabTest.jl")
+include("../../../test/platform/appearance/AppearanceFileTest.jl")
 include("../../../test/platform/settings/SettingsTest.jl")
 include("../../../test/platform/settings/SettingsWrapperTest.jl")
 include("../../../test/platform/settings/SettingsTabTest.jl")
@@ -318,19 +320,15 @@ module ConversationTests
 
 using Test
 import ProjecturedPlatform
-import ProjecturedJSON
-import ProjecturedJulia
 import ProjecturedKernel
 import ProjecturedPDF
 import ProjecturedConsole
-import ProjecturedXML
-using ProjecturedConversationExample
 using ProjecturedKernelExample
 using ProjecturedKernelTest
 using ProjecturedPlatformExample
 using ..ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJSON, ProjecturedJulia, ProjecturedKernel, ProjecturedPDF, ProjecturedXML)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -350,8 +348,6 @@ for _src in _SOURCES
     end
 end
 
-include("../../../test/platform/conversation/projection/ConversationEditorTest.jl")
-include("../../../test/platform/conversation/projection/ConversationTranscriptTest.jl")
 include("../../../test/platform/conversation/AssistantApiTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
@@ -382,7 +378,8 @@ module ShellTests
 
 using Test
 import ProjecturedPlatform
-import ProjecturedJulia
+# The notation of the file that the file dialog saves.
+import ProjecturedJSON
 import ProjecturedKernel
 import ProjecturedPDF
 import ProjecturedConsole
@@ -391,7 +388,7 @@ using ProjecturedKernelTest
 using ProjecturedPlatformExample
 using ..ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedJulia, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -413,8 +410,6 @@ end
 
 include("../../../test/platform/shell/WindowWrapTest.jl")
 include("../../../test/platform/shell/WidgetTooltipTest.jl")
-include("../../../test/platform/shell/JuliaTooltipTest.jl")
-include("../../../test/platform/shell/TooltipWindowTest.jl")
 include("../../../test/platform/shell/ContextMenuWindowTest.jl")
 include("../../../test/platform/shell/WindowShellTest.jl")
 include("../../../test/platform/shell/FileDialogTest.jl")
@@ -455,6 +450,7 @@ using ProjecturedPlatform.DisplayModule
 using ProjecturedKernel
 using ProjecturedKernel.AgentModule
 using ProjecturedKernel.BackendModule
+using ProjecturedKernel.DocumentModule: @document, Document
 using ProjecturedKernelTest
 using ProjecturedPlatform.PaneModule
 using ProjecturedPlatform.PrimitiveModule

@@ -195,32 +195,78 @@ function test_data_frame_filter()
         @testset "the expression keeps the rows where it is true" begin
             frame = make_frame()
             evaluate(text, frame = frame) = module_._evaluate_expression(frame, text)
-            pass, reason = evaluate(":id > 995 && endswith(:name, \"9\")")
+            pass, reason = evaluate("id > 995 && endswith(name, \"9\")")
             @test reason === nothing && findall(pass) == [999]
+            # A symbol names the column too.
+            @test findall(first(evaluate(":id > 995 && endswith(:name, \"9\")"))) == [999]
             @test evaluate("") == (nothing, nothing)
             # A missing hides its row.
-            @test findall(first(evaluate(":x > 0", DataFrame(x = Union{Int,Missing}[1, missing, 3])))) == [1, 3]
+            @test findall(first(evaluate("x > 0", DataFrame(x = Union{Int,Missing}[1, missing, 3])))) == [1, 3]
             # A symbol that names no column stays a symbol.
-            @test findall(first(evaluate(":id < 3 && :other == :other"))) == [1, 2]
+            @test findall(first(evaluate("id < 3 && :other == :other"))) == [1, 2]
             # A function of the session.
             Core.eval(Main, :(_data_frame_filter_test_is_even(n) = iseven(n)))
-            @test findall(first(evaluate("_data_frame_filter_test_is_even(:id) && :id < 7"))) == [2, 4, 6]
+            @test findall(first(evaluate("_data_frame_filter_test_is_even(id) && id < 7"))) == [2, 4, 6]
             # A text that does not parse, an error, and a value that is not true
             # or false give a reason, and no rows.
-            for text in (":id >", "startswith(:id, 1)", ":id + 1")
+            for text in ("id >", "startswith(id, 1)", "id + 1")
                 pass, reason = evaluate(text)
                 @test pass === nothing && reason isa String
             end
         end
 
+        @testset "a name in the expression is a column, except where Julia names something else" begin
+            evaluate(text, frame) = findall(first(module_._evaluate_expression(frame, text)))
+            # The name before parentheses is the function.
+            @test evaluate("abs(abs) > 1", DataFrame(abs = [-1, 2, -3])) == [2, 3]
+            # The field after a dot.
+            @test evaluate("point.x > x", DataFrame(point = [(x = 1,), (x = 5,)], x = [2, 2])) == [2]
+            # The name of a keyword argument, after a comma or a semicolon.
+            frame = DataFrame(price = [1.24, 5.68], digits = [9, 9])
+            @test evaluate("round(price, digits = 1) == 5.7", frame) == [2]
+            @test evaluate("round(price; digits = 1) == 1.2", frame) == [1]
+            # A name that is no identifier.
+            @test evaluate("var\"unit price\" > 2", DataFrame("unit price" => [1, 5])) == [2]
+            # A column wins over a global of the same name, which `Main.name` reaches.
+            Core.eval(Main, :(_data_frame_filter_test_limit = 3))
+            frame = DataFrame(_data_frame_filter_test_limit = [1, 5], v = [4, 4])
+            @test evaluate("v > _data_frame_filter_test_limit", frame) == [1]
+            @test evaluate("v > Main._data_frame_filter_test_limit", frame) == [1, 2]
+        end
+
+        @testset "an expression that assigns to a column does not compile, and the frame stays" begin
+            frame = DataFrame(id = [1, 2, 3])
+            for text in ("id = 3", "id += 1", ":id = 3", "(id, x) = (1, 2)")
+                pass, reason = module_._evaluate_expression(frame, text)
+                @test pass === nothing && occursin("write == to compare", reason)
+            end
+            @test frame.id == [1, 2, 3]
+            # A local of another name is no column.
+            @test findall(first(module_._evaluate_expression(frame, "let n = 2; id > n end"))) == [3]
+        end
+
+        @testset "the empty expression field shows an example of the columns of the frame" begin
+            example(frame) = module_._make_expression_example(frame)
+            @test example(DataFrame(city = ["Berlin", "Rome"], age = [30, 40])) == "age > 30 && startswith(city, \"B\")"
+            @test example(DataFrame("unit price" => Union{Float64,Missing}[missing, 2.5])) == "var\"unit price\" > 2.5"
+            @test example(DataFrame("end" => [1])) == "var\"end\" > 1"
+            @test example(DataFrame(flag = [true])) === nothing
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            field = _data_frame_grid_iomap(io).child_iomaps[1][3].input.children[2]
+            @test field.placeholder == example(view.frame)
+            # The example parses, and keeps rows.
+            @test module_._evaluate_expression(view.frame, field.placeholder)[2] === nothing
+        end
+
         @testset "a row passes the expression and the filters of the columns" begin
             view = DataFrameView(make_frame())
-            getfield(view.query, :expression)[] = ":price > 990"
+            getfield(view.query, :expression)[] = "price > 990"
             @test view.kept_rows == 991:1000
             set_filter!(view, "id", "< 995")
             @test view.kept_rows == 991:994
             # An expression that does not parse keeps every row.
-            getfield(view.query, :expression)[] = ":price >"
+            getfield(view.query, :expression)[] = "price >"
             @test view.kept_rows == 1:994
         end
 

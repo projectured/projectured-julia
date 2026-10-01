@@ -57,9 +57,10 @@ Pkg installs only the folder of a package, and a package of this repository incl
 
 1. It checks that the set is closed: every package of the repository that a released package depends on is released too.
 2. For each package, in dependency order, it writes into a staging folder: the `Project.toml`, the entry file with the include prefix `../../../source/` changed to `../source/`, the slice, the folders that the package reads while it runs (`assets`), and the licence files. It copies only what git tracks.
-3. `collect_outside_paths` reads the syntax tree of every file of the copy. A literal `include` path or a `joinpath(@__DIR__, …)` path that leaves the package folder, or names nothing there, stops the build, and so does a path that the scan can not follow.
-4. Each package gets its version. A package whose content did not change keeps its folder byte for byte, so its tree and its version stay. A changed package gets the next patch version and caret `[compat]` bounds on its siblings from their versions in this release; a package of another registry gets a caret bound from `environment/all/Manifest.toml`.
-5. Only when every package passed does it replace the folders of the changed packages in `output`, the working tree of the release repository, and copy the licence files to its root. Another file at the root, such as a README or a CI workflow, stays as it is, and git shows what a release changed.
+3. With `tests`, a package with a test package gets `test/`: its `runtests.jl`, the test package and every package it needs that the release leaves out in `test/support/<Name>/`, and a `test/Project.toml` that names them by `[sources]`. `Pkg.test` reads those paths in the installed folder, so a user and PkgEval run the tests of the development repository with no package that a registry lacks. A support package gets the folders that its paths name, and its `assets`.
+4. `collect_outside_paths` reads the syntax tree of every file of the copy. A literal `include` path or a `joinpath(@__DIR__, …)` path that leaves the package folder, or names nothing there, stops the build, and so does a path that the scan can not follow. In `test/`, a form that the scan can not follow and a `joinpath(@__DIR__, …)` path inside the package are left to the tests themselves.
+5. Each package gets its version. A package whose content did not change keeps its folder byte for byte, so its tree and its version stay; the content leaves `test/` out, so a change of a test gives no new version, and a released folder keeps the tests of its version. A changed package gets the next patch version and caret `[compat]` bounds on its siblings from their versions in this release; a package of another registry gets a caret bound from `environment/all/Manifest.toml`.
+6. Only when every package passed does it replace the folders of the changed packages in `output`, the working tree of the release repository, and copy the licence files to its root. Another file at the root, such as a README or a CI workflow, stays as it is, and git shows what a release changed.
 
 The last release is what the last commit of the release repository holds: an uncommitted change stops the build. With `registry`, every version of the last release must be in that registry too, because a registry refuses a version that skips one; `build_projectured_package_release!` checks General unless it gets another registry. The registration is a separate step, in the order that the build answers; [build-guide.md](../../../guide/build-guide.md) holds it.
 
@@ -90,8 +91,9 @@ build_projectured_distribution()             # build/projectured-<version>-linux
 build_projectured_package_release!("../Projectured.jl")   # the release copy of the packages
 ```
 
-- Test: `test_builder()` in `test/tool/builder/BuilderTest.jl`. The tests compile nothing: they check what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
-- Test: `test_package_release()` in `test/tool/builder/PackageReleaseTest.jl`, also with no compile: the layout of the copy, the versions, the bounds, the scan, and a release copy of this repository.
+- Test: `test_builder()` of the test package `ProjecturedBuilderTest` runs the layering guard of the builder and the two suites below. The tests compile nothing.
+- Test: `test_build_executable()` in `test/tool/builder/BuilderTest.jl`: what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
+- Test: `test_package_release()` in `test/tool/builder/PackageReleaseTest.jl`: the layout of the copy, the versions, the bounds, the scan, the test folders, and a release copy of this repository.
 
 ## Limits
 

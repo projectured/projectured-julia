@@ -68,6 +68,11 @@ In the order of the chain. The kind is the one in the document's header.
 | [view-your-data-guide.md](guide/view-your-data-guide.md) | procedure | How do I put my own values on the screen, designed or on demand? |
 | [own-project-guide.md](guide/own-project-guide.md) | procedure | How do I use ProjecturEd from my own project? |
 | [keyboard-and-mouse-guide.md](guide/keyboard-and-mouse-guide.md) | procedure | Which keys and clicks work, and how do I see the rest? |
+| [pointer-guide.md](guide/pointer-guide.md) | procedure | What does the program show where the pointer sits? |
+| [gestures-guide.md](guide/gestures-guide.md) | procedure | What do a double click, a chord, a rest of the pointer and a right click do? |
+| [tooltip-guide.md](guide/tooltip-guide.md) | procedure | How do I see and close the small window that says what a part is? |
+| [popup-window-guide.md](guide/popup-window-guide.md) | procedure | Where does a menu, a dropdown list, a dialog or a tooltip stand, and how does it close? |
+| [context-menu-guide.md](guide/context-menu-guide.md) | procedure | How do I open the menu of the part under the pointer, and see more of it? |
 | [examples-tour.md](guide/examples-tour.md) | reference | Which examples exist, what does each show, and what should I try? |
 | [debugging-guide.md](guide/debugging-guide.md) | procedure | How do I drive the printer and the reader by hand, and force a cell? |
 | [testing-guide.md](guide/testing-guide.md) | procedure | Which test covers my change, and how do I read the summary? |

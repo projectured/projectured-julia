@@ -151,6 +151,9 @@ end
 
 # ── Predefined live examples ─────────────────────────────────────────────────
 
+# The JSON document of `ProjecturedJSONExample` under the full JSON projection.
+const json_example = Example("json", make_json_document_example, make_json_projection_example)
+
 # Type "world" into the first string value of the json object ("Alice"), then
 # step the caret right a couple of times. Pure events; needs a caret seed.
 const json_typein_live = LiveExample("json_typein", json_example,
@@ -257,7 +260,7 @@ const json_build_live = LiveExample("json_build", json_build_example,
         [_jb_down(), _jb_comma()],                                   # after the `}` of the next line
         _jb_key("placeholder"), [_jb_tab()],                         # leave value as the insertion
     );
-    initial_selection = Projectured.EmptyReference(),
+    initial_selection = EmptyReference(),
     width = 760, height = 1000)
 
 const live_examples = LiveExample[

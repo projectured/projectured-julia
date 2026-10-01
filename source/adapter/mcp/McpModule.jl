@@ -18,10 +18,12 @@ The editor loop never names `McpServer`: it goes through the generic
 module McpModule
 
 using ..KernelModule
-using ModelContextProtocol
-using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
-# The protocol has a `Tool` and a `Resource` of its own; these are the kernel's.
-import ..ToolModule: Tool, Resource
+# The protocol has a `Tool` and a `Resource` of its own, so this module names
+# what it takes from the protocol, and `Tool` and `Resource` are the kernel's.
+import ModelContextProtocol
+using ModelContextProtocol: HttpTransport, MCPResource, MCPTool, Server, ServerConfig,
+                            TextContent, TextResourceContents, ToolParameter, mcp_server,
+                            register!, start!, stop!
 
 # Imported to extend: this module adds a method to each of these.
 import ..AgentModule: make_agent_server, start_agent_server!, stop_agent_server!

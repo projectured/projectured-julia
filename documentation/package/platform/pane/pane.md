@@ -21,7 +21,7 @@ A `:vertical` split has a vertical divider, so its children are side by side. A 
 
 ### Focus is the selection
 
-No node has a focus field or an active-tab field. The selection of the tree names the focused tab, for example `root.elements[2].tabs[3]`, or an empty group, `root.elements[2]`. The tab that a group shows is the tab that the `selection` of the group names. So every focus move and every tab switch is one `ReplaceSelectionOperation`.
+No node has a focus field or an active-tab field. The selection of the tree names the focused tab, for example `root.elements[2].tabs[3]`, or an empty group, `root.elements[2]`. The tab that a group shows is the tab that the `selection` of the group names. So every focus move and every tab switch is one `ReplaceSelectionOperation`. The part of the selection after `content` of the focused tab is the place in the document of that tab; `find_pane_content_selection(tree)` gives it, or `nothing` when the selection is not inside the document of a tab, and the status bar of the shell slice shows it.
 
 `has_dormant_selection` is `true` for `PaneGroup`, `PaneTab` and `PaneSplit`. When the focus leaves a node, the node keeps its selection as a dormant one: stored and drawn, but not used for routing. So a group that loses the focus still shows its tab, a tab keeps its caret, and a nested split keeps the side that had the focus.
 

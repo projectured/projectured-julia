@@ -1,9 +1,10 @@
 # The static guards and the test suite of every test package, with coverage.
 #
 # Each test package runs in its own environment, so a suite that uses a package
-# its Project.toml does not name fails here. The five test packages of the
-# opt-in backends and the umbrella load through environment/all, the one
-# environment that names every package (documentation/guide/testing-guide.md).
+# its Project.toml does not name fails here. The umbrella loads through
+# environment/all, the one environment that names every package
+# (documentation/guide/testing-guide.md); its suite has two jobs, the tests of
+# the packages and the tests that read this repository.
 name: CI
 
 on:
@@ -76,11 +77,17 @@ jobs:
           - {package: ProjecturedOllamaTest, run: test_ollama}
           - {package: ProjecturedOpenRouterTest, run: test_openrouter}
           - {package: ProjecturedDataFramesTest, run: test_dataframes}
-          - {package: ProjecturedSDLTest, run: test_sdl, project: environment/all}
-          - {package: ProjecturedTulipTest, run: test_tulip, project: environment/all}
-          - {package: ProjecturedVideoTest, run: test_video, project: environment/all}
-          - {package: ProjecturedODBCTest, run: test_odbc, project: environment/all}
+          - {package: ProjecturedConsoleTest, run: test_console}
+          - {package: ProjecturedPDFTest, run: test_pdf}
+          - {package: ProjecturedWebTest, run: test_web}
+          - {package: ProjecturedMCPTest, run: test_mcp}
+          - {package: ProjecturedSDLTest, run: test_sdl}
+          - {package: ProjecturedTulipTest, run: test_tulip}
+          - {package: ProjecturedVideoTest, run: test_video}
+          - {package: ProjecturedODBCTest, run: test_odbc}
+          - {package: ProjecturedBuilderTest, run: test_builder}
           - {package: ProjecturedTest, run: test_integration, project: environment/all}
+          - {package: ProjecturedTest, run: test_repository, project: environment/all}
     env:
       PROJECT: ${{ matrix.project || format('package/{0}', matrix.package) }}
       SDL_VIDEODRIVER: offscreen   # SDL draws into memory; the runner has no display

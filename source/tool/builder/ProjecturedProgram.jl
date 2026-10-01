@@ -315,15 +315,22 @@ const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedBe
 """
     PROJECTURED_PACKAGE_ASSETS
 
-The folders of the repository that a released package reads while it runs, as
-`"<package>" => ["<folder>" => "<folder in the package>", …]`. Each one sits at
+The folders and files of the repository that a released package, or a package
+of its tests, reads while it runs, as
+`"<package>" => ["<folder or file>" => "<the same in the package>", …]`. Each one sits at
 the same place relative to the source of the package as in the repository, so
 the code that reads it needs no change.
 """
 const PROJECTURED_PACKAGE_ASSETS = Dict(
     "ProjecturedKernel" => ["documentation" => "documentation"],
     "ProjecturedPlatform" => ["asset/font" => "asset/font"],
-    "ProjecturedWeb" => ["asset/web" => "asset/web", "asset/font" => "asset/font"])
+    "ProjecturedWeb" => ["asset/web" => "asset/web", "asset/font" => "asset/font"],
+    "ProjecturedPlatformExample" => ["asset/image/file.png" => "asset/image/file.png",
+                                     "asset/image/projectured.png" => "asset/image/projectured.png"],
+    "ProjecturedMarkdownTest" => ["asset/image/file.png" => "asset/image/file.png"],
+    "ProjecturedSDLTest" => ["tool/precompile/recording-driver.jl" =>
+                             "tool/precompile/recording-driver.jl"],
+    "ProjecturedTest" => ["test/suite" => "test/suite"])
 
 """
     PROJECTURED_JULIA_COMPAT
@@ -371,6 +378,7 @@ function build_projectured_package_release!(output::AbstractString;
                            output = output, assets = PROJECTURED_PACKAGE_ASSETS,
                            licences = PROJECTURED_LICENCES,
                            readme = _format_projectured_package_readme,
+                           tests = name -> _find_projectured_release_test(context, name),
                            julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry,
                            kwargs...)
 end
@@ -385,6 +393,27 @@ _format_projectured_package_readme(name) = """
     of `$name` is `package/$name` there, and a change belongs there.
 
     The licence is the Mozilla Public License 2.0, in `LICENSE`.
+    """
+
+# The suite that tests a released package of this repository: its test package
+# `<Name>Test` and its aggregator `test_<name>()`. The umbrella runs the part of
+# its suite that only the umbrella can run.
+function _find_projectured_release_test(context::BuildContext, name)
+    name == "Projectured" &&
+        return "ProjecturedTest" => _format_projectured_runtests("ProjecturedTest", "test_integration")
+    test_package = name * "Test"
+    has_package_directory(context, test_package) || return nothing
+    suite = "test_" * lowercase(name[length("Projectured")+1:end])
+    test_package => _format_projectured_runtests(test_package, suite)
+end
+
+_format_projectured_runtests(test_package, suite) = """
+    # The suite of `$test_package`, which the release copies into `support/` with
+    # the packages it needs that no registry holds. SDL draws into memory when no
+    # display is named.
+    haskey(ENV, "SDL_VIDEODRIVER") || (ENV["SDL_VIDEODRIVER"] = "offscreen")
+    using $test_package
+    $suite()
     """
 
 const _CHECK_WEB = "http://127.0.0.1:8080"

@@ -322,7 +322,7 @@ is safe only when nothing writes the frame at the same time.
   expression; a range for a number; a list of the values with their counts
   when a column has few distinct values; "missing" or "not missing".
 - An expression filter: a Julia expression over the column names, for example
-  `:age > 30 && startswith(:city, "B")`. The Julia domain edits it.
+  `age > 30 && startswith(city, "B")`. The Julia domain edits it.
 - Hide, show, move and freeze columns.
 - While the text of a cell is pending, the row stays where it is. The commit
   writes the frame, and the view sorts and filters again at once (D6). D10
@@ -573,8 +573,8 @@ chose seams in place of registries (§5.1). The design is in
     `abc` for "contains", `/re/` for a regular expression, `= x` for an exact
     value, `missing` and `!missing`. A condition that does not parse shows a
     mark. The filters of all columns combine with "and".
-  - **F4. The expression filter**, such as `:age > 30 && startswith(:city,
-    "B")`, is (a) a bar above the table with a plain text field, and (c) the
+  - **F4. The expression filter**, such as `age > 30 && startswith(city,
+    "B")` (a bare name since 5.6b; it was `:age` first), is (a) a bar above the table with a plain text field, and (c) the
     Julia domain gives the bar its editor through a seam when it is loaded.
     The data frame package does not depend on the Julia domain. The
     expression compiles once into a function of the columns that it names,
@@ -908,9 +908,56 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     DataFrames, `ProjecturedKernel` and `ProjecturedPlatform`, and it adds no
     backend, no pane and no display. At the owner's word it exports
     `display_in_editor` and `close_display_editor!` of the display slice.
-- [ ] **3. Refresh.** The three levels of §4.3, as the method of
+- [x] **3. Refresh.** The three levels of §4.3, as the method of
   `refresh_document!` for `DataFrameView`. The triggers A, B and D, with no
   busy flag. C is a keyword that is off by default (D3).
+  Done 2026-10-01 (the owner: "do phase 3, refresh"), except B, which is
+  deferred (the owner, 2026-10-01: "defer trigger B now"):
+  - `DataFrameRefresh.jl`: a snapshot of the three levels (the structure;
+    a hash of 100 rows from the top row and 64 shown columns; the full
+    content of the columns that the query reads, because `hash` of an array
+    reads only a few elements). The view has `frame_version`, which every
+    computation of the data of the frame reads, and `frame_snapshot`. A
+    refresh moves the version when the snapshot differs; the first refresh
+    moves it in any case, so a new view reads no cell for a refresh (a
+    snapshot in the constructor read 100 cells, which the tests that count
+    the reads of a frame of ten million rows found). A new column gets a
+    filter in the query.
+  - D: F5 is `RefreshDataFrameViewOperation`, which reads at every level
+    whether the snapshot changed or not. The owner, 2026-10-01: "we need a
+    refresh button somewhere on the table, no?", then "yes" to the
+    suggestion of the writer: the glyph `refresh-cw` at the right end of the
+    top bar, a flat toolbar item whose tooltip names F5. The top bar is a grid
+    of one row now, label, field, room and glyph, with the label centred on
+    the field.
+  - C: `display_in_editor(value; refresh_every)`, a timer of the display that
+    is off by default; and `refresh_display_editor!()`, which refreshes every
+    shown document and waits, for a person in the REPL (mine: a name that the
+    plan did not have, and the step that B also calls).
+  - A comes with phase 4: an edit through the view moves the version itself.
+  - B is deferred: the REPL has no hook after an input; the recommendation
+    of the writer, kept for when B is taken up, is a task that an `ast_transforms` entry
+    starts with each input and that waits until
+    `Base.active_repl_backend.in_eval` is false, an internal field, and does
+    nothing when a later Julia renames it.
+  - Tests: `test_data_frame_refresh()` (no change, a written value, a pushed
+    row, a value that a filter reads and the table does not show, a new
+    column, F5) and the display (a call and the timer); 203 data frame and
+    21 display tests pass.
+  - The duplicate (the owner, 2026-10-01, after a check in a live window:
+    "the table display tab pane should support duplication protocol (the
+    little +) on the header"). `DataFrameView`, `DataFrameQuery`,
+    `DataFrameColumnFilter` and `DataFrameSortKey` declare a duplicate. The
+    duplicate of a view shares the frame and owns a copy of the query, the
+    anchors, the scroll position and the top row (mine: the place is what a
+    person controls in a view, as the duplicate protocol says). Its two
+    computed fields, the result of the expression and the kept rows, get new
+    computations over its own query, by the helper that the constructor uses;
+    its version starts at 0 with no snapshot, so its first refresh reads the
+    frame. Tests: `test_data_frame_duplicate()` (the shared frame, an
+    independent filter and anchor, both read a change after a refresh, the tab
+    duplicates into the next tab); 256 data frame tests pass. A picture shows
+    the "+" on the tab.
 - [ ] **4. Edit.** The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
   form. There is no busy flag (D3 changes, §5.1). An edit writes the frame
@@ -1178,6 +1225,41 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       A picture shows the bar and its result (59 rows of 1,200, correct).
       Open, small: the label is not centred on the field, and the bar row
       has the background of the cells.
+    - [x] **5.6b A bare name is the column, and the empty bar shows an
+      example.** The owner, 2026-10-01: "It expects :stem for a stem column.
+      I could not guess that, why not just stem?", then "Yes" to the
+      proposal of the writer:
+      - A bare name that names a column is the column; `:name` still works,
+        as DataFramesMeta.jl writes it. A name that Julia uses for something
+        else stays: the function of a call or of a broadcast, the field after
+        a dot, the name of a keyword argument (after a comma or a semicolon)
+        and of a macro. `var"unit price"` names a column whose name is no
+        identifier. A column wins over a global of the same name, and
+        `Main.name` reaches the global.
+      - Found while implementing (mine): with bare names, the typo
+        `age = 30` for `age == 30` writes 30 into the column of the frame,
+        because the name becomes the element of the column vector. `:age =
+        30` did the same before. An expression that assigns to a column,
+        with `=`, an update such as `+=`, or in a tuple on the left, does
+        not compile now; its reason says "write == to compare".
+      - The placeholder: `WidgetText` had none (`placeholder_color` is for
+        images only). `WidgetText` has the field `placeholder` after
+        `language`, and `WidgetTextToGraphicsCanvas` the style
+        `placeholder_text` (the muted foreground of the theme). An empty
+        field of plain text draws it where its text begins, below the
+        content, so the caret draws over it, and the box is at least as wide
+        as it. A press in the box puts the caret at the start, as before. It
+        is no part of the content.
+      - The example of the bar is made of the columns of the frame (mine):
+        the first column of numbers compared with its first value that is
+        not `missing`, and a test of the first letter of the first column of
+        strings, such as `age > 30 && startswith(city, "B")`; `nothing` when
+        the frame has neither. It reads `frame_version`, so a refresh with a
+        new column makes it again.
+      - Tests: bare names, `:name`, the call, the dot, the keyword names,
+        `var"..."`, the column over the global and `Main.name`, the
+        assignments, the example, and the placeholder (drawn, muted, below
+        the content, gone with a text, a press at the start).
     - [ ] **5.7 Column resize** (F6), in the widget substrate: a press within
       3 pixels of the right edge of a header starts a drag, as the splitter
       does, and the drag writes the width of the column. The view keeps it

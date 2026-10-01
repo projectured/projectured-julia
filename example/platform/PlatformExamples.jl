@@ -190,6 +190,7 @@ const platform_examples = Example[
 # catalog's "direct single-step to text" path; the umbrella concatenates every
 # tier's slice into `atomic_documents`.
 const platform_atomic_documents = AtomicDocument[
+    AtomicDocument(:appearance, "appearance", make_appearance_document_example),
     AtomicDocument(:primitive, "string", make_primitive_string_document_example),
     AtomicDocument(:primitive, "number", make_primitive_number_document_example),
     AtomicDocument(:primitive, "bool",   make_primitive_bool_document_example),

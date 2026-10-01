@@ -35,7 +35,7 @@ end
     find_editor_settings(editor) -> Settings or nothing
 
 The `Settings` of `editor`: those of the `SettingsDocument` at its root, or
-under the `content` of the documents around it. `nothing` for an editor with no
+under the `content` of the documents around it, such as the `AppearanceDocument`. `nothing` for an editor with no
 `settings` wrapper.
 """
 function find_editor_settings(editor)

@@ -5,8 +5,8 @@
 
 The wrapper of `build_editor` that puts the root document inside a
 [`SettingsDocument`](@ref) and the projection inside a
-[`SettingsManagingProjection`](@ref), around everything else, the appearance
-wrapper too. It is on by default.
+[`SettingsManagingProjection`](@ref), around everything but the appearance
+wrapper, which stays the root. It is on by default.
 
 Its argument is the `Settings` of the editor. A main builder makes it, fills it
 from its sources, builds the projection with it, and passes it. For `true` the
@@ -34,7 +34,7 @@ function make_wrapper_argument(::Val{:settings}, argument::Bool)
 end
 make_wrapper_argument(::Val{:settings}, argument::Settings) = argument
 
-get_wrapper_layers(::Val{:settings}) = (:screen => 10,)
+get_wrapper_layers(::Val{:settings}) = (:screen => -10,)
 is_wrapper_default(::Val{:settings}) = true
 
 """

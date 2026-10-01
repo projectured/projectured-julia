@@ -55,13 +55,14 @@ mutable struct WebBackend <: Backend
     windows::Dict{Symbol,WebWindowState}  # per-window incremental state
     last_ids::Vector{Symbol}              # window ids sent last frame (for close detection)
     force_full::Bool                      # send every window in full on the next frame
+    zoom::Float64                         # the zoom of the display at the last frame sent
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
     WebBackend(String(host), Int(port), get_web_asset_directory("web"),
                get_web_asset_directory("font"),
                nothing, Channel{Any}(256), Base.Event(true), nothing,
-               Dict{Symbol,WebWindowState}(), Symbol[], false)
+               Dict{Symbol,WebWindowState}(), Symbol[], false, 1.0)
 end
 
 # The browser draws a screen of windows, and `--backend=web` names it.
@@ -859,8 +860,15 @@ _window_meta(w::WindowDocument, draw; primary::Bool=false) = Dict(
 Reconcile the connected client against the projection-output `ScreenDocument`.
 A window is sent in full on first paint / after a forced resync; otherwise only a
 `patch` covering the reactive dirty rectangle is sent. Windows that disappeared
-are closed. The message is `{type:"update", full:[…], patches:[…], close:[…]}`;
-nothing is sent when no client is connected or no window changed.
+are closed. The message is
+`{type:"update", zoom:…, full:[…], patches:[…], close:[…]}`; nothing is sent when
+no client is connected or no window changed.
+
+`zoom` is the zoom of the `Display` in `devices`, or 1 with none. The client draws
+each logical pixel as `devicePixelRatio × zoom` pixels of the page, reports the
+size of each window divided by the zoom, and divides each pointer position by it,
+so the server lays out and reads in logical pixels at every zoom. A new zoom sends
+every window in full, because the client draws it again at the new ratio.
 """
 function BackendModule.write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
     conn = backend.conn
@@ -878,8 +886,10 @@ function BackendModule.write_to_devices(backend::WebBackend, devices, screen::Sc
     end
     backend.last_ids = ids
 
-    force = backend.force_full
+    zoom = _get_display_zoom(devices)
+    force = backend.force_full || zoom != backend.zoom
     backend.force_full = false
+    backend.zoom = zoom
 
     # The first window in list order is the primary (in-tab) one; the client
     # renders it in the page it was opened from rather than a popup.
@@ -906,11 +916,20 @@ function BackendModule.write_to_devices(backend::WebBackend, devices, screen::Sc
     end
 
     (isempty(full) && isempty(patches) && isempty(closed)) && return nothing
-    msg = JSON3.write(Dict("type" => "update", "full" => full, "patches" => patches, "close" => closed))
+    msg = JSON3.write(Dict("type" => "update", "zoom" => zoom, "full" => full, "patches" => patches,
+                           "close" => closed))
     # `force` ⇒ a complete snapshot (all windows full, no patches), safe to drain
     # the backlog against; otherwise append in order.
     _enqueue!(backend, conn, msg, force)
     return nothing
+end
+
+# The zoom of the first `Display` in `devices`, or 1 with none.
+function _get_display_zoom(devices)
+    for device in devices
+        device isa Display && return Float64(device.zoom)
+    end
+    1.0
 end
 
 # Fail loud on a miswired pipeline whose output is not a ScreenDocument.

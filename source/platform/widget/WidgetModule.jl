@@ -39,6 +39,7 @@ import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edite
                          get_document_title
 import ..DomainModule: compute_context_menu
 import ..SerializationModule: pred_arguments
+import ..StyleModule: get_theme_presets
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
 import ..GraphicsModule: map_operation_position
 import ..OperationModule: evaluate_operation, is_collecting_operation,

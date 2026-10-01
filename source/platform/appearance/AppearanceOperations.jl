@@ -82,3 +82,47 @@ make_inverse_operation(document, ::Union{AdjustZoomOperation, AdjustScaleOperati
 
 # Each carries the appearance that it writes, so it travels up a chain as it is.
 operation_travels_unchanged(::Union{AdjustZoomOperation, AdjustScaleOperation}) = true
+
+"""
+    SaveAppearanceOperation(appearance, path = get_appearance_file())
+
+Write `appearance` into the file `path` with `save_appearance!`. The view does not
+change.
+"""
+struct SaveAppearanceOperation <: Operation
+    appearance::Appearance
+    path::String
+end
+
+SaveAppearanceOperation(appearance::Appearance) = SaveAppearanceOperation(appearance, get_appearance_file())
+
+"""
+    LoadAppearanceOperation(appearance, path = get_appearance_file())
+
+Read the file `path` into `appearance` with `load_appearance!`, and copy its zoom
+into the `Display` of the editor. It changes the appearance, so the view prints
+again.
+"""
+struct LoadAppearanceOperation <: Operation
+    appearance::Appearance
+    path::String
+end
+
+LoadAppearanceOperation(appearance::Appearance) = LoadAppearanceOperation(appearance, get_appearance_file())
+
+evaluate_operation(editor, operation::SaveAppearanceOperation) =
+    (save_appearance!(operation.appearance, operation.path); nothing)
+
+function evaluate_operation(editor, operation::LoadAppearanceOperation)
+    load_appearance!(operation.appearance, operation.path)
+    copy_zoom_to_display!(editor, operation.appearance)
+    nothing
+end
+
+describe_operation(operation::SaveAppearanceOperation) = "save the appearance"
+describe_operation(operation::LoadAppearanceOperation) = "load the appearance"
+
+make_inverse_operation(document, ::Union{SaveAppearanceOperation, LoadAppearanceOperation}) =
+    DoNothingOperation()
+
+operation_travels_unchanged(::Union{SaveAppearanceOperation, LoadAppearanceOperation}) = true

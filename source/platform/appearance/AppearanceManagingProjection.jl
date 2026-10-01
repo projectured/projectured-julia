@@ -92,11 +92,12 @@ _mark_appearance_change(document::AppearanceDocument, operation) =
     is_appearance_change(appearance, operation) -> Bool
 
 Whether `operation` changes `appearance`: a step of its zoom or of one of its
-scales, or a write into the appearance or into one of its themes, alone or
-inside a compound or a wrapping operation.
+scales, a load of a saved appearance, or a write into the appearance or into one
+of its themes, alone or inside a compound or a wrapping operation.
 """
 is_appearance_change(appearance::Appearance, operation) = false
-is_appearance_change(appearance::Appearance, operation::Union{AdjustZoomOperation, AdjustScaleOperation}) =
+is_appearance_change(appearance::Appearance,
+                     operation::Union{AdjustZoomOperation, AdjustScaleOperation, LoadAppearanceOperation}) =
     operation.appearance === appearance
 is_appearance_change(appearance::Appearance, operation::CompoundOperation) =
     any(member -> is_appearance_change(appearance, member), operation.operations)

@@ -6,6 +6,8 @@ for _n in names(Projectured; all = true)
 end
 
 using ProjecturedExample
+# The transcript test names the factories of the conversation example by package.
+import ProjecturedConversationExample
 # The generic test drivers ((label, document, projection) forms), the reflexive
 # cell walker, the event battery, and the kernel unit suites live in
 # ProjecturedKernelTest — the base of the test-package DAG. The umbrella keeps
@@ -31,9 +33,6 @@ using ProjecturedDBCatalogTest
 using ProjecturedFormulaTest
 using ProjecturedFSMTest
 using ProjecturedProcessTest
-# The builder's own suite is umbrella-only: it needs no domain and no editor,
-# but it is a repository-wide tool and this is where a repository-wide test runs.
-using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_platform()` as well as `test_all()`.
@@ -110,6 +109,11 @@ using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
 # The suite of the data frame view. It prints its views without a window.
 using ProjecturedDataFramesTest
+# The suites of the console, PDF and web backends and of the MCP server.
+using ProjecturedConsoleTest
+using ProjecturedPDFTest
+using ProjecturedWebTest
+using ProjecturedMCPTest
 using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
                    ConcreteReference, EmptyReference, Reference,
@@ -140,12 +144,8 @@ include("../suite/exports.jl")
 include("../suite/documentation.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
-include("backend/ConsoleBackendTest.jl")
-include("backend/PdfWriterTest.jl")
-include("backend/WebTest.jl")
+include("backend/AssistantConversationVideoTest.jl")
 include("backend/BackendChoiceTest.jl")
-include("../tool/builder/BuilderTest.jl")
-include("../tool/builder/PackageReleaseTest.jl")
 include("document/SelectionEnumeration.jl")
 include("editor/ConstructTest.jl")
 include("editor/ConversationPanelTest.jl")
@@ -166,7 +166,6 @@ include("editor/EvaluatorDuplicateTest.jl")
 include("editor/ValueViewerTest.jl")
 include("editor/ReferencedDocumentEditorTest.jl")
 include("editor/GalleryWrapperTest.jl")
-include("editor/McpTest.jl")
 include("projection/CommandPaletteTest.jl")
 include("projection/DocumentInsertionTest.jl")
 include("projection/DraggingProjectionTest.jl")
@@ -174,6 +173,8 @@ include("projection/GestureHelpTest.jl")
 include("projection/TextRangeSelectionTest.jl")
 include("projection/TextClipboardTest.jl")
 include("projection/GestureLogProjectionTest.jl")
+include("projection/ConversationTranscriptTest.jl")
+include("editor/McpSurfaceTest.jl")
 include("projection/UndoRoundTripTest.jl")
 include("projection/GestureMapTest.jl")
 include("projection/ReferenceInspectorTest.jl")
@@ -232,6 +233,7 @@ function test_projections()
         test_dragging()
         test_write_image()
         test_record_video()
+        test_assistant_conversation_video()
         test_dirty_rect()
         test_console_backend()
         test_write_pdf()
@@ -413,15 +415,29 @@ function test_all()
 end
 
 """
+    test_repository()
+
+The tests of the umbrella that read this repository and not only its packages:
+the package graph, from the `Project.toml` files under `package/`. An installed
+package has no repository, so the release test of `Projectured` leaves them out.
+"""
+function test_repository()
+    @testset "repository" begin
+        test_package_graph()
+    end
+end
+
+"""
     test_integration()
 
-The umbrella's full-stack integration tests: the package graph, the examples,
-the editor loop, the SDL, Tulip and Video suites of the umbrella, and the checks
-that need no live database. CI runs it in a job of its own.
+The umbrella's full-stack integration tests: the examples, the editor loop, the
+SDL, Tulip and Video suites of the umbrella, and the checks that need no live
+database. They need the packages and nothing of this repository, so the release
+test of `Projectured` runs them. CI runs them in a job of its own, with
+[`test_repository`](@ref).
 """
 function test_integration()
     @testset "integration" begin
-    test_package_graph()
     # Every concrete-domain example through the printer.
     test_domain_examples()
     # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
@@ -460,7 +476,10 @@ function test_integration()
     # text projection.
     test_catalog_typeins()
     test_mcp_tools()
+    test_search_tools_registered()
+    test_whole_surface_documentation()
     test_conversation_serialization()
+    test_conversation_transcript()
     test_parse_markdown_blocks()
     test_document_insertion()
     # Every gesture that makes a recorded change is taken back, and the document
@@ -486,8 +505,6 @@ function test_integration()
     test_evaluator_duplicate()
     test_value_viewer()
     test_referenced_document_editor()
-    test_builder()
-    test_package_release()
     test_gallery_wrappers()
     test_mouse_clicks()
     test_click_roundtrips()
@@ -517,7 +534,7 @@ function test_table()
     end
 end
 
-export test_all, test_integration, test_documents, test_projections, test_domain_examples,
+export test_all, test_integration, test_repository, test_documents, test_projections, test_domain_examples,
        test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
 export test_kernel, test_platform, test_domain
@@ -528,7 +545,7 @@ export test_json_document, test_syntax, test_text, test_graphics, test_affine_tr
 export test_formula_to_syntax, test_projection_template_hygiene
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_text_ink_inside_viewports, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect, test_web_backend, test_backend_choice
 export test_table, test_table_selection, test_table_navigation, test_table_cell_editing, explore_table_selections
-export test_graph_projection
+export test_graph_projection, test_conversation_transcript, test_assistant_conversation_video
 export test_examples, test_position_navigations, test_position_navigations_complete
 export test_printer, test_printers, test_example, test_position_navigation
 export measure_printer_locality, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
@@ -555,8 +572,7 @@ export test_undo_round_trip
 export test_application, test_history_sweep, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
-       test_value_viewer, test_referenced_document_editor, test_builder,
-       test_package_release,
+       test_value_viewer, test_referenced_document_editor,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql
@@ -567,6 +583,7 @@ export test_assistant_composer_panel, test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation
 export test_search_guides, test_search_api, test_search_tools_registered
+export test_whole_surface_documentation
 export test_pane_tab_b1, test_print_object_options, test_search_object
 export test_execute_julia_code, test_assistant_editor_reference, test_function_availability
 export test_base_extensions, test_mcp_resources, test_mcp_tools
