@@ -246,7 +246,6 @@ leaves their slice. They bring `Tulip` with `MathOptInterface`, `ODBC` with
 | R3a | Which way removes the sound chain from the binary? | A stand-in for `alsa_plugins_jll` in the build environment of the binary: the same name and uuid, no dependencies (the owner, 2026-09-29). It removes 58 of the 99 JLLs and 462 of the 577 MB of artifacts, FFmpeg with `--enable-nonfree` among them. The binary only: with `Pkg.add` the JLLs come from the Julia package servers, not from us. |
 | R17 | Liberation 1.07.3 is GPL-2. | Switch Sans, Serif and Mono to Liberation 2.x (OFL-1.1, the same metrics), and remove Sans Narrow, which no code uses and which 2.x does not have (the owner, 2026-09-29). **Both routes**: `ProjecturedStyle` and `ProjecturedWeb` carry `asset/font/`, so it comes before B6 too. |
 | R18 | The source of the LGPL and GPL libraries that stay in the binary. | First `--filter-stdlibs`, which should leave out `libgit2` and 7-Zip because no package of the application needs Pkg or LibGit2; then a source archive of exactly the versions that remain, in the same GitHub release (the owner, 2026-09-29). The binary only. |
-| R23 | One release repository with 65 subdirectories, or one repository for each package? | Reopened on 2026-09-30. The URL rule does not decide it: AutoMerge skips that rule for a package in a subdirectory (§3.3), so with either layout the first version of each package merges with no maintainer, except the names of R22. What differs is the upkeep: one repository is one history and one push for each release; 65 repositories are 65 of each, which the generator already writes (commit `6571ceed9`). The owner asks the maintainers in `#pkg-registration` on the Julia Slack on 2026-10-01, with R22, the 13 dependency levels and the LLM policy of §3.3. My recommendation, not decided: one repository with a subdirectory for each package. |
 | R20 | The guides live in `ProjecturedKernel` (§2.3), so each change to a guide gives the kernel a new version, and Julia compiles every package above it again after `pkg> up`. A change to a licence text gives all 65 a new version. Accept that, or give the guides a package of their own later? | Accept it now. The kernel changes in most releases anyway, and a package of its own for the guides is a change of structure. |
 
 ### 4.2 Decided
@@ -269,13 +268,13 @@ The owner decided these on 2026-09-29.
 | R13 | The `[compat]` bounds? | The siblings: a caret bound from the version of the sibling in the release that changed the package (R11, rule 3). Every other package: a caret bound from its version in `environment/all/Manifest.toml`. Julia: the oldest version that passes Step B4. |
 | R14 | A `projectured` command through Pkg apps? | Later. |
 | R15 | Rename `LICENCE-PD`? | No. It stays as it is. Moot since R21: the file goes. |
-| R9 | Where does the release copy live? | In one repository per package, `projectured/<Name>.jl` (R23). Not `projectured/projectured`: that name is the redirect to the Lisp original (§3.3). The umbrella's own repository is then `projectured/Projectured.jl`. |
-| R10 | The name and place of the registry? | The General registry (changed on 2026-09-29 by R21). Before that: `projectured/ProjecturedRegistry`, made with `LocalRegistry.jl`, which Step B4 still uses as a local stand-in for General. |
+| R9 | Where does the release copy live? | In one repository, `projectured/Projectured.jl`, with one folder for each package (the owner, 2026-10-01; R23). The owner created it on 2026-10-01, private and empty; it becomes public when the release copy stands on its own (Part R). Not `projectured/projectured`: that name is the redirect to the Lisp original (§3.3). |
+| R10 | The name and place of the registry? | The General registry (changed on 2026-09-29 by R21). Before that: `projectured/ProjecturedRegistry`, made with `LocalRegistry.jl`, which Step B4 still uses as a local stand-in for General. A local registry comes first (R27); its name and place are open (Part R). |
 | R21 | The licence of the repository and of the packages? | **MPL-2.0** (the owner, 2026-09-29). Other people may build and sell products on ProjecturEd with packages of their own; their changes to the files of ProjecturEd stay MPL and public when they distribute them; the owner can use those changes in his own closed products with no contributor licence agreement. It is OSI-approved, so the packages can go into General. It replaces `LICENCE-PD` and `LICENCE-COMMERCIAL`, and it makes R15 moot. Part L does the change. |
 | R22 | Seven pairs of our names fail the name rule of General. Rename, or ask for manual merges? | Manual merges (the owner, 2026-09-29). |
 | R24 | Do the other two authors agree to MPL-2.0 for their commits? | Yes (the owner, 2026-09-29: "I know them well and they agreed"). Keep their agreement in writing with the release records. |
 | R25 | Guard against a version that skips one? | Yes (the owner, 2026-09-29). Done: `build_package_release!` takes `registry`, and `build_projectured_package_release!` checks General (commit after `c0dcdc1e1`). |
-| R23 | One release repository with 65 subdirectories, or one repository for each package? | One repository for each package, `projectured/<Name>.jl` (the owner, 2026-09-29). Then the URL rule of General passes for every package; the name rule still needs a manual merge for at least 4 (R22); the first registration still goes one level at a time, with 3 days of waiting for each new package. Done in the generator (commit `6571ceed9`). **Reopened on 2026-09-30** (§4.1): its reason, the URL rule, does not apply to a package in a subdirectory. |
+| R23 | One release repository with 65 subdirectories, or one repository for each package? | One release repository with a folder for each package, `projectured/Projectured.jl` (the owner, 2026-10-01: "I choose the single projectured/Projectured.jl repository"). The maintainers of General accept it: "generated copies are fine" in the subdirectories of one repository, "but that repo has to stand on its own" (Part R). AutoMerge does not apply the URL rule to a package in a subdirectory (§3.3). The decision of 2026-09-29, one repository for each package, is in the generator (commit `6571ceed9`); the generator must go back to one repository (Part R). |
 | R26 | Without the port, which engine does `ProjecturedGraph` use when none is registered? | A new force-directed engine, written from the textbook algorithm and not from the port (the owner, 2026-09-29: option 3). Part G. |
 | R19 | The ten files in `source/graph/cpp/` port the layout engine of OMNeT++, whose headers name OpenSim Ltd. and Andras Varga and the Academic Public License. | Move them out of this repository, into the private downstream repository that uses them (the owner, 2026-09-29). R26 holds what `ProjecturedGraph` uses in their place. The MIT function in `source/domain/Domain.jl` keeps its notice in one comment. |
 | R16 | What to do with the four packages of §2.4 that can not go in as they are? | Skip them: `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`. `ProjecturedExample` and the other example packages stay out by R12, so the registry gives no application; the binary gives it. The registry set is 65 packages. |
@@ -860,7 +859,7 @@ Step A6 do.
       the install line. With General (R21) it needs no registry line:
 
       ```julia
-      pkg> add Projectured ProjecturedSdl
+      pkg> add Projectured ProjecturedSDL
       ```
 
 - [ ] [own-project-guide.md](../../documentation/guide/own-project-guide.md):
@@ -879,16 +878,21 @@ Step A6 do.
 The commands, to run after the owner approves. The agent states them and
 stops.
 
-- [ ] Part L is done, and R23 has an answer from the maintainers of General.
-- [ ] Make the 65 GitHub repositories of R9, `projectured/<Name>.jl`, and
-      install the Registrator app of JuliaRegistries for them.
-- [ ] Generate the release for `v0.1.0` into a folder that holds a clone of
-      each (`build_projectured_package_release!`), commit each, and push.
+A local registry comes first (R27), with the steps at the end of Part R. This
+step registers in General later, from the same release repository.
+
+- [x] Part L is done, and R23 has an answer from the maintainers of General.
+- [x] Make the release repository of R9, `projectured/Projectured.jl`.
+      Done by the owner on 2026-10-01, private and empty.
+- [ ] Make the release repository public, and install the Registrator app of
+      JuliaRegistries for it.
+- [ ] Generate the release for `v0.1.0` into a clone of the release repository
+      (`build_projectured_package_release!`), commit, and push.
 - [ ] Register in General, one dependency level at a time (§3.3): a comment
       `@JuliaRegistrator register` on the release commit of each package of the
       level. The next level starts when General has merged the level below it.
 - [ ] In an empty depot, run the install line of Step B5, and
-      `using Projectured, ProjecturedSdl`.
+      `using Projectured, ProjecturedSDL`.
 
 ## Part G: a layout engine of our own, and the move of the port (R19, R26)
 
@@ -1321,8 +1325,10 @@ seals go beyond the kernel in time (only kernel files are sealed today).
 
 ### What changes in the other parts
 
-- R22 and R23 have their answers above. The generator goes back to one release
-  repository, the form that Step B4 tested.
+- R22 and R23 have their answers above. R23: one release repository,
+  `projectured/Projectured.jl` (the owner, 2026-10-01: "I choose the single
+  projectured/Projectured.jl repository"). The owner created it the same day,
+  private and empty.
 - Step B6 and the install lines of Step B5 wait for R27, R28 and R29.
 - **R28 and R29 are done (2026-10-01).** The fold put the internal packages
   into `ProjecturedPlatform` ([fold-the-internal-packages.md](../done/fold-the-internal-packages.md)),
@@ -1332,6 +1338,18 @@ seals go beyond the kernel in time (only kernel files are sealed today).
   Steps B5 and B6 now wait for R27 alone.
 - Part P stays: it is the CI of the development repository, and the release
   tests of R30 come from its suites.
+
+### The work toward the local registry (R27)
+
+- [x] The plan names the one release repository: R9, R23 and Step B6.
+- [ ] The generator writes one repository with a folder for each package, the
+      form that Step B4 tested.
+- [ ] R30: each registered package has its `test/runtests.jl`.
+- [ ] R31: the release repository has its CI workflow.
+- [ ] Each registered package has a short README.
+- [ ] The full test of Step B4 again, with a local registry on this machine.
+- [ ] The owner pushes the release copy, makes the repository public, and
+      makes the repository of the local registry (R10).
 
 ## Step C: close
 
