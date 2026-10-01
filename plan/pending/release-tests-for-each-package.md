@@ -78,7 +78,7 @@ The owner accepted each recommendation on 2026-10-01.
 
 ## 4. Steps
 
-- [ ] **Step 0, the prototype.** By hand, under `/var/tmp`: give the release
+- [x] **Step 0, the prototype.** By hand, under `/var/tmp`: give the release
       copy of `ProjecturedKernel` a `test/` folder with `ProjecturedKernelTest`
       and `ProjecturedKernelExample` in `test/support/`, a `test/Project.toml`
       that names them by `[sources]`, and a `runtests.jl` that calls
@@ -86,6 +86,32 @@ The owner accepted each recommendation on 2026-10-01.
       run `add ProjecturedKernel` and `test ProjecturedKernel` on Julia 1.13
       and 1.11. Record whether Pkg reads those `[sources]`, the size, and the
       time.
+      Done on 2026-10-01 (`/var/tmp/r30/p0/`, scripts `make.jl`, `user.jl`,
+      `run-all.sh`):
+      - **Pkg reads the `[sources]` of `test/Project.toml` for an installed
+        package**, on Julia 1.13 and on 1.11. `Pkg.test` found
+        `test/support/ProjecturedKernelTest` and `…Example` inside the
+        installed folder, from a registry entry with `subdir`. So T2 holds,
+        with no fallback.
+      - Size: the test folder adds 0.9 MB to the 3.7 MB of the kernel.
+      - Time, with an empty depot: 253 s on 1.13 (precompile and
+        `test_kernel()`), 217 s on 1.11.
+      - The builder rewrites only the include prefix `../../../source/`; a
+        support package includes `test/` and `example/` too, so the generator
+        must rewrite any of the three.
+      - The scan of the copy reports two paths through `pathof` in the kernel
+        tests. Both read the include lines of the entry file, which work in the
+        release layout too, so the scan of a test folder must accept them.
+      - Two kernel tests assumed the development checkout, and are fixed:
+        `MeaningSearchTest.jl` expected the meaning folder `build/meaning`,
+        which is right for a checkout only (an installed package uses the
+        cache folder of the user); `CellStructPlanTest.jl` wrote a field
+        docstring on one line, which the parser of Julia 1.11 refuses.
+      - Result: 1.13 passes (4059 passed, 2 broken). **1.11 fails 2
+        assertions**, `CellTest.jl:97-98`: after `GC.gc(true)` twice, a
+        discarded cell is still alive. Open: a test that depends on the
+        collector of one Julia version, or a real leak on 1.11. The bound of
+        R13, `julia = "1.11"`, was checked with `add` and `using` only.
 - [ ] **Step 1, the narrow closure (T3, T6).** Its own plan, if the owner
       agrees.
 - [ ] **Step 2, the generator.** `build_package_release!` writes the test
