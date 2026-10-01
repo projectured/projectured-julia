@@ -858,7 +858,7 @@ keys (W1), so that the font scale reaches all text from the first day.
   eight examples of `/var/tmp/appearance-b0/render.jl`, and
   `/var/tmp/appearance-b0/baseline-a0-set/hashes.txt` for the four examples of
   the A0 script, where only `widget_example` differs from A0.
-- [ ] **B1. `WidgetTheme` with `@theme`.**
+- [x] **B1. `WidgetTheme` with `@theme`.**
   - [x] The theme values of B0, each with its kind of length. The four presets.
   - [x] The widget projections are declared `@projection UntrackedCell struct`.
     ~~The factory builds one `UntrackedCell` for each value of the scaled widget
@@ -890,7 +890,8 @@ keys (W1), so that the font scale reaches all text from the first day.
       | `widget_card_example` | 81 | 63 | 15440 | 14992 |
 
       The script is `/var/tmp/appearance-b1/measure/edges4.jl`.
-  - [ ] omnet-julia: `build_qtenv_widget_theme` and its widget projections follow.
+  - [x] omnet-julia: `build_qtenv_widget_theme` and its widget projections follow
+    (omnet-julia `95c62ead` on its branch `appearance`, finding 14).
 - [ ] **B2. The builders pass the themes** (4.3). `NaturalToGraphics`,
   `WindowWrap`, `WindowShell`, `FileSystemToSyntax` and `DataFrameViewToWidget`
   take the `Appearance` or the themes of their parts. The registry factories get
@@ -1092,3 +1093,15 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     the theme, so the padding of an accordion item in qtenv follows
     `control_padding` and changes from 10 to 4. The owner accepted this on
     2026-10-01.
+14. **The omnet tests of B1** (2026-10-01). `test_qtenv`, `test_module_views`,
+    the six workbench tests, `test_demo_catalog`,
+    `test_catalog_shell_fills_the_window` and `test_inspector_disclosure` give 555
+    pass, 3 fail and 1 error. All four failures are in `test_inspector_disclosure`,
+    and they are older than this work. The tree answers a chevron press with
+    `ReplaceViewStateOperation(ReplaceReferencedValueOperation(…))` since
+    2026-09-22, and `read_intent` of `ReflectionToWidget` matches only a bare
+    `ReplaceReferencedValueOperation`. So no `SetReflectedDisclosureOperation` is
+    made, and a chevron of the inspector opens no node. The reflection slice has
+    no change on this branch. This rests on the code, not on a run on `main`.
+    `OmnetPresentationTest.test_all()` does not end with `-t 2`:
+    `test_parallel_sim_dashboard_panel` spins, as on `main`.
