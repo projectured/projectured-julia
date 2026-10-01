@@ -309,7 +309,9 @@ One at a time, with the owner.
      rest, and the write clears that child, not the one that the old path names
      now. Exact for an insert, a delete, an undo and a part that moves; the field
      holds a path and a child; a deleted document stays in memory until the next
-     move. (Claude's recommendation.)
+     move. Claude recommended it; the owner rejects it (2026-10-01): "The link
+     to the child is not good, basically I can delete and undo everywhere, so it
+     would require extra state everywhere."
   2. A search: each level of the write looks at every child for one that holds
      a target. No new state; a move reads every child on the path, and a part
      that comes back off the chain is missed.
