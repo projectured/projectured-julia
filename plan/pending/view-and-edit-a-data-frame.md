@@ -1187,9 +1187,23 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       (D14, D20). How a person finds the edge (G3) is decided then.
     - [ ] **5.8 The editor of the Julia domain in the expression bar** (F4 c),
       through a seam that the data frame package declares and the Julia
-      domain extends.
+      domain extends. Changed (the owner, 2026-10-01: "5.8: yes", to the
+      recommendation of the writer): the Julia domain can not extend a seam
+      of the data frame package without a dependency on DataFrames, so the
+      seam is in the widget slice: `make_code_field(Val(:julia), …)`, a field
+      for code in a language, which is the plain field by default and which
+      `ProjecturedJulia` extends. The query keeps the expression as text.
     - [ ] **5.9 Sort** on the same vector of rows: the header gestures of
-      §4.4.
+      §4.4. The form (the owner, 2026-10-01: "yes, agreed", to the
+      suggestion of the writer, after "we need small sort icons on the
+      headers ascending/descending"): a small Lucide glyph after the name of
+      the column on the label line, `arrow-up-down` in a faint color when the
+      column does not sort, `arrow-up` for ascending and `arrow-down` for
+      descending, and a small number after the arrow for the place of the key
+      when there is more than one. The glyph is the target: a click cycles
+      off, ascending, descending; Shift+click adds the column as the next
+      key; Alt+click on the header selects the column, and the field filters.
+      The query holds the sort keys, a column and a direction each.
 - [ ] **6. Find.** §4.5, without replace.
 - [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
   their own (D8).
