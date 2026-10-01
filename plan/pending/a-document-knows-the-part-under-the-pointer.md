@@ -415,8 +415,8 @@ One at a time, with the owner.
     ends too: after the dwell, after a press, a click or a scroll, and after a
     move with a button held. Otherwise the move that follows the frame of a
     click would start a new wait, and a tooltip would come 0.5 s after each
-    click under a still pointer. (Claude's choice from D4; for the owner to
-    confirm.)
+    click under a still pointer. (Claude's choice from D4; the owner,
+    2026-10-01: "agreed".)
   - The two assertions of D41 pass: the test plays the move that the backend
     sends after the frame of the scroll.
   - Found: `Sdl.jl` called `is_view_state_field` with no import since step 1
