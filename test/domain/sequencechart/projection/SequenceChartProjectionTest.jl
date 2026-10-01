@@ -442,8 +442,10 @@ function test_sequencechart_projection()
             # than writing a value that would invalidate cells for no reason.
             @test read_intent(stage2.projection, stage2, move) === nothing
 
-            # Leaving clears the readout, so no stale readout outlives the pointer.
-            leave = read_intent(stage2.projection, stage2, MouseLeave(0, 0; time = 0.0))
+            # A move off the plot, as the move to (-1, -1) that the pointer
+            # leaving gives, clears the readout, so no stale readout outlives the
+            # pointer.
+            leave = read_intent(stage2.projection, stage2, MouseMove(-1, -1; time = 0.0))
             _sc_apply(plot, leave)
             @test plot.cursor === nothing
         end

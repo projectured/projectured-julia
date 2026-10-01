@@ -12,8 +12,8 @@ function make_widget_projection_example(; measure=FontFileMeasure())
         LayoutToGraphics().dispatch,
         w2g.dispatch,
     )))
-    # Tab starts over at the ends. The light under the pointer comes from the
-    # mouse target tracking of the screen.
+    # Tab starts over at the ends. A widget lights while its mouse target is set,
+    # which each move of the pointer writes.
     ChainingProjection(
         FocusCyclingProjection(inner = inner),
     )

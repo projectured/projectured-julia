@@ -55,11 +55,12 @@ end
     # never performs it, so the action has not run and the count is still zero.
     @test count[] == 0
 
-    # A crossing comes by route from the mouse target tracking, which already
-    # found the widget, and a leave is outside by definition — judging it would
-    # suppress the very event that ends a press held on the button.
+    # A move with no button held off the button is the move to (-1, -1) that a
+    # container gives the child that the pointer leaves: it is outside by
+    # definition, and declining it would suppress the very event that ends a
+    # press held on the button.
     button.pressed = true
-    @test read_intent(proj, iomap, MouseLeave(900, 500, MouseButtons(), ModifierKeys(); time = 0.0)) !== nothing
+    @test read_intent(proj, iomap, MouseMove(-1, -1, MouseButtons(), ModifierKeys(); time = 0.0)) !== nothing
 end
 
 @testset "button click invokes its action via InvokeActionOperation" begin
@@ -109,9 +110,8 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
     # A motion alone answers no operation: the button's own reader has no case
-    # for a crossing or a move, only the mouse target tracking marks the part
-    # under the pointer.
-    @test read_intent(proj, iomap, MouseEnter(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+    # for a move onto it, and the one that gives it the move names the part under
+    # the pointer.
     @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
 
     driver = MttDriver(proj, button)
@@ -120,7 +120,7 @@ end
     @test get_mouse_target(button) !== nothing
 end
 
-@testset "the mouse target tracking clears the previous button's mouse target on leave" begin
+@testset "a move onto another button clears the mouse target of the previous one" begin
     # Two buttons side by side inside a composite.
     a = WidgetButton("A"; size = Point2D(100, 40), action = (_e) -> nothing)
     b = WidgetButton("B"; position = Point2D(120, 0), size = Point2D(100, 40), action = (_e) -> nothing)
@@ -129,7 +129,8 @@ end
     _mtt_move!(driver, 10, 10, 1.0)
     @test get_mouse_target(a) !== nothing
 
-    # Move onto B: the tracker clears A (mouse target + press) and sets B.
+    # Move onto B: A, which the pointer leaves, loses its mouse target and its
+    # press, and B is the part under the pointer.
     getfield(a, :pressed)[] = true
     _mtt_move!(driver, 130, 10, 1.1)
     @test get_mouse_target(a) === nothing && a.pressed == false
@@ -481,9 +482,9 @@ end
 end
 
 # A WidgetCard routes the press-down/up to the hit child, and a point on the button
-# maps backward through the card, so the mouse target tracking lights it. The button
-# is located from the card's rendered child entries so the test does not hard-code
-# the header/padding offset.
+# maps backward through the card, so a move onto it lights it. The button is located
+# from the card's rendered child entries so the test does not hard-code the
+# header/padding offset.
 @testset "a button inside a card receives hover + press through the card" begin
     button = WidgetButton("Go"; size = Point2D(120, 40), action = (_e) -> nothing)
     card = WidgetCard(; title = "T", content = button, width = 240)

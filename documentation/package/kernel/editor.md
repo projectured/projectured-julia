@@ -114,8 +114,8 @@ when the event comes, so a timer that a newer event made stale needs no cancel.
 A frame that changed what the display shows is followed by one more read. A
 backend that shows windows reports such a frame as
 `WindowInput(window_id, DisplayUpdate(; time))`, and its wait does not block
-while one waits. A reader that keeps a part of the view as its state finds it
-again then, because the view can change under a pointer that does not move. The
+while one waits. A reader that keeps a part of the view as its state can find
+it again then, because the view can change under a pointer that does not move. The
 loop sleeps only after a frame that changed nothing. A feed that writes because
 a frame happened, such as the frame statistics or a reflected value, writes at
 most once per interval, so that the frames do not feed themselves.

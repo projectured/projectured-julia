@@ -59,7 +59,7 @@ depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one kernel, one platform package of
-thirty-nine slices, seventeen domain packages, five backends and eight
+thirty-eight slices, seventeen domain packages, five backends and eight
 adapters**, plus an umbrella and the tools. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
@@ -69,7 +69,7 @@ diagram itself: one line per layer, bottom to top, and a module's own file
 carries its fragment include list.
 Every other package is **one concept**, so it declares no layer index; the
 guard checks its include order and its file inventory alone. The platform
-declares no layer either: its thirty-nine slices form an acyclic graph of
+declares no layer either: its thirty-eight slices form an acyclic graph of
 their own, which the same guard checks.
 
 Each main package is one third of a **triad**: `package/Projected<Name>`,
@@ -88,7 +88,7 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
-ProjecturedPlatform (platform/) one package, 39 slices, below every domain
+ProjecturedPlatform (platform/) one package, 38 slices, below every domain
         ▲                      one concept each, an acyclic slice graph
         │                      the vocabulary — collection, primitive, domain,
         │                      serialization;
@@ -99,8 +99,7 @@ ProjecturedPlatform (platform/) one package, 39 slices, below every domain
         │                      pane;
         │                      the features — clipboard, tooltip, inspector,
         │                      gesturehelp, gesturelog, fault, fileformat,
-        │                      natural, filesystem, display, gesturetracking,
-        │                      mousetargettracking;
+        │                      natural, filesystem, display, gesturetracking;
         │                      the application — undo, log, statistics, shell,
         │                      help, conversation, assistant, application.
         │                      Each slice declares the exact set it imports; the table
@@ -139,7 +138,7 @@ The four-level division rule: **package** = one concept, or an
 external dependency boundary; **layer** = direction-of-dependency boundary
 inside a package, which the kernel alone declares; **slice** = vertical split
 of a layer, or of a package with no layer of its own — the kernel's layers,
-and the thirty-nine feature folders of the platform, are both slices;
+and the thirty-eight feature folders of the platform, are both slices;
 **module** = namespace/import surface. Files sit below all four levels as
 readability boundaries only: fragments (0-module files that share their
 aggregator's namespace) let a module split across files with zero API cost.
@@ -365,7 +364,7 @@ ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄─�
                          opt-in: the others)
 ```
 
-The platform's thirty-nine slices form their own DAG, and so do the
+The platform's thirty-eight slices form their own DAG, and so do the
 seventeen domains. [package-rules.md](../rule/package-rules.md) has the
 platform's table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
@@ -390,8 +389,8 @@ includes them in:
  6 event       the input events (Event, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*,
                WindowInput)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 8 gesture     the gestures (Gesture, MouseClick/MouseEnter/MouseLeave/MouseHover/MouseDwell,
-               KeyChord), the pattern language (GesturePattern, matches_gesture_pattern,
+ 8 gesture     the gestures (Gesture, MouseClick/MouseDwell, KeyChord), the pattern language
+               (GesturePattern, matches_gesture_pattern,
                describe_gesture_pattern, @gesture_case) and the recognitions
                (GestureRecognition, ChordRecognition, ClickRecognition, DwellRecognition,
                make_standard_recognitions)
@@ -426,7 +425,7 @@ includes them in:
                wall-clock schedule
 ```
 
-**The thirty-nine slices of `ProjecturedPlatform`**, in a topological order.
+**The thirty-eight slices of `ProjecturedPlatform`**, in a topological order.
 Each is one concept, and each declares the exact set of slices it imports;
 [package-rules.md](../rule/package-rules.md) has the table. (Console and Pdf,
 the two backends with no third-party dependency, are packages of their own,
@@ -450,8 +449,6 @@ not slices of the platform.)
    versioning      VersionedObject and its version-eliminating projection
    plot            the plot arithmetic and the colour and marker vocabulary
    graphics        Graphics, GraphicsCaching, PointReferenceStep
-   mousetargettracking the part under the pointer, and the crossings that its parts
-                   get by route, with their state document
    screen          ScreenDocument, WindowManaging, ScreenToScreen
    layout          Layout, the constraint solver, LayoutToGraphics, CollectionToLayout
    text            Text, TextToGraphics, the decorators, the three reference steps,

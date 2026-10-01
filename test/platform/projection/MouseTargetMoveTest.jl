@@ -2,7 +2,8 @@
 # Each container gives the move first to the child that the pointer leaves, then
 # to the child that it is on, and the answers write the chain of the mouse target:
 # the root holds the whole path, each document on it its own tail, and a document
-# off it holds nothing.
+# off it holds nothing. A widget lights from its own mouse target, and a view that
+# makes widgets maps the part under the pointer forward into them.
 
 _mtm_measure() = FixedMeasure(10, 18, 6, 0)
 
@@ -39,6 +40,68 @@ end
 
 _mtm_window(id, x, content) =
     WindowDocument(; id, x, y = 0, width = 400, height = 200, content)
+
+# A view of a domain: the people as the rows of a list, and a button of the view
+# under them. A row maps back to its person, and the button, which shows no part
+# of the input, to an introduced reference of the view.
+@document struct MtmPerson
+    name::String = ""
+end
+@document struct MtmContacts
+    people::Vector{MtmPerson} = MtmPerson[]
+end
+
+struct MtmContactsToWidgets <: Projection end
+
+function ProjectionModule.print_document(p::MtmContactsToWidgets, recursion, input::MtmContacts, ctx)
+    list = WidgetList(Any[person.name for person in input.people]; width = 200)
+    button = WidgetButton("Delete"; size = Point2D(80, 30), position = Point2D(0, 150))
+    composite = WidgetComposite(Any[list, button])
+    iomap = SimpleIoMap(p, input, composite)
+    # The view maps the part under the pointer forward into what it makes, as a view
+    # maps its selection: a person to its row, and the button of the view to the
+    # button.
+    follow_output_mouse_target!(composite,
+        () -> map_mouse_target_forward(input, path -> map_reference_forward(p, iomap, path)))
+    iomap
+end
+
+# The steps of the path of a row, `elements[1].items[k]`, before its index.
+const _MTM_ROW_STEPS = (FieldReferenceStep("elements"), ElementReferenceStep(1),
+                        FieldReferenceStep("items"))
+
+function ProjectionModule.map_reference_backward(p::MtmContactsToWidgets, iomap::SimpleIoMap,
+                                                 reference)
+    if reference isa Reference
+        steps = collect(get_reference_steps(strip_reference_types(reference)))
+        length(steps) == 4 && Tuple(steps[1:3]) == _MTM_ROW_STEPS &&
+            return extend_reference(EmptyReference(), FieldReferenceStep("people"), steps[4])
+    end
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+function ProjectionModule.map_reference_forward(p::MtmContactsToWidgets, iomap::SimpleIoMap,
+                                                reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
+    reference isa Reference || return nothing
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    length(steps) == 2 && steps[1] == FieldReferenceStep("people") || return nothing
+    extend_reference(EmptyReference(), _MTM_ROW_STEPS..., steps[2])
+end
+
+# The place and the size of every canvas under `canvas`, in the order of a walk.
+function _mtm_collect_canvas_boxes(canvas)
+    found = Any[]
+    walk(c) = for element in c.elements
+        element = unwrap_cell(element)
+        element isa GraphicsCanvas || continue
+        push!(found, Int.(unwrap_cell.((element.x, element.y, element.w, element.h))))
+        walk(element)
+    end
+    walk(canvas)
+    found
+end
 
 function test_mouse_target_move()
 @testset "a move writes the part under the pointer" begin
@@ -212,6 +275,82 @@ end
     @test get_mouse_target(screen) == EmptyReference()
     @test get_mouse_target(window_b) === nothing
     @test get_mouse_target(b) === nothing
+end
+
+@testset "a widget that a view makes lights: a row of a part, and a button of the view" begin
+    people = [MtmPerson(name = name) for name in ("Ann", "Bob", "Cy")]
+    driver = MttDriver(ChainingProjection(MtmContactsToWidgets(), projection),
+                       MtmContacts(people = people))
+    composite = driver.iomap.step_iomaps[1][].output
+    list, button = composite.elements[1], composite.elements[2]
+    # Down the rows: the part under the pointer is the person, and the row that
+    # shows it lights.
+    ys = collect(2:2:100)
+    rows = Int[]
+    for (k, y) in enumerate(ys)
+        _mtt_move!(driver, 20, y, 1.0 + k / 100)
+        push!(rows, WidgetModule._widget_element_selected(get_mouse_target(list), "items"))
+    end
+    @test unique(filter(>(0), rows)) == [1, 2, 3]
+    _mtt_move!(driver, 20, ys[findfirst(==(2), rows)], 2.0)
+    @test get_mouse_target(driver.document) ==
+          extend_reference(EmptyReference(), FieldReferenceStep("people"), ElementReferenceStep(2))
+    @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 2
+    # Onto the button: the row of the person goes off, and the button, a part
+    # through the introduced reference, lights.
+    _mtt_move!(driver, 5, 160, 2.1)
+    @test is_introduced_reference(get_mouse_target(driver.document))
+    @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 0 &&
+          get_mouse_target(button) !== nothing
+    _mtt_leave!(driver, 2.2)
+    @test get_mouse_target(button) === nothing
+end
+
+@testset "a row of a list lights, the light follows the pointer, and goes off" begin
+    list = WidgetList(["one", "two", "three"]; width = 200)
+    other = WidgetButton("Other"; size = Point2D(80, 30), position = Point2D(0, 200))
+    driver = MttDriver(projection, WidgetComposite(Any[list, other]))
+    # Down the list: each row lights in turn, and only below the last row does
+    # the light go off.
+    ys = collect(2:2:150)
+    rows = Int[]
+    for (k, y) in enumerate(ys)
+        _mtt_move!(driver, 20, y, 1.0 + k / 100)
+        push!(rows, WidgetModule._widget_element_selected(get_mouse_target(list), "items"))
+    end
+    @test unique(filter(>(0), rows)) == [1, 2, 3]
+    @test issorted(rows[1:findlast(>(0), rows)])
+    # Onto another widget: the row goes off, and the widget lights.
+    first_row = ys[findfirst(==(1), rows)]
+    _mtt_move!(driver, 20, first_row, 2.0)
+    @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 1
+    _mtt_move!(driver, 10, 210, 2.1)
+    @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 0 &&
+          get_mouse_target(other) !== nothing
+    # The leave of the window turns every light off.
+    _mtt_move!(driver, 20, first_row, 2.2)
+    @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 1 &&
+          get_mouse_target(other) === nothing
+    _mtt_leave!(driver, 2.3)
+    @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 0
+end
+
+@testset "a light changes the layout of no widget" begin
+    list = WidgetList(["one", "two", "three"]; width = 200)
+    button = WidgetButton("Go"; size = Point2D(80, 30), position = Point2D(0, 200))
+    driver = MttDriver(projection, WidgetComposite(Any[list, button]))
+    boxes() = _mtm_collect_canvas_boxes(unwrap_cell(get_iomap_output(driver.iomap)))
+    before = boxes()
+    lit_row() = WidgetModule._widget_element_selected(get_mouse_target(list), "items")
+    for (k, y) in enumerate(2:2:60)
+        lit_row() > 0 && break
+        _mtt_move!(driver, 20, y, 1.0 + k / 100)
+    end
+    @test lit_row() > 0
+    @test boxes() == before
+    _mtt_move!(driver, 10, 210, 1.1)
+    @test get_mouse_target(button) !== nothing
+    @test boxes() == before
 end
 
 end # @testset

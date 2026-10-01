@@ -1,7 +1,7 @@
 """
     ProjecturedPlatformTest
 
-The test package of the platform: the thirty-nine slices between the
+The test package of the platform: the thirty-eight slices between the
 kernel and the seventeen domains. It is the second tier of the test-package
 DAG (kernel ← platform ← domain ← umbrella). It hosts:
 
@@ -147,6 +147,7 @@ include("../../../test/platform/projection/SelectionInvertingTest.jl")
 include("../../../test/platform/projection/ObjectToWidgetTest.jl")
 include("../../../test/platform/projection/ObjectFieldToWidgetTest.jl")
 include("../../../test/platform/projection/ObjectFieldToSyntaxTest.jl")
+include("../../../test/platform/projection/MouseTargetDriver.jl")
 include("../../../test/platform/projection/ReflectionToWidgetTest.jl")
 include("../../../test/platform/projection/ProjectionConfiguringTest.jl")
 include("../../../test/platform/projection/CellTableToWidgetTableTest.jl")
@@ -162,7 +163,6 @@ include("../../../test/platform/projection/WidgetCardFoldTest.jl")
 include("../../../test/platform/projection/WidgetSelectionTest.jl")
 include("../../../test/platform/projection/SelectionWalkingTest.jl")
 include("../../../test/platform/projection/GestureTrackingTest.jl")
-include("../../../test/platform/projection/MouseTargetTrackingTest.jl")
 include("../../../test/platform/projection/MouseTargetMoveTest.jl")
 include("../../../test/platform/projection/WidgetGestureTest.jl")
 include("../../../test/platform/projection/WidgetSelectTest.jl")

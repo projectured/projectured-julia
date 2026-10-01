@@ -1,7 +1,7 @@
 # A gesture that follows a route through widget containers. The route names the
 # part that the gesture is for, so the containers pass it on by reference and
-# never by the position it holds: a leave reaches the widget that the pointer
-# left, wherever the pointer is now.
+# never by the position it holds: a move reaches the widget that the route names,
+# wherever the pointer is.
 function test_routed_gesture()
 @testset "a gesture follows a route through widget containers" begin
 
@@ -28,12 +28,13 @@ function _read_routed(projection, iomap, gesture, route)
     change isa Intent ? change.operation : change
 end
 
-@testset "a leave with a route ends the press of the button it names, and no other" begin
+@testset "a move with a route ends the press of the button it names, and no other" begin
     split, other, button, projection, iomap = _routed_scene()
     button.pressed = true
     other.pressed = true
-    # The position is far from both buttons: the route alone names the part.
-    op = _read_routed(projection, iomap, MouseLeave(590, 5; time = 0.0), _route_to_button())
+    # The position is far from both buttons: the route alone names the part, and
+    # a move with no button held off the button ends its press.
+    op = _read_routed(projection, iomap, MouseMove(590, 5; time = 0.0), _route_to_button())
     @test op isa ReplaceViewStateOperation
     @test _plain(op).document === button
     evaluate_operation(nothing, op)
@@ -44,7 +45,7 @@ end
 @testset "a route that names nothing the containers print answers nothing" begin
     split, other, button, projection, iomap = _routed_scene()
     route = extend_reference(EmptyReference(), FieldReferenceStep("elements"), ElementReferenceStep(3))
-    @test _read_routed(projection, iomap, MouseEnter(5, 5; time = 0.0), route) === nothing
+    @test _read_routed(projection, iomap, MouseMove(5, 5; time = 0.0), route) === nothing
 end
 
 end # @testset

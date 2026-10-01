@@ -236,7 +236,7 @@ alongside it.
   one structural exception is `CompoundOperation`, a sequence of operations
   evaluated as one.
 - **Events are `<Source><Action>`, suffixless and tenseless**: `KeyDown`,
-  `MouseMove`, `MouseLeave`, `WindowClose`, `WindowResize`, `WindowDefocus`,
+  `MouseMove`, `WindowLeave`, `WindowClose`, `WindowResize`, `WindowDefocus`,
   `WindowQuit`. An event reports what the user or system did, never what
   should happen in response — the response is the reader's job, expressed as
   an operation. The word order alone separates the two families: noun-first
@@ -249,7 +249,7 @@ alongside it.
   action stem (e.g. `WindowDestroy`) — never distinguish the two by
   docstring alone.
 - **Gestures are `<Source><Action>` too**: `MouseClick`, `KeyChord`,
-  `MouseEnter`. A gesture is a pattern that code finds in several events, and it
+  `MouseDwell`. A gesture is a pattern that code finds in several events, and it
   subtypes `Gesture`, not `Event`: the type tells a gesture from an event, not the
   name.
 - **Gesture patterns** mirror their event or gesture plus `Pattern`:

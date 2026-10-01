@@ -262,9 +262,9 @@ end
 # Push the layer of the light under the pointer, and of the pressed state when
 # `pressed_color` is given, over the surface of `w`. The layer is always there:
 # its size and its color are cells of its own that read the mouse target and the
-# `pressed` cell of `w`, as the focus ring reads the selection. A crossing then
-# changes the layer and not the element list or the extent of the widget, so
-# only the layer is painted again. While the pointer is off `w` and `w` is not
+# `pressed` cell of `w`, as the focus ring reads the selection. A move onto `w` or
+# off it then changes the layer and not the element list or the extent of the
+# widget, so only the layer is painted again. While the pointer is off `w` and `w` is not
 # pressed, the layer has no size and draws nothing.
 function _push_hover_layer!(elements::Vector, w::WidgetDocument, x::Int, y::Int,
                             width::Int, height::Int; hovered_color::StyleColor,
@@ -315,10 +315,6 @@ end
 
 # Whether the pointer is on `w` or on a part inside it.
 _is_under_pointer(w) = get_mouse_target(w) !== nothing
-
-# Whether a crossing with `route` is for the widget that reads it, and not for a
-# part inside it.
-_is_route_at_place(route) = route === nothing || route isa EmptyReference
 
 # ── Projection structs ─────────────────────────────────────────────────────
 #
@@ -1541,9 +1537,8 @@ end
 #
 # Only POSITIONED events are judged: a click, a button down and up, a move, a turn
 # of the wheel, and a dwell, which goes to the part at its point as a click does. A
-# crossing (`MouseEnter` / `MouseLeave`) comes by route from the mouse target
-# tracking, which already found the widget under the pointer, and a `MouseLeave` is
-# outside by definition. A key carries no position and is routed by selection.
+# move that the pointer makes off a widget reaches it at a point outside, such as
+# `(-1, -1)`. A key carries no position and is routed by selection.
 _positioned_event(evt) = evt isa MouseClick || evt isa MouseDown || evt isa MouseUp ||
                          evt isa MouseMove || evt isa MouseScroll || evt isa MouseDwell
 
@@ -2047,9 +2042,6 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
         MouseClick(button, x, y) => button === :left ? _button_primary_op(w) : nothing
         MouseDown(button, x, y)  => button === :left ? _write_view_state(w, "pressed", true) : nothing
         MouseUp(button, x, y)    => button === :left ? _write_view_state(w, "pressed", false) : nothing
-        # A leave that the mouse target tracking routes while a button is held ends
-        # the press, because the release can land off the button.
-        MouseLeave               => w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
         # Enter / Space with no modifier activate the focused button (key reaches
         # it via selection routing). `:tab` is intentionally not matched, so it
         # falls through to `nothing` and focus traversal can claim it.
@@ -2548,8 +2540,8 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         needed = measured[]
         control_w = _resolve_width(ctx, 0, needed.width)
         control_h = _resolve_height(ctx, 0, needed.height)
-        # A clear surface over the whole item: a press or a crossing anywhere on
-        # it hits the item, and not only on its label, also where the padding is.
+        # A clear surface over the whole item: a press or a move anywhere on it
+        # hits the item, and not only on its label, also where the padding is.
         final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
         _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
                          control_w - needed.inset_width, control_h - needed.inset_height)
@@ -2565,8 +2557,8 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # events to it. A `GraphicsText` has no right edge, so an auto-sized (w=h=0) item
     # canvas would claim hits anywhere to the right of its label — harmless in a
     # vertical menu (per-item y-bands differ) but in a *horizontal* toolbar / menu
-    # bar the leftmost item then swallows every crossing, so hover always lit the
-    # first button. See `hit_element_at` in document/Graphics.jl.
+    # bar the leftmost item then swallows every move, and the first button lights
+    # for each. See `hit_element_at` in document/Graphics.jl.
     WidgetMenuItemToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(0, 0, build),
                                         Cell(@computation build[].child_iomaps),
                                         Cell(@computation measured[].width),
@@ -2588,7 +2580,7 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     # Per-instance gestures win over the built-in click/submenu handling (an enabled
-    # item only, matching the built-in gate). Hover crossings below are unaffected.
+    # item only, matching the built-in gate).
     if _menu_item_enabled(w)
         op = read_bound_gesture(w, evt)
         op === nothing || return op
@@ -2632,7 +2624,7 @@ _toolbar_item_enabled(w::WidgetToolbarItem) =
 
 # The icon alone when the action has one, as tall as a line of the font; the
 # label only when there is no icon to show. The canvas is as large as what it
-# shows and its padding, so a crossing in a toolbar lands on the item under the
+# shows and its padding, so a move in a toolbar lands on the item under the
 # pointer and not on its left neighbour.
 function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::WidgetToolbarItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -3362,9 +3354,9 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         # owns the drag it may start, and that band keeps it until the up.
         MouseDown   => _route_shell_down!(p, iomap.input, child_iomaps, evt)
         MouseUp     => _route_shell_up!(p, iomap.input, child_iomaps, evt)
-        # Pointer motion / crossings carry coordinates: route them to the band under
-        # the pointer (coordinate-translated), so a widget inside the content band
-        # gets the MouseMove.
+        # Pointer motion carries coordinates: route it to the band under the
+        # pointer (coordinate-translated), so a widget inside the content band gets
+        # the MouseMove.
         # A move with a button held goes to the band that owns the drag.
         MouseMove   => _route_shell_move(p, iomap.input, child_iomaps, evt)
         MouseDown   => _route_shell_button(child_iomaps, evt)
@@ -4025,13 +4017,13 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
         # splitter is on the pane itself.
         MouseDwell => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-        # Coordinate-bearing pointer events (a non-drag press/release, plain motion,
-        # and the hover crossings) route to the slot *under the pointer*, exactly as
-        # the composite does — a hover crossing must reach whatever the pointer is
-        # over, not the selected slot (routing these to the selection left the
-        # navigator, and any other unselected pane, unhoverable). A splitter drag was
-        # already consumed above by `_split_drag_read`, so a `MouseDown`/`MouseMove`/
-        # `MouseUp` reaching here is not part of a drag and belongs to a child.
+        # Coordinate-bearing pointer events (a non-drag press/release and plain
+        # motion) route to the slot *under the pointer*, exactly as the composite
+        # does — a move must reach whatever the pointer is over, not the selected
+        # slot, so the navigator and any other unselected pane light. A splitter drag
+        # was already consumed above by `_split_drag_read`, so a `MouseDown`/
+        # `MouseMove`/`MouseUp` reaching here is not part of a drag and belongs to a
+        # child.
         MouseDown => _route_split_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
         MouseUp => _route_split_drag(child_iomaps, evt.x, evt.y,
@@ -4730,12 +4722,12 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
         end
         return _tab_prefix(_route_active_tab(iomap, child_iomaps, evt), iomap.input)
     end
-    # Coordinate-bearing events (drags and crossings) target the *visible* tab
+    # Coordinate-bearing events (drags and moves) target the *visible* tab
     # regardless of selection: a splitter drag inside the active tab must keep
     # receiving motion even when the pane carries no selection (the bootstrap case
-    # the SplitPaneDrag tests cover), and a crossing must reach whatever the
-    # pointer is over, not the selected tab. `_route_active_tab` translates coords
-    # into the tab's frame (hit-gating the crossings so the tab strip is excluded).
+    # the SplitPaneDrag tests cover), and a move must reach whatever the pointer is
+    # over, not the selected tab. `_route_active_tab` translates coords into the
+    # tab's frame.
     # A left button down on a tab of a `draggable` pane is a grab. The strip
     # resolves which tab; the projection that owns the tabs runs the drag from
     # there, because only it knows where a tab may be dropped. A down on the close
@@ -5490,11 +5482,10 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         return read_container_gesture(_self_scroll(p, iomap, canvas, evt), evt,
                                       iomap.input)
     # Every coordinate-bearing pointer event needs the same translation, not just
-    # the press. Translating only the press left motion and the hover crossings
-    # arriving in the pane's own frame: a scrolled list highlighted the row that
-    # WOULD be under the pointer if it had never been scrolled, while a click on
-    # the same pixel correctly selected the row that was actually there. The
-    # viewport variant of this projection already translates the whole set.
+    # the press. A move in the pane's own frame would light the row that would be
+    # under the pointer if the list were not scrolled, while a click on the same
+    # pixel selects the row that is there. The viewport variant of this projection
+    # translates the whole set too.
     #
     # The vertical offset is the one the printer drew with, so a pane that
     # follows the end routes a press to what is drawn at the end.
@@ -6594,8 +6585,8 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
                              time = evt.time)))
 end
 # Pointer events route into the card's content by coordinate, so an interactive
-# widget nested in a card (a button, a row of a list) still sees the crossings, the
-# pointer motion, and the raw press-down/release that drive its `pressed`
+# widget nested in a card (a button, a row of a list) still sees the pointer
+# motion and the raw press-down/release that drive its light and its `pressed`
 # feedback. A dwell goes to the slot under the point, as a click does, and folds
 # nothing. The scroll wheel is still the card's own concern to decline (nothing).
 #
@@ -9416,9 +9407,9 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     g = change.gesture
     change.operation === nothing || return Intent(g, nothing)
     g isa MouseClick && g.button === :left && return Intent(g, _wt_mouse_select(p, iomap, g))
-    # A crossing and a pointer motion do not go into the cells: the part under the
-    # pointer is the backward map of the point. A dwell goes to the cell under it.
-    g isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover} && return Intent(g, nothing)
+    # A pointer motion does not go into the cells: the part under the pointer is the
+    # backward map of the point. A dwell goes to the cell under it.
+    g isa MouseMove && return Intent(g, nothing)
     if g isa MouseScroll
         (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
         content_x, content_y = _content_offset(p, iomap.input)
@@ -9619,7 +9610,7 @@ end
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
     _outside_widget(iomap, event) && return nothing
     if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||
-       event isa MouseEnter || event isa MouseMove || event isa MouseLeave || event isa MouseHover
+       event isa MouseMove
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
     event isa Operation && return nothing
@@ -10049,16 +10040,15 @@ _find_wtree_row_at(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCan
     _wtree_row_at(iomap.geometry, y - _content_offset(p, iomap.input)[2])
 
 # Gesture reader: a left click on a parent's chevron opens or closes it, otherwise
-# selects the node under the cursor; ↑/↓ walk the flattened rows. The crossings
-# come by route, to the 4-arg reader below. Handled in the 3-arg form (like the other
-# widgets) so a container routing an event into the tree via
+# selects the node under the cursor; ↑/↓ walk the flattened rows. Handled in the
+# 3-arg form (like the other widgets) so a container routing an event into the tree via
 # `read_intent(cim.projection, cim, evt)` reaches it — the default 4-arg
 # `read_intent` bridges the editor's top-level `Intent` to this. Non-gestures
 # return nothing: the tree is a leaf (no child ops bubble up to re-target).
 #
 # Per-instance gestures are consulted first — tree-level, then per-node — so a
 # binding can add / override (shadow) / suppress; the built-in select / collapse /
-# hover / nav below is the fallback.
+# nav below is the fallback.
 function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input

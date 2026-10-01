@@ -218,8 +218,8 @@ end
     menu = WidgetMenu([item, WidgetMenuItem("Open")])
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
-    # A point on the item maps backward to it, so the mouse target tracking
-    # writes the item's own mouse target.
+    # A point on the item maps backward to it, so the move writes the item's own
+    # mouse target.
     _mtt_move!(MttDriver(proj, menu), xy[1] + 2, xy[2] + 2, 1.0)
     @test get_mouse_target(item) !== nothing
 

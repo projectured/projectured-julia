@@ -21,17 +21,13 @@ end
 @test _treeproj !== nothing
 
 _mods = ModifierKeys()
-_readop_marked(io, g, route = nothing) = begin
-    ch = read_intent(_treeproj, nothing, Intent(g, nothing, "", "", route), io)
+_readop_marked(io, g) = begin
+    ch = read_intent(_treeproj, nothing, Intent(g, nothing), io)
     ch isa Intent ? ch.operation : ch
 end
 # The answer, looking through the mark a hover carries as view state.
-_readop(io, g, route = nothing) = (op = _readop_marked(io, g, route);
-                                   op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
-# A hover and a leave, as the mouse target tracking gives them; the route says
-# where they go.
-_hover = MouseHover(0, 0, MouseButtons(), _mods; time = 0.0)
-_leave = MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0)
+_readop(io, g) = (op = _readop_marked(io, g);
+                  op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
 _node(path) = WidgetModule._wtree_path_ref(path)
 _fresh() = begin
     w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"]; expanded = Set([[1]]))
@@ -86,10 +82,8 @@ end
     _mtt_move!(driver, r2.chevron_x1 + 5, r2.y0 + 2, 1.1)
     @test WidgetModule._wtree_ref_path(get_mouse_target(w)) == [1, 1]
 
-    # The tree's own reader never answers a crossing or a motion: the light
-    # comes only from the mouse target that the tracking writes.
-    @test _readop(io, _hover, _node([1])) === nothing
-    @test _readop(io, _leave, _node([1])) === nothing
+    # The tree's own reader never answers a motion: the light comes only from
+    # the mouse target that a move writes.
     @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) === nothing
 
     # The leave of the window clears it.

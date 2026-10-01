@@ -1181,7 +1181,10 @@ end
 
 # A move reads the time under the pointer. The readout is overlay state: it is
 # written to the plot, and only the element pass reads it, as it reads the mouse
-# target of the plot, so a pointer move never re-runs the layout.
+# target of the plot, so a pointer move never re-runs the layout. A move off the
+# body clears the readout, such as the move to `(-1, -1)` that a container gives
+# to the plot that the pointer leaves, so a stale readout never outlives the
+# pointer. A readout equal to the one that the plot holds writes nothing.
 function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
                      gesture::MouseMove)
     g = iomap.geometry
@@ -1196,13 +1199,6 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
         cursor = convert_coordinate_to_time(g.times, g.coordinates, to_data(g.scale, flow))
     end
     isequal(plot.cursor, cursor) ? nothing : _write_view_state(plot, "cursor", cursor)
-end
-
-# Leaving clears the readout, so a stale readout never outlives the pointer.
-function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::MouseLeave)
-    plot = iomap.input
-    plot.cursor === nothing && return nothing
-    _write_view_state(plot, "cursor", nothing)
 end
 
 # The window, the lane offset and the pointer are the state of the view, not of

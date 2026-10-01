@@ -127,8 +127,9 @@ end # @testset
 
 @testset "a window operation that reaches the editor applies to the screen it wraps" begin
     screen = ScreenDocument([WindowDocument(; id = :default, content = PrimitiveString("a"))])
-    # The document of the editor wraps the screen, as the state of a tracker does.
-    editor = (document = make_mouse_target_tracking_document(screen),)
+    # The document of the editor wraps the screen, as the state of the gesture
+    # tracker does.
+    editor = (document = make_gesture_tracking_document(screen),)
     evaluate_operation(editor, OpenWindowOperation(; id = :tip, x = 5, y = 6, width = 70, height = 80,
                                                      content = PrimitiveString("b")))
     @test length(screen.windows) == 2

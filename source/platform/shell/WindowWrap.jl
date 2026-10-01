@@ -51,7 +51,7 @@ shell, the walk and the clipboard over that, the context menu probe over them, t
 help over that, the palette over it, and the log's recorder outermost, where it sees
 every operation the window makes. The focus cycling is always there, so Tab
 starts over at the ends of every window. A window gets its light under the
-pointer from the mouse target tracking of the screen (`make_tracking_screen`).
+pointer from the screen, which gives each move to its windows.
 """
 function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = true,
                             selection::Bool = true,

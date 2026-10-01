@@ -1191,6 +1191,30 @@ already; the sealed selection files do not change (Q4).
     and D45 rests on it; it has no reader after this step.
   - The test driver of the tracker keeps the window emulation of a move and a
     leave, which writes the mouse target, and loses the crossings.
+  Built (2026-10-01):
+  - Gone: the folder `source/platform/mousetargettracking/` and its module,
+    the stale folder of its package, its document; the gestures `MouseEnter`,
+    `MouseLeave` and `MouseHover` with their patterns and descriptions; the
+    `mouse_target_tracking` keyword of `make_tracking_screen`, whose inner
+    wrappers now wrap the screen inside the gesture tracker; the `hover`
+    keyword of the gallery; the button's arm for a `MouseLeave`; the crossing
+    types in the exclusions of the tables and in the list layout.
+  - The chart: a move off the plot clears the cursor (`_track_cursor` clears it
+    outside the plot rectangle, and (-1, -1) is always outside); a move with no
+    button held during a drag ends it with no change; a move with a button held
+    goes on dragging, also off the plot. The sequence chart clears its readout
+    on a move off its body, as it did.
+  - Tests: the driver is `test/platform/projection/MouseTargetDriver.jl`, with
+    no tracker; the tracker's own tests are gone; the three light tests that did
+    not need the tracker ("a widget that a view makes lights", "a row of a list
+    lights", "a light changes the layout of no widget") are now in
+    `MouseTargetMoveTest`; the tests of a crossing now use a move to (-1, -1),
+    a routed move or a dwell. The omnet IDE test lost its `mouse_target_tracking`
+    keyword.
+  - A change that a person can see: a button pressed and dragged off with the
+    button held stays drawn pressed until the release, because only a move with
+    no button held gives the leave; the tracker's `MouseLeave` came on a held
+    move too. The drag of step 5b covers this.
 - [ ] 9. **The brackets** (Q8). A syntax node draws its delimiters in the light
   colour at level 0 and fades them to the gray of the delimiter over the
   levels further out. Tests: in `[1, [2, [3]]]`, a move onto `3` lights the

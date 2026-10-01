@@ -3,11 +3,11 @@
 # ── One window on one document ──────────────────────────────────────────────
 #
 # **The wrapper `window`.** `build_editor` puts the root document in one window
-# of a screen when the backend draws windows, and puts the gesture tracker and
-# the mouse target tracker around that screen. The wrapper is on by default, and
-# a caller turns it off with `window = false`. `make_editor` applies no wrapper,
-# so a caller that wants a screen of its own builds it with `make_window_scene`
-# and `make_window_scene_projection`, puts the trackers around it with
+# of a screen when the backend draws windows, and puts the gesture tracker around
+# that screen. The wrapper is on by default, and a caller turns it off with
+# `window = false`. `make_editor` applies no wrapper, so a caller that wants a
+# screen of its own builds it with `make_window_scene` and
+# `make_window_scene_projection`, puts the gesture tracker around it with
 # `make_tracking_screen`, and passes it.
 #
 # It lives here because a window on a screen is what this package is about, and
@@ -88,27 +88,24 @@ function make_window_scene_projection(projection;
 end
 
 """
-    make_tracking_screen(document, projection; mouse_target_tracking = true,
-                         inner_wrappers = [], gesture_tracking = true,
+    make_tracking_screen(document, projection; inner_wrappers = [],
+                         gesture_tracking = true,
                          recognitions = make_standard_recognitions())
         -> (document, projection)
 
-Put the tracking projections around a screen: `document` is the screen, and
+Put the gesture tracker around a screen: `document` is the screen, and
 `projection` draws it, for example the one of
-[`make_window_scene_projection`](@ref). Each keyword puts one tracker around
-the pair, and its state document around the screen, so one tracker serves every
-window. The gesture tracker is outside the mouse target tracker, so the target
-tracker reads the inputs that the recognitions pass:
+[`make_window_scene_projection`](@ref). The tracker goes around the pair, and
+its state document around the screen, so one tracker serves every window. The
+screen gives each move to the window that the pointer leaves and to the window
+at the point, and each document on the way keeps its `mouse_target`, the part
+under the pointer. The keywords:
 
-- `mouse_target_tracking` — the mouse target tracking projection, which keeps
-  the part under the pointer and gives its parts the enter, the leave and the
-  hover by route. A button lights and a row of a list lights with it. With no
-  target tracker, no part gets a crossing.
 - `inner_wrappers` — `(document, projection) -> (document, projection)`
-  functions that go around the target tracker and inside the gesture tracker,
-  the first innermost. A wrapper there sees each gesture before the target
-  tracker routes it, and each answer after it comes back, in every window: the
-  wrapper that keeps a tooltip window goes there.
+  functions that go around the screen and inside the gesture tracker, the first
+  innermost. A wrapper there sees each gesture before the screen reads it, and
+  each answer after it comes back, in every window: the wrapper that keeps a
+  tooltip window goes there.
 - `gesture_tracking` — the gesture tracking projection, which runs
   `recognitions`: by default the click with its count, the key chord and the
   mouse dwell. A host adds the recognition of a gesture of its own to the list.
@@ -119,14 +116,9 @@ Use it wherever a host makes an editor over a screen. The wrapper `window` of
 `build_editor` uses it. The document of the editor is then the outermost state
 document; `get_wrapped_document` of it answers the screen.
 """
-function make_tracking_screen(document, projection; mouse_target_tracking::Bool = true,
-                              inner_wrappers::Vector = [],
+function make_tracking_screen(document, projection; inner_wrappers::Vector = [],
                               gesture_tracking::Bool = true,
                               recognitions::Vector = make_standard_recognitions())
-    if mouse_target_tracking
-        document = make_mouse_target_tracking_document(document)
-        projection = make_mouse_target_tracking_projection(projection)
-    end
     for wrap in inner_wrappers
         document, projection = wrap(document, projection)
     end
@@ -141,15 +133,16 @@ end
     window = true | (; title, width, height, opened_window_projections, inner_wrappers)
 
 The wrapper of `build_editor` that puts the root document in one window of a
-screen, drawn with [`make_window_scene_projection`](@ref), and puts the
-trackers of [`make_tracking_screen`](@ref) around that screen. It is on by
-default. It does nothing when the root is a screen already, with or without
-trackers around it, or when the backend declares an output that is not
+screen, drawn with [`make_window_scene_projection`](@ref), and puts the gesture
+tracker of [`make_tracking_screen`](@ref) around that screen. It is on by
+default. It does nothing when the root is a screen already, with or without a
+tracker around it, or when the backend declares an output that is not
 `:windows`, such as the text of a console.
 
-The trackers make the editor recognize clicks, chords and dwells and light the
-part under the pointer. The document of the editor is the state of the gesture
-tracker around the state of the target tracker around the screen.
+The gesture tracker makes the editor recognize clicks, chords and dwells; the
+screen gives each move to its windows, so the part under the pointer lights.
+The document of the editor is the state of the gesture tracker around the
+documents of the inner wrappers around the screen.
 
 - `title` names the window and gives its id. The default is the title of the
   document, else "ProjecturEd".

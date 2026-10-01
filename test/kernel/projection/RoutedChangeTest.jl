@@ -58,7 +58,7 @@ function ProjectionModule.print_document(p::RouteProbeWrapProjection, recursion,
     ContentIoMap(p, input, get_iomap_output(inner), inner)
 end
 
-_route_probe_enter() = MouseEnter(1, 2; time = 0.0)
+_route_probe_dwell() = MouseDwell(1, 2; time = 0.0)
 _route_probe_path(steps...) = extend_reference(EmptyReference(), steps...)
 
 function _route_probe_setup()
@@ -191,11 +191,11 @@ function test_routed_change()
     @testset "a gesture reaches the child its route names, and the child reads it" begin
         log, box, projection, iomap = _route_probe_setup()
         route = _route_probe_path(FieldReferenceStep("second"))
-        change = Intent(_route_probe_enter(), nothing, "", "", route)
+        change = Intent(_route_probe_dwell(), nothing, "", "", route)
         answer = read_intent(projection, projection, change, iomap)
         @test length(log) == 1
         @test log[1][1] === box.second
-        @test log[1][2] == _route_probe_enter()
+        @test log[1][2] == _route_probe_dwell()
         @test log[1][3] isa EmptyReference
         # The answer comes back rerooted by the step the route took.
         @test answer.operation isa ReplaceSelectionOperation
@@ -205,7 +205,7 @@ function test_routed_change()
     @testset "a route deeper than a leaf gives the leaf the rest of the route" begin
         log, box, projection, iomap = _route_probe_setup()
         route = _route_probe_path(FieldReferenceStep("first"), FieldReferenceStep("name"))
-        read_intent(projection, projection, Intent(_route_probe_enter(), nothing, "", "", route), iomap)
+        read_intent(projection, projection, Intent(_route_probe_dwell(), nothing, "", "", route), iomap)
         @test length(log) == 1
         @test log[1][1] === box.first
         @test log[1][3] == _route_probe_path(FieldReferenceStep("name"))
@@ -224,12 +224,12 @@ function test_routed_change()
     @testset "a gesture for the container itself, or for nothing it prints, gets no answer" begin
         log, box, projection, iomap = _route_probe_setup()
         itself = read_routed_intent(projection, projection,
-                                    Intent(_route_probe_enter(), nothing, "", "", EmptyReference()),
+                                    Intent(_route_probe_dwell(), nothing, "", "", EmptyReference()),
                                     iomap)
         @test itself.operation === nothing
         missing_part = _route_probe_path(FieldReferenceStep("missing"))
         nowhere = read_intent(projection, projection,
-                              Intent(_route_probe_enter(), nothing, "", "", missing_part), iomap)
+                              Intent(_route_probe_dwell(), nothing, "", "", missing_part), iomap)
         @test nowhere.operation === nothing
         @test isempty(log)
     end
@@ -240,7 +240,7 @@ function test_routed_change()
         iomap = print_document(wrapper, wrapper, box, PrinterContext())
         @test get_child_iomaps(iomap) isa AbstractVector
         route = _route_probe_path(FieldReferenceStep("second"))
-        answer = read_intent(wrapper, wrapper, Intent(_route_probe_enter(), nothing, "", "", route),
+        answer = read_intent(wrapper, wrapper, Intent(_route_probe_dwell(), nothing, "", "", route),
                              iomap)
         @test length(log) == 1 && log[1][1] === box.second
         @test answer.operation.path == route
@@ -249,7 +249,7 @@ function test_routed_change()
     @testset "a change with no route is read as before" begin
         log, box, projection, iomap = _route_probe_setup()
         @test get_child_iomaps(SimpleIoMap(nothing, box, box)) === nothing
-        read_intent(projection, projection, Intent(_route_probe_enter()), iomap)
+        read_intent(projection, projection, Intent(_route_probe_dwell()), iomap)
         @test isempty(log)
     end
 end

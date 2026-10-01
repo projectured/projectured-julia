@@ -471,13 +471,12 @@ function test_application()
                                                     make_opened_window_projections()))
                 @test editor.iomap !== nothing
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
-                # The screen is inside the state of the mouse target tracker,
-                # inside the state of the gesture tracker, and each state holds
-                # the same path under its `content` step.
+                # The screen is inside the state of the gesture tracker, which
+                # holds the same path under its `content` step.
                 screen = get_wrapped_document(editor.document)
                 @test _app_is_one_path(screen)
                 @test repr(strip_reference_types(get_selection(editor.document))) ==
-                      ".content.content" * repr(strip_reference_types(get_selection(screen)))
+                      ".content" * repr(strip_reference_types(get_selection(screen)))
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end
 
@@ -1349,8 +1348,8 @@ function test_application()
                 tree = _app_window(document)
                 held(x, y) = MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0)
 
-                # A row of the navigator lights up through the mouse target
-                # tracking of the screen, and the history does not grow.
+                # A row of the navigator lights up through the mouse target that
+                # a move writes at the screen, and the history does not grow.
                 pointer = ProjecturedPlatformTest.MttDriver(composed, scene)
                 hover!(x, y, time) = ProjecturedPlatformTest._mtt_play!(pointer,
                     WindowInput(:ProjecturEd, MouseMove(x, y; time)))

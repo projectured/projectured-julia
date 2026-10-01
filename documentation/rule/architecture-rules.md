@@ -119,7 +119,7 @@ examples:  kernel/example ← platform/example ← <domain>/example ← projectu
 The platform shares **one** example package and **one** test package
 (`package/platform/{example, test}`) rather than one per slice: the files of
 both were written against the flat namespace, so a static scan cannot say which
-of the thirty-nine slices owns which file.
+of the thirty-eight slices owns which file.
 
 The example DAG's leaves are the **opt-in example packages** — one per engine,
 each under its opt-in package's folder: `package/odbc/example`

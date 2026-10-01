@@ -1408,11 +1408,14 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     elseif event isa Union{KeyDown, KeyPress}
         return _key_intent(g, plot, event)
     elseif event isa MouseMove
-        plot.drag_anchor === nothing || return _drag_move(g, plot, event)
+        if plot.drag_anchor !== nothing
+            # A move with a button held drags, also off the plot. A move with no
+            # button held follows a release that the plot did not get, so the drag
+            # ends with no change.
+            is_move_without_button(event) || return _drag_move(g, plot, event)
+            return _compound(_cancel_drag(plot), _track_cursor(g, plot, event.x, event.y))
+        end
         return _track_cursor(g, plot, event.x, event.y)
-    elseif event isa MouseLeave
-        # A drag that leaves the chart is abandoned, not committed halfway.
-        return _compound(_cancel_drag(plot), _clear_cursor(plot))
     elseif event isa MouseClick && event.button === :left
         # A double click anywhere in the plot means "show me everything again".
         if event.count >= 2 && _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
@@ -1588,10 +1591,12 @@ function _key_intent(g, plot::ChartPlot, event::KeyPress)
 end
 
 # A move writes the pointer in data coordinates, which the crosshair reads, only
-# when it changes. What is under the pointer is the mouse target of the plot.
+# when it changes. A move off the plot area clears it, such as the move to
+# `(-1, -1)` that a container gives to the plot that the pointer leaves. What is
+# under the pointer is the mouse target of the plot.
 function _track_cursor(g, plot::ChartPlot, x::Integer, y::Integer)
-    inside = _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
-    cursor = inside ? (to_data(g.xs, x), to_data(g.ys, y)) : nothing
+    _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return _clear_cursor(plot)
+    cursor = (to_data(g.xs, x), to_data(g.ys, y))
     isequal(plot.cursor, cursor) ? nothing : _write_view_state(plot, "cursor", cursor)
 end
 

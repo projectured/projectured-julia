@@ -1,10 +1,10 @@
 # The tooltip window, through the loop of a real editor.
 #
-# The tracking screen recognizes the dwell, the target tracker sends it to the
-# part under the pointer, the part answers from its own gesture table, and the
-# wrapper that keeps the tooltip window opens the window. A tooltip is a window of
-# its own on every backend — PAR-MANY-WINDOWS — so the proof is the window that
-# appears, not the operation that comes back.
+# The tracking screen recognizes the dwell, the screen gives it to the part at its
+# point, the part answers from its own gesture table, and the wrapper that keeps
+# the tooltip window opens the window. A tooltip is a window of its own on every
+# backend — PAR-MANY-WINDOWS — so the proof is the window that appears, not the
+# operation that comes back.
 
 # A group that can say something, with a label that says something and one that
 # says nothing inside it.
@@ -224,11 +224,11 @@ end
                           tooltip = "what this button is for")
     editor, backend, scene = _tw_editor(WidgetComposite(Any[button]))
     # The path of the button from the root of the editor: through the gesture
-    # tracker, the tooltip wrapper and the target tracker to the screen.
+    # tracker and the tooltip wrapper to the screen.
     place = extend_reference(EmptyReference(),
                              FieldReferenceStep("content"), FieldReferenceStep("content"),
-                             FieldReferenceStep("content"), FieldReferenceStep("windows"),
-                             ElementReferenceStep(1), FieldReferenceStep("content"),
+                             FieldReferenceStep("windows"), ElementReferenceStep(1),
+                             FieldReferenceStep("content"),
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
     @test evaluate_reference(editor.document, place) === button
     binding = only(filter(binding -> binding.domain == "tooltip",
@@ -253,8 +253,8 @@ end
     editor, backend, scene = _tw_editor(WidgetComposite(Any[label]))
     place = extend_reference(EmptyReference(),
                              FieldReferenceStep("content"), FieldReferenceStep("content"),
-                             FieldReferenceStep("content"), FieldReferenceStep("windows"),
-                             ElementReferenceStep(1), FieldReferenceStep("content"),
+                             FieldReferenceStep("windows"), ElementReferenceStep(1),
+                             FieldReferenceStep("content"),
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
     @test evaluate_reference(editor.document, place) === label
     binding = only(filter(binding -> binding.domain == "tooltip",
@@ -277,10 +277,9 @@ end
                                       ElementReferenceStep(1), FieldReferenceStep("content"))
     # From the root of the editor, and from the state of the tooltip wrapper.
     place = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("content"),
-                                               FieldReferenceStep("content"), FieldReferenceStep("content")),
+                                               FieldReferenceStep("content")),
                               concat_references(window_content, inside))
-    from_wrapper = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("content"),
-                                                      FieldReferenceStep("content")),
+    from_wrapper = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("content")),
                                      concat_references(window_content, inside))
     function_ = evaluate_reference(editor.document, place)
     @test function_ isa JuliaFunction

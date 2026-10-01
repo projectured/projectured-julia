@@ -1423,11 +1423,9 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
     g = change.gesture
     if change.operation === nothing
         g isa MouseClick && g.button === :left && return Intent(g, _read_table_parts_press(p, iomap, g))
-        # A crossing and a pointer motion do not go into the cells: the part under
-        # the pointer is the backward map of the point. A dwell goes to the cell
-        # under it.
-        g isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover} &&
-            return Intent(g, nothing)
+        # A pointer motion does not go into the cells: the part under the pointer
+        # is the backward map of the point. A dwell goes to the cell under it.
+        g isa MouseMove && return Intent(g, nothing)
         g isa MouseScroll && return Intent(g, _read_table_parts_wheel(p, iomap, g))
         if g isa KeyDown
             op = _read_table_parts_key(iomap, g)
@@ -1443,7 +1441,7 @@ end
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
     _outside_widget(iomap, event) && return nothing
     if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||
-       event isa Union{MouseEnter,MouseLeave,MouseMove,MouseHover}
+       event isa MouseMove
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
     _positioned_event(event) && return _read_table_point_event(p, iomap, event)

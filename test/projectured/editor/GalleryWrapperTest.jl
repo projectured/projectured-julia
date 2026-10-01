@@ -1,4 +1,4 @@
-# Tests for the layered gallery wrappers — the `dragging`, `shell`, `hover`,
+# Tests for the layered gallery wrappers — the `dragging`, `shell`,
 # `gesture_help` and `command_palette` flags of `run_example`. `run_example`
 # itself opens a window, so each test drives the helper pair the flag applies and
 # the scene assembly the flags feed. What the flags do to the reader is covered
@@ -65,12 +65,6 @@ function test_gallery_wrappers()
         projection = make_shell_projection(
             make_dragging_projection(make_json_projection_example()))
         @test _gw_count_texts(_gw_render(projection, document)) == bare + 8
-    end
-
-    @testset "the mouse target tracking leaves the render unchanged" begin
-        projection = make_mouse_target_tracking_projection(make_json_projection_example())
-        document = make_mouse_target_tracking_document(make_json_document_example())
-        @test _gw_count_texts(_gw_render(projection, document)) == bare
     end
 
     @testset "the command type-in overlay leaves the render unchanged while closed" begin

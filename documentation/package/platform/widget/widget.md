@@ -83,7 +83,7 @@ Each widget also compares the point with its own canvas in `_outside_widget`: th
 - `WidgetList`, `WidgetTable` (both IO maps) and `WidgetTree` light the row that their mouse target names. A point on a row maps to the row, for example `items[2]`, which is no document, so the list is the deepest part and holds the row in its own mouse target. A column header of a table lights its column.
 - A light never changes the layout: it draws a layer over the surface or the row.
 
-**No container sends a crossing.** The mouse target tracking of the screen still gives a part a `MouseEnter`, a `MouseLeave` and a `MouseHover` by route ([mousetargettracking.md](../mousetargettracking/mousetargettracking.md)). No widget lights from them; a button ends its press on a leave, and a dwell opens a tooltip.
+**The move is the enter and the leave.** The mouse target of a part is set while the pointer is on it, and the move at a point off the part is the leave. A button ends its press on that move. A dwell takes the way of a click, by position, and opens a tooltip from the gesture table of the part at its point.
 
 ### A part maps forward to the node that draws it
 
@@ -217,7 +217,7 @@ The `rows` of a `WidgetTable` can be a `ListNode`, and `WidgetTableParts.jl` pri
 
 ### The transform pane
 
-`WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content. Each pointer event, that is a press, a button down, a button up, a move, a dwell and the two crossings, gets its point mapped through the inverse transform. So a button down gives the focus to the control that is drawn under the pointer, and a move of a drag reaches the content at the point that is drawn under the pointer.
+`WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content. Each pointer event, that is a press, a button down, a button up, a move and a dwell, gets its point mapped through the inverse transform. So a button down gives the focus to the control that is drawn under the pointer, and a move of a drag reaches the content at the point that is drawn under the pointer.
 
 ## How it fits
 
@@ -235,7 +235,7 @@ A `.pred` file builds a widget by its name, as it builds any loaded document typ
 - **A popup is a real window.** An overlay layer inside the window was rejected. The close of a popup is a focus event of its window, which the window manager already sends for the tooltip. See [plan/done/widget-popup-overlay.md](../../../../plan/done/widget-popup-overlay.md).
 - **A drag of a divider keeps its state in the document.** The size of a slot is data that must survive the next print. See [plan/done/split-pane-drag-resize.md](../../../../plan/done/split-pane-drag-resize.md).
 - **An instance can have its own gestures.** `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetMenuItem`, `WidgetToolbarItem`, `WidgetTree` and `WidgetTreeNode` have a `gestures` field. `read_bound_gesture` reads it before the table of the type, so one instance can add, replace or remove a gesture with no new widget type. See [plan/done/widget-per-instance-gestures.md](../../../../plan/done/widget-per-instance-gestures.md).
-- **The tracker detects the crossing; the widget sets its state.** A new widget reacts to hover with no change of the tracker. See [plan/done/widget-button-hover-press-feedback.md](../../../../plan/done/widget-button-hover-press-feedback.md).
+- **A widget draws its light from its own mouse target.** A move writes the mouse target of each document on the path under the pointer, so a new widget lights with no state of its own and no change of a container. See [plan/pending/a-document-knows-the-part-under-the-pointer.md](../../../../plan/pending/a-document-knows-the-part-under-the-pointer.md).
 - **One pane for scroll and zoom.** A zoom viewport inside a scroll viewport clips at a fixed box, and its clip conflicts with the pan of the outer one. See [plan/done/widget-transform-pane.md](../../../../plan/done/widget-transform-pane.md).
 - **One table widget, eager or lazy.** A second, lazy table widget and a separate table domain would each repeat the placement of the grid. See [plan/done/one-table-widget.md](../../../../plan/done/one-table-widget.md) and [plan/done/converge-table-on-widgettable.md](../../../../plan/done/converge-table-on-widgettable.md).
 

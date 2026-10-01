@@ -65,8 +65,8 @@ far as the forward maps answer, also into a stage that shows the place as
 something else: a widget that a view makes for a part of its input, or for a
 place that the view names with an introduced reference. The deepest stage reads
 the gesture first, and an earlier stage reads it when the later answers nothing,
-as for a gesture with no route. So a `MouseHover` of a file reaches the row of the
-tree that shows the file.
+as for a gesture with no route. So a dwell that a command sends to a file by
+route, to show its tooltip, reaches the row of the tree that shows the file.
 
 ## TypeDispatchingProjection
 

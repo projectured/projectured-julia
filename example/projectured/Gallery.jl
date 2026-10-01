@@ -17,7 +17,7 @@ end
     run_example(examples::Vector{Example}; width, height,
                 caching=false, scrolling=false, reset=false,
                 tooltip=false, inspector=false, introspection=false, selection=nothing,
-                shell=false, hover=true, dragging=false, gesture_help=false,
+                shell=false, dragging=false, gesture_help=false,
                 command_palette=false, gesture_log=false,
                 fault_tolerant=true, profile=false)
 
@@ -83,7 +83,7 @@ dedicated `clipboard_example` wires JSON converters for it. Incompatible with
 Six more wrappers are layers rather than alternatives, so they compose with
 each other and with one of the wrappers above. They apply in this order, and a
 projection wrapper that comes later sits further out: `dragging`, `shell`,
-`caching`, `hover`, `gesture_help`, `command_palette`, `gesture_log`.
+`caching`, `gesture_help`, `command_palette`, `gesture_log`.
 
 When `dragging=true`, each example's document is wrapped in a `DraggingState`
 and its projection in a `DraggingProjection`. A press that travels more than a
@@ -96,12 +96,10 @@ content sits inside a top-level window frame with a menu bar, a toolbar, and a
 status bar that names the example. The chrome's commands are inert: a submenu
 needs a popup resolver, which this pipeline does not compose.
 
-With `hover=true`, the default, the screen gets the mouse target tracking
-(`make_tracking_screen`), which gives the part under the pointer its
-`MouseEnter`, `MouseLeave` and `MouseHover` by route: a button and a row of a list
-light under the pointer. `hover=false` leaves it out, and nothing lights. Each
-example's projection is wrapped in a `FocusCyclingProjection` whatever the flag,
-so Tab starts over at the ends of each window.
+A button and a row of a list light under the pointer: the screen gives each move
+to its windows, and each document on the way keeps its mouse target. Each
+example's projection is wrapped in a `FocusCyclingProjection`, so Tab starts over
+at the ends of each window.
 
 When `gesture_help=true`, each example's projection is wrapped in a
 `GestureHelpDecoratorProjection`, so `F1` in the focused window opens a help window
@@ -161,7 +159,7 @@ run_example(document, projection; name::AbstractString="document", kwargs...) =
 The `Example`-free core: open one window per `(documents[i], projections[i])`
 pair, side by side, applying the same optional cross-domain wrappers (tooltip,
 inspector, introspection, clipboard, text filtering/highlighting,
-caching, dragging, shell, hover, gesture help, command palette). `names[i]` is
+caching, dragging, shell, gesture help, command palette). `names[i]` is
 window i's id/title and must be unique. Every keyword is
 identical to the `Example` overloads *except* `reset` — there are no factories to
 re-run here, so pass freshly built documents/projections when you need a clean
@@ -199,7 +197,7 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
                              tooltip=false, inspector=false, introspection=false,
                              clipboard=false, clipboard_collection=false,
                              text_filtering=false, text_highlighting=false, selection=nothing,
-                             shell=false, hover=true, dragging=false,
+                             shell=false, dragging=false,
                              gesture_help=false, command_palette=false,
                              gesture_log=false, gesture_log_filter=nothing, gesture_log_capacity=20,
                              fault_tolerant=true,
@@ -358,7 +356,7 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
     editor = _make_window_scene_editor(docs, projs, names;
                                        width=width, height=height, backend=backend,
                                        compose=compose, content_unwrap=content_unwrap,
-                                       mouse_target_tracking=hover, feeds=feeds)
+                                       feeds=feeds)
     fault_tolerant && attach_fault_target!(editor.faults, fault_log)
     editor
 end
@@ -447,15 +445,14 @@ function _prefix_content_fields(document, fields, selection)
 end
 
 # Build the scene (above), compose the screen projection via `compose(projs, backend)`,
-# put the trackers around both, and make the editor on `backend`, printed once. The
-# shared start of `make_example_editor` and `run_file_editor`.
+# put the gesture tracker around both, and make the editor on `backend`, printed
+# once. The shared start of `make_example_editor` and `run_file_editor`.
 function _make_window_scene_editor(docs, projs, names; width, height, backend, compose,
                                    content_unwrap::Vector{Symbol}=Symbol[],
-                                   mouse_target_tracking::Bool=true,
                                    feeds::Vector{Feed}=Feed[])
     screen, composed = make_tracking_screen(
         _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap),
-        compose(projs, backend); mouse_target_tracking=mouse_target_tracking)
+        compose(projs, backend))
     make_editor(screen, composed; backend = backend, feeds = feeds)
 end
 

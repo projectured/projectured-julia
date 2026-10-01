@@ -689,8 +689,8 @@ function test_chart_projection()
                                      strip_reference_types(@reference ::Chart.legend::ChartLegend))
             # Hovering one still moves the crosshair — an inside legend sits over
             # the plot — but it names no series, so nothing gets veiled. A move
-            # writes only the cursor now; the mouse target that the veil reads
-            # comes from the mouse target tracking, so this forces it to what
+            # writes only the cursor here; the mouse target that the veil reads
+            # is written by the editor at its root, so this forces it to what
             # that point maps to and checks that it names no series.
             plot = iomap.step_iomaps[1][].output
             stage = iomap.step_iomaps[2][]
@@ -811,9 +811,9 @@ function test_chart_projection()
             @test op.value == false
 
             # A move over the legend item writes the cursor; the mouse target
-            # that drives the veil is written by the mouse target tracking, at
-            # the root, so this sets it directly to the series the item stands
-            # for and checks that the frame veils the others.
+            # that drives the veil is written by the editor at its root, so this
+            # sets it directly to the series the item stands for and checks that
+            # the frame veils the others.
             op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
@@ -822,8 +822,9 @@ function test_chart_projection()
             veiled = [e for e in _series_elements(iomap.output) if e isa GraphicsPolyline]
             @test veiled[1].color.alpha != veiled[2].color.alpha
 
-            # Leaving clears the cursor.
-            op = read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys(); time = 0.0))
+            # A move off the plot, as the move to (-1, -1) that the pointer
+            # leaving gives, clears the cursor.
+            op = read_intent(proj, iomap, MouseMove(-1, -1, MouseButtons(), ModifierKeys(); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.cursor === nothing
@@ -1076,10 +1077,11 @@ function test_chart_projection()
             evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x0 + 2, y0 + 2, ModifierKeys(); time = 0.0)))
             @test plot.view === nothing
 
-            # Leaving mid-drag abandons it rather than committing halfway.
+            # A move with no button held mid-drag, as after a release that was
+            # lost, abandons it rather than committing halfway.
             evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
             evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys(); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x0, y0, MouseButtons(), ModifierKeys(); time = 0.0)))
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
 

@@ -42,8 +42,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "dragging" => ["collection", "projection"],
     "graphics" => ["collection", "projection", "style"],
     "layout" => ["collection", "focus", "graphics", "projection", "style"],
-    "screen" => ["collection", "gesturetracking", "graphics", "mousetargettracking",
-                 "primitive", "projection"],
+    "screen" => ["collection", "gesturetracking", "graphics", "primitive", "projection"],
     "text" => ["collection", "domain", "graphics", "primitive", "projection", "style"],
     "clipboard" => ["collection", "domain", "primitive", "projection", "serialization",
                     "text"],
@@ -86,7 +85,6 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
                      "syntax", "text"],
     "undo" => ["collection", "graphics", "projection", "style", "syntax", "text"],
     "gesturetracking" => [],
-    "mousetargettracking" => ["graphics"],
     "display" => ["natural", "screen", "style", "widget"],
     "application" => ["assistant", "collection", "conversation", "domain", "fileformat",
                       "filesystem", "natural", "pane", "primitive", "projection",
@@ -215,7 +213,6 @@ function test_platform()
         test_widget_selection()
         test_selection_walking()
         test_gesture_tracking()
-        test_mouse_target_tracking()
         test_mouse_target_move()
         test_widget_gestures()
         test_widget_select_dropdown()
@@ -331,7 +328,7 @@ export test_plot_geometry,
 export test_reflection_to_widget
 export test_object_field_to_widget, test_object_field_to_syntax
 export test_object_to_widget, test_projection_configuring,
-       test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_tracking, test_mouse_target_move, test_widget_gestures,
+       test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_colors, test_widget_scales, test_builder_appearance, test_widget_tree,
        test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_cell_editing, test_widget_table_column_align, test_widget_table_fills_offer, test_widget_table_content_floor, test_shell_offers_only_its_size, test_widget_shell_layout, test_widget_shell_pointer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_header_floor, test_layout_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_split_pane, test_widget_transform_pane,

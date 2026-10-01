@@ -201,11 +201,11 @@ guard of the platform checks every edge below against the code.
 | `fault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `display` | Natural, Screen, Style, Widget | — |
 
-This is not every slice of the platform: `gesturetracking`, `mousetargettracking`,
-`filesystem`, `undo`, `log`, `statistics`, `shell`, `help`, `conversation` and
-`assistant` and `application` are the rest, and `PLATFORM_SLICE_EDGES` in
+This is not every slice of the platform: `gesturetracking`, `filesystem`,
+`undo`, `log`, `statistics`, `shell`, `help`, `conversation` and `assistant` and
+`application` are the rest, and `PLATFORM_SLICE_EDGES` in
 [PlatformSuite.jl](../../test/platform/PlatformSuite.jl) has every one of the
-thirty-nine. `ProjecturedConsole` and `ProjecturedPDF` are backend packages,
+thirty-eight. `ProjecturedConsole` and `ProjecturedPDF` are backend packages,
 not slices of the platform, even though neither carries a third-party
 dependency.
 

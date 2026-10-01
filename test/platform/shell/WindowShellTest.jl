@@ -305,9 +305,9 @@ end
 end
 
 @testset "the pointer lights what it is over, in the bands and in the content" begin
-    # The whole fold, with a toolbar and the tooltip window, because the mouse
-    # target tracking of the screen must see the bands and the tooltip must not
-    # take the moves it needs.
+    # The whole fold, with a toolbar and the tooltip window, because the moves
+    # that the screen gives on must reach the bands, and the tooltip must not take
+    # them.
     press = WidgetButton("Press"; size = Point2D(120, 40))
     command = make_window_command("Run", editor -> nothing)
     bands(document) = (nothing, WidgetToolbar(Any[command]), nothing, nothing, nothing)

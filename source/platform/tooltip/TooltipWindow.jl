@@ -52,8 +52,8 @@ Any other key passes on and leaves it open, so a person can type while it shows.
 state document declares both keys in its gesture table, so the gesture help lists
 them.
 
-Sit it at the screen, inside the gesture tracker and around the target tracker,
-which sends the dwell to the part by route.
+Sit it around the screen, inside the gesture tracker. The screen gives the dwell
+to the part at its point.
 """
 struct TooltipWindowProjection <: Projection
     inner::Projection

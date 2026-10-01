@@ -22,7 +22,7 @@ Use it to state or test which buttons a pointer event holds.
     move = MouseMove(10, 20, MouseButtons(:left), ModifierKeys(); time = 0.0)
     move.buttons.left               # true
 
-See also `MouseMove`, `MouseEnter` and `MouseLeave`, which hold one.
+See also `MouseMove`, which holds one.
 """
 struct MouseButtons
     left::Bool

@@ -1,8 +1,8 @@
 # A scrolled pane must give the light and the press the same row.
 #
-# The light under the pointer comes from the mouse target tracking, which maps
-# the point backward through the pane to the row it draws there; the press is
-# translated by the pane. A scrolled list that lit the row that would be under
+# The light under the pointer comes from the mouse target that a move writes:
+# the point maps backward through the pane to the row it draws there. The press
+# is translated by the pane. A scrolled list that lit the row that would be under
 # the pointer if it had never been scrolled, while a click on the same pixel
 # selected the row that was really there, is the signature of a pane that does
 # not map by its scroll offset.
@@ -54,7 +54,6 @@ function test_scroll_pane_hover()
         # row that is now under it (D41). After a frame that changed a window,
         # the backend sends a move at the point where the pointer is.
         getfield(pane, :scroll_position)[] = Point2D(0, 120)
-        _mtt_play!(driver, WindowInput(:win, DisplayUpdate(1.1)))
         _mtt_move!(driver, 20, y, 1.1)
         press_scrolled = row_of(MouseClick(:left, 20, y; time = 0.0))
         hover_scrolled = WidgetModule._widget_element_selected(get_mouse_target(list), "items")

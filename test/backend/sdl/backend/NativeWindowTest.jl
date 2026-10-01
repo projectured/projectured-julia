@@ -117,10 +117,10 @@ end
 end
 
 @testset "a backend reports each frame that changed, and no other" begin
-    # A reader that keeps a part of the view as its state finds it again at a
-    # `DisplayUpdate`. So a frame that shows something new is reported, and one
-    # that shows nothing new is not, or the loop would never sleep. Both modes
-    # report the same, because the walk runs in both.
+    # A `DisplayUpdate` runs the loop again after a frame that changed. So a
+    # frame that shows something new is reported, and one that shows nothing new
+    # is not, or the loop would never sleep. Both modes report the same, because
+    # the walk runs in both.
     backends = [SdlBackend(partial_render = partial, debug_dirty = false)
                 for partial in (false, true)]
     for backend in backends

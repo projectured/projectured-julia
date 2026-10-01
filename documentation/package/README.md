@@ -30,7 +30,6 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `dragging` | [dragging.md](platform/dragging/dragging.md) | reorder by drag and drop |
 | `focus` | [focus.md](platform/focus/focus.md) | the focus walk and the whole selection by Alt+press |
 | `gesturetracking` | [gesturetracking.md](platform/gesturetracking/gesturetracking.md) | runs the recognitions of gestures over the inputs |
-| `mousetargettracking` | [mousetargettracking.md](platform/mousetargettracking/mousetargettracking.md) | the part under the pointer, and its crossings by route |
 | `versioning` | [versioning.md](platform/versioning/versioning.md) | the versions of a document |
 | `plot` | [plot.md](platform/plot/plot.md) | the axis arithmetic and the colour and marker cycles of the charts |
 | `graphics` | [graphics.md](platform/graphics/graphics.md) | the graphics documents, the hit test and the selection ring |

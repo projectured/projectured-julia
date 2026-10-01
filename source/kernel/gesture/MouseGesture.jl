@@ -1,7 +1,5 @@
 # Fragment of `GestureModule` — the gestures of the mouse: `MouseClick`, a completed
-# click, from a down and an up; `MouseEnter` and `MouseLeave`, from a motion across
-# the edge of a part; `MouseHover`, from a motion over the same part; `MouseDwell`,
-# from a pointer that does not move.
+# click, from a down and an up; `MouseDwell`, from a pointer that does not move.
 
 """
     MouseClick(button, x, y[, modifiers]; time)
@@ -36,73 +34,6 @@ MouseClick(button::Symbol, x::Int, y::Int, count::Int, modifiers::ModifierKeys;
     MouseClick(button, x, y, count, modifiers, Float64(time))
 
 """
-    MouseEnter(x, y[, buttons, modifiers]; time)
-    MouseEnter(x, y, buttons, modifiers, time)
-
-The pointer crossed into a region. It has the fields of `MouseMove`. The code that
-tracks the region makes it from the motion, with the time of the motion; an event
-source does not report it.
-"""
-struct MouseEnter <: Gesture
-    x::Int
-    y::Int
-    buttons::MouseButtons
-    modifiers::ModifierKeys
-    time::Float64
-end
-
-MouseEnter(x::Int, y::Int; time::Real) =
-    MouseEnter(x, y, MouseButtons(), ModifierKeys(), Float64(time))
-# @positional: the fields of a pointer event, in the order of `MouseMove`.
-MouseEnter(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time::Real) =
-    MouseEnter(x, y, buttons, modifiers, Float64(time))
-
-"""
-    MouseLeave(x, y[, buttons, modifiers]; time)
-    MouseLeave(x, y, buttons, modifiers, time)
-
-The pointer crossed out of a region. It has the fields of `MouseMove`, and `x` and
-`y` are the last position inside the region.
-"""
-struct MouseLeave <: Gesture
-    x::Int
-    y::Int
-    buttons::MouseButtons
-    modifiers::ModifierKeys
-    time::Float64
-end
-
-MouseLeave(x::Int, y::Int; time::Real) =
-    MouseLeave(x, y, MouseButtons(), ModifierKeys(), Float64(time))
-# @positional: the fields of a pointer event, in the order of `MouseMove`.
-MouseLeave(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time::Real) =
-    MouseLeave(x, y, buttons, modifiers, Float64(time))
-
-"""
-    MouseHover(x, y[, buttons, modifiers]; time)
-    MouseHover(x, y, buttons, modifiers, time)
-
-The pointer moved over the same part. It has the fields of `MouseMove`. The code
-that tracks the part under the pointer gives it to the deepest part at each
-move that does not change the part. `x` and `y` are the point in the frame of
-that part when the part maps its points, as a plot does, and in the frame of the
-window otherwise.
-"""
-struct MouseHover <: Gesture
-    x::Int
-    y::Int
-    buttons::MouseButtons
-    modifiers::ModifierKeys
-    time::Float64
-end
-
-MouseHover(x::Int, y::Int; time::Real) =
-    MouseHover(x, y, MouseButtons(), ModifierKeys(), Float64(time))
-# @positional: the fields of a pointer event, in the order of `MouseMove`.
-MouseHover(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time::Real) =
-    MouseHover(x, y, buttons, modifiers, Float64(time))
-
-"""
     MouseDwell(x, y[, modifiers]; time)
     MouseDwell(x, y, modifiers, time)
 
@@ -124,5 +55,4 @@ MouseDwell(x::Int, y::Int; time::Real) = MouseDwell(x, y, ModifierKeys(), Float6
 MouseDwell(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseDwell(x, y, modifiers, Float64(time))
 
-get_modifier_keys(gesture::Union{MouseClick,MouseEnter,MouseLeave,MouseHover,MouseDwell}) =
-    gesture.modifiers
+get_modifier_keys(gesture::Union{MouseClick,MouseDwell}) = gesture.modifiers

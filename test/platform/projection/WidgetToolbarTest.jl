@@ -1,8 +1,8 @@
 # WidgetToolbar pointer routing. A toolbar lays its items out horizontally, so the
-# light of the mouse target tracking must land on the item actually under the
-# pointer. The item canvas is bounded to its footprint: a GraphicsText has no right
-# edge, so an auto-sized item canvas (w=h=0) would take every point to its right,
-# and the first button would light wherever the pointer is.
+# light of a move must land on the item actually under the pointer. The item
+# canvas is bounded to its footprint: a GraphicsText has no right edge, so an
+# auto-sized item canvas (w=h=0) would take every point to its right, and the
+# first button would light wherever the pointer is.
 
 using ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 
@@ -120,7 +120,7 @@ end
     @test [string(t.text) for t in _drawn(canvas, GraphicsText)] == ["Run"]
 end
 
-@testset "a crossing and a press land on the toolbar item under the pointer" begin
+@testset "a move and a press land on the toolbar item under the pointer" begin
     labels = ["Explorer", "Assistant", "Evaluator"]
     icons = [:folder, :chat, :terminal]
     tb = WidgetToolbar(Any[WidgetToolbarItem(l; icon = i) for (l, i) in zip(labels, icons)];

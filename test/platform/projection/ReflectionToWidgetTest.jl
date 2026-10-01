@@ -161,7 +161,7 @@ end
     chain = ChainingProjection(projection,
                                make_widget_projection_example(measure = FixedMeasure(10, 18, 6, 0)))
     driver = MttDriver(chain, shadow)
-    tree = driver.iomap.child_iomap.step_iomaps[1][].output
+    tree = driver.iomap.step_iomaps[1][].output
     lit_row() = WidgetModule._wtree_ref_path(get_mouse_target(tree))
     # A row is no part of the reflected node, so the node holds it as a part of
     # the view, and the tree holds the node path of the row.

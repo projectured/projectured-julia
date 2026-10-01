@@ -22,22 +22,13 @@ _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dis
 _mods = ModifierKeys()
 _mktable() = WidgetTable(["ID", "Name"],
                          [["1", "Ada"], ["2", "Bob"], ["3", "Cy"]])
-_rd_marked(io, g, route = nothing) = begin
-    ch = read_intent(_rec, nothing, Intent(g, nothing, "", "", route), io)
+_rd_marked(io, g) = begin
+    ch = read_intent(_rec, nothing, Intent(g, nothing), io)
     ch isa Intent ? ch.operation : ch
 end
 # The answer, looking through the mark a hover carries as view state.
-_rd(io, g, route = nothing) = (op = _rd_marked(io, g, route);
-                               op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
-# A hover and a leave, as the mouse target tracking gives them, and the routes of
-# a body cell and of a column header: what a point there maps to.
-_hover = MouseHover(0, 0, MouseButtons(), _mods; time = 0.0)
-_leave = MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0)
-_cell(r, c) = ConcreteReference(FieldReferenceStep("rows"),
-                  ConcreteReference(RangeReferenceStep(r - 1, r),
-                      ConcreteReference(RangeReferenceStep(c - 1, c))))
-_column(c) = ConcreteReference(FieldReferenceStep("column_headers"),
-                 ConcreteReference(RangeReferenceStep(c - 1, c)))
+_rd(io, g) = (op = _rd_marked(io, g);
+              op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
 # Centre coordinate of body row r's band, and of a body column.
 _bx(g) = (g.col_x[g.col_offset + 1] + g.col_x[g.col_offset + 2]) ÷ 2
 _rowy(g, r) = let gr = r + g.row_offset; (g.row_y[gr] + g.row_y[gr + 1]) ÷ 2 end
@@ -64,10 +55,8 @@ end
     _mtt_move!(driver, _bx(g), _rowy(g, 2), 1.2)
     row2 = WidgetModule._find_wt_lit_reference(get_mouse_target(w))
     @test row2 !== nothing && row2 != row1
-    # The table's own reader never answers a crossing or a motion: the light
-    # comes only from the mouse target that the tracking writes.
-    @test _rd(io, _hover, _cell(1, 1)) === nothing
-    @test _rd(io, _leave, _cell(1, 1)) === nothing
+    # The table's own reader never answers a motion: the light comes only from
+    # the mouse target that a move writes.
     @test _rd(io, MouseMove(_bx(g), _rowy(g, 2), MouseButtons(), _mods; time = 0.0)) === nothing
     # The leave of the window clears the light.
     _mtt_leave!(driver, 1.3)

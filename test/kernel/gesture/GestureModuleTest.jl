@@ -100,8 +100,6 @@ function test_gesture_module()
               "gm test rest gesture"
         @test describe_gesture_pattern(KeyPressPattern(nothing; label = "0-9")) == "0-9"
         @test describe_gesture_pattern(MouseDwellPattern()) == "pointer dwells"
-        @test describe_gesture_pattern(MouseHoverPattern()) == "pointer hovers"
-        @test matches_gesture_pattern(MouseHoverPattern(), MouseHover(3, 4; time = 0.0))
         @test matches_gesture_pattern(MouseDwellPattern(), MouseDwell(3, 4; time = 0.0))
     end
 
