@@ -1,48 +1,32 @@
 """
     ProjecturedAdaptagrams
 
-The native graph-layout engine for ProjecturEd: an `AdaptagramsLayout` that places
-vertices with **libcola** (constraint-based force-directed layout) and routes
-edges with **libavoid** (obstacle-avoiding connectors), bridged through a small
-`extern "C"` shim (`deps/adaptagrams_shim.cpp`) via `ccall`.
+The Adaptagrams adapter, a package of its own because it needs the native libraries of Adaptagrams.
+`using ProjecturedAdaptagrams` gives `AdaptagramsLayout`; the slice is `AdaptagramsModule`, in `source/adapter/adaptagrams/`.
 
-This lives in its own package, separate from `ProjecturedGraph`, precisely
-because it carries an external native dependency (the Adaptagrams C++ libraries).
-`ProjecturedGraph` only defines the `GraphLayoutEngine` interface and the
-pure-Julia `GridEmbedding`; this package adds an `AdaptagramsLayout`
-method to `layout_graph` behind that same interface, so nothing in core depends
-on Adaptagrams being installed.
-
-## Building
-
-The shim is compiled by `deps/build.jl` against an installed/built Adaptagrams:
-
-    using Pkg; Pkg.build("ProjecturedAdaptagrams")
-
-Point `ADAPTAGRAMS_DIR` at the `cola/` directory of an Adaptagrams checkout, or
-install it so its `.pc` files are on `PKG_CONFIG_PATH`. Until the shim is built,
-`AdaptagramsLayout` loads, says once what to run, and hands each layout to the
-pure-Julia engine that would have drawn it anyway. The layout records which
-engine really placed it, so the substitution is visible rather than silent.
-
-## Use
-
-    using ProjecturedExample, ProjecturedAdaptagrams
-    proj = make_graph_projection_example(engine = AdaptagramsLayout())
+The loop below binds every submodule of the packages below this one as a
+`const`, so a source file here names a module exactly as the module names
+itself.
 """
 module ProjecturedAdaptagrams
 
-import ProjecturedGraph.GraphModule: GraphLayoutEngine, layout_graph,
-                                                  get_supported_constraint_kinds,
-                                                  check_constraints, get_constraint_pins,
-                                                  get_vertex_sizes, get_extent_transform,
-                                                  layout_engine_name, layout_vertices
-import ProjecturedGraph.GraphModule: register_layout_engine!,
-                                                 make_pure_julia_layout_engine,
-                                                 resolve_layout_engine
-import ProjecturedGraph.GraphModule: GraphGraph, GraphVertex, GraphEdge
-import Libdl
+using ProjecturedGraph
 
-include("../../../source/adapter/adaptagrams/Adaptagrams.jl")
+for _src in (ProjecturedGraph,)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
+
+include("../../../source/adapter/adaptagrams/AdaptagramsModule.jl")
+
+# A person loads this package by name, so its names are exported here.
+using .AdaptagramsModule: AdaptagramsLayout
+export AdaptagramsLayout
 
 end # module ProjecturedAdaptagrams

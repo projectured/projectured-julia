@@ -155,9 +155,9 @@ function _get_anthropic_stream_events(body::AbstractString;
     input_tokens = Ref(0)
     buffer = IOBuffer()
     write(buffer, SubString(body, 1, split_at))
-    ProjecturedAnthropic._drain_sse_events!(buffer, emit; input_tokens)
+    ProjecturedAnthropic.AnthropicModule._drain_sse_events!(buffer, emit; input_tokens)
     write(buffer, SubString(body, split_at + 1))
-    ProjecturedAnthropic._drain_sse_events!(buffer, emit; final = true, input_tokens)
+    ProjecturedAnthropic.AnthropicModule._drain_sse_events!(buffer, emit; final = true, input_tokens)
     events
 end
 

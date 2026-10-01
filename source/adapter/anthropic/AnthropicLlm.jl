@@ -1,4 +1,4 @@
-export AnthropicLlm, get_newest_anthropic_model, find_adaptive_model
+# Fragment of `AnthropicModule` — `AnthropicLlm`, the Messages API of Anthropic as an `Llm`.
 
 const _ANTHROPIC_URL     = "https://api.anthropic.com/v1/messages"
 const _ANTHROPIC_VERSION = "2023-06-01"

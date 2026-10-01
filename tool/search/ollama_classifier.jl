@@ -9,8 +9,8 @@
 
 using SHA: sha256
 import ProjecturedOllama
-const _HTTP = ProjecturedOllama.HTTP
-const _JSON3 = ProjecturedOllama.JSON3
+const _HTTP = ProjecturedOllama.OllamaModule.HTTP
+const _JSON3 = ProjecturedOllama.OllamaModule.JSON3
 
 const OLLAMA_CLASSIFIER_SYSTEM =
     "You judge whether an API entry of a Julia library helps a programmer to do a " *

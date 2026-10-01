@@ -5,7 +5,14 @@ Static layered-architecture guard for `ProjecturedAnthropic`.
 """
 function test_anthropic_layering()
     main = get_package_source_root(ProjecturedAnthropic)
-    check_layering(main, pathof(ProjecturedAnthropic); name = "anthropic")
+    check_layering(main, pathof(ProjecturedAnthropic);
+                   name = "anthropic",
+                   extra_aliases = Set{Symbol}(
+                       n for n in names(ProjecturedAnthropic; all = true)
+                         if isdefined(ProjecturedAnthropic, n) &&
+                            getfield(ProjecturedAnthropic, n) isa Module &&
+                            getfield(ProjecturedAnthropic, n) !== ProjecturedAnthropic &&
+                            parentmodule(getfield(ProjecturedAnthropic, n)) !== ProjecturedAnthropic))
 end
 
 """

@@ -1,37 +1,32 @@
 """
     ProjecturedTulip
 
-The LP-backed constraint-layout solver for ProjecturEd: a `TulipConstraintSolver`
-that adds a `solve_constraint_layout` method to the seam defined in
-`ProjecturedPlatform.LayoutModule`. Opt-in so core `ProjecturedPlatform`
-carries no `Tulip` / `MathOptInterface` dependency — exactly how
-`ProjecturedAdaptagrams` adds the native `AdaptagramsLayout` to the
-`GraphLayoutEngine` seam without core depending on the native shim.
+The Tulip adapter, a package of its own because it needs Tulip and MathOptInterface.
+`using ProjecturedTulip` gives `TulipConstraintSolver`; the slice is `TulipModule`, in `source/adapter/tulip/`.
 
-Usage:
-
-    using Projectured, ProjecturedTulip
-    proj = ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())
-
-A UI layout problem is mapped onto a linear program by **goal programming**:
-
-  * **Hard** (`:required`) relations become LP equality/inequality rows.
-  * **Soft** (`:strong`/`:medium`/`:weak`) relations introduce non-negative
-    slack variables and a strength-weighted penalty in the objective, so the
-    solver minimizes a weighted sum of constraint violations (Cassowary's
-    prioritized least-violation behaviour, approximated with one LP solve).
-
-Per-child intrinsic sizes enter as **weak stay constraints** so the system stays
-determined when relations under-constrain a child, while any explicit relation
-easily overrides them.
+The loop below binds every submodule of the packages below this one as a
+`const`, so a source file here names a module exactly as the module names
+itself.
 """
 module ProjecturedTulip
 
-import ProjecturedPlatform.LayoutModule: ConstraintSolver, SolverAnchor,
-                                                 SolverRelation, solve_constraint_layout
-import Tulip
-import MathOptInterface as MOI
+using ProjecturedPlatform
 
-include("../../../source/adapter/tulip/Tulip.jl")
+for _src in (ProjecturedPlatform,)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
 
-end # module
+include("../../../source/adapter/tulip/TulipModule.jl")
+
+# A person loads this package by name, so its names are exported here.
+using .TulipModule: TulipConstraintSolver
+export TulipConstraintSolver
+
+end # module ProjecturedTulip

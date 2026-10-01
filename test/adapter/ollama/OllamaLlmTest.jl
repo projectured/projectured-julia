@@ -3,13 +3,13 @@
 # server sends and not what the adapter wishes it sent.
 function _events_of(lines::AbstractVector{<:AbstractString})
     out = Any[]
-    handle = ProjecturedOllama._line_handler(ev -> push!(out, ev))
+    handle = ProjecturedOllama.OllamaModule._line_handler(ev -> push!(out, ev))
     buf = IOBuffer()
     for line in lines
         write(buf, line, '\n')
-        ProjecturedOllama._drain_lines!(buf, handle)
+        ProjecturedOllama.OllamaModule._drain_lines!(buf, handle)
     end
-    ProjecturedOllama._drain_lines!(buf, handle; final = true)
+    ProjecturedOllama.OllamaModule._drain_lines!(buf, handle; final = true)
     out
 end
 
@@ -34,7 +34,7 @@ schema = render_tool_schema(llm, [tool])
 # ── the system prompt is a message, not a field beside the messages ──
 request = LlmRequest(system = "Be brief.",
                      messages = [LlmMessage(:user, "Hello.")])
-wire = ProjecturedOllama._wire_messages(request)
+wire = ProjecturedOllama.OllamaModule._wire_messages(request)
 @test length(wire) == 2
 @test wire[1]["role"] == "system"
 @test wire[1]["content"] == "Be brief."
@@ -50,7 +50,7 @@ request = LlmRequest(messages = [
     LlmMessage(:assistant, LlmContent[LlmThinking("Ask the tool.", ""), call]),
     LlmMessage(:user, LlmContent[LlmToolResult("call_x1", "18 degrees", false)]),
 ])
-wire = ProjecturedOllama._wire_messages(request)
+wire = ProjecturedOllama.OllamaModule._wire_messages(request)
 @test length(wire) == 3
 @test wire[2]["role"] == "assistant"
 @test wire[2]["thinking"] == "Ask the tool."
@@ -63,7 +63,7 @@ wire = ProjecturedOllama._wire_messages(request)
 # A result whose call was never seen still reaches the model, as quoted text.
 request = LlmRequest(messages = [
     LlmMessage(:user, LlmContent[LlmToolResult("unknown", "18 degrees", false)])])
-wire = ProjecturedOllama._wire_messages(request)
+wire = ProjecturedOllama.OllamaModule._wire_messages(request)
 @test length(wire) == 1
 @test wire[1]["role"] == "user"
 @test occursin("18 degrees", wire[1]["content"])
@@ -170,13 +170,13 @@ end
 
 # ── a line split across two reads is one event, not two ──
 out = Any[]
-handle = ProjecturedOllama._line_handler(ev -> push!(out, ev))
+handle = ProjecturedOllama.OllamaModule._line_handler(ev -> push!(out, ev))
 buf = IOBuffer()
 write(buf, """{"message":{"role":"assist""")
-ProjecturedOllama._drain_lines!(buf, handle)
+ProjecturedOllama.OllamaModule._drain_lines!(buf, handle)
 @test isempty(out)
 write(buf, """ant","content":"split"},"done":false}\n""")
-ProjecturedOllama._drain_lines!(buf, handle)
+ProjecturedOllama.OllamaModule._drain_lines!(buf, handle)
 @test out[2] == LlmTextDelta("split")
 
 # ── a call the server did not name still gets an id, because the result pairs by it ──
@@ -204,8 +204,8 @@ llm = make_llm(:ollama; model = "mistral:latest", api_key = "ignored")
 @test llm.model == "mistral:latest"
 
 # `thinking` said outright is never asked about.
-@test ProjecturedOllama._supports_thinking(OllamaLlm(; thinking = true))
-@test !ProjecturedOllama._supports_thinking(OllamaLlm(; thinking = false))
+@test ProjecturedOllama.OllamaModule._supports_thinking(OllamaLlm(; thinking = true))
+@test !ProjecturedOllama.OllamaModule._supports_thinking(OllamaLlm(; thinking = false))
 
 end
 end
@@ -314,7 +314,7 @@ function test_ollama_meaning()
 @test make_llm(:ollama; meaning_model = "mxbai-embed-large").meaning_model == "mxbai-embed-large"
 
 # ── each model family gets its own prefixes, and an unknown model none ──
-prefix = ProjecturedOllama._get_meaning_prefix
+prefix = ProjecturedOllama.OllamaModule._get_meaning_prefix
 @test prefix("nomic-embed-text", :query) == "search_query: "
 @test prefix("library/nomic-embed-text:latest", :document) == "search_document: "
 @test startswith(prefix("mxbai-embed-large:335m", :query), "Represent this sentence")

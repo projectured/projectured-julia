@@ -1,4 +1,4 @@
-export OllamaLlm
+# Fragment of `OllamaModule` — `OllamaLlm`, a model that runs on this machine through Ollama, as an `Llm`.
 
 const _OLLAMA_URL    = "http://localhost:11434"
 const _DEFAULT_MODEL = "qwen3.8:27b"

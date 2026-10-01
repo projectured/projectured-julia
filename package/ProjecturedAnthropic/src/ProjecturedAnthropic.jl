@@ -1,35 +1,32 @@
 """
     ProjecturedAnthropic
 
-Opt-in package: the Anthropic Messages API adapter. Depends on `ProjecturedKernel`
-plus HTTP/JSON3, and implements the kernel's `LlmModule` seam for real Claude —
-`AnthropicLlm`, its `stream_turn`, its `render_tool_schema`, and its `make_llm` method.
+The Anthropic adapter, a package of its own because it needs HTTP and JSON3.
+`using ProjecturedAnthropic` gives `AnthropicLlm`, `get_newest_anthropic_model`, `find_adaptive_model`; the slice is `AnthropicModule`, in `source/adapter/anthropic/`.
 
-**Every piece of Anthropic's wire format lives here and nowhere else.** The kernel's
-`LlmMessage` / `LlmEvent` / `Tool` vocabulary is the project's own; this package
-renders a request into Anthropic's JSON, and translates Anthropic's SSE stream back
-into `LlmEvent`s. Nothing upstream of `stream_turn` knows that `content_block_delta`
-or `input_schema` exist. A second provider is another package shaped like this one,
-not a transcoding into Anthropic's names.
+The loop below binds every submodule of the packages below this one as a
+`const`, so a source file here names a module exactly as the module names
+itself.
 """
 module ProjecturedAnthropic
 
 using ProjecturedKernel
 
-using HTTP
-using JSON3
+for _src in (ProjecturedKernel,)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
 
-import ProjecturedKernel.ToolModule: Tool
-import ProjecturedKernel.LlmModule:
-    Llm, stream_turn, render_tool_schema, make_llm, get_default_llm_model,
-    LlmContent, LlmText, LlmThinking, LlmRedactedThinking, LlmToolUse, LlmToolResult,
-    LlmMessage, LlmRequest,
-    LlmTextStart, LlmTextDelta, LlmTextStop,
-    LlmThinkingStart, LlmThinkingDelta, LlmThinkingSignature, LlmThinkingStop,
-    LlmRedactedThinkingBlock,
-    LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
-    LlmTurnEnd, LlmFailure
+include("../../../source/adapter/anthropic/AnthropicModule.jl")
 
-include("../../../source/adapter/anthropic/Anthropic.jl")
+# A person loads this package by name, so its names are exported here.
+using .AnthropicModule: get_newest_anthropic_model, find_adaptive_model, AnthropicLlm
+export get_newest_anthropic_model, find_adaptive_model, AnthropicLlm
 
 end # module ProjecturedAnthropic

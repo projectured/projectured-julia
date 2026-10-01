@@ -12,8 +12,8 @@
 using SHA: sha256
 import ProjecturedKernel
 import ProjecturedOllama
-const _TYPESAFE_HTTP = ProjecturedOllama.HTTP
-const _TYPESAFE_JSON3 = ProjecturedOllama.JSON3
+const _TYPESAFE_HTTP = ProjecturedOllama.OllamaModule.HTTP
+const _TYPESAFE_JSON3 = ProjecturedOllama.OllamaModule.JSON3
 
 const TYPESAFE_URL = "https://openrouter.ai/api/alpha/decisions"
 const TYPESAFE_DOLLARS_PER_TOKEN = 0.042 / 1_000_000

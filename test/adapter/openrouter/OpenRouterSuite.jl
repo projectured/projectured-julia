@@ -5,7 +5,14 @@ Static layered-architecture guard for `ProjecturedOpenRouter`.
 """
 function test_openrouter_layering()
     main = get_package_source_root(ProjecturedOpenRouter)
-    check_layering(main, pathof(ProjecturedOpenRouter); name = "openrouter")
+    check_layering(main, pathof(ProjecturedOpenRouter);
+                   name = "openrouter",
+                   extra_aliases = Set{Symbol}(
+                       n for n in names(ProjecturedOpenRouter; all = true)
+                         if isdefined(ProjecturedOpenRouter, n) &&
+                            getfield(ProjecturedOpenRouter, n) isa Module &&
+                            getfield(ProjecturedOpenRouter, n) !== ProjecturedOpenRouter &&
+                            parentmodule(getfield(ProjecturedOpenRouter, n)) !== ProjecturedOpenRouter))
 end
 
 """

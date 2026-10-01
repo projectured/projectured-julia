@@ -1,4 +1,4 @@
-export McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
+# Fragment of `McpModule` — `McpServer`, the transport of the Model Context Protocol for the tools of an editor.
 
 # Generic system prompt for MCP clients (domain-free). A richer, app-specific
 # prompt can be supplied by the caller via `make_agent_server(:mcp, editor;

@@ -1,4 +1,4 @@
-export AdaptagramsLayout
+# Fragment of `AdaptagramsModule` — `AdaptagramsLayout`, the graph layout of libcola and libavoid, through the native shim.
 
 # ── Native shim location ─────────────────────────────────────────────────────
 # A *deterministic* path, not a generated deps.jl. Earlier we `include`d a

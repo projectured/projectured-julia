@@ -1,31 +1,32 @@
 """
-    Mcp
+    ProjecturedMcp
 
-Opt-in package providing the MCP (Model Context Protocol) server transport for
-ProjecturEd. Depends on `ProjecturedKernel`; `using ProjecturedMcp` registers the
-`:mcp` agent-server methods and exposes `McpServer`.
+The Mcp adapter, a package of its own because it needs ModelContextProtocol.
+`using ProjecturedMcp` gives `McpServer`, `start_mcp!`, `stop_mcp!`, `render_mcp_tools`, `render_mcp_resources`; the slice is `McpModule`, in `source/adapter/mcp/`.
 
-The editor tools themselves (`execute_julia_code`, the documentation/API search
-tools, `register_default_tools!`) are not an MCP concept and live in the kernel's
-`ToolModule`; each editor owns a `ToolSet` of them. Only the MCP *transport* — the
-`McpServer`, the HTTP lifecycle, and the `ToolSet`→MCP wire-format bridges — needs
-`ModelContextProtocol` and therefore lives here.
-
-The editor loop never names `McpServer`: it goes through the generic
-`AgentModule` seam (`make_agent_server(:mcp, editor)` etc.), whose
-`:mcp` methods this package registers.
+The loop below binds every submodule of the packages below this one as a
+`const`, so a source file here names a module exactly as the module names
+itself.
 """
 module ProjecturedMcp
 
-using ModelContextProtocol
-using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
+using ProjecturedKernel
 
-import ProjecturedKernel.FaultModule: record_fault!, is_passthrough_exception
-import ProjecturedKernel.ToolModule: Tool, Resource, ToolSet,
-                                     list_tools, list_resources, register_default_tools!
-import ProjecturedKernel.AgentModule: make_agent_server, start_agent_server!, stop_agent_server!,
-                                      run_on_editor_task!
+for _src in (ProjecturedKernel,)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
 
-include("../../../source/adapter/mcp/Mcp.jl")
+include("../../../source/adapter/mcp/McpModule.jl")
 
-end # module Mcp
+# A person loads this package by name, so its names are exported here.
+using .McpModule: McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
+export McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
+
+end # module ProjecturedMcp

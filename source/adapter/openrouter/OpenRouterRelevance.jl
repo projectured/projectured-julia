@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedOpenRouter` — the Decisions API of OpenRouter as a
+# Fragment of `OpenRouterModule` — the Decisions API of OpenRouter as a
 # relevance model: a `noul` per text for `score`, and one `choice` for `choose`.
 
 const _DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"

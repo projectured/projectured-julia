@@ -1,4 +1,4 @@
-export TulipConstraintSolver
+# Fragment of `TulipModule` — `TulipConstraintSolver`, the layout constraints solved as a linear program by Tulip.
 
 """
     TulipConstraintSolver(; optimizer = Tulip.Optimizer, contain = false)

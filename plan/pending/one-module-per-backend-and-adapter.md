@@ -103,7 +103,22 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       natural renderer reflects a child that the closed JSON chain refused. The
       test breaks a cell instead, which fails in every renderer (`3e2d4771a`).
       Tests: the SDL, Video, Web and builder suites, 1,173 pass.
-- [ ] **Step 3, the six adapters.** A module file for each.
+- [x] **Step 3, the six adapters.** A module file for each.
+      Done: `AdaptagramsModule`, `AnthropicModule`, `McpModule`, `OllamaModule`,
+      `OpenRouterModule` and `TulipModule`, with the fragments
+      `AdaptagramsLayout.jl`, `AnthropicLlm.jl`, `McpServer.jl`, `OllamaLlm.jl`,
+      `OpenRouterRelevance.jl` and `TulipConstraintSolver.jl`; their tests
+      follow (`AnthropicLlmTest.jl`, `OllamaLlmTest.jl`,
+      `OpenRouterRelevanceTest.jl`). The binding loop of each entry takes the
+      Projectured packages it depends on: the kernel for the four on the
+      kernel, the platform for Tulip, and the Graph domain for Adaptagrams. The
+      docstring of each entry is the module's now, and the entry has a short
+      one. MCP keeps `import ..ToolModule: Tool, Resource`, because the
+      protocol exports a `Tool` and a `Resource` of its own. The layering
+      guards of Anthropic, Ollama and OpenRouter take the modules the loop
+      binds as aliases, as DataFrames and Tulip did. Tests: the four suites,
+      the MCP tests of the umbrella, a load of Adaptagrams: 628 pass, 2 broken
+      (the markers that were there).
 - [ ] **Step 4, the guard.** Every slice folder of `source/` outside the kernel
       holds one file that declares a module, the other files declare none, and
       a package entry of a backend or an adapter includes only its module file.

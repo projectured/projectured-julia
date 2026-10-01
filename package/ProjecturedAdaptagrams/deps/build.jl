@@ -5,7 +5,7 @@
 #   julia package/ProjecturedAdaptagrams/deps/build.jl
 #
 # The module loads the shim from this fixed path (no generated deps.jl); whether
-# it has been built is a runtime check (ProjecturedAdaptagrams.isavailable()), so
+# it has been built is a runtime check (ProjecturedAdaptagrams.AdaptagramsModule.isavailable()), so
 # building the .so is picked up without a stale precompile cache.
 #
 # Locating Adaptagrams, in order of preference:

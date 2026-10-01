@@ -5,7 +5,14 @@ Static layered-architecture guard for `ProjecturedOllama`.
 """
 function test_ollama_layering()
     main = get_package_source_root(ProjecturedOllama)
-    check_layering(main, pathof(ProjecturedOllama); name = "ollama")
+    check_layering(main, pathof(ProjecturedOllama);
+                   name = "ollama",
+                   extra_aliases = Set{Symbol}(
+                       n for n in names(ProjecturedOllama; all = true)
+                         if isdefined(ProjecturedOllama, n) &&
+                            getfield(ProjecturedOllama, n) isa Module &&
+                            getfield(ProjecturedOllama, n) !== ProjecturedOllama &&
+                            parentmodule(getfield(ProjecturedOllama, n)) !== ProjecturedOllama))
 end
 
 """

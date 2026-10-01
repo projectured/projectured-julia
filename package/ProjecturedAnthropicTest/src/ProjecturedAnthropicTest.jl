@@ -27,7 +27,7 @@ import ProjecturedKernel.LlmModule:
     LlmText, LlmMessage, LlmRequest,
     LlmTextStart, LlmTextDelta, LlmTextStop, LlmTurnEnd
 
-include("../../../test/adapter/anthropic/AnthropicTest.jl")
+include("../../../test/adapter/anthropic/AnthropicLlmTest.jl")
 include("../../../test/adapter/anthropic/AnthropicSuite.jl")
 
 end # module ProjecturedAnthropicTest

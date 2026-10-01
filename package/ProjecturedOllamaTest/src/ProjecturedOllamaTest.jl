@@ -33,7 +33,7 @@ import ProjecturedKernel.LlmModule:
     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
     LlmTurnEnd, LlmFailure
 
-include("../../../test/adapter/ollama/OllamaTest.jl")
+include("../../../test/adapter/ollama/OllamaLlmTest.jl")
 include("../../../test/adapter/ollama/OllamaSuite.jl")
 
 end # module ProjecturedOllamaTest

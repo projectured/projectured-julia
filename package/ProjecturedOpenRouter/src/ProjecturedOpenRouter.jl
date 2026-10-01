@@ -1,30 +1,32 @@
 """
     ProjecturedOpenRouter
 
-Opt-in package: the Decisions API of OpenRouter as the relevance model of a
-`ToolSet`. Depends on `ProjecturedKernel` plus HTTP/JSON3, and answers the
-kernel's `RelevanceModel` with `make_openrouter_relevance_model`.
+The OpenRouter adapter, a package of its own because it needs HTTP and JSON3.
+`using ProjecturedOpenRouter` gives `make_openrouter_relevance_model`; the slice is `OpenRouterModule`, in `source/adapter/openrouter/`.
 
-**Every piece of the wire format of the Decisions API lives here and nowhere
-else.** The kernel asks a `RelevanceModel` for a probability per text and per
-option; this package renders those questions as the `noul` and `choice`
-questions of a decision model, such as Jev of TypeSafe, and reads the answers
-back. Nothing in the kernel knows that `noul` or `usage.cost` exist.
-
-Nothing binds the model by itself: a window that wants it calls
-`set_relevance_model!` with it.
+The loop below binds every submodule of the packages below this one as a
+`const`, so a source file here names a module exactly as the module names
+itself.
 """
 module ProjecturedOpenRouter
 
 using ProjecturedKernel
 
-using HTTP
-using JSON3
+for _src in (ProjecturedKernel,)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
 
-import ProjecturedKernel.ToolModule: RelevanceModel
+include("../../../source/adapter/openrouter/OpenRouterModule.jl")
 
-include("../../../source/adapter/openrouter/OpenRouter.jl")
-
+# A person loads this package by name, so its names are exported here.
+using .OpenRouterModule: make_openrouter_relevance_model
 export make_openrouter_relevance_model
 
 end # module ProjecturedOpenRouter
