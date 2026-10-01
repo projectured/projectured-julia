@@ -366,6 +366,40 @@ and the downstream repositories land in the same landing.
 - [ ] **Step 5, the application (F10).** `run_application_command` and what it
       needs move from `ProjecturedExample` to the umbrella; the builder of the
       binary follows.
+      **Changed by the owner (2026-10-01): the application goes to the
+      platform**, as a slice of its own, `source/platform/application/`, and
+      names no domain. Facts that led there: the application asks for a model
+      only by symbol through the seams of the kernel (`make_llm`,
+      `make_agent_server`), so it compiles without an adapter; the four
+      domains it named (JSON, XML, Julia, SQL) register their notation, so
+      the natural renderer draws them; and an application that names no
+      domain shows every domain a session loads, a downstream one too. What
+      a user types: `using Projectured, ProjecturedSdl, ProjecturedOllama`.
+      The parts:
+      - [ ] 5a. **The assistant's API is open to the domains** (the owner:
+            "other domains can also extend the assistant API, add the
+            registry"). A domain registers, when it loads, the names a model
+            may use for its documents; `make_application_api` takes every
+            registered entry. JSON registers the seven names that the
+            application names now (`JsonArray` … `JsonNull`).
+      - [ ] 5b. **The chat rows** `conversation_draft_entry` and
+            `conversation_widget_entry` move from the conversation example
+            into the conversation slice, with the names of a product.
+      - [ ] 5c. **The slice**: `Application.jl` and `DefaultBackend.jl` move to
+            `source/platform/application/`; the four domain rows go, and the
+            natural renderer draws those documents (the visible difference:
+            long lines of a JSON or an XML file no longer wrap, because the
+            natural renderer never wraps code). The platform gains
+            `InteractiveUtils` (a standard library) for `default_backend`.
+            `PLATFORM_SLICE_EDGES` gains the row of the slice.
+      - [ ] 5d. **The warm-up** `warm_application` needs `ConsoleBackend` and
+            three domains, so it goes to the umbrella, which only a build runs
+            it from.
+      - [ ] 5e. **The builder** builds the binary from `Projectured`, the two
+            model adapters, `ProjecturedMcp` and the backends; the example tier
+            leaves the binary.
+      - [ ] 5f. The tests, the examples that call the application, and the
+            documents follow.
 - [x] **Step 6, the words.** The docstrings of `conversation` and `filesystem`
       stop calling them domains; `system-anatomy.md` and the other documents
       describe the kernel, the platform, the domains, the backends and the
