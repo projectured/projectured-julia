@@ -8,7 +8,8 @@ because `Pkg.test` and PkgEval run each package alone and do not find the
 `Projectured*Test` packages. This is R30 of
 [release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md),
 and the next item of "The work toward the local registry" in its Part R. The
-owner asked for this plan on 2026-10-01; nothing is implemented yet.
+owner asked for this plan on 2026-10-01, and accepted every recommendation
+of §3 the same day: "I agree with your decisions, start implementing".
 
 ## 2. Facts (2026-10-01, `main` at `6519a5abd`)
 
@@ -61,9 +62,11 @@ umbrella can run.
 `SDL_VIDEODRIVER=offscreen` and with no network. They pass, except the known
 failures of the umbrella suite.
 
-## 3. Open decisions
+## 3. Decisions
 
-| # | Question | Recommendation (mine, not decided) |
+The owner accepted each recommendation on 2026-10-01.
+
+| # | Question | Decision |
 | --- | --- | --- |
 | T1 | What does the release test of a package run? | The suite of its test package, unchanged (`test_json()` for `ProjecturedJSON`), so that the release runs the tests of the development repository. A second, smaller suite for the release would be a second thing to keep. |
 | T2 | How does the release test get the code of the unregistered packages? | The release copy writes each one into the test folder of the package as a package of its own, `test/support/<Name>/`, and `test/Project.toml` names it by `[sources]`. If Step 0 shows that Pkg does not read those `[sources]`, `runtests.jl` includes the copied files as modules instead. Registering the test and example packages is no choice: the maintainers of General refuse them, and R34 moves the packages to General later. |
