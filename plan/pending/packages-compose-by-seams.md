@@ -932,8 +932,30 @@ Each step ends with its narrowest test and a commit.
         - Tests: the kernel build 26, and 295 of the wrappers, the shell, the
           fold, the display, the tabs, the window, the appearance and the
           slice edges.
-      - [ ] 9d. The application builds its window with the keywords;
-        `make_application_window` goes.
+      - [x] 9d. The application builds its window with the keywords.
+        `make_application_wrappers(; root, assistant, status_bar, measure,
+        appearance)` names them once; `run_application` and the application
+        video call `build_editor` with them and need no
+        `run_with_window_tools`. `make_application_document` gives the pane
+        tree, and `undo` puts the history around it. Changed while
+        implementing (mine):
+        - `make_application_window` stays, for the callers that draw the
+          wrapped content in a window scene of their own: the application
+          test, the warm-up of a build, the two rehearsal tools and
+          `ReferencedDocumentEditorTest`. It wraps the content with the same
+          keywords through `make_editor_parts`, a new function of the kernel:
+          the first half of `build_editor`, which applies the wrappers and
+          makes no editor. With no backend the window wrapper does nothing,
+          and nothing runs the start and stop steps, so no log capture is
+          installed.
+        - The `prepare` hook of the application video gets the pane tree
+          before `build_editor`, and the wrappers carry the selection that it
+          sets.
+        - The setting of `shell` takes `appearance`, as the setting of `tabs`
+          does, for the parts that `make_editor_parts` makes with
+          `appearance = false`.
+        - Tests: the application 431 (2 broken, as on main), the warm-up, the
+          referenced document editor, the kernel build 30.
       - [ ] 9e. omnet-julia: the IDE window and the campaign window.
       - [ ] 9f. `make_window_wrap` and `run_with_window_tools` go.
       - [ ] 9g. The display turns the wrappers on.
