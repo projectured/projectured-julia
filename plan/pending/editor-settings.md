@@ -4,8 +4,8 @@
 > request. The owner decided the design on 2026-10-01; section 5 logs each
 > decision. Step W1 of the appearance plan landed on `main` on 2026-10-01
 > (`03e83ba36`), so the work can start (D10). Section 9 of the appearance plan
-> and 3.8 here give what W1 changed. One question is open again: the word
-> "settings" (section 6, O11).
+> and 3.8 here give what W1 changed. The kernel word "setting" of a wrapper
+> becomes "argument" first (D12, step R1).
 
 ## 1. The request
 
@@ -223,10 +223,10 @@ group, as an `Appearance` holds the themes.
   `settings` and `content`. It wraps the projection in a
   `SettingsManagingProjection` (4.5). Its start step applies each group once
   (4.7).
-- `make_wrapper_setting(Val(:settings), true)` answers a new `Settings` (3.8).
-  On the path with no projection, `make_document_projection` gets it by its
-  keyword, so the projection and the wrapper share it. Another wrapper reads it
-  from `EditorParts.settings` (4.8).
+- `make_wrapper_argument(Val(:settings), true)` answers a new `Settings` (3.8,
+  with the names of D12). On the path with no projection,
+  `make_document_projection` gets it by its keyword, so the projection and the
+  wrapper share it. Another wrapper reads it from `EditorParts.arguments` (4.8).
 - With `settings = true`, the wrapper makes a `Settings` with the defaults and
   the environment. It never reads the file, so a test that calls `build_editor`
   does not depend on the file of the person.
@@ -424,8 +424,8 @@ package that owns a target adds a method for each group that acts on it:
   cell at each input. The default stays a number, so the tests do not change.
   `make_standard_recognitions(settings::PointerSettings)` gives the cells of the
   group. The `window` wrapper, which makes the recognitions in `WindowScene`,
-  takes the `Settings` from `EditorParts.settings` when its own setting names no
-  recognitions, as the `tabs` wrapper takes the `Appearance` (3.8).
+  takes the `Settings` from `EditorParts.arguments` when its own argument names
+  no recognitions, as the `tabs` wrapper takes the `Appearance` (3.8).
   `DraggingProjection` takes its threshold in the same way.
 - **The history and the log.** The capacity of an `UndoBuffer` and of a
   `MessageLog` becomes a cell. The builder that makes one gives it the cell of
@@ -523,8 +523,8 @@ these on 2026-10-01 (D11). This plan adds:
 8. The hold of the repaint outline in the SDL backend.
 9. The file `settings.toml`.
 
-The plan uses the seam of the build and `EditorParts.settings`, which W1 of the
-appearance plan added (3.8). It adds no
+The plan uses the seam of the build and `EditorParts.arguments`, which W1 of the
+appearance plan added (3.8) and step R1 renames (D12). It adds no
 `SyntheticEvent`, no reader payload and no `read_intent` method for a new type.
 
 ## 5. The decision log
@@ -561,36 +561,19 @@ recommendations, and chose two separate tabs for O8.
   `main`** (O10), so that the seam of the build has one form. Rejected: a copy of
   the seam on a branch of its own.
 - **D11. The new mechanisms of 4.12** are approved, all nine.
+- **D12. The kernel word "setting" of a wrapper becomes "argument"** (O11).
+  The value of a keyword of `build_editor` is an argument of its wrapper:
+  `make_wrapper_setting` becomes `make_wrapper_argument`, `EditorParts.settings`
+  becomes `EditorParts.arguments`, `make_document_projection(document;
+  settings...)` becomes `make_document_projection(document; arguments...)`, and
+  the argument `setting` of `wrap_editor!` becomes `argument`. "Settings" then
+  means only what a person chooses. Rejected: another word for this plan, such
+  as "preferences"; one word with both meanings, which breaks the vocabulary
+  rule of the owner.
 
 ## 6. Open decisions
 
-Section 5 holds the answers to O1 to O10.
-
-- **O11. The word "settings" has two meanings.** W1 put the word into the kernel
-  for another thing: "the setting of a wrapper" is the value of a keyword of
-  `build_editor`, held in `EditorParts.settings` and made by
-  `make_wrapper_setting`, and `make_document_projection(document; settings...)`
-  gets all of them. The `wrap_editor!` docstring used "setting" in that sense
-  before W1. With the names of D9, the code reads
-  `get(parts.settings, :settings, nothing)`: "the setting of the settings
-  wrapper is a `Settings`". The vocabulary rule of the owner (2026-08-06) is:
-  mint a word that is not used, and do not give one word two meanings.
-  (a) Keep the word "settings" for what a person chooses, and rename the kernel
-  word to "argument": `make_wrapper_argument`, `EditorParts.arguments`,
-  `make_document_projection(document; arguments...)`, and the `setting`
-  argument of `wrap_editor!`. A wrapper argument is the value of a keyword
-  argument, so the word says what it is.
-  (b) Keep the kernel word, and give this plan another word, such as
-  "preferences": `Preferences`, `PreferenceGroup`, `@preferences`,
-  `ApplyPreferenceOperation`, `apply_preferences!`, the keyword `preferences` and
-  `preferences.toml`. The tab can still have the title "Settings".
-  (c) Keep both meanings.
-  My recommendation: (a). The owner's request names a settings document, and the
-  tab, the file, the code and the guide then use one word for one thing. The
-  rename is in `EditorBuild.jl` (⬜), the appearance slice, the `tabs` wrapper,
-  the guides and the call sites: about 30 lines in 11 files on 2026-10-01, and
-  none in omnet-julia or inet-julia. `workspace/bin/julia-rename.jl` does it. (c)
-  breaks the vocabulary rule.
+None. Section 5 holds the answers to O1 to O11.
 
 ## 7. Steps
 
@@ -608,6 +591,16 @@ the pixels and the test counts of the baseline of S0.
   - Whether a history holds a tool tab now. If one does, the step that makes
     the tab must keep its writes out of that history (D7), and the owner
     approves how.
+- [ ] **R1. The rename of D12**, before any new code uses the word.
+  `make_wrapper_setting` → `make_wrapper_argument`, `EditorParts.settings` →
+  `EditorParts.arguments`, the keywords of `make_document_projection`, the
+  argument `setting` of `wrap_editor!` and of its methods, and the prose that
+  says "the setting of a wrapper" in the docstrings, the guides
+  (`editor.md`, `appearance.md`) and the appearance plan. Use
+  `workspace/bin/julia-rename.jl` with `--report` first, and a second pass for
+  the prose. Check omnet-julia and inet-julia again (none on 2026-10-01).
+  - Tests: `test_appearance_wrapper()`, the kernel tests of the build, and the
+    tests of the `tabs` wrapper give the counts of S0.
 - [ ] **S1. The slice `settings`** (4.2, 4.6, 4.7). `SettingsGroup`, `@settings`,
   `SettingDescription`, `Settings` with its lookup by type, `apply_settings!`,
   `is_settings_target`, and `ApplySettingOperation` with its evaluation, its
