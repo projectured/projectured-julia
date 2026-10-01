@@ -247,6 +247,9 @@ struct SyntaxCompoundToText <: Projection
     # or a cell that reads the scaled `SyntaxTheme` (`unwrap_cell`).
     delimiter_light_color::Any
     delimiter_light_levels::Int
+    # The font of the indentation and the line breaks of a node with no delimiter
+    # of its own: a value, or a cell that reads the scaled `SyntaxTheme`.
+    decoration_font::Any
 end
 
 SyntaxCompoundToText(; indent_size::Int = 2,
@@ -257,9 +260,11 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                        theme = nothing,
                        delimiter_light_color = _get_syntax_style(scale_theme(theme), StyleColor,
                                                                  :lit_delimiter),
-                       delimiter_light_levels::Int = 4) =
+                       delimiter_light_levels::Int = 4,
+                       decoration_font = _get_syntax_style(scale_theme(theme), StyleFont, :font)) =
     SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
-                         ellipsis_text, delimiter_light_color, delimiter_light_levels)
+                         ellipsis_text, delimiter_light_color, delimiter_light_levels,
+                         decoration_font)
 
 # One IoMap for every compound, and it must be one: a parent reads its child's
 # `indent_indices` off the child's IoMap to widen them on splice
@@ -732,7 +737,7 @@ _splice_result(buf::SpliceBuffer) =
 # answers all five; a `SyntaxConcatenation` answers only "children", and so renders
 # as its children, end to end, with no chrome and no caret that is not a child's.
 function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims, level::Cell)
-    buf = SpliceBuffer(deco; nid = objectid(doc), deco_font = _deco_font(doc),
+    buf = SpliceBuffer(deco; nid = objectid(doc), deco_font = _deco_font(doc, unwrap_cell(p.decoration_font)),
                        indent_size = p.indent_size)
     indent = get_indentation(doc)
     separator = get_separator(doc)
@@ -825,17 +830,17 @@ end
 # Whitespace decorations track the content's font, because TextToGraphics measures
 # every span and takes the line's max — a decoration carrying a stale default font
 # would pin the line height when the content font shrinks. A node's own delimiter
-# is the source; a node with none falls back to the default font, which is what a
-# bare `TextString` carries.
+# is the source; a node with none takes `fallback`, the decoration font of the
+# syntax theme.
 #
 # Deliberately does NOT consult the children: reading a child's spans here would
 # force its output cells during the parent's splice, making the printer eager
 # where it is meant to be lazy.
-function _deco_font(node::SyntaxCompound)
+function _deco_font(node::SyntaxCompound, fallback::StyleFont)
     for d in (get_opening_delimiter(node), get_separator(node), get_closing_delimiter(node))
         d === nothing || return d.second.font
     end
-    font_ubuntu_monospace_regular_20
+    fallback
 end
 
 # The output TextBlock cursor, composed from this node's own selection and its
@@ -1293,8 +1298,10 @@ function SyntaxToText(; indent_size::Int = 2,
                         delimiter_light_levels::Int = 4)
     # Every compound is printed by the same projection instance — the configuration
     # is the projection's, the structure is the document's. `theme`, a
-    # `SyntaxTheme` or a scaled one, gives the colour that lights the delimiters.
-    compound = SyntaxCompoundToText(indent_size=indent_size,
+    # `SyntaxTheme` or a scaled one, gives the colour that lights the delimiters
+    # and the font of the decorations of a node with no delimiter.
+    compound = SyntaxCompoundToText(theme=theme,
+                                    indent_size=indent_size,
                                     expanded_marker=expanded_marker,
                                     collapsed_marker=collapsed_marker,
                                     marker_eligible=marker_eligible,

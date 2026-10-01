@@ -178,6 +178,12 @@ function ObjectNodeToSyntaxNode(; theme = nothing,
                            String(close_delimiter), newlines, filter)
 end
 
+# A delimiter or a separator of a reflected object, in the font of the field names
+# and the default color, so its size follows the theme and the indentation that
+# takes its font follows too. An empty one stays empty, so the node has no span.
+_object_delimiter(p::ObjectNodeToSyntaxNode, text::AbstractString) =
+    isempty(text) ? text : TextString(text, p.field_name.font, color_default)
+
 # Unwrap a Cell for predicate/filter testing; pass non-cells through.
 _unwrap_cell(x) = x isa Cell ? x[] : x
 
@@ -258,7 +264,8 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
             () -> _visible_elements(p, obj),
             (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
         output = Cell(@computation(SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
-            open = p.open_delimiter, close = p.close_delimiter, sep = " ", indentation = ind)))
+            open = _object_delimiter(p, p.open_delimiter), close = _object_delimiter(p, p.close_delimiter),
+            sep = _object_delimiter(p, " "), indentation = ind)))
         return SimpleIoMap(p, _get_object_input(obj), output)
     end
 
@@ -277,11 +284,12 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     entries = [_field_entry(p, recursion, obj, ctx, fn) for fn in fnames]
     output = Cell(@computation begin
         field_nodes = SyntaxDocument[
-            SyntaxNode(SyntaxDocument[nl, _field_value(p, fim)]; sep = " ")
+            SyntaxNode(SyntaxDocument[nl, _field_value(p, fim)]; sep = _object_delimiter(p, " "))
             for (nl, fim) in entries]
-        fields_block = SyntaxNode(field_nodes; open = p.open_delimiter,
-            close = p.close_delimiter, sep = " ", indentation = ind)
-        SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = " ")
+        fields_block = SyntaxNode(field_nodes; open = _object_delimiter(p, p.open_delimiter),
+            close = _object_delimiter(p, p.close_delimiter), sep = _object_delimiter(p, " "),
+            indentation = ind)
+        SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = _object_delimiter(p, " "))
     end)
     SimpleIoMap(p, _get_object_input(obj), output)
 end

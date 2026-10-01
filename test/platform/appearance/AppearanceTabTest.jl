@@ -183,7 +183,7 @@ end
 
     backend = HeadlessBackend()
     editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
-                          window = (; title = "T", width = 900, height = 6000), tabs = (; title = "Doc"))
+                          window = (; title = "T", width = 900, height = 900), tabs = (; title = "Doc"))
     run_frame!(editor)
     appearance = find_editor_appearance(editor)
     theme = get_theme(appearance, WidgetTheme)
@@ -198,8 +198,15 @@ end
         time[] += 1.0
     end
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
+    # The widget theme is one section of many, one for each loaded domain, so the
+    # place of the tab, which the appearance holds, brings its row into the window.
+    _, _, row_y = only(t for t in _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+                       if t[1] == "primary")
+    appearance.scroll_position = Point2D(0, max(0, row_y - 300))
+    run_frame!(editor)
     texts = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
     x, y = _at_find_row_button(texts, "primary", before)
+    @test 0 < y < 900
     send!(_at_click(x - 1, y, time[])...)
     send!(KeyDown(:home, ModifierKeys(); time = time[]), KeyDown(:right, ModifierKeys(); time = time[] + 0.1))
     send!(KeyPress('f'; time = time[]))

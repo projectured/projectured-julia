@@ -21,6 +21,9 @@ holds each value times its scale, and `SyntaxTheme()` is the default theme.
   names one thing.
 - `lit_delimiter` — the color of the delimiters around the part under the
   pointer.
+- `font` — the font of the indentation and the line breaks of a node that has no
+  delimiter of its own, such as the body of a block; a node with a delimiter
+  takes its font.
 
 A syntax projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme. A domain
@@ -45,6 +48,7 @@ that prints its own leaves styles them with a theme of its own.
     wrong_color::StyleColor = color_solarized_red
     found_color::StyleColor = color_solarized_green
     lit_delimiter::StyleColor = color_solarized_orange
+    font::StyleFont = font_ubuntu_monospace_regular_20
 end
 
 # The style field of type `T` of a syntax projection that holds the field `name`

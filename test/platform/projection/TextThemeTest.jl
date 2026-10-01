@@ -1,7 +1,8 @@
 # The text and the syntax follow the scales of the appearance. The natural
 # renderer gives its text rows the scaled `TextTheme` and its syntax rows the
 # scaled `SyntaxTheme` of its appearance: at a font scale of 1.5 a number, a
-# string and an empty placeholder draw their text 1.5 times as large, the caret
+# string, an empty placeholder and a reflected object draw their text, and the
+# whitespace of their layout, 1.5 times as large, the caret
 # and the band of a selection follow the line and the radius scales, and a change
 # of a scale reaches the next print. A projection built with no theme draws the
 # values of the default theme.
@@ -50,7 +51,10 @@ offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}(
 drawn(appearance, document) = draw_font_sizes(document, appearance)
 
 @testset "at a font scale of 1.5 the text is 1.5 times as large" begin
-    for document in (PrimitiveNumber(42), PrimitiveString("text"), DocumentNothing())
+    # The last is a reflected object: its fields are indented, and the indentation
+    # takes the font of its separators.
+    for document in (PrimitiveNumber(42), PrimitiveString("text"), DocumentNothing(),
+                     (name = "x", size = 2, inner = (flag = true,)))
         plain = drawn(Appearance(), document)
         large = drawn(Appearance(font_scale = 1.5), document)
         @test !isempty(plain) && length(large) == length(plain)
