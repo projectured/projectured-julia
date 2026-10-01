@@ -1877,6 +1877,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: S. source/platform/serialization/BinarySerialization.jl, PAR-PERSISTENCE-BY-VALUE in architecture-invariants.md, omnet-julia source/simulator/checkpoint/CheckpointSerializer.jl (the methods of the three kinds). No sealed file. inet-julia has no user.
 
 **L06-7** (Low): Do the eight exported event names with no user (has_shift_, has_alt_, has_meta_modifier_key, KeyUpPattern, MouseDownPattern, MouseUpPattern, MouseEnterPattern, MouseLeavePattern) stay as part of a complete family with tests, or go?
+- **Check after the merge of gesture-type (2026-10-01): the question holds.** The four predicates are in `event/EventDefaults.jl`; the six pattern constructors are in `gesture/GesturePattern.jl`. No file of the two families is sealed now, so option B needs no permission. `MouseEnterPattern` and `MouseLeavePattern` still have no test; `has_ctrl_modifier_key` still has its one caller (`source/platform/widget/ProjectionConfiguring.jl:137`).
 
 - **A:** Keep the two families (the four modifier predicates, and one pattern constructor for each event type), and add the tests that are missing.
 - **B:** Remove the eight names from the sealed event files.
@@ -1886,6 +1887,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: S. test/kernel/event/EventModuleTest.jl only (a text test and a match test for MouseEnterPattern and MouseLeavePattern). No sealed file. Users: none of the eight names has a user outside the event layer and its test in the three repositories.
 
 **L06-8** (Low): Does the event layer export a predicate that tells whether a rule binds a field, so that Gestures.jl stops its test of object identity?
+- **Check after the merge of gesture-type (2026-10-01): the question holds, with new names.** The rule is `GesturePatternRule`, the builder is `build_gesture_field_bindings`, and the identity test is `reads_event = bound_body !== escaped_body` at `source/kernel/binding/Gestures.jl:118`. The predicate of option A becomes `has_bound_gesture_fields`. `GesturePattern.jl` and `GestureModule.jl` are not sealed, so no permission is needed.
 
 - **A:** Export a predicate has_bound_event_fields(rule::EventPatternRule) -> Bool from EventPattern.jl, and let Gestures.jl call it in place of `bound_body !== escaped_body`.
 - **B:** Keep the identity test. The docstring of build_event_field_bindings promises that the result is `body` itself when the rule binds no field, so the test uses a documented contract. Make the comment shorter.
@@ -2588,6 +2590,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 **Devices, keys and backends** (10 questions). The seams of the backends. L07-1, the zoom in the kernel, comes first, and L22-23 follows it.
 
 **L07-1** (Medium, main question): Do you reopen the decision of plan/done/device-layer-audit.md and let the kernel step the zoom of the Display, so that the web backend can zoom too?
+- **Settled by the owner on 2026-10-01 in plan/pending/zoom-and-theme-controls.md (D24 to D26, section 4.6).** The kernel has no zoom: `_zoom_operation` and the kernel forms of `AdjustZoomOperation` and `AdjustFontZoomOperation` go. The zoom lives in the `Appearance` of a new wrapper package and is copied into the `Display`. SDL follows the new pixel ratio when it draws (its `evaluate_operation` methods go), and the web client applies the zoom that the update message carries. This is the browser model of option C, with the zoom outside the kernel. The work belongs to that plan.
 
 - **A:** Keep the decision of plan/done/device-layer-audit.md: only the SDL package evaluates the zoom. The Display docstring and PAR-BACKEND-SEAM say that the other backends do not zoom.
 - **B:** Reopen it. The kernel editor evaluates `AdjustZoomOperation`: it steps the `zoom` of the `Display` in `editor.devices`, then calls a new backend generic with a no-op default (for example `follow_display_ratio!(backend, editor, old_ratio)`). SDL answers it with its reflow and its full repaint; the web backend sends the ratio to the page.
@@ -2597,6 +2600,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: M. The kernel can not call `step_zoom`, because the style package depends on the kernel. So `step_zoom` and its table move into the device layer, and the style package imports them for the font zoom. Sealed (permission needed): DeviceModule.jl and Display.jl (its docstring says that only SDL reads the Display); for B also BackendInterface.jl, BackendDefaults.jl and BackendModule.jl. Unsealed: an editor-layer or operation-layer file for the evaluation, Sdl.jl, Web.jl and asset/web/client.js (the page scales its canvas by the zoom, and divides the pointer position and its size by it), tests with two editors and with the web backend. omnet-julia and inet-julia: no change.
 
 **L07-2** (Medium): Is the size of the display a property of the Display device, or only the answer of get_display_size(backend)?
+- **Check after the merge of gesture-type (2026-10-01): the question holds.** `Display(; width = 1280, height = 800, …)` keeps the two fields; only `source/backend/sdl/SdlBackend.jl:4322` writes them, and no code reads them. The default is still in three places. The owner approved the unseal of `Display.jl` for step N1 of zoom-and-theme-controls.md (`scale` → `density`), so a change of L07-2 can go in the same step.
 
 - **A:** Remove `width` and `height` from `Display`, and their write in the SDL `configure_devices!`. `get_display_size(backend)` is the one source, with one default value for the size.
 - **B:** The `Display` holds the size. `get_display_size(backend)` answers the size of the `Display` that the backend holds, and the backend fills it (SDL holds a `Display` from its constructor).
@@ -2639,6 +2643,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: S to M. Sealed (permission needed): KeyboardEvent.jl (the list in the docstring). Sdl.jl (the keysym table), Web.jl (`convert_web_key_to_symbol`), Console.jl (the bytes that it can read), the backend tests. Focusing.jl needs no change. No use in omnet-julia or inet-julia (their `:comma` is a token kind of the NED parser).
 
 **L08-1** (Low): While a chord waits for its next key, does another input (a key up, a character, a click, a key of another window) wait behind the kept keys, or does it break the chord?
+- **Check after the merge of gesture-type (2026-10-01): the question holds, in a new file.** The recognizer is gone; `gesture/ChordRecognition.jl` (not sealed) keeps the keys of a chord. An input that is not a `KeyDown` (a key up, a character, a click) passes on at once while keys are kept, so the reader can still see a `KeyUp` before its `KeyDown`. `_is_chord_prefix` compares the key and the modifiers but not the window, so a key of another window can continue a chord. Cost now: ChordRecognition.jl and test/kernel/gesture/GestureRecognitionTest.jl; no permission.
 
 - **A:** Input that belongs to the kept keys (their `KeyUp`, the `KeyPress` of a chord step, a modifier key) waits behind them, in order. Any other input (a click, a key of another window, a window event) breaks the chord: the kept keys go out first as ordinary keys, then that input. The `KeyUp` and the `KeyPress` of a key that a complete chord takes go with the chord.
 - **B:** Every input waits behind the kept keys until the chord completes or breaks.
@@ -2664,6 +2669,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: S. Sealed (permission needed): BackendDefaults.jl and BackendModule.jl (the error and the helper), WindowInput.jl and EventModule.jl (the constant). Sdl.jl, Web.jl, Console.jl (`:console` becomes the constant), VideoBackend.jl, the docstring in EditorLoop.jl. No use in omnet-julia or inet-julia.
 
 **L22-23** (Low): Where are the zoom keys bound: in a binding set of the backend or screen package, through a backend generic, or with the zoom stepped in the kernel (L07-1)?
+- **Settled by the owner on 2026-10-01 in plan/pending/zoom-and-theme-controls.md (D25, sections 4.6 and 4.7).** The zoom keys are bindings of the appearance wrapper, so F1 and the palette list them, and `_zoom_operation` goes. That settles the `_zoom_operation` part of L22-27: the function goes. The bare Escape of the quit (`_is_quit_gesture` in `read!`) stays as it is; that plan does not touch it.
 
 - **A:** A gesture binding set that the backend package or the screen package gives.
 - **B:** A backend generic that answers the zoom for each backend.
@@ -2753,6 +2759,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: S. ReactiveCell.jl (sealed, permission), one line. The check is one short process.
 
 **L06-11** (Low): Do you change the public type EventPattern for speed before a measurement shows a cost?
+- **Check after the merge of gesture-type (2026-10-01): the question holds.** The type is now `GesturePattern{E<:Union{Event,Gesture}}` with `fields::NamedTuple` in `gesture/GesturePattern.jl` (not sealed), and the sentinel of the case macro is `_nomatch`. If the private sentinel changes, its name follows L11-23 (`_NO_MATCH`).
 
 - **A:** No: measure first. Count the allocations of fire_gesture_bindings and of one @event_case (a count, not a measurement of time), and read @code_warntype of matches_event_pattern. Change the type only if the count or a measurement shows a cost.
 - **B:** Yes: EventPattern{E,F<:NamedTuple} now, with an inner constructor that infers F, and one sentinel at module level for @event_case.
