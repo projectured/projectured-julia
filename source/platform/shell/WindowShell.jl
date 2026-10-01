@@ -68,12 +68,3 @@ make_window_shell_projection(projection; measure::TextMeasure = FontFileMeasure(
                          theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch,
         Pair{Type,Any}[Any => NestingProjection(projection;
                                                 recursion = IdentityProjection())])))
-
-"""
-    show_document!(editor, shell::WidgetShell, document; title) -> nothing
-
-Show `document` in what the chrome of the window holds, such as the tabs of a
-pane tree, as the window would show it with no chrome.
-"""
-show_document!(editor::Editor, shell::WidgetShell, document; title::AbstractString) =
-    show_document!(editor, shell.content, document; title = title)

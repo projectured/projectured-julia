@@ -30,10 +30,14 @@ gives a document is an error.
 The first call starts the editor, and so does a call after its window was
 closed. With no `backend`, the one loaded backend that draws windows runs it.
 Each value is a tab of one window, because the pane slice of
-`ProjecturedPlatform` is always loaded with this one, and the window has the
-chrome of the shell slice around its tabs: the menu bar, the toolbar and the
-status bar. `tabs = false` gives each value a window of its own instead, with no
-chrome. `backend` and `tabs` apply when the
+`ProjecturedPlatform` is always loaded with this one. The window has the
+features of a window of the platform around its tabs: the chrome with the menu
+bar, the toolbar and the status bar, the undo, the clipboard and the walk, F1
+help, the command palette, and the gesture log, the message log, the statistics
+and the fault log, which fill the tools of the toolbar. While the window is
+open, the message log also collects what the REPL logs, which the REPL still
+prints. `tabs = false` gives each value a window of its own instead, with none
+of these features, because they act on the tabs. `backend` and `tabs` apply when the
 call starts the editor. `title` names a new tab or window; a title that the
 editor has already gets a number.
 
@@ -163,22 +167,32 @@ function _close_session!(session::_EditorSession)
     nothing
 end
 
+# The features of a window of the display, as keywords of `build_editor`: the
+# chrome, the undo, the clipboard and the walk, F1 help, the command palette, and
+# the four that fill the tools of the toolbar. The slices of `ProjecturedPlatform`
+# that declare them are always loaded with this one, and the display names them
+# by keyword only.
+const _DISPLAY_FEATURES = (:shell, :undo, :clipboard, :gesture_help, :command_palette,
+                           :gesture_log, :message_log, :frame_statistics, :fault_log)
+
 # The editor with one window, which shows `document`, built and run on a task
-# of its own. A window that opens later draws its document with a renderer of
-# its own, because a renderer keeps state for the documents it draws.
+# of its own.
 function _start_session(document, title::String; backend, tabs::Bool, refresh_every)
     appearance = load_appearance!(Appearance())
     projection = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
-    later = NaturalToGraphics(; measure = FontFileMeasure(), appearance = appearance)
-    window = (; title = "Values", width = 1000, height = 600,
-              opened_window_projections = Pair{Type,Any}[Document => later])
-    # The tabs wrapper is on by default, and the shell wrapper puts the tabs in
-    # the chrome of a window, whose commands act on the tabs. The pane and shell
-    # slices of `ProjecturedPlatform` are always loaded with this one, so
-    # `get_wrapper_layers` always has a method for `:tabs` and `:shell`. The
-    # setting of the tabs names the first tab.
-    has_tabs = hasmethod(get_wrapper_layers, Tuple{Val{:tabs}})
-    has_shell = has_tabs && tabs && hasmethod(get_wrapper_layers, Tuple{Val{:shell}})
+    # The tabs wrapper is on by default, and the features of the window act on the
+    # tabs, so a window of one value has none. The setting of the tabs names the
+    # first tab.
+    has_tabs = hasmethod(get_wrapper_layers, Tuple{Val{:tabs}}) && tabs
+    features = has_tabs ?
+        (; (keyword => true for keyword in _DISPLAY_FEATURES
+            if hasmethod(get_wrapper_layers, Tuple{Val{keyword}}))...) : (;)
+    # A value of its own window draws with a renderer of its own, because a
+    # renderer keeps state for the documents it draws. The windows that the
+    # features open draw with the rows that their wrappers give.
+    opened = has_tabs ? Pair{Type,Any}[] :
+        Pair{Type,Any}[Document => NaturalToGraphics(; measure = FontFileMeasure(), appearance)]
+    window = (; title = "Values", width = 1000, height = 600, opened_window_projections = opened)
     # The loop logs each operation that it applies as an info line, and a hover
     # is an operation. The task of the loop keeps the logger of the scope that
     # starts it, so the loop writes only warnings and errors to the REPL.
@@ -186,7 +200,7 @@ function _start_session(document, title::String; backend, tabs::Bool, refresh_ev
     editor = Base.CoreLogging.with_logger(logger) do
         run_editor!(document, projection; wait = false, backend = backend,
                     window = window, appearance = appearance,
-                    tabs = has_tabs && tabs ? (; title, appearance) : false, shell = has_shell)
+                    tabs = has_tabs ? (; title, appearance) : false, features...)
     end
     session = _EditorSession(editor, editor.loop_task, IdDict{Any,Pair{String,Any}}(), Set{String}(),
                              Ref{Union{Nothing,Timer}}(nothing))

@@ -55,7 +55,6 @@ using ..MessageLogModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..EditorModule: wrap_editor!, get_wrapper_layers
-import ..ScreenModule: show_document!
 
 
 
