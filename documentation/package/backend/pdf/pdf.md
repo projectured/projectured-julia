@@ -69,7 +69,7 @@ The code is the slice `PdfModule`, in `source/backend/pdf/`: `PdfModule.jl` hold
 write_pdf(document, projection, "snapshot.pdf")                            # one page, sized to the content
 write_pdf(document, projection, "book.pdf"; paginate = true, height = 792)  # pages of 792 points
 write_pdf(canvas, "canvas.pdf"; width = 800, height = 600)                  # a canvas in hand
-projection = ChainingProjection(make_graphics_image_projection_example(),
+projection = ChainingProjection(make_json_projection_example(),
                                 GraphicsCanvasToPdfFile("out.pdf"; width = 1200, height = 800))
 write_example_pdf("json", "json.pdf")
 ```

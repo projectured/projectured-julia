@@ -77,7 +77,6 @@ include(joinpath(_EXAMPLE_DIR, "UndoDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "ClipboardProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingProjectionExample.jl"))
-include(joinpath(_EXAMPLE_DIR, "GraphicsProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
@@ -180,7 +179,7 @@ export make_sequencechart_document_example, make_sequencechart_projection_exampl
 export make_sequence_chart_plot_document_example
 export make_graph_document_example, make_graph_projection_example, make_graphics_caching
 export make_graph_graph_document_example, make_graph_layout_document_example
-export make_graphics_image_projection_example, make_introspection_document
+export make_introspection_document
 export make_introspection_projection, make_json_console_projection_example
 export make_json_document_example, make_json_insertion_document_example
 export make_json_null_document_example, make_json_null_projection_example
@@ -339,7 +338,6 @@ export make_lazy_bidirectional_document_example, make_lazy_bidirectional_project
 export make_math_document_example, make_math_projection_example
 export make_julia_document_example, make_julia_projection_example
 export make_formula_document_example, make_formula_projection_example
-export make_graphics_image_projection_example
 export make_primitive_string_document_example, make_primitive_string_projection_example
 export make_database_instance_document_example
 export make_sql_document_example, make_sql_syntax_projection_example

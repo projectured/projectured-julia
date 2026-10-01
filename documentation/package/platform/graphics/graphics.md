@@ -142,7 +142,7 @@ label.x = 50                          # writes through the cell
 hit_element_at(canvas, 60, 25)        # the offset of the element, or nothing
 ```
 
-- Example: `graphics_image_example` draws a JSON document through the text chain; `make_graphics_image_projection_example()` builds the chain.
+- Example: `graphics_image_example` draws a JSON document through the text chain; `make_json_projection_example()` of `ProjecturedJSONExample` builds the chain.
 - Tests: `test_graphics()` in `test/platform/document/GraphicsDocumentTest.jl`. `GraphicsLayoutTest.jl` beside it covers the layout projections.
 
 ## Limits
