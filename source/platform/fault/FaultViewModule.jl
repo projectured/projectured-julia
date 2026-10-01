@@ -57,6 +57,7 @@ using ..TextModule
 using ..TooltipModule
 using ..WidgetModule
 using ..FocusModule
+using ..EditorModule
 
 # The names this module EXTENDS are imported, never merely used: a bare
 # `using` binds the name for reading and a definition beside it makes a NEW
@@ -68,6 +69,7 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FaultModule: append_fault!
 import ..SerializationModule: pred_arguments
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
 

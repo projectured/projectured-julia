@@ -112,5 +112,10 @@ end
     @test any(feed -> feed isa FrameStatisticsFeed, editor.feeds)
 end
 
+@testset "fault_log: the session log on the fault store of the editor" begin
+    editor, _ = _ww_editor(PrimitiveString("x"); fault_log = true)
+    @test any(target -> target === get_session_fault_log(), editor.faults.targets)
+end
+
 end # @testset
 end
