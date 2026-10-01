@@ -23,9 +23,6 @@ describe_operation(operation::ReplaceSelectionOperation) =
     "select " * _short_reference(operation.path)
 describe_operation(operation::ReplaceMouseTargetOperation) =
     "point at " * _short_reference(operation.path)
-describe_operation(operation::AdjustZoomOperation) = "zoom " * _delta(operation.delta)
-describe_operation(operation::AdjustFontZoomOperation) =
-    "font zoom " * _delta(operation.delta)
 
 describe_operation(operation::ReplaceReferencedValueOperation) =
     string("set ", _short_reference(operation.reference), " = ",
@@ -47,8 +44,6 @@ function _operation_name(operation)
     name = string(nameof(typeof(operation)))
     endswith(name, "Operation") ? name[1:end - length("Operation")] : name
 end
-
-_delta(delta::Integer) = delta > 0 ? "in" : delta < 0 ? "out" : "reset"
 
 """
     describe_operation(operation, root) -> String

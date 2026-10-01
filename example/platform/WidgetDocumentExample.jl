@@ -169,9 +169,9 @@ end
 
 # Layout offsets are authored in logical pixels and stay fixed: the device pixel
 # ratio of the `Display` is applied uniformly at the SDL render boundary (so authoring
-# them in device pixels would double-count on hi-dpi displays), and font-zoom
-# deliberately leaves hard-coded geometry put — only text-derived content boxes
-# re-fit the larger glyphs (via re-projection on `AdjustFontZoomOperation`).
+# them in device pixels would double-count on hi-dpi displays), and a font-scale
+# change deliberately leaves hard-coded geometry put — only text-derived content
+# boxes re-fit the larger glyphs (via re-projection on `AdjustScaleOperation`).
 _wy(px::Integer) = px
 
 # WidgetLabel — a positioned, non-interactive label.

@@ -86,7 +86,7 @@ advance of each glyph, the `kern` pairs between two glyphs of one font, the
 fallback font of each character the font lacks ([`find_glyph_font_file`](@ref)),
 and the vertical metrics by FreeType's rule ([`get_vertical_metrics`](@ref)).
 A presentation selector (U+FE0E, U+FE0F) has no width, as the renderers draw it.
-The size is the logical size of the font, so a font zoom changes it.
+The size is the logical size of the font, so a change of the font scale changes it.
 """
 struct FontFileMeasure <: TextMeasure end
 

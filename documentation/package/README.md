@@ -25,6 +25,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `serialization` | [serialization.md](platform/serialization/serialization.md) | the `.pdoc` snapshot, the `.pred` format, the file contract and the multi-file project |
 | `domain` | [domain.md](platform/domain/domain.md) | `@domain`, the shared placeholder and insertion, and the completion by reflection |
 | `style` | [style.md](platform/style/style.md) | colours, fonts, styled text, and the TrueType measurer |
+| `appearance` | [appearance.md](platform/appearance/appearance.md) | the appearance of an editor in its view: the keys of the zoom and the scales, and the wrapper that prints the view again |
 | `component` | [component.md](platform/component/component.md) | the master-detail component document |
 | `projection` | [projection.md](platform/projection/projection.md), with [generic-projections.md](platform/projection/generic-projections.md) and [higher-order-projections.md](platform/projection/higher-order-projections.md) | the generic and the higher-order projections |
 | `dragging` | [dragging.md](platform/dragging/dragging.md) | reorder by drag and drop |

@@ -473,10 +473,9 @@ nothing to re-target, so a stage either passes it up as it is or drops it.
 `operation_travels_unchanged(op)` answers which. The default is `false`, so a
 stage drops what it can not place. `Rerooting.jl` answers `true` for the
 operations of this layer that name no place: `DoNothingOperation`,
-`QuitEditorOperation`, `InvalidateProjectionOperation`, the two zoom operations,
-`ToggleCollapseOperation` and
-`SelectNextInsertionOperation`. A package whose operations carry their subject
-adds one method for them.
+`QuitEditorOperation`, `InvalidateProjectionOperation`, `ToggleCollapseOperation`
+and `SelectNextInsertionOperation`. A package whose operations carry their
+subject adds one method for them.
 
 ### The way back: `make_inverse_operation`
 

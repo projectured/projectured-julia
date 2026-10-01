@@ -218,6 +218,9 @@ mutable struct SdlBackend <: Backend
     # The `DisplayUpdate` of each window that showed a changed frame since the
     # last read, at most one for each window (see the docstring).
     display_updates::Vector{WindowInput}
+    # The zoom of the display at the last drawn frame, 0 before the first one. A
+    # frame at another zoom keeps the device size of each window.
+    drawn_zoom::Float64
 end
 
 # `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
@@ -231,7 +234,7 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[])
+               nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0)
 
 # SDL draws a screen of windows, and `--backend=sdl` names it.
 get_backend_name(::Type{SdlBackend}) = :sdl
@@ -387,6 +390,9 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(27)         && return :escape
     keysym == Int32(32)         && return :space
     keysym == Int32(46)         && return :period   # '.' — used by the Ctrl+. fold chord
+    keysym == Int32(44)         && return :comma    # ',' — the icon scale, Ctrl+Alt+,
+    keysym == Int32(91)         && return :left_bracket   # '[' — the spacing scale, Ctrl+Alt+[
+    keysym == Int32(93)         && return :right_bracket  # ']' — the spacing scale, Ctrl+Alt+]
     # Letters: the keysym of a letter key is the code of its lower-case letter.
     Int32(97) <= keysym <= Int32(122) && return Symbol(Char(keysym))
     # Punctuation chords: the punctuation keys that a binding names need distinct
@@ -3947,6 +3953,7 @@ under the pointer in the new frame. A move to the same point changes no part and
 no pixel, so the next frame queues no more.
 """
 function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
+    _keep_device_size_at_new_zoom!(backend, screen)
     ratio = get_device_pixel_ratio(backend.display)
     desired_ids = Set{Symbol}()
     for w in screen.windows
@@ -4186,66 +4193,34 @@ function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument,
 end
 
 # ════════════════════════════════════════════════════════════════════════
-# Readability zoom (Ctrl+=/-/0 uniform, Ctrl+Alt+=/-/0 font-only)
+# The zoom of the display
 # ════════════════════════════════════════════════════════════════════════
 #
-# The gesture is recognised editor-globally in the kernel's `read!`; here the SDL
-# backend supplies the concrete behaviour. `AdjustZoomOperation` steps the `zoom`
-# of the backend's `Display`, so the device pixel ratio changes (everything
-# magnifies), and reflows the logical viewport — no re-projection.
-# `AdjustFontZoomOperation` writes the `_FONT_ZOOM` cell, which
-# relayouts text-derived geometry that is held in cells (TextToGraphics), but the
-# widget layer measures content *eagerly* during `print_document` and bakes
-# constant sizes (WidgetToGraphics' `_make_canvas`), so those boxes only re-fit
-# the larger text when the tree is re-projected. Dropping `editor.iomap` forces
-# `print!` to re-run `print_document` with the new zoom; this is safe because
-# window resources reconcile by `WindowDocument.id`, transient widget state
-# (scroll/hover/selection) lives on the document, and the SDL caches are
-# content-keyed and bounded (so nothing leaks). Both ops force a full repaint
-# because a zoom change moves every pixel, defeating the dirty-rect path.
+# The zoom of an editor is in its `Appearance`; a step of it writes the `zoom` of
+# the `Display` of the editor, which this backend shares. The device pixel ratio
+# is the density of the display times its zoom, so a new zoom magnifies every
+# pixel. The drawing finds the new zoom.
 
-# Mark every open window so its next paint repaints in full.
-function _force_full_repaint!(editor)
-    be = editor.backend
-    be isa SdlBackend || return
-    for res in values(be.windows)
+# Keep the device size of each window when the zoom changed since the last
+# frame: its logical width and height change by the old zoom over the new one,
+# so the operating system does not resize the window, and the content lays out
+# for the new logical size, as after a resize by the person. Every window then
+# repaints in full, because every pixel moves. A change of the density, such as
+# the probe that the first window runs, changes no logical size.
+function _keep_device_size_at_new_zoom!(backend::SdlBackend, screen::ScreenDocument)
+    previous = backend.drawn_zoom
+    zoom = Float64(backend.display.zoom)
+    backend.drawn_zoom = zoom
+    (previous == 0.0 || previous == zoom || !isfinite(previous / zoom)) && return nothing
+    factor = previous / zoom
+    for w in screen.windows
+        w isa WindowDocument || continue
+        w.width  = max(1, round(Int, Int(w.width)  * factor))
+        w.height = max(1, round(Int, Int(w.height) * factor))
+    end
+    for res in values(backend.windows)
         res.first_paint = true
     end
-    nothing
-end
-
-# Keep each window's *device* size fixed across a uniform-zoom change: scale its
-# logical `width`/`height` by `old/new` ratio, so the device size stays the same. The
-# OS window therefore does not resize, while the content relayouts to the new
-# logical viewport — those cells are the exact range that the printer gives the
-# content, so the write reflows reactively (no re-projection), exactly like a
-# user resize.
-function _reflow_for_scale!(editor, ratio::Float64)
-    (ratio == 1.0 || !isfinite(ratio)) && return
-    out = editor.iomap === nothing ? nothing : editor.iomap.output
-    out isa ScreenDocument || return
-    for w in out.windows
-        w isa WindowDocument || continue
-        w.width  = max(1, round(Int, Int(w.width)  * ratio))
-        w.height = max(1, round(Int, Int(w.height) * ratio))
-    end
-    nothing
-end
-
-function evaluate_operation(editor, op::AdjustZoomOperation)
-    editor.backend isa SdlBackend || return nothing
-    display = editor.backend.display
-    old = get_device_pixel_ratio(display)
-    display.zoom = step_factor(display.zoom, op.delta)
-    _reflow_for_scale!(editor, old / get_device_pixel_ratio(display))
-    _force_full_repaint!(editor)
-    nothing
-end
-
-function evaluate_operation(editor, op::AdjustFontZoomOperation)
-    adjust_font_zoom!(op.delta)   # writes the _FONT_ZOOM cell → text-layout cells invalidate
-    editor.iomap = nothing        # re-project so eagerly-measured widget boxes re-fit the new text size
-    _force_full_repaint!(editor)
     nothing
 end
 

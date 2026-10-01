@@ -53,10 +53,6 @@ function test_description()
               "select next insertion"
         @test describe_operation(ToggleCollapseOperation()) == "toggle collapse"
         @test describe_operation(InvalidateProjectionOperation()) == "print the view again"
-        @test describe_operation(AdjustZoomOperation(1)) == "zoom in"
-        @test describe_operation(AdjustZoomOperation(-1)) == "zoom out"
-        @test describe_operation(AdjustZoomOperation(0)) == "zoom reset"
-        @test describe_operation(AdjustFontZoomOperation(1)) == "font zoom in"
     end
 
     @testset "a selection and a write show the skeleton of the reference" begin

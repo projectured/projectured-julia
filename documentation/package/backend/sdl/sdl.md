@@ -74,10 +74,20 @@ The held buttons and the modifiers of an event are those at its place in the que
 
 ### Zoom
 
-The editor recognises Ctrl+=, Ctrl+- and Ctrl+0 for the uniform zoom, and the same keys with Alt for the font zoom. This backend evaluates the two operations; [style.md](../../platform/style/style.md#two-zoom-settings) describes the two settings.
+The keys of the zoom and of the six scales are bindings of the `appearance`
+wrapper of `build_editor`, an `AppearanceDocument` around the content; an editor
+built with no `Appearance` has no zoom keys. [style.md](../../platform/style/style.md#the-zoom-and-the-scales)
+describes the two kinds of change they reach.
 
-- `AdjustZoomOperation` steps the `zoom` of the `Display` of the backend, and scales the logical size of each window the other way. The native window keeps its device size, and the content lays out again through the exact range that the window gives it, as on a resize.
-- `AdjustFontZoomOperation` writes `_FONT_ZOOM` and sets `editor.iomap` to `nothing`, so the editor prints again. The widgets measure while `print_document` runs and keep constant sizes, so only a new print fits them to the new text size.
+- `AdjustZoomOperation` steps the `zoom` of the `Appearance` and copies it into
+  the `zoom` of the `Display` of the backend, which scales the logical size of
+  each window the other way. The native window keeps its device size, and the
+  content lays out again through the exact range that the window gives it, as
+  on a resize.
+- `AdjustScaleOperation` steps one of the six scales, such as the font scale. A
+  scale reaches no cell of the view, so `AppearanceManagingProjection` sets
+  `editor.iomap` to `nothing` through `InvalidateProjectionOperation`, and the
+  editor prints again.
 
 Both repaint every window in full.
 
@@ -101,7 +111,7 @@ The code is the slice `SdlModule`, in `source/backend/sdl/`: `SdlModule.jl` hold
 - **The windows open before the first print.** A document laid out first is laid out at a size that the window never has. See [plan/done/native-window-size.md](../../../../plan/done/native-window-size.md).
 - **The repaint follows the reactive graph.** The cells that a change invalidated say which graphics changed, so the backend compares no pixels. See [plan/done/optimize-rendering-dirty-rect.md](../../../../plan/done/optimize-rendering-dirty-rect.md).
 - **The damage history follows the buffer age.** A swap chain of two or three buffers would otherwise show an old edit on the buffer that was not repainted.
-- **The two zooms take two routes.** The uniform zoom needs no new print; the font zoom prints again, because the widgets keep the sizes that they measured.
+- **The zoom and the scales take two routes.** The zoom needs no new print, since the backend reads the `zoom` of the `Display` while it draws; a scale prints again, because the widgets keep the sizes that they measured.
 - **Xlib finds its locale data in its artifact.** The `__init__` of `ProjecturedSDL` sets `XLOCALEDIR` to the locale folder of `Xorg_libX11_jll`, unless the user set it. The build of that JLL names a folder that exists only on the machine that built it; without the data `XSupportsLocale` is false, and SDL gives a window no title, so X11 shows no `WM_NAME` and no `_NET_WM_NAME`.
 - **The state of an editor is on its backend.** The pending input, the time of the rate limit of idle motion, the switches `partial_render` and `debug_dirty`, and the `Display` are fields of the backend, so two backends in one process keep them apart. The SDL session is still one for each process: one event queue, and one set of open fonts.
 

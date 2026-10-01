@@ -1,0 +1,129 @@
+# Fragment of `AppearanceModule` — the projection that shows the content of an
+# `AppearanceDocument` and makes the view print again after a change of the
+# appearance.
+
+"""
+    AppearanceManagingProjection(inner)
+
+Show the content of an [`AppearanceDocument`](@ref) through `inner`, and handle
+a change of its `Appearance`.
+
+The content reads each input first. When it declines, the keys of the
+`AppearanceDocument` answer: the zoom and the scales. An answer that changes the
+appearance ([`is_appearance_change`](@ref)) gets `InvalidateProjectionOperation`
+after it, so the editor prints the whole view again in the frame, and the inputs
+after it wait for the new view. The projections read their scaled themes with
+no edge, so this is the one place that a change of the appearance reaches the
+view. The projection holds no cell and no edge.
+"""
+struct AppearanceManagingProjection <: Projection
+    inner::Projection
+end
+
+# `output` forwards the output of the content reactively, so the IoMap keeps its
+# identity while the content re-derives, and a swap of the content rebuilds the
+# child.
+@iomap struct AppearanceManagingIoMap
+    projection::Any
+    input::Any
+    output::Any
+    child_iomap::Any
+end
+
+get_child_iomaps(iomap::AppearanceManagingIoMap) = Any[iomap.child_iomap]
+
+const _CONTENT_STEPS = (FieldReferenceStep("content"),)
+
+# ── Printer (transparent) ─────────────────────────────────────────────────
+
+function print_document(p::AppearanceManagingProjection, recursion, input::AppearanceDocument, ctx)
+    child = reconcile_child_iomap(() -> input.content,
+                                  content -> print_document(p.inner, recursion, content, ctx))
+    AppearanceManagingIoMap(p, input, Cell(@computation child[].output), child)
+end
+
+# ── Reader ────────────────────────────────────────────────────────────────
+
+function read_intent(p::AppearanceManagingProjection, recursion, change::Intent,
+                     iomap::AppearanceManagingIoMap)
+    child = iomap.child_iomap
+    # A collection takes every answer: the keys of the content, rerooted, then
+    # the keys of the appearance.
+    if change.gesture isa CollectIntents
+        inner = read_intent(p.inner, recursion, change, child)
+        inner_operation = reroot_operation(inner isa Intent ? inner.operation : inner, _CONTENT_STEPS)
+        own = read_gesture(iomap.input, change.gesture)
+        return Intent(change.gesture,
+                      merge_collected_intents(_get_collected_intents(inner_operation),
+                                              _get_collected_intents(own)))
+    end
+    # An operation with a route goes to the content.
+    if change.route !== nothing
+        routed = follow_intent_route(change, _CONTENT_STEPS...)
+        routed === nothing && return Intent(change.gesture, nothing)
+        answer = read_routed_intent(p.inner, recursion, routed, child)
+        operation = reroot_operation(answer isa Intent ? answer.operation : answer, _CONTENT_STEPS)
+        return Intent(change.gesture, _mark_appearance_change(iomap.input, operation))
+    end
+    answer = read_intent(p.inner, recursion, change, child)
+    operation = reroot_operation(answer isa Intent ? answer.operation : answer, _CONTENT_STEPS)
+    operation isa Operation || (operation = read_gesture(iomap.input, _get_device_event(change.gesture)))
+    Intent(change.gesture, _mark_appearance_change(iomap.input, operation))
+end
+
+read_intent(p::AppearanceManagingProjection, iomap::AppearanceManagingIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# The event of a device under the window that it came from: the keys of the
+# appearance read the key, whatever window holds the focus.
+_get_device_event(gesture::WindowInput) = gesture.event
+_get_device_event(gesture) = gesture
+
+_get_collected_intents(operation::CollectedIntentsOperation) = operation
+_get_collected_intents(_) = nothing
+
+# `operation`, with `InvalidateProjectionOperation` after it when it changes the
+# appearance of `document`.
+_mark_appearance_change(document::AppearanceDocument, operation) =
+    is_appearance_change(document.appearance, operation) ?
+        CompoundOperation(Any[operation, InvalidateProjectionOperation()]) : operation
+
+"""
+    is_appearance_change(appearance, operation) -> Bool
+
+Whether `operation` changes `appearance`: a step of its zoom or of one of its
+scales, or a write into the appearance or into one of its themes, alone or
+inside a compound or a wrapping operation.
+"""
+is_appearance_change(appearance::Appearance, operation) = false
+is_appearance_change(appearance::Appearance, operation::Union{AdjustZoomOperation, AdjustScaleOperation}) =
+    operation.appearance === appearance
+is_appearance_change(appearance::Appearance, operation::CompoundOperation) =
+    any(member -> is_appearance_change(appearance, member), operation.operations)
+is_appearance_change(appearance::Appearance, operation::WrappingOperation) =
+    is_appearance_change(appearance, get_wrapped_operation(operation))
+is_appearance_change(appearance::Appearance, operation::ReplaceReferencedValueOperation) =
+    _is_appearance_part(appearance, operation.document)
+
+# Whether `object` is `appearance`, or the theme or the scaled theme of one of
+# its domains.
+function _is_appearance_part(appearance::Appearance, object)
+    object === appearance && return true
+    any(entry -> object === entry.theme || object === entry.scaled, values(appearance.themes))
+end
+
+# ── Reference mapping (transparent, through the `content` field) ───────────
+
+function map_reference_forward(p::AppearanceManagingProjection, iomap::AppearanceManagingIoMap,
+                               reference)
+    reference isa ConcreteReference || return reference
+    head = get_reference_head(reference)
+    head isa FieldReferenceStep && head.name == "content" || return nothing
+    map_reference_forward(p.inner, iomap.child_iomap, get_reference_tail(reference))
+end
+
+function map_reference_backward(p::AppearanceManagingProjection, iomap::AppearanceManagingIoMap,
+                                reference)
+    inner = map_reference_backward(p.inner, iomap.child_iomap, reference)
+    inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), inner)
+end

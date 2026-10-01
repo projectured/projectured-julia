@@ -157,11 +157,14 @@ end
 
 @testset "a text is written at the size that the layout measured" begin
     font = StyleModule.font_ubuntu_monospace_regular_20
-    canvas = GraphicsCanvas([GraphicsText("zoom", 10, 10; font, color = color_black)])
+    # A font's size already holds the font scale of the appearance by the time a
+    # printer sees it, so a larger font here is a font scaled by an `Appearance`.
+    appearance = Appearance(font_scale = 1.5)
+    scaled_font = scale_theme_value(font, appearance)
+    canvas = GraphicsCanvas([GraphicsText("zoom", 10, 10; font = scaled_font, color = color_black)])
     filename = tempname() * ".pdf"
     try
-        adjust_font_zoom!(1)
-        size = font_logical_size(font)
+        size = font_logical_size(scaled_font)
         @test size != font.size
         write_pdf(canvas, filename; width=200, height=80)
         content = _first_content_stream(filename)
@@ -169,10 +172,9 @@ end
         # The baseline sits the ascent of the text's box at that size below the
         # top of the text, the same whole pixel every backend draws it at.
         m = match(r"1 0 0 1 ([\d.]+) ([\d.]+) Tm", content)
-        _, ascent, _ = compute_text_extent("zoom", font)
+        _, ascent, _ = compute_text_extent("zoom", scaled_font)
         @test parse(Float64, m.captures[2]) ≈ 80 - (10 + ascent) atol=0.01
     finally
-        adjust_font_zoom!(0)
         rm(filename; force=true)
     end
 end

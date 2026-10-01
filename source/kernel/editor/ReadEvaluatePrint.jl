@@ -49,13 +49,6 @@ function read!(editor::Editor)
                 editor.operation = op
                 return true
             end
-            # Editor-global readability zoom, recognised *after* the pipeline so a
-            # projection that explicitly binds these keys still wins when active.
-            z = _zoom_operation(window_input)
-            if z !== nothing
-                editor.operation = z
-                return true
-            end
             # Escape closes the editor, but only when nothing else wanted it. A
             # reader that binds Escape — a dialog, an insertion, the command palette
             # — produced an operation above and won, so its Escape never reaches
@@ -135,29 +128,6 @@ function _is_quit_gesture(window_input)
     event.key === :escape || return false
     m = event.modifiers
     !(m.ctrl || m.shift || m.alt || m.meta)
-end
-
-"""
-    _zoom_operation(window_input) -> Operation or nothing
-
-Map a Ctrl-modified `=`/`-`/`0` key gesture to a readability-zoom operation:
-`Ctrl` (optionally with Shift, so `Ctrl++` also works) → uniform
-[`AdjustZoomOperation`](@ref); add `Alt` → font-only [`AdjustFontZoomOperation`](@ref).
-`=`/`+` zooms in (+1), `-` out (-1), `0` resets (0). Returns `nothing` for
-anything else. Recognised at the editor level so zoom works regardless of what
-is selected.
-"""
-function _zoom_operation(window_input)
-    window_input isa WindowInput || return nothing
-    ev = window_input.event
-    ev isa KeyDown || return nothing
-    m = ev.modifiers
-    (m.ctrl && !m.meta) || return nothing
-    delta = ev.key === :equals ? 1  :
-            ev.key === :minus  ? -1 :
-            ev.key === :zero   ? 0  : nothing
-    delta === nothing && return nothing
-    m.alt ? AdjustFontZoomOperation(delta) : AdjustZoomOperation(delta)
 end
 
 """

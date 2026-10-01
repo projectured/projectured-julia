@@ -71,7 +71,7 @@ end
 @document struct BuildProjectedProbe
     value::Int = 0
 end
-make_document_projection(::BuildProjectedProbe) = BuildProbeProjection()
+make_document_projection(::BuildProjectedProbe; _...) = BuildProbeProjection()
 
 function _build_probe_steps()
     [(keyword, layer) for (keyword, layer, _) in _BUILD_PROBE_STEPS if keyword !== :started]
@@ -105,7 +105,7 @@ function test_build_editor()
     @testset "the wrappers apply layer by layer, and in order inside a layer" begin
         empty!(_BUILD_PROBE_STEPS)
         editor = build_editor(BuildProbe(), BuildProbeProjection();
-                              backend = BuildProbeBackend(), devices = Device[], tabs = false,
+                              backend = BuildProbeBackend(), devices = Device[], tabs = false, appearance = false,
                               build_probe_both = (; level = 2), build_probe_inner = true,
                               build_probe_first = true)
         @test _build_probe_steps() == [(:build_probe_first, :document),
@@ -125,11 +125,11 @@ function test_build_editor()
         try
             empty!(_BUILD_PROBE_STEPS)
             build_editor(BuildProbe(), BuildProbeProjection();
-                         backend = BuildProbeBackend(), devices = Device[], tabs = false)
+                         backend = BuildProbeBackend(), devices = Device[], tabs = false, appearance = false)
             @test _build_probe_steps() == [(:build_probe_default, :container)]
             empty!(_BUILD_PROBE_STEPS)
             build_editor(BuildProbe(), BuildProbeProjection();
-                         backend = BuildProbeBackend(), devices = Device[], tabs = false,
+                         backend = BuildProbeBackend(), devices = Device[], tabs = false, appearance = false,
                          build_probe_default = false)
             @test isempty(_build_probe_steps())
         finally
@@ -140,15 +140,15 @@ function test_build_editor()
     @testset "an unknown keyword is an error when it is on, and nothing when it is off" begin
         @test_throws "No loaded package declares the wrapper `build_probe_unknown`" build_editor(
             BuildProbe(), BuildProbeProjection(); backend = BuildProbeBackend(),
-            devices = Device[], tabs = false, build_probe_unknown = true)
+            devices = Device[], tabs = false, appearance = false, build_probe_unknown = true)
         @test build_editor(BuildProbe(), BuildProbeProjection(); backend = BuildProbeBackend(),
-                           devices = Device[], tabs = false, build_probe_unknown = false) isa Editor
+                           devices = Device[], tabs = false, appearance = false, build_probe_unknown = false) isa Editor
     end
 
     @testset "two wrappers that exclude each other are an error" begin
         @test_throws "`build_probe_excluding` and `build_probe_inner` can not be on together" build_editor(
             BuildProbe(), BuildProbeProjection(); backend = BuildProbeBackend(),
-            devices = Device[], tabs = false, build_probe_excluding = true, build_probe_inner = true)
+            devices = Device[], tabs = false, appearance = false, build_probe_excluding = true, build_probe_inner = true)
     end
 
     @testset "a pinned task stays on its thread" begin
@@ -170,7 +170,7 @@ function test_build_editor()
     @testset "with wait = false, the editor is built and runs on a task of its own" begin
         backend = BuildProbeBackend()
         editor = run_editor!(BuildProbe(), BuildProbeProjection(); wait = false,
-                             backend, devices = Device[], tabs = false)
+                             backend, devices = Device[], tabs = false, appearance = false)
         task = editor.loop_task
         @test task isa Task && task !== current_task()
         @test backend.starts == 1
@@ -181,16 +181,16 @@ function test_build_editor()
 
     @testset "with no projection, the document's default projection is used" begin
         editor = build_editor(BuildProjectedProbe(); backend = BuildProbeBackend(),
-                              devices = Device[], tabs = false)
+                              devices = Device[], tabs = false, appearance = false)
         @test editor.projection isa BuildProbeProjection
         # A package that draws any document, such as Natural, gives every
         # document a default, so the error needs a process without one.
         if hasmethod(make_document_projection, Tuple{BuildProbe})
             @test build_editor(BuildProbe(); backend = BuildProbeBackend(),
-                               devices = Device[], tabs = false) isa Editor
+                               devices = Device[], tabs = false, appearance = false) isa Editor
         else
             @test_throws "No projection is given for a document of type" build_editor(
-                BuildProbe(); backend = BuildProbeBackend(), devices = Device[], tabs = false)
+                BuildProbe(); backend = BuildProbeBackend(), devices = Device[], tabs = false, appearance = false)
         end
     end
 end

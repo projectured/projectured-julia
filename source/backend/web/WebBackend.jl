@@ -138,9 +138,12 @@ function convert_web_key_to_symbol(key::AbstractString, code::AbstractString, mo
         c = key[1]
         c == ' ' && return :space
         c == '.' && return :period
+        c == ',' && return :comma
         c == '/' && return :slash
         c == '\\' && return :backslash
         c == '*' && return :asterisk
+        c == '[' && return :left_bracket
+        c == ']' && return :right_bracket
         (c == '=' || c == '+') && return :equals
         c == '-' && return :minus
         c == '0' && return :zero          # Ctrl+0 — reset transform/zoom

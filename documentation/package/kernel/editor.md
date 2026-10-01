@@ -267,19 +267,20 @@ The window input is wrapped in an `Intent` and passed through
 — the entire pipeline walks backward, each projection contributing a translation
 step until an `Operation` falls out at the document end.
 
-Two gestures are recognized by the editor itself, *after* the pipeline has had
-its chance, so a projection that explicitly binds one of these keys still wins:
+One gesture is recognized by the editor itself, *after* the pipeline has had
+its chance, so a projection that explicitly binds it still wins:
 
-- **Readability zoom** — `Ctrl` + `=`/`-`/`0` (optionally with `Shift`) zooms
-  in, out, or resets; adding `Alt` scales the font only
-  (`AdjustFontZoomOperation`) instead of the whole canvas
-  (`AdjustZoomOperation`). Recognized regardless of what is selected.
 - **Escape** closes the editor (`QuitEditorOperation`) — but only when no
   reader claimed it. A reader that binds Escape (a dialog, an insertion, the
   command palette) produces its own operation above and wins, so its Escape
   never reaches this fallback. This is why a backend must deliver Escape as an
   ordinary key rather than as a platform quit signal: a platform quit signal
   gives no reader the chance to intercept it.
+
+The zoom and the scales are not a gesture of the editor itself: `AdjustZoomOperation`
+and `AdjustScaleOperation`, and the keys that reach them, are bindings of the
+`appearance` wrapper of `build_editor` (`AppearanceDocument`). An editor built
+without that wrapper has no zoom keys.
 
 ### Evaluate
 
@@ -368,7 +369,7 @@ caller:
 - `build_editor(document, projection; backend = nothing, devices, feeds,
   fault_policy, wrappers...)` chooses the backend when none is given, applies
   the wrappers, and then calls `make_editor`. `build_editor(document; ...)`
-  takes the projection from `make_document_projection(document)`.
+  takes the projection from `make_document_projection(document; settings...)`.
 - `run_editor!(document, projection; wait = true, mcp = false, keywords...)` and
   `run_editor!(document; ...)` are `build_editor` and then the loop. With
   `wait = false` the call returns the editor at once, and the editor is built
@@ -413,8 +414,14 @@ when one more package is loaded. A backend with no method of
 | `get_wrapper_layers(::Val{k})` | the layers it acts in, each with a number that orders it in the layer, as `(:document => 70,)` |
 | `get_excluded_wrappers(::Val{k})` | the keywords that can not be on with it; none by default |
 | `is_wrapper_default(::Val{k})` | whether it is on when the caller does not name it; off by default |
+| `make_wrapper_setting(::Val{k}, setting)` | the setting as the wrapper uses it, made before anything of the editor is built; by default the setting as it is |
 
-The layers are `:document`, `:container`, `:window` and `:screen`, from the
+`build_editor` makes every setting first, and `EditorParts.settings` holds them
+all, so a wrapper can read the setting of another wrapper; the kernel never reads
+them. With no projection named, `make_document_projection(document; settings...)`
+gets the same settings, so the projection and a wrapper can share an object, such
+as the `Appearance` of the `appearance` wrapper. The layers are `:document`,
+`:container`, `:window` and `:screen`, from the
 inside out. The value of a keyword is its setting: `true` for the defaults, a
 `NamedTuple` of settings, or `false` to turn off a wrapper that is on by
 default. A keyword that no loaded package declares is an error when it is on,

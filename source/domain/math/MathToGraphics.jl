@@ -194,8 +194,8 @@ _scaled(font::StyleFont, size::Integer) =
 """
     compute_math_metrics(config, style) -> MathMetrics
 
-The numbers for one style level. Call it **inside** a computed cell: it reads
-the font zoom, so a formula relayouts when the user zooms.
+The numbers for one style level, from the font of `config` at the size of the
+level.
 """
 function compute_math_metrics(c::MathConfig, style::Symbol)
     size = max(6, round(Int, c.font.size * _script_factor(style)))
@@ -317,7 +317,7 @@ end
 
 Place `boxes` left to right on one baseline. `spaces` gives the gap before each
 box as a class symbol (`:none`, `:thin`, `:medium`, `:thick`), resolved against
-the metrics so a font zoom moves them.
+the metrics, so a larger font gives larger gaps.
 """
 function _row(boxes::Vector, spaces::Vector{Symbol}, c::MathConfig, style::Symbol,
               steps::Vector = Any[nothing for _ in boxes])

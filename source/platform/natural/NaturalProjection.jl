@@ -189,5 +189,8 @@ end
 # The projection of an editor on a document when the caller names none: the
 # natural renderer, which draws a document of almost any domain. This package
 # adds the one method of the seam, so a session that loads it opens any document
-# with no projection named.
-make_document_projection(::Document) = NaturalToGraphics(measure = FontFileMeasure())
+# with no projection named. The renderer takes the `Appearance` of the
+# `appearance` wrapper, so the keys and the scales of the editor reach it.
+make_document_projection(::Document; appearance = Appearance(), _...) =
+    NaturalToGraphics(; measure = FontFileMeasure(),
+                      appearance = appearance isa Appearance ? appearance : Appearance())

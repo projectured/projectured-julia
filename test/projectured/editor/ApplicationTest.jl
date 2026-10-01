@@ -471,12 +471,13 @@ function test_application()
                                                     make_opened_window_projections()))
                 @test editor.iomap !== nothing
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
-                # The screen is inside the state of the gesture tracker, which
-                # holds the same path under its `content` step.
+                # The screen is inside the state of the gesture tracker, inside the
+                # appearance document, and each holds the same path under its
+                # `content` step.
                 screen = get_wrapped_document(editor.document)
                 @test _app_is_one_path(screen)
                 @test repr(strip_reference_types(get_selection(editor.document))) ==
-                      ".content" * repr(strip_reference_types(get_selection(screen)))
+                      ".content.content" * repr(strip_reference_types(get_selection(screen)))
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end
 

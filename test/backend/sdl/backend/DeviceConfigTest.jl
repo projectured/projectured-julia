@@ -52,14 +52,33 @@ function test_device_config()
     @testset "the zoom of one editor leaves the other" begin
         first_backend = SdlBackend()
         second_backend = SdlBackend()
-        first_editor = (backend = first_backend, iomap = nothing)
-        SDL.evaluate_operation(first_editor, AdjustZoomOperation(1))
-        @test first_backend.display.zoom === step_factor(1.0, 1)
+        first_backend.display.zoom = step_factor(1.0, 1)
         @test second_backend.display.zoom === 1.0
         @test get_device_pixel_ratio(first_backend.display) ===
               first_backend.display.density * step_factor(1.0, 1)
-        SDL.evaluate_operation(first_editor, AdjustZoomOperation(0))
-        @test first_backend.display.zoom === 1.0
+        @test get_device_pixel_ratio(second_backend.display) === second_backend.display.density
+    end
+
+    @testset "a new zoom keeps the device size of each window" begin
+        backend = SdlBackend()
+        window = WindowDocument(; id = :zoom_window_test, title = "zoom_window_test",
+                                width = 400, height = 300, content = GraphicsCanvas())
+        screen = ScreenDocument([window])
+        # The first frame keeps the size that the window has.
+        SDL._keep_device_size_at_new_zoom!(backend, screen)
+        @test (Int(window.width), Int(window.height)) == (400, 300)
+        # A frame at twice the zoom: the logical size halves, so the device size,
+        # the logical size times the ratio, stays.
+        backend.display.zoom = 2.0
+        SDL._keep_device_size_at_new_zoom!(backend, screen)
+        @test (Int(window.width), Int(window.height)) == (200, 150)
+        # A new density, as the probe of the first window finds, moves no size.
+        backend.display.density = 2.0
+        SDL._keep_device_size_at_new_zoom!(backend, screen)
+        @test (Int(window.width), Int(window.height)) == (200, 150)
+        backend.display.zoom = 1.0
+        SDL._keep_device_size_at_new_zoom!(backend, screen)
+        @test (Int(window.width), Int(window.height)) == (400, 300)
     end
 
     @testset "step_factor walks the table of zoom factors" begin

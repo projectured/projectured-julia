@@ -61,7 +61,6 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        ReplaceReferencedValueOperation, ReplaceViewStateOperation,
        replace_document, insert_elements,
        delete_elements, SelectNextInsertionOperation, CompoundOperation,
-       AdjustZoomOperation, AdjustFontZoomOperation,
        splice_string, splice_number, splice_value!,
        child_reference_steps,
        # from PathChain.jl

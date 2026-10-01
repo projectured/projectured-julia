@@ -64,7 +64,8 @@ export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!
        InboxFeed, wake_editor!, drain_feeds!,
        get_backend_name, get_backend_output, collect_backend_types, make_default_backend,
        EditorParts, EDITOR_WRAPPER_LAYERS, wrap_editor!, get_wrapper_layers,
-       get_excluded_wrappers, is_wrapper_default, make_document_projection, build_editor
+       get_excluded_wrappers, is_wrapper_default, make_wrapper_setting,
+       make_document_projection, build_editor
 
 include("Editor.jl")
 include("Inbox.jl")

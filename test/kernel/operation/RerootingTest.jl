@@ -129,7 +129,6 @@ function test_rerooting()
     @testset "an operation that names no place travels unchanged" begin
         for operation in (DoNothingOperation(), QuitEditorOperation(),
                           InvalidateProjectionOperation(),
-                          AdjustZoomOperation(1), AdjustFontZoomOperation(-1),
                           ToggleCollapseOperation(),
                           SelectNextInsertionOperation(_ -> false))
             @test operation_reference(operation) === nothing

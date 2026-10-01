@@ -18,7 +18,7 @@ A `Backend` drives devices and reads events; this package has neither. It has th
 
 ### Measure
 
-The export finds the bounds of the content with `get_canvas_content_bounds`, which measures from the font files with a `FontFileMeasure()` and needs no display; see [style.md](../../platform/style/style.md#measurement-without-a-display). `write_pdf` takes no `measure` keyword: it draws from the font files, so only a `FontFileMeasure` can size its pages. The projection that makes the canvas keeps its own `measure`, and a `FontFileMeasure` there keeps the whole export free of SDL. The same font files are embedded in the PDF, so a PDF reader places each glyph with the advance that the layout measured. The painter writes a text at `font_logical_size(font)`, the size that the layout measures at, so a font zoom changes the text and its layout together. It writes the baseline at the same place the layout computed it, `y` plus the ascent of `compute_text_extent`, and the kerning between the glyphs of one run in the `TJ` array.
+The export finds the bounds of the content with `get_canvas_content_bounds`, which measures from the font files with a `FontFileMeasure()` and needs no display; see [style.md](../../platform/style/style.md#measurement-without-a-display). `write_pdf` takes no `measure` keyword: it draws from the font files, so only a `FontFileMeasure` can size its pages. The projection that makes the canvas keeps its own `measure`, and a `FontFileMeasure` there keeps the whole export free of SDL. The same font files are embedded in the PDF, so a PDF reader places each glyph with the advance that the layout measured. The painter writes a text at `font_logical_size(font)`, the size that the layout measures at, so a change of the font's size changes the text and its layout together. It writes the baseline at the same place the layout computed it, `y` plus the ascent of `compute_text_extent`, and the kerning between the glyphs of one run in the `TJ` array.
 
 ### The page
 
@@ -74,7 +74,7 @@ projection = ChainingProjection(make_graphics_image_projection_example(),
 write_example_pdf("json", "json.pdf")
 ```
 
-- Test: `test_write_pdf()` in `test/projectured/backend/PdfWriterTest.jl` checks the file envelope, the content-fit size, every primitive with an embedded font, the projection form, the page count of pagination, the text size under a font zoom, the kerning of a run, that texts of different fonts share one baseline, and the runs of a text in a fallback font. The package has no test suite of its own.
+- Test: `test_write_pdf()` in `test/projectured/backend/PdfWriterTest.jl` checks the file envelope, the content-fit size, every primitive with an embedded font, the projection form, the page count of pagination, the text size under a scaled font, the kerning of a run, that texts of different fonts share one baseline, and the runs of a text in a fallback font. The package has no test suite of its own.
 
 ## Limits
 

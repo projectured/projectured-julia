@@ -15,8 +15,9 @@ A key went down.
 - other keys: `:escape`, `:space` and `:caps_lock`;
 - the letter keys: each has the name of its lower-case letter, `:a` to `:z`, in
   every backend;
-- punctuation: `:period`, `:minus`, `:slash`, `:backslash`, `:asterisk`, `:equals`
-  and `:zero`, the `0` key;
+- punctuation: `:period`, `:comma`, `:minus`, `:slash`, `:backslash`, `:asterisk`,
+  `:equals`, `:zero`, the `0` key, and `:left_bracket`/`:right_bracket`, `[` and
+  `]`;
 - the modifier keys: `:lctrl`, `:rctrl`, `:lshift`, `:rshift`, `:lalt`, `:ralt`,
   `:lmeta` and `:rmeta`;
 - `:char`, for a key whose name does not matter, because its character comes in a

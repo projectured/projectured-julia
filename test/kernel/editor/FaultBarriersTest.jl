@@ -25,8 +25,7 @@ import ProjecturedKernel.EditorModule: Editor, run_editor!, run_frame!, post_ope
                                        RunFunctionOperation
 import ProjecturedKernel.FaultModule: FaultPolicy, get_fault_records
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation,
-                                          make_inverse_operation, QuitEditorOperation,
-                                          AdjustZoomOperation, AdjustFontZoomOperation
+                                          make_inverse_operation, QuitEditorOperation
 using ProjecturedKernelExample
 
 @document struct BarrierProbe
@@ -159,10 +158,6 @@ function _barrier_editor(; feeds::Vector{Feed} = Feed[])
     (editor, backend, log)
 end
 
-_barrier_zoom_key(key::Symbol; ctrl::Bool = true, alt::Bool = false, meta::Bool = false) =
-    WindowInput(:probe, KeyDown(key, ModifierKeys(ctrl = ctrl, alt = alt, meta = meta);
-                                time = 0.0))
-
 function test_editor_fault_barriers()
 @testset "the fault barriers of the editor loop" begin
 
@@ -276,24 +271,6 @@ function test_editor_fault_barriers()
         # The call that a task waits for answers the exception to that task.
         succeeded, value = take!(answer)
         @test !succeeded && value isa ErrorException
-    end
-
-    @testset "the zoom keys become zoom operations when no reader takes them" begin
-        editor, backend, log = _barrier_editor()
-        push!(backend.events, _barrier_zoom_key(:equals))
-        @test EditorModule.read!(editor)
-        @test editor.operation isa AdjustZoomOperation && editor.operation.delta == 1
-        push!(backend.events, _barrier_zoom_key(:minus; alt = true))
-        @test EditorModule.read!(editor)
-        @test editor.operation isa AdjustFontZoomOperation && editor.operation.delta == -1
-        push!(backend.events, _barrier_zoom_key(:zero))
-        @test EditorModule.read!(editor)
-        @test editor.operation isa AdjustZoomOperation && editor.operation.delta == 0
-        # Meta, or no Ctrl, leaves the key to the projections.
-        push!(backend.events, _barrier_zoom_key(:equals; meta = true))
-        @test !EditorModule.read!(editor)
-        push!(backend.events, _barrier_zoom_key(:equals; ctrl = false))
-        @test !EditorModule.read!(editor)
     end
 
     @testset "a frame clock that throws is recorded, and the frame shows wall time" begin

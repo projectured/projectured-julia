@@ -151,30 +151,6 @@ end
 
 
 """
-    AdjustZoomOperation(delta)
-
-Editor-global *uniform* readability zoom: `delta` is +1 (in), -1 (out) or 0
-(reset). Magnifies the whole editor. The concrete behaviour — rescaling the
-display factor, reflowing and repainting — lives in a rendering backend's
-`evaluate_operation`; the catch-all `evaluate_operation` in OperationDefaults.jl
-keeps it harmless under backends that do not implement it.
-"""
-struct AdjustZoomOperation <: Operation
-    delta::Int
-end
-
-"""
-    AdjustFontZoomOperation(delta)
-
-Editor-global *font-only* readability zoom, like [`AdjustZoomOperation`](@ref)
-but scaling only text, so fixed graphics and spacing keep their size. Behaviour
-also lives in a rendering backend.
-"""
-struct AdjustFontZoomOperation <: Operation
-    delta::Int
-end
-
-"""
     ReplaceSelectionOperation(path)
 
 Operation that replaces the current selection with `path`.

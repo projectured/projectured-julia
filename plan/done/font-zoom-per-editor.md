@@ -1,5 +1,9 @@
 # The font zoom of each editor
 
+> **Replaced** on 2026-10-01 by `plan/pending/zoom-and-theme-controls.md`: the
+> font zoom of the process is gone, and the font scale of the `Appearance` of
+> each editor takes its place (step W2 of that plan). This plan was not carried out.
+
 The rule PAR-PER-EDITOR-STATE says: "No process-global state in the editor or the
 machinery it drives; one process must run many editors at once." Layout reads
 the font zoom, so PAR-NO-PROJECTION-GLOBALS applies too: "No global mutable

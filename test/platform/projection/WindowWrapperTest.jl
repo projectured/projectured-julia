@@ -47,14 +47,14 @@ function test_window_wrapper()
     @testset "window = false, a screen, and a backend that draws text keep the root" begin
         @test build_editor(PrimitiveString("x"), IdentityProjection();
                            backend = WindowWrapperProbeBackend(), devices = Device[], tabs = false,
-                           window = false).document isa PrimitiveString
+                           window = false, appearance = false).document isa PrimitiveString
         screen = make_window_scene(PrimitiveString("x"), "Own"; width = 100, height = 100)
         @test build_editor(screen, make_window_scene_projection(IdentityProjection());
                            backend = WindowWrapperProbeBackend(),
-                           devices = Device[], tabs = false).document === screen
+                           devices = Device[], tabs = false, appearance = false).document === screen
         @test build_editor(PrimitiveString("x"), IdentityProjection();
                            backend = WindowWrapperTextBackend(),
-                           devices = Device[], tabs = false).document isa PrimitiveString
+                           devices = Device[], tabs = false, appearance = false).document isa PrimitiveString
     end
 end
 end

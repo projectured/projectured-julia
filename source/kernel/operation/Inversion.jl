@@ -43,8 +43,6 @@ make_inverse_operation(document, operation::DoNothingOperation) = operation
 make_inverse_operation(document, ::QuitEditorOperation) = DoNothingOperation()
 make_inverse_operation(document, ::InvalidateProjectionOperation) = DoNothingOperation()
 make_inverse_operation(document, ::SetTimerOperation) = DoNothingOperation()
-make_inverse_operation(document, ::AdjustZoomOperation) = DoNothingOperation()
-make_inverse_operation(document, ::AdjustFontZoomOperation) = DoNothingOperation()
 
 # A wrapper's way back is the way back of what it holds, unless the wrapper says
 # otherwise. A wrapper that keeps state of its own — a buffer that records — adds

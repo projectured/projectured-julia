@@ -67,12 +67,10 @@ retarget_operation(op::ReplaceReferencedValueOperation, reference::Reference) =
 
 operation_travels_unchanged(op) = false
 # These name no place in a document, so each travels up a chain as it is: the
-# no-op, the quit, the new print of the view, the two zooms, the flip of the node
-# that it carries, the move of the selection at the root, and the timer of the
-# editor.
+# no-op, the quit, the new print of the view, the flip of the node that it
+# carries, the move of the selection at the root, and the timer of the editor.
 operation_travels_unchanged(::Union{DoNothingOperation, QuitEditorOperation,
                                     InvalidateProjectionOperation,
-                                    AdjustZoomOperation, AdjustFontZoomOperation,
                                     ToggleCollapseOperation,
                                     SelectNextInsertionOperation,
                                     SetTimerOperation}) = true

@@ -38,7 +38,10 @@ end
 The wrapper of `build_editor` that puts the root document in the one tab of a
 pane tree, drawn with [`make_tabs_projection`](@ref). It is on by default, and
 it does nothing when the root is a `PaneTree` or a `ScreenDocument` already. `title` names the tab;
-the default is the title of the document, else "Document".
+the default is the title of the document, else "Document". The widgets of the
+pane draw with the widget theme of `appearance`; the default is the `Appearance`
+of the `appearance` wrapper of the same editor, so the keys of the zoom and of the
+scales reach the tab strip too.
 """
 # @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:tabs}, layer::Symbol, setting, parts::EditorParts)
@@ -54,7 +57,7 @@ function wrap_editor!(::Val{:tabs}, layer::Symbol, setting, parts::EditorParts)
     inner === nothing || set_selection!(tree, @reference(tree, root.tabs[1].content.^(inner)))
     parts.document = tree
     parts.projection = make_tabs_projection(parts.projection;
-        appearance = get(options, :appearance, Appearance()),
+        appearance = get(options, :appearance, get(parts.settings, :appearance, Appearance())),
         measure = get(options, :measure, FontFileMeasure()))
     parts
 end

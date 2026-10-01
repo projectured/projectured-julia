@@ -743,6 +743,15 @@ Each entry says what was decided and what was rejected, with the reason.
   settings plan, which waits for W1, can start. The order of D10 put every
   domain theme first, so that the font scale reached all text from the first
   day; until P is done, a scale reaches the widgets only.
+- **D32. Every wrapper sees the settings of the others** (W1, 2026-10-01). The
+  content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` of
+  the `appearance` wrapper must draw from one `Appearance`, but a wrapper gets only
+  its own setting. `EditorParts` holds the setting of each wrapper that is on, as
+  `make_wrapper_setting` made it, and the `tabs` wrapper takes the appearance from
+  there when its own setting names none. The kernel holds the settings and never
+  reads them. Rejected: a caller that passes the appearance twice, which the path
+  with no projection can not do; a seam that resolves one setting with the others,
+  which needs an order of the settings.
 
 ## 6. Steps
 
@@ -981,7 +990,9 @@ as large. omnet-julia and inet-julia follow where they build these projections.
 
 ### Part W: the wrapper and its controls
 
-- [ ] **W1. The package `ProjecturedAppearance`** (4.1, 4.5, 4.6, 4.7).
+- [x] **W1. The package `ProjecturedAppearance`** (4.1, 4.5, 4.6, 4.7). Done as
+  the slice `source/platform/appearance/` of `ProjecturedPlatform` (finding 1),
+  with `test_appearance_wrapper` (44 tests); findings 15 to 17.
   `AppearanceDocument`, `AppearanceManagingProjection`, the `appearance` wrapper
   of `build_editor` with its start step that copies the zoom into the `Display`,
   `AdjustZoomOperation`, `AdjustScaleOperation` and the key bindings. The seam
@@ -995,7 +1006,8 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     it. `WidgetTransformPane` keeps Ctrl+=. F1 and the palette list the keys.
     Two editors in one process: a change in one leaves the other. A change
     while the editor runs gives the pixels of an editor that starts with it.
-- [ ] **W2. The old zoom goes** (4.6).
+- [x] **W2. The old zoom goes** (4.6). Done together with W1, because the
+  kernel `AdjustZoomOperation` and the one of the slice had one name.
   - `_zoom_operation`, the kernel forms of `AdjustZoomOperation` and
     `AdjustFontZoomOperation`, and their lines in `Operations.jl`,
     `Description.jl`, `Inversion.jl`, `Rerooting.jl` and `OperationModule.jl`.
@@ -1172,5 +1184,18 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     rendered (110 texts before and after). The same assertion fails on `main`
     (`3d0d25ae0`) with omnet-julia `aa33732b` and only the fix, so this fault is
     older than this work and stays open.
+15. **"Reset all" is a button of the tab, and not yet a command of the palette**
+    (W1). The palette lists the bindings of the gesture tables, and a binding
+    needs a key. W3 gives "Reset all" its button.
+16. **The `appearance` wrapper changes the root of every editor** (W1). A test
+    that checks the root document after `build_editor`, or the depth of a
+    selection path, turns the wrapper off with `appearance = false`, as it turns
+    off `tabs`; `ApplicationTest` expects a third `content` step. A method of
+    `make_document_projection` takes every keyword, because `build_editor` passes
+    the settings of the wrappers.
+17. **SDL finds a new zoom when it draws** (W2). It compares the zoom of the
+    `Display` with the zoom of the frame before, and not the whole pixel ratio:
+    the probe of the density, which the first window runs, must change no logical
+    size. The test is in `DeviceConfigTest`.
     `OmnetPresentationTest.test_all()` does not end with `-t 2`:
     `test_parallel_sim_dashboard_panel` spins, as on `main`.

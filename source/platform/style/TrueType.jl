@@ -439,8 +439,9 @@ is_presentation_selector(character::UInt32) = character == 0xFE0E || character =
 # by their baseline, a math typesetter. The ascent and the descent are those of
 # the box of a text in the font alone (`compute_text_extent`), so a box placed by
 # them sits where a backend draws it. Every function below answers at
-# `font_logical_size(font)`, so a caller inside a computed cell reflows when the
-# user changes the font zoom.
+# `font_logical_size(font)`, the size of `font` itself: a font already scaled for
+# its appearance carries its own size, so these functions need no cell of their
+# own to follow a change of the font scale.
 
 _font_metric(font::StyleFont, units::Integer) =
     round(Int, units * font_logical_size(font) / load_truetype_font(font.filename).units_per_em)

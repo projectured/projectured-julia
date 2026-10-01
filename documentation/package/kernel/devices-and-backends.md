@@ -82,8 +82,9 @@ happened and attaches no meaning, so it must not turn one key into a quit before
 any reader has seen it. A dialog, an insertion and the command palette all bind
 Escape, and a quit the backend issues directly leaves no reader able to stop it.
 The editor loop quits on an unmodified
-Escape that the pipeline did not handle, in the same place it recognises the
-readability zoom (`read!` in [editor/ReadEvaluatePrint.jl](../../../source/kernel/editor/ReadEvaluatePrint.jl)).
+Escape that the pipeline did not handle; `read!` in
+[editor/ReadEvaluatePrint.jl](../../../source/kernel/editor/ReadEvaluatePrint.jl)
+recognises no other gesture itself.
 
 ## Backends
 

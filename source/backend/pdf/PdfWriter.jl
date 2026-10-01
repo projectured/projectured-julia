@@ -399,8 +399,8 @@ function paint_spline!(ctx, sp, ox, oy)
                             sp.start_arrow, sp.end_arrow, Int(sp.arrow_size), sp.dash)
 end
 
-# The text is written at the size that the layout measured it at, which
-# follows the font zoom. Each run of one font is a `Tf` and a `TJ` in one text
+# The text is written at the size that the layout measured it at, the size of
+# its font, which a theme scales with the font scale. Each run of one font is a `Tf` and a `TJ` in one text
 # object. A `TJ` moves the text position by the advances of its glyphs and by the
 # kerning between them, so a run starts where the run before it ends. Every run
 # sits on the baseline of the text, the ascent of its box (`compute_text_extent`)

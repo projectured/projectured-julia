@@ -20,7 +20,7 @@ The document also opens in a tab: a natural syntax row draws it, and its inserti
 
 `GestureLogRecordingProjection(; inner, log, filter)` calls the inner reader. When the result is an `Operation` and `filter(gesture, operation)` returns `true`, it calls `record_gesture!`. It returns the inner result unchanged, so it never makes an operation and never consumes a gesture.
 
-It belongs at the root of the composed projection, because every operation passes there: an operation of the content, of a window and of a nested application. The editor makes the readability zoom operation only after the chain returned no operation, so the log does not hold it.
+It belongs at the root of the composed projection, because every operation passes there: an operation of the content, of a window and of a nested application. The `appearance` wrapper answers the keys of the zoom and of the scales outside the window and its recorder, so the log does not hold them.
 
 `default_gesture_log_filter` drops `nothing`, `DoNothingOperation` and every `ReplacePathOperation`. A selection follows almost every click and arrow key, and the part under the pointer follows every move of the pointer, and they would fill the buffer.
 

@@ -91,14 +91,30 @@ built, never while it prints. `set_theme!(appearance, theme)` puts another theme
 place, such as a preset. `make_scaled_theme(theme)` scales a theme with no
 appearance, at a scale of 1.
 
-### Two zoom settings
+### The zoom and the scales
 
-The size of text on the screen comes from two separate settings:
+The size of things on the screen comes from the `Appearance` of an editor: its
+`zoom` and its six scales (`font_scale`, `icon_scale`, `spacing_scale`,
+`control_scale`, `radius_scale`, `line_scale`). `AdjustZoomOperation` and
+`AdjustScaleOperation`, and the keys that reach them, are bindings of the
+`appearance` wrapper of `build_editor`; an editor built with no `Appearance` has
+no zoom keys.
 
-- **The uniform zoom.** The zoom of Ctrl+= and Ctrl+- is the `zoom` of the `Display` of an editor, in the kernel. The backend multiplies it with the `density` of the hardware into the device pixel ratio. Layout does not read it, so a change needs a repaint and no reactive update. Each editor has its own.
-- **The font zoom.** `_FONT_ZOOM` is the zoom of Ctrl+Alt+= and Ctrl+Alt+-. It is a `Cell`, because layout reads it through `font_logical_size(font)`. A change lays out the text again.
+- **The zoom.** `AdjustZoomOperation` steps `appearance.zoom` and copies it into
+  the `zoom` of the `Display` of the editor. The backend multiplies it with the
+  `density` of the hardware into the device pixel ratio. Layout does not read
+  it, so a change needs a repaint and no reactive update. Each editor has its
+  own.
+- **The scales.** `AdjustScaleOperation` steps one of the six scales, which
+  `scale_theme_value` applies while a theme is scaled: a font's size, among
+  other values, already carries the scale by the time a projection reads it.
+  `font_logical_size(font)` therefore reads no scale of its own — it is
+  `font.size`. A scale reaches no cell of the view, so a change needs a new
+  print of the whole view, not a relayout underneath the old one.
 
-`font_device_size(font, ratio)` combines the font zoom with the device pixel ratio, and only a backend reads it. Both settings step through the same table, from 0.5 to 3.0, with `step_factor(zoom, delta)`.
+`font_device_size(font, ratio)` combines a font's logical size with the device
+pixel ratio, and only a backend reads it. The zoom and the scales step through
+the same table, from 0.5 to 3.0, with `step_factor(scale, delta)`.
 
 ## How it fits
 
@@ -117,7 +133,7 @@ The style slice depends on the kernel and on the serialization slice, whose seam
 style = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 faint = StyleColor(0.0, 0.0, 0.0, 0.25)
 width, ascent, descent = compute_text_extent("hello", font_ubuntu_monospace_regular_20)
-font_logical_size(font_ubuntu_monospace_regular_20)   # 20 at the default font zoom
+font_logical_size(font_ubuntu_monospace_regular_20)   # 20, the font's own size
 ```
 
 - Test: no package suite exists. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/platform/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.
