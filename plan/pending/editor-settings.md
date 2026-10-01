@@ -561,6 +561,15 @@ recommendations, and chose two separate tabs for O8.
   `main`** (O10), so that the seam of the build has one form. Rejected: a copy of
   the seam on a branch of its own.
 - **D11. The new mechanisms of 4.12** are approved, all nine.
+- **D13. A `Settings` that the wrapper makes reads the targets first** (S7,
+  2026-10-01). With `settings = true`, the start step reads each group from the
+  editor and its backend with the seam `read_settings!(group, target)`, the
+  reverse of `apply_settings!`, then the environment, and then applies. So a
+  value that a caller gave a target directly stays, and the settings show what
+  acts. A `Settings` from a main builder wins. Rejected: apply only the groups
+  that the environment changed, where the tab can show a value that does not
+  act; callers that move their values into `settings`, where a value given to a
+  target is lost with no error.
 - **D12. The kernel word "setting" of a wrapper becomes "argument"** (O11).
   The value of a keyword of `build_editor` is an argument of its wrapper:
   `make_wrapper_setting` becomes `make_wrapper_argument`, `EditorParts.settings`
@@ -733,7 +742,33 @@ the pixels and the test counts of the baseline of S0.
   What the step holds: The capacity of `UndoBuffer` and of
   `MessageLog` takes a cell. `HistorySettings` and `LogSettings`.
   - Tests: a smaller capacity drops the oldest entries at the next push.
-- [ ] **S7. The slice `settingsmanaging`: the wrapper** (4.1, 4.5).
+- [x] **S7. The slice `settingsmanaging`: the wrapper** (4.1, 4.5). Done on
+  2026-10-01: `test_settings_wrapper()` 34, `test_kernel()` 4094 and 2 broken,
+  `test_platform()` 84605 and 8 broken, `test_sdl()` 823, `test_video()` 47,
+  `test_web_backend()` 103, and `test_application()`,
+  `test_referenced_document_editor()` and `test_mcp_server()` 453 and 2 broken;
+  no failure and no error. What the work decided and found:
+  - **D13**: `Settings.is_read_from_targets`, set for the `Settings` of `true`;
+    `read_settings!` for `SdlBackend`, `VideoBackend` and the fault policy of an
+    `Editor`; `read_settings_from_editor!`. So `record_application_video` and
+    `build_editor(...; fault_policy)` need no change.
+  - The wrapper is `:screen => 10`, outside the appearance wrapper, and has the
+    form of `AppearanceManagingProjection`; it reads the `Settings` from its
+    input. It wraps the self-contained form of a write only: a reference from
+    the root can not step into `Settings.groups`, a dictionary by type, so no
+    view makes the other form.
+  - The commands are in the gesture table of the `SettingsDocument`, with no
+    key; "Open settings" comes with the tab in S8.
+  - The `window` wrapper takes the `PointerSettings` from `EditorParts.arguments`.
+  - `SdlBackend` reads no environment variable: its keywords default to off,
+    off, 0 and 2, and the settings bring the variables. An editor made with
+    `make_editor`, with no wrapper, no longer reads them.
+  - The tests that check the root after `build_editor` turn the wrapper off:
+    `AppearanceWrapperTest`, `WindowWrapperTest`, and `BuildEditorTest`, which
+    names the three wrappers of the platform in one named tuple. The selection
+    path of `ApplicationTest` has one more `content` step.
+  - The guide `documentation/package/platform/settingsmanaging/settingsmanaging.md`.
+  What the step holds:
   `SettingsDocument`, `SettingsManagingProjection`, the `settings` wrapper with
   its start step, its method of the seam of the build, and the two commands of
   the palette.

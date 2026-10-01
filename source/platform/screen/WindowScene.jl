@@ -152,6 +152,10 @@ documents of the inner wrappers around the screen.
   windows that open later.
 - `inner_wrappers` goes to `make_tracking_screen`, for example the wrappers that
   keep the tooltip window and the context menu window.
+
+The gesture tracker reads the limits of its recognitions from the
+`PointerSettings` of the `settings` wrapper of the same editor, when that wrapper
+is on.
 """
 # @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorParts)
@@ -174,8 +178,17 @@ function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorPart
         make_window_scene(parts.document, string(title); width = width, height = height),
         make_window_scene_projection(parts.projection;
             opened_window_projections = parts.opened_window_projections);
-        inner_wrappers = get(options, :inner_wrappers, []))
+        inner_wrappers = get(options, :inner_wrappers, []),
+        recognitions = _make_window_recognitions(parts))
     parts
+end
+
+# The recognitions of the gesture tracker: those whose limits are the cells of the
+# pointer settings of the `settings` wrapper, else the defaults.
+function _make_window_recognitions(parts::EditorParts)
+    settings = get(parts.arguments, :settings, nothing)
+    settings isa Settings || return make_standard_recognitions()
+    make_standard_recognitions(get_settings_group!(settings, PointerSettings))
 end
 
 get_wrapper_layers(::Val{:window}) = (:window => 0,)

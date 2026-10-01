@@ -9,9 +9,17 @@ group, as an `Appearance` holds the themes of an editor.
 The main builder of an editor makes one, builds its projection with it, and gives
 it to the `settings` wrapper of `build_editor`. A part that acts on a setting
 takes its group with [`get_settings_group!`](@ref) while it is built.
+
+`is_read_from_targets` says where the values come from when the editor starts.
+When it is `false`, the values of the groups win, as a main builder that read a
+file wants. When it is `true`, as for the `Settings` that the wrapper makes for a
+caller that gives none, the start step first reads each group from the editor
+and its backend with [`read_settings!`](@ref), so a value that the caller gave a
+target directly stays.
 """
 @document struct Settings
     groups::Dict{Type,Any} = Dict{Type,Any}()
+    is_read_from_targets::Bool = false
 end
 
 """

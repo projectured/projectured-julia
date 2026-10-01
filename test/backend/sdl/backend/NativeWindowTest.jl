@@ -159,6 +159,16 @@ end
     quit_backend!(backend)
 end
 
+@testset "a read copies the render values of a backend into its settings" begin
+    backend = SdlBackend(partial_render = true, debug_dirty = true, debug_dirty_hold = 1.5,
+                         supersample = 3)
+    settings = RenderSettings()
+    read_settings!(settings, backend)
+    @test (settings.partial_render, settings.debug_dirty, settings.debug_dirty_hold,
+           settings.supersample) == (true, true, 1.5, 3)
+    @test (SdlBackend().partial_render, SdlBackend().supersample) == (false, 2)
+end
+
 @testset "an outline stays for its hold on the frames after it" begin
     backend = SdlBackend(partial_render = true, debug_dirty = true)
     initialize_backend!(backend)

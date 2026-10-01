@@ -36,7 +36,7 @@ function test_window_wrapper()
         @test window.content isa PrimitiveString
     end
 
-    @testset "with no setting, the size is the display's" begin
+    @testset "with no argument, the size is the display's" begin
         editor = build_editor(PrimitiveString("x"), IdentityProjection();
                               backend = WindowWrapperProbeBackend(), devices = Device[], tabs = false)
         window = get_wrapped_document(editor.document).windows[1]
@@ -47,14 +47,17 @@ function test_window_wrapper()
     @testset "window = false, a screen, and a backend that draws text keep the root" begin
         @test build_editor(PrimitiveString("x"), IdentityProjection();
                            backend = WindowWrapperProbeBackend(), devices = Device[], tabs = false,
-                           window = false, appearance = false).document isa PrimitiveString
+                           window = false, appearance = false,
+                           settings = false).document isa PrimitiveString
         screen = make_window_scene(PrimitiveString("x"), "Own"; width = 100, height = 100)
         @test build_editor(screen, make_window_scene_projection(IdentityProjection());
                            backend = WindowWrapperProbeBackend(),
-                           devices = Device[], tabs = false, appearance = false).document === screen
+                           devices = Device[], tabs = false, appearance = false,
+                           settings = false).document === screen
         @test build_editor(PrimitiveString("x"), IdentityProjection();
                            backend = WindowWrapperTextBackend(),
-                           devices = Device[], tabs = false, appearance = false).document isa PrimitiveString
+                           devices = Device[], tabs = false, appearance = false,
+                           settings = false).document isa PrimitiveString
     end
 end
 end

@@ -181,6 +181,14 @@ function apply_settings!(backend::VideoBackend, settings::RenderSettings)
     nothing
 end
 
+function read_settings!(settings::RenderSettings, backend::VideoBackend)
+    settings.partial_render = backend.partial_render
+    settings.debug_dirty = backend.debug_dirty
+    settings.debug_dirty_hold = backend.debug_dirty_hold
+    settings.supersample = backend.supersample
+    nothing
+end
+
 # The video time of the frame about to be written: the frames written so far,
 # each `1/fps` long.
 _get_video_seconds(backend::VideoBackend) = backend.frame[] / backend.fps

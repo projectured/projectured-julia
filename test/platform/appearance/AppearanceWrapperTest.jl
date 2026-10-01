@@ -34,7 +34,7 @@ _aw_key(key; alt = false) = KeyDown(key, ModifierKeys(ctrl = true, alt = alt); t
 function _aw_editor(document; projection = nothing, appearance = true, tabs = false)
     backend = HeadlessBackend()
     keywords = (; backend, devices = Device[Keyboard(), Mouse(), Display()],
-                window = false, tabs, appearance)
+                window = false, tabs, appearance, settings = false)
     editor = projection === nothing ? build_editor(document; keywords...) :
                                       build_editor(document, projection; keywords...)
     run_frame!(editor)

@@ -34,7 +34,8 @@ export SettingsGroup, SettingDescription, @settings, get_setting_descriptions,
 export Settings, compute_loaded_settings_types, make_settings, get_settings_group!,
        set_settings_group!, get_settings_groups, is_settings_group, get_setting_cell
 export ApplySettingOperation, apply_settings!, is_settings_target,
-       apply_settings_to_editor!
+       apply_settings_to_editor!, is_setting_write, read_settings!,
+       read_settings_from_editor!
 export get_setting_environment_names, read_settings_environment!
 
 include("SettingsGroup.jl")

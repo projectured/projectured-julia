@@ -20,7 +20,7 @@ import ..BackendModule: record_video, initialize_backend!, quit_backend!,
        write_to_devices, read_from_devices, wait_for_input, get_pointer_position,
        get_display_size
 import ..EditorModule: get_frame_clock_time
-import ..SettingsModule: apply_settings!
+import ..SettingsModule: apply_settings!, read_settings!
 
 export record_video, encode_frames_to_video!
 

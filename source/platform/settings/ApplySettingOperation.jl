@@ -25,6 +25,31 @@ is_settings_target(target, group::SettingsGroup) =
         Tuple{typeof(apply_settings!), Any, SettingsGroup}
 
 """
+    read_settings!(group, target) -> nothing
+
+Copy the values that act in `target` into `group`: the reverse of
+[`apply_settings!`](@ref). The default does nothing. The owner of a target adds a
+method beside its method of `apply_settings!`.
+
+The start step of the `settings` wrapper calls it for a `Settings` whose
+`is_read_from_targets` is `true`, so a value that a caller gave a target
+directly, such as the `fault_policy` of `build_editor` or a keyword of a backend,
+stays and shows in the settings.
+"""
+read_settings!(group::SettingsGroup, target) = nothing
+
+"""
+    read_settings_from_editor!(editor, group) -> nothing
+
+Read `group` from each target of `editor`: the editor, and its backend.
+"""
+function read_settings_from_editor!(editor, group::SettingsGroup)
+    read_settings!(group, editor)
+    hasproperty(editor, :backend) && read_settings!(group, editor.backend)
+    nothing
+end
+
+"""
     apply_settings_to_editor!(editor, group) -> nothing
 
 Apply `group` to each target of `editor`: the editor, and its backend.
@@ -69,6 +94,15 @@ end
 
 get_wrapped_operation(operation::ApplySettingOperation) = operation.operation
 rewrap_operation(::ApplySettingOperation, inner) = ApplySettingOperation(inner)
+
+"""
+    is_setting_write(write) -> Bool
+
+Whether `write`, a `ReplaceReferencedValueOperation`, writes one setting of a
+settings group: its document is a group, and its reference is one field.
+"""
+is_setting_write(write::ReplaceReferencedValueOperation) =
+    write.document isa SettingsGroup && _get_setting_name(write.reference) !== nothing
 
 # The name of the field that a write into a group names, or `nothing` for a
 # reference that is not one field.

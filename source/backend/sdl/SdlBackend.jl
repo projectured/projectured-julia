@@ -232,21 +232,14 @@ mutable struct SdlBackend <: Backend
     drawn_zoom::Float64
 end
 
-# `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
-# PROJECTURED_DEBUG_DIRTY env vars (via `_envflag`) when left as `nothing`, so a
-# bare `SdlBackend()` keeps the env-driven defaults; pass an explicit `Bool` to
-# override (e.g. `run_example(...; backend=SdlBackend(partial_render=false,
-# debug_dirty=true))` — `run_example` itself takes no such keywords).
-SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
-             debug_dirty::Union{Bool,Nothing}    = nothing,
-             debug_dirty_hold::Real = 0.0,
-             supersample::Union{Integer,Nothing} = nothing) =
+# The keywords are the defaults of the `RenderSettings` of an editor. An editor
+# with the `settings` wrapper applies its settings to the backend when it starts,
+# and the environment variables reach the backend through those settings.
+SdlBackend(; partial_render::Bool = false, debug_dirty::Bool = false,
+             debug_dirty_hold::Real = 0.0, supersample::Integer = 2) =
     SdlBackend(Dict{Symbol, SdlWindowResources}(),
                Dict{UInt32, Symbol}(),
-               partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
-               debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               Float64(debug_dirty_hold),
-               supersample === nothing ? _window_supersample() : Int(supersample),
+               partial_render, debug_dirty, Float64(debug_dirty_hold), Int(supersample),
                Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}(),
                nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0)
 
@@ -304,17 +297,14 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 # `partial_render` of the backend is the master switch (false forces the
 # full-frame repaint). `debug_dirty` of the backend, when on, outlines the
 # repainted region in red so it is visible which part of the screen was painted.
-# Both default to the PROJECTURED_PARTIAL_RENDER / PROJECTURED_DEBUG_DIRTY env
-# vars, and `_render_window!` reads them from the backend of the window.
+# `_render_window!` reads both from the backend of the window, and the
+# `RenderSettings` of an editor set them through `apply_settings!`.
 
 # How many recent frames' damage rects to retain for the partial target→window
 # copy. The copy refreshes the rects of the last `buffer age` of them; deeper
 # swap chains than this fall back to a full copy. 8 is far beyond any real swap
 # chain (double/triple buffering ⇒ age 2/3).
 const _DAMAGE_HISTORY_CAP = 8
-
-_envflag(name, default::Bool) =
-    (v = lowercase(get(ENV, name, "")); v == "" ? default : v in ("1", "true", "yes", "on"))
 
 # The render settings of an editor reach its backend here. A change of the mode
 # or of the outline repaints each window in full at the next frame, so no
@@ -331,6 +321,14 @@ function apply_settings!(backend::SdlBackend, settings::RenderSettings)
         changed && (resources.first_paint = true)
         resources.ss = settings.supersample
     end
+    nothing
+end
+
+function read_settings!(settings::RenderSettings, backend::SdlBackend)
+    settings.partial_render = backend.partial_render
+    settings.debug_dirty = backend.debug_dirty
+    settings.debug_dirty_hold = backend.debug_dirty_hold
+    settings.supersample = backend.supersample
     nothing
 end
 
@@ -671,14 +669,6 @@ function _drop_pathological_vsync!(renderer)
         return renderer
     end
     renderer
-end
-
-# Supersample factor for live windows (anti-aliasing). Override with the
-# PROJECTURED_SUPERSAMPLE env var; default 2. 1 disables it.
-function _window_supersample()
-    v = get(ENV, "PROJECTURED_SUPERSAMPLE", "")
-    s = tryparse(Int, v)
-    s === nothing ? 2 : clamp(s, 1, 4)
 end
 
 # ── Logical ↔ device pixel conversion ──────────────────────────────────

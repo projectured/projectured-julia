@@ -20,6 +20,14 @@ end
 # The settings become the fault policy of the editor. `print!` puts the policy
 # into the printer context, so a new policy needs a new print, as
 # `run_editor!` does.
+function read_settings!(settings::FaultSettings, editor::Editor)
+    policy = editor.fault_policy
+    settings.is_barrier_enabled = policy.is_barrier_enabled
+    settings.is_console_enabled = policy.is_console_enabled
+    settings.is_sound_enabled = policy.is_sound_enabled
+    nothing
+end
+
 function apply_settings!(editor::Editor, settings::FaultSettings)
     policy = FaultPolicy(is_barrier_enabled = settings.is_barrier_enabled,
                          is_console_enabled = settings.is_console_enabled,

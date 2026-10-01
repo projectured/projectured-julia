@@ -38,6 +38,10 @@ function SettingsModule.apply_settings!(target::SettingsTestTarget,
     nothing
 end
 
+# The target holds a count of 4, which a read copies into the group.
+SettingsModule.read_settings!(group::SettingsTestProbeSettings, ::SettingsTestTarget) =
+    (group.count = 4; nothing)
+
 # An editor as the evaluation sees one: a backend, and nothing else.
 struct SettingsTestEditor
     backend::SettingsTestTarget
@@ -256,6 +260,17 @@ end
     @test length(buffer.undo_entries) == 10
     # A number stays a number.
     @test UndoBuffer(WidgetLabel("plain"); capacity = 5).capacity == 5
+end
+
+@testset "a read copies the values of the targets into a group" begin
+    group = SettingsTestProbeSettings()
+    read_settings_from_editor!(SettingsTestEditor(SettingsTestTarget()), group)
+    @test group.count == 4
+    # A group that no target reads stays as it is.
+    other = SettingsTestOtherSettings()
+    read_settings_from_editor!(SettingsTestEditor(SettingsTestTarget()), other)
+    @test other.level == 1
+    @test read_settings!(other, nothing) === nothing
 end
 
 @testset "a target is a target of a group when a method applies it" begin

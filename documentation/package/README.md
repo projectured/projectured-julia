@@ -27,6 +27,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `style` | [style.md](platform/style/style.md) | colours, fonts, styled text, and the TrueType measurer |
 | `appearance` | [appearance.md](platform/appearance/appearance.md) | the appearance of an editor in its view: the keys of the zoom and the scales, and the wrapper that prints the view again |
 | `settings` | [settings.md](platform/settings/settings.md) | what a person chooses about how an editor works: the settings groups, their descriptions, and the operation that writes a setting and applies it |
+| `settingsmanaging` | [settingsmanaging.md](platform/settingsmanaging/settingsmanaging.md) | the settings of an editor in its view: the root document that holds them, the wrapper that turns an edit of a setting into an applied setting, and the start step |
 | `component` | [component.md](platform/component/component.md) | the master-detail component document |
 | `projection` | [projection.md](platform/projection/projection.md), with [generic-projections.md](platform/projection/generic-projections.md) and [higher-order-projections.md](platform/projection/higher-order-projections.md) | the generic and the higher-order projections |
 | `dragging` | [dragging.md](platform/dragging/dragging.md) | reorder by drag and drop |

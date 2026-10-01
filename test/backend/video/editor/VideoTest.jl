@@ -194,6 +194,9 @@ function test_video_render_settings()
     apply_settings!(backend, RenderSettings(partial_render = true))
     @test backend.paint_state === :retained
     @test !backend.debug_dirty
+    read = RenderSettings()
+    read_settings!(read, backend)
+    @test (read.partial_render, read.debug_dirty, read.supersample) == (true, false, 2)
     rm(frames; force = true, recursive = true)
 end
 end
