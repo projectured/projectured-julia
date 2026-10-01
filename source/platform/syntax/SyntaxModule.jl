@@ -58,6 +58,7 @@ export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        is_on_closing_delimiter,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,
        build_syntax_child_path, peel_child_step
+export SyntaxTheme, ScaledSyntaxTheme
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,
        SyntaxCompoundToTextIoMap
 export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
@@ -76,6 +77,7 @@ export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDeli
 
 
 include("SyntaxDocument.jl")
+include("SyntaxTheme.jl")
 include("SyntaxToText.jl")
 include("ObjectToSyntax.jl")
 include("ObjectFieldToSyntax.jl")

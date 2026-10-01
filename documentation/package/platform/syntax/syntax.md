@@ -117,6 +117,19 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` re
 
 `make_natural_to_syntax_dispatch(; appearance)` builds the table of the general renderer, and passes the `Appearance` of the editor to every registered row. The rows that domains register with `register_natural_syntax!` come first. Then come `PrimitiveToSyntax`, the placeholder and insertion rows of `Text` and `Document`, `CollectionToSyntax` and the `ObjectToSyntax` table. The `DocumentNothing` and `DocumentInsertion` rows are what an empty pane tab shows.
 
+### The theme
+
+`SyntaxTheme` holds the text of each kind of leaf that this slice prints (a
+boolean, a number, a string and its quotes, a symbol, a nothing, a reflected
+boolean), of the name of a type and of a field and of a note (an undefined field, a
+cycle, an empty placeholder), of a delimiter and a separator of a collection, of
+the parts of an insertion and the colors of its completion states, and the color
+that lights the delimiters around the pointer. The leaves, the reflection, the
+collections, the insertions and `SyntaxToText` take `theme`; with none they draw
+the default values. The natural renderer gives them the scaled `SyntaxTheme` of
+its `Appearance`, so at a font scale of 1.5 its syntax is 1.5 times as large. A
+domain that prints its own leaves styles them from a theme of its own.
+
 ## How it fits
 
 The syntax slice depends on the kernel and on the text, domain, natural, primitive, collection, projection and style slices. Every domain with a syntax chain depends on it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows the chain.

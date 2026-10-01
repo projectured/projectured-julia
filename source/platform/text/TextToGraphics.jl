@@ -56,16 +56,40 @@ end
 
 # ── Projection struct ──────────────────────────────────────────────────
 
-struct TextToGraphics <: Projection
+# The style fields read the scaled `TextTheme` with no edge, or hold the plain
+# values of the default theme; a change of the theme reaches a view when it prints
+# again.
+@projection UntrackedCell struct TextToGraphics
     start_x::Int
     start_y::Int
     measure::TextMeasure
     line_spacing::LineSpacing
+    caret_color::StyleColor
+    dormant_caret_color::StyleColor
+    caret_width::Int
+    highlight_color::StyleColor
+    dormant_highlight_color::StyleColor
+    highlight_radius::Int
 end
 
+"""
+    TextToGraphics(; measure, theme = nothing, start_x = 0, start_y = 0,
+                   line_spacing = SingleSpacing())
+
+Draw a `TextBlock` as graphics, with its caret and the band under its selection.
+`theme` is a `TextTheme` or a scaled one, whose caret and selection it draws; with
+none, it draws those of the default theme, and builds no theme.
+"""
 function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
-                        line_spacing::LineSpacing = SingleSpacing())
-    TextToGraphics(start_x, start_y, measure, line_spacing)
+                        line_spacing::LineSpacing = SingleSpacing(), theme = nothing)
+    theme = scale_theme(theme)
+    TextToGraphics(start_x, start_y, measure, line_spacing,
+                   _get_text_style(theme, StyleColor, :caret),
+                   _get_text_style(theme, StyleColor, :dormant_caret),
+                   _get_text_style(theme, Int, :caret_width),
+                   _get_text_style(theme, StyleColor, :highlight),
+                   _get_text_style(theme, StyleColor, :dormant_highlight),
+                   _get_text_style(theme, Int, :highlight_radius))
 end
 
 # The x of the character boundary `position` of `text` in `font`, from the start
@@ -245,8 +269,6 @@ _get_stored_path(value) = value
 _get_stored_path(value::SelectionDocument) = value.primary
 _is_live_selection(value) = true
 _is_live_selection(value::SelectionDocument) = value.live
-
-const _DORMANT_CURSOR_COLOR = StyleColor(0.55, 0.55, 0.55, 1.0)
 
 # Raw MouseClick directly on the canvas (no GraphicsCanvasToGraphicsImage
 # step above us): the caret at the point of the click. A click always becomes a
@@ -435,14 +457,17 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
     # skips a zero-width rect, and the bounds machinery ignores it).
-    cursor_rect = GraphicsRect(0, 0, 0, 0; color = color_black)
+    caret_color = p.caret_color
+    dormant_caret_color = p.dormant_caret_color
+    caret_width = Int32(p.caret_width)
+    cursor_rect = GraphicsRect(0, 0, 0, 0; color = caret_color)
     # A dormant caret is drawn muted: the pane it belongs to still remembers where
     # the caret is, and shows it, but the keyboard is not on it.
     set_cell_computation!(getfield(cursor_rect, :color),
-                       () -> is_live[] ? color_black : _DORMANT_CURSOR_COLOR)
+                       () -> is_live[] ? caret_color : dormant_caret_color)
     set_cell_computation!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
     set_cell_computation!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
-    set_cell_computation!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : Int32(2))
+    set_cell_computation!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : caret_width)
     set_cell_computation!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
 
     # A structural selection hugs its content per visual row (see `_compute_span_rows`),
@@ -450,13 +475,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # sub-canvas (a single top-canvas slot, below), each a persistent `GraphicsRect`
     # keyed by row index and reused across re-layouts; the k-th reads `overlay`'s k-th
     # rect (a zero width hides a rect whose row no longer exists, matching the cursor).
-    hl_color = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
-    hl_color_dormant = StyleColor(0x88 / 255, 0x88 / 255, 0x88 / 255, 0x28 / 255)
+    hl_color = p.highlight_color
+    hl_color_dormant = p.dormant_highlight_color
+    hl_radius = p.highlight_radius
     hl_cache = Dict{Int,GraphicsRect}()
     _hl_geo(k) = (v = overlay[].highlight; 1 <= k <= length(v) ? v[k] : nothing)
     function get_highlight_rect(k::Int)
         haskey(hl_cache, k) && return hl_cache[k]
-        r = GraphicsRect(0, 0, 0, 0; color = hl_color, radius = 4)
+        r = GraphicsRect(0, 0, 0, 0; color = hl_color, radius = hl_radius)
         set_cell_computation!(getfield(r, :color), () -> is_live[] ? hl_color : hl_color_dormant)
         set_cell_computation!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
         set_cell_computation!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))

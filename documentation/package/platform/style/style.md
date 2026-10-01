@@ -91,6 +91,17 @@ built, never while it prints. `set_theme!(appearance, theme)` puts another theme
 place, such as a preset. `make_scaled_theme(theme)` scales a theme with no
 appearance, at a scale of 1.
 
+**A projection reads a theme through its style fields.** A projection declared
+`@projection UntrackedCell struct` holds one field for each value that it draws.
+Its constructor takes `theme`, calls `scale_theme(theme)` once, and gives each
+field `make_style_field(K, theme, T, name)`: with a scaled theme of `K`, a cell
+that reads the value at each read with no edge (`make_theme_cell`); with no theme,
+the plain value of the default theme (`get_theme_defaults(K)`, made once for each
+theme type). So a projection that a printer builds at each print makes no theme,
+and a view shows a change of a theme when the `appearance` wrapper prints it
+again. A plain struct holds such a field in an `Any` field and reads it with
+`unwrap_cell`.
+
 ### The zoom and the scales
 
 The size of things on the screen comes from the `Appearance` of an editor: its

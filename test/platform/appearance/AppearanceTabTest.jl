@@ -116,6 +116,7 @@ end
     @test is_color_equal(theme.background, make_slate_dark_theme().background)
     # The step of a font goes to the next font file, at the same size.
     font_step = only(op for (action, op) in tab.commands if action.label == "›" &&
+                     unwrap(op).document === theme &&
                      unwrap(op).reference.head == FieldReferenceStep("font"))
     next_font = unwrap(font_step).value
     @test next_font.size == theme.font.size && next_font.filename != theme.font.filename
@@ -182,7 +183,7 @@ end
 
     backend = HeadlessBackend()
     editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
-                          window = (; title = "T", width = 900, height = 2400), tabs = (; title = "Doc"))
+                          window = (; title = "T", width = 900, height = 6000), tabs = (; title = "Doc"))
     run_frame!(editor)
     appearance = find_editor_appearance(editor)
     theme = get_theme(appearance, WidgetTheme)

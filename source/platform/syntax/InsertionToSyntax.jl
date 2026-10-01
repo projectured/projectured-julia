@@ -45,24 +45,33 @@ struct InsertionToSyntaxLeaf <: Projection
     # The label (prefix/suffix), the editable value, and the completion hint
     # share a font but are coloured distinctly, so each is its own StyleText.
     # The value's colour is only the *neutral* (`:empty`) colour — a non-empty
-    # buffer is coloured live by its completion state (green/red).
-    label::StyleText
-    value::StyleText
-    hint::StyleText
+    # buffer is coloured live by its completion state (`found_color` when it
+    # names one thing, `wrong_color` when it names none). Each style field holds a
+    # value, or a cell that reads the scaled `SyntaxTheme` (`unwrap_cell`).
+    label::Any
+    value::Any
+    hint::Any
+    wrong_color::Any
+    found_color::Any
     # What an empty buffer shows in place of `prefix · suffix`, in the colour of the
     # label, as the other empty fields of a domain show a hint; `nothing` keeps the
     # frame around the empty name.
     placeholder::Union{Nothing,String}
 end
 
-InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
-                      completion = name_completion,
-                      label = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray),
-                      value = StyleText(font_ubuntu_monospace_regular_20, color_default),
-                      hint  = StyleText(font_ubuntu_monospace_regular_20, color_completion_hint),
-                      placeholder::Union{Nothing,AbstractString} = nothing) =
-    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, label, value, hint,
+function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
+                               completion = name_completion, theme = nothing,
+                               label = nothing, value = nothing, hint = nothing,
+                               placeholder::Union{Nothing,AbstractString} = nothing)
+    theme = scale_theme(theme)
+    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion,
+                          something(label, _get_syntax_style(theme, StyleText, :label_text)),
+                          something(value, _get_syntax_style(theme, StyleText, :typed_text)),
+                          something(hint, _get_syntax_style(theme, StyleText, :hint_text)),
+                          _get_syntax_style(theme, StyleColor, :wrong_color),
+                          _get_syntax_style(theme, StyleColor, :found_color),
                           placeholder === nothing ? nothing : String(placeholder))
+end
 
 # ── Completion policies ───────────────────────────────────────────────────────
 #
@@ -86,8 +95,8 @@ end
 
 # state → typed-text colour; the neutral colour comes from the projection.
 _typed_color(p, state::Symbol) =
-    state === :invalid ? color_solarized_red :
-    state === :empty   ? p.value.color      : color_solarized_green
+    state === :invalid ? unwrap_cell(p.wrong_color) :
+    state === :empty   ? unwrap_cell(p.value).color : unwrap_cell(p.found_color)
 
 # ── Selection mapping ─────────────────────────────────────────────────────────
 #
@@ -146,19 +155,21 @@ end
 
 function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     iomap_cell = Cell(nothing)
+    label_style = unwrap_cell(p.label)
+    hint_style = unwrap_cell(p.hint)
     typed = TextString(Cell(@computation something(ins.value, "")),
-                       Cell(p.value.font),
+                       Cell(unwrap_cell(p.value).font),
                        Cell(@computation _typed_color(p, p.completion(ins).state)),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # An empty buffer with a placeholder shows the placeholder alone: it stands in
     # the span of the completion hint, and the frame of the label is empty.
     shows_placeholder() = p.placeholder !== nothing && isempty(something(ins.value, ""))
     hint = TextString(Cell(@computation shows_placeholder() ? p.placeholder : p.completion(ins).hint),
-                      Cell(p.hint.font),
-                      Cell(@computation shows_placeholder() ? p.label.color : p.hint.color),
+                      Cell(hint_style.font),
+                      Cell(@computation shows_placeholder() ? label_style.color : hint_style.color),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     frame(text) = TextString(Cell(@computation shows_placeholder() ? "" : text),
-                             Cell(p.label.font), Cell(p.label.color),
+                             Cell(label_style.font), Cell(label_style.color),
                              Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # **The rendered selection is the FORWARD IMAGE of the insertion's own, not a
     # copy of it.** The buffer's cursor is `value{k}` in the insertion's grammar,
@@ -358,31 +369,35 @@ default_completion(name::AbstractString) =
 # ── Convenience constructors ───────────────────────────────────────────────────
 
 """
-    DocumentInsertionToSyntaxLeaf()
+    DocumentInsertionToSyntaxLeaf(; theme = nothing)
 
 The domain-independent insertion: `"Insert a new <name> here"`, committing via
-`default_factory` (type a domain name + Enter).
+`default_factory` (type a domain name + Enter). `theme` is a `SyntaxTheme`, a
+scaled one, or `nothing` for the default styles.
 """
-DocumentInsertionToSyntaxLeaf() =
-    InsertionToSyntaxLeaf(default_factory; prefix = "Insert a new ", suffix = " here")
+DocumentInsertionToSyntaxLeaf(; theme = nothing) =
+    InsertionToSyntaxLeaf(default_factory; prefix = "Insert a new ", suffix = " here", theme)
 
 """
-    DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here", placeholder = nothing)
+    DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here", placeholder = nothing,
+                                theme = nothing)
 
 A domain-constrained insertion: the shared typed-name buffer completing over
 `root`'s reflected candidates **prefix-free** (inside a `JsonInsertion`,
 `string`/`String` names `JsonString`), committing the resolved type's
 `make_insertion_document`. The default completion policy already scopes to
 `get_insertion_root(typeof(ins))`, so the leaf only needs the matching commit.
+`theme` styles it as for `InsertionToSyntaxLeaf`.
 """
 DomainInsertionToSyntaxLeaf(root::Type;
                             prefix::AbstractString = "insert a new ",
                             suffix::AbstractString = " here",
-                            placeholder::Union{Nothing,AbstractString} = nothing) =
+                            placeholder::Union{Nothing,AbstractString} = nothing,
+                            theme = nothing) =
     InsertionToSyntaxLeaf(value -> begin
             T = resolve_insertion(root, value)
             T === nothing ? nothing : make_insertion_document(T)
-        end; prefix, suffix, placeholder)
+        end; prefix, suffix, placeholder, theme)
 
 # ── InsertionNothingToSyntaxLeaf: the *Nothing placeholder rendering ───────────────────
 
@@ -394,19 +409,19 @@ function _nothing_label(doc)
 end
 
 """
-    InsertionNothingToSyntaxLeaf()
+    InsertionNothingToSyntaxLeaf(; theme = nothing)
 
 The shared leaf for the `@domain` `*Nothing` placeholders: a muted italic
 `empty json` / `empty xml` label. Printer-only — raw input falls through the
 generic gesture fallback, so the placeholder's Insert binding (turn into the
 domain's insertion) fires from the document-level table.
 """
-@projection struct InsertionNothingToSyntaxLeaf <: Projection
-    style::ImmutableCell{StyleText}
+@projection UntrackedCell struct InsertionNothingToSyntaxLeaf <: Projection
+    style::StyleText
 end
 
-InsertionNothingToSyntaxLeaf() =
-    InsertionNothingToSyntaxLeaf(StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray))
+InsertionNothingToSyntaxLeaf(; theme = nothing) =
+    InsertionNothingToSyntaxLeaf(_get_syntax_style(scale_theme(theme), StyleText, :note_text))
 
 # The rendered leaf's selection is the *forward image* of the document's own — not
 # the raw path. A cursor on the label is carried on the placeholder as a

@@ -8,10 +8,15 @@
 #    delimiters for infinite lists).
 # ── CollectionCellVectorToSyntax ─────────────────────────────────────────────
 
-@projection struct CollectionCellVectorToSyntax
-    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
-    sep::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct CollectionCellVectorToSyntax
+    delim::StyleText
+    sep::StyleText
 end
+
+CollectionCellVectorToSyntax(; theme = nothing,
+                             delim = _get_syntax_style(scale_theme(theme), StyleText, :delimiter_text),
+                             sep = _get_syntax_style(scale_theme(theme), StyleText, :separator_text)) =
+    CollectionCellVectorToSyntax(delim, sep)
 
 # A bracket, a separator or the layout of the array is a part that this projection
 # printed: the backward map names it by the projection's own introduced step, which
@@ -178,9 +183,9 @@ Element projection is supplied by the surrounding `recursion`; compose with
 Usage:
     NestingProjection(CollectionToSyntax(), PrimitiveStringToSyntaxLeaf())
 """
-function CollectionToSyntax()
+function CollectionToSyntax(; theme = nothing)
     TypeDispatchingProjection(
-        CellVector => CollectionCellVectorToSyntax(),
+        CellVector => CollectionCellVectorToSyntax(; theme = scale_theme(theme)),
         ListNode   => CollectionListNodeToSyntax(),
     )
 end

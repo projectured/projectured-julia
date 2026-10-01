@@ -33,24 +33,25 @@ file, an INI config — gets rendered. The registered rows come FIRST, so a doma
 can override another domain's row.
 """
 function make_natural_to_syntax_dispatch(; appearance::Appearance)
+    theme = get_scaled_theme!(appearance, SyntaxTheme)
     vcat(
         get_natural_syntax_entries(; appearance = appearance),
         Pair{Type,Any}[
-            PrimitiveDocument  => PrimitiveToSyntax(),
+            PrimitiveDocument  => PrimitiveToSyntax(; theme),
             # The Text domain's `@domain` pair. Text has no `TextToSyntax` table
             # of its own to carry them — it *is* the layer syntax prints to — and
             # both leaves are this package's, so its two entries live here.
-            TextNothing        => InsertionNothingToSyntaxLeaf(),
-            TextInsertion      => DomainInsertionToSyntaxLeaf(TextDocument),
+            TextNothing        => InsertionNothingToSyntaxLeaf(; theme),
+            TextInsertion      => DomainInsertionToSyntaxLeaf(TextDocument; theme),
             # The domain-free placeholder and the name buffer a person types into.
             # These two are what an empty pane tab holds: Insert turns the
             # placeholder into the buffer, and Enter commits the typed name to a
             # fresh document of any loaded domain.
-            DocumentNothing    => InsertionNothingToSyntaxLeaf(),
-            DocumentInsertion  => DocumentInsertionToSyntaxLeaf(),
+            DocumentNothing    => InsertionNothingToSyntaxLeaf(; theme),
+            DocumentInsertion  => DocumentInsertionToSyntaxLeaf(; theme),
         ],
-        CollectionToSyntax().dispatch,   # CellVector, ListNode
-        ObjectToSyntax().dispatch,       # Cell/Nothing/Bool/Number/String/Symbol/Char/Any
+        CollectionToSyntax(; theme).dispatch,   # CellVector, ListNode
+        ObjectToSyntax(; theme).dispatch,       # Cell/Nothing/Bool/Number/String/Symbol/Char/Any
     )
 end
 
@@ -68,13 +69,14 @@ break invented by a measurement would say something the document does not.
 Prose has no such layout, so a line that runs past the box is simply lost.
 
 `measure::TextMeasure` is the backend's own, so the break points line up with
-what is drawn. `appearance` is the `Appearance` of the editor.
+what is drawn. `appearance` is the `Appearance` of the editor, whose syntax and
+text themes the stages take.
 """
 make_natural_prose_graphics(; measure::TextMeasure, appearance::Appearance) = ChainingProjection(
     RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
-    RecursiveProjection(SyntaxToText()),
+    RecursiveProjection(SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme))),
     WordWrapping(measure = measure),
-    TextToGraphics(measure = measure),
+    TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)),
 )
 
 # The rows this package fills the natural renderer's fallback with. The four
@@ -88,8 +90,8 @@ make_natural_prose_graphics(; measure::TextMeasure, appearance::Appearance) = Ch
 function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearance)
     fabric = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
-        RecursiveProjection(SyntaxToText()),
-        TextToGraphics(measure = measure),
+        RecursiveProjection(SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme))),
+        TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)),
     )
     Pair{Type,Any}[
         TextNothing       => fabric,
@@ -118,6 +120,7 @@ registers it.
 """
 function register_syntax_fallback!()
     register_natural_fallback!(:syntax, _fallback_rows)
-    register_natural_rung!(:syntax, :text, (; measure, appearance) -> SyntaxToText())
+    register_natural_rung!(:syntax, :text, (; measure, appearance) ->
+        SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme)))
     nothing
 end

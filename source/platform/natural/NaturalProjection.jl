@@ -63,9 +63,11 @@
 # still reflects via `ObjectToSyntax` rather than rendering as prose — an accepted
 # edge case.
 """
-    PhraseToGraphics(message, style, measure)
+    PhraseToGraphics(message, style, text)
 
-A document drawn as one line of prose. `message(document)` is what the line says.
+A document drawn as one line of prose. `message(document)` is what the line says,
+in `style`, a `StyleText` or a cell that reads the scaled `TextTheme`; `text` is
+the `TextToGraphics` that draws the line.
 
 Two rows use it, and neither may need a domain that can reflect a document into a
 tree: the empty-document placeholder, and the message a document nothing claimed
@@ -74,13 +76,13 @@ composed of what a session loaded and one that must carry everything.
 """
 struct PhraseToGraphics <: Projection
     message::Any
-    style::StyleText
-    measure::TextMeasure
+    style::Any
+    text::TextToGraphics
 end
 
 function print_document(p::PhraseToGraphics, recursion, document, ctx)
-    line = TextBlock(TextString(p.message(document), p.style))
-    inner = print_document(TextToGraphics(measure = p.measure), recursion, line, ctx)
+    line = TextBlock(TextString(p.message(document), unwrap_cell(p.style)))
+    inner = print_document(p.text, recursion, line, ctx)
     SimpleIoMap(p, document, get_iomap_output(inner))
 end
 
@@ -88,7 +90,7 @@ _unsupported_message(document) =
     "no natural rendering for " * String(nameof(typeof(document)))
 
 """
-    NaturalToGraphics(; measure, font=font_ubuntu_monospace_regular_20,
+    NaturalToGraphics(; measure, font=nothing,
                         wrap=true, extra=Pair{Type,Any}[], appearance=Appearance())
         -> RecursiveProjection
 
@@ -97,11 +99,12 @@ almost any document to a `GraphicsCanvas`. `measure` is the `TextMeasure` the
 layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
 
 - `font`    — base font for text that no domain styles: the line of prose of a
-              placeholder, and the fallback.
+              placeholder, and the fallback. `nothing`, the default, is the
+              `font` of the `TextTheme` of `appearance`, which follows its scale.
 - `appearance` — the `Appearance` of the editor. Every widget draws with its
-              `WidgetTheme`, and every registered row takes the scaled theme of
-              its domain from it. The default is a new `Appearance`, which no
-              tab edits.
+              `WidgetTheme`, the text with its `TextTheme`, and every registered
+              row takes the scaled theme of its domain from it. The default is a
+              new `Appearance`, which no tab edits.
 - `wrap`    — word-wrap prose (`TextDocument`). Structured syntax/code is always
               rendered no-wrap (its layout carries meaning; overflow is the
               viewport's job).
@@ -115,14 +118,17 @@ function NaturalToGraphics(; measure::TextMeasure,
                            wrap::Bool = true,
                            extra = Pair{Type,Any}[],
                            appearance::Appearance = Appearance())
-    w2g = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme))
+    widget_theme = get_scaled_theme!(appearance, WidgetTheme)
+    w2g = WidgetToGraphics(; measure, theme = widget_theme)
+    text_theme = get_scaled_theme!(appearance, TextTheme)
+    text = TextToGraphics(; measure, theme = text_theme)
 
     # Prose: optionally word-wrapped. Structured syntax/code: never wrapped.
-    prose_chain = wrap ?
-        ChainingProjection(WordWrapping(measure = measure), TextToGraphics(measure = measure)) :
-        TextToGraphics(measure = measure)
+    prose_chain = wrap ? ChainingProjection(WordWrapping(measure = measure), text) : text
 
-    style = StyleText(font, color_default)
+    style = font === nothing ?
+        make_theme_cell(StyleText, text_theme, scaled -> StyleText(scaled.font, color_default)) :
+        StyleText(font, color_default)
 
     # A fallback registers rows for exact types and, usually, one for `Any`. The
     # two go to different places in the table: the exact ones before this
@@ -160,7 +166,7 @@ function NaturalToGraphics(; measure::TextMeasure,
             # there gets the placeholder leaf and the Insert key that goes with
             # it. Without that package there is no leaf, and one line of prose is
             # what an empty tab can say.
-            DocumentNothing => PhraseToGraphics(_ -> "empty document", style, measure),
+            DocumentNothing => PhraseToGraphics(_ -> "empty document", style, text),
             # A graphics document is graphics already, and it draws as itself.
             GraphicsDocument => GraphicsToGraphics(),
             TextDocument    => prose_chain,
@@ -171,7 +177,7 @@ function NaturalToGraphics(; measure::TextMeasure,
                                                  VerticalLayoutToGraphicsCanvas()),
             # A tooltip window: a column of what the parts say, each in its own
             # domain.
-            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(),
+            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = widget_theme),
                                                  VerticalLayoutToGraphicsCanvas()),
         ],
         # The fallback's own tail, then this one. A session that loaded a package
@@ -179,7 +185,7 @@ function NaturalToGraphics(; measure::TextMeasure,
         # message.
         tail,
         Pair{Type,Any}[
-            Any => PhraseToGraphics(_unsupported_message, style, measure),
+            Any => PhraseToGraphics(_unsupported_message, style, text),
         ],
     )
 

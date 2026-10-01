@@ -30,10 +30,14 @@
 line; the default keeps the name and the value on one line, which is what a field
 of a form wants.
 """
-@projection struct ObjectFieldToSyntax
-    field_name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    newlines::Bool = false
+@projection UntrackedCell struct ObjectFieldToSyntax
+    field_name::StyleText
+    newlines::Bool
 end
+
+ObjectFieldToSyntax(; theme = nothing,
+                    field_name = _get_syntax_style(scale_theme(theme), StyleText, :field_name_text),
+                    newlines::Bool = false) = ObjectFieldToSyntax(field_name, newlines)
 
 function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, ctx)
     name = get_object_field_name(field)

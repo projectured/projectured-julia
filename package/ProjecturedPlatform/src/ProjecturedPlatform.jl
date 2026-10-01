@@ -80,7 +80,8 @@ end
 # syntax.
 function __init__()
     NaturalModule.register_natural_rung!(:text, :graphics,
-        (; measure, appearance) -> TextModule.TextToGraphics(measure = measure))
+        (; measure, appearance) -> TextModule.TextToGraphics(;
+            measure, theme = StyleModule.get_scaled_theme!(appearance, TextModule.TextTheme)))
     NaturalModule.register_natural_rung!(:text, :string,
         (; measure, appearance) -> TextModule.TextToString())
     NaturalModule.register_natural_notation!(

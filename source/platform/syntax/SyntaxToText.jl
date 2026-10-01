@@ -243,8 +243,9 @@ struct SyntaxCompoundToText <: Projection
     # The delimiters of the compounds around the part under the pointer: the
     # innermost pair is in this colour, and each level further out mixes it more
     # with the colour of the delimiter, which it reaches after this many levels.
-    # Zero levels draw every delimiter in its own colour.
-    delimiter_light_color::StyleColor
+    # Zero levels draw every delimiter in its own colour. The colour is a value,
+    # or a cell that reads the scaled `SyntaxTheme` (`unwrap_cell`).
+    delimiter_light_color::Any
     delimiter_light_levels::Int
 end
 
@@ -253,7 +254,9 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                        collapsed_marker::TextString = TextString(""),
                        marker_eligible = _default_marker_eligible,
                        ellipsis_text::TextString = _default_ellipsis(),
-                       delimiter_light_color::StyleColor = color_solarized_orange,
+                       theme = nothing,
+                       delimiter_light_color = _get_syntax_style(scale_theme(theme), StyleColor,
+                                                                 :lit_delimiter),
                        delimiter_light_levels::Int = 4) =
     SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
                          ellipsis_text, delimiter_light_color, delimiter_light_levels)
@@ -800,7 +803,7 @@ end
 # with `color` at each level, and `color` from the last level on.
 function _compute_delimiter_color(p::SyntaxCompoundToText, level, color::StyleColor)
     (level === nothing || level >= p.delimiter_light_levels) && return color
-    color_interpolate(p.delimiter_light_color, color, level / p.delimiter_light_levels)
+    color_interpolate(unwrap_cell(p.delimiter_light_color), color, level / p.delimiter_light_levels)
 end
 
 # The span that draws a delimiter of a compound. It holds the cells of the
@@ -1284,10 +1287,13 @@ function SyntaxToText(; indent_size::Int = 2,
                         collapsed_marker::TextString = TextString(""),
                         marker_eligible = _default_marker_eligible,
                         ellipsis_text::TextString = _default_ellipsis(),
-                        delimiter_light_color::StyleColor = color_solarized_orange,
+                        theme = nothing,
+                        delimiter_light_color = _get_syntax_style(scale_theme(theme), StyleColor,
+                                                                  :lit_delimiter),
                         delimiter_light_levels::Int = 4)
     # Every compound is printed by the same projection instance — the configuration
-    # is the projection's, the structure is the document's.
+    # is the projection's, the structure is the document's. `theme`, a
+    # `SyntaxTheme` or a scaled one, gives the colour that lights the delimiters.
     compound = SyntaxCompoundToText(indent_size=indent_size,
                                     expanded_marker=expanded_marker,
                                     collapsed_marker=collapsed_marker,

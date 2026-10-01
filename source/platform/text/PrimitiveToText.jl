@@ -81,9 +81,13 @@ end
 
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
-@projection struct PrimitiveBoolToText
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+@projection UntrackedCell struct PrimitiveBoolToText
+    style::StyleText
 end
+
+PrimitiveBoolToText(; theme = nothing,
+                    style = _get_text_style(scale_theme(theme), StyleText, :bool_text)) =
+    PrimitiveBoolToText(style)
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
@@ -106,9 +110,13 @@ end
 
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
-@projection struct PrimitiveNumberToText
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+@projection UntrackedCell struct PrimitiveNumberToText
+    style::StyleText
 end
+
+PrimitiveNumberToText(; theme = nothing,
+                      style = _get_text_style(scale_theme(theme), StyleText, :number_text)) =
+    PrimitiveNumberToText(style)
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
@@ -131,15 +139,16 @@ end
 
 # ── PrimitiveStringToTextBlock ────────────────────────────────────────────────────
 
-@projection struct PrimitiveStringToTextBlock <: Projection
-    style::ImmutableCell{StyleText}
+@projection UntrackedCell struct PrimitiveStringToTextBlock <: Projection
+    style::StyleText
     # Hint shown when the value is empty. `placeholder == ""` disables it, so
     # the projection keeps its plain (placeholder-free) behavior by default.
-    placeholder::ImmutableCell{String}
-    placeholder_style::ImmutableCell{StyleText}
+    placeholder::String
+    placeholder_style::StyleText
 end
-PrimitiveStringToTextBlock(; style=StyleText(font_ubuntu_monospace_regular_20, color_solarized_green),
-                            placeholder="", placeholder_style=style) =
+PrimitiveStringToTextBlock(; theme = nothing,
+                            style = _get_text_style(scale_theme(theme), StyleText, :string_text),
+                            placeholder = "", placeholder_style = style) =
     PrimitiveStringToTextBlock(style, placeholder, placeholder_style)
 
 map_reference_forward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, reference) =
@@ -222,15 +231,17 @@ end
 # ── PrimitiveToText (composite) ──────────────────────────────────────────────
 
 """
-    PrimitiveToText(; bool_kw=(), number_kw=(), string_kw=())
+    PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
 
 Composite projection that converts all `PrimitiveDocument` types directly
-to single-span `TextBlock` documents.
+to single-span `TextBlock` documents. `theme`, a `TextTheme` or a scaled one,
+gives the text of each kind; with none, the texts of the default theme.
 """
-function PrimitiveToText(; bool_kw=(), number_kw=(), string_kw=())
+function PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
+    theme = scale_theme(theme)
     TypeDispatchingProjection(
-        PrimitiveBool   => PrimitiveBoolToText(; bool_kw...),
-        PrimitiveNumber => PrimitiveNumberToText(; number_kw...),
-        PrimitiveString => PrimitiveStringToTextBlock(; string_kw...),
+        PrimitiveBool   => PrimitiveBoolToText(; theme, bool_kw...),
+        PrimitiveNumber => PrimitiveNumberToText(; theme, number_kw...),
+        PrimitiveString => PrimitiveStringToTextBlock(; theme, string_kw...),
     )
 end

@@ -8,10 +8,13 @@
 # AbstractString, Symbol, Char) produce SyntaxLeaf terminals.
 # ── NothingToSyntaxLeaf ──────────────────────────────────────────────────────
 
-@projection struct NothingToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
-    include_selection::Bool = false
+@projection UntrackedCell struct NothingToSyntaxLeaf
+    style::StyleText
+    include_selection::Bool
 end
+
+NothingToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :nothing_text),
+       include_selection::Bool = false) = NothingToSyntaxLeaf(style, include_selection)
 
 function print_document(p::NothingToSyntaxLeaf, recursion, ::Nothing, ctx)
     leaf = SyntaxLeaf(TextString("nothing", p.style))
@@ -20,10 +23,13 @@ end
 
 # ── BoolToSyntaxLeaf ─────────────────────────────────────────────────────────
 
-@projection struct BoolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    include_selection::Bool = false
+@projection UntrackedCell struct BoolToSyntaxLeaf
+    style::StyleText
+    include_selection::Bool
 end
+
+BoolToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :reflected_bool_text),
+       include_selection::Bool = false) = BoolToSyntaxLeaf(style, include_selection)
 
 function print_document(p::BoolToSyntaxLeaf, recursion, b::Bool, ctx)
     leaf = SyntaxLeaf(TextString(b ? "true" : "false", p.style))
@@ -32,10 +38,13 @@ end
 
 # ── NumberToSyntaxLeaf ───────────────────────────────────────────────────────
 
-@projection struct NumberToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
-    include_selection::Bool = false
+@projection UntrackedCell struct NumberToSyntaxLeaf
+    style::StyleText
+    include_selection::Bool
 end
+
+NumberToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :number_text),
+       include_selection::Bool = false) = NumberToSyntaxLeaf(style, include_selection)
 
 function print_document(p::NumberToSyntaxLeaf, recursion, n::Number, ctx)
     leaf = SyntaxLeaf(TextString(string(n), p.style))
@@ -44,10 +53,17 @@ end
 
 # ── StringToSyntaxLeaf ───────────────────────────────────────────────────────
 
-@projection struct StringToSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    include_selection::Bool = false
+@projection UntrackedCell struct StringToSyntaxLeaf
+    quote_style::StyleText
+    value::StyleText
+    include_selection::Bool
+end
+
+function StringToSyntaxLeaf(; theme = nothing,
+                quote_style = _get_syntax_style(scale_theme(theme), StyleText, :quote_text),
+                value = _get_syntax_style(scale_theme(theme), StyleText, :string_text),
+                include_selection::Bool = false)
+    StringToSyntaxLeaf(quote_style, value, include_selection)
 end
 
 function print_document(p::StringToSyntaxLeaf, recursion, s::AbstractString, ctx)
@@ -60,10 +76,13 @@ end
 
 # ── SymbolToSyntaxLeaf ───────────────────────────────────────────────────────
 
-@projection struct SymbolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    include_selection::Bool = false
+@projection UntrackedCell struct SymbolToSyntaxLeaf
+    style::StyleText
+    include_selection::Bool
 end
+
+SymbolToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :symbol_text),
+       include_selection::Bool = false) = SymbolToSyntaxLeaf(style, include_selection)
 
 function print_document(p::SymbolToSyntaxLeaf, recursion, s::Symbol, ctx)
     leaf = SyntaxLeaf(TextString(string(s), p.style))
@@ -72,10 +91,17 @@ end
 
 # ── CharToSyntaxLeaf ─────────────────────────────────────────────────────────
 
-@projection struct CharToSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    include_selection::Bool = false
+@projection UntrackedCell struct CharToSyntaxLeaf
+    quote_style::StyleText
+    value::StyleText
+    include_selection::Bool
+end
+
+function CharToSyntaxLeaf(; theme = nothing,
+                quote_style = _get_syntax_style(scale_theme(theme), StyleText, :quote_text),
+                value = _get_syntax_style(scale_theme(theme), StyleText, :string_text),
+                include_selection::Bool = false)
+    CharToSyntaxLeaf(quote_style, value, include_selection)
 end
 
 function print_document(p::CharToSyntaxLeaf, recursion, c::Char, ctx)
@@ -89,9 +115,12 @@ end
 # ── CellToSyntax ─────────────────────────────────────────────────────────────
 # Unwraps a Cell and projects its contents transparently.
 
-@projection struct CellToSyntax
-    cycle::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray)
+@projection UntrackedCell struct CellToSyntax
+    cycle::StyleText
 end
+
+CellToSyntax(; theme = nothing, cycle = _get_syntax_style(scale_theme(theme), StyleText, :note_text)) =
+    CellToSyntax(cycle)
 
 function print_document(p::CellToSyntax, recursion, cell::Cell, ctx)
     visited = get_property(ctx, :objects_seen, nothing)
@@ -127,15 +156,26 @@ end
 # Objects with no fields collapse to the type-name leaf alone.
 # Undefined mutable-struct fields render as an "<undefined>" leaf.
 
-@projection struct ObjectNodeToSyntaxNode
-    type_name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    field_name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-    undef::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_italic_20, color_solarized_gray)
-    include_selection::Bool = false
-    open_delimiter::String = ""
-    close_delimiter::String = ""
-    newlines::Bool = true
-    filter::Any = nothing
+@projection UntrackedCell struct ObjectNodeToSyntaxNode
+    type_name::StyleText
+    field_name::StyleText
+    undef::StyleText
+    include_selection::Bool
+    open_delimiter::String
+    close_delimiter::String
+    newlines::Bool
+    filter::Any
+end
+
+function ObjectNodeToSyntaxNode(; theme = nothing,
+                                type_name = _get_syntax_style(scale_theme(theme), StyleText, :type_name_text),
+                                field_name = _get_syntax_style(scale_theme(theme), StyleText, :field_name_text),
+                                undef = _get_syntax_style(scale_theme(theme), StyleText, :note_text),
+                                include_selection::Bool = false, open_delimiter::AbstractString = "",
+                                close_delimiter::AbstractString = "", newlines::Bool = true,
+                                filter = nothing)
+    ObjectNodeToSyntaxNode(type_name, field_name, undef, include_selection, String(open_delimiter),
+                           String(close_delimiter), newlines, filter)
 end
 
 # Unwrap a Cell for predicate/filter testing; pass non-cells through.
@@ -248,27 +288,36 @@ end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_20, type_name_color=color_solarized_blue,
-                          field_name_font=font_ubuntu_monospace_regular_20,    field_name_color=color_solarized_green,
-                          nothing_color=color_solarized_magenta,
-                          bool_color=color_solarized_yellow,
-                          number_color=color_solarized_magenta,
-                          string_color=color_solarized_green,
-                          symbol_color=color_solarized_blue,
-                          char_color=color_solarized_green,
+# `theme`, a `SyntaxTheme` or a scaled one, styles the leaves. A font or a color
+# that a keyword names replaces the one of the theme in its style, which then
+# keeps that value.
+function ObjectToSyntax(; theme = nothing,
+                          type_name_font = nothing, type_name_color = nothing,
+                          field_name_font = nothing, field_name_color = nothing,
+                          nothing_color = nothing,
+                          bool_color = nothing,
+                          number_color = nothing,
+                          string_color = nothing,
+                          symbol_color = nothing,
+                          char_color = nothing,
                           include_selection=false,
                           open_delimiter="", close_delimiter="",
                           newlines::Bool=true, filter=nothing)
+    theme = scale_theme(theme)
+    style(name, font, color) = (font === nothing && color === nothing) ?
+        _get_syntax_style(theme, StyleText, name) :
+        _replace_style(unwrap_cell(_get_syntax_style(theme, StyleText, name)), font, color)
     TypeDispatchingProjection(
-        Cell           => CellToSyntax(),
-        Nothing        => NothingToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, nothing_color), include_selection=include_selection),
-        Bool           => BoolToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, bool_color), include_selection=include_selection),
-        Number         => NumberToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, number_color), include_selection=include_selection),
-        AbstractString => StringToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_20, string_color), include_selection=include_selection),
-        Symbol         => SymbolToSyntaxLeaf(style=StyleText(font_ubuntu_monospace_regular_20, symbol_color), include_selection=include_selection),
-        Char           => CharToSyntaxLeaf(value=StyleText(font_ubuntu_monospace_regular_20, char_color), include_selection=include_selection),
-        Any            => ObjectNodeToSyntaxNode(type_name=StyleText(type_name_font, type_name_color),
-                                                 field_name=StyleText(field_name_font, field_name_color),
+        Cell           => CellToSyntax(; theme),
+        Nothing        => NothingToSyntaxLeaf(style=style(:nothing_text, nothing, nothing_color), include_selection=include_selection),
+        Bool           => BoolToSyntaxLeaf(style=style(:reflected_bool_text, nothing, bool_color), include_selection=include_selection),
+        Number         => NumberToSyntaxLeaf(style=style(:number_text, nothing, number_color), include_selection=include_selection),
+        AbstractString => StringToSyntaxLeaf(; theme, value=style(:string_text, nothing, string_color), include_selection=include_selection),
+        Symbol         => SymbolToSyntaxLeaf(style=style(:symbol_text, nothing, symbol_color), include_selection=include_selection),
+        Char           => CharToSyntaxLeaf(; theme, value=style(:string_text, nothing, char_color), include_selection=include_selection),
+        Any            => ObjectNodeToSyntaxNode(; theme,
+                                                 type_name=style(:type_name_text, type_name_font, type_name_color),
+                                                 field_name=style(:field_name_text, field_name_font, field_name_color),
                                                  include_selection=include_selection,
                                                  open_delimiter=open_delimiter,
                                                  close_delimiter=close_delimiter,
@@ -276,6 +325,10 @@ function ObjectToSyntax(; type_name_font=font_ubuntu_monospace_bold_20, type_nam
                                                  filter = filter),
     )
 end
+
+# `style` with `font` and `color` in place of its own, where they are not `nothing`.
+_replace_style(style::StyleText, font, color) =
+    StyleText(something(font, style.font), something(color, style.color))
 
 # ── print_object ─────────────────────────────────────────────────────────────
 """

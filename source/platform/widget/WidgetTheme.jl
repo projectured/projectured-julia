@@ -200,19 +200,7 @@ _get_icon_scale(theme::ScaledWidgetTheme) = get_theme_appearance(theme).icon_sca
 """
     _themed(T, theme, f) -> UntrackedCell{T}
 
-A style field of a widget projection that reads `f(theme)` at each read, with no
-edge: a value of the scaled widget theme `theme`, or a value derived from it. A
-view shows a change of the theme when it prints again, so the field needs no edge.
+A style field of a widget projection: [`make_theme_cell`](@ref) of the scaled
+widget theme `theme`.
 """
-_themed(::Type{T}, theme::ScaledWidgetTheme, f) where {T} =
-    UntrackedCell{T}(Computation(() -> f(theme)))
-
-# An inset and a point hold cells of their own, and a read of a side records an
-# edge to it. So a derived inset or point is made once for each state of the
-# theme and kept in a computed cell, and the style field reads that cell with no
-# edge. A new one at each read would give a printer an edge to a new cell at each
-# print.
-function _themed(::Type{T}, theme::ScaledWidgetTheme, f) where {T <: Union{Inset, Point2D}}
-    kept = Cell(Computation(() -> f(theme)))
-    UntrackedCell{T}(Computation(() -> kept[]))
-end
+_themed(::Type{T}, theme::ScaledWidgetTheme, f) where {T} = make_theme_cell(T, theme, f)

@@ -992,7 +992,38 @@ factory take the theme from the `Appearance`. Tests for each domain: at the
 default theme, the pixels of B0; at a font scale of 1.5, its text is 1.5 times
 as large. omnet-julia and inet-julia follow where they build these projections.
 
-- [ ] **P1. Text and syntax:** `text`, `syntax`, `natural`.
+- [x] **P1. Text and syntax:** `text`, `syntax`, `natural`. Done with this form (finding 28):
+  - `make_theme_cell(T, scaled, f)` in the style slice makes a style field of any
+    scaled theme; `_themed` of the widgets calls it.
+  - A projection takes `theme`. With a theme or a scaled theme, each style field
+    reads the scaled theme through `make_theme_cell`. With none, the default, each
+    field holds the plain value of the default theme at no scale:
+    `get_theme_defaults(T)` makes the scaled default theme of `T` once and answers
+    its values. So a printer that builds a projection at each print makes no
+    theme, and the 25 builders of `TextToGraphics` that pass only `measure` stay
+    as they are.
+  - `TextTheme` (text slice): the font of a text that no document styles, the
+    caret and the dormant caret, the width of the caret, the selection and the
+    dormant selection, the radius of a selection, the color of a match, the text
+    of a line number, the inverted background and foreground, and the texts of a
+    boolean, a number and a string. `TextToGraphics`, `WordWrapping`,
+    `TextLineNumbering`, `TextHighlighting`, `SelectionInverting` and the
+    primitive leaves read it. `ReferenceToText` serves only the inspector, so it
+    moves to P4.
+  - `SyntaxTheme` (syntax slice): the texts of the leaves (a boolean, a number, a
+    string and its quotes, a symbol, a nothing, a reflected boolean), of a type
+    name, a field name and a note (an undefined field, a cycle, an empty
+    placeholder), of a delimiter and a separator, of the parts of an insertion
+    (its label, the typed text, the hint, and the colors of a wrong and of a
+    found completion), of the ellipsis, the color that lights the delimiters, and
+    the font of a decoration. The leaves, the reflection, the collections, the
+    insertions and `SyntaxToText` read it.
+  - The natural renderer passes the scaled `TextTheme` and `SyntaxTheme` of its
+    `Appearance` to its text and syntax rows, to its rungs and to the fallback.
+    The line of prose of a placeholder takes the font of the `TextTheme`. The gap
+    between the layers of a tooltip is the `item_gap` of the widget theme.
+  - Open: the caret of a widget text field, which the widgets print with their own
+    `TextToGraphics`, keeps the default text theme.
 - [ ] **P2. The document domains:** `json`, `xml`, `yaml`, `sql`, `julia`,
   `markdown`, `rst`, `book`, `math`, `formula`.
 - [ ] **P3. The charts:** `chart`, `sequencechart`, `plot`, `graphics`.
@@ -1344,3 +1375,33 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     W3 takes the same answer. This changes the last point of 4.8 for W3: a write
     from the theme tab is a step of the window history. For the inverse to bring
     the view back, the step must print the view again, as the forward write does.
+28. **P1: the text and the syntax have themes** (2026-10-01). `TextTheme` has
+    nine values and `SyntaxTheme` eighteen; each value is one that a view of the
+    platform draws now, and its default is that value, so the images of all 94
+    examples that draw as one image are equal, byte for byte, to those of
+    `9b5d1210a`, and the same 11 examples draw no image on both sides. Facts found:
+    - The fonts and the colors of a text come from its document, so
+      `TextToGraphics` themes only its caret and the band of its selection. The
+      caret beside an image in a block with no font keeps the default font of a
+      `TextString`, and the decoration of a syntax node keeps the font of its
+      delimiter: both are defaults of a document, which a typed run takes too.
+    - `TextHighlighting`, `SelectionInverting` and `TextLineNumbering` have no
+      builder in the platform, so no `Appearance` can reach them; they keep their
+      keywords. `ProjectionConfiguring` shows the cell fields of a projection as
+      controls, which a change of the struct of `TextHighlighting` would change.
+    - `@theme` refuses a field named `selection`, so the band is `highlight`.
+    - Three printers build a `TextToGraphics` at each print (the phrase of the
+      natural renderer, and two in the widgets). The phrase holds one now; the
+      widgets keep theirs, which takes the plain default values and makes no
+      theme (`get_theme_defaults`).
+    - A plain struct (the insertion leaf, the compound printer, the phrase, the
+      tooltip column) holds a style as a value or a cell in an `Any` field, and
+      reads it with `unwrap_cell`.
+    - The appearance tab shows a section for each theme of the appearance, in the
+      order of the names, so the natural renderer adds the sections `SyntaxTheme`
+      and `TextTheme` before `WidgetTheme`. Two tab tests looked for a field by
+      name in every section; they keep to the widget theme now.
+    - `test_text_and_syntax_themes`: at a font scale of 1.5 a number, a string
+      and an empty placeholder draw their text 1.5 times as large; a change of the
+      scale reaches the next print; the caret and the band follow the line and
+      the radius scales; a projection with no theme has the default values.

@@ -49,6 +49,7 @@ by a package that does not own the printer, or a rung that belongs to no domain.
 """
 module NaturalModule
 
+using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule

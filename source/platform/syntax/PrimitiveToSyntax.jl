@@ -10,9 +10,13 @@
 # printed, such as a quote of a string, is named by the leaf's own introduced step,
 # and the forward map answers the path of that part in the leaf.
 
-@projection struct PrimitiveBoolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+@projection UntrackedCell struct PrimitiveBoolToSyntaxLeaf
+    style::StyleText
 end
+
+PrimitiveBoolToSyntaxLeaf(; theme = nothing,
+                          style = _get_syntax_style(scale_theme(theme), StyleText, :bool_text)) =
+    PrimitiveBoolToSyntaxLeaf(style)
 
 function map_reference_forward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -50,9 +54,13 @@ end
 
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
-@projection struct PrimitiveNumberToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+@projection UntrackedCell struct PrimitiveNumberToSyntaxLeaf
+    style::StyleText
 end
+
+PrimitiveNumberToSyntaxLeaf(; theme = nothing,
+                            style = _get_syntax_style(scale_theme(theme), StyleText, :number_text)) =
+    PrimitiveNumberToSyntaxLeaf(style)
 
 function map_reference_forward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, reference)
     @reference_case reference begin
@@ -90,9 +98,15 @@ end
 
 # ── PrimitiveStringToSyntaxLeaf ──────────────────────────────────────────────
 
-@projection struct PrimitiveStringToSyntaxLeaf
-    quote_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
-    value::ImmutableCell{StyleText}       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+@projection UntrackedCell struct PrimitiveStringToSyntaxLeaf
+    quote_style::StyleText
+    value::StyleText
+end
+
+function PrimitiveStringToSyntaxLeaf(; theme = nothing,
+                                     quote_style = _get_syntax_style(scale_theme(theme), StyleText, :quote_text),
+                                     value = _get_syntax_style(scale_theme(theme), StyleText, :string_text))
+    PrimitiveStringToSyntaxLeaf(quote_style, value)
 end
 
 function map_reference_forward(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -141,16 +155,18 @@ end
 
 
 """
-    PrimitiveToSyntax()
+    PrimitiveToSyntax(; theme = nothing, bool_kw = (), number_kw = (), string_kw = ())
 
 Composite projection that converts all `PrimitiveDocument` types to
 `SyntaxLeaf` nodes. Wrap the result in `RecursiveProjection` at the call
-site if recursive child dispatch is needed.
+site if recursive child dispatch is needed. `theme`, a `SyntaxTheme` or a scaled
+one, styles the leaves; with none, the leaves have the default styles.
 """
-function PrimitiveToSyntax(; bool_kw=(), number_kw=(), string_kw=())
+function PrimitiveToSyntax(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
+    theme = scale_theme(theme)
     TypeDispatchingProjection(
-        PrimitiveBool   => PrimitiveBoolToSyntaxLeaf(; bool_kw...),
-        PrimitiveNumber => PrimitiveNumberToSyntaxLeaf(; number_kw...),
-        PrimitiveString => PrimitiveStringToSyntaxLeaf(; string_kw...),
+        PrimitiveBool   => PrimitiveBoolToSyntaxLeaf(; theme, bool_kw...),
+        PrimitiveNumber => PrimitiveNumberToSyntaxLeaf(; theme, number_kw...),
+        PrimitiveString => PrimitiveStringToSyntaxLeaf(; theme, string_kw...),
     )
 end

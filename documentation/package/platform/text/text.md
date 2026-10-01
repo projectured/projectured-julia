@@ -118,6 +118,20 @@ The added spans are the soft `TextNewline` of `WordWrapping` and the number pref
 
 A range maps through a projection only when it lies in one span that maps to one field. `PrimitiveToText` maps it to `value{s:e}`, `WordWrapping` maps each end across a soft break, and the chat composer maps it to the value of its draft. The backward maps of `SyntaxToText` return `nothing` for a flat range, so a Shift key in a syntax view leaves the selection where it was.
 
+### The theme
+
+`TextTheme` holds what the text projections draw on their own: the font of a text
+that no document styles (the line of a placeholder of the natural renderer), the
+caret, the dormant caret and the width of the caret, the band under a selection,
+live and dormant, and the radius of its corners, and the texts of a boolean, a
+number and a string that `PrimitiveToText` prints. The fonts and the colors of a
+text document stay as its author set them, so a scale of the font changes a text
+that a domain styles from its theme, and not a text that a document styles.
+`TextToGraphics(; measure, theme)` and the primitive leaves take the theme; with
+none they draw the default values. The natural renderer gives them the scaled
+`TextTheme` of its `Appearance`. `TextHighlighting`, `SelectionInverting` and
+`TextLineNumbering` take their colors and fonts as keywords.
+
 ## How it fits
 
 The text slice depends on the kernel and on the collection, domain, primitive, projection, style and graphics slices. The syntax slice prints every leaf and node to it, so every domain with a syntax chain uses it. Widgets, the conversation view, the console backend and the undo view use it directly.

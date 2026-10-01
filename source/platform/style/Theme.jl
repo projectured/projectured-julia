@@ -166,6 +166,72 @@ from it for a length that is not a value of its theme.
 get_theme_appearance(scaled::ScaledTheme) = getfield(scaled, :appearance)
 
 """
+    make_theme_cell(T, scaled, f) -> UntrackedCell{T}
+
+A style field of a projection that reads `f(scaled)` at each read, with no edge: a
+value of the scaled theme `scaled`, or a value derived from it. A view shows a
+change of the theme when it prints again, so the field needs no edge. A projection
+declared `@projection UntrackedCell struct` holds it as it is.
+"""
+make_theme_cell(::Type{T}, scaled::ScaledTheme, f) where {T} =
+    UntrackedCell{T}(Computation(() -> f(scaled)))
+
+# An inset and a point hold cells of their own, and a read of a side records an
+# edge to it. So a derived inset or point is made once for each state of the
+# theme and kept in a computed cell, and the style field reads that cell with no
+# edge. A new one at each read would give a printer an edge to a new cell at each
+# print.
+function make_theme_cell(::Type{T}, scaled::ScaledTheme, f) where {T <: Union{Inset, Point2D}}
+    kept = Cell(Computation(() -> f(scaled)))
+    UntrackedCell{T}(Computation(() -> kept[]))
+end
+
+"""
+    get_theme_defaults(T) -> NamedTuple
+
+The values of the default theme `T()` at no scale, one for each field, as plain
+values: a length is a number of pixels. A projection built with no theme holds
+them, so it reads no cell and makes no theme. They are made once for each theme
+type, and no one edits them.
+"""
+function get_theme_defaults(T::Type)
+    lock(_THEME_DEFAULTS_LOCK) do
+        get!(_THEME_DEFAULTS, T) do
+            scaled = make_scaled_theme(T())
+            names = get_theme_field_names(T)
+            NamedTuple{names}(Tuple(getproperty(scaled, name) for name in names))
+        end
+    end
+end
+
+const _THEME_DEFAULTS = IdDict{Type,Any}()
+const _THEME_DEFAULTS_LOCK = ReentrantLock()
+
+"""
+    scale_theme(theme) -> ScaledTheme or nothing
+
+The scaled theme of `theme` at no scale, a scaled theme as it is, or `nothing`
+for no theme. A constructor of a projection calls it once on its keyword
+`theme`, and gives the result to [`make_style_field`](@ref) for each field.
+"""
+scale_theme(theme::Theme) = make_scaled_theme(theme)
+scale_theme(theme::Union{ScaledTheme,Nothing}) = theme
+
+"""
+    make_style_field(K, theme, T, name) -> T or UntrackedCell{T}
+
+The style field of type `T` of a projection that holds the field `name` of the
+theme type `K`. With a scaled theme of `K`, it is a cell that reads the value of
+`theme` at each read, with no edge ([`make_theme_cell`](@ref)). With `nothing`, it
+is the plain value of the default theme ([`get_theme_defaults`](@ref)), and the
+projection reads no cell.
+"""
+make_style_field(::Type{K}, ::Nothing, ::Type{T}, name::Symbol) where {K,T} =
+    convert(T, getproperty(get_theme_defaults(K), name))
+make_style_field(::Type{K}, theme::ScaledTheme, ::Type{T}, name::Symbol) where {K,T} =
+    make_theme_cell(T, theme, scaled -> getproperty(scaled, name))
+
+"""
     @theme struct T … end
 
 Declare the theme `T` of a domain, and its scaled theme `ScaledT`.

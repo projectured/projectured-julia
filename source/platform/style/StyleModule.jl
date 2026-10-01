@@ -120,7 +120,8 @@ export StyleStroke, make_style_stroke
 export StyleText, make_style_text
 export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize, IconSize,
        scale_length, convert_theme_value, @theme, make_scaled_theme, get_theme_field_names,
-       get_theme_type, get_theme_presets, get_base_theme, get_theme_appearance,
+       get_theme_type, get_theme_presets, get_base_theme, get_theme_appearance, make_theme_cell,
+       get_theme_defaults, scale_theme, make_style_field,
        get_appearance_file, save_appearance!, load_appearance!
 export Appearance, scale_theme_value, get_scaled_theme!, set_theme!, get_theme
 export TextMeasure, FontMetrics, StringBox, measure_string, get_font_metrics,
