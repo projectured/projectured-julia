@@ -67,8 +67,12 @@ against "Julia" in a name is a separate question.
       builds a package name from a slice name.
 - [ ] **Step 2, the check.** The guards, a precompile of `environment/all`, and
       the CI-like run of the 28 jobs, against the CI-like run of `main`.
-- [ ] **Step 3, downstream.** The same script in omnet-julia and inet-julia, on
+- [x] **Step 3, downstream.** The same script in omnet-julia and inet-julia, on
       branches of their own; both precompile against this branch.
+      Done: the branch `acronym-package-names` of omnet-julia (`74c88707`, 46
+      files) and of inet-julia (`0c109c7`, 15 files); no sealed file changed.
+      Both precompile against a clone of this branch, every package (100 and
+      12), with no package from a main checkout.
 - [x] **Step 4, the release plan.** R29 is done.
       Done: the release plan records R28 and R29 as done, so Steps B5 and B6
       wait for R27 alone.
