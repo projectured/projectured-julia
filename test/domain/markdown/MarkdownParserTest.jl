@@ -181,7 +181,9 @@ function test_markdown_parser()
     end
 
     @testset "no guide keeps a table as a paragraph of pipes" begin
-        root = normpath(joinpath(pkgdir(ProjecturedMarkdown), "..", "..", "documentation"))
+        # The guides of the kernel: `documentation/` of this repository, or the copy
+        # in an installed kernel.
+        root = ProjecturedKernel.ToolModule._get_documentation_directory()
         guides = String[]
         for (directory, _, files) in walkdir(root), file in files
             endswith(file, ".md") && push!(guides, joinpath(directory, file))
