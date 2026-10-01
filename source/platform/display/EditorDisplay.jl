@@ -34,6 +34,9 @@ Each value is a tab of one window, because the pane slice of
 each value a window of its own instead. `backend` and `tabs` apply when the
 call starts the editor. `title` names a new tab or window; a title that the
 editor has already gets a number.
+
+The editor logs only warnings and errors, so an operation in its window writes
+no line to the REPL.
 """
 function display_in_editor(value; title::AbstractString = summary(value), backend = nothing,
                            tabs::Bool = true)
@@ -130,9 +133,15 @@ function _start_session(document, title::String, backend, tabs::Bool)
     # is always loaded with this one, so `get_wrapper_layers` always has a
     # method for `:tabs`. Its setting names the first tab.
     has_tabs = hasmethod(get_wrapper_layers, Tuple{Val{:tabs}})
-    editor = run_editor!(document, projection; wait = false, backend = backend,
-                         window = window,
-                         tabs = has_tabs && tabs ? (; title, appearance) : false)
+    # The loop logs each operation that it applies as an info line, and a hover
+    # is an operation. The task of the loop keeps the logger of the scope that
+    # starts it, so the loop writes only warnings and errors to the REPL.
+    logger = Base.CoreLogging.ConsoleLogger(stderr, Base.CoreLogging.Warn)
+    editor = Base.CoreLogging.with_logger(logger) do
+        run_editor!(document, projection; wait = false, backend = backend,
+                    window = window,
+                    tabs = has_tabs && tabs ? (; title, appearance) : false)
+    end
     _EditorSession(editor, editor.loop_task, IdDict{Any,Pair{String,Any}}(), Set{String}())
 end
 

@@ -16,6 +16,8 @@ The editor draws with `NaturalToGraphics`, which asks the seam `make_graphics_pr
 
 The first call starts the editor with `run_editor!(document, projection; wait = false)`. The kernel builds the editor and runs its loop on a task pinned to another thread of the default pool, because a backend such as SDL answers only the thread that started it. So the REPL keeps its speed, and the window stays live while an input runs. With no `backend`, the one loaded backend that draws windows runs the editor.
 
+The loop logs each operation that it applies as an info line, and a hover is an operation. The display starts the editor inside `with_logger` with a console logger at the `Warn` level. The task of the loop keeps the logger of that scope, so the REPL shows the warnings and the errors of the editor and no line for each operation. The REPL keeps its own logger.
+
 A later call shows its value with `show_document!` of the screen slice. Its `tabs` wrapper holds the values as tabs of one window, because the pane slice is always loaded with it; with `tabs = false`, each value has a window of its own instead. A value that is shown already gets the focus again, and a title that the editor has already gets a number.
 
 The loop keeps the world of its start, so every call that the display posts to the editor goes through `Base.invokelatest`. `close_display_editor!()` stops the editor, and a call after the window was closed starts a new one.

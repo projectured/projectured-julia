@@ -51,6 +51,9 @@ function test_editor_display()
                 @test all(==(first(threads)), threads)
                 others = [t for t in Threads.threadpooltids(:default) if t != Threads.threadid()]
                 isempty(others) || @test first(threads) != Threads.threadid()
+                # The loop logs a warning and drops an info line.
+                logger = run_on_editor_task!(() -> Base.CoreLogging.current_logger(), editor)
+                @test Base.CoreLogging.min_enabled_level(logger) == Base.CoreLogging.Warn
                 @test _count_tabs(editor) == 1
 
                 # The same value again: the same document, and no new tab.
