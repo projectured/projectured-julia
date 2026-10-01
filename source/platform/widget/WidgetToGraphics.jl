@@ -647,9 +647,6 @@ WidgetCompositeToGraphicsCanvas(theme::ScaledWidgetTheme;
     content_color::StyleColor
     font::StyleFont             # measures the menu/toolbar band heights
     band_gap::Int               # gap below the toolbar band
-    # The band that took the last `MouseDown`, as `(shell, band)`, until the
-    # `MouseUp`. One shell projection serves one window, so this is per window.
-    capture::Base.RefValue{Any}
 end
 
 WidgetShellToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
@@ -661,7 +658,7 @@ WidgetShellToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                             font = _themed(StyleFont, theme, t -> t.font),
                             band_gap = _themed(Int, theme, t -> t.item_gap)) =
     WidgetShellToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                                padding_color, content_color, font, band_gap, Ref{Any}(nothing))
+                                padding_color, content_color, font, band_gap)
 
 @projection UntrackedCell struct WidgetTitlePaneToGraphicsCanvas
     measure::TextMeasure
@@ -2964,11 +2961,11 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
                                  time = evt.time))
         MouseDwell => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-        MouseDown => _route_composite_drag(child_iomaps, evt.x, evt.y,
+        MouseDown => _route_composite_press(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
-        MouseUp => _route_composite_drag(child_iomaps, evt.x, evt.y,
+        MouseUp => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time))
-        MouseMove => _route_composite_drag(child_iomaps, evt.x, evt.y,
+        MouseMove => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
         _ => begin
             # Coordless (keyboard) events route to the child the selection points
@@ -2987,14 +2984,12 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
     read_container_gesture(reroot_operation(op, steps), evt, iomap.input; steps)
 end
 
-# The three events a drag is made of. They route to the hit child first, exactly
-# as a click does — but when the pointer is over nothing, they are offered to the
-# children anyway, in order. **A drag must keep reaching the widget that holds
-# it even when the cursor strays off the content**: a split pane's slot is drawn
-# only where its content draws, so a splitter dragged past the text would lose its
-# own release and stay held. The tabbed pane forwards these to its active tab
-# ungated for the same reason.
-function _route_composite_drag(child_iomaps::Vector, x::Int, y::Int, make_evt)
+# A press routes to the hit child first, exactly as a click does — but when the
+# pointer is over nothing, it is offered to the children anyway, in order: a split
+# pane draws its divider in the gap between its slots, which is no hit, and the
+# press there must still grab it. The rest of a drag comes by the path of the part
+# whose drag is on.
+function _route_composite_press(child_iomaps::Vector, x::Int, y::Int, make_evt)
     hit = _route_composite_event(child_iomaps, x, y, make_evt)
     hit === nothing || return hit
     for (i, entry) in enumerate(child_iomaps)
@@ -3254,9 +3249,9 @@ map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, refer
 
 map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
-# An operation with a route goes to the part of the shell its route names, found
-# as the forward mapper finds it; every other change is read as any projection
-# reads it.
+# A change with a route goes to the part of the shell its route names, found as
+# the forward mapper finds it, with the point of a pointer gesture in the frame of
+# that band; every other change is read as any projection reads it.
 function read_intent(p::WidgetShellToGraphicsCanvas, recursion, change::Intent,
                      iomap::ChildrenIoMap)
     change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
@@ -3268,7 +3263,8 @@ function read_intent(p::WidgetShellToGraphicsCanvas, recursion, change::Intent,
         entry === nothing && continue
         (_, _, cim) = entry
         cim.input === target || continue
-        inner = read_routed_intent(cim.projection, recursion, follow_intent_route(change, head), cim)
+        inner = read_routed_entry_child(recursion, follow_intent_route(change, head), cim;
+                                        entries = (entry,))
         return Intent(change.gesture, reroot_operation(inner.operation, (head,)))
     end
     Intent(change.gesture, nothing)
@@ -3355,37 +3351,18 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     op = @gesture_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
         MouseClick  => _route_click_to_children(child_iomaps, evt)
-        # A down and an up carry coordinates like a press, so they go to the band
-        # under the pointer in that band's frame. A down also names the band that
-        # owns the drag it may start, and that band keeps it until the up.
-        MouseDown   => _route_shell_down!(p, iomap.input, child_iomaps, evt)
-        MouseUp     => _route_shell_up!(p, iomap.input, child_iomaps, evt)
-        # Pointer motion carries coordinates: route it to the band under the
-        # pointer (coordinate-translated), so a widget inside the content band gets
-        # the MouseMove.
-        # A move with a button held goes to the band that owns the drag.
-        MouseMove   => _route_shell_move(p, iomap.input, child_iomaps, evt)
-        MouseDown   => _route_shell_button(child_iomaps, evt)
-        MouseUp     => _route_shell_button(child_iomaps, evt)
+        # A down, an up and a move carry coordinates like a press, so they go to
+        # the band under the pointer, in that band's frame. The parts of a drag
+        # come by the path of the part whose drag is on, wherever the pointer is.
+        MouseDown   => _route_shell_down(child_iomaps, evt)
+        MouseUp     => _route_downup_to_children(child_iomaps, evt)
+        MouseMove   => _route_move_to_children(child_iomaps, evt)
         # Forward keyboard (and other coordless) events to the wrapped
         # child. The reader at the focused leaf returns an op; others
         # return nothing.
         _           => _forward_to_children(child_iomaps, evt)
     end
     _retarget_op(p, iomap, op)
-end
-
-# A button down and a button up go to the band under the pointer, in the frame of
-# that band, as a press does. When that band answers nothing, each band gets the
-# event in order, in its own frame, so the release of a drag that ends over
-# another band still reaches the band that holds the drag.
-function _route_shell_button(child_iomaps::Vector, evt)
-    found = _route_composite_drag(child_iomaps, evt.x, evt.y,
-        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
-                                                time = evt.time) :
-                                      MouseUp(evt.button, x, y, evt.modifiers;
-                                              time = evt.time))
-    found === nothing ? nothing : first(found)
 end
 
 # An Alt+press over a band selects in that band, and the path names the band's
@@ -3422,11 +3399,6 @@ end
 
 # ── The pointer in a shell ──────────────────────────────────────────────────
 #
-# A drag belongs to the band it started in. The band that takes a `MouseDown` gets
-# every move with a button held and the next `MouseUp`, translated into its own
-# frame wherever the pointer is, so a divider dragged across the status line keeps
-# moving and its release is not lost.
-
 # The entry of the band under a point, or `nothing`.
 function _find_shell_band_at(child_iomaps::Vector, x::Int, y::Int)
     for entry in child_iomaps
@@ -3440,18 +3412,6 @@ function _find_shell_band_at(child_iomaps::Vector, x::Int, y::Int)
     nothing
 end
 
-# The entry of the band that owns the drag in progress, or `nothing`.
-function _find_captured_band(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector)
-    captured = p.capture[]
-    captured === nothing && return nothing
-    captured.shell === shell || return nothing
-    for entry in child_iomaps
-        entry === nothing && continue
-        get_iomap_input(entry[3]) === captured.band && return entry
-    end
-    nothing
-end
-
 # Hand `evt` to one band, translated into its frame.
 function _read_band_event(entry, evt)
     (ox, oy, cim) = entry::Tuple{Int,Int,Any}
@@ -3460,29 +3420,10 @@ function _read_band_event(entry, evt)
     read_child_event(cim, shift_event_position(evt, -ox - Int(canvas.x), -oy - Int(canvas.y)))
 end
 
-function _route_shell_down!(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
-                            evt::MouseDown)
+# A down goes to the band under the pointer, in the frame of that band.
+function _route_shell_down(child_iomaps::Vector, evt::MouseDown)
     entry = _find_shell_band_at(child_iomaps, evt.x, evt.y)
-    p.capture[] = entry === nothing ? nothing :
-                  (shell = shell, band = get_iomap_input(entry[3]))
     entry === nothing ? nothing : _read_band_event(entry, evt)
-end
-
-function _route_shell_up!(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
-                          evt::MouseUp)
-    entry = _find_captured_band(p, shell, child_iomaps)
-    p.capture[] = nothing
-    entry === nothing && return _route_downup_to_children(child_iomaps, evt)
-    _read_band_event(entry, evt)
-end
-
-function _route_shell_move(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
-                           evt::MouseMove)
-    if evt.buttons != MouseButtons()
-        entry = _find_captured_band(p, shell, child_iomaps)
-        entry === nothing || return _read_band_event(entry, evt)
-    end
-    _route_move_to_children(child_iomaps, evt)
 end
 
 # Forward a coordless event to each child entry's reader, returning the
@@ -3939,10 +3880,12 @@ end
 
 # Drag lifecycle for the splitter gaps. Returns an Operation when the event
 # starts, continues, or ends a drag; `nothing` lets the event fall through to
-# the normal child-routing path below. A `MouseDown` on a band starts a drag;
-# `MouseMove` while a drag is active resizes the two adjacent slots relative to
-# the grab origin (so rounding doesn't accumulate); `MouseUp` ends it. All three
-# are marked as view state, so a history records no part of a drag.
+# the normal child-routing path below. A `MouseDown` on a band starts a drag of
+# the pane (`StartDragOperation`), so its moves come by the path of the pane,
+# wherever the pointer is; `DragMove` resizes the two adjacent slots relative to
+# the grab origin (so rounding doesn't accumulate); `DragEnd` ends it, and
+# `DragCancel` puts back the sizes of the grab. All are marked as view state, so a
+# history records no part of a drag.
 function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap,
                           w::WidgetSplitPane, evt)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -3962,8 +3905,10 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         content_main = max(0, outer_main - (orientation === :horizontal ? inset_x : inset_y))
         slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, content_main)
         coord = orientation === :horizontal ? evt.x : evt.y
-        return ReplaceViewStateOperation(StartSplitterDragOperation(w, k, coord, slot_sizes))
-    elseif evt isa MouseMove && active != 0
+        return CompoundOperation(Any[
+            ReplaceViewStateOperation(StartSplitterDragOperation(w, k, coord, slot_sizes)),
+            StartDragOperation(EmptyReference(), nothing)])
+    elseif evt isa DragMove && active != 0
         anchor = w.drag_anchor
         anchor === nothing && return nothing
         k = active
@@ -3985,21 +3930,26 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         new_a = clamp(size_a + size_b - new_b, min_a, max_a)
         new_b = size_a + size_b - new_a
         return ReplaceViewStateOperation(ResizeSplitPaneOperation(w, k, new_a, new_b))
-    elseif evt isa MouseUp && evt.button === :left && active != 0
+    elseif evt isa DragEnd && active != 0
         return ReplaceViewStateOperation(EndSplitterDragOperation(w))
+    elseif evt isa DragCancel && active != 0
+        ending = ReplaceViewStateOperation(EndSplitterDragOperation(w))
+        anchor = w.drag_anchor
+        (anchor === nothing || !(1 <= active && active + 1 <= n)) && return ending
+        return CompoundOperation(Any[
+            ReplaceViewStateOperation(ResizeSplitPaneOperation(w, active, anchor.size_a,
+                                                               anchor.size_b)),
+            ending])
     end
     nothing
 end
 
 function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     w = iomap.input
-    # A drag in progress follows the pointer past the pane's own edge: the band
-    # that holds the drag hands it every held move and the release, wherever
-    # they land, and a divider must not stop where the pane ends.
-    if w isa WidgetSplitPane && w.active_splitter > 0
-        drag = _split_drag_read(p, iomap, w, evt)
-        drag !== nothing && return drag
-    end
+    # The parts of the drag of a divider come by the path of the pane, wherever
+    # the pointer is, so a divider does not stop where the pane ends.
+    w isa WidgetSplitPane && evt isa Union{DragMove, DragEnd, DragCancel} &&
+        return _split_drag_read(p, iomap, w, evt)
     w isa WidgetSplitPane && is_move_without_button(evt) && return _read_split_move(iomap, w, evt)
     _outside_widget(iomap, evt) && return nothing
     if w isa WidgetSplitPane
@@ -4025,15 +3975,14 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
         # Coordinate-bearing pointer events (a non-drag press/release and plain
         # motion) route to the slot *under the pointer*, exactly as the composite
         # does — a move must reach whatever the pointer is over, not the selected
-        # slot, so the navigator and any other unselected pane light. A splitter drag
-        # was already consumed above by `_split_drag_read`, so a `MouseDown`/
-        # `MouseMove`/`MouseUp` reaching here is not part of a drag and belongs to a
-        # child.
-        MouseDown => _route_split_drag(child_iomaps, evt.x, evt.y,
+        # slot, so the navigator and any other unselected pane light. A press on a
+        # divider was already taken above by `_split_drag_read`, so a `MouseDown`/
+        # `MouseMove`/`MouseUp` reaching here belongs to a child.
+        MouseDown => _route_split_press(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
-        MouseUp => _route_split_drag(child_iomaps, evt.x, evt.y,
+        MouseUp => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time))
-        MouseMove => _route_split_drag(child_iomaps, evt.x, evt.y,
+        MouseMove => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
         _ => begin
             # Forward keyboard (and other coordless) events to the child the
@@ -4132,12 +4081,12 @@ function _forward_split_event_slot(child_iomaps::Vector, evt, slot::Int)
     result isa Operation ? (result, slot) : nothing
 end
 
-# The three events a drag is made of, routed like a click and then — when the
-# pointer is over nothing drawn — offered to the slots anyway. **A nested split's
-# own splitter lives in exactly that gap**: it is drawn inside the child, but the
-# parent hit-tests the child's canvas first, and a hairline between two panes is
-# not a hit. Without this, only the outermost splitter can ever be grabbed.
-function _route_split_drag(child_iomaps::Vector, x::Int, y::Int, make_evt)
+# A press, routed like a click and then — when the pointer is over nothing drawn —
+# offered to the slots anyway. **A nested split's own splitter lives in exactly
+# that gap**: it is drawn inside the child, but the parent hit-tests the child's
+# canvas first, and a hairline between two panes is not a hit. Without this, only
+# the outermost splitter can ever be grabbed.
+function _route_split_press(child_iomaps::Vector, x::Int, y::Int, make_evt)
     hit = _route_split_event(child_iomaps, x, y, make_evt)
     hit === nothing || return hit
     for (i, entry) in enumerate(child_iomaps)
@@ -6928,9 +6877,13 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
             document, field, value = resolve_write_at(x)
             # Taking the knob is a second write, and it is on the slider itself
             # rather than on the target: what is held is a property of the
-            # control, not of the value it stands for.
+            # control, not of the value it stands for. The drag starts at the
+            # press, so the knob follows the pointer from the first pixel, also
+            # off the slider; the value at the press comes back on `DragCancel`.
             CompoundOperation(Any[_write_view_state(w, "dragging", true),
-                                  ReplaceReferencedValueOperation(document, field, value)])
+                                  _write_view_state(w, "press_value", Float64(w.value)),
+                                  ReplaceReferencedValueOperation(document, field, value),
+                                  StartDragOperation(EmptyReference(), nothing)])
         end
         MouseClick(button, x, y) => begin
             button === :left || return nothing
@@ -6941,21 +6894,33 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
             Float64(w.value) == value && return _write_view_state(w, "dragging", false)
             ReplaceReferencedValueOperation(document, field, value)
         end
-        MouseMove(x, y) => begin
-            # Deliberately NOT gated on the pointer being inside: a drag that
-            # wanders off the control still moves it, which is the whole
-            # difference between a slider and a row of buttons.
+        DragMove(x, y) => begin
+            # A drag that wanders off the control still moves it, which is the
+            # whole difference between a slider and a row of buttons: the drag
+            # comes by the path of the slider, wherever the pointer is.
             w.dragging === true || return nothing
             document, field, value = resolve_write_at(x)
             Float64(w.value) == value && return nothing
             ReplaceReferencedValueOperation(document, field, value)
         end
-        MouseUp(button, x, y) => begin
-            w.dragging === true || return nothing
-            _write_view_state(w, "dragging", false)
+        DragEnd => _end_slider_drag(w)
+        DragCancel => begin
+            ending = _end_slider_drag(w)
+            ending === nothing && return nothing
+            start = w.press_value
+            (start isa Real && Float64(w.value) != Float64(start)) || return ending
+            document, field, value = resolve_slider_write(w, Float64(start))
+            CompoundOperation(Any[ending, ReplaceReferencedValueOperation(document, field, value)])
         end
         _ => nothing
     end
+end
+
+# The end of the drag of a slider: the knob is no longer held.
+function _end_slider_drag(w::WidgetSlider)
+    w.dragging === true || return nothing
+    CompoundOperation(Any[_write_view_state(w, "dragging", false),
+                          _write_view_state(w, "press_value", nothing)])
 end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
@@ -10261,4 +10226,89 @@ function WidgetToGraphics(; measure::TextMeasure,
     TypeDispatchingProjection(vcat(widgets.dispatch,
         LayoutToGraphics(; selection_ring_stroke =
             _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width))).dispatch))
+end
+
+# ── A route gives a child the point in its own frame ───────────────────────
+#
+# A container that a route passes moves the point of a pointer gesture into the
+# frame of the child that the route reaches, and the positions of the answer
+# back, as for a gesture that it gives to the child at the point. Most
+# containers keep the place of each child in an `(x, y, child_iomap)` entry; a
+# pane, a context menu and an accordion move the point as their own readers do.
+
+const _PlacingWidgetProjection = Union{
+    WidgetTooltipToGraphicsCanvas, WidgetMenuToGraphicsCanvas,
+    WidgetCompositeToGraphicsCanvas, WidgetTitlePaneToGraphicsCanvas,
+    WidgetSplitPaneToGraphicsCanvas, WidgetTabbedPaneToGraphicsCanvas,
+    WidgetToolbarToGraphicsCanvas, WidgetCardToGraphicsCanvas,
+    WidgetMenuItemToGraphicsCanvas}
+
+ProjectionModule.read_child_by_route(::_PlacingWidgetProjection, recursion, change::Intent,
+                                     iomap, child) =
+    read_routed_entry_child(recursion, change, child;
+                            entries = _get_route_entries(iomap.child_iomaps))
+
+function ProjectionModule.read_child_by_route(::WidgetDialogToGraphicsCanvas, recursion,
+                                              change::Intent,
+                                              iomap::WidgetDialogToGraphicsCanvasIoMap, child)
+    entries = Any[iomap.button_entries...]
+    iomap.content_entry === nothing || pushfirst!(entries, iomap.content_entry)
+    read_routed_entry_child(recursion, change, child; entries)
+end
+
+# The entries of a container, whether its IoMap holds them bare or in a cell.
+_get_route_entries(entries::AbstractCell) = _get_route_entries(entries[])
+_get_route_entries(entries) = entries
+
+# A pane moves the point past its content origin and its scroll.
+function ProjectionModule.read_child_by_route(p::WidgetScrollPaneToGraphicsCanvas, recursion,
+                                              change::Intent,
+                                              iomap::WidgetScrollPaneToGraphicsCanvasIoMap, child)
+    child === iomap.content_iomap ||
+        return read_routed_intent(get_iomap_projection(child), recursion, change, child)
+    ox, oy = _find_scroll_pane_local_point(p, iomap, 0, 0)
+    read_routed_child_in_frame(recursion, change, child;
+                               move_in = (x, y) -> (x + ox, y + oy),
+                               move_out = (x, y) -> (x - ox, y - oy))
+end
+
+# A transform pane moves the point through the inverse of its transform.
+function ProjectionModule.read_child_by_route(p::WidgetTransformPaneToGraphicsCanvas, recursion,
+                                              change::Intent,
+                                              iomap::WidgetTransformPaneToGraphicsCanvasIoMap,
+                                              child)
+    child === iomap.content_iomap ||
+        return read_routed_intent(get_iomap_projection(child), recursion, change, child)
+    M = getfield(iomap.input, :transform)[]::AffineTransform
+    cox, coy = _content_offset(p, iomap.input)
+    move_out(x, y) = begin
+        px, py = apply_affine_transform(M, Float64(x), Float64(y))
+        (round(Int, px) + cox, round(Int, py) + coy)
+    end
+    read_routed_child_in_frame(recursion, change, child;
+                               move_in = (x, y) -> _find_transform_pane_local_point(p, iomap, x, y),
+                               move_out)
+end
+
+function ProjectionModule.read_child_by_route(p::WidgetContextMenuToGraphicsCanvas, recursion,
+                                              change::Intent,
+                                              iomap::WidgetContextMenuToGraphicsCanvasIoMap, child)
+    child === iomap.child_iomap ||
+        return read_routed_intent(get_iomap_projection(child), recursion, change, child)
+    dx, dy = _get_context_menu_child_offset(p, iomap)
+    read_routed_child_in_frame(recursion, change, child;
+                               move_in = (x, y) -> (x - dx, y - dy),
+                               move_out = (x, y) -> (x + dx, y + dy))
+end
+
+function ProjectionModule.read_child_by_route(::WidgetAccordionToGraphicsCanvas, recursion,
+                                              change::Intent,
+                                              iomap::WidgetAccordionToGraphicsCanvasIoMap, child)
+    entry = iomap.body_entry
+    (entry !== nothing && last(entry) === child) ||
+        return read_routed_intent(get_iomap_projection(child), recursion, change, child)
+    dx, dy = _get_accordion_body_offset(iomap, entry)
+    read_routed_child_in_frame(recursion, change, child;
+                               move_in = (x, y) -> (x - dx, y - dy),
+                               move_out = (x, y) -> (x + dx, y + dy))
 end

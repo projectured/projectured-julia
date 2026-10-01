@@ -411,6 +411,7 @@ include("../../../test/platform/shell/ContextMenuWindowTest.jl")
 include("../../../test/platform/shell/WindowShellTest.jl")
 include("../../../test/platform/shell/FileDialogTest.jl")
 include("../../../test/platform/shell/TrackingScreenTest.jl")
+include("../../../test/platform/shell/DragTrackingTest.jl")
 include("../../../test/platform/shell/PointerLightTest.jl")
 
 include("../../../test/platform/shell/ShellSuite.jl")

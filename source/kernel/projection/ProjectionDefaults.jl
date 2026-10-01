@@ -269,8 +269,12 @@ and `read_intent`, which it calls.
 """
 function read_routed_intent(projection, recursion, change::Intent, iomap)
     change.route isa EmptyReference || return read_intent(projection, recursion, change, iomap)
+    # The part reads the gesture as a gesture at its point, with no route: a
+    # container that is the part reads it with its own reader, as a leaf does.
     change.operation === nothing && change.gesture !== nothing &&
-        return read_intent(projection, recursion, change, iomap)
+        return read_intent(projection, recursion,
+                           Intent(change.gesture, nothing, change.description, change.domain),
+                           iomap)
     Intent(change.gesture, change.operation, change.description, change.domain)
 end
 
@@ -300,7 +304,10 @@ child. That child gets `change` with the rest of the route
 taken, as the answer to a gesture does. A container can hold a child through a
 node that has no IoMap of its own, as a split pane holds each pane in a
 `LayoutConstraint`, so the walk goes on until it reaches a child; a child whose
-input is the input of the container gets the whole route.
+input is the input of the container gets the whole route. The child reads the
+change through [`read_child_by_route`](@ref), so a container that draws its
+children in frames of their own gives a pointer gesture to the child with the
+point in the child's frame.
 
 **A gesture goes out from its part.** When the route reaches no child, the deepest
 node it reached is the part, and it may be the container itself. Then, and after
@@ -324,8 +331,8 @@ function read_routed_child(recursion, change::Intent, iomap)
         for child in children
             get_iomap_input(child) === node || continue
             steps = Tuple(taken)
-            inner = read_routed_intent(get_iomap_projection(child), recursion,
-                                       follow_intent_route(change, steps...), child)
+            inner = read_child_by_route(get_iomap_projection(iomap), recursion,
+                                        follow_intent_route(change, steps...), iomap, child)
             answer = reroot_operation(inner.operation, steps)
             return Intent(change.gesture,
                           _read_outward(change, answer, nodes, taken, !(answer isa Operation)))
@@ -343,6 +350,21 @@ function read_routed_child(recursion, change::Intent, iomap)
     end
     Intent(change.gesture, _read_outward(change, nothing, nodes, taken, true))
 end
+
+"""
+    read_child_by_route(projection, recursion, change, iomap, child) -> Intent
+
+The answer of `child`, one of the child IoMaps of `iomap`, to `change`, whose
+route leads into that child: how [`read_routed_child`](@ref) reads each child
+that a route reaches. `projection` is the projection of `iomap`. By default the
+child reads `change` as it is. A container that draws its children in frames of
+their own adds a method for its projection, which moves the point of a pointer
+gesture into the frame of `child` and moves the positions of the answer back,
+as it does for a gesture that it gives to the child at the point. So a route
+gives a part the point in its own frame.
+"""
+read_child_by_route(projection, recursion, change::Intent, iomap, child) =
+    read_routed_intent(get_iomap_projection(child), recursion, change, child)
 
 """
     read_gesture_outward(answer, gesture, document; steps, with_part = false) -> operation or answer

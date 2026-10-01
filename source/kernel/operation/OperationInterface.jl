@@ -74,8 +74,9 @@ function rewrap_operation end
     ReplacePathOperation
 
 An operation that replaces a kind of path of the documents on it: the selection
-(`ReplaceSelectionOperation`) or the part under the pointer
-(`ReplaceMouseTargetOperation`). `get_operation_path` reads its path, and
+(`ReplaceSelectionOperation`), the part under the pointer
+(`ReplaceMouseTargetOperation`), or the part whose drag is on
+(`StartDragOperation`). `get_operation_path` reads its path, and
 `make_path_operation` makes the same kind of operation with another path, so a
 container that puts its own steps before the answer of a child, and a projection
 that maps the answer backward, handle every kind in one method, and a later kind

@@ -41,7 +41,7 @@ const ARGUMENT_PROTOCOL = Set(String[
     "splice_value!", "copy_document",
     "getproperty", "setproperty!", "getindex", "setindex!", "iterate", "length",
     "show", "hash", "isequal", "print", "size", "handle_message", "shouldlog",
-    "sync_document!", "layout_graph", "recognize",
+    "sync_document!", "layout_graph", "recognize", "read_child_by_route",
 ])
 
 "One definition of a file: where it stands, what it is called, and what it takes."

@@ -262,6 +262,8 @@ function map_reference_forward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
 end
 
 function map_reference_backward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, reference)
+    # The composite that holds the layout is the view of the tree, whole.
+    reference isa EmptyReference && return EmptyReference(PaneTree)
     @reference_case reference begin
         ::WidgetComposite.elements{s:e}.rest... => begin
             s == 0 || return nothing        # slot 2 is the indicator: nothing to map
@@ -324,6 +326,9 @@ end
 
 function map_reference_backward(::PaneSplitToWidgetSplitPane,
                                 iomap::PaneSplitToWidgetSplitPaneIoMap, reference)
+    # The split pane is the view of the split, whole: a part that names the pane
+    # itself, as a divider that starts a drag does, names the split.
+    reference isa EmptyReference && return EmptyReference(PaneSplit)
     # Each slot is wrapped in a `LayoutConstraint`, so the split pane's reader
     # prepends `elements[i].child` to whatever the slot answered.
     @reference_case reference begin
@@ -436,6 +441,8 @@ end
 
 function map_reference_backward(::PaneGroupToWidgetTabbedPane,
                                 iomap::PaneGroupToWidgetTabbedPaneIoMap, reference)
+    # The tabbed pane is the view of the group, whole.
+    reference isa EmptyReference && return EmptyReference(PaneGroup)
     @reference_case reference begin
         ::WidgetTabbedPane.selector_element_pairs{s:e}.rest... => begin
             i = s + 1

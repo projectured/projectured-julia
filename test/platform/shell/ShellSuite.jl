@@ -54,6 +54,7 @@ function test_shell()
         test_window_shell()
         test_file_dialog()
         test_tracking_screen()
+        test_drag_tracking()
         test_pointer_light()
     end
 end
@@ -61,4 +62,4 @@ end
 export test_shell, test_shell_completeness, test_window_wrap,
        test_widget_tooltip,
        test_context_menu_window, test_window_shell, test_file_dialog,
-       test_tracking_screen, test_pointer_light
+       test_tracking_screen, test_drag_tracking, test_pointer_light

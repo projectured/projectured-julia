@@ -1059,12 +1059,12 @@ function test_chart_projection()
             evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
             @test plot.drag_anchor !== nothing
 
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1, y1; time = 0.0)))
             @test plot.drag_rect !== nothing
             # While the band is up it is drawn over the series.
             @test _count_kind(_series_elements(iomap.output), GraphicsRect) >= 1
 
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1, y1, ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x1, y1; time = 0.0)))
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             v = resolve_view(plot)
             # The committed window is what the band enclosed.
@@ -1074,29 +1074,27 @@ function test_chart_projection()
             # A band that never grew is a click, not a zoom.
             plot.view = nothing
             evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x0 + 2, y0 + 2, ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x0 + 2, y0 + 2; time = 0.0)))
             @test plot.view === nothing
 
             # A move with no button held mid-drag, as after a release that was
             # lost, abandons it rather than committing halfway.
             evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys(); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x0, y0, MouseButtons(), ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1, y1; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragCancel(; time = 0.0)))
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
 
             # Shift-dragging pans instead of banding.
             evaluate_operation(nothing, read_intent(proj, iomap,
                 MouseDown(:left, x1, y1, ModifierKeys(; shift=true); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseMove(x1 - 40, y1, MouseButtons(:left), ModifierKeys(; shift=true); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)))
             @test plot.drag_rect === nothing
             @test plot.view !== nothing
             # A move to the point of the last move writes no cell, though the pan
             # changed the geometry that the first move read.
-            @test read_intent(proj, iomap,
-                MouseMove(x1 - 40, y1, MouseButtons(:left), ModifierKeys(; shift=true); time = 0.0)) === nothing
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1 - 40, y1, ModifierKeys(); time = 0.0)))
+            @test read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)) === nothing
+            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x1 - 40, y1; time = 0.0)))
         end
 
         @testset "crosshair" begin

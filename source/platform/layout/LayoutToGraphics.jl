@@ -2294,3 +2294,15 @@ function LayoutToGraphics(; selection_ring_stroke::Union{StyleStroke, UntrackedC
         AnchoredLayout   => AnchoredLayoutToGraphicsCanvas(; selection_ring_stroke),
     )
 end
+
+# A route gives the child that it reaches the point in the child's own frame, as
+# a gesture at the point does: each layout keeps the place of each child in an
+# entry of its IoMap.
+const _PlacingLayoutProjection = Union{
+    HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
+    GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas, StackLayoutToGraphicsCanvas,
+    ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas}
+
+ProjectionModule.read_child_by_route(::_PlacingLayoutProjection, recursion, change::Intent,
+                                     iomap, child) =
+    read_routed_entry_child(recursion, change, child; entries = iomap.child_iomaps)

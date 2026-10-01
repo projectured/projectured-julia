@@ -451,13 +451,13 @@ function test_application()
                                                     make_opened_window_projections()))
                 @test editor.iomap !== nothing
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
-                # The screen is inside the state of the gesture tracker, inside the
-                # appearance document, and each holds the same path under its
-                # `content` step.
+                # The screen is inside the state of the drag tracker, inside the state
+                # of the gesture tracker, inside the appearance document, and each
+                # holds the same path under its `content` step.
                 screen = get_wrapped_document(editor.document)
                 @test _app_is_one_path(screen)
                 @test repr(strip_reference_types(get_selection(editor.document))) ==
-                      ".content.content" * repr(strip_reference_types(get_selection(screen)))
+                      ".content.content.content" * repr(strip_reference_types(get_selection(screen)))
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end
 
@@ -1331,6 +1331,26 @@ function test_application()
                 steps() = length(history.undo_entries)
                 tree = _app_window(document)
                 held(x, y) = MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0)
+                # The path of the part a press starts the drag of, from the
+                # `StartDragOperation` inside its answer, or `nothing`.
+                function drag_path(operation)
+                    operation isa StartDragOperation && return get_operation_path(operation)
+                    if operation isa CompoundOperation
+                        for member in operation.operations
+                            found = drag_path(member)
+                            found === nothing || return found
+                        end
+                    end
+                    operation isa WrappingOperation && return drag_path(get_wrapped_operation(operation))
+                    nothing
+                end
+                # `gesture` to the part at `path`, by the route a press's answer named
+                # — the way the drag wrapper sends the rest of a drag, with no
+                # tracker here to do it.
+                function drag(path, gesture)
+                    change = read_intent(composed, nothing, Intent(gesture, nothing, "", "", path), io)
+                    change isa Intent ? change.operation : change
+                end
 
                 # A row of the navigator lights up through the mouse target that
                 # a move writes at the screen, and the history does not grow.
@@ -1358,11 +1378,14 @@ function test_application()
                 @test grab !== nothing
                 x = (280:360)[grab]
                 recorded = steps()
-                apply(fire(MouseDown(:left, x, 500; time = 0.0)))
+                press = fire(MouseDown(:left, x, 500; time = 0.0))
+                path = drag_path(press)
+                @test path isa Reference
+                apply(press)
                 before = weights()
-                apply(fire(held(x + 80, 500)))
-                apply(fire(held(x + 40, 500)))
-                apply(fire(MouseUp(:left, x + 40, 500; time = 0.0)))
+                apply(drag(path, DragMove(x + 80, 500; time = 0.0)))
+                apply(drag(path, DragMove(x + 40, 500; time = 0.0)))
+                apply(drag(path, DragEnd(x + 40, 500; time = 0.0)))
                 @test weights() != before
                 @test steps() == recorded
 

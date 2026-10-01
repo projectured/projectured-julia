@@ -21,3 +21,22 @@ function shift_event_position(event::Union{Event, Gesture}, dx::Integer, dy::Int
        name === :y ? getfield(event, :y) + dy : getfield(event, name)
        for name in fieldnames(T))...)
 end
+
+"""
+    map_event_position(event, move) -> event
+
+`event` with its position `(x, y)` replaced by `move(x, y) -> (x, y)`: a pointer
+event or a pointer gesture of a container, moved into the frame of a child that
+the container draws with a transform of its own, such as a scale. An event with
+no position, and a value that is no event, come back unchanged.
+"""
+function map_event_position(event::Union{Event, Gesture}, move)
+    T = typeof(event)
+    (hasfield(T, :x) && hasfield(T, :y)) || return event
+    x, y = move(getfield(event, :x), getfield(event, :y))
+    T((name === :x ? convert(fieldtype(T, :x), x) :
+       name === :y ? convert(fieldtype(T, :y), y) : getfield(event, name)
+       for name in fieldnames(T))...)
+end
+
+map_event_position(event, move) = event

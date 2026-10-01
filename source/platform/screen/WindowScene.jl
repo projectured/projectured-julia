@@ -106,6 +106,9 @@ under the pointer. The keywords:
   innermost. A wrapper there sees each gesture before the screen reads it, and
   each answer after it comes back, in every window: the wrappers that keep the
   tooltip window and the context menu window go there.
+- `drag_tracking` — the drag tracking projection, just inside the gesture
+  tracker: it keeps the part whose drag is on, and gives that part each move,
+  the release and the end with no change of its drag, wherever the pointer is.
 - `gesture_tracking` — the gesture tracking projection, which runs
   `recognitions`: by default the click with its count, the key chord and the
   mouse dwell. A host adds the recognition of a gesture of its own to the list.
@@ -117,10 +120,15 @@ Use it wherever a host makes an editor over a screen. The wrapper `window` of
 document; `get_wrapped_document` of it answers the screen.
 """
 function make_tracking_screen(document, projection; inner_wrappers::Vector = [],
+                              drag_tracking::Bool = true,
                               gesture_tracking::Bool = true,
                               recognitions::Vector = make_standard_recognitions())
     for wrap in inner_wrappers
         document, projection = wrap(document, projection)
+    end
+    if drag_tracking
+        document = make_drag_tracking_document(document)
+        projection = make_drag_tracking_projection(projection)
     end
     if gesture_tracking
         document = make_gesture_tracking_document(document)

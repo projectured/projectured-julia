@@ -55,7 +55,8 @@ A chart together with how it is currently being looked at.
 - `cursor` — the pointer in data coordinates, or `nothing`; drives the crosshair.
 - `drag_anchor` / `drag_rect` — pixel state while a rubber-band zoom or a pan is
   in progress, cleared when it commits or cancels. The anchor holds the point of
-  the press, the mode, and the window and the two axis scales at the press.
+  the press, the mode, the window and the two axis scales at the press, and the
+  `view` that the plot held at the press, which a cancelled pan puts back.
 """
 @document struct ChartPlot <: ChartDocument
     chart::Any

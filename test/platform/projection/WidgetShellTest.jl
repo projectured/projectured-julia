@@ -108,8 +108,40 @@ function test_widget_shell_pointer()
         menu_bar = WidgetMenu(Any[WidgetMenuItem("File")]; orientation = :horizontal),
         toolbar = WidgetToolbar(Any[WidgetMenuItem("New tab")]),
         status_bar = WidgetStatusBar(Any["ready"]))
-    # A drag is view state, so its operations come marked.
-    _unmark(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
+    # A drag is view state, so its operations come marked. The press now answers
+    # a `CompoundOperation` that also starts the drag (`StartDragOperation`), so
+    # the marked operation is found among its members.
+    function _unmark(op)
+        op isa ReplaceViewStateOperation && return get_wrapped_operation(op)
+        if op isa CompoundOperation
+            for member in op.operations
+                member isa ReplaceViewStateOperation && return get_wrapped_operation(member)
+            end
+        end
+        op
+    end
+
+    # The path of the part a press starts the drag of, from the
+    # `StartDragOperation` inside its answer, or `nothing`.
+    function _drag_path(op)
+        op isa StartDragOperation && return get_operation_path(op)
+        if op isa CompoundOperation
+            for member in op.operations
+                found = _drag_path(member)
+                found === nothing || return found
+            end
+        end
+        op isa ReplaceViewStateOperation && return _drag_path(get_wrapped_operation(op))
+        nothing
+    end
+
+    # `gesture` to the part at `path`, by the route a press's answer named — the
+    # way the drag wrapper sends the rest of a drag, with the point in the root's
+    # frame, as the original press was.
+    function _shell_drag(projection, iomap, path, gesture)
+        answer = read_intent(projection, nothing, Intent(gesture, nothing, "", "", path), iomap)
+        answer isa Intent ? answer.operation : answer
+    end
 
     @testset "a down on a tab starts a drag of that tab" begin
         tabs = WidgetTabbedPane(Any[("One", WidgetLabel("first")),
@@ -136,12 +168,14 @@ function test_widget_shell_pointer()
         end
         @test grab !== nothing
         (x, operation) = grab
+        path = _drag_path(operation)
+        @test path isa Reference
         evaluate_operation(nothing, operation)
         # The pointer moves on over the status line with the button held: the
         # divider still follows, and the release still ends the drag.
-        moved = read_intent(rec, iomap, MouseMove(x + 40, 600 - line ÷ 2, MouseButtons(:left), ModifierKeys(); time = 0.0))
+        moved = _shell_drag(rec, iomap, path, DragMove(x + 40, 600 - line ÷ 2; time = 0.0))
         @test _unmark(moved) isa ResizeSplitPaneOperation
-        released = read_intent(rec, iomap, MouseUp(:left, x + 40, 600 - line ÷ 2; time = 0.0))
+        released = _shell_drag(rec, iomap, path, DragEnd(x + 40, 600 - line ÷ 2; time = 0.0))
         @test _unmark(released) isa EndSplitterDragOperation
     end
 end

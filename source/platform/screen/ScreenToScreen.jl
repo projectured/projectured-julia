@@ -189,12 +189,15 @@ end
 # is rooted at the ScreenDocument.
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenToScreenIoMap)
-    # An operation with a route goes to the window its route names.
+    # A change with a route goes to the window its route names, a pointer gesture
+    # with its point in the frame of that window.
     if change.route !== nothing
         for (i, wim) in enumerate(iomap.window_iomaps)
             steps = (FieldReferenceStep("windows"), ElementReferenceStep(i))
             routed = follow_intent_route(change, steps...)
             routed === nothing && continue
+            routed = Intent(_make_window_event(iomap, routed.gesture, i), routed.operation,
+                            routed.description, routed.domain, routed.route)
             inner = read_routed_intent(wim.projection, recursion, routed, wim)
             return Intent(change.gesture, _prefix_op(inner.operation, steps))
         end
@@ -233,6 +236,21 @@ function _find_window_index(iomap::ScreenToScreenIoMap, id)
         window isa WindowDocument && window.id === id && return index
     end
     0
+end
+
+# The gesture of a routed change in the frame of window `index`. A pointer event
+# of a window comes as `WindowInput`; when that window is not the one that the
+# route names, as when the pointer is over a popup during a drag, the point moves
+# by the places of the two windows on the screen.
+function _make_window_event(iomap::ScreenToScreenIoMap, gesture, index::Int)
+    gesture isa WindowInput || return gesture
+    event = gesture.event
+    from = _find_window_index(iomap, gesture.window_id)
+    (from == 0 || from == index) && return event
+    source, target = iomap.window_iomaps[from].input, iomap.window_iomaps[index].input
+    shift_event_position(event,
+        _wval(getfield(source, :x)) - _wval(getfield(target, :x)),
+        _wval(getfield(source, :y)) - _wval(getfield(target, :y)))
 end
 
 # The pointer leaves the window that the screen's mouse target names, when a move
@@ -277,7 +295,10 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         routed = follow_intent_route(change, steps...)
         routed === nothing && return Intent(change.gesture, nothing)
         cim = iomap.content_iomap
-        inner = read_routed_intent(cim.projection, recursion, routed, cim)
+        x, y = _get_content_place(iomap)
+        inner = read_routed_child_in_frame(recursion, routed, cim;
+                                           move_in = (a, b) -> (a - x, b - y),
+                                           move_out = (a, b) -> (a + x, b + y))
         return Intent(change.gesture, _open_popup_windows(_prefix_op(inner.operation, steps), iomap.input))
     end
     window_input = change.gesture
@@ -315,9 +336,9 @@ end
 # what it draws, up to the size of the popup. The mark that kept it out of a history is not needed above the
 # window, so a popup inside `ReplaceViewStateOperation` opens bare, and the
 # window manager finds it. Any other operation that holds a point, such as a
-# tooltip, has it moved into the screen here too (`map_operation_position`); an
-# answer to a routed gesture holds a point in the frame of the window, because a
-# route moves no point.
+# tooltip, has it moved into the screen here too (`map_operation_position`), also
+# in the answer to a routed gesture, whose point each container on the route moved
+# into the frame of its child.
 _open_popup_windows(op, window::WindowDocument) =
     _open_popup_window(op, _wval(getfield(window, :x)), _wval(getfield(window, :y)))
 _open_popup_windows(op, window) = op
