@@ -908,10 +908,11 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     DataFrames, `ProjecturedKernel` and `ProjecturedPlatform`, and it adds no
     backend, no pane and no display. At the owner's word it exports
     `display_in_editor` and `close_display_editor!` of the display slice.
-- [ ] **3. Refresh.** The three levels of §4.3, as the method of
+- [x] **3. Refresh.** The three levels of §4.3, as the method of
   `refresh_document!` for `DataFrameView`. The triggers A, B and D, with no
   busy flag. C is a keyword that is off by default (D3).
-  Started 2026-10-01 (the owner: "do phase 3, refresh"); done except B:
+  Done 2026-10-01 (the owner: "do phase 3, refresh"), except B, which is
+  deferred (the owner, 2026-10-01: "defer trigger B now"):
   - `DataFrameRefresh.jl`: a snapshot of the three levels (the structure;
     a hash of 100 rows from the top row and 64 shown columns; the full
     content of the columns that the query reads, because `hash` of an array
@@ -929,8 +930,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     shown document and waits, for a person in the REPL (mine: a name that the
     plan did not have, and the step that B also calls).
   - A comes with phase 4: an edit through the view moves the version itself.
-  - B waits for the owner: the REPL has no hook after an input; the
-    recommendation of the writer is a task that an `ast_transforms` entry
+  - B is deferred: the REPL has no hook after an input; the recommendation
+    of the writer, kept for when B is taken up, is a task that an `ast_transforms` entry
     starts with each input and that waits until
     `Base.active_repl_backend.in_eval` is false, an internal field, and does
     nothing when a later Julia renames it.
