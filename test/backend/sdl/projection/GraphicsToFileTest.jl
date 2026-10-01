@@ -2,7 +2,7 @@ function test_write_image()
 
 @testset "write_image(document, projection, filename)" begin
     doc  = make_json_document_example()
-    proj = make_graphics_image_projection_example()
+    proj = make_json_projection_example()
     filename = tempname() * ".bmp"
     img = write_image(doc, proj, filename; width=400, height=300)
     @test img isa ImageFile
@@ -93,7 +93,7 @@ end
     # GraphicsCanvasToImageFile is exported by the Sdl package, which the
     # test module opts into via `using ProjecturedSDL`.
     proj = ChainingProjection(
-        make_graphics_image_projection_example(),
+        make_json_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),
     )
     iomap = print_document(proj, doc)
@@ -107,7 +107,7 @@ end
     # The methods extend the generics of the projection layer: the slice holds
     # no function of its own under these names.
     for name in (:map_reference_forward, :map_reference_backward)
-        generic = getfield(Projectured.ProjectionModule, name)
+        generic = getfield(ProjecturedKernel.ProjectionModule, name)
         method = which(generic, Tuple{GraphicsCanvasToImageFile, Any, Any})
         @test method.module === ProjecturedSDL.SdlModule
         @test !isdefined(ProjecturedSDL.SdlModule, name) ||

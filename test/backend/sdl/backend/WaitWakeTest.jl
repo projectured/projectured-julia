@@ -3,7 +3,7 @@
 # event. The wait only looks at the queue: everything stays for `read!`.
 
 # Every name this file calls — the seam functions, the event types — arrives
-# flat through `using Projectured` in the test package.
+# through the `using` lines of the test package.
 
 # Every timing assertion here is one-sided and generous: the machine may be
 # loaded, so a bound says "far less than the full timeout", never "exactly

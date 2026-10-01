@@ -1,5 +1,4 @@
 using Test
-using Projectured
 
 # Read-only tests for DbCatalogToSyntax projection.
 # Tests that each DbCatalog document type projects to a Syntax tree

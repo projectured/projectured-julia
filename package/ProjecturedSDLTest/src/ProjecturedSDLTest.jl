@@ -7,16 +7,16 @@ suites moved down from the umbrella:
 - `DirtyRectTest` — the `_compute_dirty_rect` diff over `SdlWindowResources`;
 - `GraphicsToFileTest` — the `write_image` path (GraphicsCanvas → image file).
 
-Needs native SDL2, so it precompiles and runs only where SDL is installed. Like
-the umbrella and the opt-in example packages, it resolves through the root env
-and uses the flat `Projectured` namespace plus `ProjecturedSDL` / the example
-factories.
+Needs native SDL2, so it precompiles and runs only where SDL is installed. Its
+fixture is a JSON document.
 """
 module ProjecturedSDLTest
 
 using Test
-using Projectured
-using ProjecturedExample
+using ProjecturedKernel
+using ProjecturedPlatform
+using ProjecturedJSON
+using ProjecturedJSONExample
 using ProjecturedSDL
 using ProjecturedKernelTest
 

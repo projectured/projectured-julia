@@ -1,5 +1,4 @@
 using Test
-using Projectured
 
 # Read-only live-DB tests for the DbCatalog hierarchy.
 # No tables are created or modified — all queries target system catalogs.
