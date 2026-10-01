@@ -111,3 +111,7 @@ The Insert key in an empty tab opens an insertion field instead: type the kind o
 
 - **F1** opens the gesture help: every key that works where the selection is now, with what it does. It is a view of the same kind as the others, so it follows the selection while it is open.
 - **Ctrl + Shift + P** opens the command palette: type a few letters of a command, and press Enter to run it. It finds a command that has no key of its own.
+
+## The settings
+
+The gear of the toolbar, or View > Settings, opens the settings of the editor in a tab: one switch or number for each setting, a button that resets it, and Reset all, Save and Load under them. A change takes effect at once, and Ctrl+Z in the window takes it back. The palette has "Toggle partial render" and "Toggle repaint outline".

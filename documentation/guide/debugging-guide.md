@@ -81,6 +81,26 @@ julia> run_editor!(document, projection; window = (; title = "Title"),
 A `FaultCatchingProjection` in the pipeline reads the same policy, so it raises
 the exception again too and draws no mark.
 
+The settings tab of a running editor shows the same policy as "Catch faults",
+"Log faults" and "Fault sound", and a change there takes effect at once: the
+editor prints the view again with the new policy.
+
+## See what a frame repaints
+
+A window can repaint only the parts that changed, and outline in red what each
+frame repaints. Turn both on for one run with environment variables:
+
+```sh
+PROJECTURED_PARTIAL_RENDER=1 PROJECTURED_DEBUG_DIRTY=1 bin/projectured
+```
+
+`PROJECTURED_SUPERSAMPLE=1` turns the smoothing of the edges off. In a running
+editor, the settings tab (the gear of the toolbar, or View > Settings) shows the
+same values as the render group, and the commands "Toggle partial render" and
+"Toggle repaint outline" of the palette (Ctrl+Shift+P) switch them. A variable
+wins over the settings file for that run. See
+[settings.md](../package/platform/settings/settings.md).
+
 ## The gesture log overlay
 
 `gesture_log=true` puts a panel over the content of each window. The panel shows

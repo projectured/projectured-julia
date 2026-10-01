@@ -861,7 +861,10 @@ the pixels and the test counts of the baseline of S0.
 - [ ] **S10. The start settings**, a later part after S0 to S9 (D1).
   `StartSettings` in `application`, read by `run_application`.
   - Tests: the file, the environment and the command line in their order.
-- [ ] **S11. The guides.** A new design document
+- [ ] **S11. The guides.** For S0 to S9, done on 2026-10-01: `settings.md` and
+  `settingsmanaging.md` (new), and the passages in `sdl.md`, `video.md`,
+  `debugging-guide.md`, `keyboard-and-mouse-guide.md` and `testing-guide.md`.
+  The start settings of S10 add theirs. The plan asked: A new design document
   `documentation/package/platform/settings/`. The changes in the guides of the
   SDL backend, the video backend, the screen, the fault slice and the undo
   slice. The environment variables in `debugging-guide.md`. The settings

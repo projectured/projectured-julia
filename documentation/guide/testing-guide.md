@@ -253,6 +253,19 @@ regression). The open bugs are `grep "@catalog-broken"` in
 [CatalogTest.jl](../../test/projectured/projection/CatalogTest.jl). See
 `plan/**/catalog-{deferred,compound,all}-*.md` for how the atoms were added.
 
+## A test that checks the root of a built editor
+
+`build_editor` applies the wrappers that are on by default, and the platform has
+three: `tabs`, `appearance` and `settings`. Each puts a document around the root.
+A test that checks the root document after `build_editor`, or the depth of a
+selection path, turns them off: `tabs = false, appearance = false,
+settings = false`. A keyword that is off and that no loaded package declares is
+ignored, so a test of the kernel alone can pass them too.
+
+With the `settings` wrapper on and no `Settings` given, the settings read the
+values of the editor and of its backend when the editor starts, so a test that
+gives `build_editor` a `fault_policy`, or a backend its keywords, keeps them.
+
 ## Testing a single example
 
 Each example-level test is also defined for a single `Example` or a labelled
