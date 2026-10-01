@@ -1164,7 +1164,7 @@ already; the sealed selection files do not change (Q4).
     and `WidgetTextarea` are not checked; a view that makes widgets reads the
     widget documents on the way, and the documents of its domain only when
     nothing answered (through the backward map at its parent).
-- [ ] 8. **The tracker goes.** `ProjecturedMouseTargetTracking`, the gestures
+- [x] 8. **The tracker goes.** `ProjecturedMouseTargetTracking`, the gestures
   `MouseEnter`, `MouseLeave` and `MouseHover` with their patterns, the routes of
   the crossings, the leave route of Q35 and the timer of the waiting crossings.
   `make_tracking_screen` keeps the gesture tracker. The hosts follow: the
@@ -1215,6 +1215,14 @@ already; the sealed selection files do not change (Q4).
     button held stays drawn pressed until the release, because only a move with
     no button held gives the leave; the tracker's `MouseLeave` came on a held
     move too. The drag of step 5b covers this.
+  - Checks: the move test 70, the kernel, the platform (84409 against 84435 on
+    main: the 37 assertions of the tracker's test less the 16 that moved, and the
+    assertions of a crossing; the only failure is the file system test under
+    `unshare -r`), the application, the gallery wrappers, the repls (23172 with
+    5 broken) and nine domain suites pass; the guards are as on main. On main as
+    `31555391e`, with omnet `60d893bb` (the IDE test without the keyword); the
+    omnet tests of the pointer, the IDE window, the campaign and the view lights
+    pass against it.
 - [ ] 9. **The brackets** (Q8). A syntax node draws its delimiters in the light
   colour at level 0 and fades them to the gray of the delimiter over the
   levels further out. Tests: in `[1, [2, [3]]]`, a move onto `3` lights the
