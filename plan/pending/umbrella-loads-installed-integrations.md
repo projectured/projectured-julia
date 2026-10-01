@@ -95,9 +95,11 @@ that and choose what's best for her".
 - **The binary** does not change: it lists its packages, and an extension that
   runs in it finds no environment and loads nothing.
 
-## 4. Open decisions
+## 4. Decisions
 
-| # | Question | Recommendation (mine, not decided) |
+The owner accepted both recommendations on 2026-10-01 ("O2: no message", "O1: yes").
+
+| # | Question | Decision |
 | --- | --- | --- |
 | O1 | Web and the three model adapters have no trigger of their own: all four use `HTTP` and `JSON3`, and the adapters load `HTTP` themselves. | The model adapters: the umbrella loads each one that is installed, with no trigger, in its own `__init__`. Loading one changes nothing until the user asks for it by name (`assistant = :ollama`). Web: no auto-load, because a loaded web backend becomes the default backend when SDL is absent. |
 | O2 | Does the umbrella tell the user what it loaded? | No message. |
