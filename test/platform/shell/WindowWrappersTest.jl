@@ -65,5 +65,18 @@ end
     @test editor.document.slice isa PrimitiveString && editor.document.slice.value == "hello"
 end
 
+@testset "gesture_help: F1 opens the list of the gestures in a window, and F1 closes it" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 gesture_help = true)
+    screen = get_wrapped_document(editor.document)
+    id = screen.windows[1].id
+    f1 = WindowInput(id, KeyDown(:f1, ModifierKeys(); time = 0.0))
+    _ww_press!(editor, backend, f1)
+    @test length(screen.windows) == 2
+    @test any(window -> window.content isa GestureMap, screen.windows)
+    _ww_press!(editor, backend, f1)
+    @test length(screen.windows) == 1
+end
+
 end # @testset
 end

@@ -37,9 +37,11 @@ using ..ScreenModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..EditorModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
 export CommandPalette, build_command_palette_selection, get_command_palette_selected,

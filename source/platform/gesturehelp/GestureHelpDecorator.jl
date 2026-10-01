@@ -140,3 +140,23 @@ map_reference_forward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecor
 
 map_reference_backward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
+
+"""
+    gesture_help = true | (; measure)
+
+The wrapper of `build_editor` that makes F1 open a window that lists the
+gestures that work where the person is, and F1 again close it. It adds the row
+that draws that window to the windows that open later, measured with `measure`,
+`FontFileMeasure()` by default. It is off by default. It acts around the
+clipboard, so the list names the gestures of the walk and of the clipboard too.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:gesture_help}, layer::Symbol, setting, parts::EditorParts)
+    options = setting === true ? (;) : setting
+    parts.projection = GestureHelpDecoratorProjection(inner = parts.projection, state = GestureHelpState())
+    push!(parts.opened_window_projections,
+          GestureMap => make_gesture_map_projection(get(options, :measure, FontFileMeasure())))
+    parts
+end
+
+get_wrapper_layers(::Val{:gesture_help}) = (:container => 40,)
