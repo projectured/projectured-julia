@@ -409,9 +409,9 @@ end
 
 @testset "a window that records nothing offers no tool and no item that stay empty" begin
     labels(bar) = [String(string(item.action.label)) for item in bar.elements]
-    @test labels(make_window_toolbar(; recorded = false)) ==
+    @test labels(make_window_toolbar(; recorded = ())) ==
           ["Explorer", "Evaluator", "Selection", "Appearance"]
-    @test "Gesture log" ∉ _labels(_submenu(make_window_menu_bar(; recorded = false), "View"))
+    @test "Gesture log" ∉ _labels(_submenu(make_window_menu_bar(; recorded = ()), "View"))
     @test "Gesture log" in _labels(_submenu(make_window_menu_bar(), "View"))
 end
 
@@ -451,10 +451,10 @@ end
     texts = _shell_texts(get_iomap_output(editor.iomap).windows[1].content)
     @test "File" in texts && "hi" in texts
     @test string(find_icon_character(:folder)) in texts
-    # A window that records says so.
+    # A window that records its gestures has the gesture log.
     recorded = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());
                             backend = _ShellProbeBackend(), devices = ProjecturedKernel.DeviceModule.Device[],
-                            shell = (; recorded = true))
+                            shell = true, gesture_log = true)
     @test "Gesture log" in labels(get_wrapped_document(recorded.document).windows[1].content.toolbar)
     # The shell is off by default.
     plain = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());

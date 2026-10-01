@@ -117,5 +117,23 @@ end
     @test any(target -> target === get_session_fault_log(), editor.faults.targets)
 end
 
+@testset "shell: a tool that shows what the window records is there when its wrapper is" begin
+    labels(bar) = [String(string(item.action.label)) for item in bar.elements]
+    recorded = (; message_log = true, gesture_log = true, fault_log = true, frame_statistics = true)
+    editor, _ = _ww_editor(PrimitiveString("x"); shell = (; assistant = _ -> Assistant(),
+                                                           status_bar = false), recorded...)
+    try
+        shell = editor.document
+        @test shell isa WidgetShell
+        @test labels(shell.toolbar) == ["Explorer", "Assistant", "Evaluator", "Message log", "Gesture log",
+                                        "Fault log", "Statistics", "Frame times", "Selection", "Appearance"]
+        @test shell.status_bar === nothing
+    finally
+        foreach(step -> step(editor), editor.stop_steps)
+    end
+    editor, _ = _ww_editor(PrimitiveString("x"); shell = true, gesture_log = true)
+    @test labels(editor.document.toolbar) == ["Explorer", "Evaluator", "Gesture log", "Selection", "Appearance"]
+end
+
 end # @testset
 end
