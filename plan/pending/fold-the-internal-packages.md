@@ -353,6 +353,16 @@ and the downstream repositories land in the same landing.
       errors are the baseline's (`WidgetRoundTripTest.jl:121`,
       `WidgetTablePartsTest.jl:564`, `WindowShellTest.jl:417`); the package
       graph and the export collisions pass.
+      **The CI-like check of Steps 1 to 4** (`dc5ffdec5`, a fresh clone, the 28
+      jobs of `CI.yml`): the kernel and the umbrella have exactly the failure
+      sites of the baseline; the merged test package did not instantiate in
+      its own environment, because the merge kept the old path of a renamed
+      `[sources]` entry (an `environment/all` run can not see that); mended in
+      `36a176ac4`, after which every `[sources]` entry of every package names
+      its own folder, and `test_platform()` in its own environment has only the
+      three errors of the baseline. The eight display errors of `main` are
+      gone: the display tests write `using ProjecturedKernel`, which now gives
+      them `get_wrapped_document`.
 - [ ] **Step 5, the application (F10).** `run_application_command` and what it
       needs move from `ProjecturedExample` to the umbrella; the builder of the
       binary follows.
