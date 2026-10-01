@@ -144,6 +144,20 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       of `system-anatomy.md`, `devices-and-backends.md`, `llm.md` and
       `adaptagrams.md` follow the new file names.
 
+- [ ] **Step 6, the tools** (the owner, 2026-10-01: "Yes, convert them too.
+      Take care about the file names too, one of them is weird").
+      `source/tool/builder/` and `source/tool/repl/` get a module each,
+      `BuilderModule` and `ReplModule`, and two files that are scripts and not
+      fragments leave `source/`: the functions of `build_binary.jl` (the
+      options, the parser, the run) become the fragment `BuildCommand.jl`, and
+      a script of three lines, `tool/build-binary.jl`, beside the other scripts
+      of `tool/`, resolves the environment and runs it; `record/driver.jl`,
+      the run that the recorder of precompile statements traces in a process
+      of its own, is `tool/precompile/recording-driver.jl`. The code of the
+      REPL leaf is the fragment `ReplWorkload.jl`; the loop that re-exports
+      what four packages export stays in the entry, because it is the job of
+      the leaf. The guard then checks `source/tool/` too.
+
 ## 5. Decisions made during the work
 
 - **The form of a package entry** is the one of `ProjecturedDataFrames`: the
