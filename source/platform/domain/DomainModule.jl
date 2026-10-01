@@ -26,7 +26,7 @@ import ..DocumentModule: has_document_duplicate
 import ..GestureBindingModule: get_document_gesture_bindings_own
 
 export DocumentBase
-export compute_loaded_subtypes, var"@domain", var"@insertion",
+export compute_loaded_subtypes, load_installed_package!, var"@domain", var"@insertion",
        get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
        get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
        get_insertion_names, get_insertion_candidates, compute_concrete_subtypes,
