@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — what a build writes into the image, and
+# Fragment of `BuilderModule` — what a build writes into the image, and
 # what it leaves to the command line.
 #
 # A preference read at module scope is recorded as a dependency of the

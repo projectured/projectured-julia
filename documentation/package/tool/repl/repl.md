@@ -28,7 +28,7 @@ A package image keeps its compiled code only when nothing depends on the package
 
 ### The recording
 
-`record_precompile_statements()` runs `source/tool/repl/record/driver.jl` in a new Julia process under `--trace-compile`, because that is a flag of the command line. `ProjecturedExample` then drops every statement that names `Main` or does not parse, sorts the rest, and writes `asset/precompile/PrecompileStatements.jl`. That file is generated; do not edit it.
+`record_precompile_statements()` runs `tool/precompile/recording-driver.jl` in a new Julia process under `--trace-compile`, because that is a flag of the command line. `ProjecturedExample` then drops every statement that names `Main` or does not parse, sorts the rest, and writes `asset/precompile/PrecompileStatements.jl`. That file is generated; do not edit it.
 
 The driver runs three things:
 
@@ -44,7 +44,7 @@ The recording needs a display. The SDL backend needs an accelerated renderer, an
 
 ## How it fits
 
-Nothing depends on `ProjecturedRepl`, and nothing may load after it. The session alias runs `julia --project=environment/all -i -e 'using Revise, ProjecturedRepl'`; the alias is outside this repository. The shared machinery of the recording and the replay is in `ProjecturedExample`, so a downstream leaf calls the same code with its own driver and its own list. A built binary is the other leaf: its generated app package holds its own `@compile_workload`, which runs `warm_application()`; see [builder.md](../builder/builder.md).
+The code is the slice `ReplModule`, in `source/tool/repl/`; the package entry re-exports what four packages export and the names of the slice. Nothing depends on `ProjecturedRepl`, and nothing may load after it. The session alias runs `julia --project=environment/all -i -e 'using Revise, ProjecturedRepl'`; the alias is outside this repository. The shared machinery of the recording and the replay is in `ProjecturedExample`, so a downstream leaf calls the same code with its own driver and its own list. A built binary is the other leaf: its generated app package holds its own `@compile_workload`, which runs `warm_application()`; see [builder.md](../builder/builder.md).
 
 ## Design decisions
 

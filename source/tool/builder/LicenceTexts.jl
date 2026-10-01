@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — the licence texts of what a bundle holds
+# Fragment of `BuilderModule` — the licence texts of what a bundle holds
 # besides the program.
 #
 # A bundle carries more than the program: the runtime of Julia and the libraries

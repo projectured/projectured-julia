@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — the command line every binary answers,
+# Fragment of `BuilderModule` — the command line every binary answers,
 # whatever else it answers.
 #
 # Four flags belong to the build and not to a program: `--build-info` says what

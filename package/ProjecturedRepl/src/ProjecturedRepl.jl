@@ -29,9 +29,6 @@
 
 module ProjecturedRepl
 
-using PrecompileTools: @setup_workload, @compile_workload
-using Preferences: @load_preference, set_preferences!
-
 using Projectured
 using ProjecturedExample
 using ProjecturedSdl
@@ -43,6 +40,19 @@ using ProjecturedTest
 #
 # A name exported by two of them with different bindings would be ambiguous —
 # `test_export_collisions` is the guard that keeps that from happening.
-include("../../../source/tool/repl/Repl.jl")
+for _module in (Projectured, ProjecturedExample, ProjecturedSdl, ProjecturedTest)
+    for _name in names(_module)
+        _name === nameof(_module) && continue
+        @eval export $_name
+    end
+end
+
+include("../../../source/tool/repl/ReplModule.jl")
+
+# A person loads this package by name, so its names are exported here.
+using .ReplModule: WORKLOAD, set_workload!, get_workload, PRECOMPILE_STATEMENTS,
+                   replay_precompile_statements, record_precompile_statements
+export WORKLOAD, set_workload!, get_workload, PRECOMPILE_STATEMENTS,
+       replay_precompile_statements, record_precompile_statements
 
 end # module ProjecturedRepl

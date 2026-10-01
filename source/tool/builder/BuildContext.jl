@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — the repository a build writes into, and how
+# Fragment of `BuilderModule` — the repository a build writes into, and how
 # it finds a package by name.
 #
 # A build function names no repository: the caller passes a `BuildContext`, and

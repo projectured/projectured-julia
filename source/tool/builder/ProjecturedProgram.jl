@@ -1,3 +1,6 @@
+# Fragment of `BuilderModule` — the binaries of this repository, and the release
+# of its packages.
+
 # ──────────────────────────────────────────────────────────────────────────
 # The binaries of this repository.
 #

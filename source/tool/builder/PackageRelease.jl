@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — a copy of the packages that Pkg can install
+# Fragment of `BuilderModule` — a copy of the packages that Pkg can install
 # from a registry.
 #
 # A package of this repository includes its code from `source/<group>/<slice>/`, three

@@ -111,7 +111,7 @@ query rather than a file, and are named for what they query, such as
 - **One module per unit of architecture.** A slice declares one module, named
   for the slice: every file under `source/domain/json/` is a fragment of `JsonModule`,
   and only one of them carries the `module` line. The rule holds in every group
-  outside the kernel, the backends and the adapters too: `SdlModule.jl` declares
+  outside the kernel, the backends, the adapters and the tools too: `SdlModule.jl` declares
   `SdlModule`, and `ProjecturedSdl` includes that file and exports its names. A
   package entry holds no import of the slice, so the slice says what it needs.
   `test/suite/naming.jl` checks both. The kernel is layered rather

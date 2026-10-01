@@ -41,16 +41,16 @@ bin/build_projectured
 ```
 
 The bundle goes to `build/projectured/`, and the executable is
-`build/projectured/bin/projectured`. The script is
-`source/tool/builder/build_binary.jl` under a name of its own; that front end reads
-the command line and calls a build function, and every decision about a build is
-in the function.
+`build/projectured/bin/projectured`. The script is `tool/build-binary.jl` under
+a name of its own; that front end calls `run_build_command`, which reads the
+command line and calls a build function, and every decision about a build is in
+the function.
 
 Without the script:
 
 ```bash
-julia --project=environment/build source/tool/builder/build_binary.jl --help
-julia --project=environment/build source/tool/builder/build_binary.jl projectured
+julia --project=environment/build tool/build-binary.jl --help
+julia --project=environment/build tool/build-binary.jl projectured
 ```
 
 The options of the front end:
@@ -210,9 +210,9 @@ package. That is what lets another repository use the same builder.
 
 | Path | What |
 | --- | --- |
-| [source/tool/builder/](../../source/tool/builder/) | the builder: context, preferences, usage, app package, executable, distribution, release copy |
+| [source/tool/builder/](../../source/tool/builder/) | the builder, `BuilderModule`: context, preferences, usage, app package, executable, distribution, release copy, and the command line (`BuildCommand.jl`) |
 | [source/tool/builder/ProjecturedProgram.jl](../../source/tool/builder/ProjecturedProgram.jl) | the binaries of this repository, and what its release copy holds |
-| [source/tool/builder/build_binary.jl](../../source/tool/builder/build_binary.jl) | the shell front end |
+| [tool/build-binary.jl](../../tool/build-binary.jl) | the shell front end |
 | [bin/](../../bin/) | one script to run a program, one to build it |
 | [package/ProjecturedBuilder/](../../package/ProjecturedBuilder/) | the package that holds them |
 | [environment/build/](../../environment/build/) | the environment of a build: the builder and PackageCompiler |

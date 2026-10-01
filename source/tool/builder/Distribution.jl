@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — turn a bundle into something a person
+# Fragment of `BuilderModule` — turn a bundle into something a person
 # copies to another machine.
 #
 # The archive is the small half. The half worth writing is the check, because

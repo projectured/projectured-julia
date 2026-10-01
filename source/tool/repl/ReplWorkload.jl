@@ -1,9 +1,5 @@
-for _module in (Projectured, ProjecturedExample, ProjecturedSdl, ProjecturedTest)
-    for _name in names(_module)
-        _name === nameof(_module) && continue
-        @eval export $_name
-    end
-end
+# Fragment of `ReplModule` — the workload of the leaf: the level it compiles
+# ahead of time, and the recording of precompile statements that it replays.
 
 """
     WORKLOAD
@@ -48,8 +44,6 @@ function set_workload!(level::Symbol)
     level
 end
 
-export WORKLOAD, get_workload, set_workload!
-
 """
     get_workload() -> Symbol
 
@@ -78,16 +72,6 @@ end
 include("../../../asset/precompile/PrecompileStatements.jl")
 
 """
-    StatementScope
-
-Where a recorded statement is resolved. It is a module of *this* package because
-`replay_precompile_statements` binds every loaded module into it by name, and
-binding names into a dependency's module while this one precompiles would be one
-build writing into another package's image.
-"""
-module StatementScope end
-
-"""
     replay_precompile_statements(; warn = true) -> (compiled, skipped, total)
 
 Compile every statement of this repository's recording that still names
@@ -108,12 +92,10 @@ records is the whole stack down to SDL.
 record_precompile_statements(;
         output::AbstractString =
             joinpath(@__DIR__, "../../../asset/precompile/PrecompileStatements.jl"),
-        driver::AbstractString = joinpath(@__DIR__, "record/driver.jl"),
+        driver::AbstractString =
+            joinpath(@__DIR__, "../../../tool/precompile/recording-driver.jl"),
         kwargs...) =
     ProjecturedExample.record_precompile_statements(driver, output; kwargs...)
-
-export PRECOMPILE_STATEMENTS, replay_precompile_statements,
-       record_precompile_statements
 
 @setup_workload begin
     # Built outside the workload: constructing the documents is not what needs

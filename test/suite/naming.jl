@@ -78,13 +78,13 @@ function module_violations(root::AbstractString)
 end
 
 "The groups of `source/` that are sliced: each folder in one is a slice."
-const _SLICED_GROUPS = ("platform", "domain", "backend", "adapter")
+const _SLICED_GROUPS = ("platform", "domain", "backend", "adapter", "tool")
 
 """
     slice_module_violations(root) -> Vector{String}
 
 **A slice is one module.** Every folder of `source/platform/`, `source/domain/`,
-`source/backend/` and `source/adapter/` is a slice: one of its files declares the
+`source/backend/`, `source/adapter/` and `source/tool/` is a slice: one of its files declares the
 module of the slice, and every other file is a fragment that declares none. A
 package entry that includes a file of a slice includes that module file, so the
 imports and the exports of a slice are in the slice and not in its package. The
@@ -92,7 +92,13 @@ kernel is layered and not sliced, so it does not take the rule.
 """
 function slice_module_violations(root::AbstractString)
     out = String[]
-    declares(path) = occursin(r"(?m)^\s*(?:bare)?module\s+\w+", _naming_code(root, path))
+    # The module file of a slice is `<Name>Module.jl`, and it declares
+    # `<Name>Module`; a one-line inner module, `module Scope end`, is not one.
+    function declares(path)
+        stem = first(splitext(basename(path)))
+        endswith(stem, "Module") || return false
+        occursin(Regex("(?m)^\\s*(?:bare)?module\\s+" * stem * "\\s*\$"), _naming_code(root, path))
+    end
     for group in _SLICED_GROUPS
         base = joinpath(root, "source", group)
         isdir(base) || continue

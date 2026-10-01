@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — the source code that the licences of some
+# Fragment of `BuilderModule` — the source code that the licences of some
 # libraries in a bundle ask to go with every copy.
 #
 # The LGPL and the GPL ask whoever gives a binary to others to give the

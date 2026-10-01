@@ -65,7 +65,7 @@ The last release is what the last commit of each repository holds: an uncommitte
 
 ## How it fits
 
-`ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. `source/tool/builder/build_binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `Projectured`, `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../../guide/static-compilation-guide.md).
+`ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. The code is the slice `BuilderModule`, in `source/tool/builder/`, and the package exports every name of it. `run_build_command` is its command line; the script `tool/build-binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `Projectured`, `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../../guide/static-compilation-guide.md).
 
 ## Design decisions
 

@@ -198,13 +198,13 @@ function test_builder()
             stand_ins = [StandIn("some_jll", uuid; keeps = ["Kept_jll" => keep])]
             directory = write_app_package(context; name = "quiet", packages = [A_PACKAGE],
                                           main = :(begin 0 end), stand_ins)
-            project = ProjecturedBuilder.TOML.parsefile(joinpath(directory,
+            project = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(directory,
                                                                  "Project.toml"))
             @test project["deps"]["some_jll"] == uuid
             @test project["sources"]["some_jll"]["path"] ==
                   joinpath("stand_in", "some_jll")
             stand_in = joinpath(directory, "stand_in", "some_jll")
-            stand_in_project = ProjecturedBuilder.TOML.parsefile(joinpath(stand_in,
+            stand_in_project = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(stand_in,
                                                                           "Project.toml"))
             @test stand_in_project["uuid"] == uuid
             # It keeps a dependency of the real one, and loads it.
@@ -244,7 +244,7 @@ function test_builder()
                   "fake licence\n")
             tarball = joinpath(root, "Fake.tar.gz")
             run(`tar -czf $tarball -C $artifact share`)
-            digest = bytes2hex(open(ProjecturedBuilder.sha256, tarball))
+            digest = bytes2hex(open(ProjecturedBuilder.BuilderModule.sha256, tarball))
             stdlib = joinpath(root, "stdlib")
             mkpath(joinpath(stdlib, "Fake_jll"))
             write_stdlib(sha) = write(joinpath(stdlib, "Fake_jll",
@@ -401,7 +401,7 @@ function test_builder()
             directory = get_package_directory(context, A_PACKAGE)
             @test isdir(directory)
             @test get_package_uuid(directory) ==
-                  ProjecturedBuilder.TOML.parsefile(joinpath(directory, "Project.toml"))["uuid"]
+                  ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(directory, "Project.toml"))["uuid"]
             @test_throws ErrorException get_package_directory(context, "NoSuchPackage")
         end
 
@@ -410,7 +410,7 @@ function test_builder()
             write_project(name, deps, sources) = begin
                 mkpath(joinpath(packages, name))
                 open(joinpath(packages, name, "Project.toml"), "w") do io
-                    ProjecturedBuilder.TOML.print(io, Dict(
+                    ProjecturedBuilder.BuilderModule.TOML.print(io, Dict(
                         "name" => name, "uuid" => string(Base.UUID(hash(name))),
                         "deps" => Dict(d => string(Base.UUID(hash(d))) for d in deps),
                         "sources" => Dict(d => Dict("path" => "../$d") for d in sources)))
@@ -457,19 +457,19 @@ function test_builder()
 
             # The build timestamp is the one line that differs between two builds
             # of the same binary, and it must not count as a difference.
-            @test occursin(ProjecturedBuilder._BUILD_TIMESTAMP, first_source)
+            @test occursin(ProjecturedBuilder.BuilderModule._BUILD_TIMESTAMP, first_source)
             # A different timestamp alone is not a difference, so nothing is
             # written and the cache holds.
             other_time = replace(first_source,
-                                 ProjecturedBuilder._BUILD_TIMESTAMP =>
+                                 ProjecturedBuilder.BuilderModule._BUILD_TIMESTAMP =>
                                      "built 1999-01-01 00:00 by ProjecturedBuilder")
             @test other_time != first_source
             @test !write_if_changed(path, other_time;
-                                    ignoring = ProjecturedBuilder._BUILD_TIMESTAMP)
+                                    ignoring = ProjecturedBuilder.BuilderModule._BUILD_TIMESTAMP)
             @test mtime(path) == before
             # Anything else is.
             @test write_if_changed(path, replace(first_source, "module " => "module X");
-                                   ignoring = ProjecturedBuilder._BUILD_TIMESTAMP)
+                                   ignoring = ProjecturedBuilder.BuilderModule._BUILD_TIMESTAMP)
         end
 
         @testset "a manifest that names a path no package is at goes" begin
@@ -492,13 +492,13 @@ function test_builder()
                     """
                 write(manifest, held)
                 # Every path is on disk, so the manifest stays.
-                @test !ProjecturedBuilder._drop_stale_manifest(project)
+                @test !ProjecturedBuilder.BuilderModule._drop_stale_manifest(project)
                 @test isfile(manifest)
 
                 # The package goes, and the entry that names it is what
                 # `Pkg.resolve` would have thrown on.
                 rm(joinpath(project, "package", "A"); recursive = true)
-                @test ProjecturedBuilder._drop_stale_manifest(project)
+                @test ProjecturedBuilder.BuilderModule._drop_stale_manifest(project)
                 @test !isfile(manifest)
 
                 # An entry with no path is a registered package, and it stays.
@@ -507,7 +507,7 @@ function test_builder()
                     uuid = "33333333-3333-3333-3333-333333333333"
                     version = "1.0.0"
                     """)
-                @test !ProjecturedBuilder._drop_stale_manifest(project)
+                @test !ProjecturedBuilder.BuilderModule._drop_stale_manifest(project)
                 @test isfile(manifest)
             end
         end
@@ -535,17 +535,17 @@ function test_builder()
                     """
                 write(manifest, agreeing)
                 # A manifest that agrees is left where it is.
-                @test !ProjecturedBuilder._drop_stale_manifest(project)
+                @test !ProjecturedBuilder.BuilderModule._drop_stale_manifest(project)
                 @test isfile(manifest)
 
                 # A path that differs is what the assertion would have died on.
                 # Both paths are on disk, so only the project catches this one.
                 write(manifest, replace(agreeing, "package/A" => "package/AOld"))
-                @test ProjecturedBuilder._drop_stale_manifest(project)
+                @test ProjecturedBuilder.BuilderModule._drop_stale_manifest(project)
                 @test !isfile(manifest)
 
                 # A project with no manifest beside it is not an error.
-                @test !ProjecturedBuilder._drop_stale_manifest(project)
+                @test !ProjecturedBuilder.BuilderModule._drop_stale_manifest(project)
             end
         end
 
@@ -573,7 +573,7 @@ function test_builder()
                     """
                 write(manifest, held)
                 resolve_app_project(project; precompile = false)
-                entry = only(ProjecturedBuilder.TOML.parsefile(manifest)["deps"]["OrderedCollections"])
+                entry = only(ProjecturedBuilder.BuilderModule.TOML.parsefile(manifest)["deps"]["OrderedCollections"])
                 @test VersionNumber(entry["version"]).major == 1
 
                 # A conflict that the project itself holds is thrown after the
@@ -586,7 +586,7 @@ function test_builder()
                     OrderedCollections = "99"
                     """)
                 write(manifest, held)
-                @test_throws ProjecturedBuilder.Pkg.Resolve.ResolverError resolve_app_project(project;
+                @test_throws ProjecturedBuilder.BuilderModule.Pkg.Resolve.ResolverError resolve_app_project(project;
                                                                                 precompile = false)
                 @test !isfile(manifest)
             end
@@ -681,7 +681,7 @@ function test_builder()
                 write(joinpath(root, file), text)
             end
             digest(file) =
-                bytes2hex(open(ProjecturedBuilder.sha256, joinpath(root, file)))
+                bytes2hex(open(ProjecturedBuilder.BuilderModule.sha256, joinpath(root, file)))
             stdlib = joinpath(root, "stdlib")
             mkpath(joinpath(stdlib, "Lib_jll"))
             write(joinpath(stdlib, "Lib_jll", "Project.toml"),
@@ -910,7 +910,7 @@ function test_builder()
             context = _test_context()
             project = build_projectured_executable(; context = context, compile = false)
             @test project == joinpath(context.root, "build", "app", "projectured")
-            deps = ProjecturedBuilder.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
+            deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
             # The packages of the binary, and the stand-in that keeps the sound
             # libraries out of it.
             @test Set(keys(deps)) == Set(["PrecompileTools", "Projectured",
@@ -932,7 +932,7 @@ function test_builder()
             project = build_projectured_executable(; context = context, compile = false,
                                                    name = "projectured-web",
                                                    backends = (:web,), workload = false)
-            deps = ProjecturedBuilder.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
+            deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
             @test !haskey(deps, "ProjecturedSdl") && haskey(deps, "ProjecturedWeb")
             source = read(joinpath(project, "src", "ProjecturedWebApp.jl"), String)
             @test occursin("(web = ProjecturedWeb.WebBackend,)", source)
@@ -948,17 +948,12 @@ function test_builder()
         end
 
         @testset "the shell front end" begin
-            front_end = Module(:BuildBinaryFrontEnd)
-            Base.include(front_end, joinpath(@__DIR__, "..", "..", "..", "source", "tool",
-                                             "builder", "build_binary.jl"))
-            # Through `invokelatest`, because the file defined its names after
-            # this code was compiled. The read of the name is inside it too, or
-            # Julia warns that the binding is younger than this code.
-            from_front_end(name) = Base.invokelatest(getglobal, front_end, name)
-            parse_arguments(arguments, fixed = "") =
-                Base.invokelatest(from_front_end(:parse_front_end_arguments), arguments, fixed)
-            usage = Base.invokelatest(from_front_end(:format_front_end_usage))
-            for (_, label, _) in from_front_end(:OPTIONS)
+            # The command line of the builder, which `tool/build-binary.jl` runs.
+            script = read(joinpath(@__DIR__, "..", "..", "..", "tool", "build-binary.jl"), String)
+            @test occursin("run_build_command(ARGS)", script)
+            parse_arguments(arguments, fixed = "") = parse_build_arguments(arguments; fixed)
+            usage = format_build_usage(; fixed = "")
+            for (_, label, _) in BUILD_OPTIONS
                 @test occursin(label, usage)
             end
             @test occursin("projectured", usage)
@@ -1003,12 +998,9 @@ function test_builder()
                 @test_throws ErrorException parse_arguments(arguments)
             end
             quiet = devnull
-            @test redirect_stdout(() -> Base.invokelatest(from_front_end(:run_front_end), ["--help"]),
-                                  quiet) == 0
-            @test redirect_stderr(() -> Base.invokelatest(from_front_end(:run_front_end), String[]),
-                                  quiet) == 1
-            @test redirect_stderr(() -> Base.invokelatest(from_front_end(:run_front_end), ["--colour"]),
-                                  quiet) == 1
+            @test redirect_stdout(() -> run_build_command(["--help"]), quiet) == 0
+            @test redirect_stderr(() -> run_build_command(String[]), quiet) == 1
+            @test redirect_stderr(() -> run_build_command(["--colour"]), quiet) == 1
         end
     end
 end

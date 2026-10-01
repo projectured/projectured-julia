@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — write the package, compile it, bundle what
+# Fragment of `BuilderModule` — write the package, compile it, bundle what
 # it reads by path, and report.
 #
 # PackageCompiler is loaded by the one step that compiles, and not at the top of

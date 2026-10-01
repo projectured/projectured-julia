@@ -23,7 +23,7 @@ function _write_release_fixture_package(root, name, uuid;
         (project["sources"] = Dict{String,Any}(dependency =>
                                                Dict("path" => "../$dependency")
                                                for dependency in siblings))
-    open(io -> ProjecturedBuilder.TOML.print(io, project),
+    open(io -> ProjecturedBuilder.BuilderModule.TOML.print(io, project),
          joinpath(root, "package", name, "Project.toml"), "w")
     write(joinpath(root, "package", name, "src", "$name.jl"),
           "module $name\ninclude(\"../../../source/$slice/$(name)Code.jl\")\nend\n")
@@ -78,16 +78,16 @@ function _write_release_fixture_registry(folder, versions)
     for (name, released) in versions
         packages[uuids[name]] = Dict("name" => name, "path" => "F/$name")
         mkpath(joinpath(folder, "F", name))
-        open(io -> ProjecturedBuilder.TOML.print(io,
+        open(io -> ProjecturedBuilder.BuilderModule.TOML.print(io,
                   Dict("name" => name, "uuid" => uuids[name],
                        "repo" => "file:///release")),
              joinpath(folder, "F", name, "Package.toml"), "w")
-        open(io -> ProjecturedBuilder.TOML.print(io,
+        open(io -> ProjecturedBuilder.BuilderModule.TOML.print(io,
                   Dict(version => Dict("git-tree-sha1" => "0"^40)
                        for version in released)),
              joinpath(folder, "F", name, "Versions.toml"), "w")
     end
-    open(io -> ProjecturedBuilder.TOML.print(io,
+    open(io -> ProjecturedBuilder.BuilderModule.TOML.print(io,
               Dict("name" => "FakeRegistry",
                    "uuid" => "00000000-0000-0000-0000-0000000000ff",
                    "repo" => "file:///registry",
@@ -124,7 +124,7 @@ function test_package_release()
                 assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
                 licences = ["LICENSE"], readme = name -> "# $name\n", manifest)
         read_project(name) =
-            ProjecturedBuilder.TOML.parsefile(joinpath(output, "$name.jl",
+            ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(output, "$name.jl",
                                                        "Project.toml"))
         commit(repository) = run(`git -C $repository -c user.name=test
                                   -c user.email=test@example.org commit -q -m release`)
@@ -332,7 +332,7 @@ function test_package_release()
         @test isempty(intersect(names, PROJECTURED_RELEASE_EXCLUSIONS))
         # Closed: every sibling that a released package depends on is released.
         for name in names
-            project = ProjecturedBuilder.TOML.parsefile(
+            project = ProjecturedBuilder.BuilderModule.TOML.parsefile(
                 joinpath(get_package_directory(context, name), "Project.toml"))
             for dependency in keys(get(project, "deps", Dict{String,Any}()))
                 has_package_directory(context, dependency) || continue

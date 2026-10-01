@@ -144,7 +144,7 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       of `system-anatomy.md`, `devices-and-backends.md`, `llm.md` and
       `adaptagrams.md` follow the new file names.
 
-- [ ] **Step 6, the tools** (the owner, 2026-10-01: "Yes, convert them too.
+- [x] **Step 6, the tools** (the owner, 2026-10-01: "Yes, convert them too.
       Take care about the file names too, one of them is weird").
       `source/tool/builder/` and `source/tool/repl/` get a module each,
       `BuilderModule` and `ReplModule`, and two files that are scripts and not
@@ -157,6 +157,23 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       REPL leaf is the fragment `ReplWorkload.jl`; the loop that re-exports
       what four packages export stays in the entry, because it is the job of
       the leaf. The guard then checks `source/tool/` too.
+      Done. `BuildCommand.jl` reads `PROJECTURED_BUILD_WHAT` and
+      `PROJECTURED_BUILD_COMMAND` when it runs, not when it loads, so a
+      precompiled image does not bake them; its public names are
+      `run_build_command`, `parse_build_arguments`, `format_build_usage`,
+      `BUILD_OPTIONS` and `BUILD_BINARIES`, and the front-end test calls them
+      instead of including a script. The export lists of `BuilderModule` follow
+      the fragments in the order of definition. The inner module
+      `StatementScope` of the REPL leaf is in `ReplModule.jl`, because a
+      fragment declares no module. **The guard was too weak at first:** it took
+      any file with a `module` line for the module file of its slice, so the
+      one-line `module StatementScope end` hid the REPL leaf on `main`; the
+      module file of a slice is now `<Name>Module.jl` that declares
+      `<Name>Module`, and on a clone of `main` the guard reports both tools.
+      Tests: the builder suite (226, one more than before: the check of the
+      script), `tool/build-binary.jl --help` and `bin/build_projectured --help`,
+      and a load of `ProjecturedRepl` with its recorded workload, its exports
+      and the path of its driver.
 
 ## 5. Decisions made during the work
 

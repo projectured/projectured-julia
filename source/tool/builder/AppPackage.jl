@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedBuilder` — the package a build writes, and then
+# Fragment of `BuilderModule` — the package a build writes, and then
 # compiles.
 #
 # **Written and not committed.** What a binary holds is a choice the build

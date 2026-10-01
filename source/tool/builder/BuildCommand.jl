@@ -1,58 +1,43 @@
-# ============================================================================
-# The shell front end of the builder. The first argument names a binary, and the
-# options go to its build function.
-#
-#     julia --project=environment/build source/tool/builder/build_binary.jl --help
-#     julia --project=environment/build source/tool/builder/build_binary.jl projectured
-#     julia --project=environment/build source/tool/builder/build_binary.jl projectured --distribution
-#
-# A build is a Julia function, and this file only reads a command line and calls
-# that function. A decision about a build belongs in the function, where a test
-# can reach it.
-#
-# The bundle goes to `build/<name>/`: the executable in `bin/`, the system image
-# and the libraries in `lib/`, and the fonts in `share/`. With `--distribution`,
-# the build also checks that a copy of the bundle runs outside this checkout, and
-# writes the bundle as an archive under `build/`.
-#
-# A build uses much memory. Do not start a build beside another build.
-#
-# A test includes this file to read its functions. Then it neither resolves the
-# environment nor starts a build.
-# ============================================================================
+# Fragment of `BuilderModule` — the command line of the builder: the binary that
+# its first argument names, and the options that go to the build function of that
+# binary. `tool/build-binary.jl` runs it from a shell, and a script in `bin/` runs
+# that with one binary fixed.
 
-using Pkg
+"""
+    get_fixed_build_binary() -> String
 
-const IS_COMMAND = abspath(PROGRAM_FILE) == @__FILE__
+The binary that a script in `bin/` fixes, from `PROJECTURED_BUILD_WHAT`; empty
+when the command line names the binary. A script fixes it, and names itself in
+`PROJECTURED_BUILD_COMMAND`, so that its `--help` names the command that a person
+typed and offers no choice of binary.
+"""
+get_fixed_build_binary() = get(ENV, "PROJECTURED_BUILD_WHAT", "")
 
-# The build environment must load `ProjecturedBuilder` before this file can use
-# it. `resolve` also finds a dependency that a package of this repository added
-# since the last build, which `instantiate` alone does not.
-if IS_COMMAND
-    Pkg.resolve(; io = devnull)
-    Pkg.instantiate(; io = devnull)
-end
+"""
+    get_build_invocation() -> String
 
-using ProjecturedBuilder
+The command that the help text names, from `PROJECTURED_BUILD_COMMAND`.
+"""
+get_build_invocation() = get(ENV, "PROJECTURED_BUILD_COMMAND",
+                             "julia --project=environment/build tool/build-binary.jl")
 
-# A script in `bin/` fixes the binary it builds and names itself, so that its
-# `--help` names the command that a person typed and offers no choice of binary.
-const FIXED_BINARY = get(ENV, "PROJECTURED_BUILD_WHAT", "")
-const INVOCATION = get(ENV, "PROJECTURED_BUILD_COMMAND",
-                       "julia --project=environment/build source/tool/builder/build_binary.jl")
+"""
+    BUILD_BINARIES
 
-const BINARIES = ["projectured" =>
+The binaries that the command line builds, as `name => description`.
+"""
+const BUILD_BINARIES = ["projectured" =>
     "the application: files in a window, a file\n" *
     "navigator and an AI assistant"]
 
 """
-    OPTIONS
+    BUILD_OPTIONS
 
-The options of the front end, as `(key, label, description)`. A key that ends in
+The options of the command line, as `(key, label, description)`. A key that ends in
 `=` takes a value. The help text lists the table, and the parser refuses an
 option that the table does not name.
 """
-const OPTIONS = [
+const BUILD_OPTIONS = [
     ("--distribution", "--distribution",
      "build for other machines: a fresh image for many\n" *
      "processor families, a test that a copy runs outside\n" *
@@ -94,53 +79,58 @@ const OPTIONS = [
     ("-h", "-h, --help", "print this text and exit"),
 ]
 
-function format_front_end_usage()
+"""
+    format_build_usage(; fixed = get_fixed_build_binary(), invocation = get_build_invocation()) -> String
+
+The help text of the command line: the binaries it builds, or the one that
+`fixed` names, and every option of [`BUILD_OPTIONS`](@ref).
+"""
+function format_build_usage(; fixed::AbstractString = get_fixed_build_binary(),
+                            invocation::AbstractString = get_build_invocation())
     column = 26
     indent(text) = replace(text, "\n" => "\n" * " "^column)
-    if isempty(FIXED_BINARY)
-        lines = ["Usage: $INVOCATION <binary> [options]", "",
+    if isempty(fixed)
+        lines = ["Usage: $invocation <binary> [options]", "",
                  "Build a native binary of this repository.", "", "Binaries:", ""]
-        for (name, description) in BINARIES
+        for (name, description) in BUILD_BINARIES
             push!(lines, "  " * rpad(name, column - 2) * indent(description))
         end
     else
-        lines = ["Usage: $INVOCATION [options]", "",
-                 "Build the `$FIXED_BINARY` binary of this repository."]
+        lines = ["Usage: $invocation [options]", "",
+                 "Build the `$fixed` binary of this repository."]
     end
     append!(lines, ["", "Options:", ""])
-    for (_, label, description) in OPTIONS
+    for (_, label, description) in BUILD_OPTIONS
         push!(lines, "  " * rpad(label, column - 2) * indent(description))
     end
     join(lines, "\n") * "\n"
 end
 
-function find_option(argument)
+function _find_build_option(argument)
     argument == "--help" && return "-h"
-    for (key, _, _) in OPTIONS
+    for (key, _, _) in BUILD_OPTIONS
         (endswith(key, "=") ? startswith(argument, key) : argument == key) && return key
     end
     nothing
 end
 
-function get_option_value(argument, key)
-    String(argument[ncodeunits(key)+1:end])
-end
+_get_build_option_value(argument, key) = String(argument[ncodeunits(key)+1:end])
 
-function parse_integer_option(argument, key)
-    value = tryparse(Int, get_option_value(argument, key))
+function _parse_integer_build_option(argument, key)
+    value = tryparse(Int, _get_build_option_value(argument, key))
     value === nothing && error("$(key[1:end-1]) takes a number, not $(repr(argument))")
     value
 end
 
 """
-    parse_front_end_arguments(arguments) -> (binary, distribution, keywords)
+    parse_build_arguments(arguments; fixed = get_fixed_build_binary()) -> (binary, distribution, keywords)
 
 The binary a command line names, whether it asks for a distribution, and the
 keywords of the build function. `fixed` is the binary that a `bin/` script
 chose, and then the command line names none. A wrong command line raises an
 error.
 """
-function parse_front_end_arguments(arguments, fixed::AbstractString = FIXED_BINARY)
+function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_build_binary())
     binary = isempty(fixed) ? nothing : fixed
     distribution = false
     keywords = Dict{Symbol,Any}()
@@ -149,17 +139,17 @@ function parse_front_end_arguments(arguments, fixed::AbstractString = FIXED_BINA
             isempty(fixed) ||
                 error("this command builds $(repr(fixed)) and takes no other binary")
             binary === nothing || error("name one binary, not $(repr(binary)) and $(repr(argument))")
-            any(==(argument) ∘ first, BINARIES) ||
-                error("the binaries are $(join(first.(BINARIES), ", ")), not $(repr(argument))")
+            any(==(argument) ∘ first, BUILD_BINARIES) ||
+                error("the binaries are $(join(first.(BUILD_BINARIES), ", ")), not $(repr(argument))")
             binary = argument
             continue
         end
-        key = find_option(argument)
+        key = _find_build_option(argument)
         key === nothing && error("unknown option $(repr(argument))")
         if key == "--distribution"
             distribution = true
         elseif key == "--backends="
-            keywords[:backends] = Tuple(Symbol.(split(get_option_value(argument, key), ',')))
+            keywords[:backends] = Tuple(Symbol.(split(_get_build_option_value(argument, key), ',')))
         elseif key == "--no-workload"
             keywords[:workload] = false
         elseif key == "--no-incremental"
@@ -167,21 +157,21 @@ function parse_front_end_arguments(arguments, fixed::AbstractString = FIXED_BINA
         elseif key == "--filter-stdlibs"
             keywords[:filter_stdlibs] = true
         elseif key == "--name="
-            keywords[:name] = get_option_value(argument, key)
+            keywords[:name] = _get_build_option_value(argument, key)
         elseif key == "--output="
-            keywords[:output] = abspath(get_option_value(argument, key))
+            keywords[:output] = abspath(_get_build_option_value(argument, key))
         elseif key == "--optimization="
-            keywords[:optimization] = parse_integer_option(argument, key)
+            keywords[:optimization] = _parse_integer_build_option(argument, key)
         elseif key == "--debug-info="
-            keywords[:debug_info] = parse_integer_option(argument, key)
+            keywords[:debug_info] = _parse_integer_build_option(argument, key)
         elseif key == "--strip-metadata"
             keywords[:strip_metadata] = true
         elseif key == "--cpu-target="
-            keywords[:cpu_target] = get_option_value(argument, key)
+            keywords[:cpu_target] = _get_build_option_value(argument, key)
         elseif key == "--log="
-            keywords[:logfile] = abspath(get_option_value(argument, key))
+            keywords[:logfile] = abspath(_get_build_option_value(argument, key))
         elseif key == "--log-level="
-            keywords[:log_level] = Symbol(get_option_value(argument, key))
+            keywords[:log_level] = Symbol(_get_build_option_value(argument, key))
         elseif key == "--no-compile"
             keywords[:compile] = false
         end
@@ -197,21 +187,33 @@ function parse_front_end_arguments(arguments, fixed::AbstractString = FIXED_BINA
     (binary, distribution, keywords)
 end
 
-function run_front_end(arguments)::Cint
-    if any(argument -> find_option(argument) == "-h", arguments)
-        print(format_front_end_usage())
+"""
+    run_build_command(arguments) -> Cint
+
+Build what the command line `arguments` asks for, and answer the exit code: 0
+when the build ends, 1 for a wrong command line. The bundle goes to
+`build/<name>/`: the executable in `bin/`, the system image and the libraries in
+`lib/`, and the fonts in `share/`. With `--distribution`, the build also checks
+that a copy of the bundle runs outside this checkout, and writes the bundle as an
+archive under `build/`. A build is a Julia function, and this only reads a
+command line and calls that function, so a decision about a build belongs in the
+function, where a test can reach it.
+"""
+function run_build_command(arguments)::Cint
+    if any(argument -> _find_build_option(argument) == "-h", arguments)
+        print(format_build_usage())
         return 0
     end
     binary, distribution, keywords = try
-        parse_front_end_arguments(arguments)
+        parse_build_arguments(arguments)
     catch err
         err isa ErrorException || rethrow()
-        println(stderr, "build_binary: ", err.msg)
-        println(stderr, "Run `$INVOCATION --help` for the options.")
+        println(stderr, "build-binary: ", err.msg)
+        println(stderr, "Run `$(get_build_invocation()) --help` for the options.")
         return 1
     end
     if binary === nothing
-        print(stderr, format_front_end_usage())
+        print(stderr, format_build_usage())
         return 1
     end
     if distribution
@@ -221,5 +223,3 @@ function run_front_end(arguments)::Cint
     end
     0
 end
-
-IS_COMMAND && exit(run_front_end(ARGS))
