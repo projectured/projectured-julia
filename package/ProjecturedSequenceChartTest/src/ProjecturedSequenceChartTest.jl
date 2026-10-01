@@ -11,7 +11,7 @@ module ProjecturedSequenceChartTest
 
 using Test
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedSequenceChart
@@ -21,7 +21,7 @@ using ProjecturedSequenceChartExample
 using ProjecturedPlatformExample
 using ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf, ProjecturedSequenceChart)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF, ProjecturedSequenceChart)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

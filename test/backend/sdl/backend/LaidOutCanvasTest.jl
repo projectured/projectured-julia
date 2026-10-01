@@ -4,7 +4,7 @@
 function test_laid_out_canvas()
 @testset "a laid-out canvas reads only the rows in the clip" begin
 
-SDL = ProjecturedSdl.SdlModule
+SDL = ProjecturedSDL.SdlModule
 row_height = 10
 background = (0xff, 0xff, 0xff, 0xff)
 

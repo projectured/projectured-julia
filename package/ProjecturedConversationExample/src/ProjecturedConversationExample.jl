@@ -16,22 +16,22 @@ module ProjecturedConversationExample
 import ProjecturedPlatform
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedMarkdown
 using ProjecturedJuliaExample
 using ProjecturedMarkdownExample
-import ProjecturedJson
-import ProjecturedXml
-import ProjecturedYaml
-using ProjecturedJsonExample
+import ProjecturedJSON
+import ProjecturedXML
+import ProjecturedYAML
+using ProjecturedJSONExample
 using ProjecturedKernelExample
 using ProjecturedPlatformExample
-using ProjecturedXmlExample
-using ProjecturedYamlExample
+using ProjecturedXMLExample
+using ProjecturedYAMLExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedPdf, ProjecturedXml, ProjecturedYaml)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJSON, ProjecturedJulia, ProjecturedKernel, ProjecturedMarkdown, ProjecturedPDF, ProjecturedXML, ProjecturedYAML)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

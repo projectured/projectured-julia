@@ -1,0 +1,15 @@
+name = "ProjecturedPDF"
+uuid = "18e37c66-e2b2-4424-ab73-223891693292"
+version = "0.1.0"
+authors = []
+
+# The PDF backend. It exports the graphics domain as a vector PDF and needs no
+# third-party package.
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

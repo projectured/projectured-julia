@@ -9,8 +9,8 @@ that was loaded and saved keeps it verbatim.
 using Test
 using ProjecturedPlatform.SerializationModule
 using ProjecturedJulia.JuliaModule
-import ProjecturedJson
-using ProjecturedJson.JsonModule
+import ProjecturedJSON
+using ProjecturedJSON.JsonModule
 using ProjecturedMarkdown.MarkdownModule
 using ProjecturedJulia.JuliaModule: JuliaFunction, JuliaConst, JuliaStruct, JuliaDocstring
 using ProjecturedPlatform.NaturalModule: print_natural_text
@@ -196,8 +196,8 @@ function test_marker_vocabulary()
         d = mktempdir()
         try
             write(joinpath(d, "steps.jl"), _MV_SOURCE)
-            root = JsonFile("root.json", ProjecturedJson.JsonModule.JsonObject(
-                "fragment" => ProjecturedJson.JsonModule.JsonString(
+            root = JsonFile("root.json", ProjecturedJSON.JsonModule.JsonObject(
+                "fragment" => ProjecturedJSON.JsonModule.JsonString(
                     "<<definition(file(\"steps.jl\"), \"LIMIT\")>>")))
             @test save_file!(root, d)
             before = read(joinpath(d, "root.json"), String)

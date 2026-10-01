@@ -16,7 +16,7 @@
 The backends a `projectured` binary can hold: each name, with the package that
 defines the backend and the type that `--backend` makes.
 """
-const PROJECTURED_BACKENDS = (sdl = ("ProjecturedSdl", :SdlBackend),
+const PROJECTURED_BACKENDS = (sdl = ("ProjecturedSDL", :SdlBackend),
                               web = ("ProjecturedWeb", :WebBackend))
 
 """
@@ -248,7 +248,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                   join(keys(PROJECTURED_BACKENDS), ", ") * ", not $(repr(backend))")
     end
     backend_packages = [first(PROJECTURED_BACKENDS[backend]) for backend in backends]
-    # `(sdl = ProjecturedSdl.SdlBackend, …)`, in the order the build names them,
+    # `(sdl = ProjecturedSDL.SdlBackend, …)`, in the order the build names them,
     # so the first one is the default of the command line.
     table = Expr(:tuple, [Expr(:(=), backend,
                                Expr(:., Symbol(first(PROJECTURED_BACKENDS[backend])),
@@ -257,7 +257,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
     main = :(Projectured.run_application_command(ARGS; backends = $table))
     build_executable(context; name = name,
                      packages = vcat(["Projectured", "ProjecturedOllama", "ProjecturedAnthropic",
-                                      "ProjecturedMcp"], backend_packages),
+                                      "ProjecturedMCP"], backend_packages),
                      main = main,
                      workload = workload ? :(Projectured.warm_application()) : nothing,
                      usage = make_projectured_usage(collect(backends)),
@@ -310,7 +310,7 @@ does not hold, reads a folder outside its own, or compiles native code on the
 machine of the user.
 """
 const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedBench",
-                                        "ProjecturedBuilder", "ProjecturedRepl"]
+                                        "ProjecturedBuilder", "ProjecturedREPL"]
 
 """
     PROJECTURED_PACKAGE_ASSETS

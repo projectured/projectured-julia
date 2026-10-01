@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../../platform/screen/screen.md), [style.md](../../platform/style/style.md)
 
-`ProjecturedSdl` holds `SdlBackend`, which draws native windows with SDL2 and SDL_ttf, and the offscreen renderer behind `write_image` and `record_video`. `default_backend()` picks it first when it is loaded. This document says how it implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), how its windows follow the screen document, and what its caches and its repaint do.
+`ProjecturedSDL` holds `SdlBackend`, which draws native windows with SDL2 and SDL_ttf, and the offscreen renderer behind `write_image` and `record_video`. `default_backend()` picks it first when it is loaded. This document says how it implements the interface of [devices-and-backends.md](../../kernel/devices-and-backends.md), how its windows follow the screen document, and what its caches and its repaint do.
 
 ## How it works
 
@@ -89,9 +89,9 @@ Both repaint every window in full.
 
 ## How it fits
 
-The code is the slice `SdlModule`, in `source/backend/sdl/`: `SdlModule.jl` holds its imports and its exports, and `ProjecturedSdl` includes that file and exports the same names.
+The code is the slice `SdlModule`, in `source/backend/sdl/`: `SdlModule.jl` holds its imports and its exports, and `ProjecturedSDL` includes that file and exports the same names.
 
-`ProjecturedSdl` depends on the kernel and the platform, and on `SimpleDirectMediaLayer` and `SDL2_jll`. A package with a third-party dependency is a stem that a user names, so `using Projectured` does not load it. `ProjecturedRepl` loads it, and `ProjecturedVideo` depends on it. The builder names it as the backend `sdl` of a binary, the default when a build holds both backends.
+`ProjecturedSDL` depends on the kernel and the platform, and on `SimpleDirectMediaLayer` and `SDL2_jll`. A package with a third-party dependency is a stem that a user names, so `using Projectured` does not load it. `ProjecturedREPL` loads it, and `ProjecturedVideo` depends on it. The builder names it as the backend `sdl` of a binary, the default when a build holds both backends.
 
 `default_backend()` in the [application slice](../../platform/application/application.md) returns an `SdlBackend` when the package is loaded. It registers nothing.
 
@@ -102,7 +102,7 @@ The code is the slice `SdlModule`, in `source/backend/sdl/`: `SdlModule.jl` hold
 - **The repaint follows the reactive graph.** The cells that a change invalidated say which graphics changed, so the backend compares no pixels. See [plan/done/optimize-rendering-dirty-rect.md](../../../../plan/done/optimize-rendering-dirty-rect.md).
 - **The damage history follows the buffer age.** A swap chain of two or three buffers would otherwise show an old edit on the buffer that was not repainted.
 - **The two zooms take two routes.** The uniform zoom needs no new print; the font zoom prints again, because the widgets keep the sizes that they measured.
-- **Xlib finds its locale data in its artifact.** The `__init__` of `ProjecturedSdl` sets `XLOCALEDIR` to the locale folder of `Xorg_libX11_jll`, unless the user set it. The build of that JLL names a folder that exists only on the machine that built it; without the data `XSupportsLocale` is false, and SDL gives a window no title, so X11 shows no `WM_NAME` and no `_NET_WM_NAME`.
+- **Xlib finds its locale data in its artifact.** The `__init__` of `ProjecturedSDL` sets `XLOCALEDIR` to the locale folder of `Xorg_libX11_jll`, unless the user set it. The build of that JLL names a folder that exists only on the machine that built it; without the data `XSupportsLocale` is false, and SDL gives a window no title, so X11 shows no `WM_NAME` and no `_NET_WM_NAME`.
 - **The state of an editor is on its backend.** The pending input, the time of the rate limit of idle motion, the switches `partial_render` and `debug_dirty`, and the `Display` are fields of the backend, so two backends in one process keep them apart. The SDL session is still one for each process: one event queue, and one set of open fonts.
 
 ## Usage
@@ -115,7 +115,7 @@ projection = TextToGraphics(measure = FontFileMeasure())
 ```
 
 - Examples: every gallery example runs on it by default. `example/backend/sdl/LiveExamples.jl` plays a timeline in a window or records it with `record_video`. The screenshots under `asset/image/example/` come from `write_image`.
-- Test: `test_sdl()` in `ProjecturedSdlTest` runs the layering guard, the dirty rectangle, the key symbols, the device configuration, the agreement of the font metrics with SDL_ttf (`test_sdl_font_metrics_agree`), the baseline of the drawn ink and the pen positions of each glyph (`test_sdl_text_baseline_ink`, `test_sdl_text_pen_positions`), the coalescing of input, the wait and the wake, the native windows, and `write_image`.
+- Test: `test_sdl()` in `ProjecturedSDLTest` runs the layering guard, the dirty rectangle, the key symbols, the device configuration, the agreement of the font metrics with SDL_ttf (`test_sdl_font_metrics_agree`), the baseline of the drawn ink and the pen positions of each glyph (`test_sdl_text_baseline_ink`, `test_sdl_text_pen_positions`), the coalescing of input, the wait and the wake, the native windows, and `write_image`.
 
 ## Limits
 

@@ -19,11 +19,11 @@ The packages are not in the General registry yet. A project reaches them by path
    ```toml
    [deps]
    Projectured = "…"
-   ProjecturedSdl = "…"
+   ProjecturedSDL = "…"
 
    [sources]
    Projectured = {path = "../projectured-julia/package/Projectured"}
-   ProjecturedSdl = {path = "../projectured-julia/package/ProjecturedSdl"}
+   ProjecturedSDL = {path = "../projectured-julia/package/ProjecturedSDL"}
    ```
 
    The uuid of each package is in its own `Project.toml`. Give a path for every ProjecturEd package you name, and for none that you do not: a package that you do not name is reached through the ones you do.
@@ -35,10 +35,10 @@ The packages are not in the General registry yet. A project reaches them by path
 | Package | What you get |
 | --- | --- |
 | `Projectured` | the umbrella: the kernel, the platform and every domain |
-| `ProjecturedSdl` | the native window |
+| `ProjecturedSDL` | the native window |
 | `ProjecturedWeb` | the browser backend |
 | `ProjecturedExample` | the examples, the gallery, `run_value_viewer` and the application |
-| one domain, for example `ProjecturedJson` | that domain alone, with the kernel below it |
+| one domain, for example `ProjecturedJSON` | that domain alone, with the kernel below it |
 
 A program that shows data of one domain loads that domain and a backend. A program that shows anything loads the umbrella. [package-rules.md](../rule/package-rules.md) says what each kind of package may depend on.
 
@@ -47,7 +47,7 @@ A program that shows data of one domain loads that domain and a backend. A progr
 An editor needs three things: a backend, a document and a projection.
 
 ```julia
-using Projectured, ProjecturedSdl
+using Projectured, ProjecturedSDL
 
 document = parse_natural_text(:json, "{\"name\": \"Alice\"}")
 projection = NaturalToGraphics(measure = FontFileMeasure())

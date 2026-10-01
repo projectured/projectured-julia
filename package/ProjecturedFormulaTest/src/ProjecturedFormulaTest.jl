@@ -13,7 +13,7 @@ using Test
 import ProjecturedFormula
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 using ProjecturedFormulaExample
@@ -24,7 +24,7 @@ using ProjecturedPlatformTest
 import ProjecturedMath
 import ProjecturedMathExample
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedFormula, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedFormula, ProjecturedJulia, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

@@ -1,7 +1,7 @@
 using Test
 using ProjecturedPlatform.SerializationModule
-using ProjecturedJson.JsonModule
-using ProjecturedXml.XmlModule
+using ProjecturedJSON.JsonModule
+using ProjecturedXML.XmlModule
 using Projectured.MarkdownModule
 using Projectured.RstModule
 using Projectured.JuliaModule

@@ -1,0 +1,23 @@
+name = "ProjecturedODBCExample"
+uuid = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
+version = "0.1.0"
+authors = []
+
+# The ODBC opt-in example package: the live-database catalog / SQL-table
+# examples (need a reachable PostgreSQL + ProjecturedODBC). Reuses the
+# ProjecturedExample harness + engine-free builders. Like the umbrella it
+# resolves through the root env (no [sources]); it precompiles only where the
+# ODBC driver is installed.
+
+[deps]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+ProjecturedODBC = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+
+[sources]
+ProjecturedConsole = {path = "../ProjecturedConsole"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

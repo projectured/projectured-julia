@@ -5,7 +5,7 @@ The Adaptagrams opt-in example package (opt-in tier of the example DAG; see
 plan/done/extras-example-split.md). It hosts the native-graph-layout
 examples `graph_adaptagrams` and `dvdrental_relationship` (both projections in
 projection/Graph.jl, laid out by the native `AdaptagramsLayout`). The
-relationship diagram's DB-derived document comes from `ProjecturedOdbcExample`
+relationship diagram's DB-derived document comes from `ProjecturedODBCExample`
 — the one example that needs two engines, so this package depends on both.
 
 Reuses `ProjecturedExample`'s harness + engine-free graph builders. Resolves
@@ -20,7 +20,7 @@ import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,
                            make_graph_document_example, make_graph_projection_example,
                            make_table_projection_example, make_mixed_projection_example
-import ProjecturedOdbcExample: make_dvdrental_relationship_graph_document_example
+import ProjecturedODBCExample: make_dvdrental_relationship_graph_document_example
 
 # The bodies live in `example/adapter/adaptagrams`, not beside this file:
 # a package is a name and an include list.

@@ -184,18 +184,18 @@ on load. Display backends use a lighter mechanism — no seam: name the type
 directly (`SdlBackend()`) where the package is a dependency, or let
 [`default_backend`](../package/platform/application/application.md) pick a
 loaded `Backend` subtype by type-name reflection where it isn't. So the SQL and DbCatalog *documents and projections* stay in
-`ProjecturedSql` and `ProjecturedDbCatalog` (they need nothing external) — only
+`ProjecturedSQL` and `ProjecturedDBCatalog` (they need nothing external) — only
 **live ODBC querying** lives in `Odbc`. Likewise each editor's *tool surface* is
 kernel-resident (the `tool` layer's `ToolSet`), and the LLM/MCP seams are
 kernel-resident too (the `llm` and `agent` layers); only the MCP transport and
-the HTTP clients of the model providers are in the opt-in `ProjecturedMcp`,
+the HTTP clients of the model providers are in the opt-in `ProjecturedMCP`,
 `ProjecturedAnthropic` and `ProjecturedOllama`.
 
 > The inventory below cites a file by name. Every one of them lives in
 > `source/<group>/<slice>/`, one folder per slice in the folder of its group, and the package that includes it is
 > `Projectured<Slice>`. A slice's document file is `<Slice>Document.jl`, so the
 > JSON documents are in `source/domain/json/JsonDocument.jl` and the package is
-> `ProjecturedJson`. [naming-rules.md](../rule/naming-rules.md) states the
+> `ProjecturedJSON`. [naming-rules.md](../rule/naming-rules.md) states the
 > derivation and `test/suite/naming.jl` checks it.
 
 ---
@@ -330,18 +330,18 @@ composes with any higher-order projection.
 | Module | Role |
 |---|---|
 | `EditorModule.jl` | REPL loop: read → eval → print; `make_editor(document, projection; backend)`, `build_editor` and `run_editor!` entry points |
-| `sdl/SdlBackend.jl` (opt-in `ProjecturedSdl`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
+| `sdl/SdlBackend.jl` (opt-in `ProjecturedSDL`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
 | `console/ConsoleBackend.jl` (required `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
 | `web/WebBackend.jl` (opt-in `ProjecturedWeb`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [asset/web/](../../asset/web) |
 | `video/VideoBackend.jl` (opt-in `ProjecturedVideo`) | Video backend: plays a scripted timeline through the editor loop into the frames of a video file |
-| `pdf/PdfWriter.jl` (required `ProjecturedPdf`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
+| `pdf/PdfWriter.jl` (required `ProjecturedPDF`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `event/MouseEvent.jl` | `MouseButtons`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus`, `WindowLeave` |
 | `event/TimerEvent.jl` | `TimerExpire` |
 | `event/DisplayEvent.jl` | `DisplayUpdate` |
-| `agent/AgentInterface.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `ProjecturedMcp` |
+| `agent/AgentInterface.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `ProjecturedMCP` |
 
 ---
 

@@ -3,7 +3,7 @@
 # from the disk; a folder among them reads its listing for its chevron.
 function test_tree_render()
 @testset "a tree reads the entries of the rows it draws" begin
-    SDL = ProjecturedSdl.SdlModule
+    SDL = ProjecturedSDL.SdlModule
     mktempdir() do dir
         for k in 1:100
             folder = joinpath(dir, string("d", lpad(k, 4, '0')))

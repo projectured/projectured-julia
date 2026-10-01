@@ -148,7 +148,7 @@ the loop wrote. `parentmodule(_m) !== Main` is what keeps a package's own
 re-exported aliases of a *lower* package from being bound twice. Every real
 domain package's root module is this same loop with a different dependency
 tuple and a different `include` — compare
-[package/ProjecturedJson/src/ProjecturedJson.jl](../../package/ProjecturedJson/src/ProjecturedJson.jl).
+[package/ProjecturedJSON/src/ProjecturedJSON.jl](../../package/ProjecturedJSON/src/ProjecturedJSON.jl).
 
 Because the aliases are written by a loop rather than `const` lines a reader
 can grep, the static layering guard cannot read them off the file; it measures

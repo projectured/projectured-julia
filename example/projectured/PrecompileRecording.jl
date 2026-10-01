@@ -14,7 +14,7 @@
 #
 # This file is the machinery only. What to drive is a driver script, and which
 # list to replay is a file, and both belong to the leaf being built —
-# `ProjecturedRepl` here, and the repl leaf of each downstream repository.
+# `ProjecturedREPL` here, and the repl leaf of each downstream repository.
 # One implementation, three products.
 #
 # See plan/done/recorded-precompile-workload.md.

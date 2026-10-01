@@ -43,13 +43,13 @@ The loop over the entries does not yield, so a task that a gesture started, such
 
 ### Encode
 
-`write_offscreen_frames!` writes each frame as a PNG file into a temporary folder, through the offscreen renderer of `ProjecturedSdl` with `supersample` and `scale`; see [sdl.md](../sdl/sdl.md). `FFMPEG.exe` then encodes the files with `libx264` and `yuv420p`. The filter `pad=ceil(iw/2)*2:ceil(ih/2)*2` makes both sides even, which H.264 needs. The command is a vector of strings, because a backtick command literal does not accept the parentheses and asterisks of the filter without quotes. An error in the chain propagates to the caller; a `finally` block closes the renderer and deletes the folder. A timeline that makes no frame raises an error.
+`write_offscreen_frames!` writes each frame as a PNG file into a temporary folder, through the offscreen renderer of `ProjecturedSDL` with `supersample` and `scale`; see [sdl.md](../sdl/sdl.md). `FFMPEG.exe` then encodes the files with `libx264` and `yuv420p`. The filter `pad=ceil(iw/2)*2:ceil(ih/2)*2` makes both sides even, which H.264 needs. The command is a vector of strings, because a backtick command literal does not accept the parentheses and asterisks of the filter without quotes. An error in the chain propagates to the caller; a `finally` block closes the renderer and deletes the folder. A timeline that makes no frame raises an error.
 
 ## How it fits
 
 The code is the slice `VideoModule`, in `source/backend/video/`: `VideoModule.jl` holds its imports and its exports, and `ProjecturedVideo` includes that file and exports the same names.
 
-`ProjecturedVideo` depends on `FFMPEG`, the kernel, the platform and `ProjecturedSdl`. It takes the offscreen renderer from `ProjecturedSdl` and does not have one of its own. It registers nothing.
+`ProjecturedVideo` depends on `FFMPEG`, the kernel, the platform and `ProjecturedSDL`. It takes the offscreen renderer from `ProjecturedSDL` and does not have one of its own. It registers nothing.
 
 `VideoBackend` is the other recorder: a `Backend` that plays a timeline through the real editor loop, so a take carries the whole application window. `record_application_video` in `example/backend/sdl/ApplicationVideo.jl` builds the window as `run_application` does and records it with this backend. With `partial_render = true` a frame repaints only the rectangles that changed, as a window with `partial_render` does, and `debug_dirty = true` outlines them in red on the frames; see [sdl.md](../sdl/sdl.md). The outline of the last repaint stays on the frames until the next one, as a window keeps its last picture. With `debug_dirty_hold` seconds, each outline stays for that long and then goes, so a pause in the take shows no outline.
 

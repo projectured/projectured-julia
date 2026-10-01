@@ -20,7 +20,7 @@ Each domain has one design document in the folder of its slice. Read [domain-ana
 | Julia code | [julia.md](../package/domain/julia/julia.md) |
 | Formula | [formula.md](../package/domain/formula/formula.md) |
 | SQL | [sql.md](../package/domain/sql/sql.md) |
-| Database and catalog | [database.md](../package/domain/database/database.md), for `ProjecturedDatabase`, `ProjecturedDbCatalog` and the opt-in `ProjecturedOdbc` |
+| Database and catalog | [database.md](../package/domain/database/database.md), for `ProjecturedDatabase`, `ProjecturedDBCatalog` and the opt-in `ProjecturedODBC` |
 | File system | [filesystem.md](../package/platform/filesystem/filesystem.md) |
 | Graph | [graph.md](../package/domain/graph/graph.md), with [graph-layout.md](../package/domain/graph/graph-layout.md) for the layout engines |
 | Chart | [chart.md](../package/domain/chart/chart.md) |
@@ -47,22 +47,22 @@ Thirteen domains depend on no other domain. Four build on one layer of domains.
 
 | Package | Code | Depends on |
 | --- | --- | --- |
-| `ProjecturedJson` | `source/domain/json/` | — |
-| `ProjecturedYaml` | `source/domain/yaml/` | — |
-| `ProjecturedXml` | `source/domain/xml/` | — |
+| `ProjecturedJSON` | `source/domain/json/` | — |
+| `ProjecturedYAML` | `source/domain/yaml/` | — |
+| `ProjecturedXML` | `source/domain/xml/` | — |
 | `ProjecturedMarkdown` | `source/domain/markdown/` | — |
-| `ProjecturedRst` | `source/domain/rst/` | — |
+| `ProjecturedRST` | `source/domain/rst/` | — |
 | `ProjecturedBook` | `source/domain/book/` | — |
 | `ProjecturedMath` | `source/domain/math/` | — |
 | `ProjecturedJulia` | `source/domain/julia/` | — |
-| `ProjecturedSql` | `source/domain/sql/` | — |
+| `ProjecturedSQL` | `source/domain/sql/` | — |
 | `ProjecturedDatabase` | `source/domain/database/` | — |
 | `ProjecturedGraph` | `source/domain/graph/` | — |
 | `ProjecturedChart` | `source/domain/chart/` | — |
 | `ProjecturedSequenceChart` | `source/domain/sequencechart/` | — |
-| `ProjecturedDbCatalog` | `source/domain/dbcatalog/` | Sql |
+| `ProjecturedDBCatalog` | `source/domain/dbcatalog/` | Sql |
 | `ProjecturedFormula` | `source/domain/formula/` | Julia, Math |
-| `ProjecturedFsm` | `source/domain/fsm/` | Julia, Graph |
+| `ProjecturedFSM` | `source/domain/fsm/` | Julia, Graph |
 | `ProjecturedProcess` | `source/domain/process/` | Julia, Graph |
 
 Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. The file system, the conversation and the assistant look like domains but are slices of `ProjecturedPlatform`; a conversation part parses to JSON, Julia or XML through the natural registry, so the conversation slice needs no dependency on those domains.
@@ -77,10 +77,10 @@ Three kinds of thing look like a domain and are not. Each lives in a slice of `P
 
 ## The root module
 
-A domain package's root module binds the submodules of the packages below it with one loop rather than a written alias table, so a source file names a module exactly as the module names itself. This is the root of `ProjecturedFsm`, shortened:
+A domain package's root module binds the submodules of the packages below it with one loop rather than a written alias table, so a source file names a module exactly as the module names itself. This is the root of `ProjecturedFSM`, shortened:
 
 ```julia
-module ProjecturedFsm
+module ProjecturedFSM
 
 using ProjecturedGraph
 using ProjecturedJulia

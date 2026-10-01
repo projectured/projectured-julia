@@ -16,20 +16,20 @@ stays one value. Needs no database.
 """
 function test_odbc_adapter()
     @testset "the catalog query of the schemas names the database" begin
-        query = ProjecturedOdbc.OdbcModule._make_catalog_schemas_query("dvdrental")
+        query = ProjecturedODBC.OdbcModule._make_catalog_schemas_query("dvdrental")
         @test occursin("catalog_name = 'dvdrental'", query)
         @test occursin("information_schema.schemata", query)
-        @test !occursin("dvdrental", ProjecturedOdbc.OdbcModule._make_catalog_schemas_query("film"))
+        @test !occursin("dvdrental", ProjecturedODBC.OdbcModule._make_catalog_schemas_query("film"))
     end
 
     @testset "the catalog query of the databases lists every database of the server" begin
-        query = ProjecturedOdbc.OdbcModule._make_catalog_databases_query()
+        query = ProjecturedODBC.OdbcModule._make_catalog_databases_query()
         @test occursin("pg_database", query)
         @test !occursin("information_schema.tables", query)
     end
 
     @testset "a name with a quote is one string literal in each catalog query" begin
-        odbc = ProjecturedOdbc.OdbcModule
+        odbc = ProjecturedODBC.OdbcModule
         @test occursin("catalog_name = 'it''s'", odbc._make_catalog_schemas_query("it's"))
         @test occursin("table_schema = 'o''neil'", odbc._make_catalog_tables_query("o'neil"))
         query = odbc._make_catalog_columns_query("o'neil", "it's")
@@ -44,16 +44,16 @@ function test_odbc_adapter()
         pool = OdbcConnectionPool()
         instance = DatabaseInstance(database = "shop", host = "db.example", port = 5433,
                                     credentials = DatabaseCredentials(user = "u", password = "p"))
-        other = ProjecturedOdbc.OdbcModule._make_database_instance(instance, "film")
+        other = ProjecturedODBC.OdbcModule._make_database_instance(instance, "film")
         @test get_dsn(pool, other) == replace(get_dsn(pool, instance), "Database=shop;" => "Database=film;")
         @test occursin("Database=film;", get_dsn(pool, other))
         # The database of the instance uses the connections of the instance.
-        same = ProjecturedOdbc.OdbcModule._make_database_instance(instance, "shop")
+        same = ProjecturedODBC.OdbcModule._make_database_instance(instance, "shop")
         @test get_dsn(pool, same) == get_dsn(pool, instance)
     end
 
     @testset "a table or a column name with a double quote is one identifier" begin
-        odbc = ProjecturedOdbc.OdbcModule
+        odbc = ProjecturedODBC.OdbcModule
         query, _ = odbc._build_select("a\"b", nothing, nothing, nothing)
         @test occursin("FROM \"a\"\"b\"", query)
         @test !occursin("FROM \"a\"b\"", query)

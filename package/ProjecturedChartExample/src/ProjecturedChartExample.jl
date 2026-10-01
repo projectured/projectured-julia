@@ -15,14 +15,14 @@ module ProjecturedChartExample
 
 import ProjecturedChart
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 using ProjecturedKernelExample
 using ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedChart, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+const _SOURCES = (ProjecturedChart, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

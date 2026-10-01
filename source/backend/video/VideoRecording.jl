@@ -20,7 +20,7 @@ end
 
 Record a headless video of an editing session and encode it to `filename` (which
 must end in `.mp4`). No window is required — frames are rendered with the same
-offscreen software renderer as `ProjecturedSdl.write_image` and assembled with `ffmpeg`.
+offscreen software renderer as `ProjecturedSDL.write_image` and assembled with `ffmpeg`.
 
 `gestures` is a vector of timed entries. Each entry carries either an `event` or
 an `operation`, plus a `hold`:

@@ -13,7 +13,7 @@ using Test
 import ProjecturedGraph
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedProcess
@@ -23,7 +23,7 @@ using ProjecturedProcessExample
 using ProjecturedPlatformExample
 using ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf, ProjecturedProcess)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPDF, ProjecturedProcess)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

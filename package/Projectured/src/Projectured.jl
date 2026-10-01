@@ -26,26 +26,26 @@ module Projectured
 import ProjecturedKernel
 import ProjecturedPlatform
 import ProjecturedConsole
-import ProjecturedPdf
+import ProjecturedPDF
 
 # The concrete domains, in dependency order: the ones that need no other domain,
 # then the ones that build on them, then the application on top.
-import ProjecturedJson
-import ProjecturedYaml
-import ProjecturedXml
+import ProjecturedJSON
+import ProjecturedYAML
+import ProjecturedXML
 import ProjecturedMarkdown
-import ProjecturedRst
+import ProjecturedRST
 import ProjecturedBook
 import ProjecturedMath
 import ProjecturedJulia
-import ProjecturedSql
+import ProjecturedSQL
 import ProjecturedDatabase
 import ProjecturedGraph
 import ProjecturedChart
 import ProjecturedSequenceChart
-import ProjecturedDbCatalog
+import ProjecturedDBCatalog
 import ProjecturedFormula
-import ProjecturedFsm
+import ProjecturedFSM
 import ProjecturedProcess
 
 include("../../../source/projectured/Projectured.jl")

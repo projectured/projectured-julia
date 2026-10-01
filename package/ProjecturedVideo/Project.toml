@@ -7,9 +7,9 @@ version = "0.1.0"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
-ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
-ProjecturedSdl = {path = "../ProjecturedSdl"}
+ProjecturedSDL = {path = "../ProjecturedSDL"}

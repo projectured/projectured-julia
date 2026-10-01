@@ -8,43 +8,43 @@ ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
-ProjecturedDbCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
+ProjecturedDBCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
 ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
-ProjecturedFsm = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
+ProjecturedFSM = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
-ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
+ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
-ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedProcess = "0e3957ae-e92a-496b-bebd-10c4026663e9"
-ProjecturedRst = "831b768c-bfea-4983-ba67-a56f379c3222"
+ProjecturedRST = "831b768c-bfea-4983-ba67-a56f379c3222"
 ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
-ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
-ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
-ProjecturedYaml = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
+ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedXML = "6f8deb26-6771-4202-9df0-376c19aef1c5"
+ProjecturedYAML = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 
 [sources]
 ProjecturedBook = {path = "../ProjecturedBook"}
 ProjecturedChart = {path = "../ProjecturedChart"}
 ProjecturedConsole = {path = "../ProjecturedConsole"}
 ProjecturedDatabase = {path = "../ProjecturedDatabase"}
-ProjecturedDbCatalog = {path = "../ProjecturedDbCatalog"}
+ProjecturedDBCatalog = {path = "../ProjecturedDBCatalog"}
 ProjecturedFormula = {path = "../ProjecturedFormula"}
-ProjecturedFsm = {path = "../ProjecturedFsm"}
+ProjecturedFSM = {path = "../ProjecturedFSM"}
 ProjecturedGraph = {path = "../ProjecturedGraph"}
-ProjecturedJson = {path = "../ProjecturedJson"}
+ProjecturedJSON = {path = "../ProjecturedJSON"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
 ProjecturedMath = {path = "../ProjecturedMath"}
-ProjecturedPdf = {path = "../ProjecturedPdf"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedProcess = {path = "../ProjecturedProcess"}
-ProjecturedRst = {path = "../ProjecturedRst"}
+ProjecturedRST = {path = "../ProjecturedRST"}
 ProjecturedSequenceChart = {path = "../ProjecturedSequenceChart"}
-ProjecturedSql = {path = "../ProjecturedSql"}
-ProjecturedXml = {path = "../ProjecturedXml"}
-ProjecturedYaml = {path = "../ProjecturedYaml"}
+ProjecturedSQL = {path = "../ProjecturedSQL"}
+ProjecturedXML = {path = "../ProjecturedXML"}
+ProjecturedYAML = {path = "../ProjecturedYAML"}

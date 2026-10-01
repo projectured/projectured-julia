@@ -13,11 +13,11 @@ authors = []
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
-ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 
 [sources]
 ProjecturedConsole = {path = "../ProjecturedConsole"}
-ProjecturedPdf = {path = "../ProjecturedPdf"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}

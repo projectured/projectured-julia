@@ -13,23 +13,23 @@ using ProjecturedExample
 # and extends the ground-truth selection enumerators for the domains it owns.
 using ProjecturedKernelTest
 using ProjecturedPlatformTest
-using ProjecturedJsonTest
-using ProjecturedJsonTest: test_json_content_clicks_clean
-using ProjecturedYamlTest
-using ProjecturedXmlTest
+using ProjecturedJSONTest
+using ProjecturedJSONTest: test_json_content_clicks_clean
+using ProjecturedYAMLTest
+using ProjecturedXMLTest
 using ProjecturedMarkdownTest
-using ProjecturedRstTest
+using ProjecturedRSTTest
 using ProjecturedBookTest
 using ProjecturedMathTest
 using ProjecturedJuliaTest
-using ProjecturedSqlTest
+using ProjecturedSQLTest
 using ProjecturedDatabaseTest
 using ProjecturedGraphTest
 using ProjecturedChartTest
 using ProjecturedSequenceChartTest
-using ProjecturedDbCatalogTest
+using ProjecturedDBCatalogTest
 using ProjecturedFormulaTest
-using ProjecturedFsmTest
+using ProjecturedFSMTest
 using ProjecturedProcessTest
 # The builder's own suite is umbrella-only: it needs no domain and no editor,
 # but it is a repository-wide tool and this is where a repository-wide test runs.
@@ -37,7 +37,7 @@ using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_platform()` as well as `test_all()`.
-for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedSqlTest, ProjecturedXmlTest, ProjecturedYamlTest)
+for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDBCatalogTest, ProjecturedFormulaTest, ProjecturedFSMTest, ProjecturedGraphTest, ProjecturedJSONTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRSTTest, ProjecturedSequenceChartTest, ProjecturedSQLTest, ProjecturedXMLTest, ProjecturedYAMLTest)
     for _n in names(_src)
         _n === nameof(_src) && continue
         isdefined(_src, _n) || continue
@@ -81,13 +81,13 @@ import ProjecturedPlatformTest: test_position_navigation, test_tree_navigation,
 # Opt into the SDL backend package so the test suite can drive rendering /
 # write_image / click roundtrips (provides SdlBackend + GraphicsCanvasToImageFile).
 # The library itself is SDL-optional; the test package opts in.
-using ProjecturedSdl
+using ProjecturedSDL
 # Opt into the video package so VideoTest can drive record_video (it provides the
-# record_video method on the kernel seam; FFMPEG lives here, not in ProjecturedSdl).
+# record_video method on the kernel seam; FFMPEG lives here, not in ProjecturedSDL).
 using ProjecturedVideo
 # Likewise opt into the Odbc package so the database tests can construct
 # adapters/pools/projections and assert on their types (all exported by the package).
-using ProjecturedOdbc
+using ProjecturedODBC
 # Opt into the Tulip solver package so ConstraintSolverTest can construct a
 # TulipConstraintSolver and exercise the LP-backed constraint layout.
 using ProjecturedTulip
@@ -100,10 +100,10 @@ using ProjecturedWeb
 # keep orchestrating the opt-in suites: test_dirty_rect / test_write_image (Sdl),
 # test_constraint_solver (Tulip), test_record_video (Video), and the DB suites
 # (Odbc) all resolve through these.
-using ProjecturedSdlTest
+using ProjecturedSDLTest
 using ProjecturedTulipTest
 using ProjecturedVideoTest
-using ProjecturedOdbcTest
+using ProjecturedODBCTest
 # The Ollama adapter's suite. It tests translation, so it needs no server; its
 # one live test skips itself when none answers.
 using ProjecturedAnthropicTest

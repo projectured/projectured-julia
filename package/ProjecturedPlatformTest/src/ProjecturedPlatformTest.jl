@@ -27,7 +27,7 @@ using Test
 import ProjecturedKernel
 import ProjecturedPlatform
 import ProjecturedConsole
-import ProjecturedPdf
+import ProjecturedPDF
 using ProjecturedKernelTest
 # The real platform example factories and the tier's registry slice.
 using ProjecturedPlatformExample
@@ -71,7 +71,7 @@ using ProjecturedPlatform.ReflectionModule
 using ProjecturedPlatform.ReflectionModule
 using ProjecturedKernel.OperationModule: ReplaceReferencedValueOperation
 
-const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole, ProjecturedPdf)
+const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole, ProjecturedPDF)
 # The tests were written against the flat `Projectured` namespace. Build the
 # same namespace over the packages above — one mechanical pass, exactly like the
 # umbrella's re-export loop, but without re-exporting: alias every submodule and
@@ -271,7 +271,7 @@ module FileSystemTests
 using Test
 import ProjecturedPlatform
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 using ProjecturedPlatformExample
 using ProjecturedKernelExample
@@ -279,7 +279,7 @@ using ProjecturedKernelTest
 using ProjecturedPlatformExample
 using ..ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -312,19 +312,19 @@ module ConversationTests
 
 using Test
 import ProjecturedPlatform
-import ProjecturedJson
+import ProjecturedJSON
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
-import ProjecturedXml
+import ProjecturedXML
 using ProjecturedConversationExample
 using ProjecturedKernelExample
 using ProjecturedKernelTest
 using ProjecturedPlatformExample
 using ..ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJson, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf, ProjecturedXml)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedJSON, ProjecturedJulia, ProjecturedKernel, ProjecturedPDF, ProjecturedXML)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -378,14 +378,14 @@ using Test
 import ProjecturedPlatform
 import ProjecturedJulia
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 using ProjecturedKernelExample
 using ProjecturedKernelTest
 using ProjecturedPlatformExample
 using ..ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedJulia, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+const _SOURCES = (ProjecturedPlatform, ProjecturedJulia, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

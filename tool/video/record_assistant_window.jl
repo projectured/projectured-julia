@@ -13,7 +13,7 @@
 # first, so the take does not fire its entries in a burst after a slow start.
 
 using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
-      ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
+      ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_window.mp4") : ARGS[1]
 # The window is drawn 15% smaller than its logical size, so a video of 1280×720

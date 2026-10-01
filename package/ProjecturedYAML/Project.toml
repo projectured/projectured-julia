@@ -1,0 +1,14 @@
+name = "ProjecturedYAML"
+uuid = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
+version = "0.1.0"
+authors = []
+
+# The YAML source domain.
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

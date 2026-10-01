@@ -14,7 +14,7 @@ loop below rebuilds that namespace over this package's sources.
 module ProjecturedMarkdownExample
 
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedMarkdown
@@ -22,7 +22,7 @@ using ProjecturedKernelExample
 using ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedMarkdown, ProjecturedPdf)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedMarkdown, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

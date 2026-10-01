@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = []
 
 # Test package for the opt-in ProjecturedVideo package: record_video over an
-# example timeline, and record_application_video (ProjecturedSdlExample) over
+# example timeline, and record_application_video (ProjecturedSDLExample) over
 # the application window. Needs FFMPEG, so it precompiles/runs only where that
 # is installed. Resolves through the root env.
 
@@ -13,9 +13,9 @@ Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
-ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
-ProjecturedSdlExample = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
+ProjecturedSDLExample = "b2505c89-7501-4d9a-b956-db36ec6d1cb4"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -23,5 +23,5 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [sources]
 ProjecturedConsole = {path = "../ProjecturedConsole"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
-ProjecturedPdf = {path = "../ProjecturedPdf"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}

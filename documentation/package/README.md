@@ -69,8 +69,8 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | Package | Document | What it holds |
 | --- | --- | --- |
 | `ProjecturedConsole` | [console.md](backend/console/console.md) | the terminal backend |
-| `ProjecturedPdf` | [pdf.md](backend/pdf/pdf.md) | the export to a vector PDF |
-| `ProjecturedSdl` | [sdl.md](backend/sdl/sdl.md) | the native window backend |
+| `ProjecturedPDF` | [pdf.md](backend/pdf/pdf.md) | the export to a vector PDF |
+| `ProjecturedSDL` | [sdl.md](backend/sdl/sdl.md) | the native window backend |
 | `ProjecturedWeb` | [web.md](backend/web/web.md) | the browser backend |
 | `ProjecturedVideo` | [video.md](backend/video/video.md) | the recording of a video |
 
@@ -80,14 +80,14 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | --- | --- | --- |
 | `ProjecturedAnthropic`, `ProjecturedOllama` | [llm.md](kernel/llm/llm.md) | the two language model backends |
 | `ProjecturedOpenRouter` | [openrouter.md](adapter/openrouter/openrouter.md) | the relevance model on the Decisions API of OpenRouter |
-| `ProjecturedMcp` | [mcp.md](adapter/mcp/mcp.md) | the MCP server |
+| `ProjecturedMCP` | [mcp.md](adapter/mcp/mcp.md) | the MCP server |
 | `ProjecturedTulip` | [tulip.md](adapter/tulip/tulip.md) | the constraint solver of the layout |
 | `ProjecturedAdaptagrams` | [adaptagrams.md](adapter/adaptagrams/adaptagrams.md) | the native graph layout engine |
-| `ProjecturedOdbc` | [database.md](domain/database/database.md) | the ODBC adapter and the live queries |
+| `ProjecturedODBC` | [database.md](domain/database/database.md) | the ODBC adapter and the live queries |
 
 ## The tools
 
 | Package | Document | What it holds |
 | --- | --- | --- |
-| `ProjecturedRepl` | [repl.md](tool/repl/repl.md) | the leaf that a session loads, with the precompile workload |
+| `ProjecturedREPL` | [repl.md](tool/repl/repl.md) | the leaf that a session loads, with the precompile workload |
 | `ProjecturedBuilder` | [builder.md](tool/builder/builder.md) | the build of a native binary |

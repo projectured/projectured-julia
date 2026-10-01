@@ -1,4 +1,4 @@
-# The run that `ProjecturedRepl.record_precompile_statements` traces.
+# The run that `ProjecturedREPL.record_precompile_statements` traces.
 #
 # It is not run by a build. A person runs the recorder, this drives the editor
 # the way a reader drives it, and Julia writes down every method instance it had
@@ -10,10 +10,10 @@
 # Needs a display. SDL asks for an accelerated renderer, which the dummy video
 # driver does not offer.
 
-using ProjecturedRepl
+using ProjecturedREPL
 using Projectured
 using ProjecturedExample
-using ProjecturedSdl: SdlBackend
+using ProjecturedSDL: SdlBackend
 
 using Projectured.EditorModule: Editor, evaluate!, print!
 using Projectured.BackendModule: initialize_backend!, quit_backend!, configure_devices!

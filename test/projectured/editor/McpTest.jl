@@ -1,7 +1,7 @@
 using Test
 using Sockets
 import HTTP
-using ProjecturedMcp
+using ProjecturedMCP
 using ProjecturedKernel.ToolModule
 using ProjecturedPlatform.AssistantModule: SubmitJuliaOperation, SubmitProseOperation, _eval_result
 

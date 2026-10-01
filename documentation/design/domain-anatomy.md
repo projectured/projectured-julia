@@ -20,7 +20,7 @@ A domain package holds the documents of one kind of content and everything that 
 | The examples | a document factory and a projection factory | `example/domain/json/` |
 | The tests | `test_json()`, with the layering guard first | `test/domain/json/JsonSuite.jl` |
 
-A domain has no third-party dependency. A domain that needs one becomes an opt-in package, as `ProjecturedOdbc` is for live SQL queries. [package-rules.md](../rule/package-rules.md) states the rule.
+A domain has no third-party dependency. A domain that needs one becomes an opt-in package, as `ProjecturedODBC` is for live SQL queries. [package-rules.md](../rule/package-rules.md) states the rule.
 
 ## The documents
 
@@ -101,7 +101,7 @@ A domain calls `register_natural_syntax!` or `register_natural_graphics!` as wel
 
 ## One domain inside another
 
-A domain that holds the documents of another domain depends on that package. A state machine guard is a Julia expression, so `ProjecturedFsm` depends on `ProjecturedJulia`. The printer of the outer domain puts the rules of the inner domain in its dispatch table, and the inner documents go through their own chain. `ProjecturedDbCatalog` depends on `ProjecturedSql` for the other reason: its printer makes SQL documents. [domain-inventory.md](domain-inventory.md) has the table of these edges.
+A domain that holds the documents of another domain depends on that package. A state machine guard is a Julia expression, so `ProjecturedFSM` depends on `ProjecturedJulia`. The printer of the outer domain puts the rules of the inner domain in its dispatch table, and the inner documents go through their own chain. `ProjecturedDBCatalog` depends on `ProjecturedSQL` for the other reason: its printer makes SQL documents. [domain-inventory.md](domain-inventory.md) has the table of these edges.
 
 ## Usage
 

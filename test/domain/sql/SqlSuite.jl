@@ -1,18 +1,18 @@
 """
     test_sql_layering()
 
-Static layered-architecture guard for `ProjecturedSql`.
+Static layered-architecture guard for `ProjecturedSQL`.
 """
 function test_sql_layering()
-    main = get_package_source_root(ProjecturedSql)
-    check_layering(main, pathof(ProjecturedSql);
+    main = get_package_source_root(ProjecturedSQL)
+    check_layering(main, pathof(ProjecturedSQL);
                    name = "sql",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedSql; all = true)
-                         if isdefined(ProjecturedSql, n) &&
-                            getfield(ProjecturedSql, n) isa Module &&
-                            getfield(ProjecturedSql, n) !== ProjecturedSql &&
-                            parentmodule(getfield(ProjecturedSql, n)) !== ProjecturedSql))
+                       n for n in names(ProjecturedSQL; all = true)
+                         if isdefined(ProjecturedSQL, n) &&
+                            getfield(ProjecturedSQL, n) isa Module &&
+                            getfield(ProjecturedSQL, n) !== ProjecturedSQL &&
+                            parentmodule(getfield(ProjecturedSQL, n)) !== ProjecturedSQL))
 end
 
 """
@@ -21,7 +21,7 @@ end
 Run this package's whole suite: the layering guard and every sql test.
 """
 function test_sql()
-    @testset "ProjecturedSql" begin
+    @testset "ProjecturedSQL" begin
         test_sql_layering()
         test_sql_parser()
         test_sql_to_syntax()

@@ -1,0 +1,14 @@
+name = "ProjecturedSQL"
+uuid = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+version = "0.1.0"
+authors = []
+
+# The SQL source domain.
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}

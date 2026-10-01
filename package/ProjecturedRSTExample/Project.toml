@@ -1,0 +1,26 @@
+name = "ProjecturedRSTExample"
+uuid = "653aef14-a50f-441b-8c17-330b3d4bb59b"
+version = "0.1.0"
+authors = []
+
+# The Rst tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedRST = "831b768c-bfea-4983-ba67-a56f379c3222"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+
+[sources]
+ProjecturedConsole = {path = "../ProjecturedConsole"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedRST = {path = "../ProjecturedRST"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}

@@ -18,7 +18,7 @@ From your own code, the same editor takes a keyword:
 run_editor!(document, projection; window = (; title = "My data"), mcp = true)
 ```
 
-By default, the server listens at `http://127.0.0.1:9876/mcp`, on the loopback address only. `ProjecturedMcp` must be loaded; the application holds it already.
+By default, the server listens at `http://127.0.0.1:9876/mcp`, on the loopback address only. `ProjecturedMCP` must be loaded; the application holds it already.
 
 To listen at another port, give it after `--mcp=`. To listen at another address too, give the host and the port:
 

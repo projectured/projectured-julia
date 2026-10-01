@@ -19,22 +19,22 @@ const _PACKAGE_ROOT = normpath(joinpath(@__DIR__, "..", ".."))
 # state machine guard is a Julia expression, a catalog prints as SQL statements,
 # and the code of a formula is a Julia tree or a math tree.
 const DOMAIN_EDGES = Dict(
-    "ProjecturedJson"          => String[],
-    "ProjecturedYaml"          => String[],
-    "ProjecturedXml"           => String[],
+    "ProjecturedJSON"          => String[],
+    "ProjecturedYAML"          => String[],
+    "ProjecturedXML"           => String[],
     "ProjecturedMarkdown"      => String[],
-    "ProjecturedRst"           => String[],
+    "ProjecturedRST"           => String[],
     "ProjecturedBook"          => String[],
     "ProjecturedMath"          => String[],
     "ProjecturedJulia"         => String[],
-    "ProjecturedSql"           => String[],
+    "ProjecturedSQL"           => String[],
     "ProjecturedDatabase"      => String[],
     "ProjecturedGraph"         => String[],
     "ProjecturedChart"         => String[],
     "ProjecturedSequenceChart" => String[],
-    "ProjecturedDbCatalog"     => ["ProjecturedSql"],
+    "ProjecturedDBCatalog"     => ["ProjecturedSQL"],
     "ProjecturedFormula"       => ["ProjecturedJulia", "ProjecturedMath"],
-    "ProjecturedFsm"           => ["ProjecturedGraph", "ProjecturedJulia"],
+    "ProjecturedFSM"           => ["ProjecturedGraph", "ProjecturedJulia"],
     "ProjecturedProcess"       => ["ProjecturedGraph", "ProjecturedJulia"],
 )
 
@@ -43,7 +43,7 @@ const DOMAIN_EDGES = Dict(
 # domain may depend on any of them, and none of them may depend on a domain.
 const KERNEL = "ProjecturedKernel"
 
-const BELOW_THE_DOMAINS = ["ProjecturedPlatform", "ProjecturedConsole", "ProjecturedPdf"]
+const BELOW_THE_DOMAINS = ["ProjecturedPlatform", "ProjecturedConsole", "ProjecturedPDF"]
 
 
 """
@@ -54,7 +54,7 @@ tool that drives a build, not a package a session loads. The package that a
 build compiles into a binary is a leaf too, but it lives under `build/app/`,
 outside `package/`.
 """
-const _LEAVES = ("ProjecturedRepl", "ProjecturedBench")
+const _LEAVES = ("ProjecturedREPL", "ProjecturedBench")
 
 """
     _is_main_package(name) -> Bool

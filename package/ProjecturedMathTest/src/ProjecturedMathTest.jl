@@ -11,7 +11,7 @@ module ProjecturedMathTest
 
 using Test
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedMath
@@ -21,7 +21,7 @@ using ProjecturedMathExample
 using ProjecturedPlatformExample
 using ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedMath, ProjecturedPdf)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedMath, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

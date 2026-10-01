@@ -95,7 +95,7 @@ their navigation through `evaluate_reference_step`, with no edit to layer 11.
 **The agent stack is a side-stack.** The editor (layer 22) reaches it only through
 the factory seam `make_agent_server(:mcp, editor)` declared in
 `agent/AgentInterface.jl` (`AgentModule`), so the editor does **not** depend on
-`ProjecturedMcp`, `ProjecturedAnthropic` or `ProjecturedOllama`. These opt-in
+`ProjecturedMCP`, `ProjecturedAnthropic` or `ProjecturedOllama`. These opt-in
 packages hold the real transports, and they register their methods on load.
 
 **Fan-in.** A count of the kernel module files that name a module in a

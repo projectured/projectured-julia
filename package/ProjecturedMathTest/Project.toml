@@ -13,7 +13,7 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
 ProjecturedMathExample = "73f1f682-f993-4b23-8fb6-96106c481b86"
-ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
@@ -26,7 +26,7 @@ ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedMath = {path = "../ProjecturedMath"}
 ProjecturedMathExample = {path = "../ProjecturedMathExample"}
-ProjecturedPdf = {path = "../ProjecturedPdf"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}

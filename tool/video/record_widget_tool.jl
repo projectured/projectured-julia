@@ -23,7 +23,7 @@
 # With `probe` as the second argument the script records only a fast take in
 # video time, and prints the second at which each moment of it starts.
 
-using Projectured, ProjecturedExample, ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
+using Projectured, ProjecturedExample, ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "widget_tool.mp4") : ARGS[1]
 const PROBE = get(ARGS, 2, "") == "probe"

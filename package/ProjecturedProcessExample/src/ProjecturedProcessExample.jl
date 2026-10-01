@@ -15,7 +15,7 @@ module ProjecturedProcessExample
 
 import ProjecturedGraph
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 import ProjecturedProcess
@@ -24,7 +24,7 @@ using ProjecturedKernelExample
 using ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPdf, ProjecturedProcess)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPDF, ProjecturedProcess)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

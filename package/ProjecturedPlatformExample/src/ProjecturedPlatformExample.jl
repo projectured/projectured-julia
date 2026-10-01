@@ -23,7 +23,7 @@ module ProjecturedPlatformExample
 import ProjecturedKernel
 import ProjecturedPlatform
 import ProjecturedConsole
-import ProjecturedPdf
+import ProjecturedPDF
 using ProjecturedKernelExample
 import ProjecturedKernelExample: Example
 
@@ -32,7 +32,7 @@ import ProjecturedKernelExample: Example
 # one mechanical pass, exactly like the `Projectured` umbrella's re-export
 # loop (but without re-exporting): alias every submodule and `using` its
 # exported names into scope.
-const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole, ProjecturedPdf)
+const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -210,13 +210,13 @@ module FileSystemExamples
 
 import ProjecturedPlatform
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 using ProjecturedKernelExample
 using ..ProjecturedPlatformExample
 import ProjecturedKernelExample: Example, AtomicDocument, make_typein_gestures
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

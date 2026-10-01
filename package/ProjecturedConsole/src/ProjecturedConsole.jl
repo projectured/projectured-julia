@@ -3,7 +3,7 @@
 
 The console backend. It renders the text domain to an ANSI terminal and needs
 no third-party package, so the umbrella still aggregates it. It is a peer of
-`ProjecturedSdl`, `ProjecturedWeb` and `ProjecturedPdf`, which is what a
+`ProjecturedSDL`, `ProjecturedWeb` and `ProjecturedPDF`, which is what a
 concrete backend is.
 
 The loop below binds every submodule of the kernel and the platform as a

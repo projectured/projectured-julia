@@ -36,7 +36,7 @@ The display slice depends on the kernel for the run function and the inbox, on t
 too, so a person who looks at a frame loads no more than this:
 
 ```julia
-using DataFrames, ProjecturedDataFrames, ProjecturedSdl
+using DataFrames, ProjecturedDataFrames, ProjecturedSDL
 display_in_editor(DataFrame(a = 1:3))
 close_display_editor!()
 ```
@@ -44,7 +44,7 @@ close_display_editor!()
 The display itself is a name of the platform:
 
 ```julia
-using DataFrames, ProjecturedDataFrames, ProjecturedPlatform, ProjecturedSdl
+using DataFrames, ProjecturedDataFrames, ProjecturedPlatform, ProjecturedSDL
 display(EditorDisplay(), DataFrame(b = ["x", "y"]))
 ```
 

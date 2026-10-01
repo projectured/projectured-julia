@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md)
 
-The YAML domain, `ProjecturedYaml`, holds YAML data as the same tree of scalars, sequences and mappings that the JSON domain uses. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the two presentations of one document, the parser subset, and the one hand-written projection.
+The YAML domain, `ProjecturedYAML`, holds YAML data as the same tree of scalars, sequences and mappings that the JSON domain uses. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the two presentations of one document, the parser subset, and the one hand-written projection.
 
 <img width="396" alt="YAML example" src="../../../asset/image/example/yaml.png">
 
@@ -40,7 +40,7 @@ The block sequence is the one hand-written projection, `YamlSequenceToBlockSynta
 
 ## How it fits
 
-`ProjecturedYaml` depends on the engine and on the platform. No other domain depends on it. Its `__init__` registers:
+`ProjecturedYAML` depends on the engine and on the platform. No other domain depends on it. Its `__init__` registers:
 
 - the natural notation, with the format `:yaml`, the extension `.yaml` and the parser `parse_yaml`;
 - a second parser name, `register_natural_parser!(:yml, parse_yaml)`, so a Markdown fence tagged `yml` also parses;

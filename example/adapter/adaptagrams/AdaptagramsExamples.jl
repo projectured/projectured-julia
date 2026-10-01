@@ -3,7 +3,7 @@
 # Projection builders in projection/Graph.jl; engine-free builders
 # (make_graph_document_example) from ProjecturedExample; the relationship's
 # DB-derived document (make_dvdrental_relationship_graph_document_example) from
-# ProjecturedOdbcExample.
+# ProjecturedODBCExample.
 
 # Native AdaptagramsLayout graph layout.
 const graph_adaptagrams_example      = Example("graph_adaptagrams",      make_graph_document_example,                        make_graph_adaptagrams_projection_example)

@@ -16,7 +16,7 @@
 
 using ProjecturedExample
 # `write_image` is a backend seam; the SDL package is what fills it in.
-using ProjecturedSdl
+using ProjecturedSDL
 using SHA
 
 # One per widget, plus the two that show a widget tree the conversation builds.

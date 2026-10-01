@@ -9,7 +9,7 @@ How to put your own Julia values on the screen: a view you design from widgets a
 The shortest way to see a value is to ask for a window on it:
 
 ```julia
-using Projectured, ProjecturedExample, ProjecturedSdl
+using Projectured, ProjecturedExample, ProjecturedSDL
 
 struct Point; x::Int; y::Int; end
 run_value_viewer(Dict("origin" => Point(0, 0), "points" => [Point(1, 2), Point(3, 4)]))

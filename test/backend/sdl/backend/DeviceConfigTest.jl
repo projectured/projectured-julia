@@ -4,7 +4,7 @@
 function test_device_config()
 @testset "device configuration" begin
 
-    SDL = ProjecturedSdl.SdlModule
+    SDL = ProjecturedSDL.SdlModule
 
     @testset "configure_devices! fills the Display and draws with it" begin
         backend = SdlBackend()

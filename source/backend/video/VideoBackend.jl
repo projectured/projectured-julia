@@ -59,13 +59,13 @@ event of the timeline left it, from the first mouse event on: an arrow, a ring
 around its tip while the left button is held, and the ring fading out for 0.3 s
 after a release or a click. The pointer is drawn over the window in a canvas of
 the frame's own, so nothing of it enters the document of the application. The
-rendering itself is `ProjecturedSdl`'s
+rendering itself is `ProjecturedSDL`'s
 offscreen renderer (`open_offscreen_renderer`), opened here and closed by
 [`quit_backend!`](@ref).
 
 With `partial_render = true` a frame repaints only the rects that changed, as
 an `SdlBackend` with `partial_render` does: the offscreen surface keeps its
-pixels, and the dirty walk of `ProjecturedSdl` finds what to paint again. The
+pixels, and the dirty walk of `ProjecturedSDL` finds what to paint again. The
 pointer is then drawn on the written frame and not into the surface. With
 `debug_dirty = true` as well, each frame outlines in red the rects of the last
 frame that repainted something, as the window keeps its last picture with its

@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [markdown.md](../markdown/markdown.md), [natural.md](../../platform/natural/natural.md)
 
-The RST domain, `ProjecturedRst`, holds reStructuredText as a tree of about forty document types, with a parser, two presentations and a page of blocks. It has the shape of the [Markdown domain](../markdown/markdown.md), and this document says where it differs from Markdown and from the [shape of every domain](../../../design/domain-anatomy.md). It covers the section tree, the written indentation, the parser rules, the reference marker and the round-trip criterion.
+The RST domain, `ProjecturedRST`, holds reStructuredText as a tree of about forty document types, with a parser, two presentations and a page of blocks. It has the shape of the [Markdown domain](../markdown/markdown.md), and this document says where it differs from Markdown and from the [shape of every domain](../../../design/domain-anatomy.md). It covers the section tree, the written indentation, the parser rules, the reference marker and the round-trip criterion.
 
 ## How it works
 
@@ -86,7 +86,7 @@ The directive needs no parser rule: an unknown directive name becomes an `RstDir
 
 ## How it fits
 
-`ProjecturedRst` depends on the kernel and the platform, using the layout and widget slices for the page and the embed cards. Unlike other domains, it does not use the domain slice's `@domain` machinery, and no other domain depends on it.
+`ProjecturedRST` depends on the kernel and the platform, using the layout and widget slices for the page and the embed cards. Unlike other domains, it does not use the domain slice's `@domain` machinery, and no other domain depends on it.
 
 Its `__init__` makes four calls:
 

@@ -70,7 +70,7 @@ function print_document(p::HelpListToSyntax, recursion,
     SimpleIoMap(p, list, SyntaxNode(lines; sep = TextString("\n")))
 end
 
-# "JsonString   ProjecturedJson   type: json string, string"
+# "JsonString   ProjecturedJSON   type: json string, string"
 function _make_name_line(p::HelpListToSyntax, entry)
     parts = SyntaxDocument[SyntaxLeaf(TextString(entry.name, p.name)),
                            SyntaxLeaf(TextString("   " * entry.package, p.detail))]

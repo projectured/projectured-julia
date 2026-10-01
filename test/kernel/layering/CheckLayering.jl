@@ -2,7 +2,7 @@
 # layering/CheckLayering.jl
 #
 # The shared static layered-architecture guard. Each main package
-# (`ProjecturedKernel`, `ProjecturedPlatform`, `ProjecturedJson`, …) keeps its
+# (`ProjecturedKernel`, `ProjecturedPlatform`, `ProjecturedJSON`, …) keeps its
 # top module file as a hand-maintained
 # topological sort: every top-level `include("…")` must appear *after* the
 # files defining every `..XxxModule` it imports. `check_layering` enforces the

@@ -287,7 +287,7 @@ holds the list, the waves and what is deferred.
 | A file | mean 216 lines, 61 over 500 | 500 lines |
 
 The four longest hand-written files are `WidgetToGraphics.jl` at 6392 lines,
-`ProjecturedSdl.jl` at 3033, `Widget.jl` at 2107, and `SqlToSyntax.jl` at 2095.
+`ProjecturedSDL.jl` at 3033, `Widget.jl` at 2107, and `SqlToSyntax.jl` at 2095.
 They are far over the budget. Do not sweep them. When you next work in one, take
 one section out into its own fragment.
 

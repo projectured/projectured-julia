@@ -189,7 +189,7 @@ every frame pays to recompute the whole subtree that reads it. See
 
 ## 12. One tool set, for the assistant and for an external client
 
-**Decision:** `ToolSet` is registered once, by `register_default_tools!`. The assistant in the window reads it, and `ProjecturedMcp` renders the same set for a client over MCP.
+**Decision:** `ToolSet` is registered once, by `register_default_tools!`. The assistant in the window reads it, and `ProjecturedMCP` renders the same set for a client over MCP.
 
 **Why:** the two clients ask the same questions — what is in this data, what function does this, change that. Two sets would answer them differently, and the difference would show up as a model that works in the window and fails over MCP. One set also means a tool that an application adds — a domain function, a guide root — is there for both clients with no second registration, if the application adds it before the MCP server starts.
 

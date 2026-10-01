@@ -18,7 +18,7 @@ asset/image/baseline-shadcn/
 .serena/
 
 # Per-package manifests — generated when a package's own directory is activated
-# as an environment (julia --project=package/ProjecturedJsonTest); the canonical
+# as an environment (julia --project=package/ProjecturedJSONTest); the canonical
 # dev env is environment/all (whose Manifest.toml stays tracked).
 package/*/Manifest.toml
 

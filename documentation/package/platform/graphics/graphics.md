@@ -100,7 +100,7 @@ write_pdf(document, proj, "book.pdf"; paginate = true, width = 612, height = 792
 ```
 
 - `write_image` is in the SDL backend. It draws through an offscreen SDL renderer and writes `.bmp` or `.png`; another extension raises an error. With no size, the image fits the content up to 1200 by 800.
-- `write_pdf` is in `ProjecturedPdf` and needs no SDL. It writes each primitive as a PDF path or text operator and embeds the fonts as Type0 fonts, so the text is selectable. With `paginate = true`, `height` is the page height, and the content is cut into bands of that height across pages. It draws from the font files, so it takes no `measure` keyword and sizes its pages by the boxes of the font files; the projection that makes the canvas keeps its own `measure`.
+- `write_pdf` is in `ProjecturedPDF` and needs no SDL. It writes each primitive as a PDF path or text operator and embeds the fonts as Type0 fonts, so the text is selectable. With `paginate = true`, `height` is the page height, and the content is cut into bands of that height across pages. It draws from the font files, so it takes no `measure` keyword and sizes its pages by the boxes of the font files; the projection that makes the canvas keeps its own `measure`.
 - `GraphicsCanvasToImageFile` and `GraphicsCanvasToPdfFile` are the same steps as the last stage of a chain. Their output is an `ImageFile`, and they have no reader.
 
 [devices-and-backends.md](../../kernel/devices-and-backends.md) describes the backends that paint a canvas on a screen.

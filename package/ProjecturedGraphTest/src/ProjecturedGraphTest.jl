@@ -12,19 +12,19 @@ module ProjecturedGraphTest
 using Test
 import ProjecturedGraph
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 using ProjecturedKernelExample
 using ProjecturedPlatformExample
-using ProjecturedXmlExample
-import ProjecturedJson
-import ProjecturedXml
+using ProjecturedXMLExample
+import ProjecturedJSON
+import ProjecturedXML
 using ProjecturedGraphExample
 using ProjecturedKernelTest
 using ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJson, ProjecturedKernel, ProjecturedPdf, ProjecturedXml)
+const _SOURCES = (ProjecturedPlatform, ProjecturedConsole, ProjecturedGraph, ProjecturedJSON, ProjecturedKernel, ProjecturedPDF, ProjecturedXML)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

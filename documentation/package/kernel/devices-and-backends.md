@@ -125,7 +125,7 @@ There are four backends and a test double:
 
 | Backend | Package | Output | Input |
 | --- | --- | --- | --- |
-| `SdlBackend` | `ProjecturedSdl`, opt-in | native windows | the keyboard, the mouse and the windows |
+| `SdlBackend` | `ProjecturedSDL`, opt-in | native windows | the keyboard, the mouse and the windows |
 | `WebBackend` | `ProjecturedWeb`, opt-in | a canvas in a browser page | the events that the page sends |
 | `ConsoleBackend` | `ProjecturedConsole`, required | a terminal, for the text domain | the bytes of the terminal |
 | `VideoBackend` | `ProjecturedVideo`, opt-in | the frames of a video file | a scripted timeline |

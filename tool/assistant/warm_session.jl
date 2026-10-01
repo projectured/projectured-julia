@@ -13,7 +13,7 @@
 
 using Revise
 using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
-      ProjecturedSdl, ProjecturedSdlExample
+      ProjecturedSDL, ProjecturedSDLExample
 
 const SESSION_DIRECTORY = abspath(ARGS[1])
 const COMMAND_DIRECTORY = joinpath(SESSION_DIRECTORY, "cmd")

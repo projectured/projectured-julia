@@ -12,7 +12,7 @@ module ProjecturedBookTest
 using Test
 import ProjecturedBook
 import ProjecturedKernel
-import ProjecturedPdf
+import ProjecturedPDF
 import ProjecturedConsole
 import ProjecturedPlatform
 using ProjecturedBookExample
@@ -21,7 +21,7 @@ using ProjecturedKernelTest
 using ProjecturedPlatformExample
 using ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedBook, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPdf)
+const _SOURCES = (ProjecturedBook, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)

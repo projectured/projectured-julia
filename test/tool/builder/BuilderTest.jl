@@ -915,12 +915,12 @@ function test_builder()
             # libraries out of it.
             @test Set(keys(deps)) == Set(["PrecompileTools", "Projectured",
                                           "ProjecturedOllama", "ProjecturedAnthropic",
-                                          "ProjecturedMcp", "ProjecturedSdl",
+                                          "ProjecturedMCP", "ProjecturedSDL",
                                           "ProjecturedWeb",
                                           "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
             @test occursin("Projectured.run_application_command(ARGS; backends = " *
-                           "(sdl = ProjecturedSdl.SdlBackend, web = ProjecturedWeb.WebBackend))",
+                           "(sdl = ProjecturedSDL.SdlBackend, web = ProjecturedWeb.WebBackend))",
                            source)
             @test occursin("Projectured.warm_application()", source)
             @test occursin("--backend=sdl|web", source)
@@ -933,7 +933,7 @@ function test_builder()
                                                    name = "projectured-web",
                                                    backends = (:web,), workload = false)
             deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
-            @test !haskey(deps, "ProjecturedSdl") && haskey(deps, "ProjecturedWeb")
+            @test !haskey(deps, "ProjecturedSDL") && haskey(deps, "ProjecturedWeb")
             source = read(joinpath(project, "src", "ProjecturedWebApp.jl"), String)
             @test occursin("(web = ProjecturedWeb.WebBackend,)", source)
             @test !occursin("--backend=", source)

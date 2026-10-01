@@ -71,7 +71,7 @@ The menu bar has **Open** and **Save As** for a file outside the directory the n
 
 ```julia
 julia --project=environment/all
-using Projectured, ProjecturedExample, ProjecturedSdl
+using Projectured, ProjecturedExample, ProjecturedSDL
 run_example("json")                          # one example in a window
 ```
 
@@ -132,7 +132,7 @@ One dimension per level: what a file **is** decides its top folder, the **group*
 | [tool/](tool/) | Scripts that are not part of the system |
 | [plan/](plan/) | Design notes and plans |
 
-A package and its code do not share a directory. `package/ProjecturedJson/` is a name and an include list; the code it includes is `source/domain/json/`, its suite is `test/domain/json/` and its documents are `example/domain/json/`.
+A package and its code do not share a directory. `package/ProjecturedJSON/` is a name and an include list; the code it includes is `source/domain/json/`, its suite is `test/domain/json/` and its documents are `example/domain/json/`.
 
 ## Contributing
 

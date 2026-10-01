@@ -3,8 +3,8 @@
 # the editor actually runs, not a stand-in for it.
 
 # The SDL bindings, reached through the backend package: this test package
-# depends on `ProjecturedSdl`, not on SDL itself.
-const _SDL = ProjecturedSdl.SdlModule.SimpleDirectMediaLayer.LibSDL2
+# depends on `ProjecturedSDL`, not on SDL itself.
+const _SDL = ProjecturedSDL.SdlModule.SimpleDirectMediaLayer.LibSDL2
 
 const _SDL_KEYDOWN         = 0x00000300
 const _SDL_KEYUP           = 0x00000301
@@ -77,7 +77,7 @@ end
 
 # The `Display` of the backend below has the scale 2, so an event holds the half of
 # the device coordinates that SDL reports.
-_logical(v) = ProjecturedSdl.SdlModule._to_logical(Int(v), 2.0)
+_logical(v) = ProjecturedSDL.SdlModule._to_logical(Int(v), 2.0)
 
 function test_input_coalescing()
 @testset "pointer motion is coalesced" begin

@@ -29,7 +29,7 @@ a build, and each build writes the package that PackageCompiler compiles, under
 artifact at all.
 
 `Example`, `Test`, `Repl` and `Build` are the only reserved suffixes. A package
-whose name merely begins with another's — `ProjecturedOdbc`, `ProjecturedTulip`
+whose name merely begins with another's — `ProjecturedODBC`, `ProjecturedTulip`
 — is a **stem of its own**, not a kind of `Projectured`.
 
 ## One dependency direction
@@ -53,8 +53,8 @@ says why. `test_package_graph()` asserts it, along with two more:
 
 `Projectured` aggregates its layers — Kernel, Base, Visual and the twenty-one
 domain packages, none of which has a third-party dependency. It deliberately does not
-aggregate `ProjecturedSdl`, `ProjecturedOdbc`, `ProjecturedTulip`,
-`ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMcp`,
+aggregate `ProjecturedSDL`, `ProjecturedODBC`, `ProjecturedTulip`,
+`ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMCP`,
 `ProjecturedWeb`, `ProjecturedDataFrames` or
 `ProjecturedAdaptagrams`, each of which owns one.
 
@@ -86,10 +86,10 @@ function rather than code inside the macro. Both leaves call the same one.
 ## The session
 
 ```bash
-jp   # julia --project=environment/all -i -e 'using Revise, ProjecturedRepl'
+jp   # julia --project=environment/all -i -e 'using Revise, ProjecturedREPL'
 ```
 
-`ProjecturedRepl` re-exports what it names, so one `using` gives the session you
+`ProjecturedREPL` re-exports what it names, so one `using` gives the session you
 expect: `run_example`, `test_all`, `SdlBackend`, every document and projection
 constructor. Revise stays in the alias and out of the package's dependencies: it
 must be loaded before the packages it tracks, and as a dependency its position
@@ -145,7 +145,7 @@ fraction of the dropped entries that no longer resolve says whether the old list
 was stale or the new run missed coverage.
 
 Each level caches its own image, so switching back to one you have built is
-instant. `~/.julia/compiled/*/ProjecturedRepl/` grows accordingly
+instant. `~/.julia/compiled/*/ProjecturedREPL/` grows accordingly
 (13 MB at `:none`, 149 MB at `:live`, 217 MB at `:recorded`). `Pkg.gc()` clears
 what you no longer use.
 
@@ -205,7 +205,7 @@ This is not every slice of the platform: `gesturetracking`, `mousetargettracking
 `filesystem`, `undo`, `log`, `statistics`, `shell`, `help`, `conversation` and
 `assistant` and `application` are the rest, and `PLATFORM_SLICE_EDGES` in
 [PlatformSuite.jl](../../test/platform/PlatformSuite.jl) has every one of the
-thirty-nine. `ProjecturedConsole` and `ProjecturedPdf` are backend packages,
+thirty-nine. `ProjecturedConsole` and `ProjecturedPDF` are backend packages,
 not slices of the platform, even though neither carries a third-party
 dependency.
 
@@ -221,13 +221,13 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `ProjecturedAnthropic` | Kernel | HTTP, JSON3 |
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
 | `ProjecturedOpenRouter` | Kernel | HTTP, JSON3 |
-| `ProjecturedMcp` | Kernel | ModelContextProtocol |
+| `ProjecturedMCP` | Kernel | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
 | `ProjecturedVideo` | Graphics, Kernel, Screen, Sdl | FFMPEG |
 | `ProjecturedAdaptagrams` | Graph | Libdl |
-| `ProjecturedSdl` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
+| `ProjecturedSDL` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
 | `ProjecturedWeb` | Collection, Graphics, Kernel, Screen, Style | Base64, HTTP, JSON3 |
-| `ProjecturedOdbc` | Collection, Database, DbCatalog, Kernel, Projection, Sql, Syntax, Text | DBInterface, ODBC, Tables |
+| `ProjecturedODBC` | Collection, Database, DbCatalog, Kernel, Projection, Sql, Syntax, Text | DBInterface, ODBC, Tables |
 | `ProjecturedDataFrames` | Collection, Kernel, Layout, Primitive, Projection, Style, Widget | DataFrames |
 
 ### The aggregate and the leaves
@@ -239,7 +239,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `ProjecturedPlatformTest` | the platform, KernelTest, PlatformExample |
 | `<Stem>Example` | `<Stem>`, the Examples below it |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it |
-| `ProjecturedRepl` **(leaf)** | Projectured, Example, Test, Sdl |
+| `ProjecturedREPL` **(leaf)** | Projectured, Example, Test, Sdl |
 | `build/app/<name>` **(leaf, written by a build)** | the packages the build names |
 | `ProjecturedBuilder` (tool) | — |
 
@@ -261,7 +261,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 
 **No domain package has a third-party dependency, and none should acquire one.**
 A domain that needs one — a real SQL grammar, say — stops being a domain and
-becomes an optional stem like `ProjecturedOdbc`, named in the table above.
+becomes an optional stem like `ProjecturedODBC`, named in the table above.
 
 ## Adding a package
 

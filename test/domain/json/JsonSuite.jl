@@ -1,18 +1,18 @@
 """
     test_json_layering()
 
-Static layered-architecture guard for `ProjecturedJson`.
+Static layered-architecture guard for `ProjecturedJSON`.
 """
 function test_json_layering()
-    main = get_package_source_root(ProjecturedJson)
-    check_layering(main, pathof(ProjecturedJson);
+    main = get_package_source_root(ProjecturedJSON)
+    check_layering(main, pathof(ProjecturedJSON);
                    name = "json",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedJson; all = true)
-                         if isdefined(ProjecturedJson, n) &&
-                            getfield(ProjecturedJson, n) isa Module &&
-                            getfield(ProjecturedJson, n) !== ProjecturedJson &&
-                            parentmodule(getfield(ProjecturedJson, n)) !== ProjecturedJson))
+                       n for n in names(ProjecturedJSON; all = true)
+                         if isdefined(ProjecturedJSON, n) &&
+                            getfield(ProjecturedJSON, n) isa Module &&
+                            getfield(ProjecturedJSON, n) !== ProjecturedJSON &&
+                            parentmodule(getfield(ProjecturedJSON, n)) !== ProjecturedJSON))
 end
 
 """
@@ -21,7 +21,7 @@ end
 Run this package's whole suite: the layering guard and every json test.
 """
 function test_json()
-    @testset "ProjecturedJson" begin
+    @testset "ProjecturedJSON" begin
         test_json_layering()
         test_json_parser()
         test_json_document()

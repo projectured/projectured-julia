@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../../rule/package-rules.md)
 
-`ProjecturedRepl` is the leaf that a person loads to work: one `using` gives the editor, the examples, the SDL backend and the tests, with their code compiled ahead of time. It holds the one `@compile_workload` of the source tree. This document says how the workload level is chosen, how the recording is made and replayed, and where the traps are.
+`ProjecturedREPL` is the leaf that a person loads to work: one `using` gives the editor, the examples, the SDL backend and the tests, with their code compiled ahead of time. It holds the one `@compile_workload` of the source tree. This document says how the workload level is chosen, how the recording is made and replayed, and where the traps are.
 
 ## How it works
 
@@ -10,7 +10,7 @@
 
 A package image keeps its compiled code only when nothing depends on the package and nothing loads after it. [package-rules.md](../../../rule/package-rules.md#why-the-leaf-matters) explains why, with the measurement. So the workload is here, and in no package below.
 
-`ProjecturedRepl` depends on `Projectured`, `ProjecturedExample`, `ProjecturedSdl` and `ProjecturedTest`, and on `PrecompileTools` and `Preferences` for the workload. A loop over `names(module)` exports again every name that the four export, so no list of names needs care. `test_export_collisions()` checks that two of the four do not export one name with two bindings, which would make the name ambiguous. `Revise` is not a dependency: it must load before the packages that it tracks, so the session alias loads it first.
+`ProjecturedREPL` depends on `Projectured`, `ProjecturedExample`, `ProjecturedSDL` and `ProjecturedTest`, and on `PrecompileTools` and `Preferences` for the workload. A loop over `names(module)` exports again every name that the four export, so no list of names needs care. `test_export_collisions()` checks that two of the four do not export one name with two bindings, which would make the name ambiguous. `Revise` is not a dependency: it must load before the packages that it tracks, so the session alias loads it first.
 
 ### The workload level
 
@@ -44,7 +44,7 @@ The recording needs a display. The SDL backend needs an accelerated renderer, an
 
 ## How it fits
 
-The code is the slice `ReplModule`, in `source/tool/repl/`; the package entry re-exports what four packages export and the names of the slice. Nothing depends on `ProjecturedRepl`, and nothing may load after it. The session alias runs `julia --project=environment/all -i -e 'using Revise, ProjecturedRepl'`; the alias is outside this repository. The shared machinery of the recording and the replay is in `ProjecturedExample`, so a downstream leaf calls the same code with its own driver and its own list. A built binary is the other leaf: its generated app package holds its own `@compile_workload`, which runs `warm_application()`; see [builder.md](../builder/builder.md).
+The code is the slice `ReplModule`, in `source/tool/repl/`; the package entry re-exports what four packages export and the names of the slice. Nothing depends on `ProjecturedREPL`, and nothing may load after it. The session alias runs `julia --project=environment/all -i -e 'using Revise, ProjecturedREPL'`; the alias is outside this repository. The shared machinery of the recording and the replay is in `ProjecturedExample`, so a downstream leaf calls the same code with its own driver and its own list. A built binary is the other leaf: its generated app package holds its own `@compile_workload`, which runs `warm_application()`; see [builder.md](../builder/builder.md).
 
 ## Design decisions
 
@@ -58,7 +58,7 @@ The code is the slice `ReplModule`, in `source/tool/repl/`; the package entry re
 ## Usage
 
 ```julia
-using Revise, ProjecturedRepl         # what the session alias runs
+using Revise, ProjecturedREPL         # what the session alias runs
 get_workload()                        # the level of this image
 set_workload!(:none)                  # then start Julia again
 replay_precompile_statements()        # what the list is worth, with no rebuild

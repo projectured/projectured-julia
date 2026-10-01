@@ -7,7 +7,7 @@ touches neither `ODBC`, `DBInterface`, nor `Tables`. The first concrete
 implementation, `OdbcDatabaseAdapter`, lives in `OdbcModule`
 (`source/adapter/odbc/OdbcAdapter.jl`) and is constructed through the
 `make_database_adapter` factory, so live-database access can be confined to the
-separate, opt-in `ProjecturedOdbc` package.
+separate, opt-in `ProjecturedODBC` package.
 
 ## Query API
 

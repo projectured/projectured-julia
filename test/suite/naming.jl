@@ -215,8 +215,10 @@ end
     suite_violations(root) -> Vector{String}
 
 A test package exports `test_<slice>()` and the static guard
-`test_<slice>_layering()` beside it, and its suite file is `<Slice>Suite.jl`
-in the package's own CamelCase.
+`test_<slice>_layering()` beside it, and its suite file is `<Slice>Suite.jl`.
+The case of the slice is the case of its module, which an acronym in the name
+of the package does not change: `ProjecturedJSONTest` has `JsonSuite.jl`, as
+`ProjecturedJSON` has `JsonModule`.
 """
 function suite_violations(root::AbstractString)
     out = String[]
@@ -245,8 +247,7 @@ function suite_violations(root::AbstractString)
         end
         dir = joinpath(folders[1][1:depth]...)
         isdir(dir) || (push!(out, "$entry includes from $dir, which is no folder"); continue)
-        suite = joinpath(dir, stem * "Suite.jl")
-        isfile(suite) ||
+        any(name -> lowercase(name) == slice * "suite.jl", readdir(dir)) ||
             push!(out, "$(relpath(dir, root)) holds no $(stem)Suite.jl for $entry")
         code = join((_naming_code(root, relpath(joinpath(dir, f), root))
                      for f in readdir(dir) if endswith(f, ".jl")), "\n")

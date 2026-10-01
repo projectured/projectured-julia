@@ -75,7 +75,7 @@ kernel  →  platform  →  domain  →  (umbrella)     opt-in: sdl web odbc vid
   style atoms (`style`), the screen/window model (`screen`), the render-target
   documents with their projections (`graphics`, `layout`, `text`, `widget`,
   `syntax`), and the dependency-free backends (`ProjecturedConsole`,
-  `ProjecturedPdf`, packages of their own, not slices of the platform).
+  `ProjecturedPDF`, packages of their own, not slices of the platform).
   Membership test: "is this about presenting/arranging/drawing?" Anything
   screen-, window-, or graphics-related lives there — with one deliberate exception:
   the Display *device* and display-size seam stay in the kernel, because they are the
@@ -102,7 +102,7 @@ package. So `ProjecturedKernel`, `ProjecturedKernelTest` and
 `ProjecturedKernelExample` are three directories, and the umbrella's three are
 `Projectured`, `ProjecturedTest` and `ProjecturedExample`.
 
-The code of a package is not in its directory. `package/ProjecturedJson/` holds
+The code of a package is not in its directory. `package/ProjecturedJSON/` holds
 a name and an include list; the code it includes is `source/domain/json/`, its suite is
 `test/domain/json/` and its documents are `example/domain/json/`. An opt-in package grows a
 test or an example package the same way when it earns one.
@@ -123,7 +123,7 @@ of the thirty-nine slices owns which file.
 
 The example DAG's leaves are the **opt-in example packages** — one per engine,
 each under its opt-in package's folder: `package/odbc/example`
-(`ProjecturedOdbcExample`, the live-DB catalog/SQL examples),
+(`ProjecturedODBCExample`, the live-DB catalog/SQL examples),
 `package/adaptagrams/example` (`ProjecturedAdaptagramsExample`, the native
 graph-layout examples), `package/tulip/example` (`ProjecturedTulipExample`, the
 LP-solved constraint layout). One example, `dvdrental_relationship`, needs two

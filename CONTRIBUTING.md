@@ -44,7 +44,7 @@ tool/           → scripts that are not part of the system
 ```
 
 **A package and its code do not share a directory.**
-`package/ProjecturedJson/` holds a name and an include list; the code it
+`package/ProjecturedJSON/` holds a name and an include list; the code it
 includes is `source/domain/json/`, its suite is `test/domain/json/` and its documents are
 `example/domain/json/`. The [README](README.md#repository-layout) has the same table
 with a link on every row.
@@ -59,9 +59,9 @@ A stem has up to five packages, and the suffix says which kind each one is:
 | repl | `StemRepl` | the leaf a person loads to work |
 | build | `StemBuild` | the leaf a binary is compiled from |
 
-The JSON domain has the first three: `ProjecturedJson`,
-`ProjecturedJsonExample` and `ProjecturedJsonTest`. The two leaves of the
-repository are `ProjecturedRepl` and `ProjecturedBench`. A build writes one
+The JSON domain has the first three: `ProjecturedJSON`,
+`ProjecturedJSONExample` and `ProjecturedJSONTest`. The two leaves of the
+repository are `ProjecturedREPL` and `ProjecturedBench`. A build writes one
 more leaf for each binary, under `build/app/`. Nothing may depend on a leaf.
 
 The packages are linked by `[sources]` path dependencies. Read

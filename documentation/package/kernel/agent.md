@@ -41,7 +41,7 @@ DefaultTools.jl   register_default_tools!, which puts the above into a ToolSet
 A `Tool` is a name, a description, abstractly-described parameters, and a handler
 `(target, args) -> String`. It carries **no wire format**: rendering it into
 Anthropic's `input_schema` is `ProjecturedAnthropic`'s job, rendering it into MCP's
-parameter list is `ProjecturedMcp`'s, and neither is the tool's business.
+parameter list is `ProjecturedMCP`'s, and neither is the tool's business.
 
 A `Tool` also names the media type of the text its handler returns,
 `result_mime_type`, as a `Resource` names its own with `mime_type`. It is
@@ -520,7 +520,7 @@ layer answers it for an `Editor` whose loop runs on another task;
 
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
-| `make_agent_server(:mcp, …)` | `agent/AgentInterface.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/adapter/mcp/`) |
+| `make_agent_server(:mcp, …)` | `agent/AgentInterface.jl` | `ProjecturedMCP` (`package/ProjecturedMCP`, source in `source/adapter/mcp/`) |
 | `run_on_editor_task!` | `agent/AgentInterface.jl` | the editor layer (`editor/Inbox.jl`) for an `Editor`; the default in `agent/AgentDefaults.jl` runs every other target at once |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/LlmInterface.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

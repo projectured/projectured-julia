@@ -10,8 +10,8 @@
 # take prints the people, the steps of each history and the lines of the log
 # after each beat.
 
-using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedSdl,
-      ProjecturedSdlExample, ProjecturedVideo
+using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedSDL,
+      ProjecturedSDLExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_undo.mp4") : ARGS[1]
 # The window is drawn 15% smaller than its logical size, so a video of 1280×720

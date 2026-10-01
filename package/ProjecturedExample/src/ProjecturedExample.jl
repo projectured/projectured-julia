@@ -7,22 +7,22 @@ using Profile
 # variants defined here add methods to the imported functions.
 using ProjecturedKernelExample
 using ProjecturedPlatformExample
-using ProjecturedJsonExample
-using ProjecturedYamlExample
-using ProjecturedXmlExample
+using ProjecturedJSONExample
+using ProjecturedYAMLExample
+using ProjecturedXMLExample
 using ProjecturedMarkdownExample
-using ProjecturedRstExample
+using ProjecturedRSTExample
 using ProjecturedBookExample
 using ProjecturedMathExample
 using ProjecturedJuliaExample
-using ProjecturedSqlExample
+using ProjecturedSQLExample
 using ProjecturedDatabaseExample
 using ProjecturedGraphExample
 using ProjecturedChartExample
 using ProjecturedSequenceChartExample
-using ProjecturedDbCatalogExample
+using ProjecturedDBCatalogExample
 using ProjecturedFormulaExample
-using ProjecturedFsmExample
+using ProjecturedFSMExample
 using ProjecturedProcessExample
 using ProjecturedConversationExample
 import ProjecturedKernelExample: Example, AtomicDocument, write_example_image,
@@ -34,9 +34,9 @@ import ProjecturedPlatformExample: print_example, write_example_pdf
 # unchanged — the per-name `import` form also lets this module add the
 # name-lookup method variants below.
 for _src in (ProjecturedKernelExample, ProjecturedPlatformExample,
-             ProjecturedJsonExample, ProjecturedYamlExample, ProjecturedXmlExample, ProjecturedMarkdownExample, ProjecturedRstExample, ProjecturedBookExample,
-             ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSqlExample, ProjecturedDatabaseExample, ProjecturedPlatformExample, ProjecturedGraphExample, ProjecturedChartExample,
-             ProjecturedSequenceChartExample, ProjecturedDbCatalogExample, ProjecturedFormulaExample, ProjecturedFsmExample, ProjecturedProcessExample, ProjecturedConversationExample)
+             ProjecturedJSONExample, ProjecturedYAMLExample, ProjecturedXMLExample, ProjecturedMarkdownExample, ProjecturedRSTExample, ProjecturedBookExample,
+             ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSQLExample, ProjecturedDatabaseExample, ProjecturedPlatformExample, ProjecturedGraphExample, ProjecturedChartExample,
+             ProjecturedSequenceChartExample, ProjecturedDBCatalogExample, ProjecturedFormulaExample, ProjecturedFSMExample, ProjecturedProcessExample, ProjecturedConversationExample)
     _srcname = nameof(_src)
     for _n in names(_src)
         _n === _srcname && continue
@@ -53,7 +53,7 @@ using ProjecturedOllama
 
 # The opt-in examples that need a live database (ODBC) or the native graph-layout
 # engine (ProjecturedAdaptagrams C++ shim) live in the separate opt-in example
-# packages (`ProjecturedOdbcExample`, `ProjecturedAdaptagramsExample`,
+# packages (`ProjecturedODBCExample`, `ProjecturedAdaptagramsExample`,
 # `ProjecturedTulipExample`), so this package depends on none of them — it
 # precompiles with no native build and no database driver.
 
@@ -104,7 +104,7 @@ include(joinpath(_EXAMPLE_DIR, "ValueViewer.jl"))
 include(joinpath(_EXAMPLE_DIR, "SearchScaleCorpus.jl"))
 include(joinpath(_EXAMPLE_DIR, "SearchGuideCorpus.jl"))
 export run_value_viewer, make_value_viewer, make_value_viewer_feeds
-# LiveExamples moved to the opt-in ProjecturedSdlExample package (they play in a
+# LiveExamples moved to the opt-in ProjecturedSDLExample package (they play in a
 # real SDL window / record via ProjecturedVideo).
 # The workload body comes last, so it can reach everything above it. The
 # recording machinery beside it reaches nothing here — what to drive and which

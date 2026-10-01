@@ -5,7 +5,7 @@ The database connection domain.
 
 The database and instance documents, and the `make_database_adapter` seam.
 The seam is owned here because a database adapter is a database concept; the
-ODBC driver that implements it lives in the opt-in `ProjecturedOdbc`.
+ODBC driver that implements it lives in the opt-in `ProjecturedODBC`.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names

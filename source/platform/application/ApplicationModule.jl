@@ -12,7 +12,7 @@ the model of the assistant is asked for by the name of its backend, through
 that [`default_backend`](@ref) finds. So the application shows every domain
 that a session loads, and a session decides what it holds by what it loads:
 
-    using Projectured, ProjecturedSdl, ProjecturedOllama
+    using Projectured, ProjecturedSDL, ProjecturedOllama
     run_application("data.json")
 """
 module ApplicationModule

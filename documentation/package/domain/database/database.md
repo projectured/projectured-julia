@@ -2,21 +2,21 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [sql.md](../sql/sql.md)
 
-Three packages carry a live database into the editor. `ProjecturedDatabase` defines the adapter interface and the connection documents, `ProjecturedDbCatalog` models the catalog of a database as a tree of documents, and `ProjecturedOdbc` is the one concrete adapter, built on `ODBC.jl`. This document says what each package holds, how the three depend on each other, and what a live query does.
+Three packages carry a live database into the editor. `ProjecturedDatabase` defines the adapter interface and the connection documents, `ProjecturedDBCatalog` models the catalog of a database as a tree of documents, and `ProjecturedODBC` is the one concrete adapter, built on `ODBC.jl`. This document says what each package holds, how the three depend on each other, and what a live query does.
 
 <img width="396" alt="Database catalog example" src="../../../asset/image/example/dbcatalog.png">
 
 ## How it works
 
-The first two packages have no third-party dependency and do not depend on each other. The third depends on both, on `ProjecturedSql`, and on `ODBC`, `DBInterface` and `Tables`:
+The first two packages have no third-party dependency and do not depend on each other. The third depends on both, on `ProjecturedSQL`, and on `ODBC`, `DBInterface` and `Tables`:
 
 ```
-ProjecturedDatabase        ProjecturedDbCatalog ──▶ ProjecturedSql
+ProjecturedDatabase        ProjecturedDBCatalog ──▶ ProjecturedSQL
         ▲                          ▲                      ▲
-        └──────── ProjecturedOdbc ─┴──────────────────────┘
+        └──────── ProjecturedODBC ─┴──────────────────────┘
 ```
 
-So you can build and print a catalog, or define an adapter, without a database library. Only a program that loads `ProjecturedOdbc` can reach a database.
+So you can build and print a catalog, or define an adapter, without a database library. Only a program that loads `ProjecturedODBC` can reach a database.
 
 ### database: the adapter seam
 
@@ -29,7 +29,7 @@ So you can build and print a catalog, or define an adapter, without a database l
 
 `query_db` and `execute_db_raw` take the target type `T` of the result, so an adapter can fill each target without an intermediate copy. `RawDatabaseResult(columns, rows)` is the one target that exists: an explicit copy of the rows, for a caller that must keep or show them outside a projection.
 
-`make_database_adapter(kind; kwargs...)` builds an adapter from a symbol. It calls `make_database_adapter(Val(kind); kwargs...)`, and a package that implements an adapter adds a method for its own `Val`. No table of adapters exists. A caller can then build an `:odbc` adapter without a dependency on `ProjecturedOdbc`. When no method exists for the kind, the call raises the error "No database adapter registered for :odbc. Is the package/extension that provides it loaded?".
+`make_database_adapter(kind; kwargs...)` builds an adapter from a symbol. It calls `make_database_adapter(Val(kind); kwargs...)`, and a package that implements an adapter adds a method for its own `Val`. No table of adapters exists. A caller can then build an `:odbc` adapter without a dependency on `ProjecturedODBC`. When no method exists for the kind, the call raises the error "No database adapter registered for :odbc. Is the package/extension that provides it loaded?".
 
 The package holds two groups of documents:
 
@@ -48,7 +48,7 @@ DbCatalogRdbms(host, port, databases)
         DbCatalogColumn(name, data_type)
 ```
 
-The package makes no connection. A caller builds the tree from ordinary vectors, or `ProjecturedOdbc` builds it from a live database with vectors that query when a projection reads them. The package has two projections of the tree:
+The package makes no connection. A caller builds the tree from ordinary vectors, or `ProjecturedODBC` builds it from a live database with vectors that query when a projection reads them. The package has two projections of the tree:
 
 - **`DbCatalogToSql()`** builds SQL documents directly, not text that is parsed again. A column becomes a `SqlColumnDefinition`, a table a `SqlCreateTableStatement`, a schema a `CREATE SCHEMA` and one `CREATE TABLE` for each table in a `SqlStatementList`, and a database or a server the flat list of all these statements. The schema name travels down in the printer context as the property `:sql_schema_name`, so a table writes `schema.table`. `SqlToSyntax` then prints the statements, so the SQL domain is the one place that writes SQL text. The projection maps no reference and reads nothing: it gives a language model the shape of a database as DDL.
 - **`DbCatalogToSyntax()`** makes a tree to browse. Each entity prints its name, and holds one keyword group, `Databases`, `Schemas`, `Tables` or `Columns`, that holds the items. A column prints as one leaf, `name::type`. The reference maps are hand-written for each level, and the reader maps a selection.
@@ -68,7 +68,7 @@ Two projections bring a live database into a chain:
 
 ## How it fits
 
-`ProjecturedDatabase` depends only on `ProjecturedKernel`. `ProjecturedDbCatalog` depends on `ProjecturedSql`, the kernel and the platform, and it takes the DDL document types from the SQL domain; see [sql.md](../sql/sql.md). `ProjecturedOdbc` depends on both of them. It owns a third-party dependency, so the umbrella package `Projectured` does not load it, and a program that needs it names it; see [package-rules.md](../../../rule/package-rules.md).
+`ProjecturedDatabase` depends only on `ProjecturedKernel`. `ProjecturedDBCatalog` depends on `ProjecturedSQL`, the kernel and the platform, and it takes the DDL document types from the SQL domain; see [sql.md](../sql/sql.md). `ProjecturedODBC` depends on both of them. It owns a third-party dependency, so the umbrella package `Projectured` does not load it, and a program that needs it names it; see [package-rules.md](../../../rule/package-rules.md).
 
 None of the three has an `__init__`. They register no natural row and no file type, so the general renderer has no row for them, and a caller composes their projections into a chain. The one registration is the method `make_database_adapter(::Val{:odbc})`.
 

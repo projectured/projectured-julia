@@ -9,7 +9,7 @@ concepts it illustrates. Screenshots for each example are embedded inline below.
 ## Run one
 
 ```julia
-using Projectured, ProjecturedExample, ProjecturedSdl
+using Projectured, ProjecturedExample, ProjecturedSDL
 
 run_example()                        # the JSON example
 run_example("widget")                # one example by name

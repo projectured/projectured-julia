@@ -1,18 +1,18 @@
 """
     test_xml_layering()
 
-Static layered-architecture guard for `ProjecturedXml`.
+Static layered-architecture guard for `ProjecturedXML`.
 """
 function test_xml_layering()
-    main = get_package_source_root(ProjecturedXml)
-    check_layering(main, pathof(ProjecturedXml);
+    main = get_package_source_root(ProjecturedXML)
+    check_layering(main, pathof(ProjecturedXML);
                    name = "xml",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedXml; all = true)
-                         if isdefined(ProjecturedXml, n) &&
-                            getfield(ProjecturedXml, n) isa Module &&
-                            getfield(ProjecturedXml, n) !== ProjecturedXml &&
-                            parentmodule(getfield(ProjecturedXml, n)) !== ProjecturedXml))
+                       n for n in names(ProjecturedXML; all = true)
+                         if isdefined(ProjecturedXML, n) &&
+                            getfield(ProjecturedXML, n) isa Module &&
+                            getfield(ProjecturedXML, n) !== ProjecturedXML &&
+                            parentmodule(getfield(ProjecturedXML, n)) !== ProjecturedXML))
 end
 
 """
@@ -21,7 +21,7 @@ end
 Run this package's whole suite: the layering guard and every xml test.
 """
 function test_xml()
-    @testset "ProjecturedXml" begin
+    @testset "ProjecturedXML" begin
         test_xml_layering()
         test_xml_parser()
         test_xml_to_syntax()

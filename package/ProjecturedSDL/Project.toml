@@ -1,0 +1,18 @@
+authors = []
+name = "ProjecturedSDL"
+uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
+version = "0.1.0"
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+SDL2_jll = "ab825dc5-c88e-5901-9575-1e5e20358fcf"
+SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
+Xorg_libX11_jll = "4f6342f7-b3d2-589e-9d20-edeb45f2b2bc"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+
+[compat]
+SDL2_jll = "2.32.10"

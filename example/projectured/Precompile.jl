@@ -120,7 +120,7 @@ and the executable, and so it can be called and timed without a rebuild.
 It runs the atoms, their parsers and their stub walks — everything this package
 can reach. There are no levels: they graded build time against the first click,
 and a recording settles that trade, so a build now either replays a recorded
-list or runs this. See `ProjecturedRepl.WORKLOAD`.
+list or runs this. See `ProjecturedREPL.WORKLOAD`.
 
 The workload must *run* the pipeline: the chain is lazy, printing builds thunks,
 and a sweep of `precompile` over the method table reached under half the render
@@ -136,6 +136,6 @@ end
 # with exactly that package's dependencies present, so code compiled into this
 # one is invalidated as soon as a session loads anything above it — measured at
 # 3.9 s of `recompile_time` on a first paint, and at 1.15 s on a bare render of
-# one JSON document. The workload therefore runs in a leaf: `ProjecturedRepl`
+# one JSON document. The workload therefore runs in a leaf: `ProjecturedREPL`
 # for a session, and the package that a build writes for a binary. A leaf calls
 # a workload function, which is why this is a function rather than a macro body.

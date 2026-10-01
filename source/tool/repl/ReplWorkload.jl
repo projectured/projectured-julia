@@ -17,7 +17,7 @@ const WORKLOAD_LEVELS = (:none, :recorded, :live)
     set_workload!(level::Symbol) -> level
 
 Choose how the next build compiles, then restart Julia. The next `using
-ProjecturedRepl` pays the build once.
+ProjecturedREPL` pays the build once.
 
 | level | what the build does |
 | --- | --- |

@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [syntax.md](../../platform/syntax/syntax.md)
 
-The SQL domain, `ProjecturedSql`, holds a SQL statement as a tree of clause and expression documents, with a hand-written parser and a projection that prints the statement as syntax. It has no connection to a database; [database.md](../database/database.md) describes the packages that run a statement. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md): a statement is read and printed but not edited in place, the parser reads only two kinds of statement, and the printer is mostly hand-written.
+The SQL domain, `ProjecturedSQL`, holds a SQL statement as a tree of clause and expression documents, with a hand-written parser and a projection that prints the statement as syntax. It has no connection to a database; [database.md](../database/database.md) describes the packages that run a statement. This document says where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md): a statement is read and printed but not edited in place, the parser reads only two kinds of statement, and the printer is mostly hand-written.
 
 <img width="396" alt="SQL example" src="../../../asset/image/example/sql-nested-syntax.png">
 
@@ -18,7 +18,7 @@ The SQL domain, `ProjecturedSql`, holds a SQL statement as a tree of clause and 
 | `SqlInsertStatement` | a table, `columns`, `values` | no |
 | `SqlUpdateStatement` | a table, `SqlUpdateAssignment`s, a `SqlWhereClause` | no |
 
-A `SELECT` goes down through select items, from items, joins with `ON` or `USING`, subqueries, and a `WHERE` tree of `SqlComparison`, `SqlAnd`, `SqlOr` and `SqlNot` to `SqlColumnName`, `SqlTableName` and `SqlScalarValue`. A select expression that the model does not have, such as a function call, is a `SqlRawExpression` that holds its source text, and a condition that the model does not have, such as a `LIKE` or an `IN`, is a `SqlRawCondition` that holds its source text. A `SqlColumnDefinition` has a `column_name` and a `data_type` that is a plain string. `SqlStatementList` holds a sequence of statements and prints them with a blank line between two statements. Each statement in the list ends with `;`: a DDL statement prints its own, and the list adds one after any other statement, so the printed list parses back as the same list. `ProjecturedDbCatalog` uses the list to print a whole DDL script as one document.
+A `SELECT` goes down through select items, from items, joins with `ON` or `USING`, subqueries, and a `WHERE` tree of `SqlComparison`, `SqlAnd`, `SqlOr` and `SqlNot` to `SqlColumnName`, `SqlTableName` and `SqlScalarValue`. A select expression that the model does not have, such as a function call, is a `SqlRawExpression` that holds its source text, and a condition that the model does not have, such as a `LIKE` or an `IN`, is a `SqlRawCondition` that holds its source text. A `SqlColumnDefinition` has a `column_name` and a `data_type` that is a plain string. `SqlStatementList` holds a sequence of statements and prints them with a blank line between two statements. Each statement in the list ends with `;`: a DDL statement prints its own, and the list adds one after any other statement, so the printed list parses back as the same list. `ProjecturedDBCatalog` uses the list to print a whole DDL script as one document.
 
 `SqlStatement` must exist before `SqlInsertion` can subtype it, so both roots and the insertion are hand-written. `@domain Sql root = SqlDocument insertion = SqlInsertion` then makes only `SqlNothing`, the traits, the `"sql"` alias and the Insert gesture.
 
@@ -55,7 +55,7 @@ A `+` or a `-` in front of a number is the sign of that number where the grammar
 
 ## How it fits
 
-`ProjecturedSql` depends on the kernel and the platform. It does not depend on `ProjecturedDatabase` or `ProjecturedOdbc`. Two packages depend on it: `ProjecturedDbCatalog` makes `CREATE` statements from a catalog, and `ProjecturedOdbc` prints a `SqlSelectStatement` to text and runs it on a connection.
+`ProjecturedSQL` depends on the kernel and the platform. It does not depend on `ProjecturedDatabase` or `ProjecturedODBC`. Two packages depend on it: `ProjecturedDBCatalog` makes `CREATE` statements from a catalog, and `ProjecturedODBC` prints a `SqlSelectStatement` to text and runs it on a connection.
 
 Its `__init__` registers the natural row with the rung `:syntax`, the format `:sql`, the extension `.sql` and the parser `parse_sql_text`, and it registers `SqlFile` for `.sql`.
 

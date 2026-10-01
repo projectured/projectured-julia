@@ -1,18 +1,18 @@
 """
     test_yaml_layering()
 
-Static layered-architecture guard for `ProjecturedYaml`.
+Static layered-architecture guard for `ProjecturedYAML`.
 """
 function test_yaml_layering()
-    main = get_package_source_root(ProjecturedYaml)
-    check_layering(main, pathof(ProjecturedYaml);
+    main = get_package_source_root(ProjecturedYAML)
+    check_layering(main, pathof(ProjecturedYAML);
                    name = "yaml",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedYaml; all = true)
-                         if isdefined(ProjecturedYaml, n) &&
-                            getfield(ProjecturedYaml, n) isa Module &&
-                            getfield(ProjecturedYaml, n) !== ProjecturedYaml &&
-                            parentmodule(getfield(ProjecturedYaml, n)) !== ProjecturedYaml))
+                       n for n in names(ProjecturedYAML; all = true)
+                         if isdefined(ProjecturedYAML, n) &&
+                            getfield(ProjecturedYAML, n) isa Module &&
+                            getfield(ProjecturedYAML, n) !== ProjecturedYAML &&
+                            parentmodule(getfield(ProjecturedYAML, n)) !== ProjecturedYAML))
 end
 
 """
@@ -21,7 +21,7 @@ end
 Run this package's whole suite: the layering guard and every yaml test.
 """
 function test_yaml()
-    @testset "ProjecturedYaml" begin
+    @testset "ProjecturedYAML" begin
         test_yaml_layering()
         test_yaml_parser()
     end

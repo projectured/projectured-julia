@@ -55,31 +55,31 @@ jobs:
         include:
           - {package: ProjecturedKernelTest, run: test_kernel}
           - {package: ProjecturedPlatformTest, run: test_platform}
-          - {package: ProjecturedJsonTest, run: test_json}
-          - {package: ProjecturedYamlTest, run: test_yaml}
-          - {package: ProjecturedXmlTest, run: test_xml}
+          - {package: ProjecturedJSONTest, run: test_json}
+          - {package: ProjecturedYAMLTest, run: test_yaml}
+          - {package: ProjecturedXMLTest, run: test_xml}
           - {package: ProjecturedMarkdownTest, run: test_markdown}
-          - {package: ProjecturedRstTest, run: test_rst}
+          - {package: ProjecturedRSTTest, run: test_rst}
           - {package: ProjecturedBookTest, run: test_book}
           - {package: ProjecturedMathTest, run: test_math}
           - {package: ProjecturedJuliaTest, run: test_julia}
-          - {package: ProjecturedSqlTest, run: test_sql}
+          - {package: ProjecturedSQLTest, run: test_sql}
           - {package: ProjecturedDatabaseTest, run: test_database}
-          - {package: ProjecturedDbCatalogTest, run: test_dbcatalog}
+          - {package: ProjecturedDBCatalogTest, run: test_dbcatalog}
           - {package: ProjecturedGraphTest, run: test_graph}
           - {package: ProjecturedChartTest, run: test_chart}
           - {package: ProjecturedSequenceChartTest, run: test_sequencechart}
           - {package: ProjecturedFormulaTest, run: test_formula}
-          - {package: ProjecturedFsmTest, run: test_fsm}
+          - {package: ProjecturedFSMTest, run: test_fsm}
           - {package: ProjecturedProcessTest, run: test_process}
           - {package: ProjecturedAnthropicTest, run: test_anthropic}
           - {package: ProjecturedOllamaTest, run: test_ollama}
           - {package: ProjecturedOpenRouterTest, run: test_openrouter}
           - {package: ProjecturedDataFramesTest, run: test_dataframes}
-          - {package: ProjecturedSdlTest, run: test_sdl, project: environment/all}
+          - {package: ProjecturedSDLTest, run: test_sdl, project: environment/all}
           - {package: ProjecturedTulipTest, run: test_tulip, project: environment/all}
           - {package: ProjecturedVideoTest, run: test_video, project: environment/all}
-          - {package: ProjecturedOdbcTest, run: test_odbc, project: environment/all}
+          - {package: ProjecturedODBCTest, run: test_odbc, project: environment/all}
           - {package: ProjecturedTest, run: test_integration, project: environment/all}
     env:
       PROJECT: ${{ matrix.project || format('package/{0}', matrix.package) }}

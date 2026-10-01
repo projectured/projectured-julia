@@ -1,18 +1,18 @@
 """
     test_dbcatalog_layering()
 
-Static layered-architecture guard for `ProjecturedDbCatalog`.
+Static layered-architecture guard for `ProjecturedDBCatalog`.
 """
 function test_dbcatalog_layering()
-    main = get_package_source_root(ProjecturedDbCatalog)
-    check_layering(main, pathof(ProjecturedDbCatalog);
+    main = get_package_source_root(ProjecturedDBCatalog)
+    check_layering(main, pathof(ProjecturedDBCatalog);
                    name = "dbcatalog",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedDbCatalog; all = true)
-                         if isdefined(ProjecturedDbCatalog, n) &&
-                            getfield(ProjecturedDbCatalog, n) isa Module &&
-                            getfield(ProjecturedDbCatalog, n) !== ProjecturedDbCatalog &&
-                            parentmodule(getfield(ProjecturedDbCatalog, n)) !== ProjecturedDbCatalog))
+                       n for n in names(ProjecturedDBCatalog; all = true)
+                         if isdefined(ProjecturedDBCatalog, n) &&
+                            getfield(ProjecturedDBCatalog, n) isa Module &&
+                            getfield(ProjecturedDBCatalog, n) !== ProjecturedDBCatalog &&
+                            parentmodule(getfield(ProjecturedDBCatalog, n)) !== ProjecturedDBCatalog))
 end
 
 """
@@ -21,7 +21,7 @@ end
 Run this package's whole suite: the layering guard and every dbcatalog test.
 """
 function test_dbcatalog()
-    @testset "ProjecturedDbCatalog" begin
+    @testset "ProjecturedDBCatalog" begin
         test_dbcatalog_layering()
         test_db_catalog_column_to_sql()
         test_db_catalog_table_to_sql()

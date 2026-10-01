@@ -27,10 +27,10 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 17 domain te
   (`test_json_layering()`, …).
 - The **opt-in** main packages each have their own test package, so a suite
   that needs a native backend lives with the backend it exercises (not in the
-  umbrella): [package/sdl/test](../../package/ProjecturedSdlTest) (`test_sdl()` — DirtyRect,
+  umbrella): [package/sdl/test](../../package/ProjecturedSDLTest) (`test_sdl()` — DirtyRect,
   write_image), [package/tulip/test](../../package/ProjecturedTulipTest) (`test_tulip()` —
   the LP constraint solver), [package/video/test](../../package/ProjecturedVideoTest)
-  (`test_video()` — record_video), and [package/odbc/test](../../package/ProjecturedOdbcTest)
+  (`test_video()` — record_video), and [package/odbc/test](../../package/ProjecturedODBCTest)
   (`test_odbc()` — the live-DB adapter + DbCatalog suites). Like the opt-in
   example packages they resolve through the root env and precompile only where
   the native dependency (SDL2 / Adaptagrams / FFMPEG / ODBC) is installed.
@@ -540,7 +540,7 @@ pull request, except a push that changes only `plan/`:
 - One job runs each static guard, `test/suite/*.jl`, alone. The guards read the
   source as text and load no package, so the job takes seconds.
 - One job runs the suite of each test package in its own environment, for
-  example `test_json()` in `package/ProjecturedJsonTest`. A suite that uses a
+  example `test_json()` in `package/ProjecturedJSONTest`. A suite that uses a
   package that its `Project.toml` does not name fails there, and passes in
   `environment/all`. The test packages of SDL, Tulip, Video and ODBC, and the
   umbrella, load through `environment/all`. The umbrella job runs
@@ -552,8 +552,8 @@ pull request, except a push that changes only `plan/`:
 To run one suite as CI runs it:
 
 ```bash
-julia --project=package/ProjecturedJsonTest \
-      -e 'using Pkg; Pkg.instantiate(); using ProjecturedJsonTest; test_json()'
+julia --project=package/ProjecturedJSONTest \
+      -e 'using Pkg; Pkg.instantiate(); using ProjecturedJSONTest; test_json()'
 ```
 
 ## Typical workflows

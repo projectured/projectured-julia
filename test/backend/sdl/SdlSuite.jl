@@ -17,23 +17,23 @@ include("projection/TreeRenderTest.jl")
 """
     test_sdl_layering()
 
-Static layered-architecture guard for `ProjecturedSdl`.
+Static layered-architecture guard for `ProjecturedSDL`.
 """
 function test_sdl_layering()
-    main = get_package_source_root(ProjecturedSdl)
-    check_layering(main, pathof(ProjecturedSdl);
+    main = get_package_source_root(ProjecturedSDL)
+    check_layering(main, pathof(ProjecturedSDL);
                    name = "sdl",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedSdl; all = true)
-                         if isdefined(ProjecturedSdl, n) &&
-                            getfield(ProjecturedSdl, n) isa Module &&
-                            getfield(ProjecturedSdl, n) !== ProjecturedSdl &&
-                            parentmodule(getfield(ProjecturedSdl, n)) !== ProjecturedSdl))
+                       n for n in names(ProjecturedSDL; all = true)
+                         if isdefined(ProjecturedSDL, n) &&
+                            getfield(ProjecturedSDL, n) isa Module &&
+                            getfield(ProjecturedSDL, n) !== ProjecturedSDL &&
+                            parentmodule(getfield(ProjecturedSDL, n)) !== ProjecturedSDL))
 end
 
 "Run the whole SDL backend suite."
 function test_sdl()
-    @testset "ProjecturedSdl" begin
+    @testset "ProjecturedSDL" begin
         test_sdl_layering()
         test_dirty_rect()
         test_laid_out_canvas()

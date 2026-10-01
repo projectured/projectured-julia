@@ -4,8 +4,8 @@ import ProjecturedKernel.CellModule: Cell, Computation, @computation
 import ProjecturedPlatform.CollectionModule: CellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, Projection, find_introduced_path
-import ProjecturedSql.SqlModule: SqlSelectStatement
-import ProjecturedSql.SqlModule: SqlToSyntax
+import ProjecturedSQL.SqlModule: SqlSelectStatement
+import ProjecturedSQL.SqlModule: SqlToSyntax
 import ProjecturedPlatform.SyntaxModule: SyntaxToText
 import ProjecturedPlatform.TextModule: TextToString
 import ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection

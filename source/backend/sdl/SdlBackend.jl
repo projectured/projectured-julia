@@ -2968,7 +2968,7 @@ function render_sdl_canvas(canvas::GraphicsCanvas)
 end
 
 # Backend-interface methods: let callers reach SDL rendering/decoding/display
-# through the generic BackendModule seams without naming ProjecturedSdl, so the
+# through the generic BackendModule seams without naming ProjecturedSDL, so the
 # SDL backend can move into an optional extension.
 BackendModule.render_canvas(canvas::GraphicsCanvas) = render_sdl_canvas(canvas)
 

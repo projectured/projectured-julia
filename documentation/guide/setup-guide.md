@@ -36,7 +36,7 @@ julia --project=environment/all
 ```
 
 ```julia
-using Projectured, ProjecturedExample, ProjecturedSdl
+using Projectured, ProjecturedExample, ProjecturedSDL
 
 run_example()                           # the JSON example
 run_example("widget")                   # the widget forms

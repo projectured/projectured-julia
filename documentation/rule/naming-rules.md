@@ -40,7 +40,7 @@ mean nothing else. A package with no suffix holds the code.
 on, and why a leaf matters.
 
 - **A package whose name merely begins with another's is a stem of its own**,
-  not a kind of it. `ProjecturedOdbc` and `ProjecturedTulip` are separate
+  not a kind of it. `ProjecturedODBC` and `ProjecturedTulip` are separate
   packages that carry a third-party dependency, not sub-packages of
   `Projectured`.
 - **Two packages are named outright rather than by suffix**:
@@ -50,7 +50,7 @@ on, and why a leaf matters.
 - **A package extension is `<Package><Dependency>Ext`.** That is the name
   Julia's `[extensions]` table needs, and it reads as what it is. No package
   here has one yet.
-- **A test package's entry point is `test_<slice>()`.** `ProjecturedJsonTest`
+- **A test package's entry point is `test_<slice>()`.** `ProjecturedJSONTest`
   exports `test_json`, `ProjecturedKernelTest` exports `test_kernel`, and the
   static layering guard beside it is `test_<slice>_layering()`. The table of
   every scope is in [testing-guide.md](../guide/testing-guide.md).
@@ -112,7 +112,7 @@ query rather than a file, and are named for what they query, such as
   for the slice: every file under `source/domain/json/` is a fragment of `JsonModule`,
   and only one of them carries the `module` line. The rule holds in every group
   outside the kernel, the backends, the adapters and the tools too: `SdlModule.jl` declares
-  `SdlModule`, and `ProjecturedSdl` includes that file and exports its names. A
+  `SdlModule`, and `ProjecturedSDL` includes that file and exports its names. A
   package entry holds no import of the slice, so the slice says what it needs.
   `test/suite/naming.jl` checks both. The kernel is layered rather
   than sliced, so there a module belongs to a layer and its file is named for
@@ -423,9 +423,9 @@ each document belongs to, are in [README.md](../README.md).
 
 | shape | meaning | example |
 |---|---|---|
-| `Projectured<Slice>` | a package of the product | `ProjecturedJson` |
-| `Projectured<Slice><Kind>` | its example or test package | `ProjecturedJsonTest` |
-| `<Package><Dep>Ext` | a package extension | `ProjecturedSqlSQLiteExt` |
+| `Projectured<Slice>` | a package of the product | `ProjecturedJSON` |
+| `Projectured<Slice><Kind>` | its example or test package | `ProjecturedJSONTest` |
+| `<Package><Dep>Ext` | a package extension | `ProjecturedSQLSQLiteExt` |
 | `<File>Module` | the Julia module a file declares | `ClockModule` |
 | `<Slice>Document` | the slice's document types | `JsonDocument` |
 | `<Slice>Suite` | the suite that defines `test_<slice>` | `JsonSuite` |

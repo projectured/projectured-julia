@@ -123,7 +123,7 @@ get_default_llm_model(::Val{:anthropic}) = _DEFAULT_MODEL
     render_tool_schema(llm::AnthropicLlm, tools) -> Vector{Dict}
 
 Render `Tool`s into the JSON-Schema-shaped vector the Messages API wants for its
-`tools` parameter. `ProjecturedMcp` does the same job for MCP's wire format; a
+`tools` parameter. `ProjecturedMCP` does the same job for MCP's wire format; a
 `Tool` itself knows neither.
 """
 function render_tool_schema(::AnthropicLlm, tools::AbstractVector{Tool})

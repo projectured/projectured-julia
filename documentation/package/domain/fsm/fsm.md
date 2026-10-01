@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [graph.md](../graph/graph.md), [julia.md](../julia/julia.md)
 
-`ProjecturedFsm` holds extended state machines: named states with entry code, transitions on events, timers or conditions, and variables, with all code as embedded Julia documents. A component prints as a notation, draws as a live diagram, and generates a complete Julia module. This document says how the three work, which contract the generated code keeps with a runtime that the embedder supplies, and what the domain leaves out.
+`ProjecturedFSM` holds extended state machines: named states with entry code, transitions on events, timers or conditions, and variables, with all code as embedded Julia documents. A component prints as a notation, draws as a live diagram, and generates a complete Julia module. This document says how the three work, which contract the generated code keeps with a runtime that the embedder supplies, and what the domain leaves out.
 
 <img width="396" alt="State machine example" src="../../../asset/image/example/fsm.png">
 
@@ -101,7 +101,7 @@ A timer works in two ways, and the reference machines use both: as a timeout tri
 
 ## How it fits
 
-`ProjecturedFsm` depends on `ProjecturedJulia`, because the code is Julia documents, and on `ProjecturedGraph`, because the diagram is a graph. It also depends on the kernel and the platform. No package depends on it. `process` is its complement; see [process.md](../process/process.md).
+`ProjecturedFSM` depends on `ProjecturedJulia`, because the code is Julia documents, and on `ProjecturedGraph`, because the diagram is a graph. It also depends on the kernel and the platform. No package depends on it. `process` is its complement; see [process.md](../process/process.md).
 
 It has no `__init__` and registers nothing: no natural row, no file type, no parser. A caller builds the notation chain or the diagram chain.
 

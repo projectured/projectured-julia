@@ -11,7 +11,7 @@ on 2026-09-30 and asked for it on 2026-10-01: "Let's do the package renames
 now". It must come before the first registration anywhere, because a new name
 is a new package for each user.
 
-## 2. Facts (2026-10-01, `main` at `c45e0eaa0`)
+## 2. Facts (2026-10-01, `main` at `d09dc611d`)
 
 - Twelve packages hold an acronym, and eighteen of their test and example
   packages follow them: 30 package folders in all.
@@ -51,11 +51,20 @@ against "Julia" in a name is a separate question.
 
 ## 4. Steps
 
-- [ ] **Step 1, the rename.** A script moves the 30 package folders and their
+- [x] **Step 1, the rename.** A script moves the 30 package folders and their
       entry files, and replaces each old name by the new one in every file
       outside `plan/`: the `Project.toml` files, the code, the scripts, CI, the
       documents and the recorded precompile statements. The tracked manifest
       of `environment/all` follows, and `Pkg.resolve` checks it.
+      Done: 30 folders moved, 226 files changed; no sealed file names a
+      package of the list, so none changed. `Pkg.resolve` accepts the manifest
+      as the text substitution left it. One rule of the naming guard derived
+      the name of a suite file from the name of the test package
+      (`ProjecturedJSONTest` asked for `JSONSuite.jl`); it now compares with
+      the slice regardless of case, because the case of a slice is the case of
+      its module (`JsonSuite.jl` beside `JsonModule`). The example of an
+      extension in `naming-rules.md` is `ProjecturedSQLSQLiteExt`. No code
+      builds a package name from a slice name.
 - [ ] **Step 2, the check.** The guards, a precompile of `environment/all`, and
       the CI-like run of the 28 jobs, against the CI-like run of `main`.
 - [ ] **Step 3, downstream.** The same script in omnet-julia and inet-julia, on

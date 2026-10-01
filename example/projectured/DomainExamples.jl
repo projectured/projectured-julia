@@ -89,7 +89,7 @@ const conversation_widget_example = Example("conversation_widget", make_conversa
 const conversation_editor_example = Example("conversation_editor", make_conversation_editor_document_example, make_conversation_editor_projection_example; render_width=1200, render_height=400)
 # The live-database (ODBC) catalog/object/sql_table examples and the native
 # AdaptagramsLayout graph examples (graph_adaptagrams, dvdrental_relationship) live
-# in the opt-in `ProjecturedOdbcExample` / `ProjecturedAdaptagramsExample` / `ProjecturedTulipExample` packages, so this base package depends on
+# in the opt-in `ProjecturedODBCExample` / `ProjecturedAdaptagramsExample` / `ProjecturedTulipExample` packages, so this base package depends on
 # neither a database driver nor the native shim.
 const sql_syntax_example     = Example("sql_syntax",     make_sql_document_example,            make_sql_syntax_projection_example)
 const sql_insert_syntax_example = Example("sql_insert_syntax", make_sql_insert_document_example, make_sql_insert_syntax_projection_example)

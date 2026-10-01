@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../../kernel/reference.md)
 
-The XML domain, `ProjecturedXml`, holds an XML document as a tree of elements, text nodes and attributes. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the attribute as a document, the element chrome and its reader, the gestures, and the reference marker of a file.
+The XML domain, `ProjecturedXML`, holds an XML document as a tree of elements, text nodes and attributes. This document says where it differs from the [shape of every domain](../../../design/domain-anatomy.md): the attribute as a document, the element chrome and its reader, the gestures, and the reference marker of a file.
 
 <img width="396" alt="XML example" src="../../../asset/image/example/xml.png">
 
@@ -54,7 +54,7 @@ A letter or a digit on a placeholder is not a retype key, so it goes into the na
 
 ## How it fits
 
-`ProjecturedXml` depends on the kernel and the platform. No other domain package depends on it. Its `__init__` registers the natural row with the rung `:syntax`, the format `:xml`, the extension `.xml` and the parser `parse_xml`, and it registers `XmlFile` for `.xml`.
+`ProjecturedXML` depends on the kernel and the platform. No other domain package depends on it. Its `__init__` registers the natural row with the rung `:syntax`, the format `:xml`, the extension `.xml` and the parser `parse_xml`, and it registers `XmlFile` for `.xml`.
 
 The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/domain/xml/` is one dispatch table with the rules of both domains, and the document is a `JsonObject` whose value is an `XmlElement`.
 

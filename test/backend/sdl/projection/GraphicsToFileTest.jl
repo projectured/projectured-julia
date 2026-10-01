@@ -66,7 +66,7 @@ end
     doc  = make_json_document_example()
     filename = tempname() * ".bmp"
     # GraphicsCanvasToImageFile is exported by the Sdl package, which the
-    # test module opts into via `using ProjecturedSdl`.
+    # test module opts into via `using ProjecturedSDL`.
     proj = ChainingProjection(
         make_graphics_image_projection_example(),
         GraphicsCanvasToImageFile(filename; width=400, height=300),
@@ -84,9 +84,9 @@ end
     for name in (:map_reference_forward, :map_reference_backward)
         generic = getfield(Projectured.ProjectionModule, name)
         method = which(generic, Tuple{GraphicsCanvasToImageFile, Any, Any})
-        @test method.module === ProjecturedSdl.SdlModule
-        @test !isdefined(ProjecturedSdl.SdlModule, name) ||
-              getfield(ProjecturedSdl.SdlModule, name) === generic
+        @test method.module === ProjecturedSDL.SdlModule
+        @test !isdefined(ProjecturedSDL.SdlModule, name) ||
+              getfield(ProjecturedSDL.SdlModule, name) === generic
     end
 end
 

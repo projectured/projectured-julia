@@ -2,13 +2,13 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../../platform/graphics/graphics.md), [style.md](../../platform/style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md)
 
-`ProjecturedPdf` writes a `GraphicsCanvas` as a vector PDF: a shape becomes a PDF path, and a text becomes selectable text in an embedded font. It is a file export and not a `Backend`, and it needs neither SDL nor a third-party package. This document says how the writer maps a canvas to PDF, how it sizes and cuts the pages, and what it does not support.
+`ProjecturedPDF` writes a `GraphicsCanvas` as a vector PDF: a shape becomes a PDF path, and a text becomes selectable text in an embedded font. It is a file export and not a `Backend`, and it needs neither SDL nor a third-party package. This document says how the writer maps a canvas to PDF, how it sizes and cuts the pages, and what it does not support.
 
 ## How it works
 
 ### A file export
 
-A `Backend` drives devices and reads events; this package has neither. It has three entry points, in the form of `write_image` of `ProjecturedSdl`, and each returns `ImageFile(filename)`:
+A `Backend` drives devices and reads events; this package has neither. It has three entry points, in the form of `write_image` of `ProjecturedSDL`, and each returns `ImageFile(filename)`:
 
 - `write_pdf(canvas, filename; width, height, paginate)` writes a canvas that the caller already has.
 - `write_pdf(document, projection, filename; …)` prints the projection and writes its output. The output must be a `GraphicsCanvas`, or the call raises an error.
@@ -50,9 +50,9 @@ The writer itself, `PdfWriter`, is a small PDF 1.7 writer: it numbers the object
 
 ## How it fits
 
-The code is the slice `PdfModule`, in `source/backend/pdf/`: `PdfModule.jl` holds its imports and its exports, and `ProjecturedPdf` includes that file and exports the same names.
+The code is the slice `PdfModule`, in `source/backend/pdf/`: `PdfModule.jl` holds its imports and its exports, and `ProjecturedPDF` includes that file and exports the same names.
 
-`ProjecturedPdf` depends on the kernel for the projection and the IoMap, and on the platform for the canvas and `get_canvas_content_bounds` (the graphics slice) and for the colours, the fonts and the TrueType reader (the style slice). It needs no third-party package, so the umbrella `Projectured` holds it. It registers nothing. `write_example_pdf(name)` in `ProjecturedExample` writes a registered example.
+`ProjecturedPDF` depends on the kernel for the projection and the IoMap, and on the platform for the canvas and `get_canvas_content_bounds` (the graphics slice) and for the colours, the fonts and the TrueType reader (the style slice). It needs no third-party package, so the umbrella `Projectured` holds it. It registers nothing. `write_example_pdf(name)` in `ProjecturedExample` writes a registered example.
 
 ## Design decisions
 

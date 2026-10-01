@@ -1,18 +1,18 @@
 """
     test_fsm_layering()
 
-Static layered-architecture guard for `ProjecturedFsm`.
+Static layered-architecture guard for `ProjecturedFSM`.
 """
 function test_fsm_layering()
-    main = get_package_source_root(ProjecturedFsm)
-    check_layering(main, pathof(ProjecturedFsm);
+    main = get_package_source_root(ProjecturedFSM)
+    check_layering(main, pathof(ProjecturedFSM);
                    name = "fsm",
                    extra_aliases = Set{Symbol}(
-                       n for n in names(ProjecturedFsm; all = true)
-                         if isdefined(ProjecturedFsm, n) &&
-                            getfield(ProjecturedFsm, n) isa Module &&
-                            getfield(ProjecturedFsm, n) !== ProjecturedFsm &&
-                            parentmodule(getfield(ProjecturedFsm, n)) !== ProjecturedFsm))
+                       n for n in names(ProjecturedFSM; all = true)
+                         if isdefined(ProjecturedFSM, n) &&
+                            getfield(ProjecturedFSM, n) isa Module &&
+                            getfield(ProjecturedFSM, n) !== ProjecturedFSM &&
+                            parentmodule(getfield(ProjecturedFSM, n)) !== ProjecturedFSM))
 end
 
 """
@@ -21,7 +21,7 @@ end
 Run this package's whole suite: the layering guard and every fsm test.
 """
 function test_fsm()
-    @testset "ProjecturedFsm" begin
+    @testset "ProjecturedFSM" begin
         test_fsm_layering()
         test_fsm_document()
         test_fsm_diagram()

@@ -7,7 +7,7 @@ operators and text becomes selectable `Tj` text shows. The editor's own fonts
 (`font/`) are embedded as Type0 / CIDFontType2 composite fonts (`Identity-H`),
 so the full Unicode range the editor uses is covered.
 
-Entry points mirror `write_image` in `ProjecturedSdl`:
+Entry points mirror `write_image` in `ProjecturedSDL`:
 
 - `write_pdf(canvas, filename; width, height, paginate=false)` — a canvas you
   already have. With `paginate = false` (default), the result is a single page

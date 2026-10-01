@@ -15,7 +15,7 @@
 module Rehearsal
 
 using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
-      ProjecturedSdl, ProjecturedSdlExample
+      ProjecturedSDL, ProjecturedSDLExample
 using Dates
 
 const LlmModule = Projectured.LlmModule
