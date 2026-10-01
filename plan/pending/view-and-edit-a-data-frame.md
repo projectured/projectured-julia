@@ -1034,7 +1034,10 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     - [ ] **5.7 Column resize** (F6), in the widget substrate: a press within
       3 pixels of the right edge of a header starts a drag, as the splitter
       does, and the drag writes the width of the column. The view keeps it
-      by name.
+      by name. **Deferred** (the owner, 2026-10-01): "defer the column drag
+      until the drag refactor lands in main", the drag tracking of
+      [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
+      (D14, D20). How a person finds the edge (G3) is decided then.
     - [ ] **5.8 The editor of the Julia domain in the expression bar** (F4 c),
       through a seam that the data frame package declares and the Julia
       domain extends.
