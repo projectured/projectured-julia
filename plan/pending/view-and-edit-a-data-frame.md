@@ -1107,12 +1107,38 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         reasons, the kept rows and the table, Ctrl+End, a first print with
         no row, the pattern), the data frames 131, the tables and the list
         layouts 252 pass.
-    - [ ] **5.4 The filter row.** Each header is the label above a
+    - [x] **5.4 The filter row.** Each header is the label above a
       `WidgetText` of the filter text of its column. The selection of the
       view goes into the text of the query, and the view maps it to the text
       field and back, so the caret shows there and a key edits the query.
       Each element type parses the language of F3; a text that does not
       parse shows a mark and its reason in a tooltip, and filters nothing.
+      Done 2026-10-01, in two parts:
+      - 5.4a, the table (`83ace697a`): a plain press on a header goes to the
+        header and selects the column only when the header declines it; an
+        Alt+press still selects the column. A key goes to the header that the
+        selection is in.
+      - 5.4b, the view (`DataFrameFilterRow.jl`): each header is a
+        `VerticalLayout` of the label and a `WidgetText` of the filter text;
+        the corner is the count above the field of the pattern. The view
+        computes the selection of the grid, the table, each header and each
+        field from its own selection, `query.column_filters[i].text[a:b]` or
+        `query.column_pattern[a:b]`, as a printer computes the selection of
+        its output. The reader turns a press in a field into that selection,
+        and a text edit into a `ReplaceStringRangeOperation` of the text of
+        the query, which moves the caret as any text edit does and which a
+        history records.
+      - Choices (mine): a field is 80 pixels wide, so an empty field has room
+        for a press; a field whose text does not parse is pale red, and its
+        tooltip says the reason; an edit of a field shows the result from its
+        start (anchor, column anchor, offset and top row written back).
+      - Tests: the press into a field, a key through the whole chain (twice,
+        so the caret moves on), the mark and the reason, 145 data frame tests
+        and 187 list table tests pass. A picture shows the filter row, a
+        filtered result with its count, and a mark.
+      - Open, small: the field does not fill its column, because the header
+        grid gives a header no width; the mark colors the text area of the
+        field, not the whole field.
     - [ ] **5.5 The list of the values.** "Filter by values…" of the header
       menu opens a popup with the distinct values of the column and their
       counts, counted when it opens, for a column of at most 1,000 distinct

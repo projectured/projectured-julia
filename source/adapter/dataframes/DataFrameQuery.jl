@@ -37,10 +37,16 @@ _make_frame_query(frame) =
     DataFrameQuery(; column_filters = CellVector(Cell[Cell(DataFrameColumnFilter(; column = String(name)))
                                                       for name in names(frame)]))
 
-# The filter of column `name` in `query`, or `nothing`.
+# The filter of column `name` in `query`, and its place in the filters of the
+# query, or `nothing`.
 function _find_column_filter(query, name::String)
-    for filter in query.column_filters
-        filter.column == name && return filter
+    i = _find_filter_place(query, name)
+    i === nothing ? nothing : query.column_filters[i]
+end
+
+function _find_filter_place(query, name::String)
+    for (i, filter) in enumerate(query.column_filters)
+        filter.column == name && return i
     end
     nothing
 end

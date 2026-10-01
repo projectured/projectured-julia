@@ -88,6 +88,13 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     grid = GridLayout(Any[table, bar], 2; column_policies = Any[Fill, Fixed(_SCROLL_BAR_WIDTH)],
                       row_policy = Fill)
+    # The grid gives a key to the table, by the selection of the table.
+    set_cell_computation!(getfield(grid, :selection), () -> begin
+        selection = table.selection
+        selection === nothing ? nothing :
+            ConcreteReference(FieldReferenceStep("children"),
+                              ConcreteReference(RangeReferenceStep(0, 1), selection))
+    end)
     DataFrameViewToWidgetIoMap(p, view, grid, table, bar, visible)
 end
 
@@ -106,7 +113,7 @@ _get_scroll_bar_row(value::Real, count::Int, visible::Int) =
 # The table of a frame whose columns share its width: every column a weight,
 # and at least as wide as its header.
 function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
-    headers = CellVector(@computation Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name])))
+    headers = CellVector(@computation Any[_make_filter_header(view, name)
                                           for name in _get_shown_columns(view)])
     align = Cell(@computation Symbol[_get_column_align(eltype(view.frame[!, name]))
                                      for name in _get_shown_columns(view)])
@@ -133,19 +140,14 @@ print_document(p::DataFrameViewToWidget, view::DataFrameView) =
     print_document(p, nothing, view, nothing)
 
 # The header of each kept row, its row number in the frame, as a list that moves
-# in step with the rows, and the corner, which shows the count of the kept rows.
-# The count is padded with figure spaces, which are as wide as a digit, to the
-# digits of the count of all rows, so the header column is as wide as the widest
-# row number. A frame with no rows has neither.
+# in step with the rows, and the corner of the filter row. A frame with no rows
+# has neither.
 function _make_row_numbers(view::DataFrameView)
     headers = Cell(@computation (kept = view.kept_rows;
                                  isempty(kept) ? CellVector() :
                                      _make_index_list(length(kept), view.anchor,
                                                       k -> WidgetLabel(string(kept[k])))))
-    corner = Cell(@computation (count = nrow(view.frame);
-                                count == 0 ? nothing :
-                                    WidgetLabel(lpad(string(length(view.kept_rows)), ndigits(count),
-                                                     '\u2007'))))
+    corner = Cell(@computation nrow(view.frame) == 0 ? nothing : _make_query_corner(view))
     (headers, corner)
 end
 
@@ -154,8 +156,7 @@ end
 function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     type_of(name) = eltype(view.frame[!, name])
     headers = Cell(@computation (columns = _get_shown_columns(view);
-        _make_index_list(length(columns), view.column_anchor,
-                         c -> WidgetLabel(_get_header_text(columns[c], type_of(columns[c]))))))
+        _make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(view, columns[c]))))
     align = Cell(@computation (columns = _get_shown_columns(view);
         _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
     rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.kept_rows,
@@ -173,18 +174,31 @@ end
 
 # The selection of the table that shows the selection of `view`: the header of
 # the selected column, counted from the head column when the columns are a
-# list, and the whole table for the whole view.
+# list; the field of a filter or of the pattern, with its caret; and the whole
+# table for the whole view.
 function _get_table_selection(view::DataFrameView, column_list::Bool)
     selection = view.selection
     selection === nothing && return nothing
     selection = strip_reference_types(selection)
     selection isa EmptyReference && return EmptyReference()
+    found = _find_query_text_selection(view)
+    if found !== nothing
+        field = _make_field_child_reference(_make_content_range_reference(found[2]))
+        found[1] === :pattern && return ConcreteReference(FieldReferenceStep("corner"), field)
+        return _make_header_reference(view, view.query.column_filters[found[1]].column, field, column_list)
+    end
     (selection isa ConcreteReference && selection.head isa DataFrameColumnReferenceStep) || return nothing
-    c = findfirst(==(selection.head.name), _get_shown_columns(view))
+    _make_header_reference(view, selection.head.name, EmptyReference(), column_list)
+end
+
+# The path in the table of the header of column `name`, followed by `tail`, or
+# `nothing` when the view does not show the column.
+function _make_header_reference(view::DataFrameView, name::String, tail, column_list::Bool)
+    c = findfirst(==(name), _get_shown_columns(view))
     c === nothing && return nothing
     column_list && (c -= view.column_anchor - 1)
     ConcreteReference(FieldReferenceStep("column_headers"),
-                      ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+                      ConcreteReference(RangeReferenceStep(c - 1, c), tail))
 end
 
 """
@@ -249,22 +263,47 @@ function _find_table_path(path)
     tail.tail
 end
 
-# The path in the view of `path`, a path in the table: the view for the table
-# and for its corner, a column for the header of the column, and `nothing` for
+# The path in the view of `path`, a path in the table: the text of the query and
+# its range for a field of the filter row, the view for the table and for the
+# rest of its corner, a column for the header of the column, and `nothing` for
 # any other place.
 function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     path isa EmptyReference && return EmptyReference()
     (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
+    view = iomap.input
+    text = _find_query_text_path(view, path, c -> _find_shown_column(iomap, c))
+    text === nothing || return text
     path.head.name == "corner" && return EmptyReference()
     path.head.name == "column_headers" || return nothing
     tail = path.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.tail isa EmptyReference) ||
         return nothing
+    name = _find_shown_column(iomap, tail.head.stop)
+    name === nothing ? nothing : _make_column_reference(name)
+end
+
+# The name of the column of header `c` of the table, counted from the head
+# column when the columns are a list, or `nothing`.
+function _find_shown_column(iomap::DataFrameViewToWidgetIoMap, c::Int)
     view = iomap.input
-    c = tail.head.stop
     iomap.table.column_headers isa ListNode && (c += view.column_anchor - 1)
     columns = _get_shown_columns(view)
-    1 <= c <= length(columns) ? _make_column_reference(columns[c]) : nothing
+    1 <= c <= length(columns) ? columns[c] : nothing
+end
+
+# An edit of a field of the filter row is an edit of the text of the query, and
+# the view shows the result of the new query from its start.
+function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+                     operation::ReplaceStringRangeOperation)
+    path = _find_table_path(operation.reference)
+    path === nothing && return nothing
+    target = _find_view_path(iomap, path)
+    (target isa ConcreteReference && target.head == FieldReferenceStep("query")) || return nothing
+    view = iomap.input
+    start(field, value) = ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, field, value))
+    edit = ReplaceStringRangeOperation(annotate_reference_types(view, target), operation.replacement)
+    CompoundOperation(Any[edit, start("anchor", 1), start("column_anchor", 1),
+                          start("scroll_position", Point2D(0, 0)), start("top_row", 1)])
 end
 
 # A scroll of the table writes the cell that the view shares with it, and

@@ -1,3 +1,8 @@
+# An editor that holds only the document, as `evaluate_operation` reads it.
+mutable struct _DataFrameFilterEditor
+    document::Any
+end
+
 """
     test_data_frame_filter()
 
@@ -102,6 +107,58 @@ function test_data_frame_filter()
             found = texts_of(io)
             @test "item 1" in found && "item 3" in found
             @test "item 4" ∉ found
+        end
+
+        function read_event(io, event)
+            change = read_intent(projection, nothing, Intent(event, nothing), io)
+            change isa Intent ? change.operation : change
+        end
+        filter_steps(i) = [FieldReferenceStep("query"), FieldReferenceStep("column_filters"),
+                           RangeReferenceStep(i - 1, i), FieldReferenceStep("text")]
+
+        @testset "a press in a field of the filter row puts the caret in the text of the filter" begin
+            view = DataFrameView(make_frame())
+            set_filter!(view, "name", "item")
+            io = print_document(projection, nothing, view, context())
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(io.output) if t[3] == "item")
+            op = read_event(io, MouseClick(:left, x + 1, y + 2, ModifierKeys(); time = 0.0))
+            @test op isa ReplaceSelectionOperation
+            steps = get_reference_steps(strip_reference_types(op.path))
+            @test steps[1:4] == filter_steps(2)
+            @test steps[5] isa RangeReferenceStep
+        end
+
+        @testset "a key in a field edits the filter, and the view shows the result from its start" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            getfield(view, :anchor)[] = 500
+            set_selection!(view, module_._make_filter_text_reference(1, RangeReferenceStep(0, 0)))
+            op = read_event(io, KeyPress('9', "9", ModifierKeys(); time = 0.0))
+            @test op isa CompoundOperation
+            edit = first(op.operations)
+            @test edit isa ReplaceStringRangeOperation && edit.replacement == "9"
+            @test get_reference_steps(strip_reference_types(edit.reference))[1:4] == filter_steps(1)
+            evaluate_operation(_DataFrameFilterEditor(view), op)
+            @test module_._find_column_filter(view.query, "id").text == "9"
+            @test view.anchor == 1
+            @test !isempty(view.kept_rows) && all(i -> occursin("9", string(i)), view.kept_rows)
+            # The caret is after the 9, and a second key goes on from there.
+            @test get_reference_steps(strip_reference_types(view.selection))[5] == RangeReferenceStep(1, 1)
+            evaluate_operation(_DataFrameFilterEditor(view), read_event(io, KeyPress('9', "9", ModifierKeys();
+                                                                                     time = 0.0)))
+            @test module_._find_column_filter(view.query, "id").text == "99"
+        end
+
+        @testset "a text that does not parse colors its field, and says why" begin
+            view = DataFrameView(make_frame())
+            set_filter!(view, "id", "> x")
+            io = print_document(projection, nothing, view, context())
+            table = _data_frame_grid_iomap(io).child_iomaps[1][3].input
+            field = table.column_headers[1].children[2]
+            @test field.tooltip isa String
+            @test field.style !== nothing
+            set_filter!(view, "id", "> 3")
+            @test field.tooltip === nothing && field.style === nothing
         end
 
         @testset "the pattern keeps the columns whose names match it" begin
