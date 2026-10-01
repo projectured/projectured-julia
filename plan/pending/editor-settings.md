@@ -2,8 +2,10 @@
 
 > **Status:** pending, not started. Written on 2026-10-01 at the owner's
 > request. The owner decided the design on 2026-10-01; section 5 logs each
-> decision. The work starts after step W1 of the appearance plan lands on `main`
-> (D10).
+> decision. Step W1 of the appearance plan landed on `main` on 2026-10-01
+> (`03e83ba36`), so the work can start (D10). Section 9 of the appearance plan
+> and 3.8 here give what W1 changed. One question is open again: the word
+> "settings" (section 6, O11).
 
 ## 1. The request
 
@@ -147,11 +149,38 @@ The search of 2026-10-01 found these values. This plan leaves them out:
 
 ### 3.8 The appearance plan
 
-`plan/pending/zoom-and-theme-controls.md` is in progress on the branch
-`appearance`. On 2026-10-01 the branch has `UntrackedCell`, `@theme`,
-`Appearance` and `InvalidateProjectionOperation` (its steps C1, T1 and T2). It
-does not have the wrapper (W1), the seam of the build for the path with no
-projection (its 4.13, in W1), the tab (W3) or the save and the load (W6).
+`plan/pending/zoom-and-theme-controls.md` landed its steps up to W2 on `main`
+on 2026-10-01 (`03e83ba36`): `UntrackedCell`, `@theme`, `Appearance`,
+`InvalidateProjectionOperation`, the slice `source/platform/appearance/` and the
+seam of the build. The tab (W3) and the save and the load (W6) are not done.
+What W1 gives this plan:
+
+- **The seam of the build.** `make_wrapper_setting(::Val{keyword}, setting)`
+  (`source/kernel/editor/EditorBuild.jl`) makes the value of each wrapper setting
+  before anything is built. The `appearance` wrapper answers a new `Appearance`
+  for `true`. `make_document_projection(document; settings...)` gets the value of
+  each wrapper setting, by its keyword, on the path with no projection.
+- **A wrapper sees the settings of the others** (its D32). `EditorParts.settings`
+  holds the value of each wrapper setting, by keyword. The `tabs` wrapper takes
+  the `Appearance` there: `get(parts.settings, :appearance, Appearance())`
+  (`source/platform/pane/PaneTabsWrapper.jl:60`).
+- **The form of the wrapper.** `AppearanceManagingProjection`
+  (`source/platform/appearance/AppearanceManagingProjection.jl`) holds only its
+  inner projection, and reads the `Appearance` from its input, the
+  `AppearanceDocument`. Its reader gives a `CollectIntents` to the content and
+  merges the bindings of the document; it gives a routed intent to the content;
+  else it asks the content first and then the gesture table of the
+  `AppearanceDocument` (`read_gesture`). It puts `InvalidateProjectionOperation`
+  after an answer that changes the appearance. Its layer is `:screen => 0`.
+- **The keys are in the gesture table of the document**: `@gestures
+  AppearanceDocument` (`AppearanceDocument.jl`), so F1 and the palette list them.
+- **A test that checks the root of a built editor** turns the wrapper off with
+  `appearance = false` (its finding 16).
+- **Its finding 15** says that the palette lists only a binding with a key. A
+  command rule with no key exists (`nothing => "description" => rhs`,
+  `source/kernel/binding/Gestures.jl:146`, used in
+  `source/platform/conversation/Evaluator.jl:712`). Step S7 finds which one
+  holds.
 
 ### 3.9 How an edit of a settings document reaches the root
 
@@ -194,9 +223,10 @@ group, as an `Appearance` holds the themes.
   `settings` and `content`. It wraps the projection in a
   `SettingsManagingProjection` (4.5). Its start step applies each group once
   (4.7).
-- On the path with no projection, the seam of the build of the appearance plan
-  (its 4.13, `make_wrapper_setting`) makes a new `Settings` for the setting
-  `true`. So the projection and the wrapper share it.
+- `make_wrapper_setting(Val(:settings), true)` answers a new `Settings` (3.8).
+  On the path with no projection, `make_document_projection` gets it by its
+  keyword, so the projection and the wrapper share it. Another wrapper reads it
+  from `EditorParts.settings` (4.8).
 - With `settings = true`, the wrapper makes a `Settings` with the defaults and
   the environment. It never reads the file, so a test that calls `build_editor`
   does not depend on the file of the person.
@@ -295,20 +325,26 @@ the `Settings` of its own editor.
 
 ### 4.5 The wrapper turns a normal edit into an applied setting
 
-`SettingsManagingProjection` wraps the whole view, in the `:screen` layer. It
-holds the `Settings` of its editor. It holds no cell and no edge.
+`SettingsManagingProjection` wraps the whole view, in the `:screen` layer,
+outside the `appearance` wrapper. It has the form of
+`AppearanceManagingProjection` (3.8): it holds only its inner projection, and
+reads the `Settings` from its input, the `SettingsDocument`. It holds no cell
+and no edge.
 
 ```julia
 function read_intent(p::SettingsManagingProjection, recursion, intent, iomap)
-    answer = <the answer of the content>
-    answer === nothing && (answer = <the answer of the wrapper's own bindings>)
-    wrap_setting_writes(p.settings, answer)
+    # A CollectIntents and a routed intent go to the content, as in the
+    # appearance wrapper.
+    answer = <the answer of the content, rerooted under `content`>
+    answer isa Operation ||
+        (answer = read_gesture(iomap.input, <the event>))   # its gesture table
+    Intent(intent.gesture, wrap_setting_writes(iomap.input.settings, answer))
 end
 ```
 
 `wrap_setting_writes` walks the answer, into each `CompoundOperation` and each
 `WrappingOperation`. It replaces each `ReplaceReferencedValueOperation` whose
-document is a group of `p.settings` with `ApplySettingOperation(write)`. A write
+document is a group of the `Settings` with `ApplySettingOperation(write)`. A write
 with no document, whose reference goes through `SettingsDocument.settings`, gets
 the same. Every other operation stays as it is.
 
@@ -320,10 +356,11 @@ Why the wrapper, and not the tab:
 - The tab stays a plain view of a document. It knows no backend and no editor.
 - The tab, the reset and a later view of the settings can not forget the apply.
 
-The wrapper's own bindings act only when the content declines the key. They are
-two commands of the palette, "Toggle partial render" and "Toggle repaint
-outline". Each answers the `ApplySettingOperation` of the write that toggles the
-value. They have no key (D8).
+The gesture table of the `SettingsDocument` acts only when the content declines
+the input. It holds three commands of the palette, "Open settings", "Toggle
+partial render" and "Toggle repaint outline". Each toggle answers the
+`ApplySettingOperation` of the write that toggles the value. They have no key
+(D8).
 
 ### 4.6 `ApplySettingOperation`
 
@@ -386,8 +423,10 @@ package that owns a target adds a method for each group that acts on it:
   a number or a cell (`Union{Real, AbstractCell}`), and the recognition reads the
   cell at each input. The default stays a number, so the tests do not change.
   `make_standard_recognitions(settings::PointerSettings)` gives the cells of the
-  group. The main builder passes these recognitions to the window, as it passes
-  the themes. `DraggingProjection` takes its threshold in the same way.
+  group. The `window` wrapper, which makes the recognitions in `WindowScene`,
+  takes the `Settings` from `EditorParts.settings` when its own setting names no
+  recognitions, as the `tabs` wrapper takes the `Appearance` (3.8).
+  `DraggingProjection` takes its threshold in the same way.
 - **The history and the log.** The capacity of an `UndoBuffer` and of a
   `MessageLog` becomes a cell. The builder that makes one gives it the cell of
   the group. A smaller capacity drops the oldest entries at the next push.
@@ -484,7 +523,8 @@ these on 2026-10-01 (D11). This plan adds:
 8. The hold of the repaint outline in the SDL backend.
 9. The file `settings.toml`.
 
-The plan uses the seam of the build of the appearance plan (its 4.13). It adds no
+The plan uses the seam of the build and `EditorParts.settings`, which W1 of the
+appearance plan added (3.8). It adds no
 `SyntheticEvent`, no reader payload and no `read_intent` method for a new type.
 
 ## 5. The decision log
@@ -524,7 +564,33 @@ recommendations, and chose two separate tabs for O8.
 
 ## 6. Open decisions
 
-None. Section 5 holds the answers to O1 to O10.
+Section 5 holds the answers to O1 to O10.
+
+- **O11. The word "settings" has two meanings.** W1 put the word into the kernel
+  for another thing: "the setting of a wrapper" is the value of a keyword of
+  `build_editor`, held in `EditorParts.settings` and made by
+  `make_wrapper_setting`, and `make_document_projection(document; settings...)`
+  gets all of them. The `wrap_editor!` docstring used "setting" in that sense
+  before W1. With the names of D9, the code reads
+  `get(parts.settings, :settings, nothing)`: "the setting of the settings
+  wrapper is a `Settings`". The vocabulary rule of the owner (2026-08-06) is:
+  mint a word that is not used, and do not give one word two meanings.
+  (a) Keep the word "settings" for what a person chooses, and rename the kernel
+  word to "argument": `make_wrapper_argument`, `EditorParts.arguments`,
+  `make_document_projection(document; arguments...)`, and the `setting`
+  argument of `wrap_editor!`. A wrapper argument is the value of a keyword
+  argument, so the word says what it is.
+  (b) Keep the kernel word, and give this plan another word, such as
+  "preferences": `Preferences`, `PreferenceGroup`, `@preferences`,
+  `ApplyPreferenceOperation`, `apply_preferences!`, the keyword `preferences` and
+  `preferences.toml`. The tab can still have the title "Settings".
+  (c) Keep both meanings.
+  My recommendation: (a). The owner's request names a settings document, and the
+  tab, the file, the code and the guide then use one word for one thing. The
+  rename is in `EditorBuild.jl` (⬜), the appearance slice, the `tabs` wrapper,
+  the guides and the call sites: about 30 lines in 11 files on 2026-10-01, and
+  none in omnet-julia or inet-julia. `workspace/bin/julia-rename.jl` does it. (c)
+  breaks the vocabulary rule.
 
 ## 7. Steps
 
@@ -622,6 +688,10 @@ the pixels and the test counts of the baseline of S0.
 - A limit that is a cell costs one more read for each input. This is small.
 - omnet-julia builds its editors with `build_editor`, so the wrapper is on there
   too.
+- The `settings` wrapper changes the root of every editor, as the `appearance`
+  wrapper does. A test that checks the root document after `build_editor`, or
+  the depth of a selection path, must turn it off with `settings = false`
+  (finding 16 of the appearance plan).
 - No 🔒 file changes. `FaultPolicy.jl` and the gesture layer are ⬜, and
   `ClickRecognition.jl` and `DwellRecognition.jl` are not in the inventory. Read
   `SEALING.md` again before each edit.
