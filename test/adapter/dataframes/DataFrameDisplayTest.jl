@@ -21,6 +21,11 @@ frame in an editor, once for one frame.
 function test_data_frame_display()
     @testset "a data frame shows as its view" begin
         frame = make_data_frame_example(rows = 3)
+        # A person who loads the package by name gets the display with it.
+        for name in (:display_in_editor, :close_display_editor!)
+            @test name in names(ProjecturedDataFrames)
+            @test getfield(ProjecturedDataFrames, name) === getfield(ProjecturedPlatform, name)
+        end
         @test make_value_document(frame) isa DataFrameView
         @test DataFrameView in collect_graphics_projection_types()
         close_display_editor!()

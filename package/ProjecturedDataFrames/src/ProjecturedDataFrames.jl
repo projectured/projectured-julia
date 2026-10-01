@@ -37,4 +37,10 @@ using .DataFramesModule: DataFrameView, jump_to_row, make_data_frame_cell,
 export DataFrameView, jump_to_row, make_data_frame_cell,
        DataFrameViewToWidget, make_data_frame_view_projection
 
+# The display of the platform shows a frame beside the REPL, so a person who
+# loads this package to look at a frame needs no other name:
+# `using DataFrames, ProjecturedDataFrames, ProjecturedSdl` and
+# `display_in_editor(frame)`.
+export display_in_editor, close_display_editor!
+
 end # module ProjecturedDataFrames
