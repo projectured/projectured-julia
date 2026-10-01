@@ -4,7 +4,14 @@
 > request. The owner decided the design on 2026-10-01; section 5 logs each
 > decision. The owner approved the unseal of `device/Display.jl` (step N1) and
 > of `cell/CellModule.jl`, `cell/ReactiveCell.jl`, `struct/CellStructPlan.jl`
-> and `struct/CellStruct.jl` (step C1).
+> and `struct/CellStruct.jl` (step C1). On 2026-10-01 the owner also allowed a
+> change of the docstrings only in `cell/CellComputation.jl`,
+> `cell/CellInterface.jl`, `cell/CellDefaults.jl` and
+> `struct/CellStructModule.jl`, where they say that only a reactive cell
+> computes or that there are three kinds.
+>
+> **In progress** on the branch `appearance`, in the worktree
+> `.claude/worktrees/appearance`. Section 9 holds what the work found.
 
 ## 1. The request
 
@@ -561,12 +568,12 @@ themes.
 
 | Part | Package |
 | --- | --- |
-| `@theme`, `Spacing`, `Radius`, `LineWidth`, `ControlSize`, `IconSize`, `Appearance`, the lookup of a scaled theme | `ProjecturedStyle`, beside `StyleFont` |
+| `@theme`, `Spacing`, `Radius`, `LineWidth`, `ControlSize`, `IconSize`, `Appearance`, the lookup of a scaled theme | the style slice of `ProjecturedPlatform`, beside `StyleFont` |
 | `UntrackedCell`, `run_untracked` | the kernel, cell layer |
 | `InvalidateProjectionOperation` | the kernel, `operation/Operations.jl` |
-| `AppearanceDocument`, `AppearanceManagingProjection`, the `appearance` wrapper, `AdjustZoomOperation`, `AdjustScaleOperation`, the keys, Save and Load, `AppearanceToWidget` | a new package, `ProjecturedAppearance`, code in `source/appearance/`, above the widget package |
-| the toolbar item and the View menu item | `ProjecturedShell` (`WindowChrome.jl`), which depends on `ProjecturedAppearance` |
-| the theme of a domain | the package of that domain; `WidgetTheme` stays in `ProjecturedWidget` |
+| `AppearanceDocument`, `AppearanceManagingProjection`, the `appearance` wrapper, `AdjustZoomOperation`, `AdjustScaleOperation`, the keys, Save and Load, `AppearanceToWidget` | a new slice `source/platform/appearance/` of `ProjecturedPlatform`, above the widget slice (section 9, finding 1) |
+| the toolbar item and the View menu item | the shell slice (`WindowChrome.jl`), above the appearance slice |
+| the theme of a domain | the slice or package of that domain; `WidgetTheme` stays in the widget slice |
 
 `plan/pending/fold-the-internal-packages.md` is a draft that moves code between
 packages only through `Project.toml` and the entry files, so the new slice is
@@ -731,13 +738,22 @@ from B0 on gives the pixels of the baseline that the owner accepts in B0.
 W2, W3, W4, W5, W6, G1. Every domain gets its theme before the wrapper takes the
 keys (W1), so that the font scale reaches all text from the first day.
 
-- [ ] **A0. The baseline on main.**
+- [x] **A0. The baseline on main.** Done on 2026-10-01 at `3d0d25ae0`, in
+  `environment/all` of the worktree, offscreen. No fail and no error:
+  `test_kernel()` 4058 pass and 2 broken; `test_platform()` 97486 pass and 8
+  broken; `test_sdl()` 803 pass; `test_web_backend()` 103 pass;
+  `test_write_pdf()` 43 pass. The pixel script `/var/tmp/appearance-a0/pixels.jl`
+  writes `widget_example`, `widget_table_example`, `json_example` and
+  `markdown_example` with `supersample = 1`; their hashes are in
+  `/var/tmp/appearance-a0/pixels/hashes.txt`. The web and PDF tests are in the
+  umbrella `ProjecturedTest`.
   - `test_kernel()`, `test_sdl()`, `test_web_backend()`, the PDF test, and the
     widget tests of `test/substrate/projection/`, one file at a time.
   - Pixel hashes of four examples: the live-window check of the device audit,
     and `write_image` with `supersample = 1`.
   - Frame times of the same four examples during a scripted edit, and the count
-    of the edges and of the memory of one view.
+    of the edges and of the memory of one view: later, before B1, at the owner's
+    word on an idle machine (section 9, finding 2).
 
 ### Part N: the names
 
@@ -758,7 +774,8 @@ keys (W1), so that the font scale reaches all text from the first day.
     back after an error. A nested use works. `@projection UntrackedCell struct`
     keeps a cell that it gets and makes a constant of a plain value. A write is
     a `MethodError`. `is_computed_cell` and `copy_cell_as`.
-  - The guide `documentation/package/kernel/cell.md`: the fourth kind.
+  - The guide `documentation/package/kernel/cell.md`: the fourth kind, and the
+    docstrings of the four other sealed files that the owner allowed.
 
 ### Part T: the theme machinery
 
@@ -913,3 +930,19 @@ as large. omnet-julia and inet-julia follow where they build these projections.
 - A color picker widget, with a hue strip and a shade area.
 - The line spacing as a theme value (`plan/pending/line-spacing-from-the-theme.md`).
   The themes of this plan are the place for it.
+
+## 9. Findings during the work
+
+1. **The package fold landed on `main` before the work started** (2026-10-01).
+   The 38 platform packages are one package, `ProjecturedPlatform`, and the
+   source moved into group folders: `source/kernel/`, `source/platform/<slice>/`
+   (style, widget, screen, shell, text, syntax, natural, and the tools),
+   `source/domain/<slice>/` (one package each), `source/backend/<slice>/`. The
+   paths of section 3 are those of before the fold: `source/style/Font.jl` is now
+   `source/platform/style/Font.jl`, `source/sdl/Sdl.jl` is
+   `source/backend/sdl/Sdl.jl`, and so on. So D28 becomes a slice
+   `source/platform/appearance/` in `ProjecturedPlatform`, not a new package;
+   the owner agreed on 2026-10-01. The style slice and the widget slice are in
+   the same package, so "the lowest package" of 4.11 is now "the lowest slice".
+2. **The frame times of A0 wait** until before B1, at the owner's word on
+   2026-10-01. A0 takes the suites and the pixel images.
