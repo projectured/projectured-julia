@@ -507,6 +507,33 @@ function test_application()
                                                       node.content === settings)) == 1
             end
 
+            @testset "the settings come from the defaults, the file, the environment and the command line" begin
+                folder = mktempdir()
+                path = joinpath(folder, "settings.toml")
+                write(path, "[render]\npartial_render = true\nsupersample = 3\n\n" *
+                            "[fault]\nis_sound_enabled = false\n")
+                settings = withenv("PROJECTURED_SUPERSAMPLE" => "1") do
+                    make_application_settings(path)
+                end
+                render = get_settings_group!(settings, RenderSettings)
+                fault = get_settings_group!(settings, FaultSettings)
+                @test render.partial_render                  # the file
+                @test render.supersample == 1                # the environment wins
+                @test !fault.is_sound_enabled
+                @test settings.file == path && !settings.is_read_from_targets
+                # The policy of the command line is the whole policy, for this run.
+                strict = make_application_settings(path; fault_policy = make_strict_fault_policy())
+                strict_fault = get_settings_group!(strict, FaultSettings)
+                @test !strict_fault.is_barrier_enabled && strict_fault.is_sound_enabled
+                @test make_application_settings(nothing).file == ""
+                # The histories of the window keep the steps of the setting.
+                document = make_application_document(paths[1:1]; root = dir, settings)
+                @test document isa UndoBuffer && document.capacity == 100
+                get_settings_group!(settings, HistorySettings).undo_capacity = 20
+                @test document.capacity == 20
+                rm(folder; recursive = true)
+            end
+
             @testset "the pane verbs take and answer complete references, and write at the root" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
                 editor = _app_make_editor(scene, composed, iomap)

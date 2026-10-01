@@ -20,11 +20,15 @@ target directly stays.
 `unused_types` holds the group types that no target of the editor applies,
 which the start step finds with [`is_settings_group_used`](@ref), so a view can
 show them as not used.
+
+`file` is the settings file that Save and Load of a view use, or empty for
+settings with no file, such as those of a test.
 """
 @document struct Settings
     groups::Dict{Type,Any} = Dict{Type,Any}()
     is_read_from_targets::Bool = false
     unused_types::Vector{Any} = Any[]
+    file::String = ""
 end
 
 """

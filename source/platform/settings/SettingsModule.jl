@@ -17,12 +17,16 @@ the kernel read no setting.
   apply of a setting, and the seam `apply_settings!`.
 - [`SettingsEnvironment.jl`](SettingsEnvironment.jl) — the environment variables
   that set a setting for one run.
+- [`SettingsFile.jl`](SettingsFile.jl) — the settings file, and the operations
+  that save and load it.
 """
 module SettingsModule
 
 using ..DocumentModule
 using ..OperationModule
 using ..ReferenceModule
+
+import TOML
 
 import ..OperationModule: evaluate_operation, describe_operation, make_inverse_operation,
                           operation_travels_unchanged, get_wrapped_operation,
@@ -38,10 +42,13 @@ export ApplySettingOperation, apply_settings!, is_settings_target,
        is_settings_group_applied,
        read_settings_from_editor!
 export get_setting_environment_names, read_settings_environment!
+export get_configuration_folder, get_settings_file, write_settings_file!, read_settings_file!,
+       SaveSettingsOperation, LoadSettingsOperation
 
 include("SettingsGroup.jl")
 include("Settings.jl")
 include("ApplySettingOperation.jl")
 include("SettingsEnvironment.jl")
+include("SettingsFile.jl")
 
 end # module SettingsModule

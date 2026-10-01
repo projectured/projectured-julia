@@ -72,15 +72,19 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
 end
 
 """
-    make_application_document(paths; root = pwd(), assistant = nothing)
+    make_application_document(paths; root = pwd(), assistant = nothing,
+                              settings = make_settings())
 
 The document of the application window: one file tab for each path, a navigator
 over `root`, and the assistant when it is not `nothing`. A path that does not
-exist opens as the empty seed of its extension.
+exist opens as the empty seed of its extension. Each history of the window keeps
+as many steps as the `HistorySettings` of `settings` say.
 """
 function make_application_document(paths::AbstractVector;
-                                   root::AbstractString = pwd(), assistant = nothing)
-    tabs = [make_file_tab_content(path, UndoBuffer) for path in paths]
+                                   root::AbstractString = pwd(), assistant = nothing,
+                                   settings::Settings = make_settings())
+    history = make_history_wrap(settings)
+    tabs = [make_file_tab_content(path, history) for path in paths]
     navigator = _make_application_navigator(root)
     content = _make_application_pane_tree(tabs, navigator, assistant)
     # Two levels of history, and the four rules of the undo slice make them one
@@ -88,7 +92,7 @@ function make_application_document(paths::AbstractVector;
     # file the person is looking at. The window holds one around all of them, so
     # a splitter that moves, a tab that opens and a chat draft can be taken back
     # too — none of those is inside a file.
-    buffer = UndoBuffer(content)
+    buffer = history(content)
     # The focus was seated on the content before the buffer held it, and a
     # selection is a chain every node on the path holds a piece of. Seat it again
     # from the buffer, so the first key goes where it was meant to go.
@@ -146,7 +150,8 @@ natural renderer, which every loaded domain registers itself with, so the
 application names no domain.
 """
 function make_application_content_projections(; measure = FontFileMeasure(),
-                                               appearance::Appearance = Appearance())
+                                               appearance::Appearance = Appearance(),
+                                               settings::Settings = make_settings())
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure))
     conversation_rows = Pair{Type,Any}[
@@ -165,7 +170,8 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
             RecursiveProjection(FileSystemToWidget(
-                open_file = path -> OpenFileOperation(path; wrap = UndoBuffer))),
+                open_file = path -> OpenFileOperation(path;
+                                                      wrap = make_history_wrap(settings)))),
             RecursiveProjection(WidgetToGraphics(; measure = measure,
                                                  theme = get_scaled_theme!(appearance, WidgetTheme)))),
         # A tab of its own: the pane group hands the assistant's own split pane
@@ -197,8 +203,9 @@ command palette, the walk and the clipboard — come from
 [`make_application_window`](@ref) is where the two meet.
 """
 function make_application_projection(; measure = FontFileMeasure(),
-                                     appearance::Appearance = Appearance())
-    content = make_application_content_projections(measure = measure, appearance = appearance)
+                                     appearance::Appearance = Appearance(),
+                                     settings::Settings = make_settings())
+    content = make_application_content_projections(; measure, appearance, settings)
     _make_application_pane_projection(content, measure, appearance)
 end
 
@@ -235,9 +242,11 @@ function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
                                  status_bar::Bool = true,
                                  measure = FontFileMeasure(),
-                                 appearance::Appearance = Appearance())
-    document = make_application_document(paths; root = root, assistant = assistant)
-    projection = make_application_projection(; measure = measure, appearance = appearance)
+                                 appearance::Appearance = Appearance(),
+                                 settings::Settings = make_settings())
+    document = make_application_document(paths; root = root, assistant = assistant,
+                                         settings = settings)
+    projection = make_application_projection(; measure, appearance, settings)
     make_window_wrap(; gesture_help = true, command_palette = true,
                        selection = true,
                        history = _with_window_history,
@@ -373,11 +382,47 @@ make_application_system() =
     read_guide_section("guide/orientation", "Reach what a tab holds")
 
 """
+    make_application_settings(file; fault_policy = nothing) -> Settings
+
+The settings of the application window, from the weakest source: the defaults,
+the file `file`, the environment variables, and `fault_policy` from the command
+line. `file` is also where Save and Load of the settings tab write and read;
+`nothing` reads and names no file.
+"""
+function make_application_settings(file::Union{AbstractString,Nothing};
+                                   fault_policy::Union{FaultPolicy,Nothing} = nothing)
+    settings = make_settings()
+    if file !== nothing
+        settings.file = String(file)
+        read_settings_file!(settings, file)
+    end
+    read_settings_environment!(settings)
+    if fault_policy !== nothing
+        fault = get_settings_group!(settings, FaultSettings)
+        fault.is_barrier_enabled = fault_policy.is_barrier_enabled
+        fault.is_console_enabled = fault_policy.is_console_enabled
+        fault.is_sound_enabled = fault_policy.is_sound_enabled
+    end
+    settings
+end
+
+"""
+    make_history_wrap(settings) -> Function
+
+The function that puts a document into an `UndoBuffer` whose capacity is the cell
+of `undo_capacity` of the `HistorySettings` of `settings`, so the history follows
+a change of the setting.
+"""
+make_history_wrap(settings::Settings) =
+    content -> UndoBuffer(content; capacity = get_setting_cell(
+        get_settings_group!(settings, HistorySettings), :undo_capacity))
+
+"""
     run_application(paths...; backend = nothing,
                     assistant = :ollama, model = "", mcp = false,
                     mcp_host = nothing, mcp_port = nothing, root = pwd(),
-                    width = nothing, height = nothing, fault_policy = FaultPolicy(),
-                    appearance = Appearance())
+                    width = nothing, height = nothing, fault_policy = nothing,
+                    appearance = Appearance(), settings_file = get_settings_file())
 
 Open the ProjecturEd application with the files at `paths`, and run it until the
 window closes.
@@ -393,8 +438,12 @@ window closes.
 - `context` is how many tokens of the conversation the model may see; `0` leaves
   the backend's own answer. It matters for a local model, whose window costs
   memory on this machine.
-- `fault_policy` is what the editor does with a fault. The default survives it
-  and shows it; `make_strict_fault_policy()` stops at the first one.
+- `fault_policy` is what the editor does with a fault, for this run. `nothing`
+  leaves it to the settings; `make_strict_fault_policy()` stops at the first one.
+- `settings_file` is the settings file of the window, `settings.toml` in the
+  configuration folder by default. The settings start from their defaults, then
+  the file, then the environment variables, then `fault_policy`; a later source
+  wins for this run. `nothing` reads and names no file.
 - `appearance` is the `Appearance` of the window: every widget of the window and
   of the windows it opens draws with its scaled widget theme. The default is a
   fresh one.
@@ -410,14 +459,17 @@ function run_application(paths::AbstractString...;
                          mcp_port::Union{Integer,Nothing} = nothing,
                          root::AbstractString = pwd(), context::Integer = 0,
                          width = nothing, height = nothing,
-                         fault_policy::FaultPolicy = FaultPolicy(),
+                         fault_policy::Union{FaultPolicy,Nothing} = nothing,
                          measure = FontFileMeasure(),
-                         appearance::Appearance = Appearance())
+                         appearance::Appearance = Appearance(),
+                         settings_file::Union{AbstractString,Nothing} = get_settings_file())
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
+    settings = make_application_settings(settings_file; fault_policy)
     document, projection = make_application_window(collect(String, paths);
                                                    root = root, assistant = chat,
-                                                   measure = measure, appearance = appearance)
+                                                   measure = measure, appearance = appearance,
+                                                   settings = settings)
     # The tools of the toolbar are filled by the window: the message log by a
     # capture of the Julia logger and a feed, the statistics by a feed, and the
     # fault log by the store of the editor. The shell gives all of them.
@@ -425,8 +477,8 @@ function run_application(paths::AbstractString...;
         # The window is the application's own pane tree inside its shell, so
         # it has no tabs around it.
         editor = build_editor(document, projection;
-                              backend = backend, tabs = false,
-                              feeds = feeds, fault_policy = fault_policy,
+                              backend = backend, tabs = false, settings = settings,
+                              feeds = feeds,
                               # The tooltip window and the context menu window
                               # are kept at the screen, so they open in every
                               # window, and the natural projection draws what a
@@ -438,7 +490,7 @@ function run_application(paths::AbstractString...;
                                         opened_window_projections =
                                             make_opened_window_projections(;
                                                 content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure, appearance = appearance)],
-                                                               make_application_content_projections(measure = measure, appearance = appearance)),
+                                                               make_application_content_projections(; measure, appearance, settings)),
                                                 measure = measure, appearance = appearance)))
         start(editor)
         start_application!(editor; mcp, assistant, model)
@@ -545,7 +597,7 @@ function run_application_command(arguments; backends)
                         mcp_port = command.mcp_port, root = command.root,
                         context = command.context,
                         fault_policy = command.strict_fault_policy ?
-                            make_strict_fault_policy() : FaultPolicy())
+                            make_strict_fault_policy() : nothing)
         Cint(0)
     catch err
         err isa InterruptException && return Cint(0)

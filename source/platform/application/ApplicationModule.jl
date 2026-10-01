@@ -23,6 +23,7 @@ using ..CollectionModule
 using ..ConversationModule
 using ..DomainModule
 using ..FileFormatModule
+using ..FaultViewModule
 using ..FileSystemModule
 using ..NaturalModule
 using ..PaneModule
@@ -30,6 +31,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ScreenModule
 using ..SerializationModule
+using ..SettingsModule
 using ..ShellModule
 using ..StyleModule
 using ..TextModule
@@ -43,7 +45,7 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        make_application_projection, make_application_window, make_application_api,
        APPLICATION_SYSTEM, run_application, parse_application_arguments,
        run_application_command, evaluate_reachable_cells!, warm_application,
-       start_application!
+       start_application!, make_application_settings, make_history_wrap
 
 include("DefaultBackend.jl")
 include("Application.jl")

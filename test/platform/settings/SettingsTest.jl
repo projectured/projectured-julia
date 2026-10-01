@@ -273,6 +273,63 @@ end
     @test read_settings!(other, nothing) === nothing
 end
 
+@testset "a settings file keeps the values, and a load tolerates what it does not know" begin
+    folder = mktempdir()
+    path = joinpath(folder, "nested", "settings.toml")
+    settings = make_settings(SettingsTestProbeSettings(flag = true, count = 3, mode = :slow,
+                                                       name = "probe"))
+    write_settings_file!(settings, path)
+    text = read(path, String)
+    @test occursin("[settings_test_probe]", text) && occursin("mode = \"slow\"", text)
+    loaded = make_settings()
+    read_settings_file!(loaded, path)
+    probe = get_settings_group!(loaded, SettingsTestProbeSettings)
+    @test (probe.flag, probe.count, probe.mode, probe.name) == (true, 3, :slow, "probe")
+    # A key that is missing keeps its value; what is not known, or does not fit,
+    # is a warning, and the rest loads.
+    write(path, "[settings_test_probe]\ncount = 9\ndelay = 1.5\nunknown = 1\n\n[nowhere]\nx = 1\n")
+    partial = make_settings()
+    @test_logs (:warn, r"count") (:warn, r"unknown") (:warn, r"\[nowhere\]") match_mode = :any (
+        read_settings_file!(partial, path))
+    group = get_settings_group!(partial, SettingsTestProbeSettings)
+    @test (group.count, group.delay, group.flag) == (2, 1.5, false)
+    # A file that does not exist changes nothing.
+    @test read_settings_file!(make_settings(), joinpath(folder, "none.toml")) isa Settings
+    rm(folder; recursive = true)
+end
+
+@testset "save and load are operations, and a load can be taken back" begin
+    folder = mktempdir()
+    path = joinpath(folder, "settings.toml")
+    settings = make_settings(SettingsTestProbeSettings(count = 4))
+    save = SaveSettingsOperation(settings, path)
+    @test make_inverse_operation(nothing, save) isa DoNothingOperation
+    evaluate_operation(nothing, save)
+    @test isfile(path)
+    group = get_settings_group!(settings, SettingsTestProbeSettings)
+    group.count = 1
+    target = SettingsTestTarget()
+    editor = SettingsTestEditor(target)
+    load = LoadSettingsOperation(settings, path)
+    back = make_inverse_operation(nothing, load)
+    evaluate_operation(editor, load)
+    @test group.count == 4
+    @test target.applied == [(false, 4)]            # one change, one apply
+    evaluate_operation(editor, back)
+    @test group.count == 1
+    rm(folder; recursive = true)
+end
+
+@testset "the configuration folder follows XDG_CONFIG_HOME" begin
+    withenv("XDG_CONFIG_HOME" => "/some/where") do
+        @test get_configuration_folder() == "/some/where/projectured"
+        @test get_settings_file() == "/some/where/projectured/settings.toml"
+    end
+    withenv("XDG_CONFIG_HOME" => nothing) do
+        @test get_configuration_folder() == joinpath(homedir(), ".config", "projectured")
+    end
+end
+
 @testset "a target is a target of a group when a method applies it" begin
     @test is_settings_target(SettingsTestTarget(), SettingsTestProbeSettings())
     @test !is_settings_target(SettingsTestTarget(), SettingsTestOtherSettings())

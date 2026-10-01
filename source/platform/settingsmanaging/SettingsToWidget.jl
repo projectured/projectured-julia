@@ -7,7 +7,8 @@
 The settings tab: the `Settings` of an editor as widgets. One card for each group,
 in the order of their names, with one row for each setting: its label, whose
 tooltip says what it does, its control, and a button that resets it. Under the
-cards, a button resets all of them.
+cards, a button resets all of them, and two buttons save the settings to their
+file and load them from it; these two are off for settings with no file.
 
 - A `Bool` is a switch, and a number is a spin box with the step of its values.
   Another type shows its value as text.
@@ -40,9 +41,17 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     controls = Tuple{Any,Any,Symbol}[]
     groups = get_settings_groups(settings)
     cards = Any[_make_group_card(settings, group, controls) for group in groups]
-    reset = _make_reset_button("Reset all", "Give every setting its default.",
+    reset = _make_command_button("Reset all", "Give every setting its default.",
                                () -> _make_reset_operation(groups))
-    output = VerticalLayout(Any[cards..., reset]; gap = _GROUP_GAP)
+    save = _make_command_button("Save", "Write the settings to their file.",
+                              () -> SaveSettingsOperation(settings, settings.file))
+    load = _make_command_button("Load", "Read the settings from their file.",
+                              () -> LoadSettingsOperation(settings, settings.file))
+    for button in (save, load)
+        set_cell_computation!(getfield(button, :enabled), () -> !isempty(settings.file))
+    end
+    buttons = HorizontalLayout(Any[reset, save, load]; gap = _COLUMN_GAP)
+    output = VerticalLayout(Any[cards..., buttons]; gap = _GROUP_GAP)
     SettingsToWidgetIoMap(p, settings, output, controls)
 end
 
@@ -58,7 +67,7 @@ function _make_group_card(settings::Settings, group, controls)
         control isa WidgetLabel || push!(controls, (control, group, description.name))
         push!(cells, WidgetLabel(description.label; tooltip = description.text))
         push!(cells, control)
-        reset = _make_reset_button("Reset", "Give \"$(description.label)\" its default.",
+        reset = _make_command_button("Reset", "Give \"$(description.label)\" its default.",
                                    () -> _make_reset_operation(group, description))
         set_cell_computation!(getfield(reset, :enabled), is_used)
         push!(cells, reset)
@@ -99,7 +108,7 @@ function _make_setting_control(group, description::SettingDescription, is_used)
 end
 
 # A button whose click makes the operation of `make`, and says `tooltip`.
-_make_reset_button(text::AbstractString, tooltip::AbstractString, make) =
+_make_command_button(text::AbstractString, tooltip::AbstractString, make) =
     WidgetButton(text; tooltip = tooltip,
                  gestures = GestureBinding[
                      GestureBinding(MouseClickPattern(:left), (_, _) -> make();

@@ -16,6 +16,24 @@ The settings slice of `ProjecturedPlatform` holds what a person chooses about ho
 - `is_settings_group_applied(T)` says that a group acts through `apply_settings!`. The slice that declares the group says so, so the answer does not depend on which packages with targets are loaded. `is_settings_group_used(editor, group)` is false for an applied group that no target of the editor applies.
 - `get_setting_cell(group, name)` gives the cell of a setting to a part that reads it where it acts, such as a recognition of the pointer or an undo history.
 
+## The file
+
+The settings of the application are saved in `settings.toml`, in the configuration folder: `projectured` in `XDG_CONFIG_HOME`, by default `~/.config/projectured` (`get_configuration_folder`, `get_settings_file`). The file has one table for each group, named by `get_settings_name`, and one key for each setting:
+
+```toml
+[render]
+debug_dirty = false
+debug_dirty_hold = 0.0
+partial_render = true
+supersample = 2
+```
+
+`read_settings_file!` reads a file into the groups while an editor is built. A key that is missing keeps its value. A table or a key that is not known, and a value that does not fit, write one warning each to the log, and none of them stops the read. `write_settings_file!` writes the values of the groups.
+
+`SaveSettingsOperation(settings, path)` writes the file; it changes no document, so a history keeps no step for it. `LoadSettingsOperation(settings, path)` reads the file and evaluates an `ApplySettingOperation` for each value that differs; its way back writes every setting back to its value before the load and applies it. The Save and Load buttons of the settings tab make them with `Settings.file`, and they are off when the settings have no file.
+
+The application fills its settings with `make_application_settings`, from the weakest source: the defaults, the file, the environment variables, and the fault policy of the command line, which is the whole policy for that run. The editor never saves on its own.
+
 ## Why a wrapping operation
 
 A change of a setting is a write and an effect. `ApplySettingOperation` is a `WrappingOperation`, so the effect runs after the write in both directions. Two operations in a `CompoundOperation` would undo in the reverse order: the apply first, with the new value still in the cell, and then the write of the old value, so the target keeps the new value.

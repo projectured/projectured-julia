@@ -10,6 +10,7 @@ authors = []
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}

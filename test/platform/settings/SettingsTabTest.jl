@@ -160,6 +160,27 @@ end
     @test !editor.fault_policy.is_console_enabled
 end
 
+@testset "Save and Load are off with no file, and write and read the file" begin
+    settings = make_settings()
+    editor, backend = _stab_editor(settings, settings)
+    (_, x, y) = only(text for text in _stab_texts(backend) if text[1] == "Save")
+    answer = read_intent(editor.projection, nothing, Intent(_stab_click(x + 2, y + 6)),
+                         editor.iomap)
+    @test (answer isa Intent ? answer.operation : answer) === nothing
+    folder = mktempdir()
+    settings.file = joinpath(folder, "settings.toml")
+    run_frame!(editor)
+    _stab_press!(editor, backend, _stab_click(x + 2, y + 6))
+    @test isfile(settings.file)
+    fault = get_settings_group!(settings, FaultSettings)
+    evaluate_operation(editor, ApplySettingOperation(fault, :is_sound_enabled, false))
+    run_frame!(editor)
+    (_, lx, ly) = only(text for text in _stab_texts(backend) if text[1] == "Load")
+    _stab_press!(editor, backend, _stab_click(lx + 2, ly + 6))
+    @test fault.is_sound_enabled && editor.fault_policy.is_sound_enabled
+    rm(folder; recursive = true)
+end
+
 @testset "the settings of an editor are found under its root" begin
     settings = make_settings()
     editor, _ = _stab_editor(WidgetLabel("Name"), settings)

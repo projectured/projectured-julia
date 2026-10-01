@@ -79,10 +79,14 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
     chat = make_application_assistant(assistant; model = model, context = context, llm = llm)
+    # One `Settings` for the histories of the window and for the editor. The take
+    # names its render values on its backend, so the settings read them there.
+    settings = make_settings()
+    settings.is_read_from_targets = true
     document, projection = make_application_window(collect(String, paths);
                                                     root = root, assistant = chat,
                                                     status_bar = status_bar,
-                                                    measure = measure)
+                                                    measure = measure, settings = settings)
     prepare(document)
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,
@@ -93,11 +97,11 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
     try
         run_with_window_tools() do feeds, start
             editor = build_editor(document, projection; backend = backend, feeds = feeds,
-                                  tabs = false,
+                                  tabs = false, settings = settings,
                                   window = (; title, width, height,
                                             opened_window_projections =
                                                 make_opened_window_projections(;
-                                                    content = make_application_content_projections(measure = measure),
+                                                    content = make_application_content_projections(; measure, settings),
                                                     measure = measure)))
             backend.editor = editor
             start(editor)

@@ -827,7 +827,32 @@ the pixels and the test counts of the baseline of S0.
     the field of the backend at the next frame. A spin box steps in its range. A
     group with no target is disabled. A row of the kind "start" shows its text.
     The pixels, offscreen.
-- [ ] **S9. Save and load** (4.9). The file, the order of the sources,
+- [x] **S9. Save and load** (4.9). Done on 2026-10-01: the settings, tab and
+  wrapper tests, the guards and `test_application()` 535 and 2 broken;
+  `test_video()` 47. What the work decided and found:
+  - **`TOML` joined the dependencies of `ProjecturedPlatform`**; the manifest of
+    `environment/all` changed by one line. The file code is in the settings slice
+    (`SettingsFile.jl`): the folder, the read, the write and the two operations,
+    so the appearance plan (W6) can use the folder and the form.
+  - `LoadSettingsOperation` evaluates an `ApplySettingOperation` for each value
+    that differs; its inverse is a `CompoundOperation` that writes every setting
+    back. `SaveSettingsOperation` has the inverse `DoNothingOperation`, which a
+    history keeps no step for.
+  - `Settings.file` names the file of the Save and Load buttons; it is empty for
+    the `Settings` of `true`, so a test never writes the file of the person.
+  - `make_application_settings(file; fault_policy)` fills the settings of the
+    application; `run_application` takes `settings_file`, and its `fault_policy`
+    is `nothing` unless given. **The fault policy of the command line is the
+    whole policy for the run**, so `--strict-fault-policy` also turns the console
+    and the sound of a fault on for that run, whatever the file says.
+  - The histories of the window, of each file tab and of each file that the
+    explorer opens take the cell of `undo_capacity` (`make_history_wrap`).
+  - `record_application_video` makes one `Settings` for the window and the
+    editor, with `is_read_from_targets` set, so its backend values stay.
+  - Observed, not changed: `run_application` builds its projection with
+    `appearance` but does not pass it to `build_editor`, so the `appearance`
+    wrapper makes an `Appearance` of its own. This is for the appearance plan.
+  What the step holds: The file, the order of the sources,
   `--strict-fault-policy` as a source, the three operations, and the fill in
   `run_application`.
   - Tests: Save writes the file. Load applies its values. A key that is missing
