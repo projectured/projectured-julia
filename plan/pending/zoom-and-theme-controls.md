@@ -1319,3 +1319,13 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     the theme around it; the name of a theme section looked like a field, so it
     has the bold font; and the names of the parts of a size and the name of a
     font sat at the top of their row, so these rows center their parts.
+27. **The sweep after the landing of W3, part 1 and W6** (`1b44b5c3b`, omnet-julia
+    `ff2ac43a`, 2026-10-01). projectured: 1214062 pass, 16 fail, 4 error, 1597
+    broken, against 1206783 pass, 12 fail, 4 error and 1597 broken after the
+    landing before. All failures are old ones of `main` but one group:
+    `WindowShellTest` listed the menu and the toolbar without "Appearance", and
+    the shell commit of `main` (`975643d8d`) lists it now. omnet-julia: 713 pass
+    and 2 fail; the old one is `InspectorDisclosureTest:110`, and the new one is
+    `IdeWindowWrapTest:259`, which listed the toolbar without "Appearance". The
+    toolbar of every window holds the Appearance tool since W3, part 1, so the
+    test lists it now.
