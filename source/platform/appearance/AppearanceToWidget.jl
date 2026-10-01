@@ -156,7 +156,8 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         push!(parts, _make_theme_section(controls, entry.theme))
     end
     content = VerticalLayout(parts; gap = theme.section_gap)
-    pane = WidgetScrollPane(content)
+    margin = theme.container_padding
+    pane = WidgetScrollPane(content; padding = Inset(margin, margin, margin, margin))
     _follow_tab_paths!(p, appearance, pane)
     child = print_document(p.scroll_pane, recursion, pane, ctx)
     AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes, edits)
@@ -166,7 +167,8 @@ end
 # `controls` makes the controls of the tab and holds its widget theme.
 function _make_theme_section(controls, theme)
     T = get_theme_type(theme)
-    parts = Any[WidgetLabel(string(nameof(T)))]
+    parts = Any[WidgetLabel(string(nameof(T));
+                            text_style = StyleText(controls.theme.font_bold, controls.theme.foreground))]
     presets = get_theme_presets(T)
     isempty(presets) || push!(parts, controls.choice(first.(presets), index -> begin
         preset = last(presets[index])()
@@ -193,7 +195,7 @@ function _make_field_control(controls, theme, field::Symbol, value::ThemeLength)
                                        v -> _write_theme_field(theme, field,
                                                 kind(_replace_length_part(getproperty(theme, field).value, part, v)))))
     end
-    HorizontalLayout(parts; gap = controls.theme.label_gap)
+    HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
 end
 
 function _make_field_control(controls, theme, field::Symbol, value::StyleFont)
@@ -204,12 +206,16 @@ function _make_field_control(controls, theme, field::Symbol, value::StyleFont)
         controls.spin_box(value.size, v -> _write_theme_field(theme, field,
                                                               StyleFont(getproperty(theme, field).filename, v));
                           min = 6, max = 96),
-    ]; gap = controls.theme.label_gap)
+    ]; gap = controls.theme.label_gap, vertical_align = :center)
 end
 
+# A colour has a swatch with a border, so a colour near the background shows too.
 function _make_field_control(controls, theme, field::Symbol, value::StyleColor)
-    HorizontalLayout(Any[WidgetLabel("■"; style = WidgetStyle(label_text_color = value)),
-                         controls.color_text(theme, field)]; gap = controls.theme.label_gap)
+    swatch = WidgetLabel(" "; border = Inset(1, 1, 1, 1), padding = Inset(0, 0, 8, 8),
+                         style = WidgetStyle(border_color = controls.theme.border,
+                                             padding_color = value, content_color = value))
+    HorizontalLayout(Any[swatch, controls.color_text(theme, field)];
+                     gap = controls.theme.label_gap, vertical_align = :center)
 end
 
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))

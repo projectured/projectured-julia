@@ -1036,8 +1036,9 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   written: the color as text (D33, finding 22), with a test in an editor that a
   typed digit writes the color, that the caret stays in the text after the new
   print, and that a character that is no hex digit and a deletion leave the
-  color. Open: the place of the tab after the new print (finding 23), and the
-  pixels offscreen. `AppearanceToWidget`: the seven rows,
+  color. The pixels offscreen: `/var/tmp/appearance-w4/tab-default.png` and
+  `tab-scaled.png` (finding 26). Open: the place of the tab after the new print
+  (finding 23). `AppearanceToWidget`: the seven rows,
   "Reset all", "Save", "Load" and the theme sections. The toolbar item and the
   View menu item in `WindowChrome.jl`, a Lucide glyph, and Ctrl+,.
   - Tests: a press on + changes the value label and the layout at the next
@@ -1302,3 +1303,11 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     image. The test exports a button: a projection whose appearance changes to a
     font scale of 1.5 gives the bytes of one that starts at 1.5, and a zoom of 2
     gives the same bytes.
+26. **The look of the tab in an image** (W3, 2026-10-01). An image of the tab,
+    written offscreen at a density of 2, showed four defects, which are fixed:
+    the content touched the edge of the pane, so the pane has the
+    `container_padding` of the theme on each side; a swatch of a light color did
+    not show on the light page, so a swatch is a box with the `border` color of
+    the theme around it; the name of a theme section looked like a field, so it
+    has the bold font; and the names of the parts of a size and the name of a
+    font sat at the top of their row, so these rows center their parts.
