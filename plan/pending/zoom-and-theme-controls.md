@@ -1101,7 +1101,13 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     `ReplaceViewStateOperation(ReplaceReferencedValueOperation(…))` since
     2026-09-22, and `read_intent` of `ReflectionToWidget` matches only a bare
     `ReplaceReferencedValueOperation`. So no `SetReflectedDisclosureOperation` is
-    made, and a chevron of the inspector opens no node. The reflection slice has
-    no change on this branch. This rests on the code, not on a run on `main`.
+    made, and a chevron of the inspector opens no node. The reflection slice had
+    no change on this branch. At the owner's word the reader translates a marked
+    fold and keeps the mark (`b1c58f373`, omnet-julia `9462aedd`): the window's
+    inspector then opens its node, 6 of 6. Through the catalog shell one assertion
+    still fails: the node opens and syncs its five children, but no new row is
+    rendered (110 texts before and after). The same assertion fails on `main`
+    (`3d0d25ae0`) with omnet-julia `aa33732b` and only the fix, so this fault is
+    older than this work and stays open.
     `OmnetPresentationTest.test_all()` does not end with `-t 2`:
     `test_parallel_sim_dashboard_panel` spins, as on `main`.
