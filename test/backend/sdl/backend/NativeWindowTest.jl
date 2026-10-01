@@ -149,6 +149,44 @@ end
     write_to_devices(backend, Device[Display()], screen)
     apply_settings!(backend, RenderSettings(partial_render = true))
     @test !resource.first_paint
+    # A new supersample factor makes the target of the window again.
+    width = resource.target_w
+    apply_settings!(backend, RenderSettings(partial_render = true, supersample = 1))
+    @test backend.supersample == 1 && resource.ss == 1
+    write_to_devices(backend, Device[Display()], screen)
+    @test resource.target_w * 2 == width
+    @test first(resource.damage_history) == [(0, 0, 200, 100)]
+    quit_backend!(backend)
+end
+
+@testset "an outline stays for its hold on the frames after it" begin
+    backend = SdlBackend(partial_render = true, debug_dirty = true)
+    initialize_backend!(backend)
+    x = Cell(10)
+    canvas = GraphicsCanvas(CellVector(@computation [GraphicsRect(x[], 10, 20, 20)]),
+                            layout_none)
+    window = WindowDocument(; id = :outline_hold_test, title = "outline_hold_test",
+                              x = 100, y = 100, width = 200, height = 100,
+                              style = :tooltip, content = canvas)
+    screen = ScreenDocument([window])
+    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices(backend, Device[Display()], screen)
+    resource = backend.windows[:outline_hold_test]
+    # With no hold, the outline is the rects of the frame.
+    @test ProjecturedSDL.SdlModule._get_held_outline!(backend, resource, [(1, 2, 3, 4)]) ==
+          [(1, 2, 3, 4)]
+    apply_settings!(backend, RenderSettings(partial_render = true, debug_dirty = true,
+                                            debug_dirty_hold = 5.0))
+    @test backend.debug_dirty_hold == 5.0
+    for position in (40, 120)
+        x[] = position
+        write_to_devices(backend, Device[Display()], screen)
+    end
+    held = ProjecturedSDL.SdlModule._get_held_outline!(backend, resource, NTuple{4,Int}[])
+    # The rects of both moves are still held.
+    @test !isempty(resource.damage_history[1]) && !isempty(resource.damage_history[2])
+    @test all(rect -> rect in held, resource.damage_history[1])
+    @test all(rect -> rect in held, resource.damage_history[2])
     quit_backend!(backend)
 end
 

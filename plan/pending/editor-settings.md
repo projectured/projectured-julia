@@ -674,7 +674,15 @@ the pixels and the test counts of the baseline of S0.
   - Tests, offscreen: a switch of `partial_render` in the middle of a run gives
     the pixels of a run that starts with it. After `debug_dirty` goes off, the
     next frame has no outline (the headless probe of the dirty region).
-- [ ] **S3. The supersample and the hold in the SDL backend.** A change of
+- [x] **S3. The supersample and the hold in the SDL backend.** Done on
+  2026-10-01: `test_sdl()` 821 pass. `SdlBackend` holds `debug_dirty_hold`,
+  `supersample` (from `PROJECTURED_SUPERSAMPLE` until S7) and the recent
+  repaints of each window by its id; a window that closes drops its entry. The
+  outline of a frame is the union of the repaints of the last hold seconds, by
+  the wall clock. A window that shows no new frame keeps the last outline, as it
+  does with no hold: no wake ends a hold. A new supersample factor sets `ss` of
+  each open window, and `_ensure_ss_target!` makes the target again. The
+  constructor takes both as keywords. What the step holds: A change of
   `supersample` makes the target of each window again. The SDL backend keeps
   each outline for `debug_dirty_hold` seconds, as the video backend does.
   - Tests: the pixels after a change equal the pixels of a window that starts

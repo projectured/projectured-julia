@@ -171,8 +171,10 @@ events into `WindowInput`s. Both are reconciled by
 `read_from_devices` needs to collapse a run of pointer motion into its newest
 sample, and `last_hover_motion` is the time of the rate limit of idle motion.
 They live on the backend rather than at module level, so two backends in one
-process never hand each other an event or a delay. `partial_render` and
-`debug_dirty` are read for each window of this backend alone.
+process never hand each other an event or a delay. `partial_render`,
+`debug_dirty`, `debug_dirty_hold` and `supersample` are read for each window of
+this backend alone; the `RenderSettings` of an editor reach them through
+`apply_settings!`.
 
 `modifiers` holds the modifier keys of the last key event that the poll read. A
 mouse event and a text event take their modifiers from it, so they hold the
@@ -197,8 +199,15 @@ mutable struct SdlBackend <: Backend
     # for each window of this backend:
     #   partial_render — incremental dirty-rectangle repaint (false = full frame)
     #   debug_dirty    — outline the repainted region in red
+    #   debug_dirty_hold — the seconds that an outline stays on the frames after it
+    #   supersample    — the supersample factor of each window (1 = off)
     partial_render::Bool
     debug_dirty::Bool
+    debug_dirty_hold::Float64
+    supersample::Int
+    # The repaints of the last `debug_dirty_hold` seconds, with the time of each,
+    # by the id of the window: the outline of a frame is the union of them.
+    recent_repaints::Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}
     # Input coalescing state (see `read_from_devices`):
     #   pending_input  — the event that arrived behind a held motion, owed next call
     #   pending_motion — the newest motion sample not yet delivered
@@ -229,11 +238,16 @@ end
 # override (e.g. `run_example(...; backend=SdlBackend(partial_render=false,
 # debug_dirty=true))` — `run_example` itself takes no such keywords).
 SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
-             debug_dirty::Union{Bool,Nothing}    = nothing) =
+             debug_dirty::Union{Bool,Nothing}    = nothing,
+             debug_dirty_hold::Real = 0.0,
+             supersample::Union{Integer,Nothing} = nothing) =
     SdlBackend(Dict{Symbol, SdlWindowResources}(),
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
+               Float64(debug_dirty_hold),
+               supersample === nothing ? _window_supersample() : Int(supersample),
+               Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}(),
                nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0)
 
 # SDL draws a screen of windows, and `--backend=sdl` names it.
@@ -304,14 +318,32 @@ _envflag(name, default::Bool) =
 
 # The render settings of an editor reach its backend here. A change of the mode
 # or of the outline repaints each window in full at the next frame, so no
-# outline of a frame before stays on the back buffer.
+# outline of a frame before stays on the back buffer. A new supersample factor
+# reaches each open window, and `_ensure_ss_target!` makes its target again.
 function apply_settings!(backend::SdlBackend, settings::RenderSettings)
     changed = backend.partial_render != settings.partial_render ||
               backend.debug_dirty != settings.debug_dirty
     backend.partial_render = settings.partial_render
     backend.debug_dirty = settings.debug_dirty
-    changed && foreach(resources -> resources.first_paint = true, values(backend.windows))
+    backend.debug_dirty_hold = settings.debug_dirty_hold
+    backend.supersample = settings.supersample
+    for resources in values(backend.windows)
+        changed && (resources.first_paint = true)
+        resources.ss = settings.supersample
+    end
     nothing
+end
+
+# The rects to outline in a frame of `res`: those of the frame, and with a hold,
+# those of each repaint of the window in the last `debug_dirty_hold` seconds.
+function _get_held_outline!(backend::SdlBackend, res::SdlWindowResources, rects)
+    backend.debug_dirty_hold > 0 || return rects
+    now = time()
+    recent = get!(() -> Tuple{Float64,Vector{NTuple{4,Int}}}[], backend.recent_repaints,
+                  res.id)
+    push!(recent, (now, collect(rects)))
+    filter!(entry -> now - entry[1] <= backend.debug_dirty_hold, recent)
+    unique!(reduce(vcat, (entry[2] for entry in recent); init = NTuple{4,Int}[]))
 end
 
 function _clear_text_texture_cache!()
@@ -587,7 +619,7 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
     sdl_id = UInt32(SDL_GetWindowID(win))
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
-                       w.style, w.bg, _window_supersample(), ratio, C_NULL, 0, 0,
+                       w.style, w.bg, backend.supersample, ratio, C_NULL, 0, 0,
                        true, Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
 end
 
@@ -2961,7 +2993,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
         # ghost across frames; the forced full copy above repaints over the
         # previous frame's outlines, leaving only the current ones visible.
         SDL_RenderSetScale(renderer, scale, scale)
-        _outline_dirty_rects!(renderer, rects, 1)
+        _outline_dirty_rects!(renderer, _get_held_outline!(backend, res, rects), 1)
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     end
     SDL_RenderPresent(renderer)
@@ -3982,6 +4014,7 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             delete!(backend.window_ids, res.sdl_id)
             _close_native_window!(res)
             delete!(backend.windows, id)
+            delete!(backend.recent_repaints, id)
             changed = true
         end
     end
