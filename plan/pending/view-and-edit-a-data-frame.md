@@ -958,6 +958,88 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   quick filters, the expression filter, column hide and move. The sort and
   the filter again on a commit (D6), and the selection after it (D10). Column
   freeze needs frozen columns on a list in the widget substrate (§3.5).
+  Phase 5 comes before phases 3 and 4 (F5). The design below is of
+  2026-10-01, from F1 to F6; a choice that the owner did not make is marked
+  "mine".
+  - **Facts found for the design** (2026-10-01):
+    - A table whose rows are a list draws no row headers:
+      `_check_table_parts` raises an error. With no row headers there is no
+      corner. In the eager table, a click on the corner maps to the whole
+      table (`_map_wt_point`, `kind === :corner`), and the corner is no
+      widget. So the corner menu of F1 is `compute_context_menu` of the view
+      itself, reached by the path of the whole table; it needs no widget of
+      its own, but it needs row headers on a list.
+    - A header can be any document, and the header row is as tall as its
+      tallest header, so a header can be a label above a text field.
+    - The context menu probe asks `compute_context_menu(node)` of the
+      document that an Alt press selects. Only `WidgetShell` has a method
+      now. A menu item holds an `Action` whose callback runs with the
+      editor, so an item changes the query by posting an operation.
+    - `ObjectFieldToWidget` is the one projection above the widgets that
+      shows a `WidgetText` for a field of its own document: its reader turns
+      the text write into a write of the field.
+    - No table resizes a column, and the editor has no cursor shapes. The
+      splitter of `WidgetSplitPane` is the model of a drag: view state
+      `active_splitter` and `drag_anchor`, a start, a resize and an end
+      operation, and a drag that routes every move to the splitter while it
+      is active.
+    - `FilteringProjection` reads one cell per element, so the view does not
+      use it (§3.3).
+  - **The model.**
+    - `DataFrameQuery` is a document in the field `query` of the view
+      (§3.2): the filter text of each column by name, the expression text,
+      the hidden columns by name, and the pattern of the column names. It is
+      a document, so a key, a menu and the assistant change it with the same
+      edits, undo takes a change back, and a saved window keeps it.
+    - The rows of the view are a computed cell `Vector{Int}` of the source
+      rows that pass every filter, in the order of the frame. The list of
+      rows, the jumps and the scroll bar work on its positions, and a row
+      shows its source row number in its row header.
+    - The columns of the view are the names that are not hidden and that the
+      pattern keeps, in the order of the frame.
+    - The widths of the columns are view state of the view, by name (F6).
+  - **Steps**, each with its tests:
+    - [ ] **5.1 Row headers on a list** (the widget substrate): a list table
+      draws a header column whose cells come from each row, and the corner
+      where it meets the header row. A click on the corner maps to the whole
+      table, as in the eager table. The view shows the source row number of
+      each row there, as a data frame prints it.
+    - [ ] **5.2 The path of a column (E1).**
+      `DataFrameColumnReferenceStep(name)` evaluates on the view to a
+      `DataFrameColumn` (the view and the name). The view maps the path of a
+      header to it and back. `compute_context_menu(::DataFrameColumn)` gives
+      "Hide column" (and "Filter by values…" in 5.5);
+      `compute_context_menu(::DataFrameView)`, which the corner reaches,
+      lists the hidden columns and shows one or all of them again.
+    - [ ] **5.3 The query and the rows that pass.** `DataFrameQuery`, the
+      computed vector of rows, the hidden columns and the pattern of the
+      names (`abc` contains, `/re/` a regular expression).
+    - [ ] **5.4 The filter row.** Each header is the label above a
+      `WidgetText` of the filter text of its column. The selection of the
+      view goes into the text of the query, and the view maps it to the text
+      field and back, so the caret shows there and a key edits the query.
+      Each element type parses the language of F3; a text that does not
+      parse shows a mark and its reason in a tooltip, and filters nothing.
+    - [ ] **5.5 The list of the values.** "Filter by values…" of the header
+      menu opens a popup with the distinct values of the column and their
+      counts, counted when it opens, for a column of at most 1,000 distinct
+      values (mine). The choice writes the filter text, `= a, b` (mine), so
+      the filter row stays the one place that holds a filter.
+    - [ ] **5.6 The expression bar** (F4 a). A text field above the table.
+      `Meta.parse`, then the symbols that name columns become the arguments
+      of one function, which the view compiles once in a module of its own
+      and calls with `invokelatest` over the rows of the column vectors. A
+      result that is `missing` hides the row (mine). An error shows a mark
+      and its reason.
+    - [ ] **5.7 Column resize** (F6), in the widget substrate: a press within
+      3 pixels of the right edge of a header starts a drag, as the splitter
+      does, and the drag writes the width of the column. The view keeps it
+      by name.
+    - [ ] **5.8 The editor of the Julia domain in the expression bar** (F4 c),
+      through a seam that the data frame package declares and the Julia
+      domain extends.
+    - [ ] **5.9 Sort** on the same vector of rows: the header gestures of
+      §4.4.
 - [ ] **6. Find.** §4.5, without replace.
 - [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
   their own (D8).
