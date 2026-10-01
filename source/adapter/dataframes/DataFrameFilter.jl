@@ -174,7 +174,7 @@ function _compute_kept_rows(frame, query, expression = nothing)
         (condition === nothing || condition isa String) && continue
         _apply_filter_condition!(keep, column, condition)
     end
-    findall(keep)
+    _sort_kept_rows(frame, findall(keep), query.sort_keys)
 end
 
 # One condition over one column, compiled for both types.

@@ -118,7 +118,8 @@ function _make_labeled_field(label, field)
     layout
 end
 
-# The header of column `name`: its name and type above the field of its filter.
+# The header of column `name`: its name and type and the glyph of its sort,
+# above the field of its filter.
 function _make_filter_header(view, name::String)
     filter = _find_column_filter(view.query, name)
     text() = filter === nothing ? "" : filter.text
@@ -127,7 +128,8 @@ function _make_filter_header(view, name::String)
         condition = _parse_column_filter(filter.text, eltype(view.frame[!, name]))
         condition isa String ? condition : nothing
     end
-    label = WidgetLabel(_get_header_text(name, eltype(view.frame[!, name])))
+    label = HorizontalLayout(Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]))),
+                                 _make_sort_glyph(view, name)...]; gap = 4)
     _make_labeled_field(label, _make_query_field(text, () -> _find_filter_range(view, name), reason))
 end
 

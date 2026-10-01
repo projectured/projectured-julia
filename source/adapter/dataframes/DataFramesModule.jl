@@ -24,7 +24,7 @@ import ..ReferenceModule: evaluate_reference_step, get_reference_step_kind
 import ..DomainModule: compute_context_menu
 import ..WidgetModule: make_value_document, make_graphics_projection
 
-export DataFrameColumnFilter, DataFrameQuery
+export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery
 export DataFrameView, jump_to_row, make_data_frame_cell
 export DataFrameColumnReferenceStep, DataFrameColumn
 export DataFrameViewToWidget, make_data_frame_view_projection
@@ -32,6 +32,7 @@ export DataFrameViewToWidget, make_data_frame_view_projection
 include("DataFrameQuery.jl")
 include("DataFrameFilter.jl")
 include("DataFrameExpression.jl")
+include("DataFrameSort.jl")
 include("DataFrameView.jl")
 include("DataFrameColumn.jl")
 include("DataFrameFilterRow.jl")

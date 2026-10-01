@@ -25,7 +25,7 @@ number. Every row is `row_height` tall, as a header column of a list needs.
 
 A frame of more than 64 columns draws its columns as a list, from the column
 `column_anchor` of the view, so it builds only the columns that the table
-shows: each column is 120 pixels wide and at least as wide as its header, and
+shows: each column is 160 pixels wide and at least as wide as its header, and
 each row is `row_height` tall, the height of a line of the font of the table,
 because a row as tall as its cells would change as the table scrolls to the
 side. When the table moves its head column, the view moves `column_anchor`.
@@ -70,7 +70,7 @@ const _COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
 # A frame with more columns than this draws them as a list, each column this
 # wide and at least as wide as its header.
 const _LIST_COLUMN_COUNT = 64
-const _LIST_COLUMN_WIDTH = 120
+const _LIST_COLUMN_WIDTH = 160
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
     # The cells of the table follow the view, so a hidden column leaves the
@@ -163,7 +163,9 @@ end
 # and the cells of every row are lists with their heads at `column_anchor`.
 function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     type_of(name) = eltype(view.frame[!, name])
-    headers = Cell(@computation (columns = _get_shown_columns(view);
+    # The headers are built when a walk reaches them, so the list reads the sort
+    # keys itself, and a new sort builds the list again.
+    headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
         _make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(view, columns[c]))))
     align = Cell(@computation (columns = _get_shown_columns(view);
         _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))

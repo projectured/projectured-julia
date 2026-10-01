@@ -42,6 +42,7 @@ include("../../../test/adapter/dataframes/DataFrameExampleTest.jl")
 include("../../../test/adapter/dataframes/DataFrameViewTest.jl")
 include("../../../test/adapter/dataframes/DataFrameColumnTest.jl")
 include("../../../test/adapter/dataframes/DataFrameFilterTest.jl")
+include("../../../test/adapter/dataframes/DataFrameSortTest.jl")
 include("../../../test/adapter/dataframes/DataFrameDisplayTest.jl")
 include("../../../test/adapter/dataframes/DataFramesSuite.jl")
 

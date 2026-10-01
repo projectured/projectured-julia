@@ -1212,7 +1212,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       edit in its second piece, an empty field), the colors of Julia code, the
       bar asks for `:julia`; 243 widget, 419 Julia and 171 data frame tests
       pass. A picture shows the colored bar and its result (50 rows, correct).
-    - [ ] **5.9 Sort** on the same vector of rows: the header gestures of
+    - [x] **5.9 Sort** on the same vector of rows: the header gestures of
       §4.4. The form (the owner, 2026-10-01: "yes, agreed", to the
       suggestion of the writer, after "we need small sort icons on the
       headers ascending/descending"): a small Lucide glyph after the name of
@@ -1223,6 +1223,22 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       off, ascending, descending; Shift+click adds the column as the next
       key; Alt+click on the header selects the column, and the field filters.
       The query holds the sort keys, a column and a direction each.
+      Done 2026-10-01 (`DataFrameSort.jl`): `DataFrameSortKey` (a column
+      and `descending`) in `sort_keys` of the query; the kept rows are sorted
+      by `sortperm` of DataFrames over a view of the kept rows, and values
+      with no order between them keep the order of the frame. The glyph is a
+      flat `WidgetToolbarItem` after the name, whose own gestures sort; its
+      label is its tooltip, and a label after it shows the place of its key.
+      A button was tried first, but it draws a surface and a shadow; a
+      toolbar item is flat. The icon table has `arrow_up`, `arrow_down` and
+      `arrow_up_down`, read from the glyph names of the bundled font. Every
+      header is built again when the keys change. Found and changed (mine):
+      a header with its glyph is wider than 120 pixels, so a list column is
+      160 pixels wide now. Tests: the keys after a click and a Shift+click,
+      the order, the filters with the order, a click on a glyph through the
+      projection and the places; 188 data frame tests pass. A picture shows
+      the glyphs and an order of two keys. The sort runs at once: the mark
+      while a sort of ten million rows runs is not done.
 - [ ] **6. Find.** §4.5, without replace.
 - [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
   their own (D8).

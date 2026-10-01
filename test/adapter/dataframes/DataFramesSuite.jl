@@ -21,8 +21,8 @@ end
     test_dataframes()
 
 Run this package's whole suite: the layering guard, the shape of the example
-factory, the view of a data frame, its columns, its filters, and a frame shown
-through the display.
+factory, the view of a data frame, its columns, its filters, its order, and a
+frame shown through the display.
 """
 function test_dataframes()
     @testset "ProjecturedDataFrames" begin
@@ -31,9 +31,11 @@ function test_dataframes()
         test_data_frame_view()
         test_data_frame_columns()
         test_data_frame_filter()
+        test_data_frame_sort()
         test_data_frame_display()
     end
 end
 
 export test_dataframes, test_dataframes_layering, test_data_frame_example, test_data_frame_view,
-       test_data_frame_columns, test_data_frame_filter, test_data_frame_display
+       test_data_frame_columns, test_data_frame_filter,
+       test_data_frame_sort, test_data_frame_display

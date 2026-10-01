@@ -31,11 +31,11 @@ end
 include("../../../source/adapter/dataframes/DataFramesModule.jl")
 
 # A person loads this package by name, so its names are exported here.
-using .DataFramesModule: DataFrameColumnFilter, DataFrameQuery, DataFrameView, jump_to_row, make_data_frame_cell,
+using .DataFramesModule: DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery, DataFrameView, jump_to_row, make_data_frame_cell,
                          DataFrameColumnReferenceStep, DataFrameColumn,
                          DataFrameViewToWidget, make_data_frame_view_projection
 
-export DataFrameColumnFilter, DataFrameQuery, DataFrameView, jump_to_row, make_data_frame_cell,
+export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery, DataFrameView, jump_to_row, make_data_frame_cell,
        DataFrameColumnReferenceStep, DataFrameColumn,
        DataFrameViewToWidget, make_data_frame_view_projection
 

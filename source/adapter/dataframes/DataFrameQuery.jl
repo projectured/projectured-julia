@@ -17,19 +17,34 @@ every row.
 end
 
 """
-    DataFrameQuery(; hidden_columns = String[], column_pattern = "", column_filters, expression = "")
+    DataFrameSortKey(; column, descending = false)
+
+One key of the order of the rows of a view: the rows are in the order of the
+values of `column`, the smallest first, or the largest first when `descending`.
+"""
+@document struct DataFrameSortKey <: Document
+    column::String
+    descending::Bool = false
+end
+
+"""
+    DataFrameQuery(; hidden_columns = String[], column_pattern = "", column_filters, expression = "",
+                   sort_keys)
 
 What a `DataFrameView` keeps of its frame. `hidden_columns` names the columns
 that it does not show, and `column_pattern` keeps the columns whose names match
 it: a text that a name contains, or `/re/`, a regular expression. A row passes
 when it passes the `DataFrameColumnFilter` of every column in `column_filters`
-and the Julia `expression` over the columns.
+and the Julia `expression` over the columns. The rows that pass are in the
+order of the `DataFrameSortKey`s of `sort_keys`, the first key first, and in the
+order of the frame where all keys are equal.
 """
 @document struct DataFrameQuery <: Document
     hidden_columns::Vector{String} = String[]
     column_pattern::String = ""
     column_filters::CellVector = CellVector()
     expression::String = ""
+    sort_keys::CellVector = CellVector()
 end
 
 # The query of a new view of `frame`: a filter for each column, with no text.

@@ -7443,6 +7443,9 @@ is beside each code point.
 const LUCIDE_ICON_GLYPHS = (
     # Controls
     :chevron_down   => 0xe06d,  # chevron-down
+    :arrow_up       => 0xe04a,  # arrow-up
+    :arrow_down     => 0xe042,  # arrow-down
+    :arrow_up_down  => 0xe37d,  # arrow-up-down
     :chevron_right  => 0xe06f,  # chevron-right
     :check          => 0xe06c,  # check
     :x              => 0xe1b2,  # x
