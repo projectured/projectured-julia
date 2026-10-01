@@ -60,7 +60,7 @@ around its tip while the left button is held, and the ring fading out for 0.3 s
 after a release or a click. The pointer is drawn over the window in a canvas of
 the frame's own, so nothing of it enters the document of the application. The
 rendering itself is `ProjecturedSdl`'s
-offscreen renderer (`_open_offscreen_renderer`), opened here and closed by
+offscreen renderer (`open_offscreen_renderer`), opened here and closed by
 [`quit_backend!`](@ref).
 
 With `partial_render = true` a frame repaints only the rects that changed, as
@@ -182,13 +182,13 @@ get_frame_clock_time(backend::VideoBackend, wall_time) =
 _get_schedule_seconds(backend::VideoBackend) =
     backend.video_time ? _get_video_seconds(backend) : time() - backend.start_time
 
-# The exact naming `_emit_frames!` writes each frame under, so a backfilled
+# The exact naming `write_offscreen_frames!` writes each frame under, so a backfilled
 # copy lands where ffmpeg's `frame_%06d.png` pattern expects it.
 _video_frame_path(dir::AbstractString, index::Integer) =
     joinpath(dir, "frame_$(lpad(index, 6, '0')).png")
 
 function initialize_backend!(backend::VideoBackend)
-    backend.off = _open_offscreen_renderer(backend.width, backend.height;
+    backend.off = open_offscreen_renderer(backend.width, backend.height;
                                            supersample = backend.supersample,
                                            scale = backend.scale)
     # -1 marks the clock as not yet started (see `write_to_devices`): the loop's
@@ -210,7 +210,7 @@ function initialize_backend!(backend::VideoBackend)
     nothing
 end
 
-quit_backend!(backend::VideoBackend) = (_close_offscreen_renderer(backend.off); nothing)
+quit_backend!(backend::VideoBackend) = (close_offscreen_renderer(backend.off); nothing)
 
 get_pointer_position(backend::VideoBackend) = (backend.pointer_x, backend.pointer_y)
 
@@ -382,8 +382,8 @@ function write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument
             if backend.pointer && backend.pointer_x >= 0
                 canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend)]; w = backend.width, h = backend.height)
             end
-            _emit_frames!(backend.off, canvas, backend.width, backend.height, window.bg,
-                         backend.frames_dir, backend.frame, 1)
+            write_offscreen_frames!(backend.off, canvas; background = window.bg,
+                                    folder = backend.frames_dir, frame = backend.frame)
         end
     catch exception
         # The frames hold the last picture with this fault on it until a paint
@@ -436,13 +436,13 @@ function _render_held_picture!(backend::VideoBackend)
     backend.held_file === nothing || return backend.held_file
     overlay = _make_fault_line_graphics(backend)
     if backend.painted_file === nothing
-        _emit_frames!(backend.off, overlay, backend.width, backend.height, backend.background,
-                      backend.frames_dir, backend.frame, 1)
+        write_offscreen_frames!(backend.off, overlay; background = backend.background,
+                                folder = backend.frames_dir, frame = backend.frame)
         backend.held_file = _video_frame_path(backend.frames_dir, backend.frame[])
     else
         backend.held_file = joinpath(backend.frames_dir, "held_$(backend.frame[]).png")
-        _save_picture_with_overlay!(backend.off, backend.painted_file, overlay,
-                                    backend.width, backend.height, backend.held_file)
+        write_offscreen_picture_with_overlay!(backend.off, backend.painted_file, overlay;
+                                              filename = backend.held_file)
     end
     backend.held_file
 end
@@ -463,16 +463,16 @@ end
 # window each frame would be new to the dirty walk and repaint it all.
 function _write_partial_frame!(backend::VideoBackend, canvas::GraphicsCanvas, background)
     backend.paint_state === nothing &&
-        (backend.paint_state = _make_offscreen_paint_state(backend.off, backend.width, backend.height))
+        (backend.paint_state = make_offscreen_paint_state(backend.off))
     state = backend.paint_state
-    painted = _render_canvas_offscreen_partial!(backend.off, state, canvas, background)
+    painted = render_offscreen_changes!(backend.off, state, canvas; background)
     pointer = backend.pointer && backend.pointer_x >= 0 ?
               GraphicsCanvas(_make_pointer_graphics(backend); w = backend.width, h = backend.height) :
               nothing
     outline = backend.debug_dirty ? _get_held_outline(backend, painted, state.last_rects) :
               NTuple{4,Int}[]
-    _emit_frame_with_overlay!(backend.off, backend.width, backend.height, pointer, outline,
-                              backend.frames_dir, backend.frame)
+    write_offscreen_frame_with_overlay!(backend.off, pointer; outline,
+                                        folder = backend.frames_dir, frame = backend.frame)
 end
 
 # The rects to outline on this frame: those of the last repaint, or with a hold,

@@ -23,11 +23,11 @@ function test_tree_render()
         read_entries() = [k for k in eachindex(entries) if is_cell_up_to_date(entries[k])]
         is_listing_read(d) = is_cell_up_to_date(getfield(d.elements, :elements))
         function render()
-            off = SDL._open_offscreen_renderer(800, 600; supersample = 1)
+            off = SDL.open_offscreen_renderer(800, 600; supersample = 1)
             try
                 SDL._render_canvas_offscreen!(off, canvas, 800, 600, (0xff, 0xff, 0xff, 0xff))
             finally
-                SDL._close_offscreen_renderer(off)
+                SDL.close_offscreen_renderer(off)
             end
         end
         @test length(entries) == 1000

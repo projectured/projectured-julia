@@ -97,7 +97,7 @@ function record_video(document, projection; gestures::AbstractVector,
         canvas
     end
 
-    off = _open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
+    off = open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
     tmpdir = mktempdir()
     frame = Ref(0)
     # Print the projection ONCE and keep the resulting canvas; every frame just
@@ -113,7 +113,7 @@ function record_video(document, projection; gestures::AbstractVector,
     reprint!() = (iomap = print_iomap(document); nothing)
     emit_frames! = (n::Integer) -> for _ in 1:max(n, 0)
         set_clock_time!(clock, frame[] / fps)
-        _emit_frames!(off, canvas_of(iomap), width, height, background, tmpdir, frame, 1)
+        write_offscreen_frames!(off, canvas_of(iomap); background, folder = tmpdir, frame)
     end
     try
         if initial_selection === nothing
@@ -189,17 +189,17 @@ function record_video(document, projection; gestures::AbstractVector,
 
         _encode_frames_to_video!(tmpdir, filename, fps)
     finally
-        _close_offscreen_renderer(off)
+        close_offscreen_renderer(off)
         rm(tmpdir; force=true, recursive=true)
     end
     filename
 end
 
 # Exported (despite the underscore) the same way ProjecturedSdl exports
-# `_open_offscreen_renderer` / `_emit_frames!`: `VideoBackend` writes its own
+# `open_offscreen_renderer` / `write_offscreen_frames!`: `VideoBackend` writes its own
 # frames one at a time rather than through `record_video`'s loop, but ends a
 # recording the same way — assembling `frames_dir`'s `frame_%06d.png` files
-# (as `_emit_frames!` names them) into `filename` at `fps` frames per second.
+# (as `write_offscreen_frames!` names them) into `filename` at `fps` frames per second.
 # One ffmpeg call for every recorder in this package, so a codec or pixel-format
 # change is made once.
 function _encode_frames_to_video!(frames_dir::AbstractString, filename::AbstractString,

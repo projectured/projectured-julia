@@ -1,9 +1,12 @@
 # A backend's public surface is the generic it extends, not the helper behind
 # it: `BackendModule.render_canvas`, `decode_image` and `get_display_size` are
-# how a caller reaches this backend. The helpers stay module-internal.
+# how a caller reaches this backend. The offscreen renderer is public as well,
+# because `ProjecturedVideo` records its frames with it.
 export SdlBackend,
        write_image, GraphicsCanvasToImageFile,
-       _open_offscreen_renderer, _close_offscreen_renderer
+       open_offscreen_renderer, close_offscreen_renderer, write_offscreen_frames!,
+       make_offscreen_paint_state, render_offscreen_changes!,
+       write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!
 
 # Xlib reads its locale data from the folder that its build named, and that
 # folder exists only on the machine that built `Xorg_libX11_jll`. Without the
@@ -253,7 +256,7 @@ const _font_cache = Dict{Tuple{String,Int}, Ptr{TTF_Font}}()
 # is in the key at its logical size, where the layout places the glyphs, and at
 # its device size, where SDL rasterizes them. Textures are renderer-specific, so
 # entries are evicted when their renderer is destroyed (`_close_native_window!`,
-# `_close_offscreen_renderer`) and all are freed by `quit_backend!`.
+# `close_offscreen_renderer`) and all are freed by `quit_backend!`.
 struct _TextTextureKey
     renderer::Ptr{SDL_Renderer}
     text::String
@@ -3016,14 +3019,17 @@ end
 # `record_video` renders hundreds-to-thousands of frames at a fixed size, so the
 # setup/teardown is factored out here and reused across every frame.
 
-# Open an offscreen, `supersample`-oversized software renderer for a logical
-# `width × height` canvas drawn at export `scale`. Returns a handle holding the
-# big surface, its renderer, and the sizing it was built with. `width`/`height`
-# are the canvas's logical size; the saved image is that times `scale` (device
-# pixels), so output stays crisp on HiDPI displays independent of the generating
-# machine. The caller must eventually pass the handle to
-# `_close_offscreen_renderer`.
-function _open_offscreen_renderer(width::Integer, height::Integer;
+"""
+    open_offscreen_renderer(width, height; supersample = 2, scale = 1) -> renderer
+
+Open an offscreen, `supersample`-oversized software renderer for a logical
+`width × height` canvas drawn at export `scale`, and answer its handle: the big
+surface, its renderer, and the sizing it was built with, `width` and `height`
+among them. The saved image is the logical size times `scale` (device pixels),
+so output stays crisp on HiDPI displays independent of the generating machine.
+Pass the handle to [`close_offscreen_renderer`](@ref) at the end.
+"""
+function open_offscreen_renderer(width::Integer, height::Integer;
                                   supersample::Integer = 2, scale::Real = 1)
     SDL_Init(SDL_INIT_VIDEO)
     TTF_Init()
@@ -3039,7 +3045,8 @@ function _open_offscreen_renderer(width::Integer, height::Integer;
     @assert renderer != C_NULL "SDL software renderer creation failed: $(unsafe_string(SDL_GetError()))"
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
     SDL_RenderSetScale(renderer, Float32(sc * S), Float32(sc * S))
-    (surface = surface, renderer = renderer, S = S, sc = sc, out_w = out_w, out_h = out_h)
+    (surface = surface, renderer = renderer, S = S, sc = sc, out_w = out_w, out_h = out_h,
+     width = Int(width), height = Int(height))
 end
 
 # Clear `off` to `background` and render `canvas` (logical size `width × height`)
@@ -3056,7 +3063,7 @@ end
 
 # The surface to save: the box-downsampled output when supersampling (a fresh
 # surface the caller must `SDL_FreeSurface`), or the big surface itself when not
-# (do not free it separately — `_close_offscreen_renderer` owns it).
+# (do not free it separately — `close_offscreen_renderer` owns it).
 function _offscreen_output_surface(off)
     off.S > 1 ? _downsample_surface(off.surface, off.out_w, off.out_h, off.S) : off.surface
 end
@@ -3069,8 +3076,12 @@ function _save_surface_bmp(surface::Ptr{SDL_Surface}, filename::AbstractString)
     nothing
 end
 
-# Tear down a renderer+surface pair opened by `_open_offscreen_renderer`.
-function _close_offscreen_renderer(off)
+"""
+    close_offscreen_renderer(renderer) -> nothing
+
+Free the surface and the renderer that [`open_offscreen_renderer`](@ref) opened.
+"""
+function close_offscreen_renderer(off)
     _evict_renderer_textures!(off.renderer)
     SDL_DestroyRenderer(off.renderer)
     SDL_FreeSurface(off.surface)
@@ -3097,7 +3108,7 @@ function BackendModule.write_image(canvas::GraphicsCanvas, filename::AbstractStr
                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
                      supersample::Integer = 2,
                      scale::Real = 1)
-    off = _open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
+    off = open_offscreen_renderer(width, height; supersample=supersample, scale=scale)
     try
         _render_canvas_offscreen!(off, canvas, width, height, background)
         out_surface = _offscreen_output_surface(off)
@@ -3116,7 +3127,7 @@ function BackendModule.write_image(canvas::GraphicsCanvas, filename::AbstractStr
             out_surface !== off.surface && SDL_FreeSurface(out_surface)
         end
     finally
-        _close_offscreen_renderer(off)
+        close_offscreen_renderer(off)
     end
     ImageFile(filename)
 end
@@ -3290,13 +3301,17 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 
-# Render `canvas` once and write `count` identical BMP frames (the post-event
-# state held on screen for `count` frames of video time), advancing `frame`.
-function _emit_frames!(off, canvas::GraphicsCanvas, width::Integer, height::Integer,
-                       background::NTuple{4,UInt8}, tmpdir::AbstractString,
-                       frame::Ref{Int}, count::Integer)
+"""
+    write_offscreen_frames!(renderer, canvas; background, folder, frame, count = 1) -> nothing
+
+Render `canvas` once and write it as `count` identical frames, the state held on
+screen for `count` frames of video time, into `folder` as
+`frame_000001.png` and on, advancing the counter `frame`.
+"""
+function write_offscreen_frames!(off, canvas::GraphicsCanvas; background::NTuple{4,UInt8},
+                                 folder::AbstractString, frame::Ref{Int}, count::Integer = 1)
     count <= 0 && return nothing
-    _render_canvas_offscreen!(off, canvas, width, height, background)
+    _render_canvas_offscreen!(off, canvas, off.width, off.height, background)
     out_surface = _offscreen_output_surface(off)
     try
         for _ in 1:count
@@ -3304,9 +3319,9 @@ function _emit_frames!(off, canvas::GraphicsCanvas, width::Integer, height::Inte
             # PNG (lossless, compressed) rather than raw BMP: UI frames are mostly
             # flat colour and compress ~10-50x, so the frame pile stays small
             # instead of filling the disk quota on a long high-resolution recording.
-            fn = joinpath(tmpdir, "frame_$(lpad(frame[], 6, '0')).png")
+            fn = joinpath(folder, "frame_$(lpad(frame[], 6, '0')).png")
             IMG_SavePNG(out_surface, fn) == 0 ||
-                error("_emit_frames!: IMG_SavePNG failed for $fn: $(unsafe_string(SDL_GetError()))")
+                error("write_offscreen_frames!: IMG_SavePNG failed for $fn: $(unsafe_string(SDL_GetError()))")
         end
     finally
         out_surface !== off.surface && SDL_FreeSurface(out_surface)
@@ -3324,20 +3339,30 @@ mutable struct _OffscreenPaintState
     last_rects::Vector{NTuple{4,Int}}
 end
 
-function _make_offscreen_paint_state(off, width::Integer, height::Integer)
+"""
+    make_offscreen_paint_state(renderer) -> state
+
+What a partial paint into `renderer` keeps from frame to frame, for
+[`render_offscreen_changes!`](@ref).
+"""
+function make_offscreen_paint_state(off)
     res = SdlWindowResources(C_NULL, off.renderer, :offscreen, UInt32(0), "",
-                             Int(width), Int(height), 0, 0, :default, (0x00, 0x00, 0x00, 0xff),
+                             off.width, off.height, 0, 0, :default, (0x00, 0x00, 0x00, 0xff),
                              off.S, off.sc, C_NULL, 0, 0, true,
                              Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
     _OffscreenPaintState(res, NTuple{4,Int}[])
 end
 
-# Render `canvas` into `off` as a window with `partial_render` does: the surface
-# keeps its pixels, and only the rects the dirty walk finds are painted again.
-# The first frame paints everything. Answers the rects painted, empty when
-# nothing changed.
-function _render_canvas_offscreen_partial!(off, state::_OffscreenPaintState, canvas::GraphicsCanvas,
-                                           background::NTuple{4,UInt8})
+"""
+    render_offscreen_changes!(renderer, state, canvas; background) -> rects
+
+Render `canvas` into `renderer` as a window with `partial_render` does: the
+surface keeps its pixels, and only the rects that the dirty walk finds are
+painted again. The first frame paints everything. Answers the rects painted,
+empty when nothing changed.
+"""
+function render_offscreen_changes!(off, state::_OffscreenPaintState, canvas::GraphicsCanvas;
+                                   background::NTuple{4,UInt8})
     res = state.res
     if _is_painted_geometry_full(res)
         _forget_painted_geometry!(res)
@@ -3353,12 +3378,17 @@ function _render_canvas_offscreen_partial!(off, state::_OffscreenPaintState, can
     rects
 end
 
-# Write the picture of `off` as the next frame, with `overlay` drawn over it and
-# the red outline of `outline` around it. Both go on a copy of the picture and
-# never into `off`, so a partial paint finds the surface as it left it.
-function _emit_frame_with_overlay!(off, width::Integer, height::Integer, overlay,
-                                   outline::Vector{NTuple{4,Int}}, tmpdir::AbstractString,
-                                   frame::Ref{Int})
+"""
+    write_offscreen_frame_with_overlay!(renderer, overlay; outline, folder, frame) -> nothing
+
+Write the picture of `renderer` as the next frame into `folder`, with `overlay`
+(a canvas, or `nothing`) drawn over it and the red outline of the rects
+`outline` around it, advancing the counter `frame`. Both go on a copy of the
+picture and never into `renderer`, so a partial paint finds the surface as it
+left it.
+"""
+function write_offscreen_frame_with_overlay!(off, overlay; outline::Vector{NTuple{4,Int}},
+                                             folder::AbstractString, frame::Ref{Int})
     out = off.S > 1 ? _downsample_surface(off.surface, off.out_w, off.out_h, off.S) :
                       SDL_DuplicateSurface(off.surface)
     try
@@ -3367,7 +3397,7 @@ function _emit_frame_with_overlay!(off, width::Integer, height::Integer, overlay
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
             SDL_RenderSetScale(renderer, Float32(off.sc), Float32(off.sc))
             overlay === nothing ||
-                _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), off.sc)
+                _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, off.width, off.height), off.sc)
             # Two pixels: a video halves the resolution of its colours, and a
             # line of one pixel fades to a trace.
             _outline_dirty_rects!(renderer, outline, 2)
@@ -3376,33 +3406,38 @@ function _emit_frame_with_overlay!(off, width::Integer, height::Integer, overlay
             SDL_DestroyRenderer(renderer)
         end
         frame[] += 1
-        fn = joinpath(tmpdir, "frame_$(lpad(frame[], 6, '0')).png")
+        fn = joinpath(folder, "frame_$(lpad(frame[], 6, '0')).png")
         IMG_SavePNG(out, fn) == 0 ||
-            error("_emit_frame_with_overlay!: IMG_SavePNG failed for $fn: $(unsafe_string(SDL_GetError()))")
+            error("write_offscreen_frame_with_overlay!: IMG_SavePNG failed for $fn: $(unsafe_string(SDL_GetError()))")
     finally
         SDL_FreeSurface(out)
     end
     nothing
 end
 
-# Draw `overlay` over the frame saved in `picture` and save the result as
-# `filename`. The frame has the size of the output of `off`, so the overlay is
-# drawn at the scale of the output, as `_emit_frame_with_overlay!` draws it.
-function _save_picture_with_overlay!(off, picture::AbstractString, overlay::GraphicsCanvas,
-                                     width::Integer, height::Integer, filename::AbstractString)
+"""
+    write_offscreen_picture_with_overlay!(renderer, picture, overlay; filename) -> nothing
+
+Draw `overlay` over the frame saved in the file `picture` and save the result as
+`filename`. The frame has the size of the output of `renderer`, so the overlay
+is drawn at the scale of the output, as
+[`write_offscreen_frame_with_overlay!`](@ref) draws it.
+"""
+function write_offscreen_picture_with_overlay!(off, picture::AbstractString, overlay::GraphicsCanvas;
+                                               filename::AbstractString)
     surface = IMG_Load(picture)
     surface == C_NULL &&
-        error("_save_picture_with_overlay!: failed to load $picture: $(unsafe_string(SDL_GetError()))")
+        error("write_offscreen_picture_with_overlay!: failed to load $picture: $(unsafe_string(SDL_GetError()))")
     try
         renderer = SDL_CreateSoftwareRenderer(surface)
         SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
         SDL_RenderSetScale(renderer, Float32(off.sc), Float32(off.sc))
-        _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), off.sc)
+        _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, off.width, off.height), off.sc)
         SDL_RenderFlush(renderer)
         _evict_renderer_textures!(renderer)
         SDL_DestroyRenderer(renderer)
         IMG_SavePNG(surface, filename) == 0 ||
-            error("_save_picture_with_overlay!: IMG_SavePNG failed for $filename: $(unsafe_string(SDL_GetError()))")
+            error("write_offscreen_picture_with_overlay!: IMG_SavePNG failed for $filename: $(unsafe_string(SDL_GetError()))")
     finally
         SDL_FreeSurface(surface)
     end

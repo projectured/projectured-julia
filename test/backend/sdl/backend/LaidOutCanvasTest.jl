@@ -25,11 +25,11 @@ make_res() = SDL.SdlWindowResources(
     Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), NTuple{4,Int}[])
 
 function render(window)
-    off = SDL._open_offscreen_renderer(800, 600; supersample = 1)
+    off = SDL.open_offscreen_renderer(800, 600; supersample = 1)
     try
         SDL._render_canvas_offscreen!(off, window, 800, 600, background)
     finally
-        SDL._close_offscreen_renderer(off)
+        SDL.close_offscreen_renderer(off)
     end
 end
 

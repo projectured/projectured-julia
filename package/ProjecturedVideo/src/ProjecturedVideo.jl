@@ -6,7 +6,7 @@ only thing that pulls `FFMPEG`, so it lives here rather than in `ProjecturedSdl`
 desktop-editor and screenshot users (`Projectured` + `ProjecturedSdl`) don't carry FFMPEG.
 
 `record_video` reuses `ProjecturedSdl`'s offscreen renderer to rasterise each frame
-(`_open_offscreen_renderer` / `_emit_frames!` / `_close_offscreen_renderer`), then shells
+(`open_offscreen_renderer` / `write_offscreen_frames!` / `close_offscreen_renderer`), then shells
 out to `ffmpeg` (via `FFMPEG.jl`) to encode the frames into an `.mp4`. The
 `record_video` *generic* is the kernel `BackendModule` seam (re-exported by the
 `Projectured` umbrella); this package adds the method.
@@ -43,9 +43,9 @@ using ProjecturedKernel.EventModule: WindowInput, WindowQuit,
 using ProjecturedKernel.GestureModule: MouseClick
 using ProjecturedPlatform.ScreenModule: ScreenDocument, WindowDocument
 
-import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
-                       _make_offscreen_paint_state, _render_canvas_offscreen_partial!,
-                       _emit_frame_with_overlay!, _save_picture_with_overlay!
+import ProjecturedSdl: open_offscreen_renderer, close_offscreen_renderer, write_offscreen_frames!,
+                       make_offscreen_paint_state, render_offscreen_changes!,
+                       write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!
 # `SdlBackend` itself is already in scope via the bare `using ProjecturedSdl` above.
 
 # Imported to extend: this package adds a method to each of these.

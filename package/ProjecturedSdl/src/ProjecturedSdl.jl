@@ -6,9 +6,9 @@ rasterisation, offscreen image output). Depends on `ProjecturedKernel`,
 `ProjecturedPlatform` and SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl`
 provides the render/decode/image seam methods. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
-primitives `_open_offscreen_renderer` and `_close_offscreen_renderer` that the
+primitives `open_offscreen_renderer` and `close_offscreen_renderer` that the
 opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives
-there, not here); `ProjecturedVideo` imports the unexported `_emit_frames!` and
+there, not here); `ProjecturedVideo` imports the unexported `write_offscreen_frames!` and
 the other offscreen helpers by name.
 """
 module ProjecturedSdl
