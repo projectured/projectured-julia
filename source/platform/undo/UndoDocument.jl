@@ -59,7 +59,9 @@ to the focus answers first.
 `content` is the document whose edits it records. `undo_entries` holds the steps
 that can be taken back, oldest first, and `redo_entries` the steps that were
 taken back and can be put back. `capacity` bounds the first list; the oldest
-entry is dropped when a new one does not fit.
+entry is dropped when a new one does not fit. It is a number, or the cell of a
+setting, such as `undo_capacity` of `HistorySettings`, which the buffer reads at
+each step.
 
 The buffer records nothing by itself. `UndoBufferToAnyProjection` is what wraps
 the operations that pass through it.
@@ -77,8 +79,10 @@ See also `UndoBufferToAnyProjection`, `UndoEntry` and `make_inverse_operation`.
     capacity::Int
 end
 
-UndoBuffer(content::Document; capacity::Integer = 100, selection = nothing) =
-    UndoBuffer(content, CellVector(), CellVector(), Int(capacity), selection)
+UndoBuffer(content::Document; capacity::Union{Integer, AbstractCell} = 100,
+           selection = nothing) =
+    UndoBuffer(content, CellVector(), CellVector(),
+               capacity isa AbstractCell ? capacity : Int(capacity), selection)
 
 # A buffer is transparent on the screen, and a real node in the tree. Anything
 # that reads the tree rather than the picture — saving a file is the case — asks

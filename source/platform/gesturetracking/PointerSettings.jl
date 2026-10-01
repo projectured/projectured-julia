@@ -26,12 +26,12 @@ The standard recognitions, whose limits are the cells of `settings`. The click
 distance limits a click and the next click of a double click.
 """
 function make_standard_recognitions(settings::PointerSettings)
-    displacement = getfield(settings, :click_max_displacement)
+    displacement = get_setting_cell(settings, :click_max_displacement)
     GestureRecognition[
         ChordRecognition(),
         ClickRecognition(; click_max_displacement = displacement,
                            multi_click_max_displacement = displacement,
                            multi_click_max_interval =
-                               getfield(settings, :multi_click_max_interval)),
-        DwellRecognition(; delay = getfield(settings, :dwell_delay))]
+                               get_setting_cell(settings, :multi_click_max_interval)),
+        DwellRecognition(; delay = get_setting_cell(settings, :dwell_delay))]
 end

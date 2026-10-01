@@ -93,3 +93,11 @@ Whether `document` is one of the groups of `settings`.
 is_settings_group(settings::Settings, document) =
     document isa SettingsGroup &&
         any(group -> group === document, values(settings.groups))
+
+"""
+    get_setting_cell(group, name) -> AbstractCell
+
+The cell that holds the setting `name` of `group`. A part that reads the setting
+where it acts holds this cell, so a change reaches it with no apply.
+"""
+get_setting_cell(group::SettingsGroup, name::Symbol) = getfield(group, name)

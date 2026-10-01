@@ -239,6 +239,25 @@ end
     @test limit(click.click_max_duration) == 0.3
 end
 
+@testset "each history of an editor keeps the steps of the setting" begin
+    history = HistorySettings()
+    @test history.undo_capacity == 100
+    buffer = UndoBuffer(WidgetLabel("history");
+                        capacity = get_setting_cell(history, :undo_capacity))
+    @test buffer.capacity == 100
+    for index in 1:12
+        push_undo_entry!(buffer, UndoEntry("step", DoNothingOperation(), nothing))
+    end
+    @test length(buffer.undo_entries) == 12
+    evaluate_operation(nothing, ApplySettingOperation(history, :undo_capacity, 10))
+    @test buffer.capacity == 10
+    # The buffer drops the oldest steps at its next step.
+    push_undo_entry!(buffer, UndoEntry("step", DoNothingOperation(), nothing))
+    @test length(buffer.undo_entries) == 10
+    # A number stays a number.
+    @test UndoBuffer(WidgetLabel("plain"); capacity = 5).capacity == 5
+end
+
 @testset "a target is a target of a group when a method applies it" begin
     @test is_settings_target(SettingsTestTarget(), SettingsTestProbeSettings())
     @test !is_settings_target(SettingsTestTarget(), SettingsTestOtherSettings())

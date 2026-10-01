@@ -716,7 +716,21 @@ the pixels and the test counts of the baseline of S0.
   - Tests: a change of `multi_click_max_interval` changes the recognition of the
     next double click with no new build. A recognition with plain numbers acts as
     now.
-- [ ] **S6. The history and the log** (4.8). The capacity of `UndoBuffer` and of
+- [x] **S6. The history and the log** (4.8). Done on 2026-10-01:
+  `test_settings()`, the guards, `test_undo()` and `test_gesture_tracking()`,
+  258 pass. `HistorySettings` (`undo_capacity`) is in the undo slice. An
+  `UndoBuffer` takes a number or a cell for its capacity; a `@document`
+  constructor keeps a cell that it gets, so the buffer and the group share the
+  cell, and a smaller capacity drops the oldest steps at the next step.
+  `get_setting_cell(group, name)` of the settings slice gives a part the cell of
+  a setting; the pointer recognitions use it too. The application gives its
+  buffers the cell in S9.
+  **Found: the message log is one log for the process** (`_SESSION_MESSAGE_LOG`
+  of `MessageLogDocument.jl`), so its capacity can not be a setting of one
+  editor: two editors would write one capacity (PAR-PER-EDITOR-STATE). So
+  `message_log_capacity` and `LogSettings` are left out. The owner confirms or
+  asks for a log for each editor first.
+  What the step holds: The capacity of `UndoBuffer` and of
   `MessageLog` takes a cell. `HistorySettings` and `LogSettings`.
   - Tests: a smaller capacity drops the oldest entries at the next push.
 - [ ] **S7. The slice `settingsmanaging`: the wrapper** (4.1, 4.5).

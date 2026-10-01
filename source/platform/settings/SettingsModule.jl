@@ -32,7 +32,7 @@ export SettingsGroup, SettingDescription, @settings, get_setting_descriptions,
        get_settings_name, get_settings_group_type, find_setting_description,
        convert_setting_value
 export Settings, compute_loaded_settings_types, make_settings, get_settings_group!,
-       set_settings_group!, get_settings_groups, is_settings_group
+       set_settings_group!, get_settings_groups, is_settings_group, get_setting_cell
 export ApplySettingOperation, apply_settings!, is_settings_target,
        apply_settings_to_editor!
 export get_setting_environment_names, read_settings_environment!
