@@ -93,7 +93,7 @@ set_cell_computation!(w::WidgetLabel, f::Function) = (set_cell_computation!(getf
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
 """
-    WidgetText(content; position, width, <base kwargs>)
+    WidgetText(content; position, width, language, <base kwargs>)
 
 One line of text a person edits.
 
@@ -110,6 +110,11 @@ fits its content exactly — and which is a box of nothing at all when the conte
 is empty. A form gives its fields a width so that an empty one can still be
 clicked. `WidgetSpinBox` carries the same field for the same reason.
 
+`language` names the language of a field of code, such as `:julia`, or is
+`nothing`. The field colors its text by [`compute_code_pieces`](@ref), which
+the package of the language extends, and it is plain text while no such
+package is loaded. The text, its caret and its edits are the same either way.
+
 See also `WidgetTextarea` for several lines, `WidgetLabel` for text that is
 only read, and `WidgetSpinBox` for a number.
 """
@@ -118,6 +123,7 @@ only read, and `WidgetSpinBox` for a number.
     content::Any
     width::Int
     validator::Any
+    language::Any
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -130,15 +136,27 @@ end
 function WidgetText(content; position::Point2D=Point2D(0, 0),
                     width::Integer=0,
                     validator=nothing,
+                    language::Union{Nothing,Symbol}=nothing,
                     visible::Bool=true,
                     enabled::Bool=true,
                     margin=nothing, border=nothing, padding=nothing,
                     style=nothing, tooltip=nothing)
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
-    WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator),
+    WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator), Cell(language),
                Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                Cell(style), Cell(tooltip), Cell(nothing))
 end
+
+"""
+    compute_code_pieces(language::Val, text::AbstractString) -> Vector{Tuple{Int,Any}}
+
+The pieces of `text` in a field of code in `language`, such as `Val(:julia)`, in
+order: the count of the characters of each piece, and its `StyleColor`, or
+`nothing` for the color of the field. The counts add up to the length of the
+text. The default is one piece of the color of the field; the package of a
+language adds a method for it.
+"""
+compute_code_pieces(::Val, text::AbstractString) = Tuple{Int,Any}[(length(text), nothing)]
 
 set_cell_computation!(w::WidgetText, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 

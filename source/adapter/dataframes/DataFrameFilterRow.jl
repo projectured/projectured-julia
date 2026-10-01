@@ -99,8 +99,9 @@ _make_field_child_reference(path) =
 # A text field of the query: `text()` is its text, `range()` the range of its
 # caret or `nothing`, and `reason()` why its text does not parse, or `nothing`.
 # A text that does not parse colors the field, and its tooltip says the reason.
-function _make_query_field(text, range, reason; width::Int = _QUERY_FIELD_WIDTH)
-    field = WidgetText(""; width)
+function _make_query_field(text, range, reason; width::Int = _QUERY_FIELD_WIDTH,
+                           language::Union{Nothing,Symbol} = nothing)
+    field = WidgetText(""; width, language)
     set_cell_computation!(getfield(field, :content), text)
     set_cell_computation!(getfield(field, :selection),
                           () -> (r = range(); r === nothing ? nothing : _make_content_range_reference(r)))
@@ -151,10 +152,12 @@ end
 const _EXPRESSION_FIELD_WIDTH = 480
 
 # The expression bar above the table: the field of the expression of the query,
-# after the words that it ends, so it reads "Rows where :age > 30".
+# after the words that it ends, so it reads "Rows where :age > 30". The field
+# is Julia code, which the Julia domain colors when it is loaded.
 function _make_expression_bar(view)
     field = _make_query_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
-                              () -> last(view.expression_result); width = _EXPRESSION_FIELD_WIDTH)
+                              () -> last(view.expression_result); width = _EXPRESSION_FIELD_WIDTH,
+                              language = :julia)
     bar = HorizontalLayout(Any[WidgetLabel("Rows where"), field]; gap = 8)
     set_cell_computation!(getfield(bar, :selection), () -> _make_field_child_reference(field.selection))
     bar

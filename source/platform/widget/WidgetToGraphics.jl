@@ -1638,17 +1638,41 @@ end
 # ── A plain value as a text ─────────────────────────────────────────────────
 #
 # A `WidgetText` or a `WidgetTextarea` whose `content` is a plain value, such as
-# a `String`, is edited as a text too. The printer makes one `TextBlock` of one
-# span, whose text is the string of the value and whose caret is the range of
-# `content` that the widget holds, and draws it with a `TextToGraphics` of its
-# own, so a chain with no rule for a `TextBlock` draws it too. The reader maps
-# what the text domain answers back to a range of the `content` field. So a
-# string edit writes the field itself, and the caret after the edit is again a
-# range of the field.
+# a `String`, is edited as a text too. The printer makes one `TextBlock` whose
+# text is the string of the value and whose caret is the range of `content` that
+# the widget holds, and draws it with a `TextToGraphics` of its own, so a chain
+# with no rule for a `TextBlock` draws it too. The block is one span, or, for a
+# field of code, a span for each piece that `compute_code_pieces` gives, in its
+# color. The reader maps what the text domain answers back to a range of the
+# `content` field. So a string edit writes the field itself, and the caret after
+# the edit is again a range of the field.
+
+# The spans of a field of code: a span for each piece of its text, in the color
+# of the piece, or of the field.
+function _make_code_spans(w, style::StyleText)
+    text = string(w.content)
+    spans = Any[]
+    start = 1
+    for (count, color) in _get_plain_text_pieces(w, text)
+        stop = count == 0 ? start - 1 : nextind(text, start, count) - 1
+        push!(spans, TextString(text[start:min(stop, lastindex(text))],
+                                color === nothing ? style : StyleText(style.font, color)))
+        start = stop + 1
+    end
+    spans
+end
+
+# The pieces of the text of `w`: one, or the pieces of the code of its language.
+function _get_plain_text_pieces(w, text::AbstractString)
+    language = hasproperty(w, :language) ? w.language : nothing
+    language === nothing && return Tuple{Int,Any}[(length(text), nothing)]
+    Base.invokelatest(compute_code_pieces, Val(language), text)
+end
 
 function _make_plain_text_view(w, style::StyleText)
-    span = TextString(() -> string(w.content), style)
-    view = TextBlock(span)
+    language = hasproperty(w, :language) ? w.language : nothing
+    view = language === nothing ? TextBlock(TextString(() -> string(w.content), style)) :
+                                  TextBlock(() -> _make_code_spans(w, style))
     set_cell_computation!(getfield(view, :selection),
                           () -> _get_plain_text_caret(w.selection))
     set_cell_computation!(getfield(view, :mouse_target),
@@ -1696,9 +1720,13 @@ function _map_plain_text_reference(w, reference)
     end
     if length(steps) == 4 && range isa RangeReferenceStep &&
        steps[1] isa FieldReferenceStep && steps[1].name == "elements" &&
-       steps[2] isa RangeReferenceStep && steps[2].start == 0 &&
+       steps[2] isa RangeReferenceStep &&
        steps[3] isa FieldReferenceStep && steps[3].name == "content"
-        return _make_content_range_reference(range.start, range.stop)
+        # A range in span `k` of the pieces is that range moved by the length of
+        # the spans before it.
+        text = string(w.content)
+        before = sum((first(piece) for piece in _get_plain_text_pieces(w, text)[1:steps[2].start]); init = 0)
+        return _make_content_range_reference(before + range.start, before + range.stop)
     end
     nothing
 end

@@ -1185,7 +1185,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       until the drag refactor lands in main", the drag tracking of
       [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
       (D14, D20). How a person finds the edge (G3) is decided then.
-    - [ ] **5.8 The editor of the Julia domain in the expression bar** (F4 c),
+    - [x] **5.8 The editor of the Julia domain in the expression bar** (F4 c),
       through a seam that the data frame package declares and the Julia
       domain extends. Changed (the owner, 2026-10-01: "5.8: yes", to the
       recommendation of the writer): the Julia domain can not extend a seam
@@ -1193,6 +1193,25 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       seam is in the widget slice: `make_code_field(Val(:julia), …)`, a field
       for code in a language, which is the plain field by default and which
       `ProjecturedJulia` extends. The query keeps the expression as text.
+      Done 2026-10-01, in a form that differs from the recommendation in one
+      point (mine, and the fact that moved it): a seam that gives a whole
+      field would put a function into a widget field, and a saved window can
+      not write a function. So `WidgetText` has a field `language`, a symbol
+      such as `:julia`, and the seam `compute_code_pieces(Val(language),
+      text)` of the widget slice gives the pieces of the text, each a count of
+      characters and a color; the default is one piece. `ProjecturedJulia`
+      adds the method for `:julia`: a tokenizer, not a parse, so a text that
+      does not parse yet has its colors, in the colors of the Julia domain.
+      The field keeps its text, its caret and its edits as ranges of its
+      content; a plain field keeps its one span as before. The expression bar
+      is a field of `:julia`, so it has colors when the Julia domain is
+      loaded, and the data frame package does not depend on it.
+      Found: an empty field of code built a span with an index out of range;
+      the data frame suite saw it only with the Julia domain loaded in the
+      same process. Tests: a field of a language of the tests (its spans, an
+      edit in its second piece, an empty field), the colors of Julia code, the
+      bar asks for `:julia`; 243 widget, 419 Julia and 171 data frame tests
+      pass. A picture shows the colored bar and its result (50 rows, correct).
     - [ ] **5.9 Sort** on the same vector of rows: the header gestures of
       §4.4. The form (the owner, 2026-10-01: "yes, agreed", to the
       suggestion of the writer, after "we need small sort icons on the

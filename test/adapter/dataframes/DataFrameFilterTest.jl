@@ -238,6 +238,7 @@ function test_data_frame_filter()
             @test length(view.kept_rows) == 1000
             bar = _data_frame_grid_iomap(io).child_iomaps[1][3].input
             @test bar.children[2].tooltip isa String
+            @test bar.children[2].language === :julia
         end
 
         @testset "the pattern keeps the columns whose names match it" begin

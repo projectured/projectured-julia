@@ -18,6 +18,7 @@ import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: emit_text,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
+import ..WidgetModule: compute_code_pieces
 
 export _julia_operator_string
 export parse_julia, parse_julia_file
@@ -60,6 +61,7 @@ include("JuliaExpression.jl")
 include("JuliaInsertionToSyntax.jl")
 include("JuliaFile.jl")
 include("JuliaToSyntax.jl")
+include("JuliaCodePieces.jl")
 
 
 # What this slice registers when it loads: the file extensions it owns, the

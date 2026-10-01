@@ -2,6 +2,10 @@ mutable struct _WidgetTextMockEditor
     document::Any
 end
 
+# A language of the tests: its first character is red.
+ProjecturedPlatform.WidgetModule.compute_code_pieces(::Val{:widget_text_test_code}, text::AbstractString) =
+    isempty(text) ? Tuple{Int,Any}[(0, nothing)] : Tuple{Int,Any}[(1, color_red), (length(text) - 1, nothing)]
+
 function test_widget_text_editing()
 
 _font = font_ubuntu_monospace_regular_20
@@ -57,6 +61,23 @@ end
 
     evaluate_operation(_WidgetTextMockEditor(doc), op)
     @test doc.content.elements[1].content == "ediXt me"
+end
+
+@testset "a field of code draws a span for each piece, and its edits stay ranges of its content" begin
+    doc = WidgetText("abc"; language = :widget_text_test_code)
+    set_selection!(doc, ConcreteReference(FieldReferenceStep("content"),
+                                          ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
+    spans = collect(iomap.content_iomap.input.elements)
+    @test [span.content for span in spans] == ["a", "bc"]
+    @test spans[1].font_color == color_red
+    op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    @test op isa ReplaceStringRangeOperation
+    @test strip_reference_types(op.reference) == ConcreteReference(FieldReferenceStep("content"),
+        ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
+    # An empty field of code is one empty span.
+    empty = print_document(_proj(), nothing, WidgetText(""; language = :widget_text_test_code), PrinterContext())
+    @test [span.content for span in empty.content_iomap.input.elements] == [""]
 end
 
 @testset "a disabled WidgetText accepts no edits" begin
