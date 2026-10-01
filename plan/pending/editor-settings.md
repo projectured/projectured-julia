@@ -687,7 +687,14 @@ the pixels and the test counts of the baseline of S0.
   each outline for `debug_dirty_hold` seconds, as the video backend does.
   - Tests: the pixels after a change equal the pixels of a window that starts
     with the new value. An outline stays for the hold and then goes.
-- [ ] **S4. The fault settings.** `FaultSettings` in the platform `fault` slice,
+- [x] **S4. The fault settings.** Done on 2026-10-01: `test_settings()`,
+  the guards and `test_fault()`, 163 pass. Any change of the policy prints the
+  view again, as `run_editor!` does, because `print!` puts the whole policy into
+  the printer context. **Found for S7:** a caller of `build_editor` that passes
+  `fault_policy` and no `Settings` would lose its policy to the default group
+  at the start step. With `settings = true`, the start step first copies the
+  policy of the editor into `FaultSettings`, so the keyword keeps its meaning.
+  What the step holds: `FaultSettings` in the platform `fault` slice,
   and its apply.
   - Tests: after `is_barrier_enabled` goes off, a fault in a projection raises.
     After it goes on, the barrier catches it. The view prints again once.

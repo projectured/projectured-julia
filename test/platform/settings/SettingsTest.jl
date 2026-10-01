@@ -2,6 +2,10 @@
 # one editor, and `ApplySettingOperation`, which checks a value, writes it and
 # applies the group to the editor and to its backend.
 
+import ProjecturedKernelExample: HeadlessBackend
+import ProjecturedKernel.EditorModule: Editor, run_frame!
+import ProjecturedKernel.DeviceModule: Device
+
 @settings struct SettingsTestProbeSettings
     "Flag: a switch of the probe."
     flag::Bool = false
@@ -192,6 +196,26 @@ end
                                               "PROJECTURED_SUPERSAMPLE" => "1"))
     render = get_settings_group!(settings, RenderSettings)
     @test (render.partial_render, render.debug_dirty, render.supersample) == (true, true, 1)
+end
+
+@testset "the fault settings become the fault policy of the editor" begin
+    editor = Editor(WidgetLabel("fault"),
+                    NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                    backend = HeadlessBackend(), devices = Device[])
+    run_frame!(editor)
+    @test editor.iomap !== nothing
+    group = FaultSettings(is_barrier_enabled = false)
+    @test is_settings_target(editor, group)
+    @test !is_settings_target(editor.backend, group)
+    evaluate_operation(editor, ApplySettingOperation(group, :is_console_enabled, false))
+    @test editor.fault_policy ==
+          FaultPolicy(is_barrier_enabled = false, is_console_enabled = false)
+    # The barriers read the policy while they print, so the view prints again.
+    @test editor.iomap === nothing
+    run_frame!(editor)
+    # The same policy again prints nothing again.
+    apply_settings!(editor, group)
+    @test editor.iomap !== nothing
 end
 
 @testset "a target is a target of a group when a method applies it" begin

@@ -35,6 +35,8 @@ The module lives in these fragments, which share this namespace:
 - [`FaultLogOverlay.jl`](FaultLogOverlay.jl) — the log as a panel over a window.
 - [`FaultSafeMode.jl`](FaultSafeMode.jl) — the projection the editor falls back
   to when the printer has failed on every frame for long enough.
+- [`FaultSettings.jl`](FaultSettings.jl) — `FaultSettings`, what a person
+  chooses about a fault, and their apply to the policy of the editor.
 """
 module FaultViewModule
 
@@ -57,6 +59,8 @@ using ..TextModule
 using ..TooltipModule
 using ..WidgetModule
 using ..FocusModule
+using ..EditorModule
+using ..SettingsModule
 
 # The names this module EXTENDS are imported, never merely used: a bare
 # `using` binds the name for reading and a definition beside it makes a NEW
@@ -67,6 +71,7 @@ import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FaultModule: append_fault!
+import ..SettingsModule: apply_settings!
 import ..SerializationModule: pred_arguments
 import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
@@ -78,7 +83,8 @@ export FaultReport, FaultLog, FaultLogEntry, get_session_fault_log,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
        make_fault_log_content_projection, make_fault_tolerant_projection,
        FAULT_LOG_BACKGROUND,
-       FaultSafeModeProjection, FaultSafeModeIoMap
+       FaultSafeModeProjection, FaultSafeModeIoMap,
+       FaultSettings
 
 include("FaultDocument.jl")    # the report, the log, and the seam answer
 include("Catching.jl")         # the barrier inside the pipeline
@@ -89,5 +95,6 @@ include("FaultToGraphics.jl")  # a mark in the graphics domain
 include("FaultLogToSyntax.jl") # the log as a document
 include("FaultLogOverlay.jl")  # the log as a panel
 include("FaultSafeMode.jl")    # what the editor shows when nothing else can be
+include("FaultSettings.jl")    # what a person chooses about a fault
 
 end # module
