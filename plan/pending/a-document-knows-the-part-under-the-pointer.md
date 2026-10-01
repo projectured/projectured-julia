@@ -311,7 +311,22 @@ One at a time, with the owner.
      holds a path and a child; a deleted document stays in memory until the next
      move. Claude recommended it; the owner rejects it (2026-10-01): "The link
      to the child is not good, basically I can delete and undo everywhere, so it
-     would require extra state everywhere."
+     would require extra state everywhere." After Claude said that the link
+     would go into the `mouse_target` field that every document has: "That's
+     still bad, if anything the delete should be done in a way which handles
+     mouse target. The element may or may not be under the mouse after being
+     deleted, remember it can be present at several places all at once."
+  The owner's direction for the deferred solution: the edit that changes a
+  collection handles the mouse target, not a store of extra state. Claude's
+  reading, for the owner to correct: a delete or an insert keeps the path that
+  the container holds right for the slots that it changes (it shifts the path
+  past the slots, or drops it when it named a slot that goes). It does not clear
+  the target of the element that it removes, because that element can be shown
+  at another place, under the pointer or not; the move after the frame (Q14)
+  then finds the part under the pointer. Facts (2026-10-01): a delete and an
+  insert are one splice, a `ReplaceReferencedValueOperation` on a range, and the
+  splice does not change any stored path today, of the selection or of the mouse
+  target.
   2. A search: each level of the write looks at every child for one that holds
      a target. No new state; a move reads every child on the path, and a part
      that comes back off the chain is missed.
