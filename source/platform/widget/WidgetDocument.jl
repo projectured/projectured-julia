@@ -2188,7 +2188,12 @@ that the grids report ("layout is just layout").
 - `column_headers::CellVector` — optional top strip; each entry a `Document` (or
   `nothing`). Empty vector ⇒ no column-header strip.
 - `row_headers::CellVector` — optional left strip; each entry a `Document` (or
-  `nothing`). Empty vector ⇒ no row-header strip.
+  `nothing`). Empty vector ⇒ no row-header strip. When `rows` is a list, a
+  `ListNode` of headers that moves in step with it: its head is the header of
+  the head row.
+- `corner` — `nothing`, or the `Document` drawn where the header row and the
+  header column meet, which a table whose rows are a list takes. It is at least
+  as wide as the header column and as tall as the header row.
 - `rows` — the body: a `CellVector` of rows, or a `ListNode` whose values are
   rows; a row is a `CellVector` of `Document` cells either way. A list is drawn
   one row at a time as a viewport reaches it, and `rows[i]` counts from the
@@ -2225,7 +2230,8 @@ See also `make_result_table` and `WidgetList` for one column.
 @document struct WidgetTable <: WidgetDocument
     position::Point2D
     column_headers::CellVector   # of Document (or nothing) — optional top strip
-    row_headers::CellVector      # of Document (or nothing) — optional left strip
+    row_headers::CellVector      # of Document (or nothing) — optional left strip; a ListNode beside a list of rows
+    corner::Any                  # Document or nothing — where the header row and the header column meet
     rows::Any                    # CellVector of rows, or a ListNode of them; a row is a CellVector of Document cells
     column_count::Int
     border_width::Int
@@ -2275,7 +2281,7 @@ _table_rows(rows::ListNode) = Cell(rows)
 
 """
     WidgetTable(; position, column_headers, rows, column_count, row_headers=Any[],
-                border_width=1, visible=true,
+                corner=nothing, border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
                 cell_policy=:clip, column_cell_policies=Symbol[], column_align=Symbol[],
@@ -2290,7 +2296,9 @@ Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 reaches it, with no count and no end it has to have. Each node's value is a row,
 which [`make_widget_table_row`](@ref) builds from a vector of values or
 documents. Every column must be given a width — `Fixed`, or a weight — and the
-rows are `Fixed` or `Content`; a list draws no row headers. When
+rows are `Fixed` or `Content`. Its `row_headers` are a `ListNode` too, which
+moves in step with `rows`, and then every row is `Fixed`: the header column is
+as wide as `corner` and as the header of the head row. When
 `column_headers` is a `ListNode` too, the columns are a list as well: the
 cells of every row are a `ListNode` anchored at the same column, and so is
 `column_align` when it names each column; every column is `column_policy`,
@@ -2320,7 +2328,7 @@ or `:right` for that column, as a `GridLayout`'s `column_align` does.
 """
 function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Vector,ListNode},
                      rows::Union{Vector,ListNode}, column_count::Integer,
-                     row_headers::Vector=Any[],
+                     row_headers::Union{Vector,ListNode}=Any[], corner=nothing,
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
@@ -2335,12 +2343,19 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                 error("WidgetTable: a column aligns :left, :center or :right, not ", repr(align))
         end
     end
-    rows isa ListNode && !isempty(row_headers) &&
-        error("WidgetTable: a table whose rows are a list draws no row headers")
+    rows isa ListNode && row_headers isa Vector && !isempty(row_headers) &&
+        error("WidgetTable: a table whose rows are a list takes its row headers as a list")
+    rows isa Vector && row_headers isa ListNode &&
+        error("WidgetTable: a table whose rows are a vector takes its row headers as a vector")
+    rows isa Vector && corner !== nothing &&
+        error("WidgetTable: a table whose rows are a vector draws its corner as graphics, ",
+              "and takes no corner document")
     WidgetTable(Cell(position),
                 column_headers isa ListNode ? Cell(column_headers) :
                     CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
-                CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
+                row_headers isa ListNode ? Cell(row_headers) :
+                    CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
+                Cell(_table_cell_doc(corner)),
                 _table_rows(rows),
                 Cell(Int(column_count)), Cell(Int(border_width)),
                 Cell(column_policy), Cell(row_policy),

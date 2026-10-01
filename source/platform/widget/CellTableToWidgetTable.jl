@@ -49,6 +49,7 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
     table = WidgetTable(Cell(Point2D(0, 0)),
                         column_headers,
                         CellVector(),        # no row headers
+                        Cell(nothing),       # no corner
                         rows,
                         Cell(nc),
                         Cell(1),             # border_width

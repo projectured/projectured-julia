@@ -103,12 +103,12 @@ function _make_view_table(view::DataFrameView)
                                      for column in eachcol(view.frame)])
     rows = Cell(@computation _make_row_list(view.frame, view.anchor))
     # Positional, so every declared field is named here in order: position,
-    # column_headers, row_headers, rows, column_count, border_width,
+    # column_headers, row_headers, corner, rows, column_count, border_width,
     # column_policy, row_policy, column_policies, row_policies, cell_policy,
     # column_cell_policies, column_align, visible, margin, border, padding,
     # style, scroll_position, top_row, tooltip. The table scrolls its
     # own parts, and its offset is the cell of the view.
-    table = WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), rows,
+    table = WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), Cell(nothing), rows,
                         Cell(@computation ncol(view.frame)), Cell(1),
                         Cell(_COLUMN_POLICY), Cell(Content), Cell(Any[]), Cell(Any[]),
                         Cell(:clip), Cell(Symbol[]), align,
@@ -130,7 +130,8 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                                                c -> _get_column_align(eltype(view.frame[!, c]))))
     rows = Cell(@computation _make_row_list(view.frame, view.anchor, view.column_anchor))
     # Positional, as in `print_document` above.
-    table = WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), rows, Cell(0), Cell(1),
+    table = WidgetTable(Cell(Point2D(0, 0)), headers, CellVector(), Cell(nothing), rows, Cell(0),
+                        Cell(1),
                         Cell(Fixed(_LIST_COLUMN_WIDTH)), Cell(Fixed(p.row_height)),
                         Cell(Any[]), Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),

@@ -9147,6 +9147,9 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # The printer reads the type of `rows` and nothing else says which table
     # this is: a list draws the rows a viewport shows, a vector draws them all.
     w.rows isa ListNode && return _print_table_parts(p, recursion, w, ctx)
+    w.corner === nothing ||
+        error("WidgetTable: a table whose rows are a vector draws its corner as graphics, ",
+              "and takes no corner document")
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.

@@ -128,7 +128,7 @@ function _make_page_table(table::MarkdownTable)
     column_headers = CellVector(@computation Any[entry for entry in table.header.elements])
     rows = CellVector(@computation Any[CellVector(Cell[Cell(entry) for entry in row.elements])
                                        for row in table.rows])
-    widget = WidgetTable(Cell(Point2D(0, 0)), column_headers, CellVector(), rows,
+    widget = WidgetTable(Cell(Point2D(0, 0)), column_headers, CellVector(), Cell(nothing), rows,
                          Cell(@computation length(table.alignments)),
                          Cell(1),                          # border_width
                          Cell(Fill), Cell(Content),        # the columns share the width

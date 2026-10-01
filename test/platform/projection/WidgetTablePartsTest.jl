@@ -668,5 +668,96 @@ end
     @test 0 < band_width(4, 2) < band_width(3, 1)
 end
 
+
+# A table of `count` rows with a header of each row, both lists from row `at`,
+# a corner, and rows 20 tall.
+make_headed_table(count::Int; at::Int = 1, corner = WidgetLabel("corner")) =
+    make_table(make_indexed_list(count, texts_of; at);
+               row_headers = make_list_of(count, i -> WidgetLabel("#$(i)"); at), corner,
+               row_policy = Fixed(20))
+corner_region(io) = io.output.elements[end - 3]
+# Where the text `label` starts in a printed table.
+text_at(io, label) = only((t[1], t[2]) for t in texts(io.output) if t[3] == label)
+row_header_reference(k) = ConcreteReference(FieldReferenceStep("row_headers"),
+    ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))
+corner_reference = ConcreteReference(FieldReferenceStep("corner"), EmptyReference())
+
+@testset "a header of each row sits at its row, and the corner at the top left" begin
+    io = print_document(rec, nothing, make_headed_table(1000), context())
+    width = Int(io.state.header_width[])
+    @test width > 0
+    for k in 1:3
+        @test text_at(io, "#$(k)")[2] == text_at(io, "row $(k)")[2]
+        @test text_at(io, "#$(k)")[1] < width <= text_at(io, "row $(k)")[1]
+    end
+    # The corner sits in the header row, over the header column.
+    @test text_at(io, "corner")[2] == text_at(io, "name")[2]
+    @test text_at(io, "corner")[1] < width <= text_at(io, "name")[1]
+    # The header row and the cells start where the header column ends, and the
+    # table is as wide as it is offered.
+    @test Int(header_region(io).x) - Int(corner_region(io).x) == width
+    @test Int(cells_region(io).x) - Int(corner_region(io).x) == width
+    @test Int(io.output.w) == 600
+end
+
+@testset "the header column is as wide as the corner and as the header of the head row" begin
+    narrow = print_document(rec, nothing, make_headed_table(1000; corner = WidgetLabel("c")), context())
+    wide = print_document(rec, nothing, make_headed_table(1000; corner = WidgetLabel("a wide corner")),
+                          context())
+    @test Int(wide.state.header_width[]) > Int(narrow.state.header_width[])
+    # From row 1000 on, the header of the head row is wider than a short corner.
+    late = print_document(rec, nothing, make_headed_table(1000; at = 1000, corner = WidgetLabel("c")),
+                          context())
+    @test Int(late.state.header_width[]) > Int(narrow.state.header_width[])
+end
+
+@testset "a press on a row header selects its row, and a press on the corner the table" begin
+    io = print_document(rec, nothing, make_headed_table(1000), context())
+    (x, y) = text_at(io, "#2")
+    op = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0))
+    @test op.path.head.name == "rows" && row_of(op.path) == 2
+    (x, y) = text_at(io, "corner")
+    @test read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path == EmptyReference()
+end
+
+@testset "a reference reaches a row header and the corner, and a point maps back to them" begin
+    io = print_document(rec, nothing, make_headed_table(1000), context())
+    box_of(reference) = find_reference_box(io.output, map_reference_forward(io.projection, io, reference))
+    @test box_of(row_header_reference(3)).y == place(io, 3, 1)[2]
+    @test box_of(row_header_reference(3)).x < Int(io.state.header_width[])
+    @test box_of(corner_reference).x < Int(io.state.header_width[])
+    @test box_of(corner_reference).y < place(io, 1, 1)[2]
+    (x, y) = text_at(io, "#3")
+    @test compute_part_at_point(io, x + 2, y + 2) == row_header_reference(3)
+    (x, y) = text_at(io, "corner")
+    @test compute_part_at_point(io, x + 2, y + 2) == corner_reference
+end
+
+@testset "far from the head, the row headers move with the rows" begin
+    table = make_headed_table(10_000_000)
+    io = print_document(rec, nothing, table, context())
+    step = Int(head_of(io).value.h) + gap_of(io)
+    getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
+    op = wheel(io, -1)
+    moved = [get_wrapped_operation(o) for o in op.operations if o isa ReplaceViewStateOperation]
+    @test any(o -> o.reference.head.name == "row_headers", moved)
+    apply!(table, op)
+    @test table.rows.value[1].content == "row 301"
+    @test table.row_headers.value.content == "#301"
+    @test text_at(io, "#305")[2] == text_at(io, "row 305")[2]
+end
+
+@testset "row headers on a list need Fixed rows, and a corner needs both strips" begin
+    rows() = make_indexed_list(10, texts_of)
+    headers() = make_list_of(10, i -> WidgetLabel("#$(i)"))
+    @test_throws ErrorException print_document(rec, nothing, make_table(rows(); row_headers = headers()),
+                                               context())
+    lone_corner = make_table(rows(); corner = WidgetLabel("c"), row_policy = Fixed(20))
+    @test_throws ErrorException print_document(rec, nothing, lone_corner, context())
+    @test_throws ErrorException make_table(rows(); row_headers = Any["#1"])
+    @test_throws ErrorException WidgetTable(; column_headers = Any["a"], rows = Any[Any["x"]],
+                                            column_count = 1, corner = WidgetLabel("c"))
+end
+
 end
 end

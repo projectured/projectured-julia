@@ -39,7 +39,15 @@
 # **What a list needs.** An offered height, because a list has no extent to
 # size the table by. A width for every column that no cell decides, and rows
 # that are `Fixed` or as tall as their cells, as a `GridLayout` of a list
-# needs. No row headers.
+# needs. Row headers that are a list too, beside the rows, and then rows that
+# are `Fixed`, so the header column and the cells have the same rows.
+#
+# **The header column and the corner.** The header column is a third pane, a
+# grid of one column over the row headers, which scrolls with the `y` of the
+# offset. Its width is the widest of the corner and of the header of the head
+# row, because a column of a list takes a width that no walk decides. The
+# corner sits where the header row and the header column meet, and it is also
+# a floor for the height of the header row.
 
 # What the printer keeps for its readers: the panes of the parts, and the
 # edges of the columns in the coordinates of the rules.
@@ -53,6 +61,9 @@ struct WidgetTablePartsState
     header_height::Cell      # Int: the height of the header row, or 0 with no header
     edges::Cell              # Vector{Int}: the rule left of each column, and the last rule
     column_list::Bool        # whether the columns are a list, whose edges the cells place
+    row_header_pane::Any     # the IO map of the pane of the header column, or nothing
+    corner::Any              # the IO map of the corner, or nothing
+    header_width::Cell       # Int: the width of the header column, or 0 with no header column
 end
 
 """
@@ -75,8 +86,19 @@ function _check_table_parts(w::WidgetTable, height)
     height === nothing &&
         error("WidgetTable: a table whose rows are a list needs an offered height, ",
               "because a list has no extent to size it by")
-    isempty(w.row_headers) ||
-        error("WidgetTable: a table whose rows are a list draws no row headers")
+    headers = w.row_headers
+    headers isa ListNode || isempty(headers) ||
+        error("WidgetTable: a table whose rows are a list takes its row headers as a list")
+    if headers isa ListNode
+        policy = w.row_policy
+        (policy isa SizePolicy && policy.preferred !== nothing &&
+         (policy.weight === nothing || policy.weight == 0)) ||
+            error("WidgetTable: a table whose rows and row headers are lists needs a Fixed ",
+                  "row policy, so the header column and the cells have the same rows")
+    end
+    w.corner === nothing || (headers isa ListNode && _has_table_column_headers(w)) ||
+        error("WidgetTable: a corner sits where the header row and the header column meet, ",
+              "so it needs column headers and row headers")
     isempty(w.row_policies) ||
         error("WidgetTable: the rows of a list are all alike; name one row policy")
     nothing
@@ -167,18 +189,179 @@ function _read_cells_wheel(table, pane, x::Int, y::Int, evt::MouseScroll)
                                                    time = evt.time))
 end
 
+# ── The header column and the corner ─────────────────────────────────────────
+
+# Whether the table has a header row: a list of headers, or a vector with one.
+_has_table_column_headers(w::WidgetTable) =
+    w.column_headers isa ListNode || length(w.column_headers) > 0
+
+# The corner, printed at the size that it measures, or `nothing` for none.
+_print_table_corner(recursion, w::WidgetTable, inner) =
+    w.corner === nothing ? nothing :
+        print_child(recursion, w.corner,
+                    withhold_offer(withhold_offer(make_child_context(inner, FieldReferenceStep("corner")),
+                                                  :x), :y))
+
+# The node of a list that mirrors the headers of `header_node` as rows of one
+# cell, the form of a row of a grid. A node is built when a walk first reaches
+# it, so the header column reaches as far as the rows do.
+function _make_header_row_node(header_node::ListNode)
+    header = header_node.value
+    node = ListNode(CellVector(Cell[Cell(header === nothing ? _wt_empty_cell() : header)]))
+    set_cell_computation!(getfield(node, :next), () -> begin
+        following = header_node.next
+        following === nothing && return nothing
+        next_node = _make_header_row_node(following)
+        set_cell_value!(getfield(next_node, :prev), node)
+        next_node
+    end)
+    set_cell_computation!(getfield(node, :prev), () -> begin
+        preceding = header_node.prev
+        preceding === nothing && return nothing
+        prev_node = _make_header_row_node(preceding)
+        set_cell_value!(getfield(prev_node, :next), node)
+        prev_node
+    end)
+    node
+end
+
+# The pane of the header column, `height` tall, or `nothing` with no row
+# headers: a grid of one column over the row headers as rows of one cell, which
+# scrolls with the `y` of the offset. The column is as wide as `corner` and as
+# the header of the head row, which the grid measures once it prints.
+function _print_header_column(recursion, w::WidgetTable, inner, corner, height::Cell,
+                              pad_x::Int, pad_y::Int, bw::Int)
+    w.row_headers isa ListNode || return nothing
+    hgap = 2 * pad_x + bw
+    vgap = 2 * pad_y + bw
+    grid_iomap = Cell(nothing)
+    width = Cell(@computation begin
+        grid = grid_iomap[]
+        cell = grid === nothing ? nothing : find_grid_list_cell(grid, 1, 1)
+        max(_get_part_child_width(corner), cell === nothing ? 0 : _get_part_child_width(cell[3]))
+    end)
+    rows = Cell(@computation (headers = w.row_headers;
+                              headers isa ListNode ? _make_header_row_node(headers) : CellVector()))
+    grid = GridLayout(rows, Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(Symbol[]),
+                      Cell(@computation Fixed(width[])), getfield(w, :row_policy), Cell(Any[]),
+                      Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))
+    offset = getfield(w, :scroll_position)
+    pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
+                           Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
+    iomap = print_child(recursion, pane, with_exact_size(withhold_offer(inner, :x); height))
+    grid_iomap[] = iomap.content_iomap
+    iomap
+end
+
+# The band of the light or of the selection in row `k` of the header column:
+# the whole column for the table or for row `k`, and nothing else.
+function _get_header_column_band_span(named, k, st::WidgetTablePartsState)
+    named === nothing && return (0, 0)
+    shape, row, _ = named
+    (shape === :table || (shape === :row && row == k)) || return (0, 0)
+    (0, Int(st.header_width[]))
+end
+
+# The graphics of row `k` of the header column, in the coordinates of its rules:
+# the band of the header column, the bands of the light and of the selection of
+# its row, the rule above it, and the rule under the last row. `row_node` is the
+# node of the row that the grid placed.
+function _make_header_column_row_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
+                                          st::WidgetTablePartsState, k::Int, row_node::ListNode)
+    row = row_node.value
+    bw = st.bw
+    vgap = 2 * st.pad_y + bw
+    height = Cell(@computation Int32(Int(row.h) + vgap + (row_node.next === nothing ? bw : 0)))
+    band_height = Cell(@computation Int(row.h) + 2 * st.pad_y)
+    color = _get_state_color(p, w, :header_row)
+    divider = _get_state_stroke(p, w, :divider).color
+    bands = Any[_make_row_band(p, w, st, k, band_height, :light; span_of = _get_header_column_band_span),
+                _make_row_band(p, w, st, k, band_height, :selection; span_of = _get_header_column_band_span)]
+    elements = CellVector(@computation begin
+        h = Int(height[])
+        width = Int(st.header_width[])
+        out = Any[GraphicsRect(0, 0, width, h; color), bands..., GraphicsRect(0, 0, width, bw; color = divider)]
+        row_node.next === nothing && push!(out, GraphicsRect(0, h - bw, width, bw; color = divider))
+        out
+    end)
+    GraphicsCanvas(Cell(Int32(0)), Cell(@computation Int32(Int(row.y))), Cell(Int32(0)), height,
+                   elements, layout_none, true, Cell(nothing))
+end
+
+# The node of the graphics that mirrors `row_node`, the node of row `k` of the
+# header column, as `_make_row_graphics_node` mirrors the rows of the cells.
+function _make_header_column_graphics_node(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
+                                           st::WidgetTablePartsState, k::Int, row_node::ListNode)
+    node = ListNode(_make_header_column_row_graphics(p, w, st, k, row_node))
+    set_cell_computation!(getfield(node, :next), () -> begin
+        following = row_node.next
+        following === nothing && return nothing
+        next_node = _make_header_column_graphics_node(p, w, st, k + 1, following)
+        set_cell_value!(getfield(next_node, :prev), node)
+        next_node
+    end)
+    set_cell_computation!(getfield(node, :prev), () -> begin
+        preceding = row_node.prev
+        preceding === nothing && return nothing
+        prev_node = _make_header_column_graphics_node(p, w, st, k - 1, preceding)
+        set_cell_value!(getfield(prev_node, :next), node)
+        prev_node
+    end)
+    node
+end
+
+# The region of the header column, under the corner, or `nothing` with none.
+function _make_header_column_region(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
+                                    st::WidgetTablePartsState, content_x::Int, content_y::Int)
+    pane = st.row_header_pane
+    pane === nothing && return nothing
+    grid = pane.content_iomap
+    mirror = Cell(@computation begin
+        head = get_grid_list_head(grid)
+        head isa ListNode ? _make_header_column_graphics_node(p, w, st, 1, head) : CellVector()
+    end)
+    _make_part_region(pane, mirror; x = Cell(Int32(content_x)),
+                      y = Cell(@computation Int32(content_y + Int(st.header_height[]))),
+                      pad_x = st.pad_x, pad_y = st.pad_y, bw = st.bw, layout = layout_vertical)
+end
+
+# The region of the corner at the top left of the parts, as wide as the header
+# column and as tall as the header row: the band of the header row, the rule
+# above it, and the corner at the place of a header in the header row.
+function _make_corner_region(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::WidgetTablePartsState,
+                             content_x::Int, content_y::Int)
+    st.row_header_pane === nothing && return nothing
+    width = Cell(@computation Int32(Int(st.header_width[])))
+    height = Cell(@computation Int32(Int(st.header_height[])))
+    color = _get_state_color(p, w, :header_row)
+    divider = _get_state_stroke(p, w, :divider).color
+    corner = st.corner === nothing ? nothing :
+        GraphicsCanvas(Cell(Int32(st.bw + st.pad_x)), Cell(Int32(st.bw + st.pad_y)),
+                       getfield(st.corner.output, :w), getfield(st.corner.output, :h),
+                       CellVector(Cell[Cell(st.corner.output)]), layout_none, true, Cell(nothing))
+    elements = CellVector(@computation begin
+        out = Any[GraphicsRect(0, 0, Int(width[]), Int(height[]); color),
+                  GraphicsRect(0, 0, Int(width[]), st.bw; color = divider)]
+        corner === nothing || push!(out, corner)
+        out
+    end)
+    GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)), width, height, elements,
+                   layout_none, true, Cell(nothing))
+end
+
 # ── The graphics of the rows ─────────────────────────────────────────────────
 
 # What a reference names in a table of a list, as `(shape, row, column)`:
-# `(:table, 0, 0)` for `∅`, `(:row, k, 0)` for `rows[k]∅`, `(:cell, k, c)` for
-# `rows[k][c]∅` and `(:column, 0, c)` for `column_headers[c]∅`; `nothing` for
-# anything else. A row can have an index of 0 or less, before the head.
+# `(:table, 0, 0)` for `∅`, `(:row, k, 0)` for `rows[k]∅` and for its header
+# `row_headers[k]∅`, `(:cell, k, c)` for `rows[k][c]∅` and `(:column, 0, c)` for
+# `column_headers[c]∅`; `nothing` for anything else. A row can have an index of
+# 0 or less, before the head.
 function _find_named_part(reference)
     reference isa EmptyReference && return (:table, 0, 0)
     terminal = _wt_field_element_terminal(reference)
     if terminal !== nothing
         field, index = terminal
-        field == "rows" && return (:row, index, 0)
+        field in ("rows", "row_headers") && return (:row, index, 0)
         field == "column_headers" && return (:column, 0, index)
         return nothing
     end
@@ -252,11 +435,12 @@ end
 # header row for `k === nothing`, under the rule above it and `band_height`
 # tall. The light is the row or the column of the mouse target of the table. The
 # rect reads the reference itself, so a move of the selection or of the pointer
-# builds no row again.
+# builds no row again. `span_of` gives the left edge and the width of the band
+# in its part.
 function _make_row_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::WidgetTablePartsState,
-                        k, band_height::Cell, kind::Symbol)
+                        k, band_height::Cell, kind::Symbol; span_of = _get_band_span)
     reference() = kind === :light ? _find_wt_lit_reference(get_mouse_target(w)) : w.selection
-    span = Cell(@computation _get_band_span(_find_named_part(reference()), k, st))
+    span = Cell(@computation span_of(_find_named_part(reference()), k, st))
     color = kind === :light ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
     rect = GraphicsRect(0, 0, 0, 0; color, radius = p.row_radius)
     set_cell_computation!(getfield(rect, :x), () -> Int32(span[][1]))
@@ -346,6 +530,12 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
     offset = getfield(w, :scroll_position)
     # The width of every column, which the cells decide once they print.
     widths = Cell[Cell(0) for _ in 1:n]
+    # The corner first: it is a floor for the header row and the header column.
+    # The header row and the cells are offered the width beside the header
+    # column, which it decides once it prints.
+    corner = _print_table_corner(recursion, w, inner)
+    header_width = Cell(0)
+    beside = with_inner_size(inner; width = header_width)
 
     # The header row first: the cells read the width of each header.
     column_header_pane = nothing
@@ -353,12 +543,12 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
         headers = CellVector(Cell[Cell(c <= length(w.column_headers) && w.column_headers[c] !== nothing ?
                                        w.column_headers[c] : _wt_empty_cell()) for c in 1:n])
         grid = GridLayout(headers, Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
-                          Cell(aligns), Cell(Fixed(0)), Cell(Content),
+                          Cell(aligns), Cell(Fixed(0)), _get_header_row_policy(corner),
                           Cell(@computation Any[Fixed(Int(widths[c][])) for c in 1:n]),
                           Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
         header_offset = Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0))
         pane = _make_part_pane(grid, header_offset, Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
-        column_header_pane = print_child(recursion, pane, withhold_offer(inner, :y))
+        column_header_pane = print_child(recursion, pane, withhold_offer(beside, :y))
     end
     header_height = column_header_pane === nothing ? Cell(0) : Cell(@computation Int(column_header_pane.output.h))
 
@@ -369,16 +559,19 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
                       Cell(aligns), getfield(w, :column_policy), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
     cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
+    row_header_pane = _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw)
+    row_header_pane === nothing || set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
     cells_pane = print_child(recursion,
                              _make_part_pane(grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
-                             with_exact_size(inner; height = cells_height))
+                             with_exact_size(beside; height = cells_height))
     cells_grid = cells_pane.content_iomap
     for c in 1:n
         set_cell_computation!(widths[c], () -> Int(cells_grid.col_w[c][]))
     end
     edges = Cell(@computation compute_axis_offsets(Int[Int(cells_grid.col_w[c][]) for c in 1:n], hgap))
     st = WidgetTablePartsState(n, bw, pad_x, pad_y, column_header_pane, cells_pane, header_height, edges,
-                               false)
+                               false, row_header_pane, corner, header_width)
+    parts_x = Cell(@computation Int32(content_x + Int(header_width[])))
 
     # The graphics of the header row: its band, the bands of a lit or a
     # selected column, the rule above it, and the rule of every column.
@@ -400,8 +593,7 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
             out
         end)
         header_region = _make_part_region(column_header_pane, header_graphics;
-                                          x = Cell(Int32(content_x)), y = Cell(Int32(content_y)),
-                                          pad_x, pad_y, bw)
+                                          x = parts_x, y = Cell(Int32(content_y)), pad_x, pad_y, bw)
     end
     # The graphics of the rows mirror the rows that the grid placed. A new head
     # in `rows` builds them again, and no head is no rows.
@@ -409,21 +601,31 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
         head = get_grid_list_head(cells_grid)
         head isa ListNode ? _make_row_graphics_node(p, w, st, 1, head) : CellVector()
     end)
-    cells_region = _make_part_region(cells_pane, mirror; x = Cell(Int32(content_x)),
+    cells_region = _make_part_region(cells_pane, mirror; x = parts_x,
                                      y = Cell(@computation Int32(content_y + Int(header_height[]))),
                                      pad_x, pad_y, bw, layout = layout_vertical)
 
-    _make_table_list_iomap(p, w, st, header_region, cells_region)
+    _make_table_list_iomap(p, w, st, header_region, cells_region, content_x, content_y)
 end
 
+# The policy of the header row: as tall as its headers, and at least as tall as
+# the corner.
+_get_header_row_policy(corner) =
+    corner === nothing ? Cell(Content) :
+        Cell(@computation SizePolicy(_get_part_child_height(corner), nothing, nothing, 0))
+
 # The IO map of a table of a list: its canvas holds the box of the table, the
-# region of the header row and the region of the cells, and a transparent rect
-# the size of the table, so a press anywhere on it reaches the table through a
-# container that gates on a hit.
+# region of the corner and the region of the header column when there are row
+# headers, the region of the header row and the region of the cells, and a
+# transparent rect the size of the table, so a press anywhere on it reaches the
+# table through a container that gates on a hit.
 function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
-                                st::WidgetTablePartsState, header_region, cells_region)
+                                st::WidgetTablePartsState, header_region, cells_region,
+                                content_x::Int, content_y::Int)
     inset_width, inset_height = _inset_total(p, w)
-    table_w = Cell(@computation Int32(Int(st.cells_pane.output.w) + inset_width))
+    corner_region = _make_corner_region(p, w, st, content_x, content_y)
+    header_column_region = _make_header_column_region(p, w, st, content_x, content_y)
+    table_w = Cell(@computation Int32(Int(st.header_width[]) + Int(st.cells_pane.output.w) + inset_width))
     table_h = Cell(@computation Int32(Int(st.header_height[]) + Int(st.cells_pane.output.h) + inset_height))
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
     set_cell_computation!(getfield(hit_target, :w), () -> Int32(table_w[]))
@@ -433,6 +635,8 @@ function _make_table_list_iomap(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
     elements = CellVector(@computation begin
         out = Any[hit_target]
         _push_box_parts!(out, box, colors, Int(table_w[]) - inset_width, Int(table_h[]) - inset_height)
+        corner_region === nothing || push!(out, corner_region)
+        header_column_region === nothing || push!(out, header_column_region)
         header_region === nothing || push!(out, header_region)
         push!(out, cells_region)
         out
@@ -536,6 +740,11 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     content_x, content_y = _content_offset(p, w)
     offset = getfield(w, :scroll_position)
     width = Int(base.preferred)
+    # The corner first, and the width beside the header column, as in
+    # `_print_table_parts`.
+    corner = _print_table_corner(recursion, w, inner)
+    header_width = Cell(0)
+    beside = with_inner_size(inner; width = header_width)
     # The grid of the header row, once it prints: the policies read the width
     # of each header from it, and the header row its height.
     header_grid = Cell(nothing)
@@ -546,7 +755,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     header_row_policy = Cell(@computation begin
         grid = header_grid[]
         cell = grid === nothing ? nothing : find_grid_list_cell(grid, 1, 1)
-        Fixed(cell === nothing ? 0 : _get_part_child_height(cell[3]))
+        Fixed(max(_get_part_child_height(corner), cell === nothing ? 0 : _get_part_child_height(cell[3])))
     end)
     header_row = Cell(@computation (headers = w.column_headers;
                                     headers isa ListNode ? ListNode(headers) : CellVector()))
@@ -558,7 +767,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     # A grid of a list reports no height, so the pane is offered the height of
     # the row and of its own padding.
     header_offer = Cell(@computation Int32(Int(header_row_policy[].preferred) + bw + 2 * pad_y))
-    column_header_pane = print_child(recursion, pane, with_exact_size(inner; height = header_offer))
+    column_header_pane = print_child(recursion, pane, with_exact_size(beside; height = header_offer))
     header_grid[] = column_header_pane.content_iomap
     header_height = Cell(@computation Int(column_header_pane.output.h))
 
@@ -566,12 +775,15 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
                       getfield(w, :column_align), Cell(Fixed(width)), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))
     cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
+    row_header_pane = _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw)
+    row_header_pane === nothing || set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
     cells_pane = print_child(recursion,
                              _make_part_pane(grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
-                             with_exact_size(inner; height = cells_height))
+                             with_exact_size(beside; height = cells_height))
     cells_grid = cells_pane.content_iomap
     st = WidgetTablePartsState(0, bw, pad_x, pad_y, column_header_pane, cells_pane, header_height,
-                               Cell(Int[]), true)
+                               Cell(Int[]), true, row_header_pane, corner, header_width)
+    parts_x = Cell(@computation Int32(content_x + Int(header_width[])))
 
     # The graphics of the header row: its band, the bands of a lit or a
     # selected column, the rule above it, and the rules of its columns; and of
@@ -590,8 +802,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
             GraphicsRect(left, 0, row_width, bw; color = divider), header_rules]
     end)
     header_region = _make_part_region(column_header_pane, header_graphics;
-                                      x = Cell(Int32(content_x)), y = Cell(Int32(content_y)),
-                                      pad_x, pad_y, bw)
+                                      x = parts_x, y = Cell(Int32(content_y)), pad_x, pad_y, bw)
     mirror = Cell(@computation begin
         head = get_grid_list_head(cells_grid)
         head isa ListNode ? _make_row_graphics_node(p, w, st, 1, head) : CellVector()
@@ -602,10 +813,10 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     cells_rules = _make_column_rules(st, cells_grid, Cell(@computation -Int(content.y)),
                                      Cell(@computation Int(cells_pane.output.h)), divider)
     cells_region = _make_part_region(cells_pane, CellVector(Cell[Cell(rows), Cell(cells_rules)]);
-                                     x = Cell(Int32(content_x)),
+                                     x = parts_x,
                                      y = Cell(@computation Int32(content_y + Int(header_height[]))),
                                      pad_x, pad_y, bw)
-    _make_table_list_iomap(p, w, st, header_region, cells_region)
+    _make_table_list_iomap(p, w, st, header_region, cells_region, content_x, content_y)
 end
 
 # ── Places ───────────────────────────────────────────────────────────────────
@@ -619,9 +830,10 @@ end
 
 # The part under the point `(x, y)` of the table, as `(part, x, y)` with the
 # point in the coordinates of the rules of the part, which is `:header` or
-# `:cells`. A point on the margin, the border or the padding of the table is
-# moved into its parts, as every reader that maps a place to a row or a column
-# does. `nothing` outside the table.
+# `:cells`, or `:row_header` for the header column; for `:corner`, the point is
+# in the coordinates of the corner. A point on the margin, the border or the
+# padding of the table is moved into its parts, as every reader that maps a
+# place to a row or a column does. `nothing` outside the table.
 function _find_table_part_at(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                              x::Int, y::Int)
     st = iomap.state
@@ -630,8 +842,14 @@ function _find_table_part_at(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableL
     content_x, content_y = _content_offset(p, iomap.input)
     cells = st.cells_pane.output
     header_h = Int(st.header_height[])
-    local_x = clamp(x - content_x, 0, max(0, Int(cells.w) - 1))
+    header_w = Int(st.header_width[])
+    local_x = clamp(x - content_x, 0, max(0, header_w + Int(cells.w) - 1))
     local_y = clamp(y - content_y, 0, max(0, header_h + Int(cells.h) - 1))
+    if local_x < header_w
+        local_y < header_h && return (:corner, local_x - st.bw - st.pad_x, local_y - st.bw - st.pad_y)
+        return (:row_header, _get_rule_point(st, st.row_header_pane, local_x, local_y - header_h)...)
+    end
+    local_x -= header_w
     local_y < header_h && return (:header, _get_rule_point(st, st.column_header_pane, local_x, local_y)...)
     (:cells, _get_rule_point(st, st.cells_pane, local_x, local_y - header_h)...)
 end
@@ -659,9 +877,15 @@ end
 
 # The IO map of the cell in row `k` and column `c`, and the place of its canvas
 # in the coordinates of the rules; `nothing` for a row past an end or an empty
-# cell.
-function _find_table_cell(st::WidgetTablePartsState, k::Int, c::Int)
-    grid = st.cells_pane.content_iomap
+# cell. The header of row `k` is the cell in row `k` and column 1 of the pane of
+# the header column.
+_find_table_cell(st::WidgetTablePartsState, k::Int, c::Int) = _find_part_cell(st, st.cells_pane, k, c)
+
+_find_table_row_header(st::WidgetTablePartsState, k::Int) =
+    st.row_header_pane === nothing ? nothing : _find_part_cell(st, st.row_header_pane, k, 1)
+
+function _find_part_cell(st::WidgetTablePartsState, pane, k::Int, c::Int)
+    grid = pane.content_iomap
     found = find_grid_list_row(grid, k)
     found === nothing && return nothing
     row = found[1]
@@ -715,8 +939,9 @@ end
 # Forward: `rows[k][c].…` is the answer of the pane of the cells for
 # `children[k][c].…`, once row `k` is built, and `column_headers[c].…` is the
 # answer of the pane of the header row for `children[c].…`, or for
-# `children[1][c].…` when the columns are a list. The table itself is its own
-# canvas. A whole row has no node of its own, because its band is drawn in the
+# `children[1][c].…` when the columns are a list. `row_headers[k].…` is the
+# answer of the pane of the header column for `children[k][1].…`, and
+# `corner.…` the answer of the corner. The table itself is its own canvas. A whole row has no node of its own, because its band is drawn in the
 # graphics of the rows, so it has no image.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, reference)
     reference isa Reference || return nothing
@@ -735,13 +960,26 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
     elseif head.name == "rows"
         _wt_cell_split(reference) === nothing && return nothing
         return _map_part_forward(iomap, st.cells_pane, reference.tail)
+    elseif head.name == "row_headers"
+        st.row_header_pane === nothing && return nothing
+        tail = reference.tail
+        (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
+        return _map_part_forward(iomap, st.row_header_pane,
+                                 ConcreteReference(tail.head, ConcreteReference(RangeReferenceStep(0, 1), tail.tail)))
+    elseif head.name == "corner"
+        st.corner === nothing && return nothing
+        image = map_reference_forward(st.corner.projection, st.corner, reference.tail)
+        image === nothing && return nothing
+        outer = find_node_reference(iomap.output, unwrap_cell(st.corner.output))
+        return outer === nothing ? nothing : concat_references(outer, image)
     end
     nothing
 end
 
-# Backward: a point maps to the column header or the cell at it, the reference
-# that an Alt+click there selects. A path into the canvas of a list names a row
-# by no fixed index, so it maps to no path into the table.
+# Backward: a point maps to the corner, the row header, the column header or
+# the cell at it, the reference that an Alt+click there selects. A path into the
+# canvas of a list names a row by no fixed index, so it maps to no path into the
+# table.
 function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                 reference)
     point = find_reference_point(reference)
@@ -750,6 +988,12 @@ function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTab
     found === nothing && return nothing
     part, x, y = found
     st = iomap.state
+    part === :corner && return ConcreteReference(FieldReferenceStep("corner"), EmptyReference())
+    if part === :row_header
+        k = _find_table_row_at(st, y)
+        return k === nothing ? nothing : ConcreteReference(FieldReferenceStep("row_headers"),
+            ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))
+    end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     part === :header && return _wt_col_ref(c)
@@ -774,16 +1018,25 @@ function _read_table_cell_press(st::WidgetTablePartsState, k::Int, c::Int, g::Mo
     reroot_operation(op, _wt_get_cell_steps(k, c))
 end
 
-# A left press: a header selects its column; in the cells, an Alt+press
-# selects the cell, and a plain press goes to the cell. A cell that declines
-# it — a label has nothing to say to one — leaves it to the row, and the row
-# is selected: a table of text is a table of rows.
+# A left press: a header selects its column, and a row header its row; the
+# corner takes the press, and a press that it declines selects the table; in
+# the cells, an Alt+press selects the cell, and a plain press goes to the cell.
+# A cell that declines it — a label has nothing to say to one — leaves it to
+# the row, and the row is selected: a table of text is a table of rows.
 function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  g::MouseClick)
     st = iomap.state
     found = _find_table_part_at(p, iomap, g.x, g.y)
     found === nothing && return nothing
     part, x, y = found
+    if part === :corner
+        op = _read_table_corner(st, MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time))
+        return op === nothing ? ReplaceSelectionOperation(EmptyReference()) : op
+    end
+    if part === :row_header
+        k = _find_table_row_at(st, y)
+        return k === nothing ? nothing : ReplaceSelectionOperation(_wt_row_ref(k))
+    end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     part === :header && return ReplaceSelectionOperation(_wt_col_ref(c))
@@ -800,7 +1053,8 @@ end
 function _read_table_parts_wheel(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  evt::MouseScroll)
     content_x, content_y = _content_offset(p, iomap.input)
-    scroll = _read_cells_wheel(iomap.output, iomap.state.cells_pane, content_x,
+    scroll = _read_cells_wheel(iomap.output, iomap.state.cells_pane,
+                               content_x + Int(iomap.state.header_width[]),
                                content_y + Int(iomap.state.header_height[]), evt)
     _add_top_row(iomap, scroll)
 end
@@ -823,7 +1077,7 @@ end
 # A scroll of the cells, and the write of the row at the top of the offset it
 # writes when that row changes. When the row is more than
 # `_TABLE_RELOCATION_DISTANCE` rows from the head, the answer moves the head of
-# `rows` to it instead, and moves the offset by the place of that row, so the
+# `rows`, and of `row_headers` when they are a list, to it instead, and moves the offset by the place of that row, so the
 # same row stays at the same place on the screen; a selection of a row moves
 # with it. A projection that owns the rows turns the write of `rows` into an
 # edit of its own.
@@ -847,6 +1101,9 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
     moved = Any[_write_view_state(w, "rows", head),
                 _write_view_state(w, "scroll_position", Point2D(x, y - Int(found[1].y))),
                 _write_view_state(w, "top_row", 1)]
+    # The row headers move in step with the rows.
+    header = _find_list_node(w.row_headers, k)
+    header === nothing || push!(moved, _write_view_state(w, "row_headers", header))
     selection = _shift_row_reference(w.selection, k - 1)
     selection === w.selection || push!(moved, ReplaceSelectionOperation(selection))
     CompoundOperation(moved)
@@ -1009,9 +1266,10 @@ function _enter_table_cell(st::WidgetTablePartsState, k::Int, c::Int)
 end
 
 # A press of another button than the left, a button down, a button up or a dwell
-# goes to the cell under it, a header as well as a body cell, in the coordinates of
-# the cell, and its answer is rooted under the cell. For a dwell and a right click
-# the table then reads its own stretch (`read_container_gesture`).
+# goes to the cell under it, a header, a row header or the corner as well as a
+# body cell, in the coordinates of the cell, and its answer is rooted under the
+# cell. For a dwell and a right click the table then reads its own stretch
+# (`read_container_gesture`).
 function _read_table_point_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
     found = _read_table_point_cell(p, iomap, event)
     found === nothing && return read_container_gesture(nothing, event, iomap.input)
@@ -1026,6 +1284,24 @@ function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
     found = _find_table_part_at(p, iomap, Int(event.x), Int(event.y))
     found === nothing && return nothing
     part, x, y = found
+    if part === :corner
+        st.corner === nothing && return nothing
+        local_event = _wt_translate_event(event, x, y)
+        local_event === nothing && return nothing
+        steps = (FieldReferenceStep("corner"),)
+        return (reroot_operation(_wt_read_cell_event(st.corner, event, local_event), steps), steps)
+    end
+    if part === :row_header
+        k = _find_table_row_at(st, y)
+        k === nothing && return nothing
+        cell = _find_table_row_header(st, k)
+        cell === nothing && return nothing
+        cim, left, top = cell
+        local_event = _wt_translate_event(event, x - left, y - top)
+        local_event === nothing && return nothing
+        steps = (FieldReferenceStep("row_headers"), RangeReferenceStep(k - 1, k))
+        return (reroot_operation(_wt_read_cell_event(cim, event, local_event), steps), steps)
+    end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     cell, steps = if part === :header
@@ -1043,15 +1319,26 @@ function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
 end
 
 # An event that is not a gesture of the table goes to the cell that the
-# selection is in, and its answer is rooted under that cell.
+# selection is in, or to the corner, and its answer is rooted under it.
 function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, event)
-    prefix = _wt_cell_prefix(w.selection)
+    selection = w.selection
+    (selection isa ConcreteReference && selection.head isa FieldReferenceStep &&
+     selection.head.name == "corner") && return _read_table_corner(st, event)
+    prefix = _wt_cell_prefix(selection)
     prefix === nothing && return nothing
     k, c = prefix
     found = _find_table_cell(st, k, c)
     found === nothing && return nothing
     cim = found[1]
     reroot_operation(read_intent(cim.projection, cim, event), _wt_get_cell_steps(k, c))
+end
+
+# An event for the corner, in its coordinates, read by the corner and rooted
+# under `corner`; `nothing` with no corner or when it has nothing to say.
+function _read_table_corner(st::WidgetTablePartsState, event)
+    cim = st.corner
+    cim === nothing && return nothing
+    reroot_operation(read_intent(cim.projection, cim, event), (FieldReferenceStep("corner"),))
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
