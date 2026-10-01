@@ -622,7 +622,27 @@ the pixels and the test counts of the baseline of S0.
   the prose. Check omnet-julia and inet-julia again (none on 2026-10-01).
   - Tests: `test_appearance_wrapper()`, the kernel tests of the build, and the
     tests of the `tabs` wrapper give the counts of S0.
-- [ ] **S1. The slice `settings`** (4.2, 4.6, 4.7). `SettingsGroup`, `@settings`,
+- [x] **S1. The slice `settings`** (4.2, 4.6, 4.7). Done on 2026-10-01:
+  `test_settings()` with the two guards of the slices, 77 pass; the naming
+  guard and the documentation guard pass. The slice is
+  `source/platform/settings/`, included after `domain`, with no edge to another
+  slice; `documentation/package/platform/settings/settings.md` describes it.
+  What the work decided inside D3, D4 and D9:
+  - **The docstring of a setting is `"Label: text"`.** The label names the row
+    of the tab, and the text is its tooltip. A docstring of another form is an
+    error of the macro, so every setting has both.
+  - **The list of the group types is the method table** of
+    `get_setting_descriptions`, as the wrappers of `build_editor` are found by
+    their method tables (`compute_loaded_settings_types`). `make_settings(groups...)`
+    holds the given groups and the default group of each other loaded type, so a
+    `Settings` that a wrapper makes has every group without a table of names.
+  - `apply_settings_to_editor!(editor, group)` applies a group to the editor and
+    to its backend; `ApplySettingOperation`, the start step and the load call it.
+  - `is_settings_target` compares the signature of the method that applies, so
+    it needs no stored method.
+  - `is_settings_group(settings, document)` answers whether a document is a
+    group of a `Settings`, for the wrapper of S7.
+  The plan of S1 continues: `SettingsGroup`, `@settings`,
   `SettingDescription`, `Settings` with its lookup by type, `apply_settings!`,
   `is_settings_target`, and `ApplySettingOperation` with its evaluation, its
   check, its inverse and its description.
