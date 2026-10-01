@@ -1,12 +1,7 @@
-# A backend's public surface is the generic it extends, not the helper behind
-# it: `BackendModule.render_canvas`, `decode_image` and `get_display_size` are
-# how a caller reaches this backend. The offscreen renderer is public as well,
-# because `ProjecturedVideo` records its frames with it.
-export SdlBackend,
-       write_image, GraphicsCanvasToImageFile,
-       open_offscreen_renderer, close_offscreen_renderer, write_offscreen_frames!,
-       make_offscreen_paint_state, render_offscreen_changes!,
-       write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!
+# Fragment of `SdlModule` — `SdlBackend`: a native window for each window
+# document, drawn with the renderer of SDL and SDL_ttf, the keyboard and the
+# mouse, and the offscreen renderer that writes images and the frames of a
+# video.
 
 # Xlib reads its locale data from the folder that its build named, and that
 # folder exists only on the machine that built `Xorg_libX11_jll`. Without the
@@ -3284,12 +3279,12 @@ function print_document(p::GraphicsCanvasToImageFile,
     SimpleIoMap(p, canvas, output)
 end
 
-function ProjecturedKernel.ProjectionModule.map_reference_forward(
+function map_reference_forward(
         ::GraphicsCanvasToImageFile, iomap, reference)
     nothing
 end
 
-function ProjecturedKernel.ProjectionModule.map_reference_backward(
+function map_reference_backward(
         ::GraphicsCanvasToImageFile, iomap, reference)
     nothing
 end

@@ -1,4 +1,5 @@
-export WebBackend, convert_web_key_to_symbol, get_web_asset_directory
+# Fragment of `WebModule` — `WebBackend`: the HTTP and WebSocket server, the
+# drawing of each window as JSON, and the input of the browser.
 
 # ════════════════════════════════════════════════════════════════════════
 # Connection + backend state

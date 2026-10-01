@@ -62,7 +62,7 @@ gesture log below a file.
 
 The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
-(`ProjecturedVideo._encode_frames_to_video!`), then discarded.
+(`ProjecturedVideo.encode_frames_to_video!`), then discarded.
 """
 function record_application_video(paths::AbstractVector, timeline::AbstractVector,
                                   filename::AbstractString;
@@ -104,7 +104,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
             start_application!(editor; assistant, model)
             run_editor!(editor)
         end
-        _encode_frames_to_video!(backend.frames_dir, filename, fps)
+        encode_frames_to_video!(backend.frames_dir, filename, fps)
     finally
         rm(backend.frames_dir; force = true, recursive = true)
     end

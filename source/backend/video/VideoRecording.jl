@@ -1,4 +1,6 @@
-export record_video, _encode_frames_to_video!
+# Fragment of `VideoModule` — `record_video`, which plays a document and its
+# gestures into a video file, and `encode_frames_to_video!`, which encodes the
+# frames of every recorder.
 
 # A minimal mutable editor stand-in for `evaluate_operation`, mirroring the test
 # harness's `_ReplEditor`: an operation such as `ReplaceDocumentOperation` may
@@ -187,7 +189,7 @@ function record_video(document, projection; gestures::AbstractVector,
         frame[] == 0 &&
             error("record_video: no frames produced (gestures empty and initial_hold/final_hold ≈ 0)")
 
-        _encode_frames_to_video!(tmpdir, filename, fps)
+        encode_frames_to_video!(tmpdir, filename, fps)
     finally
         close_offscreen_renderer(off)
         rm(tmpdir; force=true, recursive=true)
@@ -195,14 +197,15 @@ function record_video(document, projection; gestures::AbstractVector,
     filename
 end
 
-# Exported (despite the underscore) the same way ProjecturedSdl exports
-# `open_offscreen_renderer` / `write_offscreen_frames!`: `VideoBackend` writes its own
-# frames one at a time rather than through `record_video`'s loop, but ends a
-# recording the same way — assembling `frames_dir`'s `frame_%06d.png` files
-# (as `write_offscreen_frames!` names them) into `filename` at `fps` frames per second.
-# One ffmpeg call for every recorder in this package, so a codec or pixel-format
-# change is made once.
-function _encode_frames_to_video!(frames_dir::AbstractString, filename::AbstractString,
+"""
+    encode_frames_to_video!(frames_dir, filename, fps) -> nothing
+
+Encode the frames `frame_000001.png` and on in `frames_dir`, as
+`write_offscreen_frames!` names them, into the video `filename` at `fps` frames
+per second. `record_video` and `VideoBackend` end a recording with it, so a
+codec or a pixel format is chosen in one place.
+"""
+function encode_frames_to_video!(frames_dir::AbstractString, filename::AbstractString,
                                   fps::Integer)
     pattern = joinpath(frames_dir, "frame_%06d.png")
     # Build the command from a string vector: a backtick literal would reject

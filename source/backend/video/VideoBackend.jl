@@ -1,4 +1,4 @@
-# Fragment of `ProjecturedVideo` — `VideoBackend`, a headless `Backend` that
+# Fragment of `VideoModule` — `VideoBackend`, a headless `Backend` that
 # plays a scripted timeline through the real editor loop (`run_editor!`)
 # instead of a native window, so a recording carries every tool the loop
 # offers — the menu, the toolbar, the tabs, the assistant — rather than one
@@ -498,5 +498,3 @@ function _select_window(backend::VideoBackend, screen::ScreenDocument)
     end
     nothing
 end
-
-export VideoBackend

@@ -1,60 +1,34 @@
 """
     ProjecturedVideo
 
-Opt-in package: headless video recording (`record_video`, `VideoBackend`). This is the
-only thing that pulls `FFMPEG`, so it lives here rather than in `ProjecturedSdl` —
-desktop-editor and screenshot users (`Projectured` + `ProjecturedSdl`) don't carry FFMPEG.
+Video recording, a package of its own because it needs FFMPEG, which no editor
+or screenshot carries. `using ProjecturedVideo` gives `record_video` and
+`VideoBackend`; the slice is `VideoModule`, in `source/backend/video/`.
 
-`record_video` reuses `ProjecturedSdl`'s offscreen renderer to rasterise each frame
-(`open_offscreen_renderer` / `write_offscreen_frames!` / `close_offscreen_renderer`), then shells
-out to `ffmpeg` (via `FFMPEG.jl`) to encode the frames into an `.mp4`. The
-`record_video` *generic* is the kernel `BackendModule` seam (re-exported by the
-`Projectured` umbrella); this package adds the method.
-
-`VideoBackend` is a `Backend` over the same offscreen renderer, for a caller that wants
-a scripted timeline played through the real `run_editor!` loop — every tool the loop
-offers, not one projection printed by hand — rather than `record_video`'s own loop.
-
-Usage: `using Projectured, ProjecturedSdl, ProjecturedVideo;
-record_video(doc, proj; gestures, filename = "out.mp4")`.
+The loop below binds every submodule of the kernel and the platform as a
+`const`, so a source file here names a module exactly as the module names
+itself.
 """
 module ProjecturedVideo
 
 using ProjecturedKernel
 using ProjecturedPlatform
-using ProjecturedSdl
-import FFMPEG
 
-using ProjecturedKernel.BackendModule: Backend
-using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon,
-       GraphicsRect, GraphicsText
-using ProjecturedPlatform.StyleModule: StyleColor, color_black, color_white,
-       color_transparent, color_solarized_orange, color_solarized_red,
-       font_dejavu_monospace_bold_16
-using ProjecturedKernel.ProjectionModule: print_document, read_intent
-using ProjecturedKernel.OperationModule: evaluate_operation
-using ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
-using ProjecturedKernel.ProjectionModule: PrinterContext
-using ProjecturedKernel.CellModule: Cell
-using ProjecturedKernel.ClockModule: Clock, set_clock_time!
-using ProjecturedKernel.ReferenceModule: EmptyReference
-using ProjecturedKernel.EventModule: WindowInput, WindowQuit,
-       MouseDown, MouseUp, MouseMove, MouseScroll
-using ProjecturedKernel.GestureModule: MouseClick
-using ProjecturedPlatform.ScreenModule: ScreenDocument, WindowDocument
+for _src in (ProjecturedKernel, ProjecturedPlatform)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
 
-import ProjecturedSdl: open_offscreen_renderer, close_offscreen_renderer, write_offscreen_frames!,
-                       make_offscreen_paint_state, render_offscreen_changes!,
-                       write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!
-# `SdlBackend` itself is already in scope via the bare `using ProjecturedSdl` above.
+include("../../../source/backend/video/VideoModule.jl")
 
-# Imported to extend: this package adds a method to each of these.
-import ProjecturedKernel.BackendModule: record_video, initialize_backend!, quit_backend!,
-       write_to_devices, read_from_devices, wait_for_input, get_pointer_position,
-       get_display_size
-import ProjecturedKernel.EditorModule: get_frame_clock_time
-
-include("../../../source/backend/video/Video.jl")
-include("../../../source/backend/video/VideoBackend.jl")
+# A person loads this package by name, so its names are exported here.
+using .VideoModule: record_video, encode_frames_to_video!, VideoBackend
+export record_video, encode_frames_to_video!, VideoBackend
 
 end # module ProjecturedVideo

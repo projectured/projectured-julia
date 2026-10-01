@@ -3,7 +3,7 @@
 # the queue, waits and wakes. One test starts the server on a free port of
 # 127.0.0.1, connects a WebSocket client and stops the server at the end.
 
-const _WEB = ProjecturedWeb
+const _WEB = ProjecturedWeb.WebModule
 
 # The page sends the time of each event as `t`, in milliseconds: 1.5 s here.
 const _WEB_ESCAPE_MESSAGE =

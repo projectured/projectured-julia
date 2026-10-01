@@ -1,7 +1,7 @@
 function test_dirty_rect()
 @testset "dirty-rectangle analysis" begin
 
-SDL = ProjecturedSdl   # the SDL backend module (provides SdlWindowResources + _compute_dirty_rect)
+SDL = ProjecturedSdl.SdlModule   # the SDL backend slice (provides SdlWindowResources + _compute_dirty_rect)
 
 # A bare resource record is enough for `_compute_dirty_rect`: it only reads
 # `width`/`height`/`ratio`/`dirty_bounds`/`painted` and never touches the (null)

@@ -78,9 +78,31 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
       `GraphicsCanvasToPdfFile`. Tests: the console backend, the PDF writer,
       the export collisions, the layering guard of the platform (which checks
       Console and Pdf): 198 pass.
-- [ ] **Step 2, sdl, web and video.** A module file for each, the imports out of
+- [x] **Step 2, sdl, web and video.** A module file for each, the imports out of
       the package entries; the private names of §2 get public names or stay
       inside one module.
+      Done in three parts. (a) The three bounds helpers of the graphics slice
+      took four `Ref`s each; they are one public accumulator, `ContentBounds`,
+      with `extend_content_bounds!`, `extend_element_bounds!`,
+      `extend_canvas_bounds!` and `get_content_box` (`3f8da6fdc`); SDL passes
+      one through its walk, and Web drops its own copy of the same box. (b)
+      The seven offscreen functions of SDL that Video uses are public
+      (`cc420e5f7`): the handle holds the logical size, so no call passes it
+      again, and the arguments past the third are keywords (the argument
+      rule). `_encode_frames_to_video!` is `encode_frames_to_video!`. (c) The
+      module files: the guard wants bare module imports, so each module has
+      `using ..KernelModule`, `using ..PlatformModule`, its third-party
+      packages, and `import` of exactly the names it extends (two qualified
+      extensions of SDL that named `ProjecturedKernel` became imports). The
+      kernel's `write_image` is exported by the package entry, not by the
+      module, which only extends it. White-box tests reach the internals
+      through `ProjecturedSdl.SdlModule` and `ProjecturedWeb.WebModule`.
+      **Found on the way:** `ApplicationVideoTest.jl:244` failed on `main`
+      since the fold put the application in the platform: its way to break a
+      paint (a JSON object with a foreign child) no longer fails, because the
+      natural renderer reflects a child that the closed JSON chain refused. The
+      test breaks a cell instead, which fails in every renderer (`3e2d4771a`).
+      Tests: the SDL, Video, Web and builder suites, 1,173 pass.
 - [ ] **Step 3, the six adapters.** A module file for each.
 - [ ] **Step 4, the guard.** Every slice folder of `source/` outside the kernel
       holds one file that declares a module, the other files declare none, and

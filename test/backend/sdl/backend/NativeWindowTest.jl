@@ -28,7 +28,7 @@ function test_native_window()
 
     # The document carries the size the window really has, whether the manager
     # granted what it was asked for or less.
-    granted = ProjecturedSdl._native_window_size(resource)
+    granted = ProjecturedSdl.SdlModule._native_window_size(resource)
     @test (window.width, window.height) == granted
     @test (resource.width, resource.height) == granted
 
@@ -53,7 +53,7 @@ function test_native_window()
 end
 
 @testset "a window the reconciler opens is painted before it is shown" begin
-    SDL = ProjecturedSdl
+    SDL = ProjecturedSdl.SdlModule
 
     backend = SdlBackend()
     initialize_backend!(backend)
@@ -155,7 +155,7 @@ end
         # A move at the point of the pointer follows the frame, in the window
         # under the pointer, and none when the pointer is on no window of the
         # backend. The pointer of the display is where the person left it.
-        pointed = ProjecturedSdl._find_pointer_window(backend)
+        pointed = ProjecturedSdl.SdlModule._find_pointer_window(backend)
         motion = backend.pending_motion
         @test pointed === nothing ? motion === nothing :
               motion.window_id === pointed && motion.event isa MouseMove
@@ -164,7 +164,7 @@ end
 end
 
 @testset "a window with a maximum fits what it printed" begin
-    SDL = ProjecturedSdl
+    SDL = ProjecturedSdl.SdlModule
     fit(canvas_width, canvas_height; minimum_size, maximum_size) = begin
         window = WindowDocument(; id = :fit_test, title = "fit_test", x = 0, y = 0,
                                   width = maximum_size[1], height = maximum_size[2],
@@ -193,7 +193,7 @@ end
 end
 
 @testset "such a window stays on the screen, and beside the pointer" begin
-    place = ProjecturedSdl.compute_window_place
+    place = ProjecturedSdl.SdlModule.compute_window_place
     area = (area_width = 1000, area_height = 800)
 
     # Inside the work area, wherever it was asked for.
@@ -210,7 +210,7 @@ end
 @testset "a tooltip goes beside the pointer, and a popup stays under it" begin
     # The pointer goes into a popup to choose, so only a tooltip moves away from
     # it. The test reads the real pointer and never moves it.
-    SDL = ProjecturedSdl
+    SDL = ProjecturedSdl.SdlModule
     backend = SdlBackend()
     initialize_backend!(backend)
     (px, py) = get_pointer_position(backend)
@@ -232,7 +232,7 @@ end
     # A window manager can put a window elsewhere than asked, and a person can move
     # it. The document takes that place, so a popup opens at the window; a place
     # the document asks for itself still moves the window.
-    LibSDL2 = ProjecturedSdl.SimpleDirectMediaLayer.LibSDL2
+    LibSDL2 = ProjecturedSdl.SdlModule.SimpleDirectMediaLayer.LibSDL2
     backend = SdlBackend()
     initialize_backend!(backend)
     canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)

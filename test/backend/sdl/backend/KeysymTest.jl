@@ -13,14 +13,14 @@ function test_sdl_keysym()
     # The keysym of a letter key is the code of its lower-case letter.
     @testset "every letter key has the name of its letter" begin
         for (keysym, letter) in zip(97:122, 'a':'z')
-            @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(keysym)) === Symbol(letter)
+            @test ProjecturedSdl.SdlModule.sdl_keysym_to_symbol(Int32(keysym)) === Symbol(letter)
         end
     end
 
     # The same table through the constructor of the event that the poll calls.
     @testset "sdl_to_keydown names every letter key by its letter" begin
         for (keysym, letter) in zip(97:122, 'a':'z')
-            event = ProjecturedSdl.sdl_to_keydown(Int32(keysym), UInt16(0), false;
+            event = ProjecturedSdl.SdlModule.sdl_to_keydown(Int32(keysym), UInt16(0), false;
                                                   time = 0.0)
             @test event == KeyDown(Symbol(letter), ModifierKeys(); time = 0.0)
         end
@@ -29,7 +29,7 @@ function test_sdl_keysym()
     # The precompile recording presses keys by name. A name that no backend reports
     # matches no binding, so the code behind that key is not in the recording.
     @testset "every key the precompile recording presses is one SDL reports" begin
-        reported = Set(ProjecturedSdl.sdl_keysym_to_symbol(Int32(keysym))
+        reported = Set(ProjecturedSdl.SdlModule.sdl_keysym_to_symbol(Int32(keysym))
                        for keysym in Iterators.flatten((0:255, 1073741824:1073742106)))
         driver = joinpath(@__DIR__, "..", "..", "..", "..", "source", "tool", "repl", "record",
                           "driver.jl")
@@ -45,7 +45,7 @@ function test_sdl_keysym()
     # backend builds for that chord.
     @testset "the command palette pattern matches the event SDL builds" begin
         # SDL modifier bits: KMOD_LCTRL = 0x0040, KMOD_LSHIFT = 0x0001.
-        event = ProjecturedSdl.sdl_to_keydown(Int32(112), UInt16(0x0040 | 0x0001), false;
+        event = ProjecturedSdl.SdlModule.sdl_to_keydown(Int32(112), UInt16(0x0040 | 0x0001), false;
                                                 time = 0.0)
         @test event.key === :p
         @test is_command_palette_gesture(event)
@@ -53,7 +53,7 @@ function test_sdl_keysym()
 
     @testset "the undo pattern matches the event SDL builds for Ctrl+Z" begin
         # SDL modifier bit: KMOD_LCTRL = 0x0040.
-        event = ProjecturedSdl.sdl_to_keydown(Int32(122), UInt16(0x0040), false;
+        event = ProjecturedSdl.SdlModule.sdl_to_keydown(Int32(122), UInt16(0x0040), false;
                                               time = 0.0)
         @test event.key === :z
         projection = UndoBufferToAnyProjection()

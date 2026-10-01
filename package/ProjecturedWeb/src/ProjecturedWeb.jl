@@ -1,44 +1,34 @@
 """
-    Web
+    ProjecturedWeb
 
-Opt-in package: the HTTP/WebSocket web backend (browser-rendered editor). Depends
-on `ProjecturedKernel`, `ProjecturedPlatform` + HTTP/JSON3; `using ProjecturedWeb`
-exports `WebBackend` (construct it directly). SDL-free — reuses the pure-Julia
-TrueType text metrics.
+The web backend, a package of its own because it needs HTTP and JSON3.
+`using ProjecturedWeb` gives `WebBackend`; the slice is `WebModule`, in
+`source/backend/web/`.
+
+The loop below binds every submodule of the kernel and the platform as a
+`const`, so a source file here names a module exactly as the module names
+itself.
 """
 module ProjecturedWeb
 
 using ProjecturedKernel
 using ProjecturedPlatform
 
-using HTTP
-using JSON3
-using Base64: base64encode
+for _src in (ProjecturedKernel, ProjecturedPlatform)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        # Every submodule of a Projectured package this source binds: the ones it
+        # defines, and the ones it re-aliases from a package below it.
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
 
-# The backend contract (PAR-QUALIFIED-EXTENSION): bare `using`, extended by
-# qualification below. A bare `using` of an alias binds the module's *real*
-# name, so the extension sites read BackendModule.*.
-using ProjecturedKernel.BackendModule
-import ProjecturedKernel.EditorModule: get_backend_name, get_backend_output
-import ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
-                         GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
-                         GraphicsViewport, GraphicsImage, GraphicsFence,
-                         ContentBounds, get_content_box, extend_content_bounds!,
-                         extend_canvas_bounds!, extend_element_bounds!, tessellate_spline
-import ProjecturedPlatform.CollectionModule: ListNode, CellVector
-import ProjecturedPlatform.StyleModule: StyleColor
-import ProjecturedPlatform.StyleModule: AffineTransform, affine_identity
-import ProjecturedPlatform.StyleModule: StyleFont, font_logical_size, compute_text_extent,
-                                    compute_caret_offsets, FontFileMeasure, get_fallback_font_files
-import ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
-import ProjecturedKernel.DocumentModule: is_view_state_field
-import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
-                               WindowQuit, WindowClose, WindowResize, WindowDefocus,
-                               WindowLeave
-import ProjecturedPlatform.ScreenModule: ScreenDocument, WindowDocument
-import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
-import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll
+include("../../../source/backend/web/WebModule.jl")
 
-include("../../../source/backend/web/Web.jl")
+# A person loads this package by name, so its names are exported here.
+using .WebModule: WebBackend, get_web_asset_directory, convert_web_key_to_symbol
+export WebBackend, get_web_asset_directory, convert_web_key_to_symbol
 
-end # module Web
+end # module ProjecturedWeb

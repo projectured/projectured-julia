@@ -79,14 +79,14 @@ end
 end
 
 @testset "GraphicsCanvasToImageFile maps references with the projection generics" begin
-    # The methods extend the generics of the projection layer: the package holds
+    # The methods extend the generics of the projection layer: the slice holds
     # no function of its own under these names.
     for name in (:map_reference_forward, :map_reference_backward)
         generic = getfield(Projectured.ProjectionModule, name)
         method = which(generic, Tuple{GraphicsCanvasToImageFile, Any, Any})
-        @test method.module === ProjecturedSdl
-        @test !isdefined(ProjecturedSdl, name) ||
-              getfield(ProjecturedSdl, name) === generic
+        @test method.module === ProjecturedSdl.SdlModule
+        @test !isdefined(ProjecturedSdl.SdlModule, name) ||
+              getfield(ProjecturedSdl.SdlModule, name) === generic
     end
 end
 
