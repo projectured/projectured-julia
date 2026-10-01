@@ -19,6 +19,8 @@ What a wrapper can change before the editor exists:
 - `feeds` — the feeds of the editor;
 - `start_steps` — the functions `editor -> nothing` that run once the editor
   exists, such as the attachment of a log to the fault store of the editor;
+- `stop_steps` — the functions `editor -> nothing` that run when the loop of the
+  editor ends, such as the removal of a log capture that a start step installed;
 - `opened_window_projections` — the rows `type => projection` for the documents that a
   wrapper opens later in a window of their own;
 - `settings` — the setting of each wrapper that is on, by its keyword, as
@@ -33,6 +35,7 @@ mutable struct EditorParts
     backend::Backend
     feeds::Vector{Feed}
     start_steps::Vector{Any}
+    stop_steps::Vector{Any}
     opened_window_projections::Vector{Pair{Type,Any}}
     settings::Dict{Symbol,Any}
 end
@@ -119,7 +122,8 @@ Make an editor on `document` with its wrappers:
    error. Each setting is made with [`make_wrapper_setting`](@ref).
 3. Apply them with [`wrap_editor!`](@ref), layer by layer from the inside out,
    and in the order of their numbers inside a layer.
-4. Make the editor with [`make_editor`](@ref), and run the start steps of the
+4. Make the editor with [`make_editor`](@ref), give it the stop steps of the
+   wrappers, which its loop runs when it ends, and run the start steps of the
    wrappers.
 
 With no `projection`, the projection is
@@ -135,7 +139,7 @@ function build_editor(document::Document, projection;
     backend === nothing && (backend = make_default_backend(:windows))
     settings = _make_wrapper_settings(_collect_wrapper_settings(wrappers))
     _check_excluded_wrappers(settings)
-    parts = EditorParts(document, projection, backend, copy(feeds), Any[], Pair{Type,Any}[],
+    parts = EditorParts(document, projection, backend, copy(feeds), Any[], Any[], Pair{Type,Any}[],
                         settings)
     for (keyword, layer) in _order_wrapper_steps(settings)
         wrap_editor!(Val(keyword), layer, settings[keyword], parts)
@@ -143,6 +147,7 @@ function build_editor(document::Document, projection;
     editor = make_editor(parts.document, parts.projection; backend = parts.backend,
                          devices = devices, feeds = parts.feeds,
                          fault_policy = fault_policy)
+    append!(editor.stop_steps, parts.stop_steps)
     for step in parts.start_steps
         step(editor)
     end

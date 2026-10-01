@@ -73,6 +73,14 @@ end
 end
 make_document_projection(::BuildProjectedProbe; _...) = BuildProbeProjection()
 
+# A wrapper that adds a stop step, which writes the editor it is given.
+const _BUILD_PROBE_STOPPED = Any[]
+get_wrapper_layers(::Val{:build_probe_stop}) = (:screen => 9,)
+function wrap_editor!(::Val{:build_probe_stop}, layer::Symbol, setting, parts::EditorParts)
+    push!(parts.stop_steps, editor -> push!(_BUILD_PROBE_STOPPED, editor))
+    parts
+end
+
 function _build_probe_steps()
     [(keyword, layer) for (keyword, layer, _) in _BUILD_PROBE_STEPS if keyword !== :started]
 end
@@ -177,6 +185,19 @@ function test_build_editor()
         post_operation!(editor, QuitEditorOperation())
         wait(task)
         @test istaskdone(task) && editor.loop_task === nothing
+    end
+
+    @testset "the stop steps of a wrapper run when the loop ends, and not before" begin
+        empty!(_BUILD_PROBE_STOPPED)
+        editor = run_editor!(BuildProbe(), BuildProbeProjection(); wait = false,
+                             backend = BuildProbeBackend(), devices = Device[], tabs = false,
+                             appearance = false, build_probe_stop = true)
+        @test length(editor.stop_steps) == 1
+        @test isempty(_BUILD_PROBE_STOPPED)
+        task = editor.loop_task
+        post_operation!(editor, QuitEditorOperation())
+        wait(task)
+        @test length(_BUILD_PROBE_STOPPED) == 1 && only(_BUILD_PROBE_STOPPED) === editor
     end
 
     @testset "with no projection, the document's default projection is used" begin

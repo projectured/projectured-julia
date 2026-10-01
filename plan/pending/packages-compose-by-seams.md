@@ -866,9 +866,55 @@ Each step ends with its narrowest test and a commit.
       default), the display (the chrome around the tabs, none without tabs);
       266 tests of the shell, display, tabs and pane suites pass. A picture
       shows the chrome around a data frame tab.
-    - The rest of step 9 stays open: F1 help, the command palette, the walk
-      and the clipboard, the history and the recorder as wrappers, and
-      `run_with_window_tools`.
+  - **The rest of step 9**, designed 2026-10-01 after 9a. The owner: "All of
+    step 9. What does it need to change?", then "Yes to all" to the design
+    and to D1–D6 below. Each layer of `make_window_wrap` and each part of
+    `run_with_window_tools` becomes a wrapper of `build_editor`, named by what
+    a person sees, in the slice that owns the feature. From the inside out:
+
+    | What a person sees | Keyword | Slice | Layer |
+    |---|---|---|---|
+    | Ctrl+Z takes back a tab, a splitter, a draft | `undo` | undo | `:container => 5` |
+    | the menu bar, the toolbar, the status bar | `shell` | shell | `:container => 10` |
+    | Tab starts over at the ends of the window | `focus_cycling` | focus | `:container => 20`, on by default |
+    | copy, cut, paste, Alt+click, the Alt+arrow walk | `clipboard` | clipboard | `:container => 30` |
+    | F1 help | `gesture_help` | gesturehelp | `:container => 40` |
+    | Ctrl+Shift+P, the command palette | `command_palette` | gesturehelp | `:container => 50` |
+    | the gesture log | `gesture_log` | gesturelog | `:container => 90` |
+    | the message log | `message_log` | log | a capture, a feed, a stop step |
+    | the statistics and the frame times | `frame_statistics` | statistics | a feed |
+    | the fault log | `fault_log` | fault | a start step |
+
+    - The toolbar shows a tool that shows what the window records only when
+      the wrapper that fills it is on: the shell reads the settings of the
+      other wrappers. This replaces the flag `recorded` of 9a. The setting
+      of `shell` takes the choices of a host: its assistant, its explorer,
+      its About page and whether it has a status bar.
+    - **D1** (yes): `EditorParts` and `Editor` get `stop_steps`, which the end
+      of the loop runs, so the message log capture comes off when the window
+      closes, as `run_with_window_tools` does in its `finally`.
+    - **D2** (yes): the keywords of the table.
+    - **D3** (yes): `focus_cycling` is on by default, in every window.
+    - **D4** (yes): the gesture log records the content of the window, as the
+      fold does, and not at the screen as §4.5 says.
+    - **D5** (yes): the display turns every one of them on, so its toolbar is
+      the full one but the assistant. While the window is open, the message
+      log also collects the log lines of the REPL, which the REPL still
+      prints.
+    - **D6** (yes): in step 8 the keywords `shell` and `clipboard` of the
+      gallery become these wrappers, so a keyword has one meaning.
+    - Steps:
+      - [x] 9b. The kernel: `stop_steps`. `EditorParts.stop_steps` become
+        `Editor.stop_steps` in `build_editor`, and `_end_editor_loop!` runs
+        each after it answers the waiting calls, each in its own `try`. An
+        editor whose loop never runs never runs them.
+      - [ ] 9c. The wrappers, one commit each, with their tests.
+      - [ ] 9d. The application builds its window with the keywords;
+        `make_application_window` goes.
+      - [ ] 9e. omnet-julia: the IDE window and the campaign window.
+      - [ ] 9f. `make_window_wrap` and `run_with_window_tools` go.
+      - [ ] 9g. The display turns the wrappers on.
+      - [ ] 9h. The documents, and §4.5.
 - [ ] **10. The builder.** The generated `main` loads the backend packages
   and calls `run_application_command(ARGS)`. `--backend=NAME` matches
   `get_backend_name`. Remove `PROJECTURED_BACKENDS` and `default_backend()`.
