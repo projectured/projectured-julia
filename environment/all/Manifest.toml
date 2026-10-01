@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "a839f9a7080c5dcdd92350550bea2ddd44bd0b66"
+project_hash = "962d29d40836f9fe6a3c95347a2c35209ac16589"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -917,6 +917,15 @@ deps = ["ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "Projecture
 path = "../../package/Projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
+weakdeps = ["DataFrames", "FFMPEG", "ModelContextProtocol", "ODBC", "ProjecturedDataFrames", "ProjecturedMCP", "ProjecturedODBC", "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo", "SimpleDirectMediaLayer", "Tulip"]
+
+    [deps.Projectured.extensions]
+    ProjecturedDataFramesExt = "DataFrames"
+    ProjecturedFFMPEGExt = "FFMPEG"
+    ProjecturedModelContextProtocolExt = "ModelContextProtocol"
+    ProjecturedODBCExt = "ODBC"
+    ProjecturedSimpleDirectMediaLayerExt = "SimpleDirectMediaLayer"
+    ProjecturedTulipExt = "Tulip"
 
 [[deps.ProjecturedAdaptagrams]]
 deps = ["Libdl", "ProjecturedGraph"]
