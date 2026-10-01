@@ -147,7 +147,8 @@ The packages reach a Julia programmer through a registry. They live in one
 release repository, `projectured/Projectured.jl`, with one folder for each
 package, `<Name>/`, and the licence files at its root. Each package folder holds
 everything the package reads, because Pkg installs only the folder of a
-package. [builder.md](../package/tool/builder/builder.md) says how the copy is
+package, and its tests: `Pkg.test` runs the suite of its test package on the
+installed package. [builder.md](../package/tool/builder/builder.md) says how the copy is
 made.
 
 **Warning: do not rewrite the history of the release repository.** The registry
