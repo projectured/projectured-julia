@@ -45,7 +45,7 @@ The domain has no file type and no parser of its own. It stores formulas in `.pr
 
 `ProjecturedFormula` depends on two domains: `ProjecturedJulia` for the code and the printer table, and `ProjecturedMath` for the math code and its drawing. It also uses the layout and widget slices of the platform for the graphics rows. No package depends on it.
 
-Its `__init__` registers `FormulaFormula` and `FormulaEnvironment` as `.pred` types, and the graphics rows with `register_natural_graphics!(:formula, …)`.
+Its `__init__` registers the graphics rows with `register_natural_graphics!(:formula, …)`.
 
 ## Design decisions
 

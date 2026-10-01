@@ -63,7 +63,7 @@ With `text = true` over a `TextBlock` content, the clipboard copies and pastes c
 
 ## How it fits
 
-The clipboard slice depends on the domain slice for the paste hooks, the text slice for the text mode, and the collection and projection slices. The pane slice depends on it. Its `__init__` registers the two wrappers as `.pred` types; `pred_arguments` saves only `content`, so a loaded window starts with an empty clipboard.
+The clipboard slice depends on the domain slice for the paste hooks, the text slice for the text mode, and the collection and projection slices. The pane slice depends on it. `pred_arguments` of the two wrappers saves only `content`, so a loaded window starts with an empty clipboard.
 
 `make_clipboard_projection` builds a `RecursiveProjection`, so it can be the outermost projection of a window: the arm that dispatches on the clipboard document reads its own keys before a key reaches your projection, and the `Any` arm hands every other document to your projection through a `NestingProjection`.
 

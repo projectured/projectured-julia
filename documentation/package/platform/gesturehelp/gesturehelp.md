@@ -54,7 +54,7 @@ The gesturehelp slice depends on the kernel and on the collection, graphics, pro
 
 The shell slice adds both decorators to every window unless `gesture_help` or `command_palette` of `make_window_wrap` is `false`. The palette is over the help, and both are over the tooltip probe; [shell.md](../shell/shell.md#the-fold) says why. `make_opened_window_projections` of the shell gives the row for `GestureMap`. The gallery adds them with `gesture_help = true` and `command_palette = true`.
 
-It registers nothing: no natural row, no `.pred` type and no insertion alias. No tab holds either document.
+It registers nothing: no natural row and no insertion alias. No tab holds either document.
 
 ## Design decisions
 

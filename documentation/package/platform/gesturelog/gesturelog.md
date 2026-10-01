@@ -44,7 +44,7 @@ The gesturelog slice depends on the kernel and on the collection, domain, graphi
 
 The shell slice uses it. `make_window_wrap` puts a recorder outermost on every window, always, over `get_session_gesture_log()`; [shell.md](../shell/shell.md#the-fold) gives the order of the wrappers. The toolbar button and `gestures` in an empty tab open that log. The gallery adds an overlay to each window and a recorder at the root with `gesture_log = true`, over a log of its own.
 
-Its `__init__` registers the natural row `:gesturelog` and the `.pred` type `GestureLog`. `get_insertion_aliases` gives `gestures`, and `make_insertion_document` returns the session log, because a new log would never fill: only a recorder writes into a log. `pred_arguments` saves only `capacity`, so a loaded window starts with an empty log of the same size.
+Its `__init__` registers the natural row `:gesturelog`. `get_insertion_aliases` gives `gestures`, and `make_insertion_document` returns the session log, because a new log would never fill: only a recorder writes into a log. `pred_arguments` saves only `capacity`, so a loaded window starts with an empty log of the same size.
 
 ## Design decisions
 

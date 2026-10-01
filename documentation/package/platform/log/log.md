@@ -18,7 +18,7 @@ A message travels through three parts. This is the feed pattern of the editor; [
 
 ## How it fits
 
-The log slice depends on the kernel for the feed contract, and on the syntax and text slices for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)` and `MessageLog` as a `.pred` type. `pred_arguments` saves only the capacity, so a loaded log starts empty.
+The log slice depends on the kernel for the feed contract, and on the syntax and text slices for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)`. `pred_arguments` saves only the capacity, so a loaded log starts empty.
 
 The shell slice uses it: `run_with_window_tools` installs the capture and gives the editor a `MessageLogFeed`, and the toolbar has a button that opens the log.
 

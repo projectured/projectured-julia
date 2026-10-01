@@ -53,7 +53,7 @@ A projection reader maps a range edit back through the chain with no method of i
 
 The primitive slice depends on the kernel and on the serialization slice. The text, syntax, widget and projection slices, and panes and many domains, depend on it. `ObjectField` is in this slice because it is the lowest slice that both the widget and syntax slices use, and each of them holds one projection of it.
 
-Its `__init__` registers `PrimitiveString` as a `.pred` type, so a file can hold a bare string, such as the title of a tab. `make_pred_document(::Type{PrimitiveString}, …)` builds it from `PrimitiveString("hi")` or `PrimitiveString(value = "hi")`; the field has no default, so the macro gives no keyword constructor. `has_document_duplicate` is `true` for every primitive, so a duplicated pane copies the value and does not share it; see [document.md](../../kernel/document.md).
+A `.pred` file builds `PrimitiveString` by its name, so a file can hold a bare string, such as the title of a tab. The field has no default, so the macro gives no keyword constructor, and the reader builds it from its field: `PrimitiveString("hi")` or `PrimitiveString(value = "hi")`. `has_document_duplicate` is `true` for every primitive, so a duplicated pane copies the value and does not share it; see [document.md](../../kernel/document.md).
 
 ## Design decisions
 

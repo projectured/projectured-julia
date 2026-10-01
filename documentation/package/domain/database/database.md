@@ -70,7 +70,7 @@ Two projections bring a live database into a chain:
 
 `ProjecturedDatabase` depends only on `ProjecturedKernel`. `ProjecturedDbCatalog` depends on `ProjecturedSql`, the kernel and the platform, and it takes the DDL document types from the SQL domain; see [sql.md](../sql/sql.md). `ProjecturedOdbc` depends on both of them. It owns a third-party dependency, so the umbrella package `Projectured` does not load it, and a program that needs it names it; see [package-rules.md](../../../rule/package-rules.md).
 
-None of the three has an `__init__`. They register no natural row, no file type and no `.pred` type, so the general renderer has no row for them, and a caller composes their projections into a chain. The one registration is the method `make_database_adapter(::Val{:odbc})`.
+None of the three has an `__init__`. They register no natural row and no file type, so the general renderer has no row for them, and a caller composes their projections into a chain. The one registration is the method `make_database_adapter(::Val{:odbc})`.
 
 ## Design decisions
 

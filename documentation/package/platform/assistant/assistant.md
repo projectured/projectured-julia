@@ -83,7 +83,7 @@ The assistant slice depends on the kernel and on the conversation, collection, d
 
 The shell slice puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). The [application slice](../application/application.md) puts the explorer, the files and the assistant in one pane tree.
 
-The package registers the natural row `:assistant`, `Assistant => AssistantToWidgetSplitPane()`, and `Assistant` as a `.pred` type. It adds the methods `make_submit_operation(::Assistant)` and `make_evaluate_operation(::Assistant)` to the conversation package.
+The package registers the natural row `:assistant`, `Assistant => AssistantToWidgetSplitPane()`. It adds the methods `make_submit_operation(::Assistant)` and `make_evaluate_operation(::Assistant)` to the conversation package.
 
 ## Design decisions
 

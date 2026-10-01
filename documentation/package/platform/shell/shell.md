@@ -111,7 +111,7 @@ The document under the pointer gives its context menu. `compute_context_menu` is
 
 The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, help, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
 
-The [application slice](../application/application.md) builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The shell slice has no `__init__` and registers no row, file type or `.pred` type. A binary calls its functions.
+The [application slice](../application/application.md) builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The shell slice has no `__init__` and registers no row or file type. A binary calls its functions.
 
 ## Design decisions
 

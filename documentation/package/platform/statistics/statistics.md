@@ -33,7 +33,7 @@ One table and one series of frame times exist for each session, `get_session_fra
 
 The statistics slice depends on the kernel for the feed contract and the performance layer, on the syntax and text slices for the table, and on the natural slice for its row. It depends on no domain: the chart domain depends on it for the chart of the frame times. The shell slice gives the editor a `FrameStatisticsFeed` in `run_with_window_tools`, and the toolbar has a button that opens the table and one that opens the frame times.
 
-The statistics slice registers one natural row: the syntax row `:statistics` draws a `FrameStatistics` with `FrameStatisticsToSyntax`. The chart domain registers the graphics row `:frame_time_series`, which draws a `FrameTimeSeries` through `FrameTimeSeriesToChart`, `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`. It also registers both documents as `.pred` types, so a saved window can hold their tabs. `MessageLog` has the same registrations; see [log.md](../log/log.md).
+The statistics slice registers one natural row: the syntax row `:statistics` draws a `FrameStatistics` with `FrameStatisticsToSyntax`. The chart domain registers the graphics row `:frame_time_series`, which draws a `FrameTimeSeries` through `FrameTimeSeriesToChart`, `ChartToChartPlot` and `ChartPlotToGraphicsCanvas`. A `.pred` file builds both documents by their names, so a saved window can hold their tabs.
 
 `pred_arguments` saves nothing: the numbers of one session are not the numbers of the next.
 

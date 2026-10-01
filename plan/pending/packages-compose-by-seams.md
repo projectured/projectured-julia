@@ -684,9 +684,16 @@ Each step ends with its narrowest test and a commit.
   - Still open in this step: the review of the other 14 types above, one by
     one, against C16. Each one is a decision of its own, such as whether a
     log saves its entries.
-  - Found: nine guides still said that an `__init__` registers `.pred`
-    types: widget, pane, inspector, log, help, clipboard, statistics,
-    gesture log and assistant. They are mended with this step.
+  - Found for that review: `FileSystemFile` and `FileSystemDirectory` were
+    left out of the registry, because the disk is their state. Since the
+    registry is gone, a file can build them, and a save writes their
+    fields. The review must decide whether they write a reduced form or
+    raise an error in `make_pred_document`.
+  - Found: seventeen guides still said that an `__init__` registers `.pred`
+    types, or that a type is not one: widget, pane, screen, primitive,
+    inspector, log, help, clipboard, statistics, gesture log, gesture help,
+    shell, filesystem, fault, assistant, database and formula. They are
+    mended with this step.
   - Found: `ProjecturedDisplay` is newer than the fold plan, whose list of
     34 slices does not name it. It is a slice with no third-party
     dependency, so it would fold into the platform too.

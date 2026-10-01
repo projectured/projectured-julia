@@ -59,7 +59,7 @@ The wrapper `window` of `build_editor` builds both. It is on by default, and it 
 
 ## How it fits
 
-The screen slice depends on the graphics slice for `PointReferenceStep` and on the collection slice. Its `__init__` registers `ScreenDocument` and `WindowDocument` as `.pred` types. The slices that open a window of their own use it: tooltip, inspector, gesturehelp, and the popups and dialogs of the widget slice. The SDL and web backends draw its output.
+The screen slice depends on the graphics slice for `PointReferenceStep` and on the collection slice. A `.pred` file builds `ScreenDocument` and `WindowDocument` by their names, so a saved user interface holds its windows. The slices that open a window of their own use it: tooltip, inspector, gesturehelp, and the popups and dialogs of the widget slice. The SDL and web backends draw its output.
 
 ## Design decisions
 

@@ -50,10 +50,9 @@ The file-system slice depends on the file-format and pane slices for the open, o
 Its `__init__` registers:
 
 - `register_natural_syntax!(:filesystem, …)` with the syntax view;
-- `register_natural_graphics!(:workspace, …)` with the Explorer chain for a `WorkspaceDocument`;
-- `Workspace` and `WorkspaceFolder` as `.pred` types, so a saved window keeps its Explorer.
+- `register_natural_graphics!(:workspace, …)` with the Explorer chain for a `WorkspaceDocument`.
 
-`FileSystemFile` and `FileSystemDirectory` are not `.pred` types, because the disk is their state. No parser exists. A `Workspace` also answers to the insertion names `explorer` and `file explorer`, and it starts with the current folder.
+A `.pred` file builds `Workspace` and `WorkspaceFolder` by their names, so a saved window keeps its Explorer. No parser exists. A `Workspace` also answers to the insertion names `explorer` and `file explorer`, and it starts with the current folder.
 
 ## Design decisions
 
