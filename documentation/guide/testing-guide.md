@@ -6,19 +6,20 @@ The test suite is a DAG of **test packages** that parallels the main
 package DAG (see [plan/done/test-package-split.md](../../plan/done/test-package-split.md)):
 
 ```
-main:     ProjecturedKernel ← the 28 substrate packages ← the 20 domains ← Projectured ← {Example, Sdl, …}
-tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← the 20 domain test packages ← ProjecturedTest
+main:     ProjecturedKernel ← ProjecturedPlatform ← the 17 domains ← Projectured ← {Example, Sdl, …}
+tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 17 domain test packages ← ProjecturedTest
 ```
 
 - [package/kernel/test](../../package/ProjecturedKernelTest/src/ProjecturedKernelTest.jl) —
   kernel unit tests + the **shared generic drivers** (`test_printer`,
   `test_reader`, `test_repl`, the navigation explorers, `_walk!`) + the shared
   static `check_layering` guard. Aggregator: `test_kernel()`.
-- [package/substrate/test](../../package/ProjecturedPlatformTest/src/ProjecturedPlatformTest.jl) —
-  the unit tests of all twenty-eight substrate packages: the collection and
-  copying tests, the ground-truth selection enumerators, the syntax, text,
-  graphics and layout documents, the text, graphics and widget projections, and
-  the type-in and click-roundtrip drivers. Aggregator: `test_substrate()`.
+- [package/platform/test](../../package/ProjecturedPlatformTest/src/ProjecturedPlatformTest.jl) —
+  the unit tests of every one of the thirty-eight slices of the platform: the
+  collection and copying tests, the ground-truth selection enumerators, the
+  syntax, text, graphics and layout documents, the text, graphics and widget
+  projections, and the type-in and click-roundtrip drivers. Aggregator:
+  `test_platform()`.
 - `package/<domain>/test` — one test package per domain, holding the suites
   whose fixtures are that domain's documents: its parser, its `*ToSyntax`
   projections, its editor tests. Aggregator: `test_json()`, `test_sql()`,
@@ -50,7 +51,7 @@ tests:    ProjecturedKernelTest ← ProjecturedSubstrateTest ← the 20 domain t
   `using ProjecturedTest` alone gives you `test_json()` as well as `test_all()`.
 
 The examples follow the same split (`package/kernel/example` — the `Example`
-harness core; `package/substrate/example` / `package/domain/example` — the
+harness core; `package/platform/example` / `package/domain/example` — the
 per-package example sets with `substrate_examples` / `domain_examples` registry
 subsets; the
 opt-in example packages — `package/odbc/example`, `package/tulip/example`,
@@ -60,7 +61,7 @@ window/record timelines) — hold the examples that need a native dependency; th
 file editor and the cross-domain compositions — a registry that names every
 domain belongs to none of them). Each test package depends on its example
 package: the `Example`-typed driver overloads live beside the drivers.
-`test_substrate()` sweeps its own package's examples; the concrete-domain sweep is
+`test_platform()` sweeps its own package's examples; the concrete-domain sweep is
 `test_domain_examples()` at the umbrella.
 
 Each test package only depends on the main package it tests (plus the packages
@@ -86,7 +87,7 @@ julia> using Projectured, ProjecturedExample, ProjecturedTest
 julia> test_all()
 ```
 
-Runs everything: the per-package suites (`test_kernel()`, `test_substrate()`,
+Runs everything: the per-package suites (`test_kernel()`, `test_platform()`,
 and one `test_<domain>()` per domain — each includes its package's static
 layered-architecture guard) followed by the umbrella integration tests
 (printers, readers, selections, REPL-loop tests, the MCP tool tests, and the
@@ -104,10 +105,10 @@ gives what each of them costs.
 | Function | What it covers |
 |---|---|
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
-| `test_substrate()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of each of the twenty-eight packages, and the package's example printer sweep (`test_substrate_examples()`). |
+| `test_platform()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of every slice of the platform, and the package's example printer sweep (`test_substrate_examples()`). |
 | `test_json()` … `test_yaml()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database()` is the domain aggregator like the rest; the ODBC live-connection suite is the separate `test_odbc_database*` family (`test_odbc_database()`, `test_odbc_database_connection()`, `test_odbc_database_no_db()`). |
-| `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all twenty. |
-| `test_help()` | `ProjecturedHelp`'s suite: the layering guard, the docstring description, and the two lists and the page that the Help menu opens. |
+| `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all seventeen. |
+| `test_help()` | the help slice's suite: the layering guard, the docstring description, and the two lists and the page that the Help menu opens. |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_cell_struct()` | The `@cell_struct` transparent-Cell struct codegen that `@document`/`@iomap`/`@projection` build on (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_cell_struct_plan()` | The `CellStructPlan` parse and the positional constructors, called on expressions (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
@@ -146,7 +147,7 @@ the two runs. Each other part took less than 60 s and less than 1.5 GB.
 |---|---|---|---|
 | `test_catalog()` | 556–666 s | 1.6 GB | 46 GB |
 | `test_position_navigations()` | 379–392 s | 1.4 GB | 368 GB |
-| `test_substrate()` | 250–365 s | 4.3 GB | 20 GB |
+| `test_platform()` | 250–365 s | 4.3 GB | 20 GB |
 | `test_typeins()` | 175–212 s | 1.0 GB | 231 GB |
 | `test_application()` | 158–174 s | 2.2 GB | 18 GB |
 | `test_text_navigation_invariants_all()` | 128–150 s | 1.1 GB | 72 GB |
@@ -234,7 +235,7 @@ julia> test_catalog(; testers = (test_printer,))  # just one tester
 
 A domain is included once its leaf projections are **bidirectional and navigable**. The
 catalog covers every domain that has a registered `AtomicDocument` — run
-`catalog(; domain = :formula)`, or any domain symbol, to see one — plus the substrate
+`catalog(; domain = :formula)`, or any domain symbol, to see one — plus the platform's
 atoms (primitive, collection, graphics, layout, syntax, text, widget), including the
 opaque display leaves (their introduced-text carets collapse to a
 bounded `proj(p, …)` position, navigable but non-editable) and the self-modifying
@@ -565,8 +566,8 @@ julia --project=package/ProjecturedJsonTest \
 - **Changed a projection.** `walk_printer_output` and `walk_repl_loop`
   against the affected example give you a fast failure surface; the latter
   also catches reader/operation mismatches.
-- **Changed the kernel/base/visual/domain source layering.** The per-package
-  layering guards (`test_kernel_layering()`, `test_substrate_layering()`) parse
+- **Changed the kernel/platform/domain source layering.** The per-package
+  layering guards (`test_kernel_layering()`, `test_platform_layering()`) parse
   the real `import ..XxxModule` headers and re-check the include order in ~1s.
 - **Suspected reactive bug.** `test_cell()` first, then
   `walk_printer_output` (which forces every reachable cell) on the

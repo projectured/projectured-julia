@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [screen.md](../screen/screen.md), [pane.md](../pane/pane.md)
 
-`ProjecturedShell` holds everything that a window has besides the document in it: the wrappers that a binary stacks over its window, and the chrome that the window is drawn in. One package holds both, so two binaries show one interface and can not drift into two lists. This document says why the wrappers have their order, how the chrome is a document, how the toolbar reaches the tools, and what does not work yet.
+The shell slice of `ProjecturedPlatform` holds everything that a window has besides the document in it: the wrappers that a binary stacks over its window, and the chrome that the window is drawn in. One slice holds both, so two binaries show one interface and can not drift into two lists. This document says why the wrappers have their order, how the chrome is a document, how the toolbar reaches the tools, and what does not work yet.
 
 <img width="396" alt="Widget shell example" src="../../../asset/image/example/widget-shell.png">
 
@@ -109,9 +109,9 @@ The document under the pointer gives its context menu. `compute_context_menu` is
 
 ## How it fits
 
-`ProjecturedShell` depends on `ProjecturedClipboard`, `ProjecturedDomain`, `ProjecturedFileFormat`, `ProjecturedFileSystem`, `ProjecturedFocus`, `ProjecturedGestureHelp`, `ProjecturedGestureLog`, `ProjecturedHelp`, `ProjecturedPane`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedStyle`, `ProjecturedTooltip`, `ProjecturedWidget` and the kernel. `ProjecturedHelp` gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more dependencies are there for the tools of the toolbar: `ProjecturedAssistant`, `ProjecturedConversation`, `ProjecturedFault`, `ProjecturedInspector`, `ProjecturedLog` and `ProjecturedStatistics`. None of them depends on the shell.
+The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, help, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
 
-`example/projectured/Application.jl` builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The package has no `__init__` and registers no row, file type or `.pred` type. A binary calls its functions.
+`example/projectured/Application.jl` builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The shell slice has no `__init__` and registers no row, file type or `.pred` type. A binary calls its functions.
 
 ## Design decisions
 
@@ -137,7 +137,7 @@ run_with_window_tools() do feeds, start
 end
 ```
 
-- Tests: `test_shell()` runs the layering guard, `test_shell_completeness()`, `test_window_wrap()`, `test_widget_tooltip()`, `test_julia_tooltip()`, `test_tooltip_window()`, `test_context_menu_probe()`, `test_window_shell()` and `test_file_dialog()`. `test_shell_completeness()` fails when a `test_*` function under `test/platform/shell/` is not called by `test_shell()` exactly once. The layout of the shell and how it hands the pointer to its bands are in the substrate suite, `test_widget_shell_layout()` and `test_widget_shell_pointer()`, and the whole window in `test_application()`.
+- Tests: `test_shell()` runs the layering guard, `test_shell_completeness()`, `test_window_wrap()`, `test_widget_tooltip()`, `test_julia_tooltip()`, `test_tooltip_window()`, `test_context_menu_probe()`, `test_window_shell()` and `test_file_dialog()`. `test_shell_completeness()` fails when a `test_*` function under `test/platform/shell/` is not called by `test_shell()` exactly once. The layout of the shell and how it hands the pointer to its bands are in the platform suite, `test_widget_shell_layout()` and `test_widget_shell_pointer()`, and the whole window in `test_application()`.
 - No example of its own: the application is the example.
 
 ## Limits

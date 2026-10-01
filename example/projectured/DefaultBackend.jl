@@ -10,7 +10,7 @@ does not depend on a backend (e.g. the domain examples, which never name
 
 Lives in the example package because its only two callers are the gallery and
 the file-editor harness, and because it needs `InteractiveUtils.subtypes`,
-which no package of the substrate would otherwise carry.
+which no slice of the platform would otherwise carry.
 """
 module DefaultBackendModule
 

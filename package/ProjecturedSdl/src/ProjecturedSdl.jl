@@ -2,8 +2,7 @@
     Sdl
 
 Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf text
-rasterisation, offscreen image output). Depends on `ProjecturedPlatform`,
-`ProjecturedPlatform`, `ProjecturedKernel`, `ProjecturedPlatform`,
+rasterisation, offscreen image output). Depends on `ProjecturedKernel`,
 `ProjecturedPlatform` and SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl`
 provides the render/decode/image seam methods. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen

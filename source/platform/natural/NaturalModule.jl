@@ -26,13 +26,13 @@ highest one the document offers.
 
 # Which rungs live where
 
-This module owns `text → graphics` and `text → string`, because this package
-already names the text package. It must not name `ProjecturedPlatform` — that
-package names this one, and the arrow cannot turn — so `syntax → text` is
-registered from outside, by whoever can supply it. A session that never loads a
-syntax package has no `syntax → text` rung, and a document that only speaks
-syntax then has no text and no graphics form. That is the rule this repository
-works by: what is not loaded is not supported.
+This module owns `text → graphics` and `text → string`, because the natural
+slice already names the text slice. It must not name the syntax slice — the
+syntax slice names this one, and the arrow cannot turn — so `syntax → text` is
+registered from outside, by the syntax slice, when `ProjecturedPlatform` loads.
+A session that loads no platform at all has no rung at all: a document then
+has no text and no graphics form. That is the rule this repository works by:
+what is not loaded is not supported.
 
 # What a domain writes
 

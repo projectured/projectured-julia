@@ -10,8 +10,8 @@ and no synonyms.
 ## The terms
 
 - **Package** — a Julia package with its own `Project.toml`. The project
-  consists of packages: the `ProjecturedKernel` engine, the thirty
-  packages of the substrate, the twenty domain packages, the `Projectured`
+  consists of packages: the `ProjecturedKernel` engine, `ProjecturedPlatform`,
+  the seventeen domain packages, the `Projectured`
   umbrella, their sibling test and example packages, and the opt-in packages
   (`sdl`, `web`, `odbc`, `video`, `tulip`, `anthropic`, `ollama`, `mcp`, …). A
   package is one concept and a boundary of dependencies and consumers. The
@@ -26,14 +26,15 @@ and no synonyms.
   `tool` → `llm` → `agent` → `feed` → `editor` → `playback`). Every other
   package is one concept and declares no layer.
 
-- **Slice** — a **vertical** split of a single layer. Where a layer stacks
-  code by dependency height, slices split one layer side by side by
-  *feature*: each slice groups everything about one feature (a document with
-  its parser, projections, decorators). Slices are **not ordered** — a slice
-  may depend on another slice of the same layer only if the slice→slice
-  edges stay **acyclic** (a DAG, not a stack). Slice is a **kernel-only**
-  notion now: the concept folders that were slices of base and visual are each
-  a package of their own, and so is each source domain.
+- **Slice** — a **vertical** split of a single layer, or of a package that
+  has no layers of its own. Where a layer stacks code by dependency height, a
+  slice splits it side by side by *feature*: each slice groups everything
+  about one feature (a document with its parser, projections, decorators).
+  Slices are **not ordered** — a slice may depend on another slice of the
+  same layer or package only if the slice→slice edges stay **acyclic** (a
+  DAG, not a stack). Slice is not a kernel-only notion: `ProjecturedPlatform`
+  is thirty-eight slices in one package, and each source domain, each
+  backend, each adapter and each tool is one slice and a package of its own.
 
 - **Module** — a Julia `module`, the namespace/import boundary. One layer
   (or slice) contains one or more modules; module names are de-facto public
@@ -58,7 +59,7 @@ enforce.
 
 ```
 project
-└─ packages                 kernel ← substrate ← domains ← umbrella  (+ opt-in)
+└─ packages                 kernel ← platform ← domains ← umbrella  (+ opt-in)
    │                        an acyclic graph; each package is one concept
    └─ layers                the kernel alone: ordered, depend only on lower layers
       └─ modules            one or more Julia modules per package or layer

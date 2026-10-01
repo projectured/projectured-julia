@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [graphics.md](../graphics/graphics.md)
 
-`ProjecturedScreen` holds the window model: a screen document with a list of windows, the projection that maps it, and the projection that opens, closes and resizes windows. A backend shows the output screen as native windows. [devices-and-backends.md](../../kernel/devices-and-backends.md) describes the backend side; this document describes the document side.
+The screen slice of `ProjecturedPlatform` holds the window model: a screen document with a list of windows, the projection that maps it, and the projection that opens, closes and resizes windows. A backend shows the output screen as native windows. [devices-and-backends.md](../../kernel/devices-and-backends.md) describes the backend side; this document describes the document side.
 
 ## How it works
 
@@ -59,7 +59,7 @@ The wrapper `window` of `build_editor` builds both. It is on by default, and it 
 
 ## How it fits
 
-`ProjecturedScreen` depends on `ProjecturedGraphics` for `PointReferenceStep` and on `ProjecturedCollection`. Its `__init__` registers `ScreenDocument` and `WindowDocument` as `.pred` types. The packages that open a window of their own use it: `ProjecturedTooltip`, `ProjecturedInspector`, `ProjecturedGestureHelp`, and the popups and dialogs of `ProjecturedWidget`. The SDL and web backends draw its output.
+The screen slice depends on the graphics slice for `PointReferenceStep` and on the collection slice. Its `__init__` registers `ScreenDocument` and `WindowDocument` as `.pred` types. The slices that open a window of their own use it: tooltip, inspector, gesturehelp, and the popups and dialogs of the widget slice. The SDL and web backends draw its output.
 
 ## Design decisions
 

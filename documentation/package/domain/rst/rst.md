@@ -86,7 +86,7 @@ The directive needs no parser rule: an unknown directive name becomes an `RstDir
 
 ## How it fits
 
-`ProjecturedRst` depends on `ProjecturedLayout` and `ProjecturedWidget` for the page and the embed cards, in addition to the kernel, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedNatural`, `ProjecturedSerialization` and `ProjecturedFileFormat`. It does not depend on `ProjecturedDomain` or on another domain, and no package depends on it.
+`ProjecturedRst` depends on the kernel and the platform, using the layout and widget slices for the page and the embed cards. Unlike other domains, it does not use the domain slice's `@domain` machinery, and no other domain depends on it.
 
 Its `__init__` makes four calls:
 
@@ -129,7 +129,7 @@ print_natural_text(doc)                     # the RST source
 
 ## Limits
 
-- **`literalinclude` and `include` do not read their file.** The projection shows the path and the slice bounds, and it does not apply `start-at` or `end-at`. A read needs a loader context, such as the `FileProject` of `ProjecturedSerialization`, and the projection has none.
+- **`literalinclude` and `include` do not read their file.** The projection shows the path and the slice bounds, and it does not apply `start-at` or `end-at`. A read needs a loader context, such as the `FileProject` of the serialization slice, and the projection has none.
 - **A role is a styled string.** A Sphinx role such as `:doc:` does not resolve to its target.
 - **The source view prints the start number of an enumerated list on every item.** A template rule has no access to the index of an item. RST numbers the items again when it renders them, and a re-parse gives the same list. The rendered view counts correctly, because `RstEnumeratedListToStyledNode` builds its items by hand.
 - **`RstSectionToStyledNode` has no reference mappers.** The rendered section prints, but a selection does not map through it, so navigation in the rendered view stops at a section. The source view and the page of blocks map fully.

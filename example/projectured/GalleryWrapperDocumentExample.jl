@@ -19,9 +19,9 @@ function make_introspection_document(document, projection; title="content")
     ])
 end
 
-# Dragging's two helpers moved into `ProjecturedPlatform`, where the types they
-# name live, so a program can drag without this package's 52 dependencies. The
-# gallery re-exports them from there; see `DraggingModule`.
+# DraggingState and DraggingProjection, dragging's two helpers, are types of
+# `ProjecturedPlatform`, so a program can drag without this package's
+# dependencies. The gallery uses them from there; see `DraggingModule`.
 
 # Wrap any example document in a WidgetShell, so the content sits inside a
 # top-level window frame: a menu bar, a toolbar, and a status bar that names the

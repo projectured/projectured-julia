@@ -7,7 +7,7 @@ system.
 
 The concrete subtypes and the methods of the generic functions declared here
 live in packages above the kernel. The SDL, web and video backends are opt-in
-packages, the console backend is a package of the substrate, and the headless
+packages, the console backend is a package of its own, not opt-in, and the headless
 test double is in `ProjecturedKernelExample`. This module carries only the
 abstract type and the forward-declared generics, so generic code can name a
 capability, such as the output of an image, and refer to no concrete backend

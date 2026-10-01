@@ -22,7 +22,7 @@ The editor calls `open_native_windows!` before the first print. It opens every w
 
 ### Draw text
 
-The backend draws a text where a [`FontFileMeasure`](../../platform/style/style.md) lays it out: `compute_placed_glyphs(text, font)` gives the file and the pen position of each glyph, and the backend draws each glyph at that position, in its own font file. It opens every font with `TTF_HINTING_LIGHT_SUBPIXEL`, light hinting that fits a glyph to the pixel rows only, so the ink keeps the width of the advance the layout gave it. A character that the font lacks draws from the file that `find_glyph_font_file` of `ProjecturedStyle` names.
+The backend draws a text where a [`FontFileMeasure`](../../platform/style/style.md) lays it out: `compute_placed_glyphs(text, font)` gives the file and the pen position of each glyph, and the backend draws each glyph at that position, in its own font file. It opens every font with `TTF_HINTING_LIGHT_SUBPIXEL`, light hinting that fits a glyph to the pixel rows only, so the ink keeps the width of the advance the layout gave it. A character that the font lacks draws from the file that `find_glyph_font_file` of the style slice names.
 
 On a cache miss, `_render_text_surface` rasterizes each glyph of the text and composes them into one surface, with the pen origin of each glyph on the device pixel nearest to its pen position; the baseline of the surface is the row where the tallest glyph's ascent lands. Font handles are in a module cache keyed by file and device size. The composed surface becomes a texture, kept in a second module cache by renderer, text, font, logical size, device size and colour, so a static document that scrolls does not rasterize, upload and destroy every span on every frame. `_render_element!` places that texture so that its baseline lands on `y` plus the ascent that `compute_text_extent` gives the text: the baseline the layout computed. The cache is emptied at 16384 entries, and the textures of a renderer go when the renderer is destroyed.
 
@@ -89,7 +89,7 @@ Both repaint every window in full.
 
 ## How it fits
 
-`ProjecturedSdl` depends on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedScreen`, `ProjecturedStyle` and the kernel, and on `SimpleDirectMediaLayer` and `SDL2_jll`. A package with a third-party dependency is a stem that a user names, so `using Projectured` does not load it. `ProjecturedRepl` loads it, and `ProjecturedVideo` depends on it. The builder names it as the backend `sdl` of a binary, the default when a build holds both backends.
+`ProjecturedSdl` depends on the kernel and the platform, and on `SimpleDirectMediaLayer` and `SDL2_jll`. A package with a third-party dependency is a stem that a user names, so `using Projectured` does not load it. `ProjecturedRepl` loads it, and `ProjecturedVideo` depends on it. The builder names it as the backend `sdl` of a binary, the default when a build holds both backends.
 
 `default_backend()` in `example/projectured/DefaultBackend.jl` returns an `SdlBackend` when the package is loaded. It registers nothing.
 

@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [natural.md](../natural/natural.md), [serialization.md](../serialization/serialization.md)
 
-`ProjecturedFileFormat` reads and writes a document as a file, and opens a file as a tab. It adds no format of its own: it selects one of the formats that `ProjecturedSerialization` and the domains give, by the extension of the path. This document says how the choice is made, what a file that does not exist opens as, and how a tab saves and reloads its file.
+The file-format slice of `ProjecturedPlatform` reads and writes a document as a file, and opens a file as a tab. It adds no format of its own: it selects one of the formats that the serialization slice and the domains give, by the extension of the path. This document says how the choice is made, what a file that does not exist opens as, and how a tab saves and reloads its file.
 
 ## How it works
 
@@ -16,7 +16,7 @@
 | a registered file type with no natural parser: `.pred`, `.txt`, none | `save_file!` | `load_file` | the seed of the extension |
 | any other extension | `export_document` | `import_document` | the seed of the extension |
 
-The natural formats are the ones for which a domain registered a parser in `ProjecturedNatural`: `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.rst`, `.math`, `.jl` and `.sql`. The format is the extension without its dot. The file types are the ones that `register_file_document_type!` names. That function is part of `ProjecturedSerialization`, and each domain calls it in its own `__init__`. This package only reads the table with `has_file_document_type` and `get_file_document_type`.
+The natural formats are the ones for which a domain registered a parser in the natural slice: `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.rst`, `.math`, `.jl` and `.sql`. The format is the extension without its dot. The file types are the ones that `register_file_document_type!` names. That function is part of the serialization slice, and each domain calls it in its own `__init__`. This package only reads the table with `has_file_document_type` and `get_file_document_type`.
 
 A text file holds a `String`, and the editor edits a `PrimitiveString`. So `read_document_file` gives a `PrimitiveString` for a `.txt` file, and `write_document_file` takes the string back out of one.
 
@@ -24,7 +24,7 @@ A text file holds a `String`, and the editor edits a `PrimitiveString`. So `read
 
 `import_document(path)` reads the text and calls `parse_natural_text` with the format that the extension names. It raises an error for an extension that no domain registered. `export_document(document, path)` writes `print_natural_text(document)`. It raises an error when the parser registered for the extension is not the parser of the format of the document, so a later `import_document` of the same path can not select the wrong parser. `find_natural_parser` gives the two parsers. A second name of one format has the same parser, so a YAML document exports to `.yaml` and to `.yml`.
 
-`write_document_file`, `export_document` and `print_natural_text` (of `ProjecturedNatural`) each also take a `ReferencedDocument` in place of the document, and write or render the document it holds, so a document that `get_edited_document` answered reaches a file with no unwrapping step of its own.
+`write_document_file`, `export_document` and `print_natural_text` (of the natural slice) each also take a `ReferencedDocument` in place of the document, and write or render the document it holds, so a document that `get_edited_document` answered reaches a file with no unwrapping step of its own.
 
 Natural text holds no editor state. The selection and the collapse state are lost, and a document that holds an insertion placeholder has no valid text form, so its export does not parse again. A round trip holds for a data document, not for a document that you are still building.
 
@@ -59,13 +59,13 @@ The save calls `save_file!`, which uses the `emit_text` of the file type, and no
 
 ## How it fits
 
-The code is in `source/platform/fileformat/`. `ProjecturedFileFormat` depends on `ProjecturedNatural` for the formats and on `ProjecturedSerialization` for the binary format and the file types. It also depends on `ProjecturedDomain`, `ProjecturedLayout`, `ProjecturedWidget`, `ProjecturedSyntax` and `ProjecturedText`. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. `ProjecturedFileSystem` calls `make_file_tab` to open a file in a new tab, and the application of `example/projectured/Application.jl` adds `make_file_api()` to its tool set.
+The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the application of `example/projectured/Application.jl` adds `make_file_api()` to its tool set.
 
-The package registers one natural row: `register_natural_graphics!(:fileformat, …)` with `FileDocument => FileToContent()`. Every file type then draws as its content in a tab. [natural.md](../natural/natural.md) describes the table.
+It registers one natural row: `register_natural_graphics!(:fileformat, …)` with `FileDocument => FileToContent()`. Every file type then draws as its content in a tab. [natural.md](../natural/natural.md) describes the table.
 
 ## Design decisions
 
-- **The package selects a format and adds none.** Each domain owns its text form, and `ProjecturedSerialization` owns the binary form and the file types. A new domain gets file input and output from its registrations alone.
+- **This slice selects a format and adds none.** Each domain owns its text form, and the serialization slice owns the binary form and the file types. A new domain gets file input and output from its registrations alone.
 - **The export raises an error on a wrong registered extension.** A `JsonObject` written to `a.xml` would be read back with the XML parser. An extension that no domain registered is allowed.
 - **A save goes through the file type.** `save_file!` dispatches on the file object, so a `TextFile` and a `JsonFile` save the same way.
 - **The file verbs of the tool set end at the path.** The host application owns the source of a path, so this package does not depend on a file navigator.

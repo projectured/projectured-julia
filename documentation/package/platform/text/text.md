@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [projection-system.md](../../kernel/projection-system.md), [style.md](../style/style.md), [graphics.md](../graphics/graphics.md)
 
-`ProjecturedText` holds styled text as a flat sequence of spans, and the projections that lay it out as graphics or change it on the way. Nearly every view reaches the screen through it, because `SyntaxToText` prints to it. This document says how the caret is addressed, how a key becomes an edit, and why the text decorators can map a caret in both directions.
+The text slice of `ProjecturedPlatform` holds styled text as a flat sequence of spans, and the projections that lay it out as graphics or change it on the way. Nearly every view reaches the screen through it, because `SyntaxToText` prints to it. This document says how the caret is addressed, how a key becomes an edit, and why the text decorators can map a caret in both directions.
 
 <img width="396" alt="Text example" src="../../../asset/image/example/text.png">
 
@@ -120,7 +120,7 @@ A range maps through a projection only when it lies in one span that maps to one
 
 ## How it fits
 
-`ProjecturedText` depends on the kernel, `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedStyle` and `ProjecturedGraphics`. `ProjecturedSyntax` prints every leaf and node to it, so every domain with a syntax chain uses it. Widgets, the conversation view, the console backend and the undo view use it directly.
+The text slice depends on the kernel and on the collection, domain, primitive, projection, style and graphics slices. The syntax slice prints every leaf and node to it, so every domain with a syntax chain uses it. Widgets, the conversation view, the console backend and the undo view use it directly.
 
 It registers no file type and no natural row. `@domain Text` makes the placeholder pair, and the three reference steps register their kind with the kernel.
 

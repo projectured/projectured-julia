@@ -284,7 +284,7 @@ end
 """
     test_substrate_examples()
 
-Walk the printer over every substrate example (`substrate_examples`) — one
+Walk the printer over every platform example (`substrate_examples`) — one
 `@test` per forced reactive cell, through the generic `test_printer` driver.
 """
 function test_substrate_examples()

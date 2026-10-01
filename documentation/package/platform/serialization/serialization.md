@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
-`ProjecturedSerialization` writes documents to disk in two ways: as an exact binary snapshot of one document, and as a set of text files with references between them. It also holds the contract that each file type implements and the `.pred` format, which writes any document as its own constructor call. This document says how each way works, what a file type must give, and why a marker never runs code.
+The serialization slice of `ProjecturedPlatform` writes documents to disk in two ways: as an exact binary snapshot of one document, and as a set of text files with references between them. It also holds the contract that each file type implements and the `.pred` format, which writes any document as its own constructor call. This document says how each way works, what a file type must give, and why a marker never runs code.
 
 ## How it works
 
@@ -12,7 +12,7 @@
 
 **A reactive cell writes only its type and its value.** Its dependencies, its dependents and its thunk are state of the running session, not data. So a write stops at every cell and never follows a dependent into the output of a projection. The selection is a `Reference` made of cells, so it is saved and loaded with the document.
 
-The format depends on the layout of the structs in memory. It is for one version of the program, not for an exchange between versions; `ProjecturedFileFormat` holds the portable text form. A document that holds a live resource, such as a database adapter or an open socket, can not be saved this way.
+The format depends on the layout of the structs in memory. It is for one version of the program, not for an exchange between versions; the file-format slice holds the portable text form. A document that holds a live resource, such as a database adapter or an open socket, can not be saved this way.
 
 `SaveDocumentOperation(path)` and `LoadDocumentOperation(path)` are the two operations of the editor. The inverse of a save is `DoNothingOperation()`, because the file changes and the document does not. A load replaces the root document and drops the cached IO map of the editor, so the next print builds the projection again.
 
@@ -105,7 +105,7 @@ It is the marker language at the scale of a file, read by the same interpreter. 
 
 ## How it fits
 
-`ProjecturedSerialization` depends only on the kernel and the `Serialization` standard library, and on no domain. `ProjecturedFileFormat` uses it for the binary half of `write_document_file` and `read_document_file`. Each domain with a file type depends on it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows where the file type sits in a domain.
+The serialization slice depends only on the kernel and the `Serialization` standard library, and on no domain. The file-format slice uses it for the binary half of `write_document_file` and `read_document_file`. Each domain with a file type depends on `ProjecturedPlatform` for it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows where the file type sits in a domain.
 
 Its `__init__` registers the `section` marker, `TextFile` for a path with no extension and for `.txt`, and `PredFile` for `.pred`. The domains register `.json`, `.xml`, `.md`, `.markdown`, `.rst`, `.yaml`, `.yml`, `.math`, `.sql` and `.jl`. `ProjecturedJulia` also registers the marker `definition`.
 

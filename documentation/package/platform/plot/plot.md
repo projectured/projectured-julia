@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-inventory.md](../../../design/domain-inventory.md), [style.md](../style/style.md)
 
-`ProjecturedPlot` holds the arithmetic that the chart and the sequence chart share: axis scaling, tick selection, the mapping from a data value to a pixel, the decimation that bounds the cost of a drawing, and the colour and marker cycles. It is a framework, not a domain, so it defines no document type. This document says what it holds, why it is pure, and what to check when you change it.
+The plot slice of `ProjecturedPlatform` holds the arithmetic that the chart and the sequence chart share: axis scaling, tick selection, the mapping from a data value to a pixel, the decimation that bounds the cost of a drawing, and the colour and marker cycles. It is a framework, not a domain, so it defines no document type. This document says what it holds, why it is pure, and what to check when you change it.
 
 ## How it works
 
@@ -24,12 +24,12 @@ The parts that are not obvious from their names:
 
 ## How it fits
 
-`ProjecturedPlot` depends only on `ProjecturedStyle`, for `StyleColor` and the Solarized colours. `ProjecturedChart` and `ProjecturedSequenceChart` depend on it:
+The plot slice depends only on the style slice, for `StyleColor` and the Solarized colours. `ProjecturedChart` and `ProjecturedSequenceChart` depend on it:
 
 - The chart uses all of it: the scales, the ticks, every decimation and fold, the legend layout and the cycles.
 - The sequence chart uses `AxisScale`, `to_pixel`, `to_data`, `compute_nice_ticks`, `format_tick`, `default_color_cycle` and `get_series_color`. It has its own decimation for events and arrows in `SequenceChartGeometry.jl`.
 
-The package registers nothing.
+It registers nothing.
 
 ## Design decisions
 
@@ -47,7 +47,7 @@ points = decimate_minmax(x, y, xs, ys, i0, i1)
 ```
 
 - Examples: none of its own. Every chart and sequence chart example uses it.
-- Test: `test_plot_geometry()` in `test/platform/projection/PlotGeometryTest.jl`, which `test_substrate()` runs. `test_sequencechart_geometry()` covers the same arithmetic through the sequence chart.
+- Test: `test_plot_geometry()` in `test/platform/projection/PlotGeometryTest.jl`, which `test_platform()` runs. `test_sequencechart_geometry()` covers the same arithmetic through the sequence chart.
 
 ## Limits
 

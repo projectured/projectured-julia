@@ -1,14 +1,14 @@
 """
     ProjecturedPlatformTest
 
-The test package of the substrate: the thirty packages between the kernel
-and the twenty domains. It is the second tier of the test-package DAG
-(kernel ← substrate ← domain ← umbrella). It hosts:
+The test package of the platform: the thirty-eight slices between the
+kernel and the seventeen domains. It is the second tier of the test-package
+DAG (kernel ← platform ← domain ← umbrella). It hosts:
 
-- the unit tests of every substrate package, from the reactive containers to
-  the widget projections, aggregated by `test_substrate()`;
-- the static layering guard of each of the thirty packages
-  (`test_substrate_layering`, over `ProjecturedKernelTest.check_layering`);
+- the unit tests of every slice of the platform, from the reactive containers
+  to the widget projections, aggregated by `test_platform()`;
+- the static layering guard of the platform (`test_platform_layering`, over
+  `ProjecturedKernelTest.check_layering`);
 - the **generic document-walk selection enumerators**: the CellVector-aware
   `_walk_document` and the ground-truth `collect_position_selections` /
   `collect_tree_selections`, plus the `TextString` method of
@@ -18,7 +18,7 @@ and the twenty domains. It is the second tier of the test-package DAG
   over `ProjecturedKernelTest`'s `explore_selections`.
 
 Like the umbrella, this is a **function library**: `using ProjecturedPlatformTest`
-from the repo-root environment, then call `test_substrate()` or any individual
+from the repo-root environment, then call `test_platform()` or any individual
 `test_*` function.
 """
 module ProjecturedPlatformTest
@@ -29,7 +29,7 @@ import ProjecturedPlatform
 import ProjecturedConsole
 import ProjecturedPdf
 using ProjecturedKernelTest
-# The real substrate example factories and the tier's registry slice.
+# The real platform example factories and the tier's registry slice.
 using ProjecturedPlatformExample
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule

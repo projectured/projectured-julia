@@ -1,8 +1,9 @@
 """
     ConversationModule
 
-The evaluator document domain — a code form paired with the result of
-evaluating it. Modeled on the Common Lisp ProjecturEd `evaluator.lisp`:
+This slice of `ProjecturedPlatform` holds the evaluator documents — a code
+form paired with the result of evaluating it. Modeled on the Common Lisp
+ProjecturEd `evaluator.lisp`:
 
 - `EvaluatorForm`     — one `form` (the code, e.g. a `JuliaDocument`) and its
                         `result` (a result document; `TextBlock` of the output

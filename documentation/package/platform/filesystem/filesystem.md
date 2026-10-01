@@ -1,8 +1,8 @@
-# File system domain
+# File system
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [fileformat.md](../fileformat/fileformat.md), [pane.md](../pane/pane.md)
 
-The file system domain, `ProjecturedFileSystem`, shows folders and files of the disk as a tree, and it holds the workspace: the Explorer view that lists the folders you work in. It shows the names of files, not their contents. This document says how the tree is read, how a file opens, and where the domain differs from the [shape of every domain](../../../design/domain-anatomy.md).
+The file-system slice of `ProjecturedPlatform` shows folders and files of the disk as a tree, and it holds the workspace: the Explorer view that lists the folders you work in. It shows the names of files, not their contents. This document says how the tree is read, how a file opens, and where its documents differ from the [shape of every domain](../../../design/domain-anatomy.md).
 
 <img width="396" alt="File system widget example" src="../../../asset/image/example/filesystem-widget.png">
 
@@ -37,7 +37,7 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 
 ### Choose a file
 
-`FileSystemChooser` is the document of the open and save dialogs of `ProjecturedShell`. In the chooser, the open gesture of a row makes a `WriteChosenNameOperation` instead of an `OpenFileOperation`: Enter or a double click writes the name of the file into the `name` field. `get_chosen_path` joins the directory and the name. The shell turns the chosen path into an open or a save.
+`FileSystemChooser` is the document of the open and save dialogs of the shell slice. In the chooser, the open gesture of a row makes a `WriteChosenNameOperation` instead of an `OpenFileOperation`: Enter or a double click writes the name of the file into the `name` field. `get_chosen_path` joins the directory and the name. The shell turns the chosen path into an open or a save.
 
 ### Duplicate the Explorer
 
@@ -45,7 +45,7 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 
 ## How it fits
 
-`ProjecturedFileSystem` depends on `ProjecturedFileFormat` and `ProjecturedPane` for the open, on `ProjecturedWidget` for the tree, and on `ProjecturedFocus` for the Alt+press that selects the workspace. `ProjecturedShell` uses it for the dialogs and for the Explorer button of the toolbar.
+The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, and on the focus slice for the Alt+press that selects the workspace. The shell slice uses it for the dialogs and for the Explorer button of the toolbar.
 
 Its `__init__` registers:
 
@@ -57,7 +57,7 @@ Its `__init__` registers:
 
 ## Design decisions
 
-- **An open names the file, not the place.** The file system package has no reference to tabs or panes. The pane tree chooses the place of a file.
+- **An open names the file, not the place.** The file-system slice has no reference to tabs or panes. The pane tree chooses the place of a file.
 - **A chooser only chooses.** The dialog document holds a path. The shell acts on it.
 - **A row is a place the projection introduces.** The tree is computed from a path, so a row has no document of its own in the workspace. The row goes into the root path as a `ProjectionReferenceStep` on the folder, as a catalog row does on a `DatabaseInstance`. A second selection on the computed directory would split the window's selection in two.
 - **A folder is read once, and nothing watches it.** The first read happens when the Explorer draws the row of the folder or opens it. A live view of the disk needs a synchronizer outside the cells. [plan/tentative/filesystem-file-content-projection.md](../../../../plan/tentative/filesystem-file-content-projection.md) discusses one.
@@ -80,7 +80,7 @@ run_example("navigator")                 # the Explorer view of the fixture proj
 - A change on the disk does not show until something assigns the folder path again.
 - A key that moves the selection to a row below the edge of the pane does not scroll the row into view.
 - A selected row other than the root row names no document, so a copy of it copies nothing.
-- A file has no content view in this domain. To edit a file, open it; its extension selects the domain.
+- A file has no content view here. To edit a file, open it; its extension selects the domain.
 - A folder that was read is not read again when it closes and opens.
 - A long name is clipped at the edge of the pane.
 - The tree keeps the open folders as index paths. When the folder path changes, the tree starts again with only the root open.

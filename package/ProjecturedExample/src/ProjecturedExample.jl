@@ -97,7 +97,7 @@ include(joinpath(_EXAMPLE_DIR, "ProjecturedExamples.jl"))
 include(joinpath(_EXAMPLE_DIR, "Catalog.jl"))
 # `default_backend` picks a loaded Backend subtype by its own type name. Only
 # the two harnesses below call it, so it lives with them rather than in a
-# package of the substrate. It reads the kernel's Backend type through the
+# slice of the platform. It reads the kernel's Backend type through the
 # alias, which is how every file that names a submodule reaches one here.
 const BackendModule = Projectured.BackendModule
 include(joinpath(_EXAMPLE_DIR, "DefaultBackend.jl"))

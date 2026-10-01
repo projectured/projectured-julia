@@ -12,8 +12,8 @@ It carries no concrete projections, no concrete documents, no concrete domains
 (JSON/XML/Text/Syntax/Widget/...), no backends, and **no heavy dependencies** —
 so `using ProjecturedKernel` precompiles and loads on its own. The
 domain-independent projection algebra, the foundational document vocabulary,
-the render substrate, and the concrete domains all live in the packages above
-(`base`, `visual`, `domain`). The real LLM/MCP transports are opt-in packages
+and the rendering live in `ProjecturedPlatform`, and the concrete domains live
+in the packages above it (`platform`, `domain`). The real LLM/MCP transports are opt-in packages
 that depend on this one; the kernel carries only their dependency-free seams.
 """
 module ProjecturedKernel

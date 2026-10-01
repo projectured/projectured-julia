@@ -34,7 +34,7 @@ The packages are not in the General registry yet. A project reaches them by path
 
 | Package | What you get |
 | --- | --- |
-| `Projectured` | the umbrella: the kernel, the substrate and every domain |
+| `Projectured` | the umbrella: the kernel, the platform and every domain |
 | `ProjecturedSdl` | the native window |
 | `ProjecturedWeb` | the browser backend |
 | `ProjecturedExample` | the examples, the gallery, `run_value_viewer` and the application |
@@ -60,7 +60,7 @@ run_editor!(document, projection; window = (; title = "My data"))
 
 For a value that has no projection of its own, [view-your-data-guide.md](view-your-data-guide.md) is shorter: `run_value_viewer(value)`.
 
-That window has no menu bar, no clipboard and no F1 help: what a window has besides the document in it comes from `ProjecturedShell`. `make_window_wrap(; …)` answers the fold to apply before the window opens. [shell.md](../package/platform/shell/shell.md) says what each keyword adds and why the order is what it is.
+That window has no menu bar, no clipboard and no F1 help: what a window has besides the document in it comes from the shell slice of `ProjecturedPlatform`. `make_window_wrap(; …)` answers the fold to apply before the window opens. [shell.md](../package/platform/shell/shell.md) says what each keyword adds and why the order is what it is.
 
 ## Another backend, and no screen at all
 

@@ -127,7 +127,7 @@ There are four backends and a test double:
 | --- | --- | --- | --- |
 | `SdlBackend` | `ProjecturedSdl`, opt-in | native windows | the keyboard, the mouse and the windows |
 | `WebBackend` | `ProjecturedWeb`, opt-in | a canvas in a browser page | the events that the page sends |
-| `ConsoleBackend` | `ProjecturedConsole`, substrate | a terminal, for the text domain | the bytes of the terminal |
+| `ConsoleBackend` | `ProjecturedConsole`, required | a terminal, for the text domain | the bytes of the terminal |
 | `VideoBackend` | `ProjecturedVideo`, opt-in | the frames of a video file | a scripted timeline |
 | `HeadlessBackend` | `ProjecturedKernelExample`, test double | a log of each output | a queue of scripted events |
 
@@ -257,7 +257,7 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
   synchronously *while printing*, long before any primitive reaches the
   browser, so the server must measure glyphs the same way the browser renders
   them. `TextToGraphics` measures with a `FontFileMeasure()`, the pure-Julia
-  TrueType measurer of `ProjecturedStyle`, so it needs no SDL; the same TTFs are served to the browser (`/font/<name>`,
+  TrueType measurer of the platform's style slice, so it needs no SDL; the same TTFs are served to the browser (`/font/<name>`,
   loaded via the `FontFace` API) so metrics line up. The browser handles HiDPI
   with `devicePixelRatio`, so the server stays in logical pixels.
 - **`write_to_devices`** serializes the projection-output `ScreenDocument` into a
@@ -362,7 +362,7 @@ See [the graphics guide](../platform/graphics/graphics.md) for the image and PDF
 
 Some projections need to lay out text (`TextToGraphics`, `WordWrapping` and
 `WidgetToGraphics` among them). They take a `measure::TextMeasure` argument, from
-`ProjecturedStyle`, so they stay backend-agnostic:
+the platform's style slice, so they stay backend-agnostic:
 
 ```julia
 TextToGraphics(measure = FontFileMeasure())
@@ -572,8 +572,8 @@ protocol.
 
 `read!` gives the projection each input of the backend: a `WindowInput` with
 an event or a gesture and a window id, or a due timer, a `TimerExpire`. The
-editor recognizes no gesture. `GestureTrackingProjection`, in the substrate
-package `ProjecturedGestureTracking`, runs the recognitions over the inputs,
+editor recognizes no gesture. `GestureTrackingProjection`, in the platform's
+gesturetracking slice, runs the recognitions over the inputs,
 and a host wraps the document of the editor in its `GestureTrackingState`. An
 editor whose projection has no gesture tracker gets events and no gestures.
 The meaning of a gesture is decided where it is bound, in the `binding/` layer.
@@ -584,7 +584,7 @@ Layer 9 of the kernel — **the seam to a platform**: the life of a backend, one
 input at a time, the output of each frame, the wait between frames, a few
 queries, and the output to a file. The layer carries the abstract `Backend` type
 and the backend generics. The SDL, web and video backends live in opt-in
-packages, and the console backend is a substrate package. The dependency-free
+packages, and the console backend is a package of its own, not opt-in. The dependency-free
 `HeadlessBackend` test double lives in `ProjecturedKernelExample`
 (PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
 
@@ -732,7 +732,7 @@ read `c` from. A rule with no description has none either: its description is th
 gesture rendering (`"Ctrl+K"`), which is not a command name.
 
 This is what puts an operation in front of a user without spending a key on it.
-The command palette of the `gesturehelp` package of the substrate lists these by
+The command palette of the `gesturehelp` slice of the platform lists these by
 name; see [CommandPalette.jl](../../../source/platform/gesturehelp/CommandPalette.jl).
 
 ### Downward edges

@@ -18,7 +18,7 @@ The backend holds one connection. A second WebSocket gets the message `{"type":"
 
 ### Measure
 
-A projection of the server measures text with a `FontFileMeasure()` of `ProjecturedStyle`, so the backend needs no SDL; see [style.md](../../platform/style/style.md#measurement-without-a-display). The layout measures text while it prints, before the browser gets anything, so the server must measure. It serves the same font files, and the client loads them with the `FontFace` API, so the browser draws with the metrics that the layout used. `FontFileMeasure` reads the font zoom, so Ctrl+Alt zoom lays the text out again. The uniform zoom and the pixel density of the display belong to the browser, and the server stays in logical pixels.
+A projection of the server measures text with a `FontFileMeasure()` of the style slice, so the backend needs no SDL; see [style.md](../../platform/style/style.md#measurement-without-a-display). The layout measures text while it prints, before the browser gets anything, so the server must measure. It serves the same font files, and the client loads them with the `FontFace` API, so the browser draws with the metrics that the layout used. `FontFileMeasure` reads the font zoom, so Ctrl+Alt zoom lays the text out again. The uniform zoom and the pixel density of the display belong to the browser, and the server stays in logical pixels.
 
 Each drawn text sends the ascent of its box (`b`), the pen offset of each character (`o`) from `compute_caret_offsets`, and its font and its fallback fonts as a CSS font family stack (`f`). The client sets `textBaseline = "alphabetic"` and draws each character alone at its own offset from the pen position, on the baseline `y + b`, so the browser's own kerning and ligatures never move a glyph.
 
@@ -59,7 +59,7 @@ Each client message holds `t`: the time of its browser event in milliseconds sin
 
 ## How it fits
 
-`ProjecturedWeb` depends on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedScreen`, `ProjecturedStyle` and the kernel, and on `HTTP`, `JSON3` and `Base64`. It needs no SDL. It registers nothing.
+`ProjecturedWeb` depends on the kernel and the platform, and on `HTTP`, `JSON3` and `Base64`. It needs no SDL. It registers nothing.
 
 `default_backend()` in `example/projectured/DefaultBackend.jl` picks `WebBackend` when `SdlBackend` is not loaded. The builder names it as the backend `web`, and a binary with both backends takes `--backend=web`. The test of a distribution starts the copied binary with `--backend=web` and reads the client and a font through this server; see [builder.md](../../tool/builder/builder.md).
 

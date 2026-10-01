@@ -38,8 +38,8 @@ internal API boundaries; splitting the machinery into separate modules would onl
 multiply import headers.
 
 Concrete engine documents do not live in this layer: the collections live in
-`ProjecturedCollection`, the primitives in `ProjecturedPrimitive`, and
-`ScreenDocument` in `ProjecturedScreen`. The **document layer is the contract**;
+the platform's collection slice, the primitives in its primitive slice, and
+`ScreenDocument` in its screen slice. The **document layer is the contract**;
 concrete documents belong to the packages built on top of it.
 
 ## What every `@document` node carries
@@ -142,7 +142,7 @@ the walk described above and pays nothing for the option. This layer never names
 a marker *type*, and never sees a policy that is not handed to it: it calls
 whoever supplied the policy for what stands where the walk stopped.
 
-The same three hooks bound the walk that `ProjecturedReflection`'s
+The same three hooks bound the walk that the reflection slice's
 `sync_reflection!` uses to grow a shadow of an arbitrary Julia value one level
 at a time, instead of walking the whole value up front. See
 [reflection.md](../platform/reflection/reflection.md) for the policy and the widget view
@@ -266,5 +266,5 @@ constraint is what keeps the interface sufficient. If the contract cannot be
 exercised without the concrete documents, it is not actually a contract.
 
 The tests of the walk, the bounded sync and the duplicate use collections and
-primitives, so they are in the substrate suite: `DocumentWalkTest.jl`,
+primitives, so they are in the platform suite: `DocumentWalkTest.jl`,
 `BoundedSyncTest.jl` and `DocumentDuplicateTest.jl` in `test/platform/document/`.

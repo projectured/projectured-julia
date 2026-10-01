@@ -35,7 +35,7 @@ This route exists for a block that is not Markdown. A page can hold any file doc
 
 ## How it fits
 
-`ProjecturedMarkdown` depends on `ProjecturedLayout`, `ProjecturedGraphics` and `ProjecturedWidget` in addition to the packages of every text domain. It needs them for the vertical layout, the images and the embed cards. No domain depends on it.
+`ProjecturedMarkdown` depends on the kernel and the platform. Beyond what every text domain needs, it uses the layout, graphics and widget slices for the vertical layout, the images and the embed cards. No domain depends on it.
 
 Its `__init__` registers three natural rows, because Markdown reaches two rungs of the natural ladder:
 

@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [reference.md](../../kernel/reference.md)
 
-`ProjecturedCollection` holds four generic containers for the children of a document: a vector, a matrix, a table and a linked list. Each element is in a reactive cell of its own. This document says which kind of change reaches which reader, and how the kernel uses these types without naming them.
+The collection slice of `ProjecturedPlatform` holds four generic containers for the children of a document: a vector, a matrix, a table and a linked list. Each element is in a reactive cell of its own. This document says which kind of change reaches which reader, and how the kernel uses these types without naming them.
 
 <img width="396" alt="Collection example" src="../../../asset/image/example/collection.png">
 
@@ -75,7 +75,7 @@ A reference addresses an element as `[i]`, from 1, and the place between two ele
 
 ## How it fits
 
-`ProjecturedCollection` depends only on the kernel. Almost every other package depends on it: the projection algebra, text, syntax, graphics, layout, widgets, panes and every domain with a list of children. `ProjecturedProjection` holds the projections that sort, filter and search a collection.
+The collection slice depends only on the kernel. Almost every other slice depends on it: the projection, text, syntax, graphics, layout, widget and pane slices, and every domain with a list of children. The projection slice holds the projections that sort, filter and search a collection.
 
 It registers nothing at load time. The methods in the table above are what connect it to the kernel.
 

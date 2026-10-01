@@ -50,7 +50,7 @@ Ollama sends one JSON object for each line, with no block framing. `_line_handle
 
 ## How it fits
 
-Each package depends on the kernel, `HTTP` and `JSON3`. The third-party dependencies are the reason that both are opt-in packages; see [package-rules.md](../../../rule/package-rules.md). Neither depends on the other, and `ProjecturedAssistant` depends on neither.
+Each package depends on the kernel, `HTTP` and `JSON3`. The third-party dependencies are the reason that both are opt-in packages; see [package-rules.md](../../../rule/package-rules.md). Neither depends on the other, and the assistant slice of `ProjecturedPlatform` depends on neither.
 
 `Assistant.backend` names a backend by its key, and the assistant builds it with `make_llm` at each turn; see [assistant.md](../../platform/assistant/assistant.md). `bind_meaning_model!` gives the meaning model of a backend to a tool set, which the assistant does at each turn. The test doubles `FakeLlm` and `ScriptedLlm` are in `ProjecturedKernelExample`, and never in a package of the main stack.
 

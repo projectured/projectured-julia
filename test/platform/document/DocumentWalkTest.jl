@@ -11,9 +11,9 @@ parameters — so nothing but a test keeps that distinction from being flattened
 later "simplification" that gave both the same policy and saw every other test stay
 green.
 
-The suite is in the substrate test package, not in the kernel one, because a
+The suite is in the platform test package, not in the kernel one, because a
 shared subtree needs a collection document, and `CellVector` is in the collection
-package above the kernel.
+slice above the kernel.
 """
 
 function test_document_walk()

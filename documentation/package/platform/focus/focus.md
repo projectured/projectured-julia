@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [selection.md](../../kernel/selection.md), [reference.md](../../kernel/reference.md)
 
-`ProjecturedFocus` holds the functions that make the selection act as the focus. They are the walk that Tab follows, the rule that gives the focus to a pressed control, the Alt+press rule that selects a whole object, the Alt+arrow walk, and a step that names a drawn widget. It has no document type and names no widget type. This document says what each function computes, which package applies it, and where the traps are.
+The focus slice of `ProjecturedPlatform` holds the functions that make the selection act as the focus. They are the walk that Tab follows, the rule that gives the focus to a pressed control, the Alt+press rule that selects a whole object, the Alt+arrow walk, and a step that names a drawn widget. It has no document type and names no widget type. This document says what each function computes, which slice applies it, and where the traps are.
 
 ## How it works
 
@@ -57,7 +57,7 @@ A projection can draw a widget that no document of the domain stands behind, suc
 
 ## How it fits
 
-The five files of `source/platform/focus/` hold the parts above: `Focus.jl` the Tab walk and the press that gives the focus, `FocusCycling.jl` the start over at the ends, `WholeSelection.jl`, `SelectionWalking.jl` and `OutputSelection.jl`. `ProjecturedFocus` depends only on the kernel and on `ProjecturedCollection`. `ProjecturedLayout` and `ProjecturedWidget` call the Tab walk and the whole-element functions. `ProjecturedShell` puts a `SelectionWalkingProjection` into the fold of a window when its `selection` keyword is set; see [shell.md](../shell/shell.md). The package registers nothing. A domain extends it through two open functions, `is_focusable_document` and `is_selection_walk_stop`.
+The five files of `source/platform/focus/` hold the parts above: `Focus.jl` the Tab walk and the press that gives the focus, `FocusCycling.jl` the start over at the ends, `WholeSelection.jl`, `SelectionWalking.jl` and `OutputSelection.jl`. The focus slice depends only on the kernel and on the collection slice. The layout and widget slices call the Tab walk and the whole-element functions. The shell slice puts a `SelectionWalkingProjection` into the fold of a window when its `selection` keyword is set; see [shell.md](../shell/shell.md). It registers nothing. A domain extends it through two open functions, `is_focusable_document` and `is_selection_walk_stop`.
 
 ## Design decisions
 

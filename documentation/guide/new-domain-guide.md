@@ -116,21 +116,16 @@ the packages this slice's `using ..XxxModule` lines reach into as a local
 `const` (so `..CollectionModule` inside `BookmarkModule` resolves to something),
 and it includes the slice's module file. Create
 `package/ProjecturedBookmark/Project.toml` (a fresh UUID; `[deps]` on the
-engine and substrate packages named below) and
+engine and platform packages named below) and
 `package/ProjecturedBookmark/src/ProjecturedBookmark.jl`:
 
 ```julia
 module ProjecturedBookmark
 
 using ProjecturedKernel
-using ProjecturedCollection
-using ProjecturedStyle
-using ProjecturedSyntax
-using ProjecturedText
-using ProjecturedProjection
+using ProjecturedPlatform
 
-for _src in (ProjecturedKernel, ProjecturedCollection, ProjecturedStyle,
-             ProjecturedSyntax, ProjecturedText, ProjecturedProjection)
+for _src in (ProjecturedKernel, ProjecturedPlatform)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)
@@ -145,10 +140,10 @@ end # module ProjecturedBookmark
 ```
 
 The loop is what lets `BookmarkModule` write `using ..CollectionModule` and
-have it resolve: it walks each dependency package (`ProjecturedCollection`,
+have it resolve: it walks each dependency package (`ProjecturedPlatform`,
 …), finds every submodule that package defines or re-exports, and binds it as
 a `const` of the same name here — so `..CollectionModule` inside a submodule
-of `ProjecturedBookmark` finds the `const CollectionModule = ProjecturedCollection.CollectionModule`
+of `ProjecturedBookmark` finds the `const CollectionModule = ProjecturedPlatform.CollectionModule`
 the loop wrote. `parentmodule(_m) !== Main` is what keeps a package's own
 re-exported aliases of a *lower* package from being bound twice. Every real
 domain package's root module is this same loop with a different dependency
@@ -312,7 +307,7 @@ end
 Both files belong to the example package,
 `package/ProjecturedBookmarkExample/` — its own `Project.toml`, depending on
 `ProjecturedBookmark` plus whatever the two functions above name directly
-(`ProjecturedStyle` for `FontFileMeasure`). Its root module needs the
+(`ProjecturedPlatform` for `FontFileMeasure`). Its root module needs the
 same alias loop as Step 2, over its own dependency tuple, before the two
 `include`s:
 
@@ -321,7 +316,7 @@ module ProjecturedBookmarkExample
 
 using ProjecturedBookmark
 using ProjecturedKernelExample
-using ProjecturedStyle
+using ProjecturedPlatform
 
 for _src in (ProjecturedBookmark, ProjecturedKernelExample)
     for _n in names(_src; all = true)
@@ -392,7 +387,7 @@ end # test_bookmark_to_syntax
 In `package/ProjecturedBookmarkTest/src/ProjecturedBookmarkTest.jl`, the same
 alias-loop shape again — over `ProjecturedBookmark`,
 `ProjecturedBookmarkExample`, `ProjecturedKernelTest` and
-`ProjecturedSubstrateTest` (for `@testset`, `ChildrenIoMap`, and the shared
+`ProjecturedPlatformTest` (for `@testset`, `ChildrenIoMap`, and the shared
 drivers) — then:
 
 ```julia

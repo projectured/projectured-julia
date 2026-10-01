@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [document.md](../../kernel/document.md)
 
-`ProjecturedComponent` is meant to hold components: reusable units of a user interface, such as a master-detail view, that combine widgets and behave as one. It holds one document type and no projection yet. This document says what exists, what does not, and where the plan for the rest is.
+The component slice of `ProjecturedPlatform` is meant to hold components: reusable units of a user interface, such as a master-detail view, that combine widgets and behave as one. It holds one document type and no projection yet. This document says what exists, what does not, and where the plan for the rest is.
 
 ## How it works
 
@@ -20,7 +20,7 @@ No projection draws a `ComponentMasterDetail`, and no reader edits it. The modul
 
 ## How it fits
 
-`ProjecturedComponent` depends only on the kernel and imports no widget type. `ComponentModule` exports only `ComponentDocument`; the concrete type is `ComponentModule.ComponentMasterDetail`. The umbrella package `Projectured` loads it, but no other package reads a component. The package registers nothing.
+The component slice depends only on the kernel and imports no widget type. `ComponentModule` exports only `ComponentDocument`; the concrete type is `ComponentModule.ComponentMasterDetail`. The umbrella package `Projectured` loads it, but no other slice reads a component. It registers nothing.
 
 The planned place of a component is between a domain document and the widgets: a `ComponentToWidget` projection would draw a `ComponentMasterDetail` as a `WidgetSplitPane` of two panes.
 
@@ -32,7 +32,7 @@ The planned place of a component is between a domain document and the widgets: a
 ## Usage
 
 ```julia
-using ProjecturedComponent: ComponentModule
+using ProjecturedPlatform: ComponentModule
 view = ComponentModule.ComponentMasterDetail(master_document, detail_document;
                                              master_title = "Tables", split_ratio = 0.25)
 ```

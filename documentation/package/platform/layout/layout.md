@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [cell.md](../../kernel/cell.md), [layout-rules.md](../../../rule/layout-rules.md)
 
-`ProjecturedLayout` places documents of any kind next to each other: in a row, a column, a grid, a flow, a stack, relative to an anchor, or by constraints. This document says how a layout measures and places its children with reactive cells, how the available size from a parent reaches a child, and how a press reaches the right child.
+The layout slice of `ProjecturedPlatform` places documents of any kind next to each other: in a row, a column, a grid, a flow, a stack, relative to an anchor, or by constraints. This document says how a layout measures and places its children with reactive cells, how the available size from a parent reaches a child, and how a press reaches the right child.
 
 <img width="396" alt="Layout example" src="../../../asset/image/example/layout.png">
 
@@ -63,7 +63,7 @@ Every layout reader goes through one router:
 
 - A mouse event goes to the child under the pointer. The router translates the point into the frame of the child, limits the hit to the box of the child, and confirms it with `hit_element_at`. The box matters: a `GraphicsText` has no width of its own, so without the box a text on the left of a row would take clicks meant for its right neighbour. Stack, constraint and anchored layouts try the topmost child first, because their children can overlap. A child that is a bare graphics document, such as a circle laid out directly, has no canvas to hit: it is hit anywhere in the box of its size, `get_graphics_size`, the same box that sizes it.
 - A key goes only to the child that the selection of the layout names. There is no broadcast.
-- Tab goes to the selected child first; if it returns nothing, the focus moves to the next focusable sibling with the functions of `ProjecturedFocus`.
+- Tab goes to the selected child first; if it returns nothing, the focus moves to the next focusable sibling with the functions of the focus slice.
 - An Alt+press selects the innermost document under the pointer as a whole (`read_child_event`).
 - A left button down with no modifier on a focusable child that answers nothing selects that child as a whole, so a key after the click goes to it (`read_child_event`).
 - A move with no button held goes first to the child that the mouse target of the layout names, when the point is not on that child, and then to the child under the pointer, which names the part under it (`read_child_event`, [graphics.md](../graphics/graphics.md#the-part-under-the-pointer)).
@@ -78,7 +78,7 @@ A layout maps a part forward by index (`descend_reference_forward`): `children[i
 
 ## How it fits
 
-`ProjecturedLayout` depends on `ProjecturedGraphics`, `ProjecturedFocus`, `ProjecturedProjection` and `ProjecturedCollection`. `ProjecturedWidget`, `ProjecturedPane`, `ProjecturedNatural`, `ProjecturedFileFormat` and the page domains use it. It registers nothing; a caller composes `RecursiveProjection(LayoutToGraphics())` into its chain.
+The layout slice depends on the graphics, focus, projection and collection slices. The widget, pane, natural and file-format slices, and the page domains, use it. It registers nothing; a caller composes `RecursiveProjection(LayoutToGraphics())` into its chain.
 
 ## Design decisions
 

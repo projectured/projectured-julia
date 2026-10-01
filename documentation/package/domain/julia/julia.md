@@ -54,7 +54,7 @@ A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring
 
 ## How it fits
 
-`ProjecturedJulia` depends only on the engine and the substrate. The domains that embed Julia code depend on it: `ProjecturedFsm`, `ProjecturedProcess`, `ProjecturedFormula` and `ProjecturedConversation`. `ProjecturedFormula` copies the dispatch table of `JuliaToSyntax()` and adds its own rules, so one recursion prints a tree that mixes Julia and formula nodes.
+`ProjecturedJulia` depends only on the engine and the platform. The domains that embed Julia code depend on it: `ProjecturedFsm`, `ProjecturedProcess` and `ProjecturedFormula`. `ProjecturedFormula` copies the dispatch table of `JuliaToSyntax()` and adds its own rules, so one recursion prints a tree that mixes Julia and formula nodes.
 
 Its `__init__` registers the natural notation (format `:jl`, extension `.jl`, parser `parse_julia`), `JuliaFile` for `.jl`, and the `:definition` marker verb.
 

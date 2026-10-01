@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [devices-and-backends.md](../../kernel/devices-and-backends.md), [screen.md](../screen/screen.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
-`ProjecturedGestureHelp` holds two lists that a person opens while working: F1 shows the gestures that work where the selection is, and Ctrl+Shift+P runs a command by its name. Both read the live projection chain, not a table written by hand. This document says how the rows are collected, why the help is a window and the palette is an overlay, and how the palette matches a query.
+The gesturehelp slice of `ProjecturedPlatform` holds two lists that a person opens while working: F1 shows the gestures that work where the selection is, and Ctrl+Shift+P runs a command by its name. Both read the live projection chain, not a table written by hand. This document says how the rows are collected, why the help is a window and the palette is an overlay, and how the palette matches a query.
 
 ## How it works
 
@@ -50,11 +50,11 @@ Nothing but declare its gestures with `@gestures`. The description of a rule is 
 
 ## How it fits
 
-`ProjecturedGestureHelp` depends on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedStyle`, `ProjecturedSyntax`, `ProjecturedText` and the kernel. It takes the collection of intents from the gesture bindings of the kernel, and the window operations from `ProjecturedScreen`.
+The gesturehelp slice depends on the kernel and on the collection, graphics, projection, screen, style, syntax and text slices. It takes the collection of intents from the gesture bindings of the kernel, and the window operations from the screen slice.
 
-`ProjecturedShell` adds both decorators to every window unless `gesture_help` or `command_palette` of `make_window_wrap` is `false`. The palette is over the help, and both are over the tooltip probe; [shell.md](../shell/shell.md#the-fold) says why. `make_opened_window_projections` of the shell gives the row for `GestureMap`. The gallery adds them with `gesture_help = true` and `command_palette = true`.
+The shell slice adds both decorators to every window unless `gesture_help` or `command_palette` of `make_window_wrap` is `false`. The palette is over the help, and both are over the tooltip probe; [shell.md](../shell/shell.md#the-fold) says why. `make_opened_window_projections` of the shell gives the row for `GestureMap`. The gallery adds them with `gesture_help = true` and `command_palette = true`.
 
-The package registers nothing: no natural row, no `.pred` type and no insertion alias. No tab holds either document.
+It registers nothing: no natural row, no `.pred` type and no insertion alias. No tab holds either document.
 
 ## Design decisions
 

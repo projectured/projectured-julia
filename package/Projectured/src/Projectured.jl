@@ -2,7 +2,7 @@
     Projectured
 
 Umbrella package — a thin **REPL convenience**. It depends on the kernel, on
-the twenty-eight packages of the substrate and on every concrete domain, and
+`ProjecturedPlatform` and on every concrete domain, and
 re-exports their combined public API as
 a single flat namespace (`using Projectured`) plus their submodules as
 `Projectured.XxxModule` aliases for qualified access.

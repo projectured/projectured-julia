@@ -107,7 +107,7 @@ A key goes to the selected child first, and a node acts only when the child retu
 
 ## How it fits
 
-`ProjecturedMath` depends on the kernel, `ProjecturedGraphics`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedPrimitive`, `ProjecturedNatural` and `ProjecturedSerialization`. It depends on no other domain. `ProjecturedFormula` depends on it: a formula can have math code, which it converts to Julia to compute, and it draws that code with the boxes of this domain; see [formula.md](../formula/formula.md).
+`ProjecturedMath` depends on the kernel and the platform. It depends on no other domain. `ProjecturedFormula` depends on it: a formula can have math code, which it converts to Julia to compute, and it draws that code with the boxes of this domain; see [formula.md](../formula/formula.md).
 
 Its `__init__` makes four calls:
 

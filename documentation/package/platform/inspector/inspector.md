@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [reference.md](../../kernel/reference.md), [screen.md](../screen/screen.md), [natural.md](../natural/natural.md)
 
-`ProjecturedInspector` shows a reference in a form that a person can read: the compact path and a sentence that says what it names. It has two documents, `ReferenceInspector` for one reference and `SelectionInspector` for a selection, and a probe that opens a reference inspector for what a click under the pointer would select. This document says how the three parts work, how they share one rendering, and what the probe does wrong.
+The inspector slice of `ProjecturedPlatform` shows a reference in a form that a person can read: the compact path and a sentence that says what it names. It has two documents, `ReferenceInspector` for one reference and `SelectionInspector` for a selection, and a probe that opens a reference inspector for what a click under the pointer would select. This document says how the three parts work, how they share one rendering, and what the probe does wrong.
 
 ## How it works
 
@@ -47,11 +47,11 @@ The press has no Alt key, so the probe shows the reference that a click makes: a
 
 ## How it fits
 
-The code is in `source/platform/inspector/`, one file for each document and each projection, and `HoverProbe.jl` for the probe. `ProjecturedInspector` depends on the kernel and on `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedSerialization`, `ProjecturedStyle` and `ProjecturedText`. It names no domain: it reads a `Reference` and a `Document` of any kind.
+The code is in `source/platform/inspector/`, one file for each document and each projection, and `HoverProbe.jl` for the probe. The inspector slice depends on the kernel and on the domain, natural, projection, screen, serialization, style and text slices. It names no domain: it reads a `Reference` and a `Document` of any kind.
 
 Its `__init__` registers the rows of the renderer kind `:inspector` with `register_natural_graphics!`. Each of the two documents draws through its text projection, `WordWrapping` and `TextToGraphics`. It also registers both documents as `.pred` types. `pred_arguments` of both writes nothing: what a reference inspector holds is a moment of the pointer, and a function source can not be written as notation. So a loaded inspector starts empty, and a loaded selection inspector follows the editor.
 
-Both documents have a title, "Reference" and "Selection", and an insertion name, `reference` and `selection`, so a person can open one by its name in an empty tab. The toolbar of `ProjecturedShell` has a Selection tool that opens a `SelectionInspector`; see [shell.md](../shell/shell.md). The gallery wraps a window in a `HoverProbeProjection` with `run_example(…; inspector = true)`.
+Both documents have a title, "Reference" and "Selection", and an insertion name, `reference` and `selection`, so a person can open one by its name in an empty tab. The toolbar of the shell slice has a Selection tool that opens a `SelectionInspector`; see [shell.md](../shell/shell.md). The gallery wraps a window in a `HoverProbeProjection` with `run_example(…; inspector = true)`.
 
 ## Design decisions
 

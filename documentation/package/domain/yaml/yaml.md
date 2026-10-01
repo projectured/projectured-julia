@@ -40,7 +40,7 @@ The block sequence is the one hand-written projection, `YamlSequenceToBlockSynta
 
 ## How it fits
 
-`ProjecturedYaml` depends on the engine and on the substrate packages that every text domain uses. No other domain depends on it. Its `__init__` registers:
+`ProjecturedYaml` depends on the engine and on the platform. No other domain depends on it. Its `__init__` registers:
 
 - the natural notation, with the format `:yaml`, the extension `.yaml` and the parser `parse_yaml`;
 - a second parser name, `register_natural_parser!(:yml, parse_yaml)`, so a Markdown fence tagged `yml` also parses;

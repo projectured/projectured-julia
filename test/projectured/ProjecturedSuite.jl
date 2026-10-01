@@ -36,7 +36,7 @@ using ProjecturedProcessTest
 using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
-# gives a REPL `test_json()` and `test_substrate()` as well as `test_all()`.
+# gives a REPL `test_json()` and `test_platform()` as well as `test_all()`.
 for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedPlatformTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedPlatformTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedPlatformTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedPlatformTest, ProjecturedSqlTest, ProjecturedPlatformTest, ProjecturedPlatformTest, ProjecturedXmlTest, ProjecturedYamlTest)
     for _n in names(_src)
         _n === nameof(_src) && continue
@@ -200,7 +200,7 @@ include("projection/NaturalRegistryTest.jl")
     test_documents()
 
 Umbrella-only document suites — the per-layer document tests now run inside
-`test_kernel()` / `test_substrate()` / `test_domain()`.
+`test_kernel()` / `test_platform()` / `test_domain()`.
 """
 function test_documents()
     @testset "Documents" begin
@@ -213,7 +213,7 @@ end
     test_projections()
 
 Umbrella-only projection suites (example/editor/SDL-coupled) — the per-layer
-projection tests now run inside `test_substrate()` / `test_domain()`.
+projection tests now run inside `test_platform()` / `test_domain()`.
 """
 function test_projections()
     @testset "Projections" begin
@@ -386,7 +386,7 @@ function test_all()
     test_arguments()
     test_exports()
     test_documentation()
-    # The per-package suites: the kernel unit tests, the substrate documents and
+    # The per-package suites: the kernel unit tests, the platform's documents and
     # projections, every domain, and the layering guard of each package.
     test_kernel()
     test_platform()

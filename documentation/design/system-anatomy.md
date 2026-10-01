@@ -58,8 +58,9 @@ The **kinds** of package (main, example, test, repl, build), what each may
 depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
-ProjecturEd is organized as **one engine, thirty substrate packages and
-twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
+ProjecturEd is organized as **one kernel, one platform package of
+thirty-eight slices, seventeen domain packages, five backends and eight
+adapters**, plus an umbrella and the tools. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
@@ -67,13 +68,15 @@ Each layer holds exactly one module, so the root's include list is the layer
 diagram itself: one line per layer, bottom to top, and a module's own file
 carries its fragment include list.
 Every other package is **one concept**, so it declares no layer index; the
-guard checks its include order and its file inventory alone.
+guard checks its include order and its file inventory alone. The platform
+declares no layer either: its thirty-eight slices form an acyclic graph of
+their own, which the same guard checks.
 
 Each main package is one third of a **triad**: `package/Projected<Name>`,
 `package/Projected<Name>Test` and `package/Projected<Name>Example`, three
-sibling packages, each with its own `Project.toml`. The substrate shares one
+sibling packages, each with its own `Project.toml`. The platform shares one
 example package and one test package
-(`ProjecturedSubstrateExample`, `ProjecturedSubstrateTest`), because the files
+(`ProjecturedPlatformExample`, `ProjecturedPlatformTest`), because the files
 of both were written against the flat namespace. See
 [architecture-rules.md](../rule/architecture-rules.md#the-triad-every-main-package-has-its-code-its-tests-and-its-examples)
 for the rules.
@@ -85,8 +88,9 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
-The substrate: 30 packages     one concept each, an acyclic package graph
-        ▲                      the vocabulary — collection, primitive, domain,
+ProjecturedPlatform (platform/) one package, 38 slices, below every domain
+        ▲                      one concept each, an acyclic slice graph
+        │                      the vocabulary — collection, primitive, domain,
         │                      serialization;
         │                      the algebra — projection, reflection, dragging,
         │                      versioning;
@@ -95,41 +99,50 @@ The substrate: 30 packages     one concept each, an acyclic package graph
         │                      pane;
         │                      the features — clipboard, tooltip, inspector,
         │                      gesturehelp, gesturelog, fault, fileformat,
-        │                      natural;
-        │                      the two dependency-free backends — console, pdf.
-        │                      Each declares the exact set it imports; the table
+        │                      natural, filesystem, display, gesturetracking,
+        │                      mousetargettracking;
+        │                      the application — undo, log, statistics, shell,
+        │                      help, conversation, assistant.
+        │                      Each slice declares the exact set it imports; the table
         │                      is in [package-rules.md](../rule/package-rules.md).
-The twenty domain packages     one package per concrete source domain
+The seventeen domain packages  one package per concrete source domain
         ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
-        │                      sql/ database/ filesystem/ graph/ chart/
-        │                      sequencechart/ dbcatalog/ formula/ fsm/ process/
-        │                      conversation/ assistant/. Each holds its
+        │                      sql/ database/ graph/ chart/
+        │                      sequencechart/ dbcatalog/ formula/ fsm/ process/.
+        │                      Each holds its
         │                      documents, its parser and its projections.
-        │                      Deps: the kernel, the substrate packages it uses,
+        │                      Deps: the kernel, the platform,
         │                      and the domains it embeds. See
         │                      [domain-inventory.md](domain-inventory.md).
 Projectured (projectured/)     umbrella: `using Projectured` re-exports every
                                package above as a single flat public API.
 
-Opt-in packages (depend on the above; loaded only when you `using` them):
-  Sdl  (sdl/)   → Collection, Graphics, Screen, Style  SDL2/SimpleDirectMediaLayer  SdlBackend, write_image
-  Web  (web/)   → Collection, Graphics, Screen, Style  HTTP/JSON3                   WebBackend; assets in web/assets/
-  Video(video/) → Graphics, Sdl                        FFMPEG                       record_video method on the kernel seam
-  Tulip(tulip/) → Layout                               MathOptInterface/Tulip       the linear-programming constraint solver
-  Odbc (odbc/)  → Sql, DbCatalog, Database             ODBC/DBInterface/Tables      OdbcDatabaseAdapter, live-query projections
-  Adaptagrams   → Graph                                native C++ shim              the graph layout engine
-  Mcp  (mcp/)   → Kernel                               ModelContextProtocol         McpServer, make_agent_server(:mcp)
-  Anthropic     → Kernel                               HTTP/JSON3                   AnthropicLlm; make_llm(:anthropic)
-  Ollama        → Kernel                               HTTP/JSON3                   OllamaLlm; make_llm(:ollama)
+The five backends (depend on the kernel and the platform):
+  Console (console/) → required, no third-party dependency   the ANSI terminal backend
+  Pdf     (pdf/)      → required, no third-party dependency   SDL-free vector-PDF export
+  Sdl     (sdl/)       → opt-in, SDL2/SimpleDirectMediaLayer   SdlBackend, write_image
+  Web     (web/)       → opt-in, HTTP/JSON3                    WebBackend; assets in web/assets/
+  Video   (video/)     → opt-in, FFMPEG; depends on Sdl         record_video method on the kernel seam
+
+The eight adapters (opt-in, loaded only when you `using` them):
+  Tulip      (tulip/) → Platform's layout slice      MathOptInterface/Tulip       the linear-programming constraint solver
+  Odbc       (odbc/)  → Sql, DbCatalog, Database      ODBC/DBInterface/Tables      OdbcDatabaseAdapter, live-query projections
+  Adaptagrams          → Graph                        native C++ shim              the graph layout engine
+  Mcp        (mcp/)   → Kernel                        ModelContextProtocol         McpServer, make_agent_server(:mcp)
+  Anthropic            → Kernel                       HTTP/JSON3                   AnthropicLlm; make_llm(:anthropic)
+  Ollama               → Kernel                       HTTP/JSON3                   OllamaLlm; make_llm(:ollama)
+  OpenRouter           → Kernel                       HTTP/JSON3                   the relevance model on the Decisions API
+  DataFrames           → Kernel, Platform; DataFrames.jl                           DataFrameView
 ```
 
 The four-level division rule: **package** = one concept, or an
 external dependency boundary; **layer** = direction-of-dependency boundary
 inside a package, which the kernel alone declares; **slice** = vertical split
-of a single layer by feature, a kernel-only notion; **module** =
-namespace/import surface. Files sit below all four levels as readability
-boundaries only: fragments (0-module files that share their aggregator's
-namespace) let a module split across files with zero API cost.
+of a layer, or of a package with no layer of its own — the kernel's layers,
+and the thirty-eight feature folders of the platform, are both slices;
+**module** = namespace/import surface. Files sit below all four levels as
+readability boundaries only: fragments (0-module files that share their
+aggregator's namespace) let a module split across files with zero API cost.
 
 **A module is declared in the file that names it.** `JsonModule` lives in
 `JsonModule.jl` and `CellModule` in `CellModule.jl`, without exception, and
@@ -159,8 +172,8 @@ folder per slice. The kernel set
 [devices-and-backends](../package/kernel/devices-and-backends.md),
 [agent](../package/kernel/agent.md),
 [editor](../package/kernel/editor.md),
-[naming](../rule/naming-rules.md)) is the largest; the per-domain guides sit
-next to it, one folder per domain —
+[naming](../rule/naming-rules.md)) is the largest; the per-slice guides sit
+next to it, one folder per slice —
 [widget](../package/platform/widget/widget.md), [text](../package/platform/text/text.md),
 [collection](../package/platform/collection/collection.md) and the rest.
 
@@ -318,10 +331,10 @@ composes with any higher-order projection.
 |---|---|
 | `EditorModule.jl` | REPL loop: read → eval → print; `make_editor(document, projection; backend)`, `build_editor` and `run_editor!` entry points |
 | `sdl/Sdl.jl` (opt-in `ProjecturedSdl`) | SDL2 + SDL_ttf backend: graphics rendering, event translation, `write_image` |
-| `console/Console.jl` (substrate `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
+| `console/Console.jl` (required `ProjecturedConsole`) | Terminal backend: renders the **Text** domain (a `TextBlock`) to the terminal with ANSI colors and reads keystrokes — no `TextToGraphics`/SDL ([devices and backends](../package/kernel/devices-and-backends.md#consolebackend)) |
 | `web/Web.jl` (opt-in `ProjecturedWeb`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [asset/web/](../../asset/web) |
 | `video/VideoBackend.jl` (opt-in `ProjecturedVideo`) | Video backend: plays a scripted timeline through the editor loop into the frames of a video file |
-| `pdf/Pdf.jl` (substrate `ProjecturedPdf`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
+| `pdf/Pdf.jl` (required `ProjecturedPdf`) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
 | `event/MouseEvent.jl` | `MouseButtons`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll` |
@@ -342,16 +355,19 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── the 30 substrate packages ◄── the 20 domains ◄── Projectured
-       ▲                          ▲                        ▲            (umbrella)
-       │                          │                        │
-   Mcp, Anthropic,      Sdl, Web, Video, Tulip      Odbc, Adaptagrams
-   Ollama
-   (opt-in)                    (opt-in)                 (opt-in)
+ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄── Projectured
+       ▲                     ▲                      ▲            (umbrella)
+       │                     │                      │
+   Mcp, Anthropic,  Console, Pdf, Sdl, Web,   Odbc, Adaptagrams
+   Ollama,          Video, Tulip,
+   OpenRouter       DataFrames
+   (opt-in)            (required: Console, Pdf;      (opt-in)
+                         opt-in: the others)
 ```
 
-The substrate packages form their own DAG, and so do the twenty domains.
-[package-rules.md](../rule/package-rules.md) has the substrate table; [domain-inventory.md](domain-inventory.md)
+The platform's thirty-eight slices form their own DAG, and so do the
+seventeen domains. [package-rules.md](../rule/package-rules.md) has the
+platform's table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
 
 ### The 23 kernel layers
@@ -410,8 +426,11 @@ includes them in:
                wall-clock schedule
 ```
 
-**The thirty substrate packages**, in a topological order. Each is one
-concept, and each declares the exact set of packages it imports:
+**The thirty-eight slices of `ProjecturedPlatform`**, in a topological order.
+Each is one concept, and each declares the exact set of slices it imports;
+[package-rules.md](../rule/package-rules.md) has the table. (Console and Pdf,
+the two backends with no third-party dependency, are packages of their own,
+not slices of the platform.)
 
 ```
    collection      CellVector, CellMatrix, CellTable, ListNode
@@ -448,15 +467,23 @@ concept, and each declares the exact set of packages it imports:
    fault           the fault report and log documents, the barrier projection that
                    catches, the four renderers and the safe mode
    fileformat      NaturalFormat, DocumentFile
+   filesystem      the file-system tree, the workspace, and the Explorer view
    natural         NaturalRegistry and NaturalProjection: render anything
-   console         the ANSI terminal backend
-   pdf             the vector PDF backend
+   display         a value shown in an editor window beside the REPL
+   undo            UndoBuffer and its transparent recording projection
+   log             the message log of the session, filled from any task
+   statistics      the frame-time table and plot of the editor loop
+   shell           the wrappers a binary stacks over a window, and its chrome
+   help            the document-type list, the projection list, and the about page
+   conversation    the evaluator documents and the chat transcript
+   assistant       the chat with a model, and the turn that streams a reply
 ```
 
-**The twenty domain packages** — one package per concrete source domain,
+**The seventeen domain packages** — one package per concrete source domain,
 each holding one slice: its documents, its parser and its projections.
-Fourteen need only the engine packages; five build on one layer of domains;
-the assistant panel builds on the conversation domain. [domain-inventory.md](domain-inventory.md) has the table and the rules
+Thirteen need only the engine and the platform; four build on one layer of
+domains. The assistant and the conversation slice it builds on are slices of
+the platform, not domains. [domain-inventory.md](domain-inventory.md) has the table and the rules
 for adding one.
 
 ---

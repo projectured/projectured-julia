@@ -10,7 +10,7 @@
 """
     SCALE_SEARCH_MODULE_NAMES
 
-The modules of the scale corpus: the kernel's own, the substrate that draws, the
+The modules of the scale corpus: the kernel's own, the platform that draws, the
 widgets and the layouts, the panes, and four domains. A module is named and not
 gathered, so that the corpus is the same on every run.
 """

@@ -726,7 +726,7 @@ _reactivity_broken(name) = ()
 The under-invalidation sweep over every registered example: touch a leaf of a
 node's input, and something in that node's own output must go invalid.
 
-Opt-in, and not part of `test_kernel` / `test_substrate` / `test_base`. Nobody
+Opt-in, and not part of `test_kernel` / `test_platform` / `test_base`. Nobody
 should run this to check a one-line change.
 
 A **frozen** verdict is the failure: the mapper says the field is rendered and

@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [projection.md](../projection/projection.md), [document.md](../../kernel/document.md), [domain.md](../domain/domain.md)
 
-`ProjecturedClipboard` adds copy, cut, note and paste to any document, a view of what the clipboard holds, and a bridge to the clipboard of the operating system. It works for every domain without a line of code in the domain. This document says how the wrapper stays out of the view, which rules decide where a paste can go, and why a copy is a deep copy.
+The clipboard slice of `ProjecturedPlatform` adds copy, cut, note and paste to any document, a view of what the clipboard holds, and a bridge to the clipboard of the operating system. It works for every domain without a line of code in the domain. This document says how the wrapper stays out of the view, which rules decide where a paste can go, and why a copy is a deep copy.
 
 ## How it works
 
@@ -41,7 +41,7 @@ A paste replaces a whole document. Three checks decide whether the selection can
 
 A selection that ends in a character range of a text or number field is different. Copy, cut and paste then act on the characters of that field with `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation`. This is how Ctrl+C and Ctrl+V work in a text field of a form.
 
-`find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. `ProjecturedPane` adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
+`find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. The pane slice adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
 
 ### The reference
 
@@ -63,14 +63,14 @@ With `text = true` over a `TextBlock` content, the clipboard copies and pastes c
 
 ## How it fits
 
-`ProjecturedClipboard` depends on `ProjecturedDomain` for the paste hooks, `ProjecturedText` for the text mode, `ProjecturedCollection` and `ProjecturedProjection`. `ProjecturedPane` depends on it. Its `__init__` registers the two wrappers as `.pred` types; `pred_arguments` saves only `content`, so a loaded window starts with an empty clipboard.
+The clipboard slice depends on the domain slice for the paste hooks, the text slice for the text mode, and the collection and projection slices. The pane slice depends on it. Its `__init__` registers the two wrappers as `.pred` types; `pred_arguments` saves only `content`, so a loaded window starts with an empty clipboard.
 
 `make_clipboard_projection` builds a `RecursiveProjection`, so it can be the outermost projection of a window: the arm that dispatches on the clipboard document reads its own keys before a key reaches your projection, and the `Any` arm hands every other document to your projection through a `NestingProjection`.
 
 ## Design decisions
 
 - **The wrapper is not in the view.** The view of a wrapped document is the view of the document, so a test or a later stage sees no difference. See [plan/done/clipboard-to-t.md](../../../../plan/done/clipboard-to-t.md).
-- **The toggle is a cell write.** It needs no new print of the stages before it. `ProjecturedVersioning` uses the same pattern; see [versioning.md](../versioning/versioning.md).
+- **The toggle is a cell write.** It needs no new print of the stages before it. The versioning slice uses the same pattern; see [versioning.md](../versioning/versioning.md).
 - **Copy and note are two gestures.** A copy can go anywhere without an alias; a note keeps the live object, for example a tool.
 - **The paste rules come from the documents.** A domain blocks a paste with a method of `ProjecturedDomain`; the clipboard has no list of types. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md), whose clipboard steps are done.
 - **The bridge calls a command.** `InteractiveUtils.clipboard` also calls a command, and a new dependency on `InteractiveUtils` would change the manifests of the whole workspace. See [plan/done/clipboard-os-bridge-and-run-example-wrapper.md](../../../../plan/done/clipboard-os-bridge-and-run-example-wrapper.md).

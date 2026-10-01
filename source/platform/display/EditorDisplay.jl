@@ -9,7 +9,7 @@
 """
     EditorDisplay()
 
-A display that shows a value in an editor window. The package pushes no
+A display that shows a value in an editor window. This slice pushes no
 display, so a value at the prompt prints as text, and only an explicit call
 opens the editor: `display(EditorDisplay(), value)`, or
 [`display_in_editor`](@ref).
@@ -29,10 +29,11 @@ gives a document is an error.
 
 The first call starts the editor, and so does a call after its window was
 closed. With no `backend`, the one loaded backend that draws windows runs it.
-When the pane package is loaded, each value is a tab of one window; with
-`tabs = false`, or without the pane package, each value has a window of its
-own. `backend` and `tabs` apply when the call starts the editor. `title` names
-a new tab or window; a title that the editor has already gets a number.
+Each value is a tab of one window, because the pane slice of
+`ProjecturedPlatform` is always loaded with this one; `tabs = false` gives
+each value a window of its own instead. `backend` and `tabs` apply when the
+call starts the editor. `title` names a new tab or window; a title that the
+editor has already gets a number.
 """
 function display_in_editor(value; title::AbstractString = summary(value), backend = nothing,
                            tabs::Bool = true)
@@ -124,8 +125,9 @@ function _start_session(document, title::String, backend, tabs::Bool)
     later = NaturalToGraphics(; measure = FontFileMeasure())
     window = (; title = "Values", width = 1000, height = 600,
               opened_window_projections = Pair{Type,Any}[Document => later])
-    # The tabs wrapper is on by default when the pane package is loaded; its
-    # setting names the first tab.
+    # The tabs wrapper is on by default: the pane slice of `ProjecturedPlatform`
+    # is always loaded with this one, so `get_wrapper_layers` always has a
+    # method for `:tabs`. Its setting names the first tab.
     has_tabs = hasmethod(get_wrapper_layers, Tuple{Val{:tabs}})
     editor = run_editor!(document, projection; wait = false, backend = backend,
                          window = window, tabs = has_tabs && tabs ? (; title) : false)

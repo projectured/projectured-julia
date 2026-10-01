@@ -213,7 +213,7 @@ find it, and forward-project through a truncated chain to see the document each 
 actually works on:
 
 ```julia
-julia> using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
+julia> using ProjecturedPlatform.ProjectionAlgebraModule: ChainingProjection
 julia> outof(iomap) = (o = iomap.output; o isa Cell ? o[] : o);
 
 # What does the *text* layer see? Project the input through all but the last stage.

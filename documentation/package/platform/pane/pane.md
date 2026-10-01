@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [reference.md](../../kernel/reference.md), [selection.md](../../kernel/selection.md)
 
-`ProjecturedPane` holds the pane tree: tab groups, the splits between them, and the edits that rearrange them. It draws the tree with the split panes and tabbed panes of the widget package, and it gives a program, such as a language model, a set of verbs over the tree. This document says how the focus, the edits, the drags and the verbs work, and how the whole editor saves to one file.
+The pane slice of `ProjecturedPlatform` holds the pane tree: tab groups, the splits between them, and the edits that rearrange them. It draws the tree with the split panes and tabbed panes of the widget slice, and it gives a program, such as a language model, a set of verbs over the tree. This document says how the focus, the edits, the drags and the verbs work, and how the whole editor saves to one file.
 
 ## How it works
 
@@ -48,7 +48,7 @@ Two rules hold for all of them:
 - **The surgery reuses node objects.** A split puts the existing group into the new split, and a collapse writes the existing sibling into the slot of the parent. A rebuilt subtree drops the IO maps below it, and every tab prints again and loses its scroll position and its caret.
 - **A path carries its node types as it is built.** Each `(node, step)` pair records the document that its step starts from. So a builder can name a slot that the edit is about to make, such as a fresh tab. `annotate_reference_types` can not do this, because it reads the tree as it is now.
 
-`MoveRangeOperation` of `ProjecturedDragging` moves a tab between two `CellVector` fields. It moves the cell, so the tab keeps its identity and its IO map. The package does not use `DraggingProjection`; see [dragging.md](../dragging/dragging.md).
+`MoveRangeOperation` of the dragging slice moves a tab between two `CellVector` fields. It moves the cell, so the tab keeps its identity and its IO map. This slice does not use `DraggingProjection`; see [dragging.md](../dragging/dragging.md).
 
 ### Geometry
 
@@ -214,9 +214,9 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 ## How it fits
 
-`ProjecturedPane` depends on the kernel and on `ProjecturedWidget`, `ProjecturedLayout`, `ProjecturedClipboard`, `ProjecturedDomain`, `ProjecturedDragging`, `ProjecturedFocus`, `ProjecturedPrimitive`, `ProjecturedCollection`, `ProjecturedProjection` and `ProjecturedSerialization`. It adds methods to `find_clipboard_document`, `accepts_pasted_replacement`, `has_dormant_selection`, `pred_arguments` and `make_pred_document`.
+The pane slice depends on the kernel and on the widget, layout, clipboard, domain, dragging, focus, primitive, collection, projection and serialization slices. It adds methods to `find_clipboard_document`, `accepts_pasted_replacement`, `has_dormant_selection`, `pred_arguments` and `make_pred_document`.
 
-`ProjecturedShell` puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system package opens a newly read file with `make_open_pane_operation` and `get_pane_file_group`, posted with `post_pane_operation!`, because it runs inside the evaluation of `OpenFileOperation`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and declares `make_pane_api()` and `make_interface_api()` for its assistant.
+The shell slice puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system slice opens a newly read file with `make_open_pane_operation` and `get_pane_file_group`, posted with `post_pane_operation!`, because it runs inside the evaluation of `OpenFileOperation`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and declares `make_pane_api()` and `make_interface_api()` for its assistant.
 
 ## Design decisions
 

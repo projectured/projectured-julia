@@ -104,7 +104,7 @@ query rather than a file, and are named for what they query, such as
 
 10 file names occur in more than one slice of `source/`, `example/` and
 `test/`. Each of the 10 is one concept exemplified in two slices, such as `PaneProjectionExample.jl` in
-`projectured` and in `substrate`, which the slice folder separates.
+`projectured` and in `platform`, which the slice folder separates.
 
 ## Files and modules
 

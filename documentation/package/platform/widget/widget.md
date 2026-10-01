@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [layout.md](../layout/layout.md), [focus.md](../focus/focus.md)
 
-`ProjecturedWidget` holds the documents of a user interface, such as a button, a card, a table, a split pane and a tab, and the projection that draws them to a `GraphicsCanvas`. It also connects the objects of a domain to widgets, and opens a popup or a dialog as a window. This document says how a widget tree is drawn, how a press and a key reach the right widget, and where the traps are.
+The widget slice of `ProjecturedPlatform` holds the documents of a user interface, such as a button, a card, a table, a split pane and a tab, and the projection that draws them to a `GraphicsCanvas`. It also connects the objects of a domain to widgets, and opens a popup or a dialog as a window. This document says how a widget tree is drawn, how a press and a key reach the right widget, and where the traps are.
 
 <img width="396" alt="Widget example" src="../../../asset/image/example/widget.png">
 
@@ -211,7 +211,7 @@ The `rows` of a `WidgetTable` can be a `ListNode`, and `WidgetTableParts.jl` pri
 
 ## How it fits
 
-`ProjecturedWidget` depends on the kernel and on `ProjecturedCollection`, `ProjecturedFocus`, `ProjecturedGraphics`, `ProjecturedLayout`, `ProjecturedDomain`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedSerialization`, `ProjecturedStyle` and `ProjecturedText`. `ProjecturedPane`, `ProjecturedShell`, `ProjecturedReflection`, `ProjecturedNatural`, `ProjecturedConversation`, `ProjecturedAssistant` and `ProjecturedFileSystem` use it. A page of `markdown` or `rst` puts a block of another domain in the card that `make_embed_card` builds.
+The widget slice depends on the kernel and on the collection, focus, graphics, layout, domain, primitive, projection, screen, serialization, style and text slices. The pane, shell, reflection, natural, conversation, assistant and file-system slices use it. A page of `markdown` or `rst` puts a block of another domain in the card that `make_embed_card` builds.
 
 A scroll pane is a layer that a person sees through: `get_edited_field` of a `WidgetScrollPane` answers `:content`, and its title is the title of its content. So a file tab, whose content is a file in a scroll pane, is called by the name of the file, and `get_edited_document` of it reaches the document of the file. The widget stage routes an operation through a scroll pane to its content, as it does through a composite, a split pane and a tabbed pane.
 
@@ -244,7 +244,7 @@ write_example_image(widget_tree_example, "tree.png")
 `save_all!` and `server` stand for your own function and object.
 
 - Examples: one for each widget in `example/platform/SubstrateExamples.jl`, such as `widget_example`, `widget_table_example`, `widget_popup_example` and `object_to_widget_example`. The screenshots are `asset/image/example/widget-*.png`.
-- Tests: the `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/platform/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_substrate()` runs them all; the package has no suite of its own.
+- Tests: the `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/platform/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_platform()` runs them all; the package has no suite of its own.
 
 ## Limits
 

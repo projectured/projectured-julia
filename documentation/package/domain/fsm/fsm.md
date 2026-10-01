@@ -101,7 +101,7 @@ A timer works in two ways, and the reference machines use both: as a timeout tri
 
 ## How it fits
 
-`ProjecturedFsm` depends on `ProjecturedJulia`, because the code is Julia documents, and on `ProjecturedGraph`, because the diagram is a graph. It also depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedFileFormat`, `ProjecturedKernel`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedStyle`, `ProjecturedSyntax` and `ProjecturedText`. No package depends on it. `process` is its complement; see [process.md](../process/process.md).
+`ProjecturedFsm` depends on `ProjecturedJulia`, because the code is Julia documents, and on `ProjecturedGraph`, because the diagram is a graph. It also depends on the kernel and the platform. No package depends on it. `process` is its complement; see [process.md](../process/process.md).
 
 It has no `__init__` and registers nothing: no natural row, no file type, no parser. A caller builds the notation chain or the diagram chain.
 

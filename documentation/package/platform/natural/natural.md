@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [concepts.md](../../../design/concepts.md), [domain-anatomy.md](../../../design/domain-anatomy.md), [projection-system.md](../../kernel/projection-system.md)
 
-`ProjecturedNatural` is the registry through which a domain says what its text looks like, which file extension it owns, and how a document of any domain reaches the screen with no projection written for the caller. It holds two tables: the rung table, which `print_natural_text` and `parse_natural_text` read, and the renderer table, which `NaturalToGraphics` reads. This document says what each table holds, how the second takes the rows of the first, and in which order the renderer tries its rows.
+The natural slice of `ProjecturedPlatform` is the registry through which a domain says what its text looks like, which file extension it owns, and how a document of any domain reaches the screen with no projection written for the caller. It holds two tables: the rung table, which `print_natural_text` and `parse_natural_text` read, and the renderer table, which `NaturalToGraphics` reads. This document says what each table holds, how the second takes the rows of the first, and in which order the renderer tries its rows.
 
 <img width="396" alt="Natural example" src="../../../asset/image/example/natural.png">
 
@@ -19,7 +19,7 @@ domain ──▶ syntax ──▶ text ──▶ graphics
 
 A domain declares the rung that it reaches by itself, and the steps above it are composition. `:syntax` is the rung of a domain with a `*ToSyntax` projection. `:graphics` is the rung of a domain that draws itself, for example a page of blocks or a diagram. `:text` is the rung of prose; only `TextDocument` declares it, with the identity projection.
 
-This package registers the steps `text → graphics` and `text → string` in its `__init__`. It must not depend on `ProjecturedSyntax`, because that package depends on this one. So `ProjecturedSyntax` registers `syntax → text` itself, with `register_natural_rung!`. A session that does not load `ProjecturedSyntax` has no text form and no graphics form for a document that has only a syntax rung.
+The natural slice's steps `text → graphics` and `text → string` are registered in `ProjecturedPlatform`'s `__init__`. The natural slice must not name the syntax slice, because the syntax slice names this one. So the syntax slice registers `syntax → text` itself, with `register_natural_rung!`, also from that `__init__`. A session that loads no platform at all has no text form and no graphics form for a document that has only a syntax rung.
 
 ### The rung table
 
@@ -77,13 +77,13 @@ A list of ready-made rows and three keyed factory lists fill the table. The key 
 6. the fallback rows for `Any`;
 7. `Any` as the phrase "no natural rendering for T".
 
-The syntax rows reach the renderer through the fallback. `ProjecturedSyntax` registers a fallback whose `Any` row is the syntax fabric: `make_natural_to_syntax_dispatch()`, then `SyntaxToText`, then `TextToGraphics`. That dispatch starts with `get_natural_syntax_entries()` and ends with the collection rows and the reflection table of `ObjectToSyntax`. So a `JsonObject` in a tab matches no row above step 6, goes into the fabric, and draws through `JsonToSyntax`. A value of no domain draws as its reflected fields; see [reflection.md](../reflection/reflection.md). Without `ProjecturedSyntax`, the same document draws as the phrase of step 7, and the renderer never raises an error.
+The syntax rows reach the renderer through the fallback. The syntax slice registers a fallback whose `Any` row is the syntax fabric: `make_natural_to_syntax_dispatch()`, then `SyntaxToText`, then `TextToGraphics`. That dispatch starts with `get_natural_syntax_entries()` and ends with the collection rows and the reflection table of `ObjectToSyntax`. So a `JsonObject` in a tab matches no row above step 6, goes into the fabric, and draws through `JsonToSyntax`. A value of no domain draws as its reflected fields; see [reflection.md](../reflection/reflection.md). A session that loads no platform at all has no fallback at all: the same document then draws as the phrase of step 7, and the renderer never raises an error.
 
 A `ListNode` stays in the syntax fabric and does not become a stack of blocks, because a list can be lazy or infinite. A conversation or a pane is not drawn by this dispatcher: its own projection makes widgets, and a caller that needs one inside a content slot adds a row with `extra`.
 
 ## How it fits
 
-`ProjecturedNatural` depends on `ProjecturedText`, `ProjecturedLayout`, `ProjecturedWidget`, `ProjecturedGraphics` and `ProjecturedDomain`, with the kernel packages. It does not depend on `ProjecturedSyntax` or on a domain. `ProjecturedFileFormat` depends on it.
+The natural slice depends on the kernel and on the text, layout, widget, graphics and domain slices. It does not depend on the syntax slice or on a domain. The file-format slice depends on it.
 
 | Registers | With |
 | --- | --- |
@@ -92,14 +92,14 @@ A `ListNode` stays in the syntax fabric and does not become a stack of blocks, b
 | book, the message log, the gesture log, the fault log | a syntax factory only |
 | the file system | a syntax factory, and a graphics factory for the workspace |
 | graph, formula, file format, inspector, assistant, evaluator | a graphics factory |
-| `ProjecturedSyntax` | the fallback and the `syntax → text` step |
+| the syntax slice | the fallback and the `syntax → text` step |
 
-The file format package reads and writes files with `print_natural_text` and `parse_natural_text`; see [fileformat.md](../fileformat/fileformat.md). Each `XFile` type prints its content with `print_natural_text` in `emit_text`. The assistant checks `make_natural_projection(document, :string)` before it gives a document to the model as text. The application in `example/projectured/Application.jl` draws every tab through `NaturalToGraphics`, with rows in `extra` for the documents that have a designed view.
+The file-format slice reads and writes files with `print_natural_text` and `parse_natural_text`; see [fileformat.md](../fileformat/fileformat.md). Each `XFile` type prints its content with `print_natural_text` in `emit_text`. The assistant checks `make_natural_projection(document, :string)` before it gives a document to the model as text. The application in `example/projectured/Application.jl` draws every tab through `NaturalToGraphics`, with rows in `extra` for the documents that have a designed view.
 
 ## Design decisions
 
 - **The renderer table names no domain.** A table that named each domain would put the renderer above all of them. Each domain registers its own row in a file that it already has, so the renderer sits below every domain. See [plan/done/natural-projection.md](../../../../plan/done/natural-projection.md).
-- **What is not loaded is not supported.** The syntax step and the reflection tail come from `ProjecturedSyntax`. A program that draws only a form and a table then does not carry the syntax domain.
+- **What is not loaded is not supported.** The syntax step and the reflection tail come from the syntax slice of `ProjecturedPlatform`. A program that loads no platform at all, such as the kernel alone, carries neither.
 - **Two tables serve two questions.** The rung table answers "this document, up to this target", where the rung of the document must win. The renderer table answers "any document, in any nesting, to pixels", where a caller or a domain can override a row.
 - **A row is a factory when it holds state.** A factory gives each renderer its own projection instances, so two windows do not share reactive state.
 - **The renderer degrades and never fails.** The last row draws a one-line message, so a tab with an unknown value still shows something.

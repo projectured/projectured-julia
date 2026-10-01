@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [style.md](../style/style.md), [devices-and-backends.md](../../kernel/devices-and-backends.md), [text.md](../text/text.md)
 
-`ProjecturedGraphics` holds the drawing primitives that every chain of projections ends in: text, boxes, lines, curves, canvases and viewports, each a reactive document. A backend paints them, and a hit test finds the primitive under the pointer. This document says how a canvas is built and tested, how a click leaves the graphics stage, and how a canvas is saved to a file.
+The graphics slice of `ProjecturedPlatform` holds the drawing primitives that every chain of projections ends in: text, boxes, lines, curves, canvases and viewports, each a reactive document. A backend paints them, and a hit test finds the primitive under the pointer. This document says how a canvas is built and tested, how a click leaves the graphics stage, and how a canvas is saved to a file.
 
 <img width="396" alt="Graphics image example" src="../../../asset/image/example/graphics-image.png">
 
@@ -107,7 +107,7 @@ write_pdf(document, proj, "book.pdf"; paginate = true, width = 612, height = 792
 
 ## How it fits
 
-The code is in `source/platform/graphics/`. `ProjecturedGraphics` depends on the kernel, `ProjecturedCollection`, `ProjecturedProjection` and `ProjecturedStyle`. `TextToGraphics` produces most canvases. Layouts, widgets, graphs, charts and sequence charts produce shapes directly. [screen.md](../screen/screen.md) holds the window documents whose content is a canvas. The SDL backend, the web backend and the PDF writer paint canvases.
+The code is in `source/platform/graphics/`. The graphics slice depends on the kernel and on the collection, projection and style slices. `TextToGraphics` produces most canvases. Layouts, widgets, graphs, charts and sequence charts produce shapes directly. [screen.md](../screen/screen.md) holds the window documents whose content is a canvas. The SDL backend, the web backend and the PDF writer paint canvases.
 
 It registers nothing and has no `__init__`.
 

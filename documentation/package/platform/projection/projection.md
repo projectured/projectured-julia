@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [architecture-invariants.md](../../../rule/architecture-invariants.md)
 
-`ProjecturedProjection` holds the projections that work on any document: the generic ones, which change the shape of a document, and the higher-order ones, which combine other projections. The kernel holds only the framework that they implement. This document says how the package divides the work with the kernel and which combinations carry the rest of the system; two guides describe each projection.
+The projection slice of `ProjecturedPlatform` holds the projections that work on any document: the generic ones, which change the shape of a document, and the higher-order ones, which combine other projections. The kernel holds only the framework that they implement. This document says how the package divides the work with the kernel and which combinations carry the rest of the system; two guides describe each projection.
 
 ## How it works
 
@@ -29,13 +29,13 @@ No projection here names a document type of a domain. A generic projection works
 - **`SwitchingProjection` records which branch printed.** The reader then goes to the same branch, also after the switch cell changes.
 - **`CopyingProjection` copies a `ListNode` lazily.** Only the head is copied at once; `prev` and `next` are cells that copy on the first read. So a copy of an infinite list costs one node.
 
-`ReaderDefaults.jl` holds the default reader for a text edit through a template rule. It is here and not in the kernel, because it names `ReplaceStringRangeOperation`, a type of `ProjecturedPrimitive`. It returns `nothing` for a text edit on a leaf with no bound field, such as `JsonNull`, and for a text edit of a delimiter that no field produces. The raw key then goes on to the structural gestures. The reader asks `find_template_value_retype` of the kernel for the `retype` of the leaf that the edit enters, and a node finds that leaf through its children, so a leaf in a container retypes an edit as it does when it is the document. A leaf whose `retype` is `ReplaceNumberRangeOperation` also returns `nothing` for a text with a character that can not be part of a number, so a letter typed into a number makes no edit; see [primitive.md](../primitive/primitive.md#the-range-edits).
+`ReaderDefaults.jl` holds the default reader for a text edit through a template rule. It is here and not in the kernel, because it names `ReplaceStringRangeOperation`, a type of the primitive slice. It returns `nothing` for a text edit on a leaf with no bound field, such as `JsonNull`, and for a text edit of a delimiter that no field produces. The raw key then goes on to the structural gestures. The reader asks `find_template_value_retype` of the kernel for the `retype` of the leaf that the edit enters, and a node finds that leaf through its children, so a leaf in a container retypes an edit as it does when it is the document. A leaf whose `retype` is `ReplaceNumberRangeOperation` also returns `nothing` for a text with a character that can not be part of a number, so a letter typed into a number makes no edit; see [primitive.md](../primitive/primitive.md#the-range-edits).
 
 ## How it fits
 
-`ProjecturedProjection` depends on the kernel, `ProjecturedCollection` for the containers and `ProjecturedPrimitive` for the string edit. Nearly every package above it composes its projections. It registers nothing.
+The projection slice depends on the kernel, and on the collection slice for the containers and the primitive slice for the string edit. Nearly every slice above it composes its projections. It registers nothing.
 
-Four higher-order projections live in other packages, because each one needs a package above this one: `WindowManagingProjection` in `ProjecturedScreen`, `TooltipDecoratorProjection` in `ProjecturedTooltip`, `DraggingProjection` in `ProjecturedDragging`, and `ProjectionConfiguringProjection` in `ProjecturedWidget`.
+Four higher-order projections live in other slices, because each one needs a slice above this one: `WindowManagingProjection` in the screen slice, `TooltipDecoratorProjection` in the tooltip slice, `DraggingProjection` in the dragging slice, and `ProjectionConfiguringProjection` in the widget slice.
 
 ## Design decisions
 

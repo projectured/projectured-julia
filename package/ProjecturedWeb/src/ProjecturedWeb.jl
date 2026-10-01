@@ -2,8 +2,7 @@
     Web
 
 Opt-in package: the HTTP/WebSocket web backend (browser-rendered editor). Depends
-on `ProjecturedPlatform`, `ProjecturedPlatform`, `ProjecturedKernel`,
-`ProjecturedPlatform`, `ProjecturedPlatform` + HTTP/JSON3; `using ProjecturedWeb`
+on `ProjecturedKernel`, `ProjecturedPlatform` + HTTP/JSON3; `using ProjecturedWeb`
 exports `WebBackend` (construct it directly). SDL-free — reuses the pure-Julia
 TrueType text metrics.
 """

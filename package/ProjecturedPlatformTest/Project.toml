@@ -3,7 +3,7 @@ uuid = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 version = "0.1.0"
 authors = []
 
-# The test package of the substrate — the second tier of the test-package DAG.
+# The test package of the platform — the second tier of the test-package DAG.
 # It reuses the generic drivers of ProjecturedKernelTest and owns the
 # document-walk enumerators every higher tier builds on.
 

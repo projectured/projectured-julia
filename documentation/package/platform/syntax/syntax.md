@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [text.md](../text/text.md), [projection-system.md](../../kernel/projection-system.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
-`ProjecturedSyntax` holds the generic tree between a structured document and styled text: leaves and compounds with delimiters, separators, indentation and a fold state. Every domain with a text form prints to it, and `SyntaxToText` prints it to a `TextBlock`. This document says how the tree is built, how `SyntaxToText` splices the output of the children, and how the shared insertion leaf and placeholder printer work.
+The syntax slice of `ProjecturedPlatform` holds the generic tree between a structured document and styled text: leaves and compounds with delimiters, separators, indentation and a fold state. Every domain with a text form prints to it, and `SyntaxToText` prints it to a `TextBlock`. This document says how the tree is built, how `SyntaxToText` splices the output of the children, and how the shared insertion leaf and placeholder printer work.
 
 <img width="396" alt="Syntax example" src="../../../asset/image/example/syntax.png">
 
@@ -101,7 +101,7 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` re
 ### The bridges
 
 - `ObjectToSyntax()` reflects any Julia value into a tree by its runtime type. A struct becomes a node of its type name and one node for each field. A `Bool`, number, string, `Symbol`, `Char` or `nothing` becomes a leaf.
-- `ObjectFieldToSyntax()` prints one field of one object, an `ObjectField` of `ProjecturedPrimitive`, as the name leaf and the value. `ObjectToSyntax` prints each field from its `Cell` through `CellToSyntax`, so a write to the cell repaints the field. An `ObjectField` has no cell, so it needs a separate projection. Put its row in front of the `ObjectToSyntax` table, or the `Any` row prints the whole object.
+- `ObjectFieldToSyntax()` prints one field of one object, an `ObjectField` of the primitive slice, as the name leaf and the value. `ObjectToSyntax` prints each field from its `Cell` through `CellToSyntax`, so a write to the cell repaints the field. An `ObjectField` has no cell, so it needs a separate projection. Put its row in front of the `ObjectToSyntax` table, or the `Any` row prints the whole object.
 - `CollectionToSyntax()` prints a `CellVector` as a node in brackets and keeps a `ListNode` lazy.
 - `PrimitiveToSyntax()` prints a `PrimitiveBool`, `PrimitiveNumber` or `PrimitiveString` as a leaf.
 
@@ -109,9 +109,9 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` re
 
 ## How it fits
 
-`ProjecturedSyntax` depends on `ProjecturedText`, `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedPrimitive`, `ProjecturedCollection`, `ProjecturedProjection`, `ProjecturedStyle` and the kernel. Every domain with a syntax chain depends on it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows the chain.
+The syntax slice depends on the kernel and on the text, domain, natural, primitive, collection, projection and style slices. Every domain with a syntax chain depends on it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows the chain.
 
-Its `__init__` calls `register_syntax_fallback!()`. That registers the reflection table as the fallback of the natural renderer and the rung from syntax to text. So a session that loads this package can draw a document of any shape, and `ProjecturedNatural` does not name this package.
+Its `__init__` calls `register_syntax_fallback!()`. That registers the reflection table as the fallback of the natural renderer and the rung from syntax to text. So a session that loads `ProjecturedPlatform` can draw a document of any shape, and the natural slice does not name this one.
 
 ## Design decisions
 

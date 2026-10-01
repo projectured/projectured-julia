@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [conversation.md](../conversation/conversation.md), [agent.md](../../kernel/agent.md), [llm.md](../../kernel/llm/llm.md)
 
-`ProjecturedAssistant` puts a chat with a model beside the panes of a window: the `Assistant` document, the turn that streams a reply and runs tools, and the pane that shows the transcript over the composer. This document says how a turn uses the `tool`, `llm` and `agent` layers of the kernel, how a conversation becomes the messages of a request, and what does not work yet. [assistant-guide.md](../../../guide/assistant-guide.md) says how to run it.
+The assistant slice of `ProjecturedPlatform` puts a chat with a model beside the panes of a window: the `Assistant` document, the turn that streams a reply and runs tools, and the pane that shows the transcript over the composer. This document says how a turn uses the `tool`, `llm` and `agent` layers of the kernel, how a conversation becomes the messages of a request, and what does not work yet. [assistant-guide.md](../../../guide/assistant-guide.md) says how to run it.
 
 <img width="396" alt="Assistant example" src="../../../asset/image/example/assistant.png">
 
@@ -14,7 +14,7 @@
 
 | Fields | What they hold |
 | --- | --- |
-| `conversation`, `draft` | the history and the next message, documents of the [conversation domain](../conversation/conversation.md) |
+| `conversation`, `draft` | the history and the next message, documents of the [conversation slice](../conversation/conversation.md) |
 | `backend`, `model`, `api_key`, `context`, `system` | the settings of a turn |
 | `llm` | an `Llm` that replaces the backend; a test puts a `FakeLlm` or a `ScriptedLlm` there |
 | `status` | `:idle`, `:streaming` or `:error` |
@@ -73,9 +73,9 @@ A copy of an assistant is a fork: it has the conversation so far and a draft of 
 
 ## How it fits
 
-`ProjecturedAssistant` depends on `ProjecturedConversation`, `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedLayout`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedSerialization`, `ProjecturedStyle`, `ProjecturedText`, `ProjecturedWidget` and the kernel. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, and [llm.md](../../kernel/llm/llm.md) describes both.
+The assistant slice depends on the kernel and on the conversation, collection, domain, natural, layout, primitive, projection, serialization, style, text and widget slices of `ProjecturedPlatform`. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, and [llm.md](../../kernel/llm/llm.md) describes both.
 
-`ProjecturedShell` puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). `example/projectured/Application.jl` puts the explorer, the files and the assistant in one pane tree.
+The shell slice puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). `example/projectured/Application.jl` puts the explorer, the files and the assistant in one pane tree.
 
 The package registers the natural row `:assistant`, `Assistant => AssistantToWidgetSplitPane()`, and `Assistant` as a `.pred` type. It adds the methods `make_submit_operation(::Assistant)` and `make_evaluate_operation(::Assistant)` to the conversation package.
 

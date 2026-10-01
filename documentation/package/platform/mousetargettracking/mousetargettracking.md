@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [gesturetracking.md](../gesturetracking/gesturetracking.md), [devices-and-backends.md](../../kernel/devices-and-backends.md)
 
-`ProjecturedMouseTargetTracking` keeps the part under the pointer, the target, and gives the parts of the target their crossings: `MouseEnter`, `MouseLeave` and `MouseHover`. It is a projection with a wrapper document, and the screen package puts it around the screen, inside the gesture tracker, so one target serves every window.
+The mousetargettracking slice of `ProjecturedPlatform` keeps the part under the pointer, the target, and gives the parts of the target their crossings: `MouseEnter`, `MouseLeave` and `MouseHover`. It is a projection with a wrapper document, and the screen slice puts it around the screen, inside the gesture tracker, so one target serves every window.
 
 ## How it works
 

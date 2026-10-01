@@ -2,11 +2,11 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain.md](../domain/domain.md), [syntax.md](../syntax/syntax.md)
 
-`ProjecturedHelp` holds what the Help menu of a window opens: the list of every document type, the list of every projection, and the page that says what the program is. This document says why the two lists hold no field, where the description of a type comes from, and what the page about the program shows.
+The help slice of `ProjecturedPlatform` holds what the Help menu of a window opens: the list of every document type, the list of every projection, and the page that says what the program is. This document says why the two lists hold no field, where the description of a type comes from, and what the page about the program shows.
 
 ## How it works
 
-Three documents live in `ProjecturedHelp`:
+Three documents live in the help slice:
 
 - **`DocumentTypeList`** holds no field. It stands for every document type that an empty tab can make.
 - **`ProjectionList`** holds no field. It stands for every concrete projection: the views a window draws a document with, and the projections that combine other projections.
@@ -27,7 +27,7 @@ Three documents live in `ProjecturedHelp`:
 ```
 170 document types. Type one of the names in an empty tab to make a document of that type.
 ...
-CellVector   ProjecturedCollection   type: cell vector
+CellVector   ProjecturedPlatform   type: cell vector
     A sequence of values, each in a cell of its own.
 ```
 
@@ -37,11 +37,11 @@ With the packages of the application loaded, the Documents list holds 170 types 
 
 ## How it fits
 
-`ProjecturedHelp` depends on `ProjecturedDomain` for `get_insertion_candidates`, `compute_concrete_subtypes` and `get_insertion_names`; on `ProjecturedSyntax` and `ProjecturedText` for the `SyntaxNode`, `SyntaxLeaf` and `TextString` that the two printers build; on `ProjecturedStyle` for the styles of a list and of the page; on `ProjecturedNatural` for `register_natural_syntax!`; and on `ProjecturedSerialization` for `pred_arguments`, besides the kernel.
+The help slice depends on the domain slice for `get_insertion_candidates`, `compute_concrete_subtypes` and `get_insertion_names`; on the syntax and text slices for the `SyntaxNode`, `SyntaxLeaf` and `TextString` that the two printers build; on the style slice for the styles of a list and of the page; on the natural slice for `register_natural_syntax!`; and on the serialization slice for `pred_arguments`, besides the kernel.
 
 Its `__init__` registers the three document types with `register_natural_syntax!(:help, …)`: `HelpListToSyntax` for the two lists, `AboutPageToSyntax` for the page. It registers all three as `.pred` types too, so a saved window can hold a tab of each.
 
-`ProjecturedShell` depends on `ProjecturedHelp`. `make_window_help_menu` opens each of the three documents through `_reach_tool!`, and its `about` keyword makes the page of the host's own program. [shell.md](../shell/shell.md) describes the menu.
+The shell slice depends on it. `make_window_help_menu` opens each of the three documents through `_reach_tool!`, and its `about` keyword makes the page of the host's own program. [shell.md](../shell/shell.md) describes the menu.
 
 ## Design decisions
 

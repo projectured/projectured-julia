@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [bounded-sync.md](bounded-sync.md), [document.md](../../kernel/document.md), [widget.md](../widget/widget.md)
 
-`ProjecturedReflection` shows any Julia value on the screen with no projection written for it. It keeps a bounded shadow of the value, a tree of `ReflectedNode`, and draws the tree as a `WidgetTree` whose chevrons grow the shadow one level at a time. This document says how the shadow, the view and the value viewer fit together, and how this path differs from `ObjectToWidget` and `NaturalToGraphics`; [bounded-sync.md](bounded-sync.md) describes the bounded walk in detail.
+The reflection slice of `ProjecturedPlatform` shows any Julia value on the screen with no projection written for it. It keeps a bounded shadow of the value, a tree of `ReflectedNode`, and draws the tree as a `WidgetTree` whose chevrons grow the shadow one level at a time. This document says how the shadow, the view and the value viewer fit together, and how this path differs from `ObjectToWidget` and `NaturalToGraphics`; [bounded-sync.md](bounded-sync.md) describes the bounded walk in detail.
 
 ## How it works
 
@@ -51,9 +51,9 @@ A request only flags a marker, so something must run the sync. `ReflectionFeed(s
 
 ## How it fits
 
-`ProjecturedReflection` depends on the kernel, `ProjecturedCollection` and `ProjecturedWidget`. The kernel gives it the feed contract of `ReflectionFeed`. The dependency goes from reflection to widget: a projection belongs to the package of what it reads, and `ReflectionToWidget` reads a `ReflectedNode`. The widget package has no reference to this package.
+The reflection slice depends on the kernel and on the collection and widget slices. The kernel gives it the feed contract of `ReflectionFeed`. The dependency goes from reflection to widget: a projection belongs to the slice of what it reads, and `ReflectionToWidget` reads a `ReflectedNode`. The widget slice has no reference to this one.
 
-The package registers nothing. It adds methods to the three open functions of the kernel walk, and a caller extends `reflect_child_count` and `reflect_child_pairs` for its own types. The umbrella package loads it, and the value viewer of the examples is its one direct caller.
+It registers nothing. It adds methods to the three open functions of the kernel walk, and a caller extends `reflect_child_count` and `reflect_child_pairs` for its own types. The umbrella package loads it, and the value viewer of the examples is its one direct caller.
 
 ## Design decisions
 

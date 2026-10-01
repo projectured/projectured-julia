@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [clipboard.md](../clipboard/clipboard.md), [undo.md](../undo/undo.md)
 
-`ProjecturedVersioning` lets any subtree of a document hold several versions of itself. A `VersionedObject` holds the versions, and `VersioningToAnyProjection` shows one of them in place of the wrapper, so every projection after it sees an ordinary document. This document says how the active version is chosen, how edits reach it, and why versions are documents and not a log of operations.
+The versioning slice of `ProjecturedPlatform` lets any subtree of a document hold several versions of itself. A `VersionedObject` holds the versions, and `VersioningToAnyProjection` shows one of them in place of the wrapper, so every projection after it sees an ordinary document. This document says how the active version is chosen, how edits reach it, and why versions are documents and not a log of operations.
 
 ## How it works
 
@@ -59,7 +59,7 @@ The undo buffer reads in the opposite order, content first and its own keys last
 
 ## How it fits
 
-The code is in `source/platform/versioning/`. `ProjecturedVersioning` depends on the kernel, `ProjecturedCollection` for `versions`, `ProjecturedDomain` for `DocumentNothing` and `ProjecturedPrimitive` for the range edits that `_prefix_op` reroots. No other package depends on it. A program puts a `VersionedObject` into its document and a `VersionedObject => VersioningToAnyProjection()` row into its dispatch table.
+The code is in `source/platform/versioning/`. The versioning slice depends on the kernel, the collection slice for `versions`, the domain slice for `DocumentNothing` and the primitive slice for the range edits that `_prefix_op` reroots. No other slice depends on it. A program puts a `VersionedObject` into its document and a `VersionedObject => VersioningToAnyProjection()` row into its dispatch table.
 
 It registers nothing at load time; the two keys belong to the projection.
 

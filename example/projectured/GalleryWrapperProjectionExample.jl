@@ -14,9 +14,10 @@ end
 # Apply DraggingProjection at the DraggingState wrapper and hand the inner
 # `content` to the example's own projection — the `make_scrolling_projection`
 # shape. The dragging printer is transparent, so the content renders as usual;
-# its reader turns press → drag → drop into a MoveRangeOperation. Pairs with
-# `make_dragging_document`; the domain-specific twin is
-# `make_dragging_projection_example`. Both are `ProjecturedPlatform`'s — see
+# its reader turns press → drag → drop into a MoveRangeOperation. This pairs
+# `make_dragging_document` with `make_dragging_projection`, both
+# `ProjecturedPlatform`'s; the domain-specific twin,
+# `make_dragging_projection_example`, is this package's own — see
 # `GalleryWrapperDocumentExample.jl`.
 
 # Render a WidgetShell and the content it frames: the shell's own bands are

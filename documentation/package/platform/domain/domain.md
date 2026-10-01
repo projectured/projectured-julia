@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [macros.md](../../kernel/macros.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
-`ProjecturedDomain` holds what makes a set of document types a domain: the `@domain` and `@insertion` macros, the empty placeholder and the insertion buffer that every domain shares, the completion of a typed type name, and the verbs that the structural gestures of a domain call. It is not a domain itself. This document says how these parts work and why they work by reflection and not by registration.
+The domain slice of `ProjecturedPlatform` holds what makes a set of document types a domain: the `@domain` and `@insertion` macros, the empty placeholder and the insertion buffer that every domain shares, the completion of a typed type name, and the verbs that the structural gestures of a domain call. It is not a domain itself. This document says how these parts work and why they work by reflection and not by registration.
 
 ## How it works
 
@@ -26,9 +26,9 @@
 
 `get_insertion_candidates(JsonDocument)` finds every concrete subtype of the root in the loaded modules. A type is a candidate when it is insertable: it has a zero-argument constructor, or an `@insertion` method. `get_insertion_names(T)` makes the names that a user can type: `JsonString`, `json string`, and inside the domain also `String` and `string`.
 
-`compute_concrete_subtypes(root)` is the walk that `get_insertion_candidates` builds on. It answers every concrete type under `root` in the loaded modules and their submodules, depth first, and it tests nothing about a type except that it sits under `root`. A caller that wants the type tree and not the insertable subset of it calls this function directly; `ProjecturedHelp`'s list of every projection calls `compute_concrete_subtypes(Projection)`, because a projection is drawn and never inserted. `get_insertion_candidates(root)` then filters that walk down to what a person can insert: it drops the scope's own insertion, a native layout variant of another document's schema, and an insertion cursor that is not its domain's entry point, and it keeps what `insertable` accepts.
+`compute_concrete_subtypes(root)` is the walk that `get_insertion_candidates` builds on. It answers every concrete type under `root` in the loaded modules and their submodules, depth first, and it tests nothing about a type except that it sits under `root`. A caller that wants the type tree and not the insertable subset of it calls this function directly; the help slice's list of every projection calls `compute_concrete_subtypes(Projection)`, because a projection is drawn and never inserted. `get_insertion_candidates(root)` then filters that walk down to what a person can insert: it drops the scope's own insertion, a native layout variant of another document's schema, and an insertion cursor that is not its domain's entry point, and it keeps what `insertable` accepts.
 
-`complete_insertion(root, typed)` classifies what you typed as `:empty`, `:invalid`, `:unambiguous` or `:ambiguous`, and computes the common continuation. `resolve_insertion(root, typed)` returns the type to commit. An exact name wins over a prefix. The insertion leaf of `ProjecturedSyntax` shows this state as colours and a pale hint.
+`complete_insertion(root, typed)` classifies what you typed as `:empty`, `:invalid`, `:unambiguous` or `:ambiguous`, and computes the common continuation. `resolve_insertion(root, typed)` returns the type to commit. An exact name wins over a prefix. The insertion leaf of the syntax slice shows this state as colours and a pale hint.
 
 Both `compute_concrete_subtypes` and `get_insertion_candidates` are cached for each world age of Julia, one cache per root. So a type is a candidate as soon as its `struct` is evaluated, and when nothing changed the cost is one dictionary lookup.
 
@@ -46,7 +46,7 @@ The `@gestures` tables of the domains call three functions of this package. Each
 
 ## How it fits
 
-`ProjecturedDomain` depends on the kernel only. Every domain uses it, and so do `ProjecturedText`, `ProjecturedSyntax`, `ProjecturedClipboard`, `ProjecturedPane`, `ProjecturedFileFormat` and `ProjecturedNatural`.
+The domain slice depends on the kernel only. Every domain uses it, and so do the text, syntax, clipboard, pane, file-format and natural slices.
 
 ## Design decisions
 

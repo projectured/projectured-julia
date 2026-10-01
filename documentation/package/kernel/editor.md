@@ -238,10 +238,10 @@ The concrete feeds:
 | feed | producer | store shape | target |
 | --- | --- | --- | --- |
 | `InboxFeed` (built-in, always first) | `post_operation!` and `run_on_editor_task!` callers | bounded queue, backpressure | the edited document |
-| `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
-| `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FrameTimeSeries` |
-| `ReflectionFeed` (`ProjecturedReflection`) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
-| `TooltipFeed` (`ProjecturedTooltip`) | the probe of a window, on each pointer event | the place and the time of the last move | the inbox: at its deadline it posts the operation that the projection answers for a `PointerRest` |
+| `MessageLogFeed` (the log slice) | any task that logs | ring buffer | the `MessageLog` |
+| `FrameStatisticsFeed` (the statistics slice) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FrameTimeSeries` |
+| `ReflectionFeed` (the reflection slice) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
+| `TooltipFeed` (the tooltip slice) | the probe of a window, on each pointer event | the place and the time of the last move | the inbox: at its deadline it posts the operation that the projection answers for a `PointerRest` |
 
 The fault store is not a feed: `run_frame!` reports it at its top, so a
 hand-driven frame collects its faults too. It uses only the wake protocol of the
@@ -522,7 +522,7 @@ In the example packages this is wired up for you — see `play_live_example` and
   `wait_for_input` / `wake_backend!` — see
   [the devices and backends guide](devices-and-backends.md#backends).
 - Projections that need to measure text take a `measure::TextMeasure` argument
-  (e.g. `TextToGraphics`); `FontFileMeasure()` of `ProjecturedStyle` is the
+  (e.g. `TextToGraphics`); `FontFileMeasure()` of the style slice is the
   usual injection, and every backend draws what it measures.
 - The `ConsoleBackend` consumes the **TextBlock** domain directly (no
   `TextToGraphics`): its `write_to_devices` renders a `TextBlock` to the terminal
@@ -686,5 +686,5 @@ frame measurements (`FeedsTest.jl`), the fault barriers of the loop
 (`FaultBarriersTest.jl`), the edits through the readers (`DocumentEditsTest.jl`),
 and the `run_frame!` multi-operation-per-frame batching (`FrameDrainTest.jl`).
 The safe mode needs the fault view, so its test is in the suite of
-`ProjecturedFault`, in
+the fault slice, in
 [test/platform/fault/FaultSafeModeTest.jl](../../../test/platform/fault/FaultSafeModeTest.jl).

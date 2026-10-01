@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [document.md](../../kernel/document.md), [operation.md](../../kernel/operation.md), [serialization.md](../serialization/serialization.md)
 
-`ProjecturedPrimitive` holds the editable scalar documents, the `ObjectField` that makes one field of any object a document, and the two operations that edit a range of characters. A domain uses these where it needs a value that you edit and that has a selection of its own. This document says how a range edit finds its target, how it is undone, and why `ObjectField` has the form it has.
+The primitive slice of `ProjecturedPlatform` holds the editable scalar documents, the `ObjectField` that makes one field of any object a document, and the two operations that edit a range of characters. A domain uses these where it needs a value that you edit and that has a selection of its own. This document says how a range edit finds its target, how it is undone, and why `ObjectField` has the form it has.
 
 <img width="396" alt="Primitive string example" src="../../../asset/image/example/primitive-string.png">
 
@@ -51,7 +51,7 @@ A projection reader maps a range edit back through the chain with no method of i
 
 ## How it fits
 
-`ProjecturedPrimitive` depends on the kernel and on `ProjecturedSerialization`. Text, syntax, widgets, the projection algebra, panes and many domains depend on it. `ObjectField` is in this package because it is the lowest package that both `ProjecturedWidget` and `ProjecturedSyntax` use, and each of them holds one projection of it.
+The primitive slice depends on the kernel and on the serialization slice. The text, syntax, widget and projection slices, and panes and many domains, depend on it. `ObjectField` is in this slice because it is the lowest slice that both the widget and syntax slices use, and each of them holds one projection of it.
 
 Its `__init__` registers `PrimitiveString` as a `.pred` type, so a file can hold a bare string, such as the title of a tab. `make_pred_document(::Type{PrimitiveString}, …)` builds it from `PrimitiveString("hi")` or `PrimitiveString(value = "hi")`; the field has no default, so the macro gives no keyword constructor. `has_document_duplicate` is `true` for every primitive, so a duplicated pane copies the value and does not share it; see [document.md](../../kernel/document.md).
 

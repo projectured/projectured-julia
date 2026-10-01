@@ -17,9 +17,9 @@ macro, the projection-template engine, gesture bindings), the input-device
 abstraction, the editor read-eval-print loop, and the agent control surface.
 **No concrete projections** live here — the domain-independent projection
 algebra (higher-order combinators + generic projections) lives in the
-substrate. **No concrete documents** either — Collection and Primitive live in
-`ProjecturedCollection` and `ProjecturedPrimitive`, and ScreenDocument in
-`ProjecturedScreen`.
+platform. **No concrete documents** either — Collection and Primitive live in
+the platform's collection and primitive slices, and ScreenDocument in its
+screen slice.
 The kernel has **zero concrete-document imports**. **No backends** either —
 the dependency-free in-memory `HeadlessBackend` test double lives in
 `ProjecturedKernelExample`, not here. **No runtime dependencies** —
@@ -49,7 +49,7 @@ Layer 13 — operation/   Operation + evaluate_operation + the traversal and rer
 Layer 14 — intent/      Intent and ClaimedGesture, the unit that flows back through the readers, and CollectIntents
 Layer 15 — binding/     gesture → operation bindings, @gestures/@gesture_set, read_gesture
 Layer 16 — iomap/       the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap) + the child reconcilers (reconcile_child_iomaps/reconcile_child_iomap)
-Layer 17 — projection/  ProjectionInterface/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
+Layer 17 — projection/  ProjectionInterface/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in the platform's projection slice)
 Layer 18 — tool/        the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code!, doc/API search, register_default_tools! (side-stack)
 Layer 19 — llm/         the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
 Layer 20 — agent/       the AI control surface — AgentModule, with the inbound MCP seam and the outbound Agent and run_turn! loop (side-stack)
@@ -89,7 +89,7 @@ higher *package*, extends them by adding methods at its own definition site, so 
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
 the clearest case: `ProjectionReferenceStep` (layer 17), `PointReferenceStep`, and the
 text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep`
-(all in the substrate) subtype it and register
+(all in the platform) subtype it and register
 their navigation through `evaluate_reference_step`, with no edit to layer 11.
 
 **The agent stack is a side-stack.** The editor (layer 22) reaches it only through
@@ -177,7 +177,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `intent/` | `IntentModule` — `Intent` and `ClaimedGesture`, the unit that flows back through the readers, and `CollectIntents` |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
 | `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`), the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`), and the child reconcilers (`IoMapReconcile.jl`: `reconcile_child_iomaps`, `reconcile_child_iomap`) |
-| `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `PrinterContext`, `ChildrenContainer`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
+| `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `PrinterContext`, `ChildrenContainer`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in the platform's projection slice. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code!`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |
 | `agent/` | `AgentModule` — the inbound contract (`make/start/stop_agent_server!`, `run_on_editor_task!`) and the outbound Agent and `run_turn!` |

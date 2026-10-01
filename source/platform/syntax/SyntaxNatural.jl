@@ -6,14 +6,14 @@
 #
 # # Why it is registered rather than named
 #
-# Naming this from `ProjecturedPlatform` would make every renderer carry the syntax
-# domain — the reflection tail that can draw a document of any shape. A campaign
-# runner that draws a form, a table of runs and a chat never reaches it, and would
-# pay for it in its dependency list all the same.
+# The natural slice cannot name this module directly: this module already
+# names the natural slice (`register_natural_syntax!`, `register_natural_rung!`),
+# and the arrow cannot turn. So the renderer declares a fallback seam and this
+# module fills it, from `ProjecturedPlatform.__init__`.
 #
-# So the renderer declares a fallback seam and this module fills it. A session that
-# loads `ProjecturedPlatform` can draw anything; one that does not draws what it was
-# taught, and an error message for the rest.
+# A session that loads `ProjecturedPlatform` can draw anything, through this
+# fallback, once no domain-specific row claims a document; a session that loads
+# no platform at all draws nothing.
 #
 # The rows a domain registers with `register_natural_syntax!` are consumed here,
 # which is why the fabric knows every loaded domain without naming one.
@@ -105,14 +105,15 @@ end
 Tell the natural machinery what this session can do that it could not before:
 draw a document of any shape, and take a syntax tree up to text.
 
-`syntax → text` is the one rung of the ladder that `ProjecturedPlatform` cannot
-supply, because it must not name this package — this package names it, and the
-arrow cannot turn. So it is registered here, and a session without this package
-has no rung: a document that only speaks syntax then has no text and no graphics
-form, which is what "not loaded is not supported" means.
+`syntax → text` is the one rung of the ladder that the natural slice cannot
+supply itself — it must not name the syntax slice, because the syntax slice
+names it, and the arrow cannot turn. So it is registered here instead, and a
+session that loads no platform at all has no rung: a document that only
+speaks syntax then has no text and no graphics form, which is what "not
+loaded is not supported" means.
 
-Called from `ProjecturedPlatform.__init__`, so loading the package is what
-registers both.
+Called from `ProjecturedPlatform.__init__`, so loading the platform is what
+registers it.
 """
 function register_syntax_fallback!()
     register_natural_fallback!(:syntax, _fallback_rows)

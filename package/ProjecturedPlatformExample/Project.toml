@@ -3,9 +3,9 @@ uuid = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 version = "0.1.0"
 authors = []
 
-# The substrate tier of the example-package DAG: syntax and text documents, the
+# The platform tier of the example-package DAG: syntax and text documents, the
 # widget gallery, the layouts, the collection views, the text decorators, and
-# the substrate half of the example harness (print_example, write_example_pdf).
+# the platform half of the example harness (print_example, write_example_pdf).
 # SDL is reached through the make_backend seam alone, so there is no opt-in
 # dependency.
 

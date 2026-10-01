@@ -42,15 +42,15 @@ Each alpha value gets one `ExtGState` resource. A text becomes one text object, 
 
 ### Fonts
 
-Each font file is embedded once and shared by every page and every size. It is a Type0 font over a `CIDFontType2`, with the encoding `Identity-H` and the map `CIDToGIDMap /Identity`. So a character identifier is the glyph identifier, and every Unicode character of the font is available. The writer embeds the whole file as `/FontFile2` and writes a `/W` array only for the glyphs that the document uses. A `ToUnicode` map lets a copy from the PDF give the real text. The TrueType reader is `TrueType.jl` of `ProjecturedStyle`.
+Each font file is embedded once and shared by every page and every size. It is a Type0 font over a `CIDFontType2`, with the encoding `Identity-H` and the map `CIDToGIDMap /Identity`. So a character identifier is the glyph identifier, and every Unicode character of the font is available. The writer embeds the whole file as `/FontFile2` and writes a `/W` array only for the glyphs that the document uses. A `ToUnicode` map lets a copy from the PDF give the real text. The TrueType reader is `TrueType.jl` of the style slice.
 
-A text can need more than one font. For a character that the font of the text does not have, `find_glyph_font_file` of `ProjecturedStyle` names the font that has it: DejaVu Sans Mono, then Noto Emoji. A `FontFileMeasure` measures the character in that font, and `paint_text!` draws it in that font too. It splits the text into runs of consecutive characters in one font and embeds each font that a run uses. Each run selects its font with `Tf` and shows its glyphs with a `TJ`, which also carries the kerning between the glyphs of the run. A `TJ` moves the text position by the advances of its glyphs and by the kerning, so a run starts where the run before it ends, on the baseline of the text. A presentation selector, U+FE0E or U+FE0F, has no width, and the painter drops it, as the measurer does.
+A text can need more than one font. For a character that the font of the text does not have, `find_glyph_font_file` of the style slice names the font that has it: DejaVu Sans Mono, then Noto Emoji. A `FontFileMeasure` measures the character in that font, and `paint_text!` draws it in that font too. It splits the text into runs of consecutive characters in one font and embeds each font that a run uses. Each run selects its font with `Tf` and shows its glyphs with a `TJ`, which also carries the kerning between the glyphs of the run. A `TJ` moves the text position by the advances of its glyphs and by the kerning, so a run starts where the run before it ends, on the baseline of the text. A presentation selector, U+FE0E or U+FE0F, has no width, and the painter drops it, as the measurer does.
 
 The writer itself, `PdfWriter`, is a small PDF 1.7 writer: it numbers the objects, records the byte offset of each one, and ends with the cross-reference table and the trailer. The content streams are not compressed.
 
 ## How it fits
 
-`ProjecturedPdf` depends on `ProjecturedGraphics` for the canvas and `get_canvas_content_bounds`, on `ProjecturedStyle` for the colours, the fonts and the TrueType reader, and on the kernel for the projection and the IoMap. It needs no third-party package, so the umbrella `Projectured` holds it. It registers nothing. `write_example_pdf(name)` in `ProjecturedExample` writes a registered example.
+`ProjecturedPdf` depends on the kernel for the projection and the IoMap, and on the platform for the canvas and `get_canvas_content_bounds` (the graphics slice) and for the colours, the fonts and the TrueType reader (the style slice). It needs no third-party package, so the umbrella `Projectured` holds it. It registers nothing. `write_example_pdf(name)` in `ProjecturedExample` writes a registered example.
 
 ## Design decisions
 
@@ -58,7 +58,7 @@ The writer itself, `PdfWriter`, is a small PDF 1.7 writer: it numbers the object
 - **No new dependency.** Cairo was rejected: it adds a large native library, and it selects a font by a fontconfig name, not by the file path that `StyleFont` holds. A compression library was rejected too, so the streams stay uncompressed.
 - **Composite fonts with `Identity-H`.** A simple PDF font covers only 256 characters, and the editor uses more.
 - **The whole font file is embedded.** The editor uses a few fonts, and each file is embedded once. Subsetting would make the file smaller and was left for later.
-- **The page size comes from the same bounds as `write_image`.** `get_canvas_content_bounds` is in `ProjecturedGraphics`, so both exports use one walk.
+- **The page size comes from the same bounds as `write_image`.** `get_canvas_content_bounds` is in the graphics slice, so both exports use one walk.
 - **Pages cut one layout into bands.** The layout runs once at the page width, and pagination does not lay out each page again. See [plan/done/pdf-pagination.md](../../../../plan/done/pdf-pagination.md).
 
 ## Usage

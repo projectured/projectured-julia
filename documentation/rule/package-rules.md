@@ -164,45 +164,55 @@ the packages its own source names — no more and no less.
 The kernel depends on nothing. A row names it only where it is the one
 dependency.
 
-### The thirty packages of the substrate
+### The slices of the platform
 
-| package | depends on | third-party |
+One package, `ProjecturedPlatform`, holds every slice below. A slice names
+the other slices it depends on the same way a package would; the layering
+guard of the platform checks every edge below against the code.
+
+| slice | depends on | third-party |
 | --- | --- | --- |
-| `ProjecturedCollection` | Kernel | — |
-| `ProjecturedSerialization` | Kernel | Serialization |
-| `ProjecturedPrimitive` | Kernel | — |
-| `ProjecturedDomain` | Kernel | — |
-| `ProjecturedStyle` | Kernel | — |
-| `ProjecturedComponent` | Kernel | — |
-| `ProjecturedProjection` | Collection, Primitive | — |
-| `ProjecturedDragging` | Collection, Projection | — |
-| `ProjecturedFocus` | Collection | — |
-| `ProjecturedVersioning` | Collection, Domain, Primitive | — |
-| `ProjecturedPlot` | Style | — |
-| `ProjecturedGraphics` | Collection, Projection, Style | — |
-| `ProjecturedScreen` | Collection, Graphics, Primitive, Projection | — |
-| `ProjecturedLayout` | Collection, Focus, Graphics, Projection | — |
-| `ProjecturedText` | Collection, Domain, Graphics, Primitive, Projection, Style | — |
-| `ProjecturedWidget` | Collection, Domain, Focus, Graphics, Layout, Primitive, Projection, Screen, Serialization, Style, Text | — |
-| `ProjecturedReflection` | Collection, Widget | — |
-| `ProjecturedClipboard` | Collection, Domain, Primitive, Projection, Serialization, Text | — |
-| `ProjecturedPane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Screen, Serialization, Style, Widget | — |
-| `ProjecturedTooltip` | Screen | — |
-| `ProjecturedNatural` | Collection, Domain, Layout, Primitive, Projection, Style, Text, Widget | — |
-| `ProjecturedSyntax` | Collection, Domain, Natural, Primitive, Projection, Style, Text | — |
-| `ProjecturedInspector` | Domain, Natural, Projection, Screen, Serialization, Style, Text | — |
-| `ProjecturedGestureHelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
-| `ProjecturedGestureLog` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text | — |
-| `ProjecturedFileFormat` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
-| `ProjecturedFault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
-| `ProjecturedConsole` | Style, Text | — |
-| `ProjecturedPdf` | Graphics, Style | — |
-| `ProjecturedDisplay` | Natural, Screen, Style, Widget | — |
+| `collection` | Kernel | — |
+| `serialization` | Kernel | Serialization |
+| `primitive` | Kernel | — |
+| `domain` | Kernel | — |
+| `style` | Kernel | — |
+| `component` | Kernel | — |
+| `projection` | Collection, Primitive | — |
+| `dragging` | Collection, Projection | — |
+| `focus` | Collection | — |
+| `versioning` | Collection, Domain, Primitive | — |
+| `plot` | Style | — |
+| `graphics` | Collection, Projection, Style | — |
+| `screen` | Collection, Graphics, Primitive, Projection | — |
+| `layout` | Collection, Focus, Graphics, Projection | — |
+| `text` | Collection, Domain, Graphics, Primitive, Projection, Style | — |
+| `widget` | Collection, Domain, Focus, Graphics, Layout, Primitive, Projection, Screen, Serialization, Style, Text | — |
+| `reflection` | Collection, Widget | — |
+| `clipboard` | Collection, Domain, Primitive, Projection, Serialization, Text | — |
+| `pane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Screen, Serialization, Style, Widget | — |
+| `tooltip` | Screen | — |
+| `natural` | Collection, Domain, Layout, Primitive, Projection, Style, Text, Widget | — |
+| `syntax` | Collection, Domain, Natural, Primitive, Projection, Style, Text | — |
+| `inspector` | Domain, Natural, Projection, Screen, Serialization, Style, Text | — |
+| `gesturehelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
+| `gesturelog` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text | — |
+| `fileformat` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `fault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `display` | Natural, Screen, Style, Widget | — |
 
-### The twenty-one domains
+This is not every slice of the platform: `gesturetracking`, `mousetargettracking`,
+`filesystem`, `undo`, `log`, `statistics`, `shell`, `help`, `conversation` and
+`assistant` are the rest, and `PLATFORM_SLICE_EDGES` in
+[PlatformSuite.jl](../../test/platform/PlatformSuite.jl) has every one of the
+thirty-eight. `ProjecturedConsole` and `ProjecturedPdf` are backend packages,
+not slices of the platform, even though neither carries a third-party
+dependency.
 
-Each domain depends on the kernel, on the substrate packages it uses, and on
-the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
+### The seventeen domains
+
+Each domain depends on the kernel, on the platform, and on the domains it
+embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 
 ### The packages that own a third-party dependency
 
@@ -224,9 +234,9 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 
 | package | depends on |
 | --- | --- |
-| `Projectured` (umbrella) | Kernel, the 29 substrate packages, the 21 domains |
-| `ProjecturedSubstrateExample` | the 29 substrate packages, KernelExample |
-| `ProjecturedSubstrateTest` | the 29 substrate packages, KernelTest, SubstrateExample |
+| `Projectured` (umbrella) | Kernel, the platform, the 17 domains |
+| `ProjecturedPlatformExample` | the platform, KernelExample |
+| `ProjecturedPlatformTest` | the platform, KernelTest, PlatformExample |
 | `<Stem>Example` | `<Stem>`, the Examples below it |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it |
 | `ProjecturedRepl` **(leaf)** | Projectured, Example, Test, Sdl |

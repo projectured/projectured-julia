@@ -11,8 +11,8 @@
 # `make_tracking_screen`, and passes it.
 #
 # It lives here because a window on a screen is what this package is about, and
-# it costs nothing: `ProjecturedPlatform` was already in this package's closure
-# through `ProjecturedPlatform`, so naming it directly adds no package to any
+# it costs nothing: the projection slice was already in this package's closure
+# through the graphics slice, so naming it directly adds no package to any
 # image.
 #
 # A wrapper can open a window of its own, such as the gesture help that F1

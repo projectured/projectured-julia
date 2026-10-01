@@ -55,7 +55,7 @@ A `+` or a `-` in front of a number is the sign of that number where the grammar
 
 ## How it fits
 
-`ProjecturedSql` depends on the kernel and on `ProjecturedDomain`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedNatural`, `ProjecturedSerialization` and `ProjecturedFileFormat`. It does not depend on `ProjecturedDatabase` or `ProjecturedOdbc`. Two packages depend on it: `ProjecturedDbCatalog` makes `CREATE` statements from a catalog, and `ProjecturedOdbc` prints a `SqlSelectStatement` to text and runs it on a connection.
+`ProjecturedSql` depends on the kernel and the platform. It does not depend on `ProjecturedDatabase` or `ProjecturedOdbc`. Two packages depend on it: `ProjecturedDbCatalog` makes `CREATE` statements from a catalog, and `ProjecturedOdbc` prints a `SqlSelectStatement` to text and runs it on a connection.
 
 Its `__init__` registers the natural row with the rung `:syntax`, the format `:sql`, the extension `.sql` and the parser `parse_sql_text`, and it registers `SqlFile` for `.sql`.
 

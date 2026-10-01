@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [higher-order-projections.md](../projection/higher-order-projections.md), [operation.md](../../kernel/operation.md)
 
-`ProjecturedDragging` adds reorder by drag and drop to any document: a wrapper document, a projection that reads the press, the drag and the drop, and the operation that moves elements between collections. The [DraggingProjection section](../projection/higher-order-projections.md#draggingprojection) of the higher-order guide describes the reader step by step; this document says why it is built this way and how to use it.
+The dragging slice of `ProjecturedPlatform` adds reorder by drag and drop to any document: a wrapper document, a projection that reads the press, the drag and the drop, and the operation that moves elements between collections. The [DraggingProjection section](../projection/higher-order-projections.md#draggingprojection) of the higher-order guide describes the reader step by step; this document says why it is built this way and how to use it.
 
 ## How it works
 
@@ -14,7 +14,7 @@ A mouse event becomes a reference only at the graphics stage, and only for a `Mo
 
 ## How it fits
 
-`ProjecturedDragging` depends on the kernel, `ProjecturedCollection` and `ProjecturedProjection`. `ProjecturedPane` uses `MoveRangeOperation` to move a tab; it does not use `DraggingProjection`, because the split pane and the tabs have their own drag readers. The package registers nothing.
+The dragging slice depends on the kernel and on the collection and projection slices. The pane slice uses `MoveRangeOperation` to move a tab; it does not use `DraggingProjection`, because the split pane and the tabs have their own drag readers. It registers nothing.
 
 ## Design decisions
 

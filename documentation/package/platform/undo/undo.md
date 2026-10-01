@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [operation.md](../../kernel/operation.md), [projection-system.md](../../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
 
-`ProjecturedUndo` gives any document a history. An `UndoBuffer` holds a document and the steps that take it back, and a transparent projection records each operation that passes through it. This document says how a step is recorded while no reader changes anything, how two buffers on one path work together, and what is not recorded.
+The undo slice of `ProjecturedPlatform` gives any document a history. An `UndoBuffer` holds a document and the steps that take it back, and a transparent projection records each operation that passes through it. This document says how a step is recorded while no reader changes anything, how two buffers on one path work together, and what is not recorded.
 
 ## How it works
 
@@ -106,7 +106,7 @@ A tool, a driver or a script that must record its change wraps it with `make_und
 
 ## How it fits
 
-`ProjecturedUndo` depends on the kernel, `ProjecturedCollection` for the two lists, `ProjecturedProjection`, and `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedGraphics` and `ProjecturedStyle` for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. No other package depends on it; an application puts a buffer into its document and a `UndoBuffer => UndoBufferToAnyProjection()` row into its dispatch table.
+The undo slice depends on the kernel, the collection slice for the two lists, the projection slice, and the syntax, text, graphics and style slices for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. No other slice depends on it; an application puts a buffer into its document and a `UndoBuffer => UndoBufferToAnyProjection()` row into its dispatch table.
 
 It registers nothing at load time. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
 

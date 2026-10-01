@@ -54,7 +54,7 @@ give each its own.
 ## The package chain and what belongs to each
 
 ```
-kernel  →  substrate  →  domain  →  (umbrella)     opt-in: sdl web odbc video tulip anthropic ollama mcp
+kernel  →  platform  →  domain  →  (umbrella)     opt-in: sdl web odbc video tulip anthropic ollama mcp
 ```
 
 - **kernel** — machinery and interfaces only: cells, the document/reference/operation
@@ -62,34 +62,35 @@ kernel  →  substrate  →  domain  →  (umbrella)     opt-in: sdl web odbc vi
   document-free structural combinators, agent seams, the editor loop. **Zero concrete
   documents.** Membership tests: "does the editor loop itself need it?"; a projection
   is kernel-side iff it imports no concrete document.
-- **substrate** — the packages between the kernel and the domains, one concept
-  each, in an acyclic graph; [package-rules.md](package-rules.md) has their table.
-  The lower ones hold the domain-independent vocabulary and frameworks: the engine's
-  documents (`ProjecturedCollection`, `ProjecturedPrimitive`, the insertion document
-  of `ProjecturedDomain`), the document-shaped generic projections
-  (`ProjecturedProjection`), and the persistence frameworks
-  (`ProjecturedSerialization`, `ProjecturedFileFormat`). Membership test:
-  **frameworks sink to the lowest package where their types make sense; only
-  per-domain methods stay above** (the seam pattern below).
-  The upper ones hold everything about how documents become visible: the style atoms
-  (`ProjecturedStyle`), the screen/window model (`ProjecturedScreen`), the
-  render-target documents with their projections (`ProjecturedGraphics`,
-  `ProjecturedLayout`, `ProjecturedText`, `ProjecturedWidget`, `ProjecturedSyntax`),
-  and the dependency-free backends (`ProjecturedConsole`, `ProjecturedPdf`).
+- **platform** — one package, `ProjecturedPlatform`, that holds every slice
+  between the kernel and the domains, one concept each, in an acyclic graph;
+  [package-rules.md](package-rules.md) has their table. The lower slices hold
+  the domain-independent vocabulary and frameworks: the engine's documents
+  (`collection`, `primitive`, the insertion document of `domain`), the
+  document-shaped generic projections (`projection`), and the persistence
+  frameworks (`serialization`, `fileformat`). Membership test: **frameworks
+  sink to the lowest slice where their types make sense; only per-domain
+  methods stay above** (the seam pattern below).
+  The upper slices hold everything about how documents become visible: the
+  style atoms (`style`), the screen/window model (`screen`), the render-target
+  documents with their projections (`graphics`, `layout`, `text`, `widget`,
+  `syntax`), and the dependency-free backends (`ProjecturedConsole`,
+  `ProjecturedPdf`, packages of their own, not slices of the platform).
   Membership test: "is this about presenting/arranging/drawing?" Anything
   screen-, window-, or graphics-related lives there — with one deliberate exception:
   the Display *device* and display-size seam stay in the kernel, because they are the
   interface the editor writes to, not the graphics themselves.
 - **domain** — pure feature slices (json, sql, graph, …: each a document + parser +
-  projections + tests) plus the application slices (assistant, conversation) in the
-  layer above. No shared layers between them: anything two slices need is a
-  framework and belongs in the substrate.
+  projections + tests). No shared layers between domains: anything two of
+  them need is a framework and belongs in the platform. The application
+  slices (assistant, conversation, shell, help, log, statistics, undo) are
+  slices of the platform too, because the platform may depend on no domain.
 - **opt-in packages** — exactly one per external dependency or transport (sdl=SDL2,
   web=HTTP, odbc=ODBC, tulip=linear-programming solver, anthropic/ollama=HTTP clients
   of a model provider, mcp=the MCP server). They implement
   seams owned below (the render/image/record backend generics, database adapters)
-  and bind to the narrowest package that has what they render (sdl/web →
-  `ProjecturedStyle`, `ProjecturedGraphics` and `ProjecturedScreen`; odbc → the sql,
+  and bind to the narrowest slice that has what they render (sdl/web → the
+  platform's style, graphics and screen slices; odbc → the sql,
   database and dbcatalog domains).
 
 ## The triad — every main package has its code, its tests, and its examples
@@ -110,15 +111,15 @@ The three kinds form **parallel DAGs with identical shape** (the module names ke
 the `-Test` / `-Example` suffixes even though the directories share one folder):
 
 ```
-main:      kernel ← the 28 substrate packages ← the 20 domains ← Projectured (umbrella) ← {sdl, odbc, tulip, video, anthropic, ollama, mcp, web}
-tests:     kernel/test ← substrate/test ← <domain>/test ← projectured/test
-examples:  kernel/example ← substrate/example ← <domain>/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
+main:      kernel ← the platform ← the 17 domains ← Projectured (umbrella) ← {sdl, odbc, tulip, video, anthropic, ollama, mcp, web}
+tests:     kernel/test ← platform/test ← <domain>/test ← projectured/test
+examples:  kernel/example ← platform/example ← <domain>/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
 ```
 
-The substrate shares **one** example package and **one** test package
-(`package/substrate/{example, test}`) rather than one per package: the files of
+The platform shares **one** example package and **one** test package
+(`package/platform/{example, test}`) rather than one per slice: the files of
 both were written against the flat namespace, so a static scan cannot say which
-of the twenty-eight owns which file.
+of the thirty-eight slices owns which file.
 
 The example DAG's leaves are the **opt-in example packages** — one per engine,
 each under its opt-in package's folder: `package/odbc/example`
@@ -163,7 +164,7 @@ clarifications that decide most disputes:
 - **The fixture decides, not the machinery.** A test (or example) that exercises
   a lower package's machinery *through* a higher package's fixture belongs to the
   fixture's package: a Pdf-backend test driven by a JSON pipeline is a domain test,
-  even though the Pdf backend is in the substrate. Classification tables in plans are
+  even though the Pdf backend is a package of its own, below the domains. Classification tables in plans are
   guesses; the
   vocabulary check at move time is the authority.
 
@@ -178,7 +179,7 @@ wholesale — the navigation gesture sets and their ground-truth enumerators —
 takes them as arguments instead: the generic `explore_selections` /
 `test_navigation` driver sits in the kernel test package, and its presets
 (`test_position_navigation`, `test_tree_navigation`) and the enumerators
-(`collect_position_selections`, `collect_tree_selections`) sit in the substrate
+(`collect_position_selections`, `collect_tree_selections`) sit in the platform
 test package, whose readers own those gesture vocabularies and whose document walk
 can express them.
 
@@ -187,7 +188,7 @@ can express them.
 - **Projection placement invariant** (machine-checked by the guards):
   `home(projection) ≥ max(package(input), package(output), package(every other import))`.
   Canonical home = the more-specific side: `JsonToSyntax` → json slice,
-  `SyntaxToText` → `ProjecturedSyntax`, `ObjectToSyntax` → `ProjecturedSyntax`
+  `SyntaxToText` → the syntax slice, `ObjectToSyntax` → the syntax slice
   (generic input, syntax output).
   It works because pipelines flow *specific → generic*; a reverse-direction
   projection (WorkspaceToFileSystem) still obeys it via its input side.
@@ -241,7 +242,7 @@ Every main package has a static guard that parses the real `import ..Module`
 headers and asserts: the include list is a valid topological order, every file
 belongs to a declared layer/slice, every edge points to the same or a lower layer,
 and slice→slice edges are acyclic. Where enabled (the kernel today; the
-substrate and the domains as they come clean), it also asserts that **imports name only
+platform and the domains as they come clean), it also asserts that **imports name only
 exported symbols** — a non-exported name is a module-internal detail, so share a
 private helper via same-module fragments (the `@gesture_case` / `@gestures` parser
 precedent) or sink the seam below both users as exported API (the `@cell_struct`
@@ -255,7 +256,7 @@ today. The guard is implemented **once** — the shared
 `check_layering` in
 [package/kernel/test/layering/CheckLayering.jl](../../test/kernel/layering/CheckLayering.jl)
 — and each test package applies it to its main package
-(`test_kernel_layering()`, `test_substrate_layering()`, and one for each domain
+(`test_kernel_layering()`, `test_platform_layering()`, and one for each domain
 such as `test_json_layering()`), running inside `test_<package>()`. It runs without loading
 the package (~1s) and is the reason the rules stay true after the refactors that
 established them.

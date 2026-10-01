@@ -85,7 +85,7 @@ In both, the content of a vertex is the domain node itself, held by identity. So
 
 ## How it fits
 
-`ProjecturedGraph` depends on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedNatural`, `ProjecturedProjection` and `ProjecturedStyle`. `ProjecturedFsm` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine to it.
+`ProjecturedGraph` depends on the kernel and the platform. `ProjecturedFsm` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine to it.
 
 The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:graph, …)`. It maps `GraphGraph` to the two stages with the default engine, `GridEmbedding`, so a tab draws a graph as a diagram. The package registers no natural domain row: a graph has no text form, no parser and no file type.
 

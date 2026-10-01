@@ -39,11 +39,11 @@ The graphics rows draw a formula with math code as a `MathAssignment` of the mat
 
 ### The file
 
-The domain has no file type and no parser of its own. It stores formulas in `.pred` files of `ProjecturedSerialization`. `pred_arguments` writes the name, the code as text, the notation (`:math` or `:julia`) and the display mode. It does not write the result, because a load computes it again. `make_pred_document` reads the code back with `parse_math` or `parse_julia`, by the notation.
+The domain has no file type and no parser of its own. It stores formulas in `.pred` files of the serialization slice. `pred_arguments` writes the name, the code as text, the notation (`:math` or `:julia`) and the display mode. It does not write the result, because a load computes it again. `make_pred_document` reads the code back with `parse_math` or `parse_julia`, by the notation.
 
 ## How it fits
 
-`ProjecturedFormula` depends on two domains: `ProjecturedJulia` for the code and the printer table, and `ProjecturedMath` for the math code and its drawing. It also uses `ProjecturedLayout` and `ProjecturedWidget` for the graphics rows. No package depends on it.
+`ProjecturedFormula` depends on two domains: `ProjecturedJulia` for the code and the printer table, and `ProjecturedMath` for the math code and its drawing. It also uses the layout and widget slices of the platform for the graphics rows. No package depends on it.
 
 Its `__init__` registers `FormulaFormula` and `FormulaEnvironment` as `.pred` types, and the graphics rows with `register_natural_graphics!(:formula, …)`.
 

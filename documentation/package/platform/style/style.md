@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [macros.md](../../kernel/macros.md), [graphics.md](../graphics/graphics.md)
 
-`ProjecturedStyle` holds the values that everything drawn shares: colours, fonts, styled text, strokes, geometry and images. It also holds a TrueType parser that measures text with no display. It has no projection and registers nothing; this document says why its types have the form they have.
+The style slice of `ProjecturedPlatform` holds the values that everything drawn shares: colours, fonts, styled text, strokes, geometry and images. It also holds a TrueType parser that measures text with no display. It has no projection and registers nothing; this document says why its types have the form they have.
 
 ## How it works
 
@@ -61,7 +61,7 @@ The size of text on the screen comes from two separate settings:
 
 ## How it fits
 
-`ProjecturedStyle` depends only on the kernel, and it is the lowest package of the drawing chain: style, then graphics, then text, then syntax. Every package that draws uses it. A backend converts a `StyleColor` into its own device format when it draws.
+The style slice depends only on the kernel, and it is the lowest slice of the drawing chain: style, then graphics, then text, then syntax. Every slice that draws uses it. A backend converts a `StyleColor` into its own device format when it draws.
 
 ## Design decisions
 

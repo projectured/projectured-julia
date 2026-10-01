@@ -51,7 +51,7 @@ A rule is written with `@projection_template` when it can be. The markers `bound
 
 Four other routes exist:
 
-- **The domain draws itself.** `chart` and `sequencechart` project to graphics directly, with the axis arithmetic of `ProjecturedPlot`.
+- **The domain draws itself.** `chart` and `sequencechart` project to graphics directly, with the axis arithmetic of the plot slice.
 - **The domain becomes a graph.** `fsm` and `process` build a `GraphGraph` and reuse the layout and graphics stages of `graph`.
 - **The domain becomes a page.** `markdown` and `rst` also project a page to a vertical layout of blocks, and each block goes through its own chain. So a block of another domain in the page takes its own clicks.
 - **The domain becomes widgets.** `conversation` and `assistant` project to widgets. `filesystem` has a syntax chain and a widget tree.
@@ -76,7 +76,7 @@ The Insert key replaces the placeholder with a `JsonInsertion` buffer. The candi
 
 A domain with a text form has a parser, `parse_json`. The parsers are hand-written, because a domain has no third-party dependency. Each one reads a subset of its format, and the document of the domain says which subset.
 
-The file type is an `@document struct JsonFile <: FileDocument` with a `filename` and a `content`. It implements the contract of `ProjecturedSerialization`: `get_file_domain`, `parse_file_content`, `emit_text`, `make_reference_leaf` and `find_reference_marker`. The last two spell a reference to a node in another file. The spelling depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. [serialization.md](../package/platform/serialization/serialization.md) describes the multi-file project that uses them.
+The file type is an `@document struct JsonFile <: FileDocument` with a `filename` and a `content`. It implements the contract of the serialization slice: `get_file_domain`, `parse_file_content`, `emit_text`, `make_reference_leaf` and `find_reference_marker`. The last two spell a reference to a node in another file. The spelling depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. [serialization.md](../package/platform/serialization/serialization.md) describes the multi-file project that uses them.
 
 `make_document_seed(::Val{:json})` gives the document that a new, empty `.json` file starts from.
 

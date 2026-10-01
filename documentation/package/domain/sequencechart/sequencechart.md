@@ -95,7 +95,7 @@ The amount of output depends on the size of the chart, not on the length of the 
 
 ## How it fits
 
-`ProjecturedSequenceChart` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedPlot` and `ProjecturedStyle`. No package of this repository depends on it. It is a target language: a domain upstream, such as a trace of a simulation or a protocol log, prints a sequence chart as the JSON domain prints syntax.
+`ProjecturedSequenceChart` depends on the kernel and the platform. No package of this repository depends on it. It is a target language: a domain upstream, such as a trace of a simulation or a protocol log, prints a sequence chart as the JSON domain prints syntax.
 
 It has no `__init__` and registers nothing. A caller builds the chain, or adds `SequenceChart => make_sequencechart_pipeline_example()` to the `extra` table of `NaturalToGraphics`.
 

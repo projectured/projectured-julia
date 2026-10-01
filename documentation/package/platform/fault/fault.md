@@ -2,13 +2,13 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [projection-system.md](../../kernel/projection-system.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
-A fault in a printer, a reader, an operation, a backend or a tool does not stop the editor, which contains, reports and repairs it. The kernel layer `fault` holds what a fault is, and `ProjecturedFault` holds what a fault looks like. This document says how the two catch, report and repair, and why a printer needs two catches.
+A fault in a printer, a reader, an operation, a backend or a tool does not stop the editor, which contains, reports and repairs it. The kernel layer `fault` holds what a fault is, and the fault slice of `ProjecturedPlatform` holds what a fault looks like. This document says how the two catch, report and repair, and why a printer needs two catches.
 
 ## How it works
 
 ### Two halves
 
-The kernel's `FaultModule` holds the record, the store, the policy, the barrier and the report. It names no document and no projection. `FaultViewModule` in this package holds the documents, the projections that catch and draw, and the safe mode, and it answers the seams of the kernel. The split is the same as the split between the kernel's `ProjectionModule` and the substrate's `ProjectionAlgebraModule`.
+The kernel's `FaultModule` holds the record, the store, the policy, the barrier and the report. It names no document and no projection. `FaultViewModule` in this package holds the documents, the projections that catch and draw, and the safe mode, and it answers the seams of the kernel. The split is the same as the split between the kernel's `ProjectionModule` and the platform's `ProjectionAlgebraModule`.
 
 | Where | What |
 | --- | --- |
@@ -115,11 +115,11 @@ The editor layer holds one limit for each counter, and `get_consecutive_fault_li
 
 ## How it fits
 
-The kernel layer `fault` is the lowest layer of the kernel and imports nothing. `ProjecturedFault` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedSerialization`, `ProjecturedStyle`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedWidget` and the kernel. It needs the four output domains for the four marks.
+The kernel layer `fault` is the lowest layer of the kernel and imports nothing. The fault slice depends on the kernel and on the collection, domain, graphics, natural, projection, serialization, style, syntax, text and widget slices. It needs the four output domains for the four marks.
 
-`ProjecturedShell` attaches `get_session_fault_log()` to the store of the editor when a window starts, and its toolbar has a Fault log button; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
+The shell slice attaches `get_session_fault_log()` to the store of the editor when a window starts, and its toolbar has a Fault log button; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
 
-The package registers the natural row `:fault` for `FaultLog`, the title `Faults` and the insertion alias `faults`. `make_insertion_document` returns the session log, because a new log would never fill: only the drain of a store fills a log. `pred_arguments` of a `FaultLog` holds only `capacity`, and the package registers no `.pred` type for it.
+The fault slice registers the natural row `:fault` for `FaultLog`, the title `Faults` and the insertion alias `faults`. `make_insertion_document` returns the session log, because a new log would never fill: only the drain of a store fills a log. `pred_arguments` of a `FaultLog` holds only `capacity`, and it registers no `.pred` type for it.
 
 ## Design decisions
 

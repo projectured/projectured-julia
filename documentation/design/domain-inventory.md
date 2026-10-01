@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](domain-anatomy.md)
 
-This document lists the twenty packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
+This document lists the seventeen packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
 
 ## The domain documents
 
@@ -39,11 +39,11 @@ One package holds one domain. A domain is a kind of content a person edits, such
 - the **projections** that render and edit it: `*ToSyntax` for a notation, `*ToWidget` or `*ToGraphics` for something drawn directly;
 - the **file type**, if the domain reads and writes a file extension.
 
-Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `package/Projectured<Name>Example/` and `package/Projectured<Name>Test/`, each with its own `Project.toml`. The code is in `source/<name>/`, the examples in `example/<name>/`, and the tests in `test/<name>/`. A domain package depends on `ProjecturedKernel`, on the substrate packages that it imports, and on the domains that it embeds. [package-rules.md](../rule/package-rules.md) has the table of the substrate.
+Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `package/Projectured<Name>Example/` and `package/Projectured<Name>Test/`, each with its own `Project.toml`. The code is in `source/<name>/`, the examples in `example/<name>/`, and the tests in `test/<name>/`. A domain package depends on `ProjecturedKernel`, on `ProjecturedPlatform`, and on the domains that it embeds. [package-rules.md](../rule/package-rules.md) has the table of the platform.
 
 ## The dependency table
 
-Fifteen domains depend on no other domain. Four build on one layer of domains, and the assistant builds on the conversation domain.
+Thirteen domains depend on no other domain. Four build on one layer of domains.
 
 | Package | Code | Depends on |
 | --- | --- | --- |
@@ -57,26 +57,23 @@ Fifteen domains depend on no other domain. Four build on one layer of domains, a
 | `ProjecturedJulia` | `source/domain/julia/` | — |
 | `ProjecturedSql` | `source/domain/sql/` | — |
 | `ProjecturedDatabase` | `source/domain/database/` | — |
-| `ProjecturedFileSystem` | `source/platform/filesystem/` | — |
 | `ProjecturedGraph` | `source/domain/graph/` | — |
 | `ProjecturedChart` | `source/domain/chart/` | — |
 | `ProjecturedSequenceChart` | `source/domain/sequencechart/` | — |
-| `ProjecturedConversation` | `source/platform/conversation/` | — |
 | `ProjecturedDbCatalog` | `source/domain/dbcatalog/` | Sql |
 | `ProjecturedFormula` | `source/domain/formula/` | Julia, Math |
 | `ProjecturedFsm` | `source/domain/fsm/` | Julia, Graph |
 | `ProjecturedProcess` | `source/domain/process/` | Julia, Graph |
-| `ProjecturedAssistant` | `source/platform/assistant/` | Conversation |
 
-Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. A conversation part parses to JSON, Julia or XML through the natural registry, so the conversation package needs no dependency on those domains.
+Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. The file system, the conversation and the assistant look like domains but are slices of `ProjecturedPlatform`; a conversation part parses to JSON, Julia or XML through the natural registry, so the conversation slice needs no dependency on those domains.
 
 ## What is NOT a domain package
 
-Three kinds of thing look like a domain and are not. Each lives in a substrate package, below every domain:
+Three kinds of thing look like a domain and are not. Each lives in a slice of `ProjecturedPlatform`, below every domain:
 
-- **A framework several domains share.** The insert-by-typing leaf and the `*Nothing` placeholder (`ProjecturedSyntax`), the plot arithmetic and the colour and marker cycles (`ProjecturedPlot`). Two domains needing the same thing is what makes it a framework.
-- **A domain-neutral editor feature.** The gesture help map and the command palette (`ProjecturedGestureHelp`), the gesture log (`ProjecturedGestureLog`), the fault barrier and its log panel (`ProjecturedFault`). They render a *projection*, not a content kind.
-- **The render-anything projection.** `NaturalToGraphics` (`ProjecturedNatural`) draws any document, so it can not name any domain. Each domain registers its own row; see [natural.md](../package/platform/natural/natural.md).
+- **A framework several domains share.** The insert-by-typing leaf and the `*Nothing` placeholder (the syntax slice), the plot arithmetic and the colour and marker cycles (the plot slice). Two domains needing the same thing is what makes it a framework.
+- **A domain-neutral editor feature.** The gesture help map and the command palette (the gesturehelp slice), the gesture log (the gesturelog slice), the fault barrier and its log panel (the fault slice). They render a *projection*, not a content kind.
+- **The render-anything projection.** `NaturalToGraphics` (the natural slice) draws any document, so it can not name any domain. Each domain registers its own row; see [natural.md](../package/platform/natural/natural.md).
 
 ## The root module
 
@@ -85,13 +82,12 @@ A domain package's root module binds the submodules of the packages below it wit
 ```julia
 module ProjecturedFsm
 
-using ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat
-using ProjecturedNatural, ProjecturedGraph, ProjecturedJulia, ProjecturedKernel
-using ProjecturedProjection, ProjecturedStyle, ProjecturedSyntax, ProjecturedText
+using ProjecturedGraph
+using ProjecturedJulia
+using ProjecturedKernel
+using ProjecturedPlatform
 
-for _src in (ProjecturedCollection, ProjecturedDomain, ProjecturedFileFormat, ProjecturedGraph,
-             ProjecturedNatural, ProjecturedJulia, ProjecturedKernel, ProjecturedProjection,
-             ProjecturedStyle, ProjecturedSyntax, ProjecturedText)
+for _src in (ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedPlatform)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

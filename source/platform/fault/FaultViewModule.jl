@@ -9,7 +9,7 @@ The kernel's `FaultModule` holds what a fault **is** — the record, the store,
 the barrier helper and the report cascade — and names no document and no
 projection. This package holds what a fault **is shown as**. The two are the
 same split as `ProjectionModule` in the kernel against
-`ProjectionAlgebraModule` here: the kernel declares, the substrate shows.
+`ProjectionAlgebraModule` here: the kernel declares, the platform shows.
 
 The module is `FaultViewModule` rather than `FaultModule` because both slices
 are named `fault` and a module name means one thing.

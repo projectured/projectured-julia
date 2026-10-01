@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../../kernel/projection-system.md), [shell.md](../shell/shell.md)
 
-`ProjecturedGestureLog` records what a person does in a session: each gesture, and the operation that the projection chain made from it. It shows the record as a panel over a window or in a tab. This document describes the shape that this package shares with the fault log and the gesture help, and why an entry holds text and not the live values.
+The gesturelog slice of `ProjecturedPlatform` records what a person does in a session: each gesture, and the operation that the projection chain made from it. It shows the record as a panel over a window or in a tab. This document describes the shape that this slice shares with the fault log and the gesture help, and why an entry holds text and not the live values.
 
 ## How it works
 
@@ -10,7 +10,7 @@
 
 Three packages add an editor feature with the same parts, and add no code to the editor loop:
 
-- **A document** holds the state: `GestureLog` here, `FaultLog` in `ProjecturedFault`, `GestureMap` and `CommandPalette` in `ProjecturedGestureHelp`. A view of it follows a change as the view of any other document does.
+- **A document** holds the state: `GestureLog` here, `FaultLog` in the fault slice, `GestureMap` and `CommandPalette` in the gesturehelp slice. A view of it follows a change as the view of any other document does.
 - **A transparent decorator** wraps a projection. Its printer returns the inner output through a computed cell, so the IoMap keeps its identity while the inner projection prints again. Its reader calls the inner reader first. On the way it records the result, catches a fault, or uses one gesture that the inner reader returned no operation for.
 - **A panel** draws the document. The document goes through a chain of its own, from `…ToSyntax` through `SyntaxToText` to `TextToGraphics`, and an overlay decorator puts the result in a corner of the window canvas. The overlay reader gives every gesture to the inner projection, so a click on the panel reaches the content below it.
 
@@ -40,9 +40,9 @@ The panel reads the maximum width and height of the range in the printer context
 
 ## How it fits
 
-`ProjecturedGestureLog` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedSerialization`, `ProjecturedStyle`, `ProjecturedSyntax`, `ProjecturedText` and the kernel.
+The gesturelog slice depends on the kernel and on the collection, domain, graphics, natural, projection, serialization, style, syntax and text slices.
 
-`ProjecturedShell` uses it. `make_window_wrap` puts a recorder outermost on every window, always, over `get_session_gesture_log()`; [shell.md](../shell/shell.md#the-fold) gives the order of the wrappers. The toolbar button and `gestures` in an empty tab open that log. The gallery adds an overlay to each window and a recorder at the root with `gesture_log = true`, over a log of its own.
+The shell slice uses it. `make_window_wrap` puts a recorder outermost on every window, always, over `get_session_gesture_log()`; [shell.md](../shell/shell.md#the-fold) gives the order of the wrappers. The toolbar button and `gestures` in an empty tab open that log. The gallery adds an overlay to each window and a recorder at the root with `gesture_log = true`, over a log of its own.
 
 Its `__init__` registers the natural row `:gesturelog` and the `.pred` type `GestureLog`. `get_insertion_aliases` gives `gestures`, and `make_insertion_document` returns the session log, because a new log would never fill: only a recorder writes into a log. `pred_arguments` saves only `capacity`, so a loaded window starts with an empty log of the same size.
 

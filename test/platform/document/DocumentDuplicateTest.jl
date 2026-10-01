@@ -1,4 +1,4 @@
-# The duplicate each substrate kind declares: an empty tab, a primitive, a widget,
+# The duplicate each platform kind declares: an empty tab, a primitive, a widget,
 # a layout and a collection. Each kind answers `has_document_duplicate` from its
 # type, and `make_document_duplicate` gives a copy that the original does not
 # follow. A kind that holds an action refuses, and says why.

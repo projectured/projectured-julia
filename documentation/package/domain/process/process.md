@@ -128,7 +128,7 @@ Both views read the session. The flowchart draws the ring and the edge. The nota
 
 ## How it fits
 
-`ProjecturedProcess` depends on the same packages as `ProjecturedFsm`: `ProjecturedJulia` for the code, `ProjecturedGraph` for the flowchart, and `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedFileFormat`, `ProjecturedKernel`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedStyle`, `ProjecturedSyntax` and `ProjecturedText`. The two domains do not depend on each other. No package depends on it.
+`ProjecturedProcess` depends on the same packages as `ProjecturedFsm`: `ProjecturedJulia` for the code, `ProjecturedGraph` for the flowchart, and the kernel and the platform. The two domains do not depend on each other. No package depends on it.
 
 It has no `__init__` and registers nothing: no natural row, no file type, no parser. A caller builds the notation chain or the flowchart chain.
 

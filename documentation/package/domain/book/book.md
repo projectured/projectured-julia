@@ -33,7 +33,7 @@ The example chain adds `WordWrapping` between `SyntaxToText` and `TextToGraphics
 
 ## How it fits
 
-`ProjecturedBook` depends on the engine, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedGraphics` and `ProjecturedNatural`. It does not depend on `ProjecturedSerialization` or `ProjecturedFileFormat`. No other package depends on it.
+`ProjecturedBook` depends on the kernel and the platform. It uses the syntax, text, graphics and natural slices, but not the serialization or file-format slices. No other package depends on it.
 
 Its `__init__` makes one call: `register_natural_syntax!(:book, …)`, with the row `BookDocument => BookToSyntax()`. So the general renderer draws a book in a tab. The domain makes no `register_natural_domain!` call, so no format name, no file extension and no parser exist for it.
 
@@ -60,5 +60,5 @@ run_example(book, make_book_projection_example(); name = "book")
 
 ## Limits
 
-- A book can not be saved as text or loaded from a text file. A `.pdoc` snapshot of `ProjecturedSerialization` stores it, as it stores any document.
+- A book can not be saved as text or loaded from a text file. A `.pdoc` snapshot of the serialization slice stores it, as it stores any document.
 - No structural gesture exists: you can edit the text, but a key does not add a chapter or a paragraph.

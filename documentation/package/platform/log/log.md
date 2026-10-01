@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [domain-anatomy.md](../../../design/domain-anatomy.md)
 
-`ProjecturedLog` shows the messages that the program logs with `@info`, `@warn` and `@error` as a document in a tab. This document says how a message from any task reaches the document without a write to a cell from that task.
+The log slice of `ProjecturedPlatform` shows the messages that the program logs with `@info`, `@warn` and `@error` as a document in a tab. This document says how a message from any task reaches the document without a write to a cell from that task.
 
 ## How it works
 
@@ -18,9 +18,9 @@ A message travels through three parts. This is the feed pattern of the editor; [
 
 ## How it fits
 
-`ProjecturedLog` depends on the kernel for the feed contract, and on `ProjecturedSyntax` and `ProjecturedText` for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)` and `MessageLog` as a `.pred` type. `pred_arguments` saves only the capacity, so a loaded log starts empty.
+The log slice depends on the kernel for the feed contract, and on the syntax and text slices for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)` and `MessageLog` as a `.pred` type. `pred_arguments` saves only the capacity, so a loaded log starts empty.
 
-`ProjecturedShell` uses it: `run_with_window_tools` installs the capture and gives the editor a `MessageLogFeed`, and the toolbar has a button that opens the log.
+The shell slice uses it: `run_with_window_tools` installs the capture and gives the editor a `MessageLogFeed`, and the toolbar has a button that opens the log.
 
 The library of the MCP server installs a logger of its own when its server starts. `start_mcp!` puts the logger that was installed before back, so the capture stays in place when the editor runs with `--mcp`; see [mcp.md](../../adapter/mcp/mcp.md).
 
@@ -39,7 +39,7 @@ run_editor!(document, projection; window = (; title = "Title"),
 remove_message_log_capture!(previous)
 ```
 
-`run_with_window_tools(run)` in `ProjecturedShell` does these steps for you. `run_message_log_feed_example()` in `example/projectured/FeedExamples.jl` opens a window with a log.
+`run_with_window_tools(run)` in the shell slice does these steps for you. `run_message_log_feed_example()` in `example/projectured/FeedExamples.jl` opens a window with a log.
 
 - Tests: `test_message_log_feed()` and `test_message_log()`, in the application test package. `test_message_log()` installs the capture of the session, drains the feed by hand, and checks the log and its view. `test_mcp_server()` checks that the capture keeps its records after an MCP server starts. The package has no suite of its own.
 

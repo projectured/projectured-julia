@@ -1,6 +1,6 @@
 # Fragment of `ConversationModule`.
 #
-# The conversation document domain — an AI chat session (including in-flight
+# The conversation documents — an AI chat session (including in-flight
 # streaming) as a `Document`, so selection/projections/editing compose with the
 # rest of the editor. `ConversationConversation` holds `ConversationTurn`s; each
 # turn has a role + a list of `ConversationPart`s wrapping arbitrary content.

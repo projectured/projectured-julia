@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [screen.md](../screen/screen.md), [mousetargettracking.md](../mousetargettracking/mousetargettracking.md)
 
-`ProjecturedTooltip` shows what a part says about itself in a window of its own. The meaning is in the gesture table of the part: a part answers a dwell with an operation. A wrapper at the screen keeps the one tooltip window. This document says how the two meet, and why the tooltip is a binding and not a central lookup.
+The tooltip slice of `ProjecturedPlatform` shows what a part says about itself in a window of its own. The meaning is in the gesture table of the part: a part answers a dwell with an operation. A wrapper at the screen keeps the one tooltip window. This document says how the two meet, and why the tooltip is a binding and not a central lookup.
 
 ## How it works
 
@@ -53,7 +53,7 @@ The command palette lists the binding by its `description` on the selection, and
 
 ## How it fits
 
-`ProjecturedTooltip` depends on the kernel, `ProjecturedGraphics` and `ProjecturedScreen`. It cannot depend on `ProjecturedNatural` or `ProjecturedWidget`, because both use it. So the natural package draws `TooltipContent`, and the widget, Julia and fault packages declare their bindings with `make_tooltip_binding`.
+The tooltip slice depends on the kernel and on the graphics and screen slices. It can not depend on the natural or widget slices, because both use it. So the natural slice draws `TooltipContent`, and the widget, Julia and fault slices declare their bindings with `make_tooltip_binding`.
 
 ## Design decisions
 
