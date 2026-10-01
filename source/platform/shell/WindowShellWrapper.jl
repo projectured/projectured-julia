@@ -2,7 +2,7 @@
 # `build_editor`.
 
 """
-    shell = true | (; assistant, explorer, about, status_bar, measure)
+    shell = true | (; assistant, explorer, about, status_bar, measure, appearance)
 
 The wrapper of `build_editor` that puts the root document in the chrome of a
 window: a `WidgetShell` whose bands are the menu bar of
@@ -29,6 +29,8 @@ the host:
   ProjecturEd.
 - `status_bar = false` leaves out the status bar.
 - `measure` measures the text of the bands, `FontFileMeasure()` by default.
+- `appearance` gives the widget theme of the bands; the default is the
+  `Appearance` of the `appearance` wrapper of the same editor.
 
 A root that is a shell already keeps its bands.
 """
@@ -37,7 +39,7 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, setting, parts::EditorParts)
     parts.document isa WidgetShell && return parts
     options = setting === true ? (;) : setting
     measure = get(options, :measure, FontFileMeasure())
-    appearance = get(parts.settings, :appearance, Appearance())
+    appearance = get(options, :appearance, get(parts.settings, :appearance, Appearance()))
     recorded = Tuple(keyword for keyword in RECORDED_TOOLS if haskey(parts.settings, keyword))
     about = get(options, :about, nothing)
     document = parts.document
