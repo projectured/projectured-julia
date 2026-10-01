@@ -53,15 +53,15 @@ A build is incremental by default: it compiles on top of the image of the runnin
 
 ### The release copy
 
-Pkg installs only the folder of a package, and a package of this repository includes its code from `source/<group>/<slice>/`, outside that folder. `build_package_release!(context; packages, output, …)` writes a copy in which each package is a repository of its own, `<Name>.jl`, that holds everything the package reads. A registry expects that name, and it can serve the copy while this repository keeps its layout:
+Pkg installs only the folder of a package, and a package of this repository includes its code from `source/<group>/<slice>/`, outside that folder. `build_package_release!(context; packages, output, …)` writes a copy in which each package is a folder, `<Name>/`, that holds everything the package reads. All folders are in one release repository, so a registry can serve the copy while this repository keeps its layout:
 
 1. It checks that the set is closed: every package of the repository that a released package depends on is released too.
 2. For each package, in dependency order, it writes into a staging folder: the `Project.toml`, the entry file with the include prefix `../../../source/` changed to `../source/`, the slice, the folders that the package reads while it runs (`assets`), and the licence files. It copies only what git tracks.
 3. `collect_outside_paths` reads the syntax tree of every file of the copy. A literal `include` path or a `joinpath(@__DIR__, …)` path that leaves the package folder, or names nothing there, stops the build, and so does a path that the scan can not follow.
-4. Each package gets its version. A package whose content did not change keeps its repository byte for byte, so its tree and its version stay. A changed package gets the next patch version and caret `[compat]` bounds on its siblings from their versions in this release; a package of another registry gets a caret bound from `environment/all/Manifest.toml`.
-5. Only when every package passed does it replace the files of the changed repositories in `output`, the folder that holds them. It keeps the `.git` of each, so git shows what a release changed.
+4. Each package gets its version. A package whose content did not change keeps its folder byte for byte, so its tree and its version stay. A changed package gets the next patch version and caret `[compat]` bounds on its siblings from their versions in this release; a package of another registry gets a caret bound from `environment/all/Manifest.toml`.
+5. Only when every package passed does it replace the folders of the changed packages in `output`, the working tree of the release repository, and copy the licence files to its root. Another file at the root, such as a README or a CI workflow, stays as it is, and git shows what a release changed.
 
-The last release is what the last commit of each repository holds: an uncommitted change stops the build. With `registry`, every version of the last release must be in that registry too, because a registry refuses a version that skips one; `build_projectured_package_release!` checks General. The registration is a separate step, in the order that the build answers; [build-guide.md](../../../guide/build-guide.md) holds it.
+The last release is what the last commit of the release repository holds: an uncommitted change stops the build. With `registry`, every version of the last release must be in that registry too, because a registry refuses a version that skips one; `build_projectured_package_release!` checks General unless it gets another registry. The registration is a separate step, in the order that the build answers; [build-guide.md](../../../guide/build-guide.md) holds it.
 
 ## How it fits
 

@@ -143,44 +143,55 @@ target machine still needs.
 
 ## Release the packages
 
-The packages reach a Julia programmer through the General registry. Each one
-has a release repository of its own, `projectured/<Name>.jl`, with the package
-at its root, because General expects that name. In it the package holds
-everything it reads, because Pkg installs only the package.
-[builder.md](../package/tool/builder/builder.md) says how the copy is made.
+The packages reach a Julia programmer through a registry. They live in one
+release repository, `projectured/Projectured.jl`, with one folder for each
+package, `<Name>/`, and the licence files at its root. Each package folder holds
+everything the package reads, because Pkg installs only the folder of a
+package. [builder.md](../package/tool/builder/builder.md) says how the copy is
+made.
 
-**Warning: do not rewrite the history of a release repository.** The registry
-names each version by the git tree of the repository, and Pkg must find that
+**Warning: do not rewrite the history of the release repository.** The registry
+names each version by the git tree of the package folder, and Pkg must find that
 tree for as long as the version exists.
 
-1. Keep one folder beside this checkout that holds a clone of each release
-   repository, `<Name>.jl`. Make sure that none has an uncommitted change; the
-   build refuses one.
+1. Clone the release repository beside this checkout, as `../Projectured.jl`.
+   Make sure that it has no uncommitted change; the build refuses one.
 2. Write the release into it:
 
    ```julia
    using ProjecturedBuilder                    # julia --project=environment/build
-   results = build_projectured_package_release!("../release")
+   results = build_projectured_package_release!("../Projectured.jl")
    ```
 
-   The build stops when a version of the last release is not in General yet:
-   General refuses a version that skips the one before it. A package whose
-   content did not change keeps its repository as it is. A changed package gets
-   the next patch version. A new package gets a folder, which needs `git init`
-   and a repository `projectured/<Name>.jl` on GitHub. `results` lists each
-   package with its status and its version, dependencies first.
-3. In each repository of a new or changed package: commit, and push.
-4. Register them in the order of `results`, with a comment on the commit in
-   each repository:
+   The build checks General. For a local registry, give its name or its folder
+   as `registry`. The build stops when a version of the last release is not in
+   that registry yet, because a registry refuses a version that skips the one
+   before it. A package whose content did not change keeps its folder as it is.
+   A changed package gets the next patch version. A new package gets a new
+   folder. `results` lists each package with its status and its version,
+   dependencies first.
+3. Commit the release repository, and push it.
+4. Register the new and the changed packages in the order of `results`:
 
-   ```
-   @JuliaRegistrator register
-   ```
+   - In a local registry, with `LocalRegistry`, for each package:
 
-   A package goes into General only after the packages it depends on, because
-   General installs each new version to test it. A new version of a package
-   that General already holds merges after 15 minutes; the first version of a
-   new package waits 3 days.
+     ```julia
+     using LocalRegistry
+     register("../Projectured.jl/<Name>"; registry = "<registry>")
+     ```
+
+     LocalRegistry finds the folder of the package in the repository, and the
+     registry records it.
+   - In General, with a comment on the release commit, for each package:
+
+     ```
+     @JuliaRegistrator register subdir=<Name>
+     ```
+
+     A package goes into General only after the packages it depends on,
+     because General installs each new version to test it. A new version of a
+     package that General already holds merges after 15 minutes; the first
+     version of a new package waits 3 days.
 
 ## Add a binary
 ## Add a binary
