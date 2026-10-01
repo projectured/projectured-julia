@@ -36,9 +36,10 @@ module EventModule
 export Event, get_modifier_keys, get_event_time
 export ModifierKeys
 export KeyDown, KeyUp, KeyPress
-export MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll, is_move_without_button
+export MouseButtons, MouseDown, MouseUp, MouseMove, is_move_without_button, MouseScroll
 export WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave
-export TimerExpire, DisplayUpdate
+export TimerExpire
+export DisplayUpdate
 export WindowInput
 export has_ctrl_modifier_key, has_shift_modifier_key, has_alt_modifier_key,
        has_meta_modifier_key

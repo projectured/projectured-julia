@@ -153,21 +153,21 @@ function test_editor_frame_drain()
     end
 
     @testset "a reader that throws ends the reads, and the next frame runs at once" begin
-        # The recognizer answers the `MouseUp` and keeps its `MouseClick` for the
-        # next read. The reader throws on the `MouseUp`, so the click waits in the
-        # recognizer, where the wait of the loop does not look.
+        # The reader throws on the `MouseUp`, so the reads of the frame end there,
+        # and the key after it waits for the next frame, which runs at once.
         log = Any[]
         editor, backend = _frame_editor(log)
         editor.fault_policy = _quiet_frame_policy()
         push_event!(backend, WindowInput(:probe, MouseDown(:left, 5, 5; time = 0.0)))
         push_event!(backend, WindowInput(:probe, MouseUp(:left, 5, 5; time = 0.1)))
+        push_event!(backend, WindowInput(:probe, KeyDown(:a, ModifierKeys(); time = 0.2)))
         Threads.atomic_xchg!(editor.wake_pending, false)
         EditorModule.run_frame!(editor)
         @test length(log) == 1 && log[1].event isa MouseDown
         @test editor.wake_pending[]
         @test only(get_fault_records(editor.faults)).site === :read
         EditorModule.run_frame!(editor)
-        @test length(log) == 2 && log[2].event isa MouseClick
+        @test length(log) == 2 && log[2].event isa KeyDown
     end
 
     @testset "a frame that reads all the input leaves the wake alone" begin

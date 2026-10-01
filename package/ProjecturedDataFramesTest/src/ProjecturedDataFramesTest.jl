@@ -22,6 +22,7 @@ using ProjecturedKernel.AgentModule
 using ProjecturedKernel.BackendModule
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.EventModule
+using ProjecturedKernel.GestureModule
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.ProjectionModule

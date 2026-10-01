@@ -287,8 +287,9 @@ end
 
 # `children[k][c] + rest` maps to the node that draws the cell: row `k` is node `k`
 # of the canvas list, counted from its head. In a row of a vector of columns the
-# cell takes a slot among the drawn cells (`make_slot_reference`); in a row that is
-# a list of columns it is node `c` of the row, a viewport that clips the child.
+# cell takes a slot among the drawn cells (`make_slot_reference`). A grid whose
+# columns are a list draws its rows as the first of its two canvases, and a cell
+# is node `c` of its row.
 function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, reference)
     strip_reference_types(reference) isa EmptyReference && return EmptyReference()
     named = _split_grid_list_reference(reference)
@@ -302,11 +303,26 @@ function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap::GridLayoutLi
     (cim === nothing || !(cim.output isa GraphicsDocument)) && return nothing
     inner = map_reference_forward(cim.projection, cim, rest)
     inner === nothing && return nothing
-    in_row = iomap.state.column_head === nothing ?
-        make_slot_reference(found[1], found[2], c, inner) :
-        _make_list_node_reference(c, ConcreteReference(FieldReferenceStep("content"),
-                                                        _make_wrapped_reference(inner)))
-    in_row === nothing ? nothing : _make_list_node_reference(k, in_row)
+    if iomap.state.column_head === nothing
+        in_row = make_slot_reference(found[1], found[2], c, inner)
+        return in_row === nothing ? nothing : _make_list_node_reference(k, in_row)
+    end
+    in_row = _make_list_cell_reference(found[1], c, inner)
+    in_row === nothing ? nothing : _make_wrapped_reference(_make_list_node_reference(k, in_row))
+end
+
+# The output reference of cell `c` of a row that is a list of columns, followed by
+# `inner`: node `c` of the row, counted from its head column, and the child in the
+# wrapper that the node holds, one `content` step deeper in a viewport.
+function _make_list_cell_reference(row::GraphicsCanvas, c::Int, inner::Reference)
+    head = unwrap_cell(getfield(row, :elements))
+    head isa ListNode || return nothing
+    node = find_list_node(head, c)
+    node === nothing && return nothing
+    below = _make_wrapped_reference(inner)
+    unwrap_cell(node.value) isa GraphicsViewport &&
+        (below = ConcreteReference(FieldReferenceStep("content"), below))
+    _make_list_node_reference(c, below)
 end
 
 # A path into the canvas of a list goes through nodes that name no row by a
