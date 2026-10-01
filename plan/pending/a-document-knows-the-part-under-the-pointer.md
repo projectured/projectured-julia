@@ -997,6 +997,17 @@ already; the sealed selection files do not change (Q4).
     (`find_reference_box`) and no container changes, because the box is in
     window pixels and a container that scales its child gives a wrong point.
     The drop target of a global drag needs no route: it goes by position.
+  - **A drag that ends with no change gets one gesture, `DragCancel(time)`**
+    (owner 2026-10-01: "Agreed", on Claude's option b). The wrapper sees the
+    three signals of point 10 for a local drag: Escape, a `WindowDefocus` (the
+    wrapper is outside the window manager, which takes that event), and a move
+    with no button held while the drag is on (the release was lost). It turns
+    each into `DragCancel` and sends it to the part by the drag path, as the
+    gesture tracker makes a dwell from a timer. The part reads only that
+    gesture and puts back what it kept at the press: the chart its start view,
+    the divider the sizes in its `drag_anchor`, and the slider its value at the
+    press, which it now keeps. Rejected: option a, where the wrapper sends each
+    signal as it comes and each part reads all three.
   - Tests: each of the five drags; a slider thumb dragged past the end of the
     slider and released over another widget; a press on a tab with no move
     still selects the tab; a part under a drag lights; Escape and a lost release
