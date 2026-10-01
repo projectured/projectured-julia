@@ -202,3 +202,36 @@ _is_own_history_step(buffer::UndoBuffer, operation) = false
 # Only a real collection merges; anything else a reader answered is not one.
 _collected_intents(op::CollectedIntentsOperation) = op
 _collected_intents(::Any) = nothing
+
+# ── The undo of a window, as a wrapper of `build_editor` ─────────────────────
+
+"""
+    undo = true
+
+The wrapper of `build_editor` that gives a window an undo of its own. It puts the
+root document, such as the pane tree of the `tabs` wrapper, in an `UndoBuffer`,
+drawn with [`UndoBufferToAnyProjection`](@ref), so `Ctrl+Z` takes back a change
+that belongs to no file: a splitter that moves, a tab that opens or closes, a
+draft. A document inside it that has a buffer of its own, such as a file tab,
+answers `Ctrl+Z` first while it has the focus. It is off by default. It acts
+around the tabs and inside the chrome of the `shell` wrapper.
+
+A root that is a buffer already keeps it. The buffer holds the selection that the
+root holds, rooted at the buffer.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:undo}, layer::Symbol, setting, parts::EditorParts)
+    parts.document isa UndoBuffer && return parts
+    content = parts.document
+    buffer = UndoBuffer(content)
+    inner = get_selection(content)
+    inner === nothing || replace_selection!(buffer,
+        concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
+                          strip_reference_types(inner)))
+    parts.document = buffer
+    parts.projection = RecursiveProjection(TypeDispatchingProjection(
+        UndoBuffer => UndoBufferToAnyProjection(), Any => parts.projection))
+    parts
+end
+
+get_wrapper_layers(::Val{:undo}) = (:container => 5,)
