@@ -146,4 +146,21 @@ and the tests of the three model adapters). `SdlBackend.jl` is not split here.
 
 ## 5. Decisions made during the work
 
-(filled in as the work goes)
+- **The form of a package entry** is the one of `ProjecturedDataFrames`: the
+  binding loop over the Projectured packages it depends on, the include of the
+  module file, `using` and `export` of the module's names (Step 1).
+- **A module file imports in the guard's form:** `using ..KernelModule`,
+  `using ..PlatformModule` (or the module of the domain it builds on), its
+  third-party packages, and `import` of exactly the names it extends. A symbol
+  list on a relative `using` fails the layering guard (PAR-QUALIFIED-EXTENSION).
+- **A private helper that another package needs becomes a public API with the
+  argument rule**, not an exported underscore name: `ContentBounds` for the
+  bounds of a drawing, the offscreen renderer of SDL with keywords past the
+  third argument, `encode_frames_to_video!`.
+- **A kernel generic that a backend only extends is exported by the package
+  entry, not by the module** (`write_image` of `ProjecturedSdl`): the export
+  guard refuses an export that no fragment defines.
+- **Downstream:** omnet-julia's `tool/video/record_study_take.jl` called
+  `ProjecturedVideo._encode_frames_to_video!`; the branch
+  `backend-adapter-modules` of omnet-julia (`aa33732b`) calls the public name,
+  and lands with this one. inet-julia names nothing that changes.
