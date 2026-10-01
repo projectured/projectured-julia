@@ -31,7 +31,8 @@ using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, Graphics
                          GraphicsLine, GraphicsCircle, GraphicsPolyline, GraphicsPolygon,
                          GraphicsSpline, GraphicsViewport, GraphicsImage, GraphicsFence,
                          LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-                         _bounds_elem!, _bounds_extend!,
+                         ContentBounds, get_content_box, extend_content_bounds!,
+                         extend_element_bounds!,
                          compute_first_visible_index, has_declared_extent,
                          tessellate_spline, build_polyline_arrowhead
 using ProjecturedPlatform.CollectionModule: ListNode, CellVector

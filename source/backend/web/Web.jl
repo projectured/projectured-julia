@@ -364,32 +364,19 @@ end
 # For each dirty unit we union its previous painted bounds with its new bounds so
 # moved/shrunk content clears its vacated pixels.
 
-mutable struct _DAcc
-    minx::Int; miny::Int; maxx::Int; maxy::Int
-end
-_DAcc() = _DAcc(typemax(Int), typemax(Int), typemin(Int), typemin(Int))
-_acc_empty(a::_DAcc) = a.maxx == typemin(Int)
-_extend!(a::_DAcc, b) = (a.minx = min(a.minx, b[1]); a.miny = min(a.miny, b[2]);
-                         a.maxx = max(a.maxx, b[3]); a.maxy = max(a.maxy, b[4]); nothing)
-
 function _bounds_of_elem(elem, ox::Int, oy::Int)
-    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _bounds_elem!(elem, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
-    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+    get_content_box(extend_element_bounds!(ContentBounds(), elem, (ox, oy)))
 end
 
-function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
-    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
-    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
-end
+_bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int) =
+    get_content_box(extend_canvas_bounds!(ContentBounds(), canvas, (ox, oy)))
 
 function _bounds_of_listnode(head::ListNode, ox::Int, oy::Int)
-    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
+    bounds = ContentBounds()
     for n in _list_nodes(head)
-        _bounds_elem!(n.value, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
+        extend_element_bounds!(bounds, n.value, (ox, oy))
     end
-    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+    get_content_box(bounds)
 end
 
 # True if any of `elem`'s own visual field cells is stale. A view state field is
@@ -405,14 +392,14 @@ function _node_dirty(elem)::Bool
     false
 end
 
-function _union_unit!(acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}}, key::UInt,
+function _union_unit!(acc::ContentBounds, prev::Dict{UInt,NTuple{4,Int}}, key::UInt,
                       newb::Union{Nothing,NTuple{4,Int}})
     old = get(prev, key, nothing)
-    old === nothing || _extend!(acc, old)
+    old === nothing || extend_content_bounds!(acc, old)
     if newb === nothing
         delete!(prev, key)
     else
-        _extend!(acc, newb)
+        extend_content_bounds!(acc, newb)
         prev[key] = newb
     end
 end
@@ -420,7 +407,7 @@ end
 # `include_xy` is false for the top-level window content (rendered at origin, so
 # its own x/y cells are never read and must not trigger a repaint).
 function _collect_canvas_dirty!(canvas::GraphicsCanvas, ox::Int, oy::Int,
-                                acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}};
+                                acc::ContentBounds, prev::Dict{UInt,NTuple{4,Int}};
                                 include_xy::Bool=true)
     ec = getfield(canvas, :elements)
     cd = !is_cell_up_to_date(ec)
@@ -448,7 +435,7 @@ end
 # A spine change (line inserted/removed) reflows the list, so the whole list is
 # one dirty unit; otherwise each node's value is checked individually.
 function _collect_listnode_dirty!(head::ListNode, ox::Int, oy::Int,
-                                  acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}})
+                                  acc::ContentBounds, prev::Dict{UInt,NTuple{4,Int}})
     nodes = _list_nodes(head)
     for n in nodes
         if !is_cell_up_to_date(getfield(n, :next)) || !is_cell_up_to_date(getfield(n, :prev))
@@ -463,7 +450,7 @@ function _collect_listnode_dirty!(head::ListNode, ox::Int, oy::Int,
 end
 
 function _collect_elem_dirty!(elem, ox::Int, oy::Int,
-                              acc::_DAcc, prev::Dict{UInt,NTuple{4,Int}})
+                              acc::ContentBounds, prev::Dict{UInt,NTuple{4,Int}})
     elem isa GraphicsFence && return
     if elem isa GraphicsCanvas
         _collect_canvas_dirty!(elem, ox + Int(elem.x), oy + Int(elem.y), acc, prev)
@@ -475,12 +462,12 @@ function _collect_elem_dirty!(elem, ox::Int, oy::Int,
             return
         end
         content = elem.content::GraphicsCanvas
-        tmp = _DAcc()
+        tmp = ContentBounds()
         _collect_canvas_dirty!(content, vx + Int(content.x), vy + Int(content.y), tmp, prev)
-        _acc_empty(tmp) && return
+        get_content_box(tmp) === nothing && return
         ix0 = max(tmp.minx, vx); iy0 = max(tmp.miny, vy)
         ix1 = min(tmp.maxx, vx + vw); iy1 = min(tmp.maxy, vy + vh)
-        (ix1 > ix0 && iy1 > iy0) && _extend!(acc, (ix0, iy0, ix1, iy1))
+        (ix1 > ix0 && iy1 > iy0) && extend_content_bounds!(acc, (ix0, iy0, ix1, iy1))
     elseif _node_dirty(elem)
         _union_unit!(acc, prev, objectid(elem), _bounds_of_elem(elem, ox, oy))
     end
@@ -490,9 +477,9 @@ end
 # Compute the dirty rectangle (x, y, w, h) for a window's content, or `nothing`
 # if nothing changed. Padded by 2px and clamped to the visible quadrant.
 function _collect_window_dirty(content::GraphicsCanvas, prev::Dict{UInt,NTuple{4,Int}})
-    acc = _DAcc()
+    acc = ContentBounds()
     _collect_canvas_dirty!(content, 0, 0, acc, prev; include_xy=false)
-    _acc_empty(acc) && return nothing
+    get_content_box(acc) === nothing && return nothing
     x0 = max(0, acc.minx - 2); y0 = max(0, acc.miny - 2)
     x1 = acc.maxx + 2; y1 = acc.maxy + 2
     (x1 <= x0 || y1 <= y0) && return nothing

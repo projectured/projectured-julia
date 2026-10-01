@@ -23,7 +23,8 @@ import ProjecturedKernel.EditorModule: get_backend_name, get_backend_output
 import ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine,
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
-                         _bounds_elem!, _accumulate_bounds!, tessellate_spline
+                         ContentBounds, get_content_box, extend_content_bounds!,
+                         extend_canvas_bounds!, extend_element_bounds!, tessellate_spline
 import ProjecturedPlatform.CollectionModule: ListNode, CellVector
 import ProjecturedPlatform.StyleModule: StyleColor
 import ProjecturedPlatform.StyleModule: AffineTransform, affine_identity

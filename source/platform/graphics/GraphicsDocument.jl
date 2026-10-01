@@ -842,75 +842,111 @@ has_declared_extent(canvas::GraphicsCanvas) =
 
 # ── Content bounds ──────────────────────────────────────────────────────
 #
-# Compute the axis-aligned bounding box, in absolute pixels, of everything a
-# canvas would draw. Offsets accumulate through nested canvases exactly as the
-# backend renders them, so the result is the natural extent of the laid-out
-# content. Used to size an output (image/PDF) to the content when no explicit
-# width/height is requested. A text element covers its box, as `measure`
-# measures it (`compute_text_extent`); the default measures from the font files,
-# as every backend draws.
+# The axis-aligned bounding box, in absolute pixels, of everything a canvas
+# would draw. Offsets accumulate through nested canvases exactly as the backend
+# renders them, so the result is the natural extent of the laid-out content. It
+# sizes an output (image, PDF) to the content when no width or height is asked
+# for, and a backend repaints the box of what changed. A text element covers its
+# box, as `measure` measures it (`compute_text_extent`); the default measures
+# from the font files, as every backend draws.
 
-function get_canvas_content_bounds(canvas::GraphicsCanvas, measure::TextMeasure = FontFileMeasure())
-    minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
-    maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, 0, 0, measure, minx, miny, maxx, maxy)
-    maxx[] == typemin(Int) && return (0, 0, 0, 0)   # empty canvas
-    (minx[], miny[], maxx[], maxy[])
+"""
+    ContentBounds()
+
+The box of what a graphics document draws, in absolute pixels, as it grows: it
+starts empty, and each element or box it is extended by makes it cover that
+too. [`get_content_box`](@ref) reads it.
+"""
+mutable struct ContentBounds
+    minx::Int
+    miny::Int
+    maxx::Int
+    maxy::Int
 end
 
-function _accumulate_bounds!(canvas::GraphicsCanvas, ox::Int, oy::Int, measure::TextMeasure,
-                             minx, miny, maxx, maxy)
-    if has_declared_extent(canvas)
-        _bounds_extend!(minx, miny, maxx, maxy, ox, oy, ox + Int(canvas.w), oy + Int(canvas.h))
-        return
-    end
+ContentBounds() = ContentBounds(typemax(Int), typemax(Int), typemin(Int), typemin(Int))
+
+"""
+    get_content_box(bounds::ContentBounds) -> (x0, y0, x1, y1) or nothing
+
+The box that `bounds` covers, or `nothing` when nothing extended it.
+"""
+get_content_box(bounds::ContentBounds) =
+    bounds.maxx == typemin(Int) ? nothing : (bounds.minx, bounds.miny, bounds.maxx, bounds.maxy)
+
+"""
+    extend_content_bounds!(bounds, box) -> bounds
+
+Make `bounds` cover the box `(x0, y0, x1, y1)` too.
+"""
+function extend_content_bounds!(bounds::ContentBounds, box::NTuple{4,Int})
+    bounds.minx = min(bounds.minx, box[1]); bounds.miny = min(bounds.miny, box[2])
+    bounds.maxx = max(bounds.maxx, box[3]); bounds.maxy = max(bounds.maxy, box[4])
+    bounds
+end
+
+"""
+    extend_canvas_bounds!(bounds, canvas, origin; measure = FontFileMeasure()) -> bounds
+
+Make `bounds` cover what the elements of `canvas` draw when the canvas sits at
+`origin`, `(x, y)`: its declared box when it has one, else each element.
+"""
+function extend_canvas_bounds!(bounds::ContentBounds, canvas::GraphicsCanvas,
+                               origin::NTuple{2,Int}; measure::TextMeasure = FontFileMeasure())
+    (ox, oy) = origin
+    has_declared_extent(canvas) &&
+        return extend_content_bounds!(bounds, (ox, oy, ox + Int(canvas.w), oy + Int(canvas.h)))
     for elem in canvas.elements
-        _bounds_elem!(elem, ox, oy, measure, minx, miny, maxx, maxy)
+        extend_element_bounds!(bounds, elem, origin; measure)
     end
+    bounds
 end
 
-function _bounds_extend!(minx, miny, maxx, maxy, x0::Int, y0::Int, x1::Int, y1::Int)
-    minx[] = min(minx[], x0); miny[] = min(miny[], y0)
-    maxx[] = max(maxx[], x1); maxy[] = max(maxy[], y1)
-    nothing
-end
+"""
+    extend_element_bounds!(bounds, element, origin; measure = FontFileMeasure()) -> bounds
 
-function _bounds_elem!(elem, ox::Int, oy::Int, measure::TextMeasure, minx, miny, maxx, maxy)
+Make `bounds` cover what `element` draws, placed at its own position from
+`origin`, `(x, y)`. A rectangle or an image of no size, a fence and a type this
+slice does not know draw nothing and add nothing.
+"""
+function extend_element_bounds!(bounds::ContentBounds, elem, origin::NTuple{2,Int};
+                                measure::TextMeasure = FontFileMeasure())
+    (ox, oy) = origin
     if elem isa GraphicsText
         x, y = ox + Int(elem.x), oy + Int(elem.y)
         width, ascent, descent = compute_text_extent(measure, elem.text, elem.font)
-        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + width, y + ascent + descent)
+        extend_content_bounds!(bounds, (x, y, x + width, y + ascent + descent))
     elseif elem isa GraphicsRect
         x, y = ox + Int(elem.x), oy + Int(elem.y)
         w, h = Int(elem.w), Int(elem.h)   # read both (validates computed cells)
         # A zero-size rect paints nothing — contribute no bounds, so an inactive
         # (hidden) overlay rect parked at the origin does not drag the dirty box
         # to (0, 0).
-        (w > 0 && h > 0) && _bounds_extend!(minx, miny, maxx, maxy, x, y, x + w, y + h)
+        (w > 0 && h > 0) && extend_content_bounds!(bounds, (x, y, x + w, y + h))
     elseif elem isa GraphicsImage
         x, y = ox + Int(elem.x), oy + Int(elem.y)
         w, h = Int(elem.w), Int(elem.h)
-        (w > 0 && h > 0) && _bounds_extend!(minx, miny, maxx, maxy, x, y, x + w, y + h)
+        (w > 0 && h > 0) && extend_content_bounds!(bounds, (x, y, x + w, y + h))
     elseif elem isa GraphicsViewport
         # A viewport clips its content, so its extent is its declared box.
         x, y = ox + Int(elem.x), oy + Int(elem.y)
-        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(elem.w), y + Int(elem.h))
+        extend_content_bounds!(bounds, (x, y, x + Int(elem.w), y + Int(elem.h)))
     elseif elem isa GraphicsLine
         hw = max(1, Int(elem.width))
         x0 = ox + min(Int(elem.x1), Int(elem.x2)) - hw
         y0 = oy + min(Int(elem.y1), Int(elem.y2)) - hw
         x1 = ox + max(Int(elem.x1), Int(elem.x2)) + hw
         y1 = oy + max(Int(elem.y1), Int(elem.y2)) + hw
-        _bounds_extend!(minx, miny, maxx, maxy, x0, y0, x1, y1)
+        extend_content_bounds!(bounds, (x0, y0, x1, y1))
     elseif elem isa GraphicsCircle
         rad = Int(elem.radius) + Int(elem.border_width)
         cx, cy = ox + Int(elem.cx), oy + Int(elem.cy)
-        _bounds_extend!(minx, miny, maxx, maxy, cx - rad, cy - rad, cx + rad, cy + rad)
+        extend_content_bounds!(bounds, (cx - rad, cy - rad, cx + rad, cy + rad))
     elseif elem isa GraphicsPolyline || elem isa GraphicsSpline
         hw = max(1, Int(elem.width)) + Int(elem.arrow_size)
         for p in elem.points
             px = ox + Int(p[1]); py = oy + Int(p[2])
-            _bounds_extend!(minx, miny, maxx, maxy, px - hw, py - hw, px + hw, py + hw)
+            extend_content_bounds!(bounds, (px - hw, py - hw, px + hw, py + hw))
         end
     elseif elem isa GraphicsPolygon
         # The outline is the extent; a stroked border straddles it by half its
@@ -918,13 +954,23 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure::TextMeasure, minx, miny,
         hw = Int(elem.border_width)
         for p in elem.points
             px = ox + Int(p[1]); py = oy + Int(p[2])
-            _bounds_extend!(minx, miny, maxx, maxy, px - hw, py - hw, px + hw, py + hw)
+            extend_content_bounds!(bounds, (px - hw, py - hw, px + hw, py + hw))
         end
     elseif elem isa GraphicsCanvas
-        _accumulate_bounds!(elem, ox + Int(elem.x), oy + Int(elem.y), measure,
-                            minx, miny, maxx, maxy)
+        extend_canvas_bounds!(bounds, elem, (ox + Int(elem.x), oy + Int(elem.y)); measure)
     end
     # GraphicsFence and unknown types contribute nothing.
+    bounds
+end
+
+"""
+    get_canvas_content_bounds(canvas[, measure]) -> (x0, y0, x1, y1)
+
+The box of what `canvas` draws at the origin, `(0, 0, 0, 0)` for an empty one.
+"""
+function get_canvas_content_bounds(canvas::GraphicsCanvas, measure::TextMeasure = FontFileMeasure())
+    box = get_content_box(extend_canvas_bounds!(ContentBounds(), canvas, (0, 0); measure))
+    something(box, (0, 0, 0, 0))
 end
 
 """
@@ -939,9 +985,7 @@ as `measure` measures it; the default measures from the font files, as every
 backend draws.
 """
 function get_graphics_size(doc::GraphicsDocument, measure::TextMeasure = FontFileMeasure())
-    minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
-    maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
-    _bounds_elem!(doc, 0, 0, measure, minx, miny, maxx, maxy)
-    maxx[] == typemin(Int) && return (0, 0)   # nothing drawn
-    (max(Int(maxx[]), 0), max(Int(maxy[]), 0))
+    box = get_content_box(extend_element_bounds!(ContentBounds(), doc, (0, 0); measure))
+    box === nothing && return (0, 0)   # nothing drawn
+    (max(box[3], 0), max(box[4], 0))
 end

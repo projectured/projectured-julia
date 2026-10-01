@@ -1920,29 +1920,24 @@ function _node_dirty(elem)::Bool
     false
 end
 
-# Bounds of a single element / a whole canvas / a set of list-node values,
-# returned as an absolute logical `(x0,y0,x1,y1)` tuple or `nothing` if empty.
-# A text covers its box and the texture that SDL draws for it at `ratio`, the
-# ratio it is drawn at, so its bounds cover every pixel that the render gives
-# it. Every other element takes the bounds of `_bounds_elem!` (and so recomputes
-# the cells it reads — exactly what we want, since the unit is about to be
-# repainted).
+# Bounds of a single element / a whole canvas, returned as an absolute logical
+# `(x0,y0,x1,y1)` tuple or `nothing` if empty. A text covers its box and the
+# texture that SDL draws for it at `ratio`, the ratio it is drawn at, so its
+# bounds cover every pixel that the render gives it. Every other element takes
+# the bounds of `extend_element_bounds!` (and so recomputes the cells it reads —
+# exactly what we want, since the unit is about to be repainted).
 function _bounds_of_elem(elem, ox::Int, oy::Int, ratio::Float64)
     _is_invisible_graphic(elem) && return nothing
-    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
-    mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _extend_drawn_bounds!(elem, ox, oy, ratio, mnx, mny, mxx, mxy)
-    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+    get_content_box(_extend_drawn_bounds!(ContentBounds(), elem, (ox, oy), ratio))
 end
 
 function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int, ratio::Float64)
     has_declared_extent(canvas) && return (ox, oy, ox + Int(canvas.w), oy + Int(canvas.h))
-    mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
-    mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
+    bounds = ContentBounds()
     for elem in canvas.elements
-        _extend_drawn_bounds!(elem, ox, oy, ratio, mnx, mny, mxx, mxy)
+        _extend_drawn_bounds!(bounds, elem, (ox, oy), ratio)
     end
-    mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+    get_content_box(bounds)
 end
 
 # True for a rectangle with a transparent fill and no visible border, such as the
@@ -1951,26 +1946,27 @@ _is_invisible_graphic(elem) =
     elem isa GraphicsRect && elem.color.alpha == 0 &&
     (Int(elem.border_width) == 0 || elem.border_color.alpha == 0)
 
-# Extend the bounds by what SDL draws for `elem` at the content origin `(ox, oy)`.
-function _extend_drawn_bounds!(elem, ox::Int, oy::Int, ratio::Float64, mnx, mny, mxx, mxy)
+# Extend the bounds by what SDL draws for `elem` at the content origin.
+function _extend_drawn_bounds!(bounds::ContentBounds, elem, origin::NTuple{2,Int},
+                               ratio::Float64)
+    (ox, oy) = origin
     if elem isa GraphicsText
-        _bounds_elem!(elem, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
+        extend_element_bounds!(bounds, elem, origin)
         texture = _compute_text_texture_box(elem.text, elem.font, ratio)
-        texture === nothing && return
+        texture === nothing && return bounds
         x, y = ox + Int(elem.x), oy + Int(elem.y)
-        _bounds_extend!(mnx, mny, mxx, mxy, x + texture[1], y + texture[2], x + texture[3], y + texture[4])
+        extend_content_bounds!(bounds, (x + texture[1], y + texture[2], x + texture[3], y + texture[4]))
     elseif elem isa GraphicsCanvas
         x, y = ox + Int(elem.x), oy + Int(elem.y)
-        if has_declared_extent(elem)
-            _bounds_extend!(mnx, mny, mxx, mxy, x, y, x + Int(elem.w), y + Int(elem.h))
-            return
-        end
+        has_declared_extent(elem) &&
+            return extend_content_bounds!(bounds, (x, y, x + Int(elem.w), y + Int(elem.h)))
         for child in elem.elements
-            _extend_drawn_bounds!(child, x, y, ratio, mnx, mny, mxx, mxy)
+            _extend_drawn_bounds!(bounds, child, (x, y), ratio)
         end
     else
-        _bounds_elem!(elem, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
+        extend_element_bounds!(bounds, elem, origin)
     end
+    bounds
 end
 
 # ── The layout early-stop ──
