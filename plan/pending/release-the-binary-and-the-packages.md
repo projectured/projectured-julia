@@ -269,7 +269,7 @@ The owner decided these on 2026-09-29.
 | R14 | A `projectured` command through Pkg apps? | Later. |
 | R15 | Rename `LICENCE-PD`? | No. It stays as it is. Moot since R21: the file goes. |
 | R9 | Where does the release copy live? | In one repository, `projectured/Projectured.jl`, with one folder for each package (the owner, 2026-10-01; R23). The owner created it on 2026-10-01, private and empty; it becomes public when the release copy stands on its own (Part R). Not `projectured/projectured`: that name is the redirect to the Lisp original (§3.3). |
-| R10 | The name and place of the registry? | The General registry (changed on 2026-09-29 by R21). Before that: `projectured/ProjecturedRegistry`, made with `LocalRegistry.jl`, which Step B4 still uses as a local stand-in for General. A local registry comes first (R27); its name and place are open (Part R). |
+| R10 | The name and place of the registry? | First the owner's own registry, `ProjecturedRegistry`, in the repository `projectured/ProjecturedRegistry` (the owner, 2026-10-01; R27). It is private while `Projectured.jl` is private. The General registry later (R21), with R34. Steps B1 and B4 tested a registry of the same name, made with `LocalRegistry.jl`. |
 | R21 | The licence of the repository and of the packages? | **MPL-2.0** (the owner, 2026-09-29). Other people may build and sell products on ProjecturEd with packages of their own; their changes to the files of ProjecturEd stay MPL and public when they distribute them; the owner can use those changes in his own closed products with no contributor licence agreement. It is OSI-approved, so the packages can go into General. It replaces `LICENCE-PD` and `LICENCE-COMMERCIAL`, and it makes R15 moot. Part L does the change. |
 | R22 | Seven pairs of our names fail the name rule of General. Rename, or ask for manual merges? | Manual merges (the owner, 2026-09-29). |
 | R24 | Do the other two authors agree to MPL-2.0 for their commits? | Yes (the owner, 2026-09-29: "I know them well and they agreed"). Keep their agreement in writing with the release records. |
@@ -1350,7 +1350,20 @@ seals go beyond the kernel in time (only kernel files are sealed today).
 - [ ] Each registered package has a short README.
 - [ ] The full test of Step B4 again, with a local registry on this machine.
 - [ ] The owner pushes the release copy, makes the repository public, and
-      makes the repository of the local registry (R10).
+      makes the repository of the local registry, `projectured/ProjecturedRegistry`
+      (R10).
+- [ ] The build guide names `ProjecturedRegistry` where it says `<registry>`.
+
+**R34, open: the move from `ProjecturedRegistry` to General.** AutoMerge
+accepts only 0.0.1, 0.1.0 or X.0.0 (1.0.0, 2.0.0, …) as the first version of a
+new package, and each later version must not skip one (RegistryCI,
+`meets_standard_initial_version_number` and `meets_sequential_version_number`,
+read on 2026-10-01). Each release in `ProjecturedRegistry` gives a changed
+package the next patch version (0.1.1, 0.1.2, …). If a person has both
+registries, the same version of a package must have the same tree in both. So
+the first version in General is 1.0.0 (or the next X.0.0), or General takes the
+versions of `ProjecturedRegistry` one by one from 0.1.0, or a maintainer merges
+by hand. The decision belongs to the move, not to now.
 
 ## Step C: close
 
