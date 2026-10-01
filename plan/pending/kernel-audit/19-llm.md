@@ -31,15 +31,15 @@ layer has no test folder of its own.
 
 - Imports: `DocumentModule` (for `is_walk_opaque`), `ToolModule` (`Tool`, `ToolSet`, `MeaningModel`,
   `set_meaning_model!`). Imported by: `AgentModule` (kernel), `AssistantModule`
-  (`source/assistant/`), `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedKernelExample`
+  (`source/platform/assistant/`), `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedKernelExample`
   (`FakeLlm`, `ScriptedLlm`), the two adapter test packages, and omnet-julia
   (`source/campaign/CampaignWindow.jl` calls `make_llm` and `bind_meaning_model!`; `OmnetIdeTest`
   reads the events). inet-julia does not use the layer.
 - Public surface: 32 exported names. All of them have a user outside the kernel. `default_llm_model`
   has no caller in production code: the two adapters define a method, and only their tests call it
   (L19-3).
-- Implementers of the seam: `AnthropicLlm` (`source/anthropic/Anthropic.jl`), `OllamaLlm`
-  (`source/ollama/Ollama.jl`), and the doubles `FakeLlm` and `ScriptedLlm` in
+- Implementers of the seam: `AnthropicLlm` (`source/adapter/anthropic/AnthropicLlm.jl`), `OllamaLlm`
+  (`source/adapter/ollama/OllamaLlm.jl`), and the doubles `FakeLlm` and `ScriptedLlm` in
   `ProjecturedKernelExample`. Each real adapter answers `stream_turn`, `render_tool_schema`,
   `make_llm` and `default_llm_model`; `OllamaLlm` and `FakeLlm` also answer the three meaning-model
   generics. The seam is complete, and it is used.
@@ -47,7 +47,7 @@ layer has no test folder of its own.
   for every editor.
 - Tests: there is no `test/kernel/llm/`. `bind_meaning_model!` is tested in
   `test/kernel/tool/MeaningSearchTest.jl`; `make_llm`, `get_llm_backend_names` and
-  `default_llm_model` in `test/anthropic/AnthropicTest.jl` and `test/ollama/OllamaTest.jl`; the error
+  `default_llm_model` in `test/adapter/anthropic/AnthropicLlmTest.jl` and `test/adapter/ollama/OllamaLlmTest.jl`; the error
   for a kind that no package answers in the umbrella (`test/projectured/editor/AssistantMvpTest.jl:223`).
   The Anthropic stream parser has no test (L19-1).
 
@@ -68,7 +68,7 @@ layer has no test folder of its own.
 
 - Category: Correctness · Severity: High · Confidence: Confirmed
 - Checked by the lead on 2026-09-27: Read the code: `input_tokens` at `Anthropic.jl:389` is a local of `stream_turn` (line 276), not a parameter of `_drain_sse_events!` (line 364).
-- Where: [Anthropic.jl:389](../../../source/anthropic/Anthropic.jl#L389) (outside the kernel; the
+- Where: [Anthropic.jl:389](../../../source/adapter/anthropic/AnthropicLlm.jl#L389) (outside the kernel; the
   only Claude implementer of `stream_turn`)
 - Evidence: `_drain_sse_events!(buf::IOBuffer, emit::Function; final::Bool = false)` (line 364) calls
   `_translate_sse!(emit, type, parsed; input_tokens = input_tokens)` (line 389). `input_tokens` is a
@@ -82,16 +82,16 @@ layer has no test folder of its own.
 - Fix: give `_drain_sse_events!` an `input_tokens` keyword and pass the `Ref` from `stream_turn`
   (lines 335 and 337). Add a test that sends a recorded SSE body through `_drain_sse_events!` and
   checks the events.
-- Reach: `source/anthropic/Anthropic.jl`, `test/anthropic/AnthropicTest.jl`. No kernel file.
+- Reach: `source/adapter/anthropic/AnthropicLlm.jl`, `test/adapter/anthropic/AnthropicLlmTest.jl`. No kernel file.
 
 ### L19-2 The adapters do not keep the promises of the stream contract
 
 - Category: Correctness · Severity: Medium · Confidence: Confirmed
 - Where: [LlmInterface.jl:26-38](../../../source/kernel/llm/LlmInterface.jl#L26) ⬜,
   [LlmEvent.jl:123-143](../../../source/kernel/llm/LlmEvent.jl#L123) ⬜,
-  [Anthropic.jl:230](../../../source/anthropic/Anthropic.jl#L230),
-  [Anthropic.jl:308](../../../source/anthropic/Anthropic.jl#L308),
-  [Ollama.jl:363](../../../source/ollama/Ollama.jl#L363)
+  [Anthropic.jl:230](../../../source/adapter/anthropic/AnthropicLlm.jl#L230),
+  [Anthropic.jl:308](../../../source/adapter/anthropic/AnthropicLlm.jl#L308),
+  [Ollama.jl:363](../../../source/adapter/ollama/OllamaLlm.jl#L363)
 - Evidence:
   1. `stream_turn` promises "the last event is an `LlmTurnEnd` … (or an `LlmFailure`)". Both adapters
      take an early end of the connection as a clean end (`e isa EOFError ? UInt8[] : rethrow()`,
@@ -110,16 +110,16 @@ layer has no test folder of its own.
 - Fix: write in the `stream_turn` docstring that an adapter ends every stream with `LlmTurnEnd` or
   `LlmFailure` (an early end is an `LlmFailure`), maps each stop reason of its provider to the four
   symbols, and bounds each read with a timeout. Make both adapters do so.
-- Reach: `LlmInterface.jl`, `LlmEvent.jl` (docstrings only); `source/anthropic/Anthropic.jl`;
-  `source/ollama/Ollama.jl`; a test in each adapter test package.
+- Reach: `LlmInterface.jl`, `LlmEvent.jl` (docstrings only); `source/adapter/anthropic/AnthropicLlm.jl`;
+  `source/adapter/ollama/OllamaLlm.jl`; a test in each adapter test package.
 
 ### L19-3 `default_llm_model` has no production caller, and its Anthropic answer is false
 
 - Category: Shape · Severity: Low · Confidence: Confirmed
 - Where: [LlmInterface.jl:108-115](../../../source/kernel/llm/LlmInterface.jl#L108) ⬜,
   [LlmDefaults.jl:27-28](../../../source/kernel/llm/LlmDefaults.jl#L27) ⬜,
-  [Anthropic.jl:97](../../../source/anthropic/Anthropic.jl#L97),
-  [Anthropic.jl:108](../../../source/anthropic/Anthropic.jl#L108)
+  [Anthropic.jl:97](../../../source/adapter/anthropic/AnthropicLlm.jl#L97),
+  [Anthropic.jl:108](../../../source/adapter/anthropic/AnthropicLlm.jl#L108)
 - Evidence: the docstring says "The model this backend talks to when nobody names one".
   `default_llm_model(::Val{:anthropic})` answers `"claude-opus-5"`, but `AnthropicLlm(; model = "")`
   asks the Models API for the newest model with adaptive thinking (line 97), and it uses the fallback
@@ -148,8 +148,8 @@ layer has no test folder of its own.
 ### L19-5 The newest-model cache of the Anthropic adapter is process-global and ignores the key
 
 - Category: State · Severity: Low · Confidence: Confirmed
-- Where: [Anthropic.jl:9](../../../source/anthropic/Anthropic.jl#L9),
-  [Anthropic.jl:30-44](../../../source/anthropic/Anthropic.jl#L30)
+- Where: [Anthropic.jl:9](../../../source/adapter/anthropic/AnthropicLlm.jl#L9),
+  [Anthropic.jl:30-44](../../../source/adapter/anthropic/AnthropicLlm.jl#L30)
 - Evidence: `const _NEWEST_MODEL = Ref{String}("")`. `get_newest_anthropic_model(api_key; models_url)`
   answers the stored value when it is not empty, whatever key or URL the caller gives. A request that
   fails stores the fallback, and the process keeps it. A second editor with another key, or another
@@ -158,7 +158,7 @@ layer has no test folder of its own.
   this value depends on the key.
 - Fix: keep the answer per `(models_url, key)` pair, or on the backend instance, and do not store the
   answer of a request that failed.
-- Reach: `source/anthropic/Anthropic.jl`. No kernel file.
+- Reach: `source/adapter/anthropic/AnthropicLlm.jl`. No kernel file.
 
 ### L19-6 `default_llm_model` does not start with a verb
 
@@ -226,7 +226,7 @@ layer has no test folder of its own.
   tested anywhere: the error of `default_llm_model` for a kind that no package answers, the answer of
   `get_llm_backend_names()` when no adapter is loaded, `is_walk_opaque(::Llm)`, and the conversions of
   the `LlmRequest` and `LlmMessage` convenience constructors. `ProjecturedKernelTest` already loads
-  `ProjecturedKernelExample` (`test/kernel/feed/FeedTest.jl:49`), so `FakeLlm` is at hand.
+  `ProjecturedKernelExample` (`test/kernel/editor/FeedsTest.jl:49`), so `FakeLlm` is at hand.
 - Rule: PAR-NEW-CODE-SHIPS-TESTS (the lowest test package that can express the test).
 - Fix: add `test/kernel/llm/LlmDefaultsTest.jl` for the fallbacks and the registry, and move the error
   check of AssistantMvpTest.jl:223 there.

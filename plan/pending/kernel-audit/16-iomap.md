@@ -55,8 +55,8 @@ code that throws (L16-2).
   one editor.
 - Tests: the kernel test package has no `test/kernel/iomap/`. Four test files of
   higher packages reach the layer:
-  - `test/substrate/projection/CopyingProjectionTest.jl`: reuse after an append;
-  - `test/substrate/projection/HigherOrderTest.jl`: a branch swap through
+  - `test/platform/projection/CopyingProjectionTest.jl`: reuse after an append;
+  - `test/platform/projection/HigherOrderTest.jl`: a branch swap through
     `reconcile_child_iomap`;
   - `test/projectured/editor/PrinterLocalityTest.jl` and `ReactivityTest.jl`: loss
     of identity and stale output over whole examples; they read the accessors.
@@ -98,9 +98,9 @@ code that throws (L16-2).
      a cell makes the list and each reader of the list compute again, and the list
      then returns the same cached children. The work changes nothing.
   2. The deferred-iomap write of a child printer runs inside the computation.
-     [ScreenToScreen.jl:104](../../../source/screen/ScreenToScreen.jl#L104) does
+     [ScreenToScreen.jl:104](../../../source/platform/screen/ScreenToScreen.jl#L104) does
      `iomap_cell[] = iomap` while the list cell of
-     [ScreenToScreen.jl:43](../../../source/screen/ScreenToScreen.jl#L43) computes.
+     [ScreenToScreen.jl:43](../../../source/platform/screen/ScreenToScreen.jl#L43) computes.
      The cell is new and has no reader yet, so nothing goes invalid now.
   3. A child printer that reads a cell derived from the output of its parent makes a
      cycle through the list cell. No instance is known.
@@ -123,7 +123,7 @@ code that throws (L16-2).
   `ChildrenIoMap` is an `@iomap` struct, so `iomap.child_iomaps` is already the
   vector, and `v[]` on a vector whose length is not 1 throws a `BoundsError`. Real
   code reads `getfield(iomap, :child_iomaps)[]`
-  ([LayoutToGraphics.jl:381](../../../source/layout/LayoutToGraphics.jl#L381)). The
+  ([LayoutToGraphics.jl:381](../../../source/platform/layout/LayoutToGraphics.jl#L381)). The
   example also builds `ConcreteReference(ElementReferenceStep(Cell(i)), …)` by hand.
 - Rule: PAR-HONEST-DOCS; PAR-STABLE-IOMAP-IDENTITY; PAR-REFERENCE-DSL.
 - Fix: write the example again with `reconcile_child_iomaps`,

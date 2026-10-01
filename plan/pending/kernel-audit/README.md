@@ -225,5 +225,5 @@ The audit found these faults outside `source/kernel/`. They are not in the count
   `TextMeasure.jl:223`.
 - **The test package `ProjecturedProcessTest` does not precompile in its own environment.**
 - **The adapters and the session stores** are in the reports: L19-1 and L19-2 are in
-  `source/anthropic/` and `source/ollama/`. The session stores of L21-1 and L22-14 are in
-  `source/log/`, `source/statistics/` and `source/fault/`.
+  `source/adapter/anthropic/` and `source/adapter/ollama/`. The session stores of L21-1 and L22-14 are in
+  `source/platform/log/`, `source/platform/statistics/` and `source/platform/fault/`.

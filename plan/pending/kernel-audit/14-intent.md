@@ -64,7 +64,7 @@ The intent layer is small and sound: it holds the carrier that flows back throug
 
 - Category: Architecture · Severity: Low · Confidence: Confirmed (no reader reads the labels after a reroot today)
 - Where: [Intent.jl:37](../../../source/kernel/intent/Intent.jl#L37) ⬜; [ProjectionDefaults.jl:210](../../../source/kernel/projection/ProjectionDefaults.jl#L210) ⬜
-- Evidence: the docstring of `Intent` says "A reader that reroots an operation must preserve the labels." The default bridge of the projection layer rebuilds the carrier as `Intent(change.gesture, op)` (line 213). That drops `description`, `domain` and `route` at each projection that has no reader of its own. The gesture log reads the labels from the carrier that it gets, before any reroot ([GestureLogRecording.jl:63](../../../source/gesturelog/GestureLogRecording.jl#L63)), so no output is wrong today.
+- Evidence: the docstring of `Intent` says "A reader that reroots an operation must preserve the labels." The default bridge of the projection layer rebuilds the carrier as `Intent(change.gesture, op)` (line 213). That drops `description`, `domain` and `route` at each projection that has no reader of its own. The gesture log reads the labels from the carrier that it gets, before any reroot ([GestureLogRecording.jl:63](../../../source/platform/gesturelog/GestureLogRecording.jl#L63)), so no output is wrong today.
 - Rule: the contract of `Intent`.
 - Fix: rebuild the carrier with `Intent(change.gesture, op, change.description, change.domain)`.
 - Reach: ProjectionDefaults.jl.

@@ -65,7 +65,7 @@ The struct layer is in good order after its audit and its follow-up of 2026-09-2
 
 - Category: Shape · Severity: Low · Confidence: Suspected (the effect on a `DCFoo` layout needs a run)
 - Where: [CellStruct.jl:285](../../../source/kernel/struct/CellStruct.jl#L285) 🔒
-- Evidence: The function reads field 1 only, and its docstring says so. `sync_document!` ([DocumentSync.jl:53](../../../source/kernel/document/DocumentSync.jl#L53)) and `_sync_list_tail!` ([ListNode.jl:148](../../../source/collection/ListNode.jl#L148)) use the result as the kind of the whole shadow, and they rebuild each child in it. A `DCFoo` layout keeps each field in its declared kind, so its fields can differ.
+- Evidence: The function reads field 1 only, and its docstring says so. `sync_document!` ([DocumentSync.jl:53](../../../source/kernel/document/DocumentSync.jl#L53)) and `_sync_list_tail!` ([ListNode.jl:148](../../../source/platform/collection/ListNode.jl#L148)) use the result as the kind of the whole shadow, and they rebuild each child in it. A `DCFoo` layout keeps each field in its declared kind, so its fields can differ.
 - Rule: no written rule; a design fault between this layer and its callers.
 - Fix: Give the kind of one field, for example `get_cell_struct_field_kind(x, name)`, and let the sync ask for each field. Or let the document audit decide that a mixed struct never reaches the sync, and say it in the docstring.
 - Reach: `CellStruct.jl` 🔒, `CellStructModule.jl` 🔒, `DocumentSync.jl`, `ListNode.jl`.

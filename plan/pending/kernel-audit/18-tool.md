@@ -182,8 +182,8 @@ in a code block.
   `Resource` and `call_tool` to keywords.
 - Rule: code-quality-rules.md §4; the guard `test_arguments()`.
 - Fix: `Tool(name; description, parameters, handler, result_mime_type = "text/plain")`.
-- Reach: `Tool.jl`, `DefaultTools.jl` (6 calls), `source/undo/UndoDocument.jl`,
-  `example/fault/FaultExamples.jl`, and 5 test files (`SearchAnswerTest.jl`,
+- Reach: `Tool.jl`, `DefaultTools.jl` (6 calls), `source/platform/undo/UndoDocument.jl`,
+  `example/platform/fault/FaultExamples.jl`, and 5 test files (`SearchAnswerTest.jl`,
   `AnthropicTest.jl`, `OllamaTest.jl`, `AssistantMvpTest.jl`, `McpTest.jl`).
 
 ### L18-4 Each code call swaps the process-wide stdout and stderr, so all editors and tasks share them
@@ -340,7 +340,7 @@ in a code block.
     comment calls this "the one private reach".
   - `example/kernel/SearchScaleMeasurement.jl:108–130` calls `_api_index`,
     `_guide_index` and `_get_meaning_store`.
-  - `source/conversation/Evaluator.jl:396` and `:423` write the fields `observers`
+  - `source/platform/conversation/Evaluator.jl:396` and `:423` write the fields `observers`
     and `scratch` of another `ToolSet`.
   - Tests in both repositories write `ToolModule._MEANING_FOLDER[]`
     (`MeaningSearchTest.jl`, `McpTest.jl`, `SearchScaleTest.jl`; omnet

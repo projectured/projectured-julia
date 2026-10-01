@@ -100,11 +100,11 @@ audit of 2026-09-25.
   sign for `dy`:
   - SDL passes the wheel value of SDL, which is positive when the wheel turns
     away from the user: `dx, dy = Int(evt.wheel.x), Int(evt.wheel.y)`
-    ([Sdl.jl:3537](../../../source/sdl/Sdl.jl#L3537)).
+    ([Sdl.jl:3537](../../../source/backend/sdl/SdlBackend.jl#L3537)).
   - The web page negates the browser value: `dy: -Math.sign(ev.deltaY)`
     (`asset/web/client.js:623`).
   - The scroll pane moves by `-evt.dy * scroll_step`, so a positive `dy` moves
-    toward the start (`_self_scroll`, `source/widget/WidgetToGraphics.jl:4858`).
+    toward the start (`_self_scroll`, `source/platform/widget/WidgetToGraphics.jl:4858`).
   A new backend that follows the docstring scrolls every pane the wrong way. The
   docstring also does not state the sign of `dx` that the readers use; the pane
   moves by `-evt.dx`. Whether that is correct for a tilt wheel is Suspected, and

@@ -85,7 +85,7 @@ The selection layer is small and holds no global state. It keeps its main promis
 
 - Category: Shape · Severity: Low · Confidence: Confirmed
 - Where: [SelectionInterface.jl](../../../source/kernel/selection/SelectionInterface.jl) 🔒, [SelectionDefaults.jl:17](../../../source/kernel/selection/SelectionDefaults.jl#L17) 🔒
-- Evidence: the module docstring says a document "overrides" `clear_selection!` and `set_selection!`. A search of projectured-julia, omnet-julia and inet-julia finds a method only for `has_dormant_selection`. The readers `get_stored_selection` and `is_live_selection` take a document. A painter holds the stored value, not the document, so [TextToGraphics.jl:114](../../../source/text/TextToGraphics.jl#L114) copies the private `_get_stored_path` and `_is_live_value`.
+- Evidence: the module docstring says a document "overrides" `clear_selection!` and `set_selection!`. A search of projectured-julia, omnet-julia and inet-julia finds a method only for `has_dormant_selection`. The readers `get_stored_selection` and `is_live_selection` take a document. A painter holds the stored value, not the document, so [TextToGraphics.jl:114](../../../source/platform/text/TextToGraphics.jl#L114) copies the private `_get_stored_path` and `_is_live_value`.
 - Rule: code-quality-rules.md (one definition, no copy); PAR-MODULE-BOUNDARY-IS-API.
 - Fix: export the two value readers (or add methods on `SelectionDocument`) and delete the copy in TextToGraphics.jl. Say in the module docstring which generics a document extends.
 - Reach: SelectionModule.jl and SelectionDefaults.jl 🔒; TextToGraphics.jl.
@@ -125,7 +125,7 @@ The selection layer is small and holds no global state. It keeps its main promis
   - The interface header names four generics ("read, clear, set, and replace"); the file declares nine. The defaults header names four private helpers; the file has twelve. The module docstring does not name the dormant generics or `map_selection_forward`.
   - Contract text names higher concepts: "a tab group", "a pane group", "a tabbed pane" (SelectionInterface.jl lines 130, 141, 155) and "a `CellVector`" (SelectionDefaults.jl line 87). PAR-NO-CONSUMER-DOCS lets a seam name a concept, not a higher type such as `CellVector`.
   - selection.md line 32 gives the old layer numbers "(8)" and "(7)"; they are 11 and 10. Line 100 links `SelectionMismatchException` to `#dormant-selections`.
-  - selection.md lines 319-321 say that a node with no selection "falls back to forwarding to each child in turn". [WidgetToGraphics.jl:3838](../../../source/widget/WidgetToGraphics.jl#L3838) returns `nothing` in that case, and PAR-REACTIVE-OUTPUT-SELECTION forbids the fallback.
+  - selection.md lines 319-321 say that a node with no selection "falls back to forwarding to each child in turn". [WidgetToGraphics.jl:3838](../../../source/platform/widget/WidgetToGraphics.jl#L3838) returns `nothing` in that case, and PAR-REACTIVE-OUTPUT-SELECTION forbids the fallback.
 - Rule: PAR-HONEST-DOCS, PAR-NO-CONSUMER-DOCS, PAR-MODULE-DOCSTRING.
 - Fix: correct the headers and the three statements in selection.md.
 - Reach: the three layer files 🔒; selection.md.

@@ -43,7 +43,7 @@ accepts a scale or a zoom of zero, which makes the SDL input throw. The
   `Display` of that list. No state is global.
 - Tests: `test/kernel/device/DeviceModuleTest.jl` (55 lines, 16 passes in the
   baseline log): the defaults, the keyword constructors, the ratio with
-  `@inferred`. `test/sdl/backend/DeviceConfigTest.jl` tests the SDL half (two
+  `@inferred`. `test/backend/sdl/backend/DeviceConfigTest.jl` tests the SDL half (two
   backends with their own ratio; a zoom of one leaves the other).
 
 ## Summary
@@ -63,7 +63,7 @@ accepts a scale or a zoom of zero, which makes the SDL input throw. The
 - Category: Architecture · Severity: Medium · Confidence: Confirmed
 - Decided before: `plan/done/device-layer-audit.md` put this method in `Sdl.jl` and left the web and console backends as they were. This finding asks the owner to reopen that decision, because the owner wants many editors on the web backend.
 - Where: [Display.jl:19](../../../source/kernel/device/Display.jl#L19) 🔒,
-  [Sdl.jl:3926](../../../source/sdl/Sdl.jl#L3926)
+  [Sdl.jl:3926](../../../source/backend/sdl/SdlBackend.jl#L3926)
 - Evidence: the kernel editor turns Ctrl+= into `AdjustZoomOperation`
   (`source/kernel/editor/ReadEvaluatePrint.jl:136`), a kernel type. The one
   method that evaluates it is in `Sdl.jl`:
@@ -93,9 +93,9 @@ accepts a scale or a zoom of zero, which makes the SDL input throw. The
 - Where: [Display.jl:16](../../../source/kernel/device/Display.jl#L16) 🔒
 - Evidence: `configure_devices!(::SdlBackend, …)` writes
   `display.width, display.height = get_sdl_display_size()`
-  ([Sdl.jl:4015](../../../source/sdl/Sdl.jl#L4015)). No code reads the two
+  ([Sdl.jl:4015](../../../source/backend/sdl/SdlBackend.jl#L4015)). No code reads the two
   fields. The code that needs the size of the display asks the backend:
-  `get_display_size(backend)` in `source/screen/WindowScene.jl:139` (before
+  `get_display_size(backend)` in `source/platform/screen/WindowScene.jl:139` (before
   `make_editor`, so before any `Display` is configured), in the SDL window
   placement (`Sdl.jl:3766`), and in `example/projectured/ValueViewer.jl:88`,
   `FileEditor.jl:168` and `Gallery.jl:225`. So one fact has two sources, and

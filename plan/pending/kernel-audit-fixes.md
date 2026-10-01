@@ -330,7 +330,7 @@ Use the run of the report as the regression test: a print of 200 000 bytes retur
 
 - [x] **L19-1** (High, Correctness)
   Give `_drain_sse_events!` an `input_tokens::Ref{Int}` keyword and pass it on to `_translate_sse!`. Pass the `Ref` of `stream_turn` at the two calls (Anthropic.jl:335 and :337).
-  *Test:* A new testset in test/anthropic/AnthropicTest.jl (ProjecturedAnthropicTest) sends a recorded SSE body (message_start, one text block, message_delta) through `_drain_sse_events!`. It asserts no throw, the text events, and an `LlmTurnEnd` that carries the input count of message_start.
+  *Test:* A new testset in test/adapter/anthropic/AnthropicLlmTest.jl (ProjecturedAnthropicTest) sends a recorded SSE body (message_start, one text block, message_delta) through `_drain_sse_events!`. It asserts no throw, the text events, and an `LlmTurnEnd` that carries the input count of message_start.
   *Done:* lane B, 28c1660a. The Anthropic suite: 35 pass, 1 broken (baseline 20 and 1 broken); the new stream test fails on the old code with the `UndefVarError`. Every run of these suites had no outside network (`unshare -rn`).
 - [x] **L19-2** (part) (Medium, Correctness)
   Throw when a stream ends before its terminal event, as the `stream_turn` docstring says for a dead socket, and map `stop_sequence`, `refusal` and `pause_turn` to `:end_turn` in the Anthropic adapter. The read timeout waits for its decision.
@@ -455,7 +455,7 @@ One step for each layer. No step changes a sealed file.
   *Test:* `test_rerooting()` and `test_inversion()` pass.
   *Done:* lane B, 451a985b.
 - [x] **L13-14** (Low, Shape)
-  Sort the using lines by module name. Delete the trailing comments of the includes. Make count of delete_elements a keyword (count = 1) and change the one positional call at source/text/TextDocument.jl:1310. Wrap the lines over 90 characters. Shorten the five fragment headers to one line.
+  Sort the using lines by module name. Delete the trailing comments of the includes. Make count of delete_elements a keyword (count = 1) and change the one positional call at source/platform/text/TextDocument.jl:1310. Wrap the lines over 90 characters. Shorten the five fragment headers to one line.
   *Test:* test_arguments(), test_rerooting(), test_inversion(), and the text document tests for the call.
   *Done:* lane B, 451a985b. Six fragment headers were long, not five: `Description.jl` had one too. The `OperationInterface.jl` header no longer says where the bodies are; its three banners name the files (for L13-16). The one positional call of `delete_elements` at `TextDocument.jl:1310` names `count`. omnet-julia and inet-julia have no call of either builder.
 - [x] **L14-1** (Medium, Architecture)
@@ -1105,7 +1105,7 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 - [x] **L17-12** (Medium, Tests) — after L17-1
   Add kernel tests with fixture documents for with_inner_size, with_size_range, get_property, the typed make_child_context, the default mappers, the branches of the default reader, the bridge, read_routed_intent, ProjectionReferenceStep (==, show, the .proj DSL), @projection and read_projection_gesture. Add substrate tests for each wiring kind (tokens, sections, mixed, conditional) with an edit through the same IoMap.
-  *Test:* The new test functions, each run alone: for example test_projection_defaults() in test/kernel/projection/ and test_projection_template_wirings() in test/substrate/projection/.
+  *Test:* The new test functions, each run alone: for example test_projection_defaults() in test/kernel/projection/ and test_projection_template_wirings() in test/platform/projection/.
   *Done:* lane B, a1c05ca12 (`test_projection_macro` and `test_projection_template_wirings` are new). test_kernel 2826 in lane B and the 6 known failures; test_substrate 86871 and the 7 known failures; test_mcp_tools 158; test_anthropic 38 and 1 broken.
 
 ### Step 4.17: Tests of the tool layer
@@ -1347,7 +1347,7 @@ Do each one after its decision, if it still applies.
 - **L23-7** (Low) waits for L23-5. Log a skipped entry with its index (`@warn`), throw `ArgumentError` for a `hold` under 0 when the schedule is built, and read `time_ns()` for the schedule.
 - **L23-8** (Low) waits for L23-5. Use `read_rooted_operation(editor, op_prefix, op)` in place of `reroot_operation`, so the readers between the root and the content lift the operation (PAR-DELEGATE-AND-LIFT).
 - **L23-9** (Low) waits for L23-5. Replace `_path_to_steps(op_prefix)` with `Tuple(get_reference_steps(op_prefix))` and delete `_path_to_steps`.
-- **L23-10** (Low) waits for L23-5. Rename `_timeline_operation` to `_make_timeline_operation` and the keyword `op_prefix` to `operation_prefix` (the full word; one caller, example/sdl/LiveExamples.jl:138), and the locals `op`, `acc`, `cur`, `n`. `_path_to_steps` goes with L23-9.
+- **L23-10** (Low) waits for L23-5. Rename `_timeline_operation` to `_make_timeline_operation` and the keyword `op_prefix` to `operation_prefix` (the full word; one caller, example/backend/sdl/LiveExamples.jl:138), and the locals `op`, `acc`, `cur`, `n`. `_path_to_steps` goes with L23-9.
 - **L23-11** (Low) waits for L23-5. Remove the consumer names from Playback.jl, correct the claim of 'the same path live input takes' (or fix it with L23-3), name `op_prefix` in the header of the bootstrap docstring, give editor.md the real signature, folder and use of `OperationModule`, delete the stale 'Known remaining instance' sentence of architecture-invariants.md, and wrap the six long lines.
 
 ## Faults that the classification found
@@ -1405,7 +1405,7 @@ The classifiers and the implementers found faults that the audit does not hold:
   *Done:* 240e0a2dd. The quit runs inside its own `try`, and the build error goes on; the exception of the quit is dropped, as in L22-10. test_kernel 3922 and 2 broken.
   caller sees the build error.
 - **N-2** (Medium, needs a decision): Ctrl+, (`KeyDownPattern(:comma)` in
-  `source/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
+  `source/platform/projection/generic/Focusing.jl:70`) can never fire, because `:comma` is in no key
   vocabulary and no backend names it. A new key name is a decision: see the table below.
 - **N-3** (Low, outside the kernel): the argument guard also reports `Application.jl:631` and
   `TextMeasure.jl:223`. They ask the same question as L18-3 and L22-1.
@@ -1624,8 +1624,8 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **Recommended (mine): A.** The clash is real: N-6 showed that `play_live!` threw `UndefVarError` on Julia 1.13, because `EditorModule` and `Base` both export `read!`. `Base.read!` reads binary data from a stream into an array, so a method for an Editor (B) gives one function two meanings. `read_input!` keeps the verb of the read-evaluate-print loop and names the unit that flows in, as the protocol names do. `evaluate!` and `print!` do not clash, so they stay. I checked: only a local function in a test uses `read_input`, and `read_input!` is free.
 - **D (the owner's request for one scheme):** Name the three stages as one family under `run_frame!`: `run_read_stage!`, `run_evaluate_stage!`, `run_print_stage!`. The verbs read, evaluate and print stay in the names. The verb table of naming-rules.md gets the row "`run_` — it runs a unit of work: a loop, a frame, a stage or a barrier", which `run_editor!`, `run_frame!`, `run_fault_barrier!` and `run_on_editor_task!` already use. The scheme 'verb + the unit that flows in' (`read_input!`, `evaluate_operation!`, `print_document!`) was set aside: `f!` reads as the in-place form of `f`, and `evaluate_operation` and `print_document` already exist with other contracts.
 - **Decided by the owner, 2026-09-30: D.** "These names sound good, consistent and meaningful."
-- Cost of D: M. projectured-julia: about 60 code uses (`read!` 18, `evaluate!` 17, `print!` 25) in EditorModule.jl (the export), EditorLoop.jl, ReadEvaluatePrint.jl, Playback.jl, PerformanceCounter.jl, FaultBarrier.jl, source/repl/record/driver.jl and the tests; about 9 guides. omnet-julia: 14 uses in 3 files (source/tool/record_precompile.jl, demo/catalog/notebook_drive.jl, test/proof/risk/RISK-STARTUP-LATENCY/ui_window.jl). inet-julia: 6 uses in source/tool/repl/record/driver.jl. No sealed file. The names are free in the three repositories.
-- Cost: S. 18 code uses in 8 files: EditorModule.jl (the export), EditorLoop.jl, ReadEvaluatePrint.jl, Playback.jl (its qualified call from N-6 goes), EscapeQuitTest.jl, FaultBarriersTest.jl, ConsoleBackendTest.jl, and the import in package/ProjecturedFaultTest. About 15 mentions in comments and docstrings (Sdl.jl, VideoBackend.jl, Inbox.jl, Feeds.jl, EditorLoop.jl, PlaybackModule.jl, FrameDrainTest.jl, FaultSafeModeTest.jl, WaitWakeTest.jl); editor.md. naming-rules.md needs no change: its sentence on the verbs read, evaluate and print stays true, and `read_input!` follows its rule 'verb + the unit that flows in'. omnet-julia and inet-julia do not call it. No sealed file.
+- Cost of D: M. projectured-julia: about 60 code uses (`read!` 18, `evaluate!` 17, `print!` 25) in EditorModule.jl (the export), EditorLoop.jl, ReadEvaluatePrint.jl, Playback.jl, PerformanceCounter.jl, FaultBarrier.jl, tool/precompile/recording-driver.jl and the tests; about 9 guides. omnet-julia: 14 uses in 3 files (source/tool/record_precompile.jl, demo/catalog/notebook_drive.jl, test/proof/risk/RISK-STARTUP-LATENCY/ui_window.jl). inet-julia: 6 uses in source/tool/repl/record/driver.jl. No sealed file. The names are free in the three repositories.
+- Cost: S. 18 code uses in 8 files: EditorModule.jl (the export), EditorLoop.jl, ReadEvaluatePrint.jl, Playback.jl (its qualified call from N-6 goes), EscapeQuitTest.jl, FaultBarriersTest.jl, ConsoleBackendTest.jl, and the import in package/ProjecturedPlatformTest. About 15 mentions in comments and docstrings (Sdl.jl, VideoBackend.jl, Inbox.jl, Feeds.jl, EditorLoop.jl, PlaybackModule.jl, FrameDrainTest.jl, FaultSafeModeTest.jl, WaitWakeTest.jl); editor.md. naming-rules.md needs no change: its sentence on the verbs read, evaluate and print stays true, and `read_input!` follows its rule 'verb + the unit that flows in'. omnet-julia and inet-julia do not call it. No sealed file.
 
 **L02-5** (Low): Which verb-first name replaces `with_performance_counters`, which binds a scope and makes no copy?
 
@@ -1819,7 +1819,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Move the video code into ProjecturedSdl, as a fragment or as a package extension on FFMPEG, so that the names stay private.
 - **Recommended (mine): A.** R3(3) and R1. The renderer has one implementer (SDL) and callers in other modules: ProjecturedVideo, and omnet-julia tool/video/record_study_take.jl for _encode_frames_to_video!. Its signatures hold an SDL renderer and surface. A seam with one implementer is an abstraction that nothing else uses. C brings FFMPEG back to the SDL users, which the split into ProjecturedVideo prevents.
 - Under POLICY-4 R3(3).
-- Cost: M. source/sdl/Sdl.jl, package/ProjecturedSdl, package/ProjecturedVideo, source/video/Video.jl and VideoBackend.jl, example/sdl/ApplicationVideo.jl, two SDL tests (LaidOutCanvasTest.jl, TreeRenderTest.jl), GraphicsModule and ProjecturedWeb for the bounds helpers; omnet-julia tool/video/record_study_take.jl. No sealed file. inet-julia has no user.
+- Cost: M. source/backend/sdl/SdlBackend.jl, package/ProjecturedSDL, package/ProjecturedVideo, source/backend/video/VideoRecording.jl and VideoBackend.jl, example/backend/sdl/ApplicationVideo.jl, two SDL tests (LaidOutCanvasTest.jl, TreeRenderTest.jl), GraphicsModule and ProjecturedWeb for the bounds helpers; omnet-julia tool/video/record_study_take.jl. No sealed file. inet-julia has no user.
 
 **L09-8** (Medium): Does render_canvas stay as a seam for a later renderer, or go?
 
@@ -1828,7 +1828,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep the declaration only and remove the stub, so that a call raises MethodError.
 - **Recommended (mine): A.** R5 and PAR-NO-TEST-DOUBLES-IN-MAIN: the one method fabricates an empty image (Sdl.jl:2939), and its one consumer does not read it (the GraphicsCaching docstring: 'nothing reads it yet'). No code in omnet-julia or inet-julia names render_canvas, and no pending plan implements it: cairo-glfw-backend.md:259 names it as a maybe, and feature-video-screenplays.md only lists it in a table of the backend methods.
 - Under POLICY-4 R5.
-- Cost: S. BackendInterface.jl and BackendModule.jl (sealed: permission needed for each), source/sdl/Sdl.jl, source/graphics/GraphicsCaching.jl, example/projectured/GalleryWrapperProjectionExample.jl, the export of ProjecturedExample, devices-and-backends.md. Users: projectured-julia only (5 source lines and 1 example line).
+- Cost: S. BackendInterface.jl and BackendModule.jl (sealed: permission needed for each), source/backend/sdl/SdlBackend.jl, source/platform/graphics/GraphicsCaching.jl, example/projectured/GalleryWrapperProjectionExample.jl, the export of ProjecturedExample, devices-and-backends.md. Users: projectured-julia only (5 source lines and 1 example line).
 
 **L11-9** (Medium): Does the pattern AST become exported API after its rename, or does omnet-julia get an exported query surface while the AST stays private?
 
@@ -1847,7 +1847,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **D:** Keep the words private, and put each helper inside the template bodies.
 - **Recommended (mine): C.** projection-layer-is-one-module.md (stage 3, done) took the words off the export list, because ordinary code uses them as local names; A reverses that recorded decision. make_template_builder is exported for this use, and RstToSyntax.jl is the precedent. D copies _ini_kv_children into two templates. For the AtomicWiring test in ReaderDefaults.jl (all options): export a predicate is_opaque_template_leaf(iomap::RuleIoMap) -> Bool, so the type stays private (R3(2)).
 - Under POLICY-4 R3(1), R3(2). Settles: L17-8.
-- Cost: S. ProjectionTemplate.jl and ProjectionModule.jl (not sealed) for the predicate, source/projection/ReaderDefaults.jl, test/substrate/projection/ProjectionTemplateTest.jl:56 (it imports bound with no need); omnet-julia source/legacy/ned/presentation/NedToSyntax.jl, ini/presentation/IniToSyntax.jl and testfile/presentation/TestToSyntax.jl. inet-julia has no user.
+- Cost: S. ProjectionTemplate.jl and ProjectionModule.jl (not sealed) for the predicate, source/platform/projection/ReaderDefaults.jl, test/platform/projection/ProjectionTemplateTest.jl:56 (it imports bound with no need); omnet-julia source/legacy/ned/presentation/NedToSyntax.jl, ini/presentation/IniToSyntax.jl and testfile/presentation/TestToSyntax.jl. inet-julia has no user.
 
 **L17-9** (Medium): Does the pure printer pair stay in the projection contract?
 
@@ -1855,7 +1855,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Keep the pair, record the exception to PAR-FOUR-FUNCTIONS in architecture-invariants.md, and give it a caller (a batch export) and a test.
 - **Recommended (mine): A.** R2: nothing calls print_pure or print_child_pure, and only its own methods call print_document_pure. Its docstring now says that an export prints through print_document. Each concrete projection falls back to a snapshot of print_document, so the pure path is slower than the reactive one and gives no gain. omnet-julia and inet-julia have no user.
 - Under POLICY-4 R2. Settles: L17-9.
-- Cost: S. ProjectionInterface.jl, ProjectionDefaults.jl, ProjectionModule.jl (not sealed), three files in source/projection/higherorder/, ProjectionAlgebraModule.jl, test/suite/arguments.jl, projection-system.md, naming-rule-renames.md. Users: projectured-julia only (14 source lines, 1 test line).
+- Cost: S. ProjectionInterface.jl, ProjectionDefaults.jl, ProjectionModule.jl (not sealed), three files in source/platform/projection/higherorder/, ProjectionAlgebraModule.jl, test/suite/arguments.jl, projection-system.md, naming-rule-renames.md. Users: projectured-julia only (14 source lines, 1 test line).
 
 **L18-11** (Medium): Which exported calls replace the private reaches into the tool layer from Notebook.jl, Evaluator.jl, SearchScaleMeasurement.jl and the tests?
 
@@ -1864,7 +1864,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Move the callers into the tool layer. This is not possible for omnet-julia and the examples.
 - **Recommended (mine): B.** R3(2) and R4. The reaches read a representation (the scratch module, the index, the store) or write a process-wide global, so A makes the representation public. A test that writes _MEANING_FOLDER[] moves the vector files of each editor in the process; a field of the model keeps the value with the model. B also removes a fault: declare_api! sets set.scratch = nothing, so it drops the names that install_notebook! bound, with no error.
 - Under POLICY-4 R3(2), R4. Depends on: L18-13.
-- Cost: M. CodeExecution.jl, Tool.jl, ToolSet.jl, MeaningSearch.jl, Documentation.jl (not sealed); source/conversation/Evaluator.jl; example/kernel/SearchScaleMeasurement.jl, SearchCorpus.jl, SearchRanking.jl; three umbrella tests (SearchCorpusTest.jl, SearchScaleTest.jl, McpTest.jl); omnet-julia source/presentation/page/Notebook.jl, tool/search/measure_rankings.jl and three test files (CampaignAssistantTest.jl, MeaningSearchMeasurementTest.jl, SearchScaleTest.jl). inet-julia has no user.
+- Cost: M. CodeExecution.jl, Tool.jl, ToolSet.jl, MeaningSearch.jl, Documentation.jl (not sealed); source/platform/conversation/Evaluator.jl; example/kernel/SearchScaleMeasurement.jl, SearchCorpus.jl, SearchRanking.jl; three umbrella tests (SearchCorpusTest.jl, SearchScaleTest.jl, McpTest.jl); omnet-julia source/presentation/page/Notebook.jl, tool/search/measure_rankings.jl and three test files (CampaignAssistantTest.jl, MeaningSearchMeasurementTest.jl, SearchScaleTest.jl). inet-julia has no user.
 
 **L03-8** (Low): Does the cell layer get a public read of the stored value, so that persistence stops reading private fields?
 
@@ -1873,7 +1873,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep the field read, and state the field `value` of the three kinds as part of the contract, in their docstrings and in the rule.
 - **Recommended (mine): B.** R3(1): exported names already meet the need. For a cell with no computation, Base.peek(c::ReactiveCell) returns c.value and records no dependency (ReactiveCell.jl:309), and peek of a MutableCell or an ImmutableCell is c[]. is_computed_cell answers what omnet-julia reads from c.computation (CheckpointSerializer.jl:94). So B needs no new name and no sealed file.
 - Under POLICY-4 R3(1). Settles: L03-6.
-- Cost: S. source/serialization/BinarySerialization.jl, PAR-PERSISTENCE-BY-VALUE in architecture-invariants.md, omnet-julia source/simulator/checkpoint/CheckpointSerializer.jl (the methods of the three kinds). No sealed file. inet-julia has no user.
+- Cost: S. source/platform/serialization/BinarySerialization.jl, PAR-PERSISTENCE-BY-VALUE in architecture-invariants.md, omnet-julia source/simulator/checkpoint/CheckpointSerializer.jl (the methods of the three kinds). No sealed file. inet-julia has no user.
 
 **L06-7** (Low): Do the eight exported event names with no user (has_shift_, has_alt_, has_meta_modifier_key, KeyUpPattern, MouseDownPattern, MouseUpPattern, MouseEnterPattern, MouseLeavePattern) stay as part of a complete family with tests, or go?
 
@@ -1900,7 +1900,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep the argument, and state in the docstrings that a backend may ignore it.
 - **Recommended (mine): A.** configure_devices! already gives a backend the devices of its editor once, before the first print, and no method of the five backends reads the argument of a frame. A backend serves one editor (PAR-PER-EDITOR-STATE), so a change of the devices of an editor is a new configure_devices! call, not an argument of each frame. A contract parameter that no implementer reads misleads each new backend.
 - Under POLICY-4 R5.
-- Cost: M. BackendInterface.jl and BackendDefaults.jl (sealed: permission needed for each); the five backends (Sdl.jl, Web.jl, Console.jl, VideoBackend.jl, example/kernel/BackendHeadless.jl); three calls in the editor layer; example/fault/FaultExamples.jl and example/projectured/Gallery.jl; 10 test files with about 107 lines; omnet-julia test/ide/IdeWindowWrapTest.jl (two methods); the recorded precompile statement of write_to_devices in each of the three repositories; the text of sdl-per-editor-state.md, feature-video-screenplays.md and cairo-glfw-backend.md.
+- Cost: M. BackendInterface.jl and BackendDefaults.jl (sealed: permission needed for each); the five backends (Sdl.jl, Web.jl, Console.jl, VideoBackend.jl, example/kernel/BackendHeadless.jl); three calls in the editor layer; example/platform/fault/FaultExamples.jl and example/projectured/Gallery.jl; 10 test files with about 107 lines; omnet-julia test/ide/IdeWindowWrapTest.jl (two methods); the recorded precompile statement of write_to_devices in each of the three repositories; the text of sdl-per-editor-state.md, feature-video-screenplays.md and cairo-glfw-backend.md.
 
 **L10-21** (Low): Does the private seam `_declared_value_types`, which every `@document` expansion extends, become a public exported name, or stay private with a stated exception?
 
@@ -1918,7 +1918,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **D:** No new name: each painter holds the document, so it calls the exported get_stored_selection(document) and is_live_selection(document) in its computation. Delete the copies.
 - **Recommended (mine): D.** R3(1). Both painters hold the document: TextToGraphics.jl:296 reads getfield(styled, :selection), and PaneToWidget.jl:151 reads getfield(source, :selection). The exported readers take the document and read the same cell with [], so each computation keeps the same dependency. B gives get_stored_selection two meanings on a SelectionDocument, which is itself a document.
 - Under POLICY-4 R3(1). Settles: L12-6.
-- Cost: S. source/text/TextToGraphics.jl and source/pane/PaneToWidget.jl. No sealed file: the private readers in SelectionDefaults.jl are fragments of their own module and stay. No user in omnet-julia or inet-julia.
+- Cost: S. source/platform/text/TextToGraphics.jl and source/platform/pane/PaneToWidget.jl. No sealed file: the private readers in SelectionDefaults.jl are fragments of their own module and stay. No user in omnet-julia or inet-julia.
 
 **L13-13** (Low): May reroot_reference, an exported name with users in four packages, move from the operation layer to the reference layer?
 
@@ -1962,7 +1962,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep the seam with no argument, and state in its docstring that one package registers it for each process.
 - **Recommended (mine): A.** R5 and PAR-FRAMEWORKS-SINK: a generic with no argument holds one method, so a second registrant overwrites the first, and Julia refuses a method overwrite during precompilation. Each call site already holds the output node or its type (`out` in ProjectionTemplate.jl:487-743, `w.outtype` at :876), so the key needs no new data.
 - Under POLICY-4 R5.
-- Cost: S. ProjectionInterface.jl and ProjectionTemplate.jl (not sealed: 6 calls of the make_ form and 1 of the get_ form), source/collection/CellVector.jl. Users: projectured-julia only; omnet-julia and inet-julia register no method.
+- Cost: S. ProjectionInterface.jl and ProjectionTemplate.jl (not sealed: 6 calls of the make_ form and 1 of the get_ form), source/platform/collection/CellVector.jl. Users: projectured-julia only; omnet-julia and inet-julia register no method.
 
 **L18-19** (Low): Does read_function_documentation drop type_name, or use it to pick the docstring of one method?
 
@@ -2200,7 +2200,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
   - loop wait: one pause of 0.01 s, then a poll past the limit
 - **Recommended (mine): A.** Each wait gets one bound, at the side that waits, with a value that fits what it waits for. One clock on a round can not tell a slow answer from a dead server: a local model on a processor streams one answer for many minutes, and the on_event wrapper of B runs only when an event arrives, so it can not end a silent stream.
 - Settles: L20-1, L19-2, L18-9, L22-3, L22-7, L22-12, L20-2.
-- Cost: Agent layer, editor layer (Inbox.jl, EditorLoop.jl, FaultBarriers.jl), tool layer (Tool.jl, ToolSet.jl, DefaultTools.jl, CodeExecution.jl), LlmInterface.jl docstring, source/anthropic, source/ollama, source/mcp, source/assistant; no sealed file except T6 (three backend files); omnet-julia only through the cancel keyword of L20-2. L in total, in S and M steps.
+- Cost: Agent layer, editor layer (Inbox.jl, EditorLoop.jl, FaultBarriers.jl), tool layer (Tool.jl, ToolSet.jl, DefaultTools.jl, CodeExecution.jl), LlmInterface.jl docstring, source/adapter/anthropic, source/adapter/ollama, source/adapter/mcp, source/platform/assistant; no sealed file except T6 (three backend files); omnet-julia only through the cancel keyword of L20-2. L in total, in S and M steps.
 
 **L20-1** (High, main question): What time limit bounds a round, a tool call that waits for the editor, and a stream read, and what does the turn do when a limit runs out?
 
@@ -2226,7 +2226,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** The editor keeps the first safe-mode projection that it made and uses it again at each entry; the store already refuses a second attach of one target.
 - **Recommended (mine): A.** Each attach then has its detach, so a log that nothing shows stops getting writes, and the safe mode owns what it attached. B needs a table keyed by store in ProjecturedFault, a process-wide table of per-editor state (PAR-PER-EDITOR-STATE), and C keeps a hidden log that each drain writes for the life of the editor.
 - Depends on: L01-12.
-- Cost: FaultStore.jl and FaultModule.jl (sealed); editor/SafeMode.jl; source/fault/FaultSafeMode.jl; FaultStoreTest.jl, FaultSafeModeTest.jl. S.
+- Cost: FaultStore.jl and FaultModule.jl (sealed); editor/SafeMode.jl; source/platform/fault/FaultSafeMode.jl; FaultStoreTest.jl, FaultSafeModeTest.jl. S.
 
 **L18-4** (High): Does the code tool keep the process-wide swap of stdout and stderr, with a lock and a stated exception to PAR-PER-EDITOR-STATE, or capture each call with a new mechanism that does not touch the process streams?
 
@@ -2244,7 +2244,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **D:** A watchdog interrupts model code after a hard bound.
 - **Recommended (mine): B.** The searches read no editor state, yet today the query vector (an HTTP request of up to 300 s) and the wait for a vector build (up to 30 s) run on the editor task, and A still keeps the request there. C lets a direct write of model code land inside a frame that yields, although PAR-STORE-THEN-DRAIN gives the write of a shown document to the editor task only, and D can not stop a loop that does not yield.
 - Depends on: L18-10.
-- Cost: tool/Tool.jl (a keyword of Tool), ToolSet.jl, DefaultTools.jl, CodeExecution.jl, agent/AgentLoop.jl, source/mcp/Mcp.jl. M.
+- Cost: tool/Tool.jl (a keyword of Tool), ToolSet.jl, DefaultTools.jl, CodeExecution.jl, agent/AgentLoop.jl, source/adapter/mcp/McpServer.jl. M.
 - **Risk:** A keyword on `Tool` that says where it runs is close to the opt-in flag that you avoid.
 
 **L19-2** (Medium): What read timeout do the adapters set on a stream, and does the `stream_turn` contract promise one?
@@ -2254,7 +2254,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** No read bound in the adapters; the loop bounds the round.
 - **Recommended (mine): B.** In HTTP.jl 1.11 readtimeout bounds the whole request body (timeoutlayer wraps streamlayer, and try_with_timeout bounds the whole call), so A cuts a long answer that streams. Today neither stream request sets a bound, so a silent server holds the turn for ever.
 - Settles: L20-1.
-- Cost: LlmInterface.jl (docstring), source/anthropic/Anthropic.jl, source/ollama/Ollama.jl, one test in each adapter test package (a stub server that sends one chunk and then nothing). S-M.
+- Cost: LlmInterface.jl (docstring), source/adapter/anthropic/AnthropicLlm.jl, source/adapter/ollama/OllamaLlm.jl, one test in each adapter test package (a stub server that sends one chunk and then nothing). S-M.
 
 **L20-2** (Medium): Can a person cancel an agent turn, and through what: a `cancel` keyword of `run_turn!` with a stop operation in the assistant?
 
@@ -2263,14 +2263,14 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** No cancel; the bounds of POLICY-6-time end a turn that hangs.
 - **Recommended (mine): B.** With A alone a cancel waits for the next event, and a silent server sends none, so the person waits for the watchdog, up to 300 s for Ollama. A closed connection also stops a local server that generates for nobody.
 - Depends on: L19-2.
-- Cost: AgentLoop.jl, LlmInterface.jl (the keyword in the contract), agent.md, source/anthropic, source/ollama, example/kernel/LlmFake.jl and LlmScripted.jl, source/assistant/AssistantTurn.jl (a CancelAgentTurnOperation and its key); omnet-julia tool/assistant/study_rehearsal.jl (WatchedLlm passes the keyword on). M.
+- Cost: AgentLoop.jl, LlmInterface.jl (the keyword in the contract), agent.md, source/adapter/anthropic, source/adapter/ollama, example/kernel/LlmFake.jl and LlmScripted.jl, source/platform/assistant/AssistantTurn.jl (a CancelAgentTurnOperation and its key); omnet-julia tool/assistant/study_rehearsal.jl (WatchedLlm passes the keyword on). M.
 
 **L22-12** (Medium): Does `get_frame_clock_time` move into the backend layer, as PAR-BACKEND-SEAM asks, with permission for three sealed files?
 
 - **A:** Move the seam: declare it in BackendInterface.jl, its default in BackendDefaults.jl, export it from BackendModule.jl, and change the import of ProjecturedVideo.
 - **B:** Keep it in the editor layer, and state in PAR-BACKEND-SEAM that a seam that only the loop calls may live there.
 - **Recommended (mine): A.** PAR-BACKEND-SEAM declares every backend generic in BackendInterface.jl, and the one method of this seam is the method of a backend (VideoBackend).
-- Cost: BackendInterface.jl, BackendDefaults.jl, BackendModule.jl (sealed, permission for each); editor/EditorLoop.jl, EditorModule.jl; ProjecturedVideo.jl, source/video/VideoBackend.jl. S.
+- Cost: BackendInterface.jl, BackendDefaults.jl, BackendModule.jl (sealed, permission for each); editor/EditorLoop.jl, EditorModule.jl; ProjecturedVideo.jl, source/backend/video/VideoBackend.jl. S.
 
 **L22-3** (Medium): What does a post or a call do after the loop of its editor ended, and may an editor run its loop a second time?
 
@@ -2340,7 +2340,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** No for the two logs: they print outside the barriers on purpose, and the exception is stated.
 - **C:** A, and PrinterContext() with no parent is for the root of a print only (the editor and tests), with a guard.
 - **Recommended (mine): A.** The clock and the fault store are per editor, and a new context drops them: an animation in the log stays at time 0, and a barrier in the log finds no store, so a fault in one log row breaks the whole print. With A the barrier keeps the fault in the log panel, and the count buckets of the store bound a fault that the log itself causes.
-- Cost: source/fault/FaultLogOverlay.jl, source/gesturelog/GestureLogOverlay.jl, projection/PrinterContext.jl (docstring); the fault and gesture log tests. S.
+- Cost: source/platform/fault/FaultLogOverlay.jl, source/platform/gesturelog/GestureLogOverlay.jl, projection/PrinterContext.jl (docstring); the fault and gesture log tests. S.
 
 **L18-13** (Medium): Do the guide roots belong to one ToolSet, or stay a process-wide registry?
 
@@ -2357,7 +2357,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** The wake holds the editor through a weak reference, so a store that keeps the wake does not keep the editor.
 - **Recommended (mine): A.** With L21-1 each store belongs to one editor, but a caller can still give one store to two feeds; then the contract says that a feed and its store serve one editor, a second attach throws in place of an overwrite, and the end detaches. A pair of names keeps the vocabulary symmetric, as detach_fault_target! of L01-2 does, and C hides the fault that two editors share one store.
 - Depends on: L21-1, L01-2.
-- Cost: feed/FeedInterface.jl, FeedDefaults.jl, FeedModule.jl (export), editor/EditorLoop.jl (_end_editor_loop!), source/log/MessageLogFeed.jl, MessageLogStore.jl. S.
+- Cost: feed/FeedInterface.jl, FeedDefaults.jl, FeedModule.jl (export), editor/EditorLoop.jl (_end_editor_loop!), source/platform/log/MessageLogFeed.jl, MessageLogStore.jl. S.
 
 **L22-15** (Medium): Does each editor log under its own logger, or with an identity in the shared log?
 
@@ -2366,7 +2366,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** As now.
 - **Recommended (mine): A.** In Julia 1.13 the logger state is a scoped value and a new task inherits the scope, so the lines of the turns and the tool calls that an editor starts reach the log of that editor. B still sends the lines of every editor to every log store, and a filter is one more thing that a view can forget.
 - Depends on: L21-1.
-- Cost: editor/Editor.jl (a logger keyword and an identity), EditorLoop.jl (with_logger around the loop), source/log/MessageLogCapture.jl (a logger for one store), source/shell/WindowChrome.jl. M.
+- Cost: editor/Editor.jl (a logger keyword and an identity), EditorLoop.jl (with_logger around the loop), source/platform/log/MessageLogCapture.jl (a logger for one store), source/platform/shell/WindowChrome.jl. M.
 
 **L18-24** (Low): Does a ToolSet keep what a turn builds until the declaration or the model changes, and does the code tool log the length of an answer in place of its text?
 
@@ -2487,7 +2487,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** The text stays in the state of the text layer or the IoMap, and the field changes only when the text parses.
 - **D:** An unparsed number turns into the insertion document of its domain, and back into a number when its text parses.
 - **Recommended (mine): B.** PAR-WIDE-FIELD-TYPES and PAR-DOMAIN-OWNS-EDITS put the intermediate state in the document, so the undo, the selection and every view see it (C keeps it outside), and a typed value keeps 'a number, or a number that the person still types' apart from a String, which a consumer of A can not tell from a string value without a parse. D swaps the node type at each key that crosses from parse to no parse, which changes the type checkpoints of the selection path, and the kernel splice knows no domain insertion.
-- Cost: kernel/operation/Operations.jl and OperationModule.jl; source/primitive/PrimitiveDocument.jl; the number fields and printers of each domain (JsonNumber and others); source/projection/ReaderDefaults.jl:61; source/clipboard/Clipboard.jl:309; the writers. No sealed file. M-L.
+- Cost: kernel/operation/Operations.jl and OperationModule.jl; source/platform/primitive/PrimitiveDocument.jl; the number fields and printers of each domain (JsonNumber and others); source/platform/projection/ReaderDefaults.jl:61; source/platform/clipboard/Clipboard.jl:309; the writers. No sealed file. M-L.
 
 **L01-1** (High, main question): How must a fault that the full store drops reach a person?
 
@@ -2506,7 +2506,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep the walk from the root, and add only a depth bound.
 - **Recommended (mine): B.** The reader that makes the operation sits at the hole (_julia_ins_tab) and knows no path of the file, so A needs a reader higher up that fills the path in as the operation passes, a new channel through the projection chain; B needs none. Yes, child_reference_steps and its CellVector method can go, because search_references walks the one step layout that evaluate_reference walks and already has maxdepth (PAR-SEARCH-DONT-WALK).
 - Settles: L13-11.
-- Cost: kernel/operation/Operations.jl, OperationInterface.jl, OperationModule.jl (an export goes); source/julia/JuliaInsertionToSyntax.jl; source/collection/CellVector.jl, CollectionModule.jl; TraversalTest.jl. No user outside projectured-julia. S-M.
+- Cost: kernel/operation/Operations.jl, OperationInterface.jl, OperationModule.jl (an export goes); source/domain/julia/JuliaInsertionToSyntax.jl; source/platform/collection/CellVector.jl, CollectionModule.jl; TraversalTest.jl. No user outside projectured-julia. S-M.
 
 **L13-5** (Medium): How does a wrapper that holds a CompoundOperation give its way back, and how does a wrapper with state of its own keep its own inversion?
 
@@ -2514,7 +2514,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Add the same method with no test of the method table: it evaluates the held operation through evaluate_invertible_operation! and rewraps its inverse with rewrap_operation; a wrapper with state of its own adds its own evaluate_invertible_operation! method beside its make_inverse_operation.
 - **C:** A wrapper constructor pushes itself into a CompoundOperation, so each member inverts alone.
 - **Recommended (mine): B.** The rule is then one sentence of dispatch: a wrapper whose evaluation is the evaluation of what it holds (ReplaceViewStateOperation) inverts through it, and a wrapper with state of its own (RecordUndoOperation) says its own way back with a method. A test of the method table breaks when a method moves, and C can not serve RecordUndoOperation, which records one step for the whole compound.
-- Cost: kernel/operation/Inversion.jl, OperationInterface.jl (docstring of make_inverse_operation); source/undo/UndoDocument.jl (one method); test_inversion. S.
+- Cost: kernel/operation/Inversion.jl, OperationInterface.jl (docstring of make_inverse_operation); source/platform/undo/UndoDocument.jl (one method); test_inversion. S.
 
 **L13-7** (Medium): What does a splice into a plain Vector field do: refuse, or write the field cell after the change?
 
@@ -2540,7 +2540,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** The owners write the sentence into the ToolSet or the declaration, and the tool layer prints it (the report).
 - **C:** A seam of the tool layer that the owner of a verb extends beside the verb (is_editing_verb(::typeof(insert_elements!)) = true); the tool layer names each declared verb for which it holds, with the signature line of its docstring.
 - **Recommended (mine): C.** With C the text follows the function: a rename changes the printed name, and a new argument changes the signature line that the author of the verb updates with the code, while B keeps a second copy of the text that julia-rename.jl does not change, because it skips strings. C is the seam pattern of PAR-FRAMEWORKS-SINK, and its method table is the same for every editor.
-- Cost: tool/DefaultTools.jl and a seam declaration in the tool layer; editor/DocumentEdits.jl (two methods); source/pane/PaneProgram.jl (one method); DeclaredApiTest.jl. S-M.
+- Cost: tool/DefaultTools.jl and a seam declaration in the tool layer; editor/DocumentEdits.jl (two methods); source/platform/pane/PaneProgram.jl (one method); DeclaredApiTest.jl. S-M.
 
 **L20-4** (Medium): Who registers the default tools of a `ToolSet`, and how do their descriptions follow `declare_api!`?
 
@@ -2549,7 +2549,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** Keep the registration at each turn, and state that a default name is reserved.
 - **Recommended (mine): A.** The set registers once and the input that changes a description refreshes it, so a caller's tool of a default name stays and no turn repeats the work (L18-24). The write then happens where the set changes, not on the task of a turn, which AgentInterface.jl forbids for a write from another task.
 - Depends on: L18-13. Settles: L18-24.
-- Cost: tool/ToolSet.jl, Tool.jl, DefaultTools.jl, agent/AgentLoop.jl, source/mcp/Mcp.jl, source/assistant/AssistantTurn.jl; the omnet-julia tests that call register_default_tools! still work. M.
+- Cost: tool/ToolSet.jl, Tool.jl, DefaultTools.jl, agent/AgentLoop.jl, source/adapter/mcp/McpServer.jl, source/platform/assistant/AssistantTurn.jl; the omnet-julia tests that call register_default_tools! still work. M.
 
 **L01-12** (Low): Does the seam `make_safe_mode_projection` move from the fault layer to the editor layer?
 
@@ -2557,7 +2557,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **B:** Keep it in the fault layer, and state the reason in fault.md.
 - **Recommended (mine): A.** The fault layer never calls the seam, and the seam names a projection (layer 17) and the safe mode (layer 22); PAR-NO-CONSUMER-DOCS puts a seam in the lowest layer where every concept that it names exists, which is the editor layer.
 - Depends on: L01-2.
-- Cost: FaultInterface.jl, FaultDefaults.jl, FaultModule.jl (sealed); editor/SafeMode.jl, EditorModule.jl; source/fault/FaultSafeMode.jl; FaultDefaultsTest.jl; fault.md. No user in omnet-julia or inet-julia. S.
+- Cost: FaultInterface.jl, FaultDefaults.jl, FaultModule.jl (sealed); editor/SafeMode.jl, EditorModule.jl; source/platform/fault/FaultSafeMode.jl; FaultDefaultsTest.jl; fault.md. No user in omnet-julia or inet-julia. S.
 
 **L15-10** (Low): Does Intent.gesture keep a second meaning for a collected intent, or does the pattern get a field of its own?
 
@@ -2705,7 +2705,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **D:** Delete play_live!. A person watches a scripted session as a video (VideoBackend).
 - **Recommended (mine): B.** One loop gives one behaviour: the loop of play_live! lacks nine steps of run_editor! (L23-1), and each later step of run_editor! would need one more copy. VideoBackend proves the shape: a backend whose read_from_devices answers due entries plays a timeline through the real loop and the gesture recognizer. The source names only kernel API and has two consumers (ProjecturedVideo and ProjecturedSdlExample), so under POLICY-11 it stays in the kernel.
 - Depends on: POLICY-11. Settles: L23-1, L23-4.
-- Cost: M. Playback.jl and PlaybackModule.jl (not sealed): a backend wrapper that forwards about ten backend generics, and a scheduler; example/sdl/LiveExamples.jl; PlaybackTest.jl; editor.md. VideoBackend.jl can then use the scheduler. C also needs the sealed ProjecturedKernel.jl (the layer list), SEALING.md (L17-16), KernelSuite.jl, system-anatomy.md and package-rules.md.
+- Cost: M. Playback.jl and PlaybackModule.jl (not sealed): a backend wrapper that forwards about ten backend generics, and a scheduler; example/backend/sdl/LiveExamples.jl; PlaybackTest.jl; editor.md. VideoBackend.jl can then use the scheduler. C also needs the sealed ProjecturedKernel.jl (the layer list), SEALING.md (L17-16), KernelSuite.jl, system-anatomy.md and package-rules.md.
 - The items that wait, by option:
   - A: apply: L23-2, L23-3, L23-6, L23-7, L23-8, L23-9, L23-10, L23-11.
   - B: change: L23-6, L23-7, L23-8, L23-10, L23-11; moot: L23-2, L23-3, L23-9.
@@ -2717,7 +2717,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **A:** play_live! drains the feeds in its own loop. This reverses the sentence of plan/done/the-editor-waits-for-events.md §3.2 that a scripted timeline must not apply foreign posts.
 - **B:** L23-5 replaces the loop with a source of input around run_editor!, which drains the feeds. The recorded sentence then applies only to a harness that calls run_frame! directly, and it stays true.
 - **C:** Keep the loop without feeds, and make post_operation! refuse a post (in place of a block after 64 posts) while a playback runs. The text says that a menu command does nothing under playback.
-- **Recommended (mine): B.** play_live! is a live session: a person watches, clicks and types in the window, and the window stays live after the last entry. A menu command posts its pane edit through the inbox, so a loop with no drain loses it, and the poster blocks after 64 posts. VideoBackend already plays a timeline through run_editor!, which drains the feeds, and its recordings carry every tool (example/sdl/ApplicationVideo.jl:4-9).
+- **Recommended (mine): B.** play_live! is a live session: a person watches, clicks and types in the window, and the window stays live after the last entry. A menu command posts its pane edit through the inbox, so a loop with no drain loses it, and the poster blocks after 64 posts. VideoBackend already plays a timeline through run_editor!, which drains the feeds, and its recordings carry every tool (example/backend/sdl/ApplicationVideo.jl:4-9).
 - Depends on: L23-5.
 - Cost: No cost of its own: the work is part of L23-5.
 
@@ -2737,7 +2737,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **C:** No type: one docstring states the NamedTuple format, and each interpreter reads its keys. await stays a predicate of the document for record_video and of the editor for VideoBackend.
 - **Recommended (mine): A.** PAR-FRAMEWORKS-SINK asks for one format below its users, and the lowest interpreter decides the home. await must be a predicate of the editor, because the timelines of today read the editor: ApplicationVideoTest.jl:95 reads editor.clock, and tool/video/check_assistant_undo.jl and record_assistant_window.jl wait for a turn of the assistant. A predicate of the document is one line in that form: editor -> p(editor.document).
 - Depends on: L23-5, POLICY-11.
-- Cost: M. The playback layer (the types); source/video/Video.jl and VideoBackend.jl read the types; example/sdl/LiveExamples.jl (timed_event, timed_operation and timed_await make the types, and timed_await takes a predicate of the editor); ApplicationVideo.jl; the tool/video scripts; the video tests. record_video has no Editor: it passes the stand-in that it has, or it runs on VideoBackend and run_editor! as record_application_video does.
+- Cost: M. The playback layer (the types); source/backend/video/VideoRecording.jl and VideoBackend.jl read the types; example/backend/sdl/LiveExamples.jl (timed_event, timed_operation and timed_await make the types, and timed_await takes a predicate of the editor); ApplicationVideo.jl; the tool/video scripts; the video tests. record_video has no Editor: it passes the stand-in that it has, or it runs on VideoBackend and run_editor! as record_application_video does.
 
 ### Group 12
 

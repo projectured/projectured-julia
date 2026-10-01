@@ -44,7 +44,7 @@ bound a drain, and it gives a drain no way to apply an operation without a block
   `:evaluate` barrier (`editor/Feeds.jl:79-85`, `editor/EditorLoop.jl:179-181`).
 - Public surface: 4 exported names, all used outside the kernel.
 - State: none in the layer.
-- Tests: `test/kernel/feed/FeedTest.jl` (16 assertions, all on the editor side), and
+- Tests: `test/kernel/editor/FeedsTest.jl` (16 assertions, all on the editor side), and
   `test/kernel/editor/WaitTest.jl` (deadlines), `test/projectured/editor/MessageLogFeedTest.jl`,
   `FrameStatisticsFeedTest.jl`, `test/shell/TooltipProbeTest.jl`,
   `test/projectured/projection/ToolViewTest.jl` for the concrete feeds.
@@ -65,10 +65,10 @@ bound a drain, and it gives a drain no way to apply an operation without a block
 - Category: State · Severity: High · Confidence: Confirmed (the effect with two editors is not run)
 - Checked by the lead on 2026-09-27: Read the code: `MessageLogFeed()` and `FrameStatisticsFeed()` default to `get_session_message_log_store()` and `get_session_frame_statistics()`, which answer process constants.
 - Where: [FeedInterface.jl:40-48](../../../source/kernel/feed/FeedInterface.jl#L40) ⬜;
-  [MessageLogStore.jl:77-81](../../../source/log/MessageLogStore.jl#L77),
-  [MessageLogFeed.jl:20-22](../../../source/log/MessageLogFeed.jl#L20),
-  [FrameStatisticsFeed.jl:33-36](../../../source/statistics/FrameStatisticsFeed.jl#L33),
-  [WindowChrome.jl:216](../../../source/shell/WindowChrome.jl#L216)
+  [MessageLogStore.jl:77-81](../../../source/platform/log/MessageLogStore.jl#L77),
+  [MessageLogFeed.jl:20-22](../../../source/platform/log/MessageLogFeed.jl#L20),
+  [FrameStatisticsFeed.jl:33-36](../../../source/platform/statistics/FrameStatisticsFeed.jl#L33),
+  [WindowChrome.jl:216](../../../source/platform/shell/WindowChrome.jl#L216)
 - Evidence: `attach_wake_callback!` says "Hand `feed` the wake function of its editor, once, at
   registration". It says nothing of a feed or a store that two editors register. `MessageLogFeed()`
   defaults to the process-global `_SESSION_MESSAGE_LOG_STORE` and `_SESSION_MESSAGE_LOG`, and the store
@@ -191,7 +191,7 @@ bound a drain, and it gives a drain no way to apply an operation without a block
 ### L21-7 The feed test tests the editor, and the edges of the contract have no test
 
 - Category: Tests · Severity: Low · Confidence: Confirmed
-- Where: `test/kernel/feed/FeedTest.jl`
+- Where: `test/kernel/editor/FeedsTest.jl`
 - Evidence: the file defines `test_editor_feeds` and tests `InboxFeed`, `drain_feeds!`,
   `post_operation!`, `wake_editor!` and the fault wake, which are all in `editor/Feeds.jl`,
   `editor/Inbox.jl` and `editor/Editor.jl`. Its name names no file of the layer (naming-rules.md:

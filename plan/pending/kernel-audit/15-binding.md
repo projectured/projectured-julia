@@ -116,8 +116,8 @@ correct.
   [GestureBindingInterface.jl:1](../../../source/kernel/binding/GestureBindingInterface.jl#L1) ⬜
 - Evidence: `get_document_gesture_bindings_own` and `get_instance_gesture_bindings`
   start as default methods with bodies in `GestureBinding.jl`. Other packages add
-  methods to both: `source/domain/DomainModule.jl:26` imports the first,
-  `source/widget/WidgetModule.jl:40` imports the second, and every `@gestures`
+  methods to both: `source/platform/domain/DomainModule.jl:26` imports the first,
+  `source/platform/widget/WidgetModule.jl:40` imports the second, and every `@gestures`
   extends the first. The interface file declares only `read_gesture`. Commit
   4c067207 ("every open seam lives in its layer's contract files") moved
   `read_gesture` and left these two.
@@ -185,8 +185,8 @@ correct.
   says, `KeyDown(:x; ctrl) => "Cut" => cut(doc, sel)`, compiles, and throws
   `UndefVarError: sel` at the first Ctrl+X. The tables that exist read the selection
   themselves: `sel = doc.selection`
-  ([SyntaxDocument.jl:609](../../../source/syntax/SyntaxDocument.jl#L609)) and
-  `get_selection(doc)` ([JsonDocument.jl:137](../../../source/json/JsonDocument.jl#L137)).
+  ([SyntaxDocument.jl:609](../../../source/platform/syntax/SyntaxDocument.jl#L609)) and
+  `get_selection(doc)` ([JsonDocument.jl:137](../../../source/domain/json/JsonDocument.jl#L137)).
 - Rule: PAR-HONEST-DOCS; PAR-MODULE-DOCSTRING (keep docstrings accurate).
 - Fix: the owner chooses one. Bind `sel = doc.selection` in the operation closure,
   or correct the three texts and the guide to say "`doc` and the pattern variables".
@@ -214,8 +214,8 @@ correct.
     module does not use.
   - Line 606 and engineer-tour.md:191 call `move_to_field(doc, :key, :value)`. The
     function takes keywords, `move_to_field(doc; from, to)`
-    ([Domain.jl:497](../../../source/domain/Domain.jl#L497)), as
-    [JsonDocument.jl:139](../../../source/json/JsonDocument.jl#L139) calls it.
+    ([Domain.jl:497](../../../source/platform/domain/Domain.jl#L497)), as
+    [JsonDocument.jl:139](../../../source/domain/json/JsonDocument.jl#L139) calls it.
   - Line 625 puts the command palette "in the domain package". It is in the
     `gesturehelp` package of the substrate.
 - Rule: PAR-UPDATE-THE-GUIDE; PAR-HONEST-DOCS.

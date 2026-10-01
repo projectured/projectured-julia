@@ -48,7 +48,7 @@ caller (L17-9), private names cross into another package and another repository
   `print_child_pure`. `print_document_pure` has methods in three combinators and no
   caller (L17-9). `with_clock` has only the kernel editor and one test.
   `print_template_rule`, `read_template_intent` and `make_template_builder` have one
-  user, `source/rst/RstToSyntax.jl`. Six names that the module does not export are
+  user, `source/domain/rst/RstToSyntax.jl`. Six names that the module does not export are
   imported from outside: `AtomicWiring` and the five marker words (L17-8).
 - State: no module-level mutable state (two `const`s: a tuple and a type union). Per
   print, `PrinterContext.properties` is one `Dict` shared by reference down the tree;
@@ -63,7 +63,7 @@ caller (L17-9), private names cross into another package and another repository
   `binding/GestureBinding.jl` (L17-21).
 - Tests: `test/kernel/projection/PrinterContextTest.jl` (1 file, 6 testsets, 22
   assertions; it passes in the baseline log). The engine has two small testsets in
-  `test/substrate/projection/ProjectionTemplateTest.jl` and indirect coverage through
+  `test/platform/projection/ProjectionTemplateTest.jl` and indirect coverage through
   the domain suites; `test/projectured/editor/RecursionContractTest.jl` checks the
   contract from outside. What no test covers is in L17-12.
 
@@ -93,7 +93,7 @@ caller (L17-9), private names cross into another package and another repository
   - The engine takes the conditional path (the "F2" reactive child list) only for "a
     field holding a bare `Function`" (`_find_conditional`, lines 299-309).
   - `SyntaxConcatenation(computation::Function) = SyntaxConcatenation(Cell(Computation(computation)), nothing)`
-    (`source/syntax/SyntaxDocument.jl:300`). The field holds a computed cell, so
+    (`source/platform/syntax/SyntaxDocument.jl:300`). The field holds a computed cell, so
     `getfield(out, fname)[]` answers the marker `Vector`, not a `Function`.
   - `_dispatch_print` then goes to `_fixed_print` (lines 248-252). `_fixed_print` reads
     the vector once (line 539) and writes
@@ -102,10 +102,10 @@ caller (L17-9), private names cross into another package and another repository
     (`source/kernel/cell/ReactiveCell.jl:208-211`). The thunk never runs again, and the
     `FixedNodeWiring` keeps the slots of the first print.
   - 33 template rules write their child list this way: 5 in
-    `source/julia/JuliaToSyntax.jl` (`JuliaRange` step, `JuliaReturn` value, `JuliaTry`
-    catch and finally), 12 in `source/math/MathToSyntax.jl`, 5 in
-    `source/fsm/FsmToSyntax.jl`, 1 in `source/fsm/FsmDiagramToGraph.jl`, 6 in
-    `source/process/ProcessToSyntax.jl`, 4 in `source/process/ProcessDiagramToGraph.jl`.
+    `source/domain/julia/JuliaToSyntax.jl` (`JuliaRange` step, `JuliaReturn` value, `JuliaTry`
+    catch and finally), 12 in `source/domain/math/MathToSyntax.jl`, 5 in
+    `source/domain/fsm/FsmToSyntax.jl`, 1 in `source/domain/fsm/FsmDiagramToGraph.jl`, 6 in
+    `source/domain/process/ProcessToSyntax.jl`, 4 in `source/domain/process/ProcessDiagramToGraph.jl`.
     `_conditional_print`, `ConditionalNodeWiring` and their mappers have no reachable
     caller.
   - Commit 758585a2 (2026-08-03) made `SyntaxConcatenation(::Function)` a computed cell.
@@ -118,7 +118,7 @@ caller (L17-9), private names cross into another package and another repository
     document to `.default` of a printed `FsmVariable` whose `default` is `nothing`; the
     `= …` part never shows. `ProcessDecision(nothing)` keeps `<condition>` after a
     condition arrives.
-  - No test sees it: `test/process/projection/ProcessToSyntaxTest.jl` "reactive" calls
+  - No test sees it: `test/domain/process/projection/ProcessToSyntaxTest.jl` "reactive" calls
     `print_document` again for each check, so each check is a fresh print.
   - The rule of `_find_conditional` also conflicts with PAR-NO-NESTED-CELL: a
     `Function` is an ordinary field value, so an output node with a callback field
@@ -147,7 +147,7 @@ caller (L17-9), private names cross into another package and another repository
   `.children[2]`, and a boundary `.children{0}` maps back to `.elements[1]`. A caret
   between two elements also focuses the next element in `_focused_child`, so a key
   there goes into that element. Hand-written mappers keep the range
-  (`source/filesystem/FileSystemToSyntax.jl:141`, `source/markdown/MarkdownToSyntax.jl:401`).
+  (`source/platform/filesystem/FileSystemToSyntax.jl:141`, `source/domain/markdown/MarkdownToSyntax.jl:401`).
 - Rule: PAR-ONE-BASED-INDEXING ("distinguish elements from boundaries").
 - Fix: accept only an element step at each collection step, and answer `nothing` for a
   boundary or a range (or map the range as a range).
@@ -166,7 +166,7 @@ caller (L17-9), private names cross into another package and another repository
   `change.operation` as an operation of its own output domain. For a routed change the
   operation is relative to a place below the input. `find_rooted_operation`
   (`source/kernel/editor/DocumentEdits.jl:20-33`) tries the deepest place first, and the
-  chain (`source/projection/higherorder/Chaining.jl:167-187`) hands the change with a
+  chain (`source/platform/projection/higherorder/Chaining.jl:167-187`) hands the change with a
   non-empty route to the template of the stage root. Most template mappers answer
   `nothing`, and the loop moves one place up. When the input field and the output field
   have the same name, as `children` in XML, `_slots_backward` accepts the place-relative
@@ -248,13 +248,13 @@ caller (L17-9), private names cross into another package and another repository
   `read_intent(::Projection, iomap, operation)`, which answers `read_gesture(input, evt)`
   and skips the reader of the child. Today it works only because every higher-order
   projection keeps a 3-argument shim that calls its 4-argument reader with
-  `recursion = nothing` (for example `source/projection/higherorder/Nesting.jl:64`).
-  `ScreenToScreen` has no shim (`source/screen/ScreenToScreen.jl:166`, `:197`).
+  `recursion = nothing` (for example `source/platform/projection/higherorder/Nesting.jl:64`).
+  `ScreenToScreen` has no shim (`source/platform/screen/ScreenToScreen.jl:166`, `:197`).
 - Rule: PAR-RECURSION-CONTRACT (the child gets its own version of the same function);
   PAR-PREFER-REFERENCE-RETARGET.
 - Fix: descend with the 4-argument reader, `read_intent(child.projection, recursion, Intent(evt), child)`,
   and let the 4-argument template entry pass `recursion` down.
-- Reach: `ProjectionTemplate.jl`; `source/projection/ReaderDefaults.jl` (its
+- Reach: `ProjectionTemplate.jl`; `source/platform/projection/ReaderDefaults.jl` (its
   disambiguations exist for the 3-argument path).
 
 ### L17-8 Private names of the layer cross module and repository boundaries
@@ -265,11 +265,11 @@ caller (L17-9), private names cross into another package and another repository
   [ProjectionTemplate.jl:93](../../../source/kernel/projection/ProjectionTemplate.jl#L93) ⬜
 - Evidence: the export list names none of `AtomicWiring`, `bound`, `project`,
   `collection`, `tokens`, `sections`. Importers:
-  `source/projection/ReaderDefaults.jl:19` (`AtomicWiring`); omnet-julia
+  `source/platform/projection/ReaderDefaults.jl:19` (`AtomicWiring`); omnet-julia
   `source/legacy/ned/presentation/NedToSyntax.jl:29` (`bound, collection, sections, tokens`),
   `source/legacy/ini/presentation/IniToSyntax.jl:14`,
   `source/legacy/testfile/presentation/TestToSyntax.jl:21`; and
-  `test/substrate/projection/ProjectionTemplateTest.jl:56` (`bound`).
+  `test/platform/projection/ProjectionTemplateTest.jl:56` (`bound`).
   `make_template_builder` rewrites the marker words only inside a builder body, so a
   helper outside it (`NedToSyntax.jl:97`, `_name_token(…) = SyntaxLeaf(bound(…))`) must
   name the private function. The layering guard checks kernel imports only, so nothing
@@ -279,7 +279,7 @@ caller (L17-9), private names cross into another package and another repository
 - Fix: replace the `AtomicWiring` test in `ReaderDefaults.jl` with an exported predicate
   (for example `is_opaque_template_leaf(iomap)`). For the marker words the owner
   decides: export them again, or let a helper take its markers from the builder.
-- Reach: `ProjectionModule.jl`, `ProjectionTemplate.jl`, `source/projection/ReaderDefaults.jl`,
+- Reach: `ProjectionModule.jl`, `ProjectionTemplate.jl`, `source/platform/projection/ReaderDefaults.jl`,
   three omnet-julia files, one test, `naming-rules.md`.
 
 ### L17-9 The pure printer pair is a second recursive interface with no caller
@@ -292,7 +292,7 @@ caller (L17-9), private names cross into another package and another repository
   defaults add `print_pure` and a snapshot fallback. Nothing calls `print_pure` or
   `print_child_pure`. `print_document_pure` is called only from its own methods in
   `Chaining.jl:86-89`, `Recursive.jl:37-38` and `TypeDispatching.jl:48-51`.
-  `source/pdf/Pdf.jl` and `write_image` do not use it, although the docstring (lines
+  `source/backend/pdf/PdfWriter.jl` and `write_image` do not use it, although the docstring (lines
   141-142) says "for batch/export use (write_image / write_pdf / text serialization)".
   `print_child_pure` is a fifth recursive function; the universal fallback is why no
   composition breaks.
@@ -300,7 +300,7 @@ caller (L17-9), private names cross into another package and another repository
 - Fix: delete the pure pair and `print_pure` until a caller exists, or record the
   exception in `architecture-invariants.md`, give it a caller and a test.
 - Reach: `ProjectionInterface.jl`, `ProjectionDefaults.jl`, `ProjectionModule.jl`, the
-  three combinators in `source/projection/higherorder/`, `test/suite/arguments.jl:37`,
+  three combinators in `source/platform/projection/higherorder/`, `test/suite/arguments.jl:37`,
   `projection-system.md`.
 
 ### L17-10 The projection gesture seam is outside the contract file
@@ -332,26 +332,26 @@ caller (L17-9), private names cross into another package and another repository
   `properties` Dict and a new `Clock` that nothing advances. The editor puts its clock,
   `:root`, `:fault_store` and `:fault_policy` into the root context
   (`source/kernel/editor/FaultBarriers.jl:181`). Four printers print a subtree with a
-  new context: `source/fault/FaultLogOverlay.jl:119`,
-  `source/gesturelog/GestureLogOverlay.jl:106`,
-  `source/inspector/SelectionInspectorToText.jl:42`,
-  `source/inspector/ReferenceInspectorToText.jl:62`. The two overlays want only free
+  new context: `source/platform/fault/FaultLogOverlay.jl:119`,
+  `source/platform/gesturelog/GestureLogOverlay.jl:106`,
+  `source/platform/inspector/SelectionInspectorToText.jl:42`,
+  `source/platform/inspector/ReferenceInspectorToText.jl:62`. The two overlays want only free
   ranges ("must not inherit the layout space"). In those subtrees an animation stays
-  at time 0, and a barrier (`source/fault/Catching.jl:115-116`) finds no store and uses
+  at time 0, and a barrier (`source/platform/fault/Catching.jl:115-116`) finds no store and uses
   the strict policy, so it records nothing and catches nothing.
 - Rule: PAR-PER-EDITOR-STATE (the clock and the fault store that the context carries
   are per editor).
 - Fix: derive from the given context, `with_exact_size(ctx; width = nothing, height = nothing)`;
   state in the `PrinterContext` docstring that a printer derives each context from the
   one it receives.
-- Reach: `PrinterContext.jl` (docstring); `source/fault/`, `source/gesturelog/`,
-  `source/inspector/`.
+- Reach: `PrinterContext.jl` (docstring); `source/platform/fault/`, `source/platform/gesturelog/`,
+  `source/platform/inspector/`.
 
 ### L17-12 The kernel tests cover only the ranges of PrinterContext
 
 - Category: Tests · Severity: Medium · Confidence: Confirmed.
 - Where: `test/kernel/projection/PrinterContextTest.jl`,
-  `test/substrate/projection/ProjectionTemplateTest.jl`
+  `test/platform/projection/ProjectionTemplateTest.jl`
 - Evidence: the kernel suite has one file with 22 assertions on exact, bounded and free
   ranges. No kernel test covers `with_inner_size`, `with_size_range`, `get_property`,
   the typed `make_child_context(ctx, doc, steps…)`, the default mappers, the branches
@@ -364,7 +364,7 @@ caller (L17-9), private names cross into another package and another repository
 - Fix: kernel tests with fixture documents for the defaults, the bridge, the step and
   the macro; substrate tests for each wiring kind with an edit through the same IoMap
   (the kernel has no children container, so the engine tests need the substrate).
-- Reach: `test/kernel/projection/`, `test/substrate/projection/`.
+- Reach: `test/kernel/projection/`, `test/platform/projection/`.
 
 ### L17-13 An introduced caret has two typed forms
 
@@ -421,7 +421,7 @@ caller (L17-9), private names cross into another package and another repository
   two declarations to `ProjectionInterface.jl:364-379`. The fragment table
   (`ProjectionModule.jl:63`) and the banner `(methods in ChildrenContainer.jl)`
   (`ProjectionInterface.jl:362`) still point to it; the methods are in
-  `source/collection/CellVector.jl:320-322`.
+  `source/platform/collection/CellVector.jl:320-322`.
 - Rule: PAR-PROJECTION-PLACEMENT ("no orphan shapes the structure").
 - Fix: delete the file and its `include`; correct the table and the banner.
 - Reach: `ChildrenContainer.jl`, `ProjectionModule.jl`, `ProjectionInterface.jl`.
@@ -440,7 +440,7 @@ caller (L17-9), private names cross into another package and another repository
 - Rule: PAR-FRAMEWORKS-SINK (the seam must let each user register its own methods).
 - Fix: key both methods on the output node, `make_children_container(out, cells)` and
   `get_children_container_type(out)`.
-- Reach: `ProjectionInterface.jl`, `ProjectionTemplate.jl`, `source/collection/CellVector.jl`.
+- Reach: `ProjectionInterface.jl`, `ProjectionTemplate.jl`, `source/platform/collection/CellVector.jl`.
 
 ### L17-18 The default reader special-cases two operations that a seam covers
 

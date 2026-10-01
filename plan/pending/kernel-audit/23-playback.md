@@ -22,7 +22,7 @@ The only caller is an example package, no test covers the layer, and its place i
 
 - Imports: `EditorModule`, `ProjectionModule`, `IntentModule`, `EventModule`, `OperationModule`, `ReferenceModule`, `BackendModule`, `DeviceModule`. The layer extends no generic.
 - Imported by: nothing in the kernel. The umbrella re-exports `play_live!`.
-- Public surface: 1 exported name, `play_live!`. Its one caller is `play_live_example` in `ProjecturedSdlExample` (`example/sdl/LiveExamples.jl:136`). `tool/video/record_json_from_nothing.jl` uses the same timeline but records it with `record_live_example`. omnet-julia and inet-julia do not use `play_live!`.
+- Public surface: 1 exported name, `play_live!`. Its one caller is `play_live_example` in `ProjecturedSdlExample` (`example/backend/sdl/LiveExamples.jl:136`). `tool/video/record_json_from_nothing.jl` uses the same timeline but records it with `record_live_example`. omnet-julia and inet-julia do not use `play_live!`.
 - Module/Interface/Defaults: one module file and one fragment; no interface, no default, no seam.
 - State: none at module level. The schedule (`fire_at`, `next`, `start`) is local to one call.
 - Tests: none. `test/kernel/KernelSuite.jl:21` names the layer for the layering guard, but no `test/kernel/playback/` folder exists and no test calls `play_live!`.
@@ -63,7 +63,7 @@ The only caller is an example package, no test covers the layer, and its place i
 
 - Category: Correctness · Severity: Medium · Confidence: Confirmed by the code; the length of a first print was not measured here.
 - Where: [Playback.jl:76-83](../../../source/kernel/playback/Playback.jl#L76) ⬜, [Playback.jl:90-93](../../../source/kernel/playback/Playback.jl#L90) ⬜
-- Evidence: `start = time()` runs before the first `read!` and the first `print!`. Entry `i` fires when `time() - start >= fire_at[i]`, one entry in each turn. A first print compiles code, and package-rules.md measures 0.66 s to 8.36 s for a first paint. Each entry whose time passes during that print fires in the next turns, 10 ms apart, so its `hold` is lost and the viewer sees a burst. The same happens after a slow frame, and after a turn that real input took, because the schedule is absolute. `VideoBackend` starts its clock only when the first frame is on disk (`source/video/VideoBackend.jl:170-178`), and it holds the next entry until the last one is painted.
+- Evidence: `start = time()` runs before the first `read!` and the first `print!`. Entry `i` fires when `time() - start >= fire_at[i]`, one entry in each turn. A first print compiles code, and package-rules.md measures 0.66 s to 8.36 s for a first paint. Each entry whose time passes during that print fires in the next turns, 10 ms apart, so its `hold` is lost and the viewer sees a burst. The same happens after a slow frame, and after a turn that real input took, because the schedule is absolute. `VideoBackend` starts its clock only when the first frame is on disk (`source/backend/video/VideoBackend.jl:170-178`), and it holds the next entry until the last one is painted.
 - Rule: bug; the docstring says that `hold` is "the dwell after the entry" and that "each resulting state is visible".
 - Fix: take `start` after the first `print!`, and move the rest of the schedule by the delay of an entry that fired late.
 - Reach: `Playback.jl`.
@@ -72,7 +72,7 @@ The only caller is an example package, no test covers the layer, and its place i
 
 - Category: Correctness · Severity: Medium · Confidence: Confirmed
 - Where: [Playback.jl:37-43](../../../source/kernel/playback/Playback.jl#L37) ⬜, [Playback.jl:18-21](../../../source/kernel/playback/Playback.jl#L18) ⬜
-- Evidence: `_timeline_operation` wraps `entry.event` in `WindowInput(window_id, entry.event)` and calls `read_intent` directly. Live input and `VideoBackend` go through `read!`, whose `pop_gesture!` gives each event to the recognizer, so a `MouseDown` and `MouseUp` pair gets its `MousePress`. A timeline that scripts a click as a press and a release, the form that `VideoBackend` needs, clicks nothing here when the reader binds `MousePress`. The event also keeps the time at which the timeline was built (`KeyDown(…; time = time())`, `example/sdl/LiveExamples.jl:159`), where `VideoBackend` stamps the time it fires (`source/video/VideoBackend.jl:223`). The docstring says that the entry takes "the same path live input takes".
+- Evidence: `_timeline_operation` wraps `entry.event` in `WindowInput(window_id, entry.event)` and calls `read_intent` directly. Live input and `VideoBackend` go through `read!`, whose `pop_gesture!` gives each event to the recognizer, so a `MouseDown` and `MouseUp` pair gets its `MousePress`. A timeline that scripts a click as a press and a release, the form that `VideoBackend` needs, clicks nothing here when the reader binds `MousePress`. The event also keeps the time at which the timeline was built (`KeyDown(…; time = time())`, `example/backend/sdl/LiveExamples.jl:159`), where `VideoBackend` stamps the time it fires (`source/backend/video/VideoBackend.jl:223`). The docstring says that the entry takes "the same path live input takes".
 - Rule: bug.
 - Fix: give each event entry to the recognizer, stamped with the time it fires (through `pop_gesture!`, or through a source of input as in L23-5).
 - Reach: `Playback.jl`.
@@ -83,26 +83,26 @@ The only caller is an example package, no test covers the layer, and its place i
 - Where: [Playback.jl:28-44](../../../source/kernel/playback/Playback.jl#L28) ⬜, [Playback.jl:76-81](../../../source/kernel/playback/Playback.jl#L76) ⬜
 - Evidence:
 
-  | entry | `record_video` (`source/video/Video.jl`) | `VideoBackend` (`source/video/VideoBackend.jl`) | `play_live!` (kernel) |
+  | entry | `record_video` (`source/backend/video/VideoRecording.jl`) | `VideoBackend` (`source/backend/video/VideoBackend.jl`) | `play_live!` (kernel) |
   | --- | --- | --- | --- |
   | `event` | `read_intent` directly (Video.jl:155) | through `read!` and the recognizer | `read_intent` directly |
   | `operation` | evaluated; a thunk gets the document | refused: "carries neither `event` nor `await`" (VideoBackend.jl:138) | evaluated; rerooted by a fixed prefix |
   | `await` | waits for `pred(document)`, at most `hold` (Video.jl:135-138) | waits for `entry.await(editor)`, at most `hold`, then moves the rest of the schedule (VideoBackend.jl:239-245) | waits the whole `hold`; the predicate is not called |
   | clock | video frames | the wall or the video clock, from the first frame on disk | the wall clock, from before the first print |
 
-  No type or function declares the entry format; each interpreter reads the keys of a `NamedTuple`. The `timed_await` docstring (`example/sdl/LiveExamples.jl:61-73`) documents the difference, but no plan decides it.
+  No type or function declares the entry format; each interpreter reads the keys of a `NamedTuple`. The `timed_await` docstring (`example/backend/sdl/LiveExamples.jl:61-73`) documents the difference, but no plan decides it.
 - Rule: redundancy; PAR-FRAMEWORKS-SINK (a framework sinks once, below its users).
 - Fix: declare the entry kinds once, in the lowest package that the three interpreters reach (the kernel, beside the `record_video` seam), with one meaning of `await` (a predicate of the editor).
-- Reach: `Playback.jl`, `source/video/Video.jl`, `source/video/VideoBackend.jl`, `example/sdl/LiveExamples.jl` (the `timed_*` builders), `example/sdl/ApplicationVideo.jl`, `tool/video/`.
+- Reach: `Playback.jl`, `source/backend/video/VideoRecording.jl`, `source/backend/video/VideoBackend.jl`, `example/backend/sdl/LiveExamples.jl` (the `timed_*` builders), `example/backend/sdl/ApplicationVideo.jl`, `tool/video/`.
 
 ### L23-5 Playback needs no second loop, and its place in the kernel is open
 
 - Category: Shape · Severity: Medium · Confidence: Confirmed for the facts. The recommendation is the auditor's, and the owner decides.
 - Where: [PlaybackModule.jl:1-24](../../../source/kernel/playback/PlaybackModule.jl#L1) ⬜, [Playback.jl:71-127](../../../source/kernel/playback/Playback.jl#L71) ⬜
-- Evidence: the one caller is `play_live_example` in `ProjecturedSdlExample`. The kernel test of architecture-rules.md asks "does the editor loop itself need it?", and the loop does not need it. PAR-LOWEST-PACKAGE puts code in the lowest package that it hard-references, which is the kernel. The two rules point to different homes. `VideoBackend` shows a timeline that plays through `run_editor!` as a source of input: its `read_from_devices` answers the next due event, and the real loop does the rest. `example/sdl/ApplicationVideo.jl:4-9` makes that choice against "`play_live!`'s side channel".
+- Evidence: the one caller is `play_live_example` in `ProjecturedSdlExample`. The kernel test of architecture-rules.md asks "does the editor loop itself need it?", and the loop does not need it. PAR-LOWEST-PACKAGE puts code in the lowest package that it hard-references, which is the kernel. The two rules point to different homes. `VideoBackend` shows a timeline that plays through `run_editor!` as a source of input: its `read_from_devices` answers the next due event, and the real loop does the rest. `example/backend/sdl/ApplicationVideo.jl:4-9` makes that choice against "`play_live!`'s side channel".
 - Rule: architecture-rules.md, "kernel — machinery and interfaces only … Membership tests"; PAR-LOWEST-PACKAGE.
 - Fix (recommendation): replace the loop with a source of input that wraps the live backend and answers due events from `read_from_devices`. Post each due operation with `post_operation!`, and run `run_editor!`. Then decide the home of what is left, a small reader of the timeline, together with L23-4. This change also removes L23-1, L23-2 and L23-3.
-- Reach: `Playback.jl`, `PlaybackModule.jl`, `example/sdl/LiveExamples.jl`. If the layer moves: `package/ProjecturedKernel/src/ProjecturedKernel.jl`, `SEALING.md`, `test/kernel/KernelSuite.jl`, `system-anatomy.md`, `division-terminology.md`.
+- Reach: `Playback.jl`, `PlaybackModule.jl`, `example/backend/sdl/LiveExamples.jl`. If the layer moves: `package/ProjecturedKernel/src/ProjecturedKernel.jl`, `SEALING.md`, `test/kernel/KernelSuite.jl`, `system-anatomy.md`, `division-terminology.md`.
 
 ### L23-6 No test covers the layer
 
@@ -144,10 +144,10 @@ The only caller is an example package, no test covers the layer, and its place i
 
 - Category: Naming · Severity: Low · Confidence: Confirmed
 - Where: [Playback.jl:4](../../../source/kernel/playback/Playback.jl#L4) ⬜, [Playback.jl:28](../../../source/kernel/playback/Playback.jl#L28) ⬜, [Playback.jl:72](../../../source/kernel/playback/Playback.jl#L72) ⬜
-- Evidence: `_path_to_steps` and `_timeline_operation` do not start with a verb. Each call site writes the keyword `op_prefix` (`example/sdl/LiveExamples.jl:138`), and naming-rules.md says "`operation` not `op`". The locals `op`, `acc`, `cur` and `n` use short forms.
+- Evidence: `_path_to_steps` and `_timeline_operation` do not start with a verb. Each call site writes the keyword `op_prefix` (`example/backend/sdl/LiveExamples.jl:138`), and naming-rules.md says "`operation` not `op`". The locals `op`, `acc`, `cur` and `n` use short forms.
 - Rule: naming-rules.md "Functions" and "Words" (argument names are outside the law, but full words are encouraged).
 - Fix: `_make_timeline_operation` and `operation_prefix`; remove `_path_to_steps` (L23-9).
-- Reach: `Playback.jl`, `example/sdl/LiveExamples.jl`, `editor.md`.
+- Reach: `Playback.jl`, `example/backend/sdl/LiveExamples.jl`, `editor.md`.
 
 ### L23-11 The texts of the layer name consumers, and three documents describe an older playback
 

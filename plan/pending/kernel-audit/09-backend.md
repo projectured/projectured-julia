@@ -68,7 +68,7 @@ text measure.
   tests the example double and, through it, two defaults (`get_display_size`,
   `configure_devices!`). `test/kernel/editor/WaitTest.jl` tests the default
   wait and wake. The backends have their own suites:
-  `test/sdl/backend/` (9 files), `test/projectured/backend/WebTest.jl` and
+  `test/backend/sdl/backend/` (9 files), `test/projectured/backend/WebTest.jl` and
   `ConsoleBackendTest.jl`, and the video suite. The gaps are in L09-18.
 
 ## Summary
@@ -88,10 +88,10 @@ text measure.
 
 - Category: Correctness · Severity: High · Confidence: Confirmed
 - Checked by the lead on 2026-09-27: Read the code: `sdl_keysym_to_symbol` has no `:z`, and the undo binding is `KeyDownPattern(:z; modifiers = [:ctrl])` at `UndoBufferToAny.jl:94`.
-- Where: [Sdl.jl:324](../../../source/sdl/Sdl.jl#L324),
-  [Sdl.jl:390](../../../source/sdl/Sdl.jl#L390),
-  [Web.jl:139](../../../source/web/Web.jl#L139),
-  [Console.jl:341](../../../source/console/Console.jl#L341)
+- Where: [Sdl.jl:324](../../../source/backend/sdl/SdlBackend.jl#L324),
+  [Sdl.jl:390](../../../source/backend/sdl/SdlBackend.jl#L390),
+  [Web.jl:139](../../../source/backend/web/WebBackend.jl#L139),
+  [Console.jl:341](../../../source/backend/console/ConsoleBackend.jl#L341)
 - Evidence: a `KeyDown` of a letter has the name of the letter only when the
   backend lists it; any other letter becomes `:char`.
   - SDL (`sdl_keysym_to_symbol`) names `t w c x v n p s o`, and ends in
@@ -102,13 +102,13 @@ text measure.
     Backspace, Tab and Return, and drops the rest
     (`return nothing # other C0 control byte`).
   - Rules of gesture tables bind other letters: Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z (undo and
-    redo, `source/undo/UndoBufferToAny.jl:94-99`, installed by the application),
-    Ctrl+Shift+D (duplicate a tab, `source/pane/PaneGestures.jl:155`), Ctrl+F
-    (`source/widget/ProjectionConfiguring.jl:138`). None of them can fire on
+    redo, `source/platform/undo/UndoBufferToAny.jl:94-99`, installed by the application),
+    Ctrl+Shift+D (duplicate a tab, `source/platform/pane/PaneGestures.jl:155`), Ctrl+F
+    (`source/platform/widget/ProjectionConfiguring.jl:138`). None of them can fire on
     SDL. On the web, Ctrl+S, Ctrl+O (`DocumentFile.jl:219-220`), Ctrl+Shift+P
     (the command palette), Ctrl+T, Ctrl+W and Ctrl+\\ fail too.
   - The tests of these rules make `KeyDown(:z, …)` directly
-    (`test/undo/UndoBufferTest.jl`), so they pass while the key fails.
+    (`test/platform/undo/UndoBufferTest.jl`), so they pass while the key fails.
   PAR-BACKEND-SEAM says "A single source of truth governs any cross-backend
   mapping (e.g. `convert_web_key_to_symbol` mirrors `sdl_keysym_to_symbol`)",
   and devices-and-backends.md:250-252 says the same. The two tables do not
@@ -125,11 +125,11 @@ text measure.
 
 - Category: Correctness · Severity: High · Confidence: Confirmed
 - Checked by the lead on 2026-09-27: Read the code: `_sdl_button_sym` at `Sdl.jl:451` gives `:right` for every button other than 1 and 2.
-- Where: [Sdl.jl:451](../../../source/sdl/Sdl.jl#L451), `asset/web/client.js:585`
+- Where: [Sdl.jl:451](../../../source/backend/sdl/SdlBackend.jl#L451), `asset/web/client.js:585`
 - Evidence: SDL: `_sdl_button_sym(b::UInt8) = b == 0x01 ? :left : b == 0x02 ?
   :middle : :right`, so the buttons X1 and X2 (4 and 5, the "back" and "forward"
   buttons) become `:right`, and a right click opens the context menu
-  (`source/widget/ContextMenuProbe.jl:60`). The web page: `buttonSym(b) {
+  (`source/platform/widget/ContextMenuProbe.jl:60`). The web page: `buttonSym(b) {
   return b === 1 ? "middle" : b === 2 ? "right" : "left"; }`, so the buttons 3
   and 4 become `"left"`, which selects and activates. The event layer names three
   buttons (`MouseDown`: "`button` is `:left`, `:middle` or `:right`") and says
@@ -143,9 +143,9 @@ text measure.
 
 - Category: Architecture · Severity: Medium · Confidence: Confirmed
 - Where: [BackendInterface.jl:117](../../../source/kernel/backend/BackendInterface.jl#L117) 🔒,
-  [Sdl.jl:2905](../../../source/sdl/Sdl.jl#L2905),
-  [Sdl.jl:4000](../../../source/sdl/Sdl.jl#L4000),
-  `source/video/Video.jl:69`
+  [Sdl.jl:2905](../../../source/backend/sdl/SdlBackend.jl#L2905),
+  [Sdl.jl:4000](../../../source/backend/sdl/SdlBackend.jl#L4000),
+  `source/backend/video/VideoRecording.jl:69`
 - Evidence: SDL adds `write_image(::GraphicsCanvas, ::AbstractString; …)`,
   `write_image(document, projection, ::AbstractString; …)`,
   `render_canvas(::GraphicsCanvas)` and `decode_image(::AbstractString)`.
@@ -172,7 +172,7 @@ text measure.
 ### L09-4 The video backend shows one window of the `ScreenDocument`
 
 - Category: Architecture · Severity: Medium · Confidence: Confirmed
-- Where: `source/video/VideoBackend.jl:325`, `source/video/VideoBackend.jl:381`
+- Where: `source/backend/video/VideoBackend.jl:325`, `source/backend/video/VideoBackend.jl:381`
 - Evidence: `write_to_devices(::VideoBackend, …)` renders the window that
   `_select_window` finds: the one named `backend.window_id`, or else the first.
   Every other window of the list (a tooltip, a popup, a dialog of its own) never
@@ -187,8 +187,8 @@ text measure.
 ### L09-5 The console backend turns Home into the chord of a reader
 
 - Category: Architecture · Severity: Medium · Confidence: Confirmed
-- Where: [Console.jl:440](../../../source/console/Console.jl#L440),
-  [Console.jl:455](../../../source/console/Console.jl#L455)
+- Where: [Console.jl:440](../../../source/backend/console/ConsoleBackend.jl#L440),
+  [Console.jl:455](../../../source/backend/console/ConsoleBackend.jl#L455)
 - Evidence: "The terminal Home key maps to the reader's 'select the root node'
   chord (Ctrl+Alt+Home)": `_make_key_event` answers
   `KeyDown(:home, ModifierKeys(ctrl=true, alt=true); …)` for a plain Home. The
@@ -224,8 +224,8 @@ text measure.
 
 - Category: Architecture · Severity: Medium · Confidence: Confirmed
 - Where: `package/ProjecturedVideo/src/ProjecturedVideo.jl:49`,
-  `package/ProjecturedSdl/src/ProjecturedSdl.jl:39`, [Sdl.jl:4](../../../source/sdl/Sdl.jl#L4),
-  `source/video/Video.jl:1`
+  `package/ProjecturedSDL/src/ProjecturedSDL.jl:39`, [Sdl.jl:4](../../../source/backend/sdl/SdlBackend.jl#L4),
+  `source/backend/video/VideoRecording.jl:1`
 - Evidence: ProjecturedVideo imports `_emit_frames!`,
   `_make_offscreen_paint_state`, `_render_canvas_offscreen_partial!` and
   `_emit_frame_with_overlay!`, which ProjecturedSdl does not export.
@@ -251,7 +251,7 @@ text measure.
 
 - Category: Shape · Severity: Medium · Confidence: Confirmed
 - Where: [BackendInterface.jl:134](../../../source/kernel/backend/BackendInterface.jl#L134) 🔒,
-  [Sdl.jl:2779](../../../source/sdl/Sdl.jl#L2779)
+  [Sdl.jl:2779](../../../source/backend/sdl/SdlBackend.jl#L2779)
 - Evidence: `render_sdl_canvas(canvas)` is
   `GraphicsImage(Int32(0), Int32(0), Int32(0), Int32(0), nothing)`, and its
   docstring says that it renders to an offscreen texture. `BackendModule.render_canvas`
@@ -271,8 +271,8 @@ text measure.
 ### L09-9 The SDL backend reads the modifiers and the held buttons at the time of the poll, not of the event
 
 - Category: Correctness · Severity: Low · Confidence: Suspected (the code is confirmed; the effect needs a queue that holds a release)
-- Where: [Sdl.jl:3505](../../../source/sdl/Sdl.jl#L3505),
-  [Sdl.jl:3521](../../../source/sdl/Sdl.jl#L3521)
+- Where: [Sdl.jl:3505](../../../source/backend/sdl/SdlBackend.jl#L3505),
+  [Sdl.jl:3521](../../../source/backend/sdl/SdlBackend.jl#L3521)
 - Evidence: a `MouseDown`, `MouseUp`, `MouseScroll` and `KeyPress` take
   `_current_modifiers()` (the keyboard state after the pump), and a `MouseMove`
   takes `SDL_GetMouseState` (the buttons now), not `evt.motion.state`. When the
@@ -307,7 +307,7 @@ text measure.
 
 - Category: Shape · Severity: Low · Confidence: Confirmed
 - Where: [BackendInterface.jl:29](../../../source/kernel/backend/BackendInterface.jl#L29) 🔒,
-  [Sdl.jl:3682](../../../source/sdl/Sdl.jl#L3682)
+  [Sdl.jl:3682](../../../source/backend/sdl/SdlBackend.jl#L3682)
 - Evidence: `read_from_devices`, `write_to_devices` and `wait_for_input` take
   `devices`, and no method of the five backends reads it (the SDL docstring:
   "The reconciler does not read `devices`"). SDL types it `devices::Vector{Device}`,
@@ -323,10 +323,10 @@ text measure.
 ### L09-12 The backends answer the same situation in different ways
 
 - Category: Shape · Severity: Low · Confidence: Confirmed
-- Where: [Sdl.jl:3682](../../../source/sdl/Sdl.jl#L3682),
-  [Web.jl:550](../../../source/web/Web.jl#L550),
-  [Console.jl:291](../../../source/console/Console.jl#L291),
-  [Web.jl:832](../../../source/web/Web.jl#L832)
+- Where: [Sdl.jl:3682](../../../source/backend/sdl/SdlBackend.jl#L3682),
+  [Web.jl:550](../../../source/backend/web/WebBackend.jl#L550),
+  [Console.jl:291](../../../source/backend/console/ConsoleBackend.jl#L291),
+  [Web.jl:832](../../../source/backend/web/WebBackend.jl#L832)
 - Evidence:
   - An output of the wrong type: the web and console backends raise an error
     that names the fix; SDL and video have no method, so a `MethodError` comes
@@ -470,7 +470,7 @@ text measure.
 ### L09-18 No test holds the backends to one vocabulary, and the kernel defaults are half tested
 
 - Category: Tests · Severity: Low · Confidence: Confirmed
-- Where: `test/kernel/backend/HeadlessBackendTest.jl`, `test/sdl/backend/KeysymTest.jl:27`
+- Where: `test/kernel/backend/HeadlessBackendTest.jl`, `test/backend/sdl/backend/KeysymTest.jl:27`
 - Evidence:
   - No test sends one input through two backends and compares the events: the
     key names (L09-1), the buttons (L09-2), the sign of the wheel (L06-2).

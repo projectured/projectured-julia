@@ -31,9 +31,9 @@ suite runs 2 assertions for the layer (L20-7).
 - Imports: `FaultModule` (`record_fault!`, `get_fault_store`), `ToolModule` (`register_default_tools!`,
   `list_tools`, `call_tool`, `ToolSet`), `LlmModule`. Imported by: `EditorModule` (answers
   `run_on_editor_task!` for an `Editor` in `editor/Inbox.jl:106`, drives the server in
-  `editor/EditorLoop.jl:150-152, 194`), `AssistantModule` (`source/assistant/AssistantTurn.jl:707-715`),
-  `ProjecturedMcp` (`source/mcp/Mcp.jl:64-66, 155`), `ProjecturedKernelExample` and
-  `example/fault/FaultExamples.jl:204-206`, and omnet-julia `OmnetIdeTest` (reads `AgentToolResult`).
+  `editor/EditorLoop.jl:150-152, 194`), `AssistantModule` (`source/platform/assistant/AssistantTurn.jl:707-715`),
+  `ProjecturedMcp` (`source/adapter/mcp/McpServer.jl:64-66, 155`), `ProjecturedKernelExample` and
+  `example/platform/fault/FaultExamples.jl:204-206`, and omnet-julia `OmnetIdeTest` (reads `AgentToolResult`).
   inet-julia does not use the layer.
 - Public surface: 8 exported names. `AgentEvent` has no user outside the layer; the other 7 have users
   outside the kernel.
@@ -42,10 +42,10 @@ suite runs 2 assertions for the layer (L20-7).
   the turn's task (L20-4).
 - Bounds: `max_rounds` (default 8) bounds the rounds of a turn. Nothing bounds the time of a round, the
   wait for the editor's answer, or the turn (L20-1).
-- Tests: `test/kernel/agent/AgentSeamTest.jl` (2 assertions, `make_agent_server` only; the baseline log
+- Tests: `test/kernel/agent/AgentDefaultsTest.jl` (2 assertions, `make_agent_server` only; the baseline log
   shows "Agent seam | 2"). `run_on_editor_task!` is tested in `test/kernel/editor/InboxTest.jl:86-130`.
   `run_turn!` runs only through the assistant in the umbrella (`AssistantMvpTest.jl:423-460, 811-855`)
-  and in `example/fault/FaultExamples.jl:196-207`.
+  and in `example/platform/fault/FaultExamples.jl:196-207`.
 
 ## Summary
 
@@ -85,8 +85,8 @@ suite runs 2 assertions for the layer (L20-7).
   time limit per round that the `on_event` wrapper checks, and end the round with `:error` when the
   limit passes; give `run_on_editor_task!` a `timeout` keyword that throws after it.
 - Reach: `AgentLoop.jl`, `Agent.jl`, `AgentInterface.jl`, `AgentDefaults.jl`, `editor/Inbox.jl`
-  (layer 22), `source/anthropic/Anthropic.jl`, `source/ollama/Ollama.jl`,
-  `source/assistant/AssistantTurn.jl`. None is sealed.
+  (layer 22), `source/adapter/anthropic/AnthropicLlm.jl`, `source/adapter/ollama/OllamaLlm.jl`,
+  `source/platform/assistant/AssistantTurn.jl`. None is sealed.
 
 ### L20-2 A turn can not be cancelled
 
@@ -102,7 +102,7 @@ suite runs 2 assertions for the layer (L20-7).
 - Fix: add a `cancel` keyword to `run_turn!` (a `Threads.Atomic{Bool}` or a function that answers a
   `Bool`). Check it before each round, in the `on_event` wrapper, and before each tool call, and
   return `:cancelled`.
-- Reach: `AgentLoop.jl`, the `run_turn!` docstring and agent.md, `source/assistant/AssistantTurn.jl`
+- Reach: `AgentLoop.jl`, the `run_turn!` docstring and agent.md, `source/platform/assistant/AssistantTurn.jl`
   (a stop operation that sets the flag).
 
 ### L20-3 A tool that throws `error(...)` is reported with `is_error = false`
@@ -124,7 +124,7 @@ suite runs 2 assertions for the layer (L20-7).
 - Rule: bug.
 - Fix: the `catch` arm answers `(text, true)`; only the normal arm uses the heuristic. The assistant
   then reads the flag that the loop gives and drops its copy.
-- Reach: `AgentLoop.jl`; `source/assistant/AssistantTurn.jl:218`.
+- Reach: `AgentLoop.jl`; `source/platform/assistant/AssistantTurn.jl:218`.
 
 ### L20-4 Every turn registers the default tools again and replaces a caller's tool of the same name
 
@@ -162,7 +162,7 @@ suite runs 2 assertions for the layer (L20-7).
 
 - Category: Architecture · Severity: Medium · Confidence: Confirmed
 - Where: [AgentLoop.jl:78-90](../../../source/kernel/agent/AgentLoop.jl#L78) ⬜;
-  [Mcp.jl:162-169](../../../source/mcp/Mcp.jl#L162) (the copy, outside the kernel)
+  [Mcp.jl:162-169](../../../source/adapter/mcp/McpServer.jl#L162) (the copy, outside the kernel)
 - Evidence: `catch e` has no `is_passthrough_exception(e) && rethrow()`. A `QuitEditorException` from a
   tool (marked passthrough at `operation/Operations.jl:74`), or an `InterruptException` while a tool
   waits, becomes tool text, and the turn and the editor go on. `RunFunctionOperation` rethrows a
@@ -175,12 +175,12 @@ suite runs 2 assertions for the layer (L20-7).
 - Fix: one exported function that calls a tool inside the barrier. It rethrows a passthrough
   exception, guards `showerror`, records the fault, and answers `(text, is_error)`. The loop and the
   MCP handler call it. This also fixes L20-3.
-- Reach: `AgentLoop.jl` (or `tool/ToolSet.jl`, layer 18, for the helper); `source/mcp/Mcp.jl`.
+- Reach: `AgentLoop.jl` (or `tool/ToolSet.jl`, layer 18, for the helper); `source/adapter/mcp/McpServer.jl`.
 
 ### L20-7 The agent loop has no kernel test
 
 - Category: Tests · Severity: Medium · Confidence: Confirmed
-- Where: `test/kernel/agent/AgentSeamTest.jl`
+- Where: `test/kernel/agent/AgentDefaultsTest.jl`
 - Evidence: the kernel suite runs 2 assertions for the layer, both on `make_agent_server`. No kernel
   test covers `run_turn!`: the round cap and its return value, `LlmFailure` → `:error`, a tool that
   throws (the fault record and `is_error`), a tool name that no tool answers (`KeyError`), a stream with

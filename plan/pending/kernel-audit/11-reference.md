@@ -123,16 +123,16 @@ The design document describes an older layer, and the kernel suite on main has a
 - Evidence: a `Reference` hashes by value "which is what lets one key a table" and mixes the hash of each head step. `PointReferenceStep`, `ChartSampleReferenceStep`, `SequenceChartRowReferenceStep`, `TextSpanReferenceStep`, `TextColumnReferenceStep`, `TextRangeReferenceStep` and `ProjectionReferenceStep` define `==` by value and no `hash`. They are `@cell_struct` values with cell fields, so the default hash follows cell identity. Failure: two equal paths that hold a text-range step land in different buckets of a `Dict`, `Set` or `unique`. The fallback `==(::ReferenceStep, ::ReferenceStep) = false` also makes `s == s` false for a step type that forgets `==`, so `is_valid_reference` then fails for every path with that step. The `ReferenceStep` docstring says nothing about `==` or `hash`.
 - Rule: bug (the `==`/`hash` contract of Julia).
 - Fix: state in the `ReferenceStep` docstring that a step type defines `==` and a consistent `hash`; add `Base.hash` to the seven types; change the fallback to `a === b`.
-- Reach: `ReferenceInterface.jl` (sealed), `ReferenceStep.jl`, seven files in `source/graphics/`, `source/chart/`, `source/sequencechart/`, `source/text/`, `source/kernel/projection/`.
+- Reach: `ReferenceInterface.jl` (sealed), `ReferenceStep.jl`, seven files in `source/platform/graphics/`, `source/domain/chart/`, `source/domain/sequencechart/`, `source/platform/text/`, `source/kernel/projection/`.
 
 ### L11-8 A range step evaluates to its first item, so a literal that records `::Position` after a range throws
 
 - Category: Correctness · Severity: Medium · Confidence: Confirmed (the throw); Suspected (the reach in the editor, which needs a run)
 - Where: [ReferenceStep.jl:116](../../../source/kernel/reference/ReferenceStep.jl#L116) ⬜
-- Evidence: a cursor `{k}` evaluates to `Position(k)`; any other range answers `document[start + 1]`, the first item only. The layer does not say what a run of items is. Domain code assumes a range lands on a `Position`: `@reference ::DocumentInsertion.value::String{s:e}::Position` (`source/syntax/InsertionToSyntax.jl:107`, `:126`). For `s < e`, `evaluate_reference` of that literal reaches a `Char` and throws `ReferenceTypeMismatchException`, and `try_evaluate_reference` answers `nothing`. The text steps of the text package evaluate to a `(start, stop)` tuple instead, so two conventions exist.
+- Evidence: a cursor `{k}` evaluates to `Position(k)`; any other range answers `document[start + 1]`, the first item only. The layer does not say what a run of items is. Domain code assumes a range lands on a `Position`: `@reference ::DocumentInsertion.value::String{s:e}::Position` (`source/platform/syntax/InsertionToSyntax.jl:107`, `:126`). For `s < e`, `evaluate_reference` of that literal reaches a `Char` and throws `ReferenceTypeMismatchException`, and `try_evaluate_reference` answers `nothing`. The text steps of the text package evaluate to a `(start, stop)` tuple instead, so two conventions exist.
 - Rule: PAR-FOLDED-CHECKPOINTS (a recorded type must be the type the walk reaches); design fault.
 - Fix: give a non-empty range a value of its own (for example a span value beside `Position`), record its type in `annotate_reference_types`, and correct the two literals.
-- Reach: `ReferenceStep.jl`, `ReferenceEvaluation.jl`, `source/syntax/InsertionToSyntax.jl`, the reference guide.
+- Reach: `ReferenceStep.jl`, `ReferenceEvaluation.jl`, `source/platform/syntax/InsertionToSyntax.jl`, the reference guide.
 
 ### L11-9 omnet-julia imports nine names that the reference layer does not export
 
@@ -200,7 +200,7 @@ The design document describes an older layer, and the kernel suite on main has a
 ### L11-15 Three guides teach a bare `_` arm, which now raises at macro expansion
 
 - Category: Documentation · Severity: Medium · Confidence: Confirmed
-- Where: [reference.md:566](../../../documentation/package/kernel/reference.md#L566), [higher-order-projections.md:102](../../../documentation/package/projection/higher-order-projections.md#L102), [projection-system.md:598](../../../documentation/package/kernel/projection-system.md#L598)
+- Where: [reference.md:566](../../../documentation/package/kernel/reference.md#L566), [higher-order-projections.md:102](../../../documentation/package/platform/projection/higher-order-projections.md#L102), [projection-system.md:598](../../../documentation/package/kernel/projection-system.md#L598)
 - Evidence: each example ends a `@reference_case` block with `_ => …`. `_parse_arm_pattern` raises `REFERENCE_RETIRED_CATCH_ALL` for a bare `_` ([ReferenceCase.jl:542-547](../../../source/kernel/reference/ReferenceCase.jl#L542)). A reader who copies the example gets a `LoadError`. The `projection-system.md` example also uses `children[i] + rest`, which the grammar does not accept.
 - Rule: PAR-HONEST-DOCS.
 - Fix: write `__ =>` in the three examples, and `children[i].rest...` in the last one.
@@ -231,7 +231,7 @@ The design document describes an older layer, and the kernel suite on main has a
 
 - Category: Documentation · Severity: Medium · Confidence: Confirmed
 - Where: [ReferenceBuilder.jl:168](../../../source/kernel/reference/ReferenceBuilder.jl#L168) ⬜, [ReferenceInterface.jl:35](../../../source/kernel/reference/ReferenceInterface.jl#L35) 🔒, [ReferencedDocument.jl:226](../../../source/kernel/reference/ReferencedDocument.jl#L226) ⬜, [ReferenceEvaluation.jl:130](../../../source/kernel/reference/ReferenceEvaluation.jl#L130) ⬜, [ReferenceModule.jl:73](../../../source/kernel/reference/ReferenceModule.jl#L73) ⬜
-- Evidence: the `@reference` docstring tells a reader to use it "for `get_referenced_value`, `replace_referenced_value!` and `focus_pane!`" and shows `show_layout(editor)`; all four are in `source/pane/PaneProgram.jl`. The `Reference` docstring (sealed) shows `get_referenced_value(editor, place)` and "the tab a verb opened". `DocumentLocator`, `get_parent` and `get_edited_document` speak of the editor, tabs, groups, files, histories and `find_pane`. `get_reference_node_type`, the module docstring and `ReferenceStep.jl:41-49` explain the `M` layout through "a simulator's hot path", "designators, sites", "the shadow". `ReferenceSearch.jl:43-44` (sealed) uses `JsonString`.
+- Evidence: the `@reference` docstring tells a reader to use it "for `get_referenced_value`, `replace_referenced_value!` and `focus_pane!`" and shows `show_layout(editor)`; all four are in `source/platform/pane/PaneProgram.jl`. The `Reference` docstring (sealed) shows `get_referenced_value(editor, place)` and "the tab a verb opened". `DocumentLocator`, `get_parent` and `get_edited_document` speak of the editor, tabs, groups, files, histories and `find_pane`. `get_reference_node_type`, the module docstring and `ReferenceStep.jl:41-49` explain the `M` layout through "a simulator's hot path", "designators, sites", "the shadow". `ReferenceSearch.jl:43-44` (sealed) uses `JsonString`.
 - Rule: PAR-NO-CONSUMER-DOCS. Note: code-quality-rules.md §1 asks for a "Use it to" paragraph and a runnable example; in a kernel file the example must use kernel names.
 - Fix: describe each contract with documents and references only; move the pane and editor examples to the pane package or to the orientation guide.
 - Reach: `ReferenceBuilder.jl`, `ReferencedDocument.jl`, `ReferenceEvaluation.jl`, `ReferenceModule.jl`, `ReferenceStep.jl`; `ReferenceInterface.jl` and `ReferenceSearch.jl` (sealed).
@@ -253,7 +253,7 @@ The design document describes an older layer, and the kernel suite on main has a
   - No kernel test calls `get_valid_reference_prefix`, `is_valid_reference`, `try_evaluate_reference`, `copy_reference`, `concat_references`, `extend_reference`, `fold_reference_types` or `search_references`. Each is tested above the kernel or not at all. `get_valid_reference_prefix` has one test, `test/projectured/reference/TypeReferenceTest.jl`, in the umbrella package with JSON fixtures, and it tests the retired unfolded form.
   - No test covers a multi-byte string (L11-1), `M` steps in patterns (L11-3), `nothing` and arm words with `∅` in the corpus (L11-2), repeated input evaluation (L11-4), `search_references` on a `ReferencedDocument` (L11-6), or `hash` consistency across step types (L11-7).
 - Rule: PAR-NEW-CODE-SHIPS-TESTS (the lowest test package that can express them); PAR-LOWEST-PACKAGE (the JSON fixture belongs to the json test package).
-- Fix: add toy-document tests to `ReferenceEvalTest.jl`; add `nothing` and `M`-step rows to the corpus; move `TypeReferenceTest.jl` to `test/json/` or rewrite it on toy documents in the folded form.
+- Fix: add toy-document tests to `ReferenceEvalTest.jl`; add `nothing` and `M`-step rows to the corpus; move `TypeReferenceTest.jl` to `test/domain/json/` or rewrite it on toy documents in the folded form.
 - Reach: `test/kernel/reference/`, `test/projectured/reference/TypeReferenceTest.jl`.
 
 ### L11-20 Four edge cases give a wrong answer or a late error

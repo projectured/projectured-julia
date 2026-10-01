@@ -35,7 +35,7 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
   - 6 have users only in tests: `read!` (and `PlaybackModule`), `get_consecutive_fault_limit`, `is_editor_in_safe_mode`, `InboxFeed`, `wake_editor!`, `drain_feeds!`.
   - 4 have no user outside the layer: `is_editor_degraded`, `enter_safe_mode!`, `leave_safe_mode!`, `report_frame_faults!`.
 - State: per editor, in `Editor`: the backend, document, projection, devices, clock, tool set, inbox, IoMap, last operation, recognizer, fault store, fault policy, the projection that the safe mode put aside, feeds, `wake_pending`, frame measurements and `loop_task`. Module level: four constants (`INBOX_CAPACITY = 64`, `FRAME_INTERVAL = 0.01`, `MAX_OPERATIONS_PER_FRAME = 32`, `_CONSECUTIVE_FAULT_LIMITS`) and the sentinel `_BARRIER_FAILED`; no mutable global. Across tasks: `wake_pending` is atomic, `inbox` is a `Channel`, and `loop_task` is a plain field that other tasks read. The layer writes to the process logger (`@info`, `@warn`).
-- Tests: `test/kernel/editor/` holds 9 files (1293 lines). Four test this layer: `EscapeQuitTest`, `InboxTest`, `FrameDrainTest`, `WaitTest` (11, 28, 11 and 20 checks pass in the baseline). Five are generic drivers (`PrinterTest`, `ReaderTest`, `ReplTest`, `NavigationTest`, `ConstructTest`). `test/kernel/feed/FeedTest.jl` tests `drain_feeds!` and the wake (16). The safe mode is tested in `test/fault/FaultSafeModeTest.jl` (ProjecturedFaultTest), the verbs in `test/projectured/editor/ReferencedDocumentEditorTest.jl` (umbrella). No test drives the operation barrier and its repairs, the read barrier, the two device breakers, the drain barrier, the calls that the end of the loop answers, or the zoom keys.
+- Tests: `test/kernel/editor/` holds 9 files (1293 lines). Four test this layer: `EscapeQuitTest`, `InboxTest`, `FrameDrainTest`, `WaitTest` (11, 28, 11 and 20 checks pass in the baseline). Five are generic drivers (`PrinterTest`, `ReaderTest`, `ReplTest`, `NavigationTest`, `ConstructTest`). `test/kernel/editor/FeedsTest.jl` tests `drain_feeds!` and the wake (16). The safe mode is tested in `test/platform/fault/FaultSafeModeTest.jl` (ProjecturedFaultTest), the verbs in `test/projectured/editor/ReferencedDocumentEditorTest.jl` (umbrella). No test drives the operation barrier and its repairs, the read barrier, the two device breakers, the drain barrier, the calls that the end of the loop answers, or the zoom keys.
 
 ## Summary
 
@@ -60,7 +60,7 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 - Evidence: `insert_elements!(editor::Editor, collection, index::Integer, values) =` and `delete_elements!(editor::Editor, collection, index::Integer, count::Integer = 1) =`. No `# @positional:` marker stands above either. `test/suite/arguments.jl` scans `source/`, finds a one-line definition inside a docstring, and reports a public definition with more than three positional arguments. Neither signature is one of the four kinds that code-quality-rules.md §4 excuses.
 - Rule: code-quality-rules.md §4, "A function takes at most three positional arguments"; the guard is `test_arguments()`.
 - Fix: name the fourth argument, for example `insert_elements!(editor, collection, values; index)` and `delete_elements!(editor, collection; index, count = 1)`. The owner approved the present shape in D24 of `plan/pending/the-assistant-reaches-a-referenced-document.md`, so the owner chooses between a new signature and a new kind of exception in §4.
-- Reach: `DocumentEdits.jl`; the tool text in `source/kernel/tool/DefaultTools.jl:32-33`; `example/projectured/Application.jl`; `documentation/guide/orientation.md`; `test/projectured/editor/ReferencedDocumentEditorTest.jl`; `test/kernel/tool/DeclaredApiTest.jl`.
+- Reach: `DocumentEdits.jl`; the tool text in `source/kernel/tool/DefaultTools.jl:32-33`; `source/platform/application/Application.jl`; `documentation/guide/orientation.md`; `test/projectured/editor/ReferencedDocumentEditorTest.jl`; `test/kernel/tool/DeclaredApiTest.jl`.
 
 ### L22-2 A click that the recognizer holds waits for unrelated input after a frame ends early
 
@@ -88,7 +88,7 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 
 - Category: Correctness · Severity: Medium · Confidence: Suspected (needs 64 posts from other tasks inside one frame; no current producer does that).
 - Where: [Inbox.jl:26-27](../../../source/kernel/editor/Inbox.jl#L26) ⬜
-- Evidence: `post_operation!` is `put!(editor.inbox, operation)` on a channel of 64. Code on the editor task posts too: `post_pane_operation!` (`source/pane/PaneProgram.jl:839`; its docstring: "Code that runs while the editor evaluates another operation … uses it") and the drain of the tooltip feed (`source/tooltip/TooltipRest.jl:99`). When producers on other threads fill the inbox during a frame, such a post blocks the editor task, and no task drains the inbox again. The editor hangs.
+- Evidence: `post_operation!` is `put!(editor.inbox, operation)` on a channel of 64. Code on the editor task posts too: `post_pane_operation!` (`source/platform/pane/PaneProgram.jl:839`; its docstring: "Code that runs while the editor evaluates another operation … uses it") and the drain of the tooltip feed (`source/tooltip/TooltipRest.jl:99`). When producers on other threads fill the inbox during a frame, such a post blocks the editor task, and no task drains the inbox again. The editor hangs.
 - Rule: bug; the feed contract says "A feed must not block".
 - Fix: when `current_task() === editor.loop_task`, put the operation into a queue of the editor with no bound, which the next drain takes first. Other tasks keep the backpressure.
 - Reach: `Inbox.jl`.
@@ -160,16 +160,16 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 
 - Category: Architecture · Severity: Medium · Confidence: Confirmed
 - Where: [EditorLoop.jl:92-101](../../../source/kernel/editor/EditorLoop.jl#L92) ⬜
-- Evidence: `get_frame_clock_time(backend, wall_time) = wall_time` dispatches on the backend, and its docstring says "a backend answers it unless it keeps a time of its own". The one other method is `get_frame_clock_time(backend::VideoBackend, wall_time)` (`source/video/VideoBackend.jl:154`), which `ProjecturedVideo` imports from `EditorModule` (`package/ProjecturedVideo/src/ProjecturedVideo.jl:43`). A backend package therefore extends the editor layer, not the backend layer.
+- Evidence: `get_frame_clock_time(backend, wall_time) = wall_time` dispatches on the backend, and its docstring says "a backend answers it unless it keeps a time of its own". The one other method is `get_frame_clock_time(backend::VideoBackend, wall_time)` (`source/backend/video/VideoBackend.jl:154`), which `ProjecturedVideo` imports from `EditorModule` (`package/ProjecturedVideo/src/ProjecturedVideo.jl:43`). A backend package therefore extends the editor layer, not the backend layer.
 - Rule: PAR-BACKEND-SEAM: the backend generics are "all declared in `BackendInterface.jl` and dispatched on the concrete backend".
 - Fix: declare `get_frame_clock_time` in `BackendInterface.jl`, put the default in `BackendDefaults.jl`, export it from `BackendModule`, and change the import of `ProjecturedVideo`.
-- Reach: `source/kernel/backend/BackendInterface.jl` 🔒, `BackendDefaults.jl` 🔒, `BackendModule.jl` 🔒 (each needs the owner's permission); `EditorLoop.jl`, `EditorModule.jl`; `package/ProjecturedVideo/src/ProjecturedVideo.jl`, `source/video/VideoBackend.jl`.
+- Reach: `source/kernel/backend/BackendInterface.jl` 🔒, `BackendDefaults.jl` 🔒, `BackendModule.jl` 🔒 (each needs the owner's permission); `EditorLoop.jl`, `EditorModule.jl`; `package/ProjecturedVideo/src/ProjecturedVideo.jl`, `source/backend/video/VideoBackend.jl`.
 
 ### L22-13 `EditorModule` exports `read!`, a name that `Base` exports with another binding
 
 - Category: Architecture · Severity: Medium · Confidence: Suspected (needs a check in a fresh session: `using Projectured; read!(IOBuffer(UInt8[1]), zeros(UInt8, 1))`).
 - Where: [ReadEvaluatePrint.jl:26](../../../source/kernel/editor/ReadEvaluatePrint.jl#L26) ⬜, [EditorModule.jl:32](../../../source/kernel/editor/EditorModule.jl#L32) ⬜
-- Evidence: `function read!(editor::Editor)` defines a new function of `EditorModule`, not a method of `Base.read!`, and the module exports it. The umbrella re-exports every export into `Projectured` (`source/projectured/Projectured.jl:44-49`). A module that does `using Projectured` then sees two exported bindings named `read!`. `ProjecturedFaultTest` adds `import ProjecturedKernel.EditorModule: read!` beside `using ProjecturedKernel.EditorModule` (`package/ProjecturedFaultTest/src/ProjecturedFaultTest.jl:40`), which is the usual answer to such a clash. `test_export_collisions` compares the packages, not `Base`. `plan/pending/naming-rule-renames.md` keeps the name under the naming law; that decision does not address the clash.
+- Evidence: `function read!(editor::Editor)` defines a new function of `EditorModule`, not a method of `Base.read!`, and the module exports it. The umbrella re-exports every export into `Projectured` (`source/projectured/Projectured.jl:44-49`). A module that does `using Projectured` then sees two exported bindings named `read!`. `ProjecturedFaultTest` adds `import ProjecturedKernel.EditorModule: read!` beside `using ProjecturedKernel.EditorModule` (`package/ProjecturedPlatformTest/src/ProjecturedPlatformTest.jl:40`), which is the usual answer to such a clash. `test_export_collisions` compares the packages, not `Base`. `plan/pending/naming-rule-renames.md` keeps the name under the naming law; that decision does not address the clash.
 - Rule: PAR-QUALIFIED-EXTENSION: "no two modules may export the same name with different bindings".
 - Fix: rename the stage (for example `read_input!`) with `workspace/bin/julia-rename.jl`.
 - Reach: `ReadEvaluatePrint.jl`, `EditorModule.jl`, `source/kernel/playback/Playback.jl`, `test/kernel/editor/EscapeQuitTest.jl`, `ProjecturedFaultTest`, `editor.md`. omnet-julia and inet-julia do not call `read!`.
@@ -178,19 +178,19 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 
 - Category: State · Severity: Medium · Confidence: Confirmed
 - Where: [Editor.jl:98-105](../../../source/kernel/editor/Editor.jl#L98) ⬜
-- Evidence: the constructor gives `() -> wake_editor!(editor)` to each feed (`attach_wake_callback!`) and to the fault store. Nothing detaches it when the loop ends, and the feed contract declares no detach. `MessageLogFeed()` uses the process-global `_SESSION_MESSAGE_LOG_STORE` (`source/log/MessageLogStore.jl:81`), and the shell gives one to each window editor (`source/shell/WindowChrome.jl:216`). `attach_message_log_wake!` overwrites the one `wake` slot (`MessageLogStore.jl:77`). The store therefore holds the last editor, with its document, IoMap and backend, after that editor ends, and every earlier editor loses its log wake.
+- Evidence: the constructor gives `() -> wake_editor!(editor)` to each feed (`attach_wake_callback!`) and to the fault store. Nothing detaches it when the loop ends, and the feed contract declares no detach. `MessageLogFeed()` uses the process-global `_SESSION_MESSAGE_LOG_STORE` (`source/platform/log/MessageLogStore.jl:81`), and the shell gives one to each window editor (`source/platform/shell/WindowChrome.jl:216`). `attach_message_log_wake!` overwrites the one `wake` slot (`MessageLogStore.jl:77`). The store therefore holds the last editor, with its document, IoMap and backend, after that editor ends, and every earlier editor loses its log wake.
 - Rule: PAR-PER-EDITOR-STATE.
 - Fix: in the `finally` of `run_editor!`, detach the wake from each feed and from the fault store. The feed contract needs a detach generic, or `attach_wake_callback!(feed, nothing)` must mean detach. The shared session store is a separate fault of `ProjecturedLog`.
-- Reach: `EditorLoop.jl`; `source/kernel/feed/FeedInterface.jl`, `FeedDefaults.jl`; `source/log/MessageLogFeed.jl`.
+- Reach: `EditorLoop.jl`; `source/kernel/feed/FeedInterface.jl`, `FeedDefaults.jl`; `source/platform/log/MessageLogFeed.jl`.
 
 ### L22-15 Each editor writes its operation, performance and fault lines to the one process logger, with no editor identity
 
 - Category: State · Severity: Medium · Confidence: Confirmed
 - Where: [FaultBarriers.jl:147](../../../source/kernel/editor/FaultBarriers.jl#L147) ⬜, [EditorLoop.jl:25](../../../source/kernel/editor/EditorLoop.jl#L25) ⬜, [SafeMode.jl:37](../../../source/kernel/editor/SafeMode.jl#L37) ⬜, [FaultBarriers.jl:127](../../../source/kernel/editor/FaultBarriers.jl#L127) ⬜
-- Evidence: `@info "[operation] …"`, `@info "[perf] …"` and the two `@warn "[fault] …"` lines go to `global_logger()`. With two editors in one process the lines mix, and no line says which editor wrote it. With the message-log capture installed (`source/log/MessageLogCapture.jl:64`), the lines go into the session store, and the frame of whichever editor drains first shows them. One editor's log then shows the operations of another.
+- Evidence: `@info "[operation] …"`, `@info "[perf] …"` and the two `@warn "[fault] …"` lines go to `global_logger()`. With two editors in one process the lines mix, and no line says which editor wrote it. With the message-log capture installed (`source/platform/log/MessageLogCapture.jl:64`), the lines go into the session store, and the frame of whichever editor drains first shows them. One editor's log then shows the operations of another.
 - Rule: PAR-PER-EDITOR-STATE.
 - Fix: add an editor identity to each line as a log keyword, and run the frame under a logger of the editor (`with_logger`) when the editor has one.
-- Reach: `FaultBarriers.jl`, `EditorLoop.jl`, `SafeMode.jl`, `Editor.jl` (a logger keyword); `source/log`.
+- Reach: `FaultBarriers.jl`, `EditorLoop.jl`, `SafeMode.jl`, `Editor.jl` (a logger keyword); `source/platform/log`.
 
 ### L22-16 Each live operation formats the whole operation into a log line and computes an inverse before it runs
 
@@ -205,7 +205,7 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 
 - Category: Tests · Severity: Medium · Confidence: Confirmed (a search of `test/` for the functions and the counters)
 - Where: [FaultBarriers.jl:79-193](../../../source/kernel/editor/FaultBarriers.jl#L79) ⬜, [EditorLoop.jl:60-90](../../../source/kernel/editor/EditorLoop.jl#L60) ⬜, [Inbox.jl:123-136](../../../source/kernel/editor/Inbox.jl#L123) ⬜
-- Evidence: no test makes an operation throw under a policy that catches, so repair 0 (the inverse), repair 1 (the new print) and repair 2 (the selection) have no test. No test makes `read_from_devices` or `write_to_devices` throw eight times, so the breakers in `read!` and `print!` have no test. No test makes a reader throw inside `run_frame!`, a feed throw inside the drain, or a queued call throw in `_answer_waiting_calls!`. The zoom keys of `read!` have no test. `test/kernel/fault/FaultBarrierTest.jl` tests `run_fault_barrier` alone, and `test/fault/FaultSafeModeTest.jl` tests the `:print` count alone.
+- Evidence: no test makes an operation throw under a policy that catches, so repair 0 (the inverse), repair 1 (the new print) and repair 2 (the selection) have no test. No test makes `read_from_devices` or `write_to_devices` throw eight times, so the breakers in `read!` and `print!` have no test. No test makes a reader throw inside `run_frame!`, a feed throw inside the drain, or a queued call throw in `_answer_waiting_calls!`. The zoom keys of `read!` have no test. `test/kernel/fault/FaultBarrierTest.jl` tests `run_fault_barrier` alone, and `test/platform/fault/FaultSafeModeTest.jl` tests the `:print` count alone.
 - Rule: PAR-NEW-CODE-SHIPS-TESTS; PAR-REPORT-NEVER-THROWS ("Tests assert both").
 - Fix: add `test/kernel/editor/FaultBarriersTest.jl` with a `HeadlessBackend` variant that throws on demand and an operation that fails half way.
 - Reach: `test/kernel/editor/`, `package/ProjecturedKernelTest/src/ProjecturedKernelTest.jl`, `test/kernel/KernelSuite.jl`.
@@ -214,7 +214,7 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 
 - Category: Correctness · Severity: Low · Confidence: Confirmed
 - Where: [ReadEvaluatePrint.jl:36-37](../../../source/kernel/editor/ReadEvaluatePrint.jl#L36) ⬜, [ReadEvaluatePrint.jl:64](../../../source/kernel/editor/ReadEvaluatePrint.jl#L64) ⬜
-- Evidence: `elseif editor.iomap === nothing; continue` drops each gesture. Two cases reach it beyond the accepted swap between frames. First, Escape in the safe mode runs `leave_safe_mode!(editor) && continue`, which drops the IoMap and reads on, so all input behind that Escape in the same read is lost. `run_frame!` ends a frame at a dropped IoMap for this reason (EditorLoop.jl:51-54). Second, an editor built with `Editor(…)` and run by `run_editor!` reads its first frame before its first print (the video backend works around it, `source/video/VideoBackend.jl:170-178`).
+- Evidence: `elseif editor.iomap === nothing; continue` drops each gesture. Two cases reach it beyond the accepted swap between frames. First, Escape in the safe mode runs `leave_safe_mode!(editor) && continue`, which drops the IoMap and reads on, so all input behind that Escape in the same read is lost. `run_frame!` ends a frame at a dropped IoMap for this reason (EditorLoop.jl:51-54). Second, an editor built with `Editor(…)` and run by `run_editor!` reads its first frame before its first print (the video backend works around it, `source/backend/video/VideoBackend.jl:170-178`).
 - Rule: bug.
 - Fix: after `leave_safe_mode!`, return `false` from `read!`. Let `run_editor!` print once before its first read when `editor.iomap === nothing`.
 - Reach: `ReadEvaluatePrint.jl`, `EditorLoop.jl`.
@@ -259,10 +259,10 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 
 - Category: Shape · Severity: Low · Confidence: Confirmed
 - Where: [ReadEvaluatePrint.jl:50-54](../../../source/kernel/editor/ReadEvaluatePrint.jl#L50) ⬜, [ReadEvaluatePrint.jl:126-137](../../../source/kernel/editor/ReadEvaluatePrint.jl#L126) ⬜
-- Evidence: `_zoom_operation` maps Ctrl with `=`, `-` or `0` to `AdjustZoomOperation` or `AdjustFontZoomOperation` inside the kernel loop, outside the binding layer. Only `source/sdl/Sdl.jl:3926-3941` evaluates the two operations. On the web and console backends the key becomes an operation that does nothing, but the editor logs it and stores it in `editor.operation`.
+- Evidence: `_zoom_operation` maps Ctrl with `=`, `-` or `0` to `AdjustZoomOperation` or `AdjustFontZoomOperation` inside the kernel loop, outside the binding layer. Only `source/backend/sdl/SdlBackend.jl:3926-3941` evaluates the two operations. On the web and console backends the key becomes an operation that does nothing, but the editor logs it and stores it in `editor.operation`.
 - Rule: architecture-rules.md, the seam pattern (a lower layer declares, a higher package binds).
 - Fix: move the two keys into a gesture binding set that the backend package or the screen package gives, or let each backend answer the zoom through a backend generic. The font half is deferred with `plan/pending/font-zoom-per-editor.md`.
-- Reach: `ReadEvaluatePrint.jl`, `source/sdl/Sdl.jl`.
+- Reach: `ReadEvaluatePrint.jl`, `source/backend/sdl/SdlBackend.jl`.
 
 ### L22-24 Four exports have no user outside the layer, and six more have users only in tests
 
@@ -313,7 +313,7 @@ Three texts, the law among them, still say that `run_editor!` turns the barriers
 
 - Category: Documentation · Severity: Low · Confidence: Confirmed
 - Where: [editor.md:14-27](../../../documentation/package/kernel/editor.md#L14), [editor.md:49](../../../documentation/package/kernel/editor.md#L49), [editor.md:207](../../../documentation/package/kernel/editor.md#L207), [editor.md:404](../../../documentation/package/kernel/editor.md#L404), [editor.md:493-497](../../../documentation/package/kernel/editor.md#L493), [editor.md:510-528](../../../documentation/package/kernel/editor.md#L510), [editor.md:536-544](../../../documentation/package/kernel/editor.md#L536)
-- Evidence: the struct block lists 10 of the 17 fields. The text says the recognizer folds "`KeyDown` sequences into `KeyChord`", but the editor makes `GestureRecognizer()` with no chord table, and a `MousePress` follows its `MouseUp` and does not replace it. "There are two implementations" omits `WebBackend`. The layer section names one file, `EditorModule.jl`, for the loop; the loop is nine files. The list of downward edges omits `IntentModule`, `IoMapModule`, `FaultModule`, `SelectionModule`, `ReferenceModule`, `CellModule` and `FeedModule`. The test list omits `WaitTest.jl`, `test/kernel/feed/FeedTest.jl` and the safe-mode test. (The playback items of this document are in L23-11.)
+- Evidence: the struct block lists 10 of the 17 fields. The text says the recognizer folds "`KeyDown` sequences into `KeyChord`", but the editor makes `GestureRecognizer()` with no chord table, and a `MousePress` follows its `MouseUp` and does not replace it. "There are two implementations" omits `WebBackend`. The layer section names one file, `EditorModule.jl`, for the loop; the loop is nine files. The list of downward edges omits `IntentModule`, `IoMapModule`, `FaultModule`, `SelectionModule`, `ReferenceModule`, `CellModule` and `FeedModule`. The test list omits `WaitTest.jl`, `test/kernel/editor/FeedsTest.jl` and the safe-mode test. (The playback items of this document are in L23-11.)
 - Rule: PAR-UPDATE-THE-GUIDE, PAR-HONEST-DOCS.
 - Fix: update the sections. The chord plan is deferred, so the text must say that the editor recognizes no chord today.
 - Reach: `documentation/package/kernel/editor.md`.
@@ -353,7 +353,7 @@ No audit plan of this layer exists. These decisions of the owner, or documented 
 - The operation barrier gives a `CompoundOperation` no rollback (`the-editor-survives-a-fault.md` §3.4).
 - A posted operation does not become `editor.operation`, and the editor does not log it (`editor.md`, "The inbox").
 - Escape quits when no reader takes it, and a modified Escape goes to the projections (`editor.md`, `EscapeQuitTest.jl`).
-- Input read against no IoMap after a projection swap between frames is dropped (`test/fault/FaultSafeModeTest.jl:69-72`). L22-18 raises only the two cases beyond it.
+- Input read against no IoMap after a projection swap between frames is dropped (`test/platform/fault/FaultSafeModeTest.jl:69-72`). L22-18 raises only the two cases beyond it.
 - The limit of each fault counter lives in the editor layer (`plan/done/fault-policy-limits.md`).
 - `read!`, `evaluate!` and `print!` keep their names under the naming law (`naming-rule-renames.md`). L22-13 raises the clash with `Base`, not the law.
 - The owner approved `insert_elements!` and `delete_elements!` and their shape (D24). L22-1 raises only the guard.
