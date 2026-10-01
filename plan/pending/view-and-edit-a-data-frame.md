@@ -1012,6 +1012,26 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       table, as in the eager table. The view shows the source row number of
       each row there, as a data frame prints it (G1). The corner cell of the
       filter row holds the text field of the pattern of the names (G2).
+      The design (mine, from the facts of the printer):
+      - `row_headers` of a list table is a list that moves in step with
+        `rows`: its head is the header of the head row. A list table with
+        row headers needs a `Fixed` row policy, so the header column and the
+        cells have the same rows; a vector of row headers on a list is an
+        error, as now.
+      - The header column is a third pane, a grid of one column that scrolls
+        with the `y` of `scroll_position`. Its width is the widest of the
+        corner and of the headers that the walk placed.
+      - G2 puts a text field in the corner, so the corner is a widget: the
+        new field `corner` of `WidgetTable`, a document or `nothing`. The
+        corner is a floor for the width of the header column and for the
+        height of the header row. A press on the corner goes to it, and a
+        press that it does not take selects the whole table. A table whose
+        rows are a vector draws its corner as graphics and takes no corner
+        document; that is an error.
+      - A move of the head of the list writes `rows` and `row_headers` to
+        the nodes of the same row, and the view turns both into its anchor.
+      - A press on a row header selects its row. The paths are
+        `row_headers[k]…` and `corner…`.
     - [ ] **5.2 The path of a column (E1).**
       `DataFrameColumnReferenceStep(name)` evaluates on the view to a
       `DataFrameColumn` (the view and the name). The view maps the path of a
