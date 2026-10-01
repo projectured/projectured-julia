@@ -1087,7 +1087,7 @@ already; the sealed selection files do not change (Q4).
   the inspector pane. The chain stops at the introduced part of the outer view, and
   the outer walk stays out of the document, because the chain write holds the
   mouse target of such a document when a mapped view (the form) shows it.
-- [ ] 7. **The dwell and the right click by position** (M3, D76). The outward
+- [x] 7. **The dwell and the right click by position** (M3, D76). The outward
   reading of the gesture tables (D64) runs in the helpers that hand a pointer
   gesture to the child at its point; `_read_dwell` of the tracker and the walk
   of `read_routed_child` for a gesture go. Tests: the tooltip tests, and a dwell
@@ -1155,7 +1155,9 @@ already; the sealed selection files do not change (Q4).
     the gesture and the mouse target trackers, the move, the toolbar, the routed
     change, the kernel, the platform (97492; the only failure is the file system
     test under `unshare -r`), the repls (23172 with 5 broken, as before) and
-    eleven domain suites pass; the guards are as on main.
+    eleven domain suites pass; the guards are as on main. On main as
+    `f479b88c7`; the omnet tests of the pointer, the IDE window, the campaign
+    and the view lights pass against it.
   - Limits: when the child at the point answers nothing, a container reads only
     its own input, not the documents between it and the child; `WidgetText`
     gives a dwell to its content untranslated; `WidgetSelect`, `WidgetSpinBox`
