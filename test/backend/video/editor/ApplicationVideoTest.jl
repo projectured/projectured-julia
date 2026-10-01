@@ -208,12 +208,14 @@ end
     root = mktempdir()
     path = joinpath(root, "items.json")
     write(path, """[{"name": "tea", "price": 3}]""")
-    # A JSON object whose entry is not a `JsonObjectEntry` makes every paint of
-    # the file fail from the frame after the insert on, and after eight failed
-    # paints the editor stops painting.
+    # A JSON string whose text can not be computed makes every paint of the
+    # file fail from the frame after the insert on, whichever projection draws
+    # it, and after eight failed paints the editor stops painting.
     break_paint = (await = editor -> begin
                        items = get_edited_document(find_pane(editor, "items.json"))
-                       broken = JsonObject(CellVector([Cell(JsonObjectEntry("a", JsonNumber(1), false))]))
+                       broken = JsonString("tea")
+                       set_cell_computation!(getfield(broken, :value),
+                                             () -> error("the text of this string can not be computed"))
                        insert_elements!(editor, items, 1, [broken])
                        true
                    end, hold = 1.0)
