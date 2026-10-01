@@ -1298,6 +1298,10 @@ cell. A document that owns whether its view follows its end passes its own
 field's cell: a scroll that leaves the end writes it, and the document's owner
 writes it back to bring the end into view.
 
+`scroll_position` may be a cell too, and a scroll then writes that cell. A
+projection that makes a new pane at each print passes the cell of a field of
+its document, so the pane keeps its place across the prints.
+
 See also `WidgetCard`, whose `height` bounds a body that scrolls.
 """
 @document struct WidgetScrollPane <: WidgetDocument
@@ -1317,13 +1321,14 @@ end
 function WidgetScrollPane(content;
                           position=nothing,
                           size=nothing,
-                          scroll_position::Point2D=Point2D(0, 0),
+                          scroll_position::Union{Point2D,AbstractCell}=Point2D(0, 0),
                           follow_end::Union{Bool,AbstractCell}=false,
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
                           style=nothing, tooltip=nothing)
     WidgetScrollPane(Cell(content),
-                     Cell(position), Cell(size), Cell(scroll_position),
+                     Cell(position), Cell(size),
+                     scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style), Cell(tooltip), Cell(nothing))

@@ -1031,14 +1031,14 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     keeps the device size of each window.
   - Move `plan/pending/font-zoom-per-editor.md` to `plan/done/` with a note that
     this plan replaced it.
-- [ ] **W3. The appearance tab** (4.8). Part 1 is written: the seven rows,
+- [x] **W3. The appearance tab** (4.8). Part 1 is written: the seven rows,
   "Reset all", "Save" and "Load", the presets, the sizes and the fonts. Part 2 is
   written: the color as text (D33, finding 22), with a test in an editor that a
   typed digit writes the color, that the caret stays in the text after the new
   print, and that a character that is no hex digit and a deletion leave the
   color. The pixels offscreen: `/var/tmp/appearance-w4/tab-default.png` and
-  `tab-scaled.png` (finding 26). Open: the place of the tab after the new print
-  (finding 23). `AppearanceToWidget`: the seven rows,
+  `tab-scaled.png` (finding 26). The place of the tab after the new print is in
+  the `Appearance` (finding 23). `AppearanceToWidget`: the seven rows,
   "Reset all", "Save", "Load" and the theme sections. The toolbar item and the
   View menu item in `WindowChrome.jl`, a Lucide glyph, and Ctrl+,.
   - Tests: a press on + changes the value label and the layout at the next
@@ -1285,7 +1285,15 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     spin box or a typed digit of a color far down the tab scrolls the tab to its
     top. The scroll position must live outside the print: in the projection, which
     is made once for each renderer, or in the `Appearance` as view state, as
-    `DataFrameView.scroll_position` does for its table. The owner chooses.
+    `DataFrameView.scroll_position` does for its table. The owner chose the
+    document (2026-10-01): the appearance is a special case, because a change of
+    it prints the whole view again, so a scroll position in a pane is lost even
+    where the projection of the pane is incremental. `Appearance.scroll_position`
+    holds the place, the tab gives each new pane that cell
+    (`WidgetScrollPane(…; scroll_position = cell)`, which takes a cell as
+    `follow_end` does), and the file does not keep it. A test in an editor scrolls
+    the tab, presses a Reset button and finds the tab at the same place; without
+    the cell the place falls back to the top.
 24. **The client of the web backend has no test runner** (W4). The repository runs
     no JavaScript. `test_web_backend` checks the server: the zoom in each update, a
     window in full after a new zoom, and 1 with no `Display`. The client was

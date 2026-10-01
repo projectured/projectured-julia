@@ -145,6 +145,35 @@ end
     @test !("Name" in first.(texts))
 end
 
+@testset "the tab keeps its place after the new print that a change starts" begin
+    # A change of the appearance prints the whole view again, so the place of the
+    # tab is in the appearance, and each new pane scrolls that cell.
+    backend = HeadlessBackend()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 900, height = 700), tabs = (; title = "Doc"))
+    run_frame!(editor)
+    appearance = find_editor_appearance(editor)
+    function send!(events...)
+        for event in events
+            push_event!(backend, WindowInput(:T, event))
+        end
+        run_frame!(editor)
+        run_frame!(editor)
+    end
+    drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+    send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = 1.0))
+    _, x, y = only(t for t in drawn() if t[1] == "Spacing")
+    send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 2.0))
+    scrolled = Int(appearance.scroll_position.y[])
+    @test scrolled > 0
+    texts = drawn()
+    place = only(t for t in texts if t[1] == "primary")
+    x, y = _at_find_row_button(texts, "Text", "Reset")
+    send!(_at_click(x, y, 3.0)...)
+    @test Int(appearance.scroll_position.y[]) == scrolled
+    @test only(t for t in drawn() if t[1] == "primary") == place
+end
+
 @testset "a colour is a text: a typed digit writes the colour, and the caret stays after the new print" begin
     @test format_style_color(StyleColor(1.0, 0.0, 0.0, 0.5)) == "#ff000080"
     @test is_color_equal(convert_text_to_style_color("#00FF00"), StyleColor(0.0, 1.0, 0.0, 1.0))

@@ -11,6 +11,13 @@ of the theme. `saved_themes` holds the values of each theme that a loaded file
 names and that the appearance does not hold yet, by the name of its type; the
 theme takes them when it is made (see [`load_appearance!`](@ref)).
 
+`scroll_position` is the place of the appearance tab: view state, which a file
+does not keep. The tab keeps it here, and not in the pane that it prints, because
+the tab is printed again at each change of the appearance: the `appearance`
+wrapper prints the whole view again, and a new pane would start at its top. The
+tab gives its pane this cell, so a step of a size or a typed digit of a colour far
+down the tab leaves the tab where it is. Every view of the tab shows this place.
+
 The main builder of an editor makes one, builds its projection with it, and gives
 it to the `appearance` wrapper of `build_editor`. A projection takes the scaled
 theme of its domain with [`get_scaled_theme!`](@ref) while it is built. The zoom
@@ -27,6 +34,7 @@ wrapper then makes the view print again.
     line_scale::Float64 = 1.0
     themes::Dict{Type,Any} = Dict{Type,Any}()
     saved_themes::Dict{String,Any} = Dict{String,Any}()
+    scroll_position::Point2D = Point2D(0, 0)
 end
 
 """

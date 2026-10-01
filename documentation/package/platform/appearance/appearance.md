@@ -70,6 +70,14 @@ hold a selection. So the `Appearance` holds the caret as a path that
 print gives each widget the part of that path below it. The tree has the same form
 at each print, so the caret stays in its text after the print that a write starts.
 
+The place of the tab is in the `Appearance` too, in `scroll_position`. A view of
+another document prints its parts again one by one, and its scroll panes keep
+their place. A change of the appearance prints the whole view again, so the tab
+is a new tree after each change, with a new pane that would start at its top. So
+the tab gives each new pane the cell of the `Appearance` to scroll, and a step of a
+size far down the tab leaves the tab where it is. The file does not keep the
+place, and every view of the tab shows the same place.
+
 ## Save and load
 
 `save_appearance!(appearance, path)` writes the zoom, the scales and the base
