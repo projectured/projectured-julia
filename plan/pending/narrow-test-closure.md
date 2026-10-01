@@ -106,6 +106,21 @@ the move.
       packages, the registered ones, and the size for each package. The
       guards. The CI-like run of the 28 jobs, and the new ones, against the
       run of `main`.
+      The closure, measured on 2026-10-01 (the folders that the support
+      packages include; a file included through a folder constant is not
+      counted, which matters for Video and the umbrella only):
+
+      | Package | Unregistered | Registered | Test folder |
+      | --- | --- | --- | --- |
+      | `ProjecturedKernel` | 2 | 1 | 0.7 MB |
+      | Anthropic, Ollama, OpenRouter, DataFrames, Web, Tulip, ODBC | 3–4 | 2–8 | 0.7–0.8 MB |
+      | Console, PDF, SDL | 5 | 5–6 | 0.9–1.0 MB |
+      | `ProjecturedPlatform`, a domain, MCP, Video | 4–8 | 5–9 | 2.1 MB |
+      | `Projectured` (the umbrella) | 55 | 31 | 3.9 MB |
+
+      Before: 25 unregistered and 24 registered packages for a domain. All 32
+      test folders together are about 55 MB. The guards give the findings of
+      `main` and no new one.
 
 ## 5. Decisions made during the work
 
