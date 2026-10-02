@@ -9,6 +9,22 @@ dependency-free.
 using Test
 using ProjecturedKernel.CellModule
 
+# The readers of `cell` that are still alive.
+function _count_live_dependents(cell)
+    dependents = getfield(cell, :dependents)
+    dependents === nothing ? 0 : count(reference -> reference.value !== nothing, dependents)
+end
+
+# A hundred computed cells that read `source`, each forced once, and then dropped:
+# the count of live readers while they are held, and a `WeakRef` to the first. The
+# cells live only in this frame. A caller that made them itself could hold one in
+# a GC root after its last use, which Julia 1.11 does in `test_cell`, and a test of
+# the collector would then measure the frame and not the edge.
+@noinline function _make_discarded_readers(source)
+    cells = [(cell = Cell(@computation source[] + 1); cell[]; cell) for _ in 1:100]
+    (_count_live_dependents(source), WeakRef(cells[1]))
+end
+
 function test_cell()
 @testset "Cell" begin
 
@@ -78,18 +94,16 @@ x[] = 999          # x is no longer a dep after last eval
     # example. The measurements are in plan/done/reactive-dependents-leak.md.
     source = Cell(1)
     # `dependents` is allocated lazily — `nothing` until first read (no live readers).
-    live(c) = (d = getfield(c, :dependents); d === nothing ? 0 : count(w -> w.value !== nothing, d))
+    live = _count_live_dependents
     @test live(source) == 0
 
     # A throwaway "pipeline": computed cells that read `source` and are forced once.
-    # They are kept in a vector while we assert the registration count, so nothing is
-    # collected mid-build — otherwise the count is at the mercy of GC scheduling. A
-    # `WeakRef` to the first one lets us later ask whether it
-    # was collected once every strong reference is dropped.
-    cells = [(c = Cell(@computation source[] + 1); c[]; c) for _ in 1:100]
-    @test live(source) == 100                     # all 100 registered
-    discarded = WeakRef(cells[1])
-    empty!(cells); cells = nothing                # drop every strong reference to them
+    # They are held while the registration count is read, so nothing is collected
+    # mid-build — otherwise the count is at the mercy of GC scheduling. A `WeakRef`
+    # to the first one lets us later ask whether it was collected once every strong
+    # reference is dropped.
+    registered, discarded = _make_discarded_readers(source)
+    @test registered == 100                       # all 100 registered
 
     # They are now unreachable and can never recompute, so nothing will ever detach
     # them. The only thing still pointing at them is `source.dependents` — weakly.
