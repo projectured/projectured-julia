@@ -372,6 +372,14 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   less, and a new font allocates nothing.
 - **D14** (2026-10-02, V1). The code font is Ubuntu Mono. The owner: "Ubuntu
   Mono".
+- **D16** (2026-10-02, V1). The default sizes are the proposal of section 3.6:
+  the interface text 13 px, code and documents 14 px, the tool panes 13 px,
+  the charts 12 px, and the spacings of the table. The owner: "the proposal".
+- **D17** (2026-10-02, T1). The owner accepts the review of step T1: the
+  content list, the list of "not a style" with the sizes of outputs and
+  windows added, and fewer new themes. A chrome value that a field of
+  `WidgetTheme` already says takes that field; a new theme only for a slice
+  with several values of its own.
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
