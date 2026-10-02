@@ -389,7 +389,7 @@ WidgetTextToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            focus_ring_stroke =
                                _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                            selection_ring_stroke =
-                               _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width)),
+                               _make_selection_ring_stroke(theme),
                            corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetTextToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                padding_color, content_color, padding_disabled_color,
@@ -632,7 +632,7 @@ WidgetCompositeToGraphicsCanvas(theme::ScaledWidgetTheme;
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
                                 selection_ring_stroke =
-                                    _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width))) =
+                                    _make_selection_ring_stroke(theme)) =
     WidgetCompositeToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                     content_color, selection_ring_stroke)
 
@@ -742,7 +742,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                  tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
                                  page_color = color_transparent,
                                  selection_ring_stroke =
-                                     _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width)),
+                                     _make_selection_ring_stroke(theme),
                                  tab_padding = _themed(Int, theme, t -> t.item_gap),
                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                  label_gap = _themed(Int, theme, t -> t.label_gap),
@@ -6298,7 +6298,7 @@ WidgetCardToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            plain_padding_color = color_transparent, plain_content_color = color_transparent,
                            chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
                            selection_ring_stroke =
-                               _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width)),
+                               _make_selection_ring_stroke(theme),
                            corner_radius = _themed(Int, theme, t -> t.radius),
                            title_gap = _themed(Int, theme, t -> t.title_gap),
                            section_gap = _themed(Int, theme, t -> t.section_gap),
@@ -8235,7 +8235,7 @@ WidgetListToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            padding_color = _themed(StyleColor, theme, t -> t.background),
                            content_color = _themed(StyleColor, theme, t -> t.background),
                            label_text = _themed(StyleText, theme, _get_body_text),
-                           row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
+                           row_selected_color = _make_selected_row_color(theme),
                            layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
                            row_padding = _themed(Inset, theme, t -> t.control_padding),
                            corner_radius = _themed(Int, theme, t -> t.radius)) =
@@ -8910,7 +8910,7 @@ WidgetTableToGraphicsCanvas(theme::ScaledWidgetTheme;
                             padding_color = color_transparent, content_color = color_transparent,
                             divider_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                             header_row_color = _themed(StyleColor, theme, t -> t.muted),
-                            row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
+                            row_selected_color = _make_selected_row_color(theme),
                             layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
                             edge_hovered_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, 3)),
                             cell_mark_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.destructive, 2)),
@@ -9953,7 +9953,7 @@ WidgetTreeToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            label_text = _themed(StyleText, theme, _get_body_text),
                            icon_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                            chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
-                           row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
+                           row_selected_color = _make_selected_row_color(theme),
                            layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
                            indent = _themed(Int, theme, t -> t.indent),
                            chevron_column = _themed(Int, theme, t -> t.tree_chevron_column),
@@ -10460,11 +10460,10 @@ function WidgetToGraphics(; measure::TextMeasure,
     )
     # Widgets embed layouts (a composite or a table holds a GridLayout), so the
     # recursion renders an embedded layout without an outer layout dispatcher.
-    # A layout draws the ring around a child selected as a whole, and it takes
-    # the selection of this theme.
+    # A layout draws the ring around a child selected as a whole with the
+    # graphics theme of the appearance of this theme.
     TypeDispatchingProjection(vcat(widgets.dispatch,
-        LayoutToGraphics(; selection_ring_stroke =
-            _themed(StyleStroke, theme, t -> StyleStroke(t.selection_ring, t.ring_width))).dispatch))
+        LayoutToGraphics(; theme = _get_graphics_theme(theme)).dispatch))
 end
 
 # ── A route gives a child the point in its own frame ───────────────────────

@@ -68,8 +68,6 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     shadow::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x14 / 255)
     "The layer that covers the window behind a dialog."
     scrim::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x66 / 255)
-    "The ring around a document that is selected as a whole."
-    selection_ring::StyleColor = SELECTION_RING_COLOR
     "The knob of a switch and of a slider."
     knob::StyleColor = color_white
     # ── Fonts ──
@@ -223,6 +221,16 @@ _get_caption_text(theme::ScaledWidgetTheme) = StyleText(theme.font_small, theme.
 _get_label_text(theme::ScaledWidgetTheme) = StyleText(theme.font, theme.foreground)
 _get_hover_layer(theme::ScaledWidgetTheme) = _with_alpha(theme.primary, 0.12)
 _get_pressed_layer(theme::ScaledWidgetTheme) = _with_alpha(theme.primary, 0.20)
+
+# The ring around a part selected as a whole, and the band of a selected row. They
+# are values of the graphics theme of the appearance of `theme`, which the layouts
+# under the widgets draw with too. A constructor reads them, and a print does not.
+_get_graphics_theme(theme::ScaledWidgetTheme) =
+    get_scaled_theme!(get_theme_appearance(theme), GraphicsTheme)
+_make_selection_ring_stroke(theme::ScaledWidgetTheme) =
+    make_selection_ring_stroke(_get_graphics_theme(theme))
+_make_selected_row_color(theme::ScaledWidgetTheme) =
+    make_theme_cell(StyleColor, _get_graphics_theme(theme), scaled -> _with_alpha(scaled.selection_ring, 0.25))
 
 # The inset of `width` on every side, for a border.
 _make_uniform_inset(width::Integer) = Inset(width, width, width, width)

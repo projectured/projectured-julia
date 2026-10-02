@@ -47,7 +47,7 @@ A `WidgetSplitPane` makes its per-slot cells and child IO maps for the number of
 
 ### The theme
 
-`WidgetTheme` holds what the widgets draw with, and `@theme` declares it, as [style.md](../style/style.md#themes-and-the-appearance) describes. It holds the palette, the decorations `shadow`, `scrim`, `selection_ring` and `knob`, the fonts `font`, `font_bold` and `font_small`, and the named sizes. Each size has a kind of length, which says which scale applies to it:
+`WidgetTheme` holds what the widgets draw with, and `@theme` declares it, as [style.md](../style/style.md#themes-and-the-appearance) describes. It holds the palette, the decorations `shadow`, `scrim` and `knob`, the fonts `font`, `font_bold` and `font_small`, and the named sizes. Each size has a kind of length, which says which scale applies to it:
 
 - nine spacings: `control_padding`, `container_padding`, `compact_padding`, `item_gap`, `title_gap`, `label_gap`, `section_gap`, `bar_gap` and `indent`;
 - two radii: `radius`, and `radius_small` for a checkbox, a row band, a highlight and a skeleton;
@@ -121,7 +121,7 @@ The focus moves on the down, and the control acts on the press that a gesture tr
 
 A left press with Alt and no other modifier selects the innermost document under the pointer as a whole. The rule is in `read_child_event`, which every widget container calls, and it uses `convert_to_whole_selection` of the focus package. A control never acts on an Alt+press, because the rule drops the action that the control returns. No widget declares that it can be selected.
 
-A container whose selection names a child as a whole draws a ring over that child with `make_selection_ring`. The composite, the card, the tabbed pane and every layout keep one ring as the last element, with no size while nothing is selected. A focusable control gets no ring, because it draws its own focus ring. So a projection must not write a fixed routing path into the `selection` cell of a container, or the container draws a ring.
+A container whose selection names a child as a whole draws a ring over that child with `make_selection_ring`, in the color of the `GraphicsTheme` of the same appearance. The composite, the card, the tabbed pane and every layout keep one ring as the last element, with no size while nothing is selected. A focusable control gets no ring, because it draws its own focus ring. So a projection must not write a fixed routing path into the `selection` cell of a container, or the container draws a ring.
 
 A projection can draw a widget that no document of the domain stands behind, such as the table of a form. An `OutputReferenceStep` of the focus package names such a widget from the document that it was drawn for.
 

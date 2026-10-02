@@ -113,8 +113,8 @@ function _transcript_rings(node, x = 0, y = 0, out = Tuple{Int,Int,Int,Int}[])
     elseif node isa GraphicsViewport
         _transcript_rings(node.content, x + Int(node.x), y + Int(node.y), out)
     elseif node isa GraphicsRect && Int(node.border_width) > 0 &&
-           node.border_color.blue == SELECTION_RING_COLOR.blue &&
-           node.border_color.red == SELECTION_RING_COLOR.red
+           node.border_color.blue == get_theme_defaults(GraphicsTheme).selection_ring.blue &&
+           node.border_color.red == get_theme_defaults(GraphicsTheme).selection_ring.red
         push!(out, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
     end
     out

@@ -19,25 +19,24 @@
 # ── Projection structs ─────────────────────────────────────────────────────
 
 # A layout that draws a ring around a child selected as a whole holds the stroke
-# of that ring. The layout slice has no theme, so the default is the ring of the
-# graphics slice; the widget factory builds the layouts with the selection of
-# its theme. The field is an `UntrackedCell`, so the factory can give a ring that
-# reads the theme at each read, as the widgets read it.
+# of that ring, from the `GraphicsTheme`. The default is the ring of the default
+# theme. The field is an `UntrackedCell`, so `LayoutToGraphics(; theme)` gives a
+# ring that reads a scaled theme at each read, as the widgets read it.
 
 @projection UntrackedCell struct HorizontalLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    selection_ring_stroke::StyleStroke = make_selection_ring_stroke(nothing)
 end
 
 @projection UntrackedCell struct VerticalLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    selection_ring_stroke::StyleStroke = make_selection_ring_stroke(nothing)
 end
 
 @projection UntrackedCell struct GridLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    selection_ring_stroke::StyleStroke = make_selection_ring_stroke(nothing)
 end
 
 @projection UntrackedCell struct FlowLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    selection_ring_stroke::StyleStroke = make_selection_ring_stroke(nothing)
 end
 
 struct StackLayoutToGraphicsCanvas      <: Projection end
@@ -54,7 +53,7 @@ for real LP-based constraint solving — same injection pattern as
 """
 @projection UntrackedCell struct ConstraintLayoutToGraphicsCanvas
     solver::ConstraintSolver = FallbackConstraintSolver()
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    selection_ring_stroke::StyleStroke = make_selection_ring_stroke(nothing)
 end
 
 # ── GridLayout iomap (geometry-bearing) ─────────────────────────────────────
@@ -2203,7 +2202,7 @@ Project an [`AnchoredLayout`](@ref): the content, with each anchored child
 composited over it beside its target.
 """
 @projection UntrackedCell struct AnchoredLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    selection_ring_stroke::StyleStroke = make_selection_ring_stroke(nothing)
 end
 
 # Where a target sits, as `(x, y, w, h)` in the content's own coordinates.
@@ -2349,16 +2348,17 @@ read_intent(::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt) =
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
-    LayoutToGraphics(; selection_ring_stroke = StyleStroke(SELECTION_RING_COLOR, 2))
+    LayoutToGraphics(; theme = nothing)
 
 A type-dispatching projection that routes any layout document to its
-`…ToGraphicsCanvas` projection. `selection_ring_stroke` is the ring around a
-child selected as a whole; the widget factory passes the selection of its
-theme. Wrap in a `RecursiveProjection` (or
-include in a larger dispatcher) so children re-enter the recursion.
+`…ToGraphicsCanvas` projection. A layout draws the ring around a child selected
+as a whole with the `GraphicsTheme` `theme`: a scaled theme, which the layouts
+read at each read, or `nothing` for the default theme. Wrap in a
+`RecursiveProjection` (or include in a larger dispatcher) so children re-enter
+the recursion.
 """
-function LayoutToGraphics(; selection_ring_stroke::Union{StyleStroke, UntrackedCell{StyleStroke}} =
-                              StyleStroke(SELECTION_RING_COLOR, 2))
+function LayoutToGraphics(; theme::Union{GraphicsTheme, ScaledGraphicsTheme, Nothing} = nothing)
+    selection_ring_stroke = make_selection_ring_stroke(scale_theme(theme))
     TypeDispatchingProjection(
         HorizontalLayout => HorizontalLayoutToGraphicsCanvas(; selection_ring_stroke),
         VerticalLayout   => VerticalLayoutToGraphicsCanvas(; selection_ring_stroke),

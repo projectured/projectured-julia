@@ -140,7 +140,8 @@ function NaturalToGraphics(; measure::TextMeasure,
 
     table = vcat(
         Pair{Type,Any}[p for p in extra],
-        LayoutToGraphics().dispatch,   # layouts before widgets: a WidgetTable builds a GridLayout
+        # layouts before widgets: a WidgetTable builds a GridLayout
+        LayoutToGraphics(; theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch,
         w2g.dispatch,                  # every widget node (incl. WidgetTable)
         # The domains that draw themselves rather than going through the syntax
         # fabric: a page of blocks (markdown, RST), a diagram (graph), a typeset

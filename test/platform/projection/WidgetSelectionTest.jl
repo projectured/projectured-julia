@@ -55,10 +55,12 @@ function _selection_text_at(root, text)
     found
 end
 
-_is_selection_ring(node) =
+function _is_selection_ring(node)
+    ring = get_theme_defaults(GraphicsTheme).selection_ring
     node isa GraphicsRect &&
-    (node.border_color.red, node.border_color.green, node.border_color.blue) ==
-    (SELECTION_RING_COLOR.red, SELECTION_RING_COLOR.green, SELECTION_RING_COLOR.blue)
+        (node.border_color.red, node.border_color.green, node.border_color.blue) ==
+        (ring.red, ring.green, ring.blue)
+end
 
 # The absolute box of every ring that draws.
 function _selection_rings(root)

@@ -31,6 +31,7 @@ using ..DocumentModule
 using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule

@@ -422,8 +422,8 @@ function _page_rings(root)
     rings = Tuple{Int,Int,Int,Int}[]
     _page_walk(root) do node, x, y
         (node isa GraphicsRect && Int(node.border_width) > 0 &&
-         node.border_color.blue == SELECTION_RING_COLOR.blue &&
-         node.border_color.red == SELECTION_RING_COLOR.red) || return
+         node.border_color.blue == get_theme_defaults(GraphicsTheme).selection_ring.blue &&
+         node.border_color.red == get_theme_defaults(GraphicsTheme).selection_ring.red) || return
         push!(rings, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
     end
     rings

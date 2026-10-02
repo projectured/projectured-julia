@@ -66,6 +66,8 @@ Where regions overlap, the last one in the order of the drawing wins.
 
 `make_selection_ring(bounds)` returns one border-only `GraphicsRect` whose geometry cells read `bounds()`. When `bounds()` returns `nothing`, the ring has zero size and draws nothing. A layout or a widget container keeps the ring in its element list at all times. So a selection move changes four cells of the ring, and the element list keeps its shape.
 
+`GraphicsTheme` holds the color and the width of the ring, and the font and the color of the mark that `FaultToGraphics` draws. The graphics and the layouts lie below every other slice that draws, so they take these styles from this theme and from no other. `make_selection_ring_stroke(theme)` gives the stroke of the ring: a cell that reads a scaled theme at each read, or the plain stroke of the default theme for `nothing`. `LayoutToGraphics(; theme)` gives it to each layout, and the widgets read the graphics theme of the appearance of their own theme.
+
 `PointReferenceStep(x, y)` names a pixel inside an element, written `.point(x, y)` in `@reference`. The reader of `GraphicsCanvasToGraphicsImage`, below, makes a click into `ElementReferenceStep(i)` followed by a `PointReferenceStep`, and `TextToGraphics` in [text.md](../text/text.md) turns that into a character offset. The kernel reference layer never names the step.
 
 `RegionReferenceStep(x, y, width, height)` names a box in the frame of the node before it, which no node of its own draws. A forward map answers it after the smallest node that holds all of the image of a part, when that image is no node and no range of one text, such as a text range across segments ([reference.md](../../kernel/reference.md), "The place of a part").

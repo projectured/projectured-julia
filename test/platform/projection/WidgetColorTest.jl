@@ -72,7 +72,10 @@ function _theme_colors(theme)
         value isa StyleColor && push!(colors, value)
     end
     see_through(color, alpha) = StyleColor(color.red, color.green, color.blue, alpha)
-    push!(colors, see_through(theme.selection_ring, 0.25),             # the band of a selected row
+    # The ring of a part selected as a whole and the band of a selected row come
+    # from the graphics theme, which the probe leaves at its default.
+    ring = get_theme_defaults(GraphicsTheme).selection_ring
+    push!(colors, ring, see_through(ring, 0.25),                       # the band of a selected row
                   see_through(theme.primary, 0.25),                   # the area of a highlight
                   color_interpolate(theme.muted, theme.background, 0.5))  # a tinted card
     colors
