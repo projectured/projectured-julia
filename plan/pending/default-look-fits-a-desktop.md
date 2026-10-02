@@ -102,6 +102,19 @@ cache of instances.
   person changes `font` to DejaVu Sans, the titles stay in Ubuntu Bold.
 - The fallback chain for a missing glyph is one list for every font: DejaVu
   Sans Mono, then Noto Emoji. A bold font tries DejaVu Sans Mono Bold first.
+- The memory of the style values, measured on `main` on 2026-10-02:
+
+  | Value | Bytes | Stored inline | Heap memory for a new value |
+  | --- | --- | --- | --- |
+  | `StyleColor` | 32 | yes, a bits type | 0 bytes |
+  | `StyleFont` | 16 | yes | 0 bytes |
+  | `StyleText` | 48 | yes | 0 bytes |
+
+  Julia copies an immutable value into the field or the array that holds it, so
+  two holders can not share one instance. The file name is the only part of a
+  font on the heap, and every copy points to the same `String`. 10,000
+  `TextString`s use 3,489,046 bytes, which is 349 bytes each. The font and the
+  color are 48 bytes of each, about 14%.
 
 ### 2.4 The colors
 
@@ -168,7 +181,15 @@ use this model.
   family has no italic face.
 - The size stays an `Int` in logical pixels.
 - Two equal descriptions are equal values, as two equal fonts are now. There is
-  no cache of instances (D5).
+  no cache of instances (D5). A cache gives back a copy of the same value, and
+  the copy uses the same memory (section 2.3).
+- The description stays small (D13). The weight is a `UInt16` and the slant is
+  one byte. With the family `String` and the `Int` size, a font is 24 bytes
+  inline, and a new font allocates nothing. A cache could save memory only if a
+  field held a small number for the font in place of the value. That saves
+  about 40 bytes of the 349 of a `TextString`, about 11%. It costs a global table
+  that can change, a lookup at each read, and a font that means nothing
+  without the table.
 - The exact names of the fields and the functions follow
   `documentation/rule/naming-rules.md` and are fixed at step F2.
 
@@ -344,6 +365,10 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   needs its own plan.
 - **D12** (2026-10-02, Q5). The saved form of a font as a file name goes. A key
   that is not known is ignored, and the default applies.
+- **D13** (2026-10-02). The owner asked if a cache of instances saves memory.
+  The measurement of section 2.3 shows that it does not. The weight and the
+  slant of a font are small integers, so a font stays at 24 bytes inline or
+  less, and a new font allocates nothing.
 
 ## 6. Steps
 
@@ -360,7 +385,8 @@ inet-julia uses, the same step changes them, so that they always load.
   `font.filename` ask the registry. The 143 constants stay, now defined as
   descriptions, so their callers do not change. `save_appearance!` and
   `load_appearance!` write and read the family, the weight, the slant and the
-  size.
+  size. A test checks that `StyleFont` is stored inline, is 24 bytes or less,
+  and that a new font allocates nothing (D13).
 - [ ] **F3.** The fallback chain comes from the registry.
 - [ ] **F4.** The appearance tab chooses a family, a weight, a slant and a size,
   in place of the steps through the files.
