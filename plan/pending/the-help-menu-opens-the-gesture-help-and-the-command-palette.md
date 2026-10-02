@@ -4,8 +4,8 @@
 > Written on 2026-10-02 at the owner's request. The owner decided the route (D1)
 > and the place (D2) on 2026-10-02. D3 and D4 are my choices, because the owner
 > said to start without a change to them; the owner can still change either. D3
-> changed during S2, when I found that a menu item draws no key (3.5). S1, S2
-> and S3 are done.
+> changed during S2, when I found that a menu item draws no key (3.5). S1 to S4
+> are done.
 
 ## 1. The request
 
@@ -242,14 +242,16 @@ Do the work in a worktree. Commit each step.
     draws the closed window again.
   - With panes, the selection finds the shell. Without panes, the selection is
     `nothing`, and the search finds the only shell.
-- [ ] **S4. The documents.** Update:
+- [x] **S4. The documents.** Done on 2026-10-02:
   - The docstrings of `make_window_help_menu` and `make_window_menu_bar` in
-    `WindowChrome.jl`: remove Command palette and Gesture help from "What is not
-    here yet".
-  - `documentation/package/platform/shell/shell.md`: the Help menu and the
-    limits (line 154).
-  - `documentation/package/platform/gesturehelp/gesturehelp.md`: the limit on
-    line 92.
+    `WindowChrome.jl`, and of the `shell` wrapper in `WindowShellWrapper.jl`.
+  - `documentation/package/platform/shell/shell.md`: the menu bar section says
+    how the two items reach their wrappers, and the limits say that a menu item
+    draws no key.
+  - `documentation/package/platform/gesturehelp/gesturehelp.md`: the two
+    operations, and the limit about the menu is gone.
+  - `documentation/guide/keyboard-and-mouse-guide.md`: Help > Gestures and
+    Help > Command palette.
 - [ ] **S5. Close.** Run the narrow tests of S1 to S3 and the layering guard of
   the shell. Move this plan to `plan/done/`.
 

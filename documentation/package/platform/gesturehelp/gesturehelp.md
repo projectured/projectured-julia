@@ -18,6 +18,8 @@ A key press goes to the view under the selection, and each view has its own gest
 
 `GestureHelpDecoratorProjection(; inner, state, id = :gesture_help, …)` passes the output of `inner` through. Its reader calls the inner reader first. When that returns no operation and the gesture matches `HELP_GESTURE`, which is `KeyDownPattern(:f1)`, the decorator collects the rows, makes a `GestureMap`, and returns an `OpenWindowOperation` whose content is the map. `WindowManagingProjection` opens it as a window beside the content; see [screen.md](../screen/screen.md). A second F1 returns `CloseWindowOperation(id)`.
 
+**A command opens a tool with an operation.** `ToggleGestureHelpOperation()` and `ToggleCommandPaletteOperation()` do what F1 and Ctrl+Shift+P do. A command sends one with a route into the content of the decorator, as `read_rooted_operation` sends an operation, and the decorator finds it in the answer of its inner reader. The key and the operation call one function in each decorator. Each operation names no place, so it travels up a chain as it is. The Help menu of the shell sends them; [shell.md](../shell/shell.md#the-menu-bar) says how.
+
 The open flag is in a `GestureHelpState` that the caller makes and shares, because a pipeline can build the decorator again for each dispatch. The screen that opens the window needs a row for `GestureMap`: `make_gesture_map_projection(measure)` chains `GestureMapToSyntax`, `SyntaxToText`, `WordWrapping` and `TextToGraphics`. `GestureMapToSyntax` prints a heading for each domain and one line for each row. A row with no key shows `by name`, and a row that can not run is muted and ends with `(n/a)`.
 
 ### Ctrl+Shift+P: the command palette
@@ -89,4 +91,3 @@ run_example("json"; gesture_help = true, command_palette = true)
 ## Limits
 
 - The help map does not follow the selection while it is open.
-- The menu bar of the shell has no item for either tool; only the keys open them. See [shell.md](../shell/shell.md).

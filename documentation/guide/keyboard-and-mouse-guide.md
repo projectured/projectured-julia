@@ -102,8 +102,8 @@ The Insert key in an empty tab opens an insertion field instead: type the kind o
 
 ## The two lists
 
-- **F1** opens the gesture help: every key that works where the selection is now, with what it does. It is a view of the same kind as the others, so it follows the selection while it is open.
-- **Ctrl + Shift + P** opens the command palette: type a few letters of a command, and press Enter to run it. It finds a command that has no key of its own.
+- **F1** opens the gesture help: every key that works where the selection is now, with what it does. It is a view of the same kind as the others, so it follows the selection while it is open. Help > Gestures opens it too.
+- **Ctrl + Shift + P** opens the command palette: type a few letters of a command, and press Enter to run it. It finds a command that has no key of its own. Help > Command palette opens it too.
 
 ## The settings
 

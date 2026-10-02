@@ -18,7 +18,9 @@ get the rows that draw the menus of the bar.
 
 The bands offer a tool that shows what the window records only when the wrapper
 that fills it is on: `message_log`, `gesture_log`, `fault_log` and
-`frame_statistics` ([`RECORDED_TOOLS`](@ref)). The argument holds the choices of
+`frame_statistics` ([`RECORDED_TOOLS`](@ref)). In the same way, the Help menu
+offers the gesture help and the command palette only when `gesture_help` and
+`command_palette` are on. The argument holds the choices of
 the host:
 
 - `assistant` makes the assistant of the window from the editor; with

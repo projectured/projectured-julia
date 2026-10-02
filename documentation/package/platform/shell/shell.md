@@ -51,11 +51,13 @@ A wrapper that opens a window of its own needs `make_opened_window_projections()
 
 ### The menu bar
 
-Each menu of the bar has its own make function. `make_window_file_menu()` makes File, with the commands that open and close a tab. `make_window_view_menu()` makes View, with the commands that split the focused group and open the gesture log. `make_window_help_menu(; about)` makes Help, with the commands that open the list of document types, the list of projections and the page about the program.
+Each menu of the bar has its own make function. `make_window_file_menu()` makes File, with the commands that open and close a tab. `make_window_view_menu()` makes View, with the commands that split the focused group and open the gesture log. `make_window_help_menu(; about, gesture_help, command_palette)` makes Help, with the commands that open the list of document types, the list of projections and the page about the program. Gestures and Command palette come first, each only when its keyword is true.
 
-`make_window_menu_bar(; extra, about)` combines them: File, then View, then the menus of `extra`, then Help. Help is the last menu, as on a desktop, so a host's own menus go between View and Help.
+`make_window_menu_bar(; extra, about, gesture_help, command_palette)` combines them: File, then View, then the menus of `extra`, then Help. Help is the last menu, as on a desktop, so a host's own menus go between View and Help.
 
 Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. The list of document types and the list of projections are longer than a pane, and a tab page gets no scroll of its own, so each opens inside a `WidgetScrollPane`, with the title of the list; `_find_tool_tab` looks into the scroll pane. A saved window keeps the list in its scroll pane, and where it was scrolled. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
+
+**Gestures and Command palette do what F1 and Ctrl+Shift+P do.** Each opens its tool, or closes it when it is open. The tool belongs to its wrapper, `gesture_help` or `command_palette`, which is around the shell, so a callback that has only the editor can not reach it. The command sends `ToggleGestureHelpOperation` or `ToggleCommandPaletteOperation` with `read_rooted_operation`, and the place is the `content` of the shell. The readers carry the operation to the content and lift it up again, so it passes every wrapper around the shell. The wrapper that owns it answers what its key answers, and the command posts what reaches the root. The shell is the first one on the path of the selection, else the only shell of the document, so the items work with and without panes. The rows of the help follow the selection, as for F1, so the place does not change them. An item carries no key, because the key reaches the wrapper itself and a menu item draws no key, and its tooltip names the key. The `shell` wrapper gives each keyword from the wrappers that are on.
 
 ### How a host adds a command
 
@@ -151,7 +153,8 @@ run_editor!(editor)
 
 ## Limits
 
-- The menu bar has no Save, Reload, Command palette, Gesture help or clipboard items. The keys work, but no verb reaches the owner of each command through the editor yet.
+- The menu bar has no Save, Reload or clipboard items. The keys work, but no verb reaches the owner of each command through the editor yet.
+- A menu item draws its label only, and not its key.
 - There is no Tools menu, and the fault button shows no mark for a fault that nobody read.
 - A press on the Assistant button after its tab closed opens a new, empty assistant, because the session keeps no assistant of its own.
 - The gesture help, the command palette, the MCP server and the undo history have no document that a tool button could open.
