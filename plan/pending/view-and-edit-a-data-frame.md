@@ -1018,11 +1018,11 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     - **The numbers.** In the data frame view a number names the row and the
       column in the frame: `rows[5][3]` is row 5 and column 3 of the frame, so
       a sort, a filter, a hidden column and a scroll do not change what a path
-      names. In the widget table a number names the row in the whole table, not
-      counted from the head of the list: a list table gets the number of its
-      head row from its owner, which knows it (the anchor of the view). A row or
-      a column that the REPL inserts moves the selection to another one, as
-      §3.4 says.
+      names. In the widget table a number of a list table counts from the head
+      of the list (the owner, 2026-10-02, below: "In a lazy list everybody
+      needs to count from the head, it can be infinite in both directions"),
+      and the view maps its numbers of the frame to it. A row or a column that
+      the REPL inserts moves the selection to another one, as §3.4 says.
     - **The fields.** A field step reads a field of a struct or an entry of a
       dictionary, so each name of a path is a field. The widget table gets a
       computed field `columns`, whose `[3]` gives a column. The view gets two
@@ -1151,12 +1151,12 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     renderer of a cell uses. The `.pred` text writes the limit of a type-in,
     a type, by its bare name (the owner chose it).
   - [x] **4.1** The paths of a table (the widget table, generic): the computed
-    field `columns`; a number of a list table counts in the whole table, from
-    the number of its head row that its owner gives; a click on a column
+    field `columns`; ~~a number of a list table counts in the whole table, from
+    the number of its head row that its owner gives~~ (withdrawn: it counts
+    from the head); a click on a column
     header selects `columns[c]`, a click on a row header selects `rows[r]`;
     the selection shapes; the markdown table and the cell table follow.
-    Done 2026-10-02, except the count in the whole table, which waits for the
-    owner (below):
+    Done 2026-10-02. The count in the whole table is withdrawn (below):
     - A field step reads a field with `getfield`, and `@document` has no
       computed field, so `columns` is a field that holds a
       `WidgetTableColumns`, which holds nothing; its `[c]` gives a
@@ -1179,7 +1179,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       column; a click on its header puts the caret in the entry.
     - The view maps `columns[c]` and `column_headers[c]` to its column, and
       shows its column as `columns[c]`. Its own paths change in 4.2.
-    - **The count in the whole table is not done.** The generic `getindex` of a
+    - **The count in the whole table is withdrawn.** The generic `getindex` of a
       `ListNode` (collection slice), the kernel step that evaluates a path and
       the selection walker (`SelectionDefaults.jl`, sealed) all read `rows[k]`
       of a list as the node `k` from the head, so the table alone can not count
@@ -1188,9 +1188,11 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       every user; (2) `rows` holds a numbered view of the list, which every
       reader of `rows` follows; (3) the table keeps the count from the head,
       and the view, which keeps its selection in numbers of the frame and
-      computes the table's selection from them, maps them. Recommendation of
-      the writer: (3), because only the view builds a list table, and its
-      selection does not go stale after a scroll.
+      computes the table's selection from them, maps them. The owner chose (3),
+      2026-10-02: "In a lazy list everybody needs to count from the head, it
+      can be infinite in both directions. Whatever the head is." A lazy list
+      has no first row, so a count in the whole table has no meaning; the head
+      is the one fixed place to count from.
     - Tests: the list table 214 (a header band alone, a row header alone, Alt
       on a header), the table selection 25 (the band of a header cell, a column
       that a table evaluates), the navigation 66 (a click in a string header
