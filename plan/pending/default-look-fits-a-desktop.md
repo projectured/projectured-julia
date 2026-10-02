@@ -461,7 +461,16 @@ inet-julia uses, the same step changes them, so that they always load.
 
 - [ ] **T1.** Classify each fixed value of section 2.6 as a style, content or
   not a style. Record the lists in section 10. The owner reviews the lists of
-  content and of "not a style".
+  content and of "not a style". *In progress (2026-10-02):* an agent wrote the
+  lists `/var/tmp/default-look/t1-projectured.md` (320 style, 155 content
+  entries for 521 values, 433 not a style), `t1-omnet.md` (507, 56, 95) and
+  `t1-inet.md` (6, 23, 14). Corrections before the review: the size of an
+  output or a window (`write_image`, the PDF, the video, the recording, the
+  default `Display`, `EditorDisplay`, the file dialog) is not a style. The
+  agent proposed 17 new themes in projectured-julia and 24 in omnet-julia;
+  a value of window chrome that one field of `WidgetTheme` already says, such
+  as the padding of a pane or the gap of a tooltip, takes that field instead.
+  Waiting for the review of the owner.
 - [ ] **T2.** projectured-julia: each style value moves into a theme. A domain
   with no theme gets one.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
@@ -476,7 +485,15 @@ inet-julia uses, the same step changes them, so that they always load.
   the settings tab, the appearance tab and a chart, and the omnet workbench with
   a NED file. Each view in three looks: now, the look of the owner (0.8 and
   0.67), and the proposal of section 3.6 with the candidates for the code font.
-  The images go on one page, and the owner chooses.
+  The images go on one page, and the owner chooses. *In progress (2026-10-02):*
+  the page https://claude.ai/artifact/XEAB4xRHmdT1XLYEMDfVVq shows the JSON,
+  Julia and Markdown views of the application window
+  (`make_application_window`, 1440×900) and the appearance tab, at the density
+  1, in four looks: now, the look of the owner, and the proposal with Ubuntu
+  Mono 14 or DejaVu Sans Mono 14 as the code font. The proposal sets the base
+  fonts through an `Appearance`, so it needs no change of code. Not yet shown:
+  the line spacing of D9, which needs step V2, the density 2, and the omnet
+  workbench. The script is `/var/tmp/default-look/v1/looks.jl`.
 - [ ] **V2.** The chosen values go into every theme, with the line spacing of
   section 3.6.
 - [ ] **V3.** The tests that check a pixel size follow, for example the line box
