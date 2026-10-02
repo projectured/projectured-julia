@@ -899,13 +899,20 @@ end
 # it would give every label a domain it does not have.
 
 # The lines `text` breaks into so that each fits `bound`, measured in `font`.
-# Text that already fits is one line, whatever it holds, so a widget whose text
-# fits draws exactly what it drew before. A word wider than the bound keeps its
-# own line: nothing can make a word narrower. A `bound` of zero is no bound.
+# A line break always ends a line. A text with no line break that fits is one
+# line, so a widget whose text fits draws exactly the one line that it measures.
+# A word wider than the bound keeps its own line: nothing can make a word
+# narrower. A `bound` of zero is no bound.
 function _text_lines(measure, font::StyleFont, text::AbstractString, bound::Int)
-    (bound <= 0 || first(_text_size(measure, font, text)) <= bound) && return String[String(text)]
+    !occursin('\n', text) && (bound <= 0 || first(_text_size(measure, font, text)) <= bound) &&
+        return String[String(text)]
     out = String[]
     for paragraph in split(text, '\n'; keepempty = true)
+        # A line break always ends a line; a line that fits stays whole.
+        if bound <= 0 || first(_text_size(measure, font, paragraph)) <= bound
+            push!(out, String(paragraph))
+            continue
+        end
         current = ""
         for word in split(paragraph, ' ')
             candidate = isempty(current) ? String(word) : current * " " * String(word)
