@@ -1201,8 +1201,10 @@ field documentation? It could help the theme UI".
   `ReplaceThemeValueOperation`, the counterpart of `ApplySettingOperation`: it
   writes and then prints the view again, and its inverse writes the old value and
   prints the view again.
-- [ ] **Q5. omnet passes the themes of its appearance** to its charts, its
-  sequence charts, its FSM diagrams and its topology graph.
+- [x] **Q5. omnet passes the themes of its appearance** to its charts, its
+  sequence charts, its FSM diagrams and its topology graph. Done on the omnet
+  branch `appearance-themes` (`a12eaa87`), which needs `GraphTheme`, so it lands
+  after this repository; finding 36.
 
 ### Part G: the guides
 
@@ -1644,3 +1646,20 @@ field documentation? It could help the theme UI".
     - A step of the zoom or of a scale keeps `DoNothingOperation` as its
       inverse, as before; finding 29 names the writes of the tab, and a step is
       also a key outside the tab.
+36. **Q5: omnet draws its pictures with the themes of the appearance**
+    (2026-10-02). In a scratch environment over both worktrees, the omnet suites
+    of the result chart, the capture, the module layout, the workbench, the
+    result view, the notebook and the embed card give 424 pass, 6 fail and 1
+    broken; the 6 fail on omnet `main` over projectured `main` too ("the chart
+    fills its card", a padding of 17 against 16, and "a reader types a cell" of
+    the notebook). Facts found:
+    - `build_diagram_document_dispatch`, `build_workbench_document_dispatch` and
+      `build_workbench_render_projection` take `appearance`, and the natural rows
+      of omnet pass the `Appearance` of the editor; `result_chart_pipeline`,
+      `capture_sequence_chart_pipeline` and `topology_graph_projection` take the
+      scaled theme of their picture. With no appearance, a picture draws with
+      the default values, so `qtenv` and the embed card, which have none, draw as
+      before.
+    - `OmnetPresentation` does not depend on `ProjecturedJulia`, so the labels of
+      an FSM diagram take no `JuliaTheme`; a label of a state or of a transition
+      holds no Julia code.
