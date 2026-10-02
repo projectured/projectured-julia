@@ -46,19 +46,23 @@ end
     @test Int(_gs_grid(iomap).row_count[]) == 3
 end
 
-@testset "a spanning child adds nothing to a column, and breaks its text to the columns it spans" begin
+@testset "a spanning child widens no column, and breaks its text at the edge of the grid" begin
     long = "a description that is far longer than the name and the control together, " *
-           "so it must break into lines"
+           "so it must break into lines at the edge of the grid"
+    narrow() = with_exact_size(PrinterContext(EmptyReference()); width = _GS_Cell(300), height = _GS_Cell(400))
     without = GridLayout(Any[WidgetLabel("name"), WidgetLabel("control")], 2; horizontal_gap = 8)
     with = GridLayout(Any[WidgetLabel("name"), WidgetLabel("control"),
                           LayoutConstraint(WidgetLabel(long); column_span = 2)], 2; horizontal_gap = 8)
-    plain = print_document(proj, nothing, without, offer())
-    spanned = print_document(proj, nothing, with, offer())
-    # The grid is as wide as its first row: the long text widened no column.
-    @test Int(spanned.output.w[]) == Int(plain.output.w[])
-    # The text broke into lines inside the width of the two columns.
-    note = last(_gs_grid(spanned).child_iomaps)[3].output
-    @test Int(note.w[]) <= Int(spanned.output.w[])
+    plain = _gs_grid(print_document(proj, nothing, without, narrow()))
+    spanned = _gs_grid(print_document(proj, nothing, with, narrow()))
+    # The columns keep the widths of their own cells.
+    @test [Int(w[]) for w in spanned.col_w[1:2]] == [Int(w[]) for w in plain.col_w[1:2]]
+    # The text reaches past the columns, up to the edge of the grid, and breaks
+    # into lines there; the grid is as wide as the text.
+    note = last(spanned.child_iomaps)[3].output
+    columns = Int(plain.output.w[])
+    @test columns < Int(note.w[]) <= 300
+    @test Int(spanned.output.w[]) == Int(note.w[])
     one_line = print_document(proj, nothing, WidgetLabel("name"), PrinterContext(EmptyReference())).output
     @test Int(note.h[]) > 2 * Int(one_line.h[])
 end

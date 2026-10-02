@@ -1477,9 +1477,19 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end
     column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:n]
     span_w = Cell[_gl_span_w_cell(i, places, col_w, hgap) for i in 1:n]
+    col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
     # The columns that child `i` spans, at the column count of this print.
     places_now = places[]
     spanned_columns(i::Int) = places_now[i][2]:min(places_now[i][2] + places_now[i][3] - 1, n)
+    # A spanning child reaches from its first column to the edge of the grid, and
+    # at least over the columns that it spans: it widens no column, and a text in
+    # it breaks at the width that the grid was offered. A grid offered no width
+    # gives it no edge, and it draws as wide as it measures.
+    function make_span_edge(i::Int)
+        edge_w === nothing && return nothing
+        col = places_now[i][2]
+        Cell(@computation Int32(max(Int(span_w[i][]), Int(edge_w[]) - Int(col_x[col][]))))
+    end
 
     # What each cell is given. A column or a row that may hand out its extent
     # gives it exactly — §3, and §4's rule that only a weighted item is given a
@@ -1495,7 +1505,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
             cctx = span > 1 ?
                        (all(offers_to_cells, spanned_columns(i)) ?
                             with_exact_size(cctx; width = _gl_int32_cell(span_w[i])) :
-                            with_bounded_size(cctx; width = _gl_int32_cell(span_w[i]))) :
+                            with_bounded_size(cctx; width = make_span_edge(i))) :
                    offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    withhold_offer(cctx, :x)
@@ -1508,10 +1518,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         push!(child_iomaps, cim)
     end
 
-    col_x = Cell[]
     row_y = Cell[]
     for k in 1:n
-        push!(col_x, _gl_col_x_cell(k, col_w, hgap))
         push!(row_y, _gl_row_y_cell(k, row_h, vgap))
     end
 
@@ -1522,13 +1530,20 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         push!(child_y, _gl_child_y(i, child_iomaps, places, row_h, row_y, valign))
     end
 
+    # The grid is as wide as its columns, and as wide as a spanning child that
+    # reaches past them.
+    spanning = [i for i in 1:n if places_now[i][3] > 1]
     outer_w = Cell(Computation(function ()
         c = cols_cell[]
         total = 0
         for cc in 1:c
             total += col_w[cc][]
         end
-        total + max(0, c - 1) * hgap[]
+        total += max(0, c - 1) * hgap[]
+        for i in spanning
+            total = max(total, Int(col_x[places_now[i][2]][]) + _child_w(child_iomaps[i]))
+        end
+        total
     end))
 
     outer_h = Cell(Computation(function ()
