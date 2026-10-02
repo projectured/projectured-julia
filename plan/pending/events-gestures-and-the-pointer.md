@@ -1505,6 +1505,20 @@ it holds the example.
     stay. The repls, the application, the gallery wrappers and the platform
     pass as before.
   - [ ] 9f. The hosts, the checks and the documents.
+    **Settled** (owner 2026-10-02: "Agreed", on Claude's option a): the tooltip
+    window and the context menu window are two wrappers of `build_editor`,
+    `tooltip` and `context_menu`, on by default. Each adds its window function
+    to a list in the editor parts, and the `window` wrapper puts the functions
+    of that list inside the trackers, as it takes the rows of
+    `opened_window_projections` from the other wrappers; the screen slice names
+    neither window, because the tooltip and the widget slices depend on it. A
+    host turns a window off with `tooltip = false` or `context_menu = false`,
+    and the application passes the two windows no longer. Facts behind it
+    (2026-10-02): `inner_wrappers` of the `window` wrapper defaults to empty,
+    and only the application (and the IDE of omnet) passes the two windows, so
+    `build_editor` with its defaults, the gallery and the screen examples
+    opened no tooltip and no context menu. Rejected: option b, every host passes
+    the windows itself.
 - [x] 10. **Replaced by step 5b of
   [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)**
   (Q13 there, settled 2026-10-01: the drag wrapper keeps the path of the part
