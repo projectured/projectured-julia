@@ -96,9 +96,25 @@ The Insert key in an empty tab opens an insertion field instead: type the kind o
 
 | Key | What it does |
 | --- | --- |
-| Ctrl + plus, Ctrl + minus | make the text larger or smaller |
-| Ctrl + 0 | back to the size it started at |
+| Ctrl + plus, Ctrl + minus | zoom: make everything in the window larger or smaller |
+| Ctrl + 0 | back to a zoom of 100% |
+| Ctrl + Alt + plus, Ctrl + Alt + minus | make the text larger or smaller |
+| Ctrl + Alt + 0 | back to the text size it started at |
+| Ctrl + Alt + period, Ctrl + Alt + comma | make the icons larger or smaller |
+| Ctrl + Alt + ], Ctrl + Alt + [ | make the space between things larger or smaller |
+| Ctrl + comma | open the appearance tab |
 | the chevron of a node | open or close that node |
+
+A view that zooms by itself, such as a diagram, keeps Ctrl + plus and Ctrl + minus while the selection is in it.
+
+The appearance tab opens with Ctrl + comma, with the palette button of the toolbar, or with View > Appearance. At its top are the zoom and six scales: text, icons, spacing, controls, corners and lines. Each has a minus, a plus and a reset button. Under them are the themes, in three groups: Editor, Tools and Documents. Click the chevron of a theme to open it. A theme shows its colors, its fonts and its sizes:
+
+- Rest the pointer on the name of a value to read what it draws.
+- Type the digits of a color, as `#rrggbbaa`.
+- Step a size or the size of a font with the stepper at the right of its box, or with Up and Down. Step through the fonts with ‹ and ›.
+- Choose a preset, if the theme has some, to change all of its values at once.
+
+A change shows at once. Ctrl + Z in the window takes back a change of a theme; a step of the zoom or of a scale has its reset button instead. Save keeps the appearance for the next start, and Load reads the saved one back.
 
 ## The two lists
 

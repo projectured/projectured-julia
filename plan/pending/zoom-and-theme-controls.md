@@ -1190,7 +1190,12 @@ field documentation? It could help the theme UI".
   collapsible `WidgetCard`, closed at the start. The open sections are view state
   of the `Appearance`, as its scroll position is, because the tab prints again
   after each write; a save does not write them; finding 34.
-- [ ] **Q4. Ctrl+Z takes back a change in the theme tab** (finding 29). The tab
+- [x] **Q3b. A text style in the tab has controls** (2026-10-02, the owner saw
+  the raw values on `main`). A `StyleText` field showed `string(value)`, because
+  the tab had controls only for a color, a font and a length, and Part P made
+  `StyleText` 153 of the fields. It now has the controls of its color over those
+  of its font; finding 35.
+- [x] **Q4. Ctrl+Z takes back a change in the theme tab** (finding 29). The tab
   answers a plain write of the theme, so a history around the tab records it.
   The `appearance` wrapper turns each write of a theme into a
   `ReplaceThemeValueOperation`, the counterpart of `ApplySettingOperation`: it
@@ -1201,10 +1206,18 @@ field documentation? It could help the theme UI".
 
 ### Part G: the guides
 
-- [ ] **G1.** A new design document `documentation/package/appearance/`. The
+- [x] **G1.** A new design document `documentation/package/appearance/`. The
   changes in `style.md`, `widget.md`, `sdl.md`, `web.md`, `editor.md`, `cell.md`
   and the design document of each domain that has a theme. "See more of it, or
   less" in `keyboard-and-mouse-guide.md`.
+  - Done as `documentation/package/platform/appearance/appearance.md`, which the
+    steps W1 to W4 wrote and Part Q completes: the groups and the cards of the
+    tab, the tooltips, and the history. `widget.md`, `sdl.md`, `web.md`,
+    `editor.md` and `cell.md` gained their parts with W1 to W4 and Part B, and
+    each domain document its section "The theme" with Part P.
+  - Part Q added the field docstrings to `style.md`, rewrote "See more of it, or
+    less" for the zoom, the scales and the tab, and gave
+    `new-domain-guide.md` a step for a theme, whose code a test runs.
 
 ## 7. Risks
 
@@ -1589,10 +1602,13 @@ field documentation? It could help the theme UI".
 34. **Q1 to Q3: field docstrings, the graph theme, and the groups of the tab**
     (2026-10-02). The tests of the theme, the tab, the wrapper, the guards and
     the graph give 464 pass. Facts found:
-    - Julia records the docstring of a field with the docstring of its type,
-      under the key `:fields` of `Base.Docs.meta`. `@document` keeps a string in
-      the body, as the cell struct plan does, so `@theme` only had to skip it.
-      A theme with no docstring of its own keeps none of its fields.
+    - Julia records the docstring of a field only with the docstring of its
+      type, under the key `:fields` of `Base.Docs.meta`, so a theme with no
+      docstring of its own would lose the texts of its fields. `@theme` keeps
+      them itself, in a method of `get_theme_field_texts`, and
+      `find_theme_field_text` reads that. `@document` keeps a string in the body,
+      as the cell struct plan does, so `?T.field` works too when `T` has a
+      docstring.
     - The appearance slice uses the text and the syntax slices for the order of
       the group "Editor", so it loads after the syntax slice; only the shell
       slice uses it, and it loads later still.
@@ -1606,3 +1622,25 @@ field documentation? It could help the theme UI".
     - `GraphLayoutToGraphicsCanvas` prints the content of its vertices only when
       its elements are read; a test that reads them prints with no recursion,
       so its vertices hold no content.
+35. **Q3b and Q4: the controls of a text style, and Ctrl+Z in the tab**
+    (2026-10-02). The tests of the theme, the tab, the wrapper, the file, the
+    settings tab, the guards, the graph theme and the theme code of the
+    new-domain guide give 272 pass. Facts found:
+    - The tab had a fallback, a label with `string(value)`, for a field type
+      with no control, and no test opened a section of a domain theme, so the
+      raw values of the 153 `StyleText` fields reached `main` with Part P. The
+      test of the tab now opens the section of `SyntaxTheme` and finds no raw
+      value.
+    - The color and the font controls take a function that reads the value and
+      one that makes the write, so a text style reuses both: its color writes
+      `StyleText(font, color)` with the font that it holds at the edit.
+    - A history records the write that the tab answers, inside a
+      `RecordUndoOperation`; the `appearance` wrapper is outside the window
+      history, so it rewraps the write inside the record, as the settings
+      wrapper does. The inverse of an `InvalidateProjectionOperation` is
+      `DoNothingOperation`, which is why the inverse needs a wrapper of its own.
+    - The `undo` wrapper is not on by default in `build_editor`; the test of
+      Ctrl+Z passes `undo = true`.
+    - A step of the zoom or of a scale keeps `DoNothingOperation` as its
+      inverse, as before; finding 29 names the writes of the tab, and a step is
+      also a key outside the tab.

@@ -438,6 +438,34 @@ BookmarkList
   reference re-target.
 - **A custom operation:** e.g. `BookmarkOpenOperation` that opens the URL
   in a browser when Enter is pressed.
+- **A theme:** the styles of the projections become values of a theme, so the
+  view follows the scales of the appearance, and a person changes its colors and
+  fonts in the appearance tab. Declare the theme with a docstring before each
+  field; the tab shows it as the tooltip of the field:
+
+  ```julia
+  @theme struct BookmarkTheme
+      "The title of a bookmark."
+      title_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+      "The address of a bookmark."
+      url_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+  end
+
+  _get_bookmark_style(theme, name::Symbol) =
+      make_style_field(BookmarkTheme, scale_theme(theme), StyleText, name)
+
+  @projection UntrackedCell struct BookmarkEntryToSyntaxNode
+      theme::Any = nothing
+      title_style::StyleText = _get_bookmark_style(theme, :title_text)
+      url_style::StyleText   = _get_bookmark_style(theme, :url_text)
+  end
+  ```
+
+  The factory takes `theme` and gives it to each projection, and the natural
+  registration passes `theme = get_scaled_theme!(appearance, BookmarkTheme)`.
+  With no theme, a projection holds the default values. See
+  [style.md](../package/platform/style/style.md#themes-and-the-appearance), and
+  `JsonTheme.jl` and `JsonToSyntax.jl` as a real domain.
 
 For the next level of complexity, such as a domain with cross-references, a
 custom reader that handles structural events, or a projection whose output

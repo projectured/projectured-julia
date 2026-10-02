@@ -74,6 +74,13 @@ a bare number in a field declared `Radius` scales as a radius
 (`convert_theme_value`). `scale_length` multiplies a length
 and keeps a length above 0 at least 1, so a line or a gap never disappears.
 
+A string before a field is the docstring of the field, as in a plain struct, and
+it says what the value draws. `@theme` keeps the docstrings in
+`get_theme_field_texts(JsonTheme)`, so they need no docstring of the type, and
+`find_theme_field_text(JsonTheme, :key_text)` reads one; the appearance tab shows
+it as the tooltip of the name of the field. `get_theme_presets(T)` names the presets
+of a theme type, which the tab offers; a type has none unless it adds a method.
+
 `@theme` also declares the **scaled theme**, `ScaledJsonTheme`: for each field, a
 computed cell that holds the value of the theme times its scale. The cell follows a
 change of the field and of the scale. A projection reads the scaled theme; a person
