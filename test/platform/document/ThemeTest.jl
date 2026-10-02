@@ -22,8 +22,31 @@ using ProjecturedKernel.CellModule
     columns::Int          = 3
 end
 
+"A theme whose fields have docstrings."
+@theme struct ThDocumented
+    "The space between two items."
+    gap::Spacing = Spacing(4)
+    plain::StyleColor = color_white
+    """
+    The color of a line,
+    in two lines.
+    """
+    line::StyleColor = color_black
+end
+
 function test_theme()
 @testset "Theme" begin
+
+@testset "a string before a field is its docstring" begin
+    @test get_theme_field_names(ThDocumented) == (:gap, :plain, :line)
+    @test find_theme_field_text(ThDocumented, :gap) == "The space between two items."
+    @test find_theme_field_text(ThDocumented, :plain) === nothing
+    @test find_theme_field_text(ThDocumented, :line) == "The color of a line,\nin two lines."
+    @test find_theme_field_text(ThSample, :gap) === nothing
+    @test make_scaled_theme(ThDocumented(), Appearance(spacing_scale = 2.0)).gap == 8
+    @test_throws "as its docstring" macroexpand(@__MODULE__,
+        :(@theme struct ThWrong; 1 + 2; gap::Spacing = Spacing(4); end))
+end
 
 @testset "the default theme and its fields" begin
     theme = ThSample()

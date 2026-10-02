@@ -10,27 +10,9 @@ projection draws with. `@theme` declares it, so `ScaledWidgetTheme` holds each
 value times its scale, and `WidgetTheme()` is the default theme, the slate light
 preset.
 
-- **Palette** — `background … ring`, and `track_off`, the track of a switch that
-  is off.
-- **Decorations** — `shadow`, `scrim`, `selection_ring` (the ring around a
-  document selected as a whole) and `knob`.
-- **Fonts** — `font`, `font_bold` and `font_small`.
-- **Spacing** — `control_padding` (the padding of a control), `container_padding`
-  (of a card and an alert), `compact_padding` (of a badge), `item_gap` (between the
-  items of a bar, a list or a popup), `title_gap` (under a title), `label_gap`
-  (between an icon or a mark and its label), `section_gap` (between sections and
-  between the rows of a radio group), `bar_gap` (between the items of a menu bar)
-  and `indent` (of a tree level).
-- **Radii** — `radius`, and `radius_small` for a checkbox, a row band, a highlight
-  and a skeleton.
-- **Lines** — `border_width`, `stroke` (a checkmark, a radio ring, a knob ring)
-  and `ring_width` (a focus ring and a selection ring).
-- **Parts of controls** — the indicator of a checkbox and a radio button and its
-  dot, the track and the knob padding of a switch, the height, the track and the
-  knob of a slider, the height of a progress bar, and the thickness and the
-  minimum thumb of a scroll bar.
-- **Icons** — `chevron` (half the side of a chevron), and the chevron column and
-  the icon column of a tree.
+The fields are in groups: the palette, the decorations, the fonts, the spacing,
+the radii, the lines, the parts of controls and the icons. Each field has a
+docstring that says what it draws, which the appearance tab shows as its tooltip.
 
 The text styles, the hover layer and the pressed layer are no fields: a widget
 derives them from the fonts and the palette, so they follow a change of either.
@@ -38,66 +20,120 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
 """
 @theme struct WidgetTheme
     # ── Palette ──
+    "The surface behind the widgets of a window."
     background::StyleColor = color_slate_100
+    "The text and the marks on the background."
     foreground::StyleColor = color_slate_950
+    "The surface of a card, an alert and a panel."
     card::StyleColor = color_slate_50
+    "The text on a card."
     card_foreground::StyleColor = color_slate_950
+    "The surface of a menu, a popup and a tooltip."
     popover::StyleColor = color_slate_50
+    "The text on a menu, a popup and a tooltip."
     popover_foreground::StyleColor = color_slate_950
+    "A quiet surface: a disabled control, a skeleton, a track."
     muted::StyleColor = color_slate_200
+    "Quiet text: a caption, a hint, a placeholder."
     muted_foreground::StyleColor = color_slate_500
+    "The color of the main action: a default button, a checked box, a selected item."
     primary::StyleColor = color_indigo_600
+    "The text on the primary color."
     primary_foreground::StyleColor = color_slate_50
+    "The surface of a secondary button."
     secondary::StyleColor = color_slate_200
+    "The text on a secondary button."
     secondary_foreground::StyleColor = color_slate_900
+    "The surface of a hovered or a selected item in a list or a menu."
     accent::StyleColor = color_indigo_100
+    "The text on the accent color."
     accent_foreground::StyleColor = color_indigo_700
+    "The color of an action that deletes or an error."
     destructive::StyleColor = color_destructive
+    "The text on the destructive color."
     destructive_foreground::StyleColor = color_destructive_fg
+    "The border of a card, a pane and a separator."
     border::StyleColor = color_slate_300
+    "The border of a control that takes text or a value."
     input::StyleColor = color_slate_300
+    "The focus ring of a control."
     ring::StyleColor = color_indigo_500
+    "The track of a switch that is off."
     track_off::StyleColor = color_slate_300
     # ── Decorations ──
+    "The shadow under a card and a popup."
     shadow::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x14 / 255)
+    "The layer that covers the window behind a dialog."
     scrim::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x66 / 255)
+    "The ring around a document that is selected as a whole."
     selection_ring::StyleColor = SELECTION_RING_COLOR
+    "The knob of a switch and of a slider."
     knob::StyleColor = color_white
     # ── Fonts ──
+    "The font of the text of a widget."
     font::StyleFont = font_ubuntu_regular_20
+    "The font of a title and of a header."
     font_bold::StyleFont = font_ubuntu_bold_20
+    "The font of a caption and of a badge."
     font_small::StyleFont = font_ubuntu_regular_18
     # ── Spacing ──
+    "The space inside a button, a text box and the other controls."
     control_padding::Spacing = Spacing(Inset(9, 9, 14, 14))
+    "The space inside a card and an alert."
     container_padding::Spacing = Spacing(16)
+    "The space inside a badge."
     compact_padding::Spacing = Spacing(Inset(3, 3, 10, 10))
+    "The space between the items of a bar, a list or a popup."
     item_gap::Spacing = Spacing(4)
+    "The space under a title."
     title_gap::Spacing = Spacing(6)
+    "The space between an icon or a mark and its label."
     label_gap::Spacing = Spacing(6)
+    "The space between sections, and between the rows of a radio group."
     section_gap::Spacing = Spacing(10)
+    "The space between the items of a menu bar."
     bar_gap::Spacing = Spacing(12)
+    "The indent of a level of a tree."
     indent::Spacing = Spacing(22)
     # ── Radii ──
+    "The radius of the corners of a control, a card and a popup."
     radius::Radius = Radius(8)
+    "The radius of the corners of a checkbox, a row band, a highlight and a skeleton."
     radius_small::Radius = Radius(4)
     # ── Lines ──
+    "The width of a border."
     border_width::LineWidth = LineWidth(1)
+    "The width of a checkmark, of the ring of a radio button and of the ring of a knob."
     stroke::LineWidth = LineWidth(2)
+    "The width of a focus ring and of a selection ring."
     ring_width::LineWidth = LineWidth(2)
     # ── Parts of controls ──
+    "The size of the box of a checkbox and of the circle of a radio button."
     indicator_size::ControlSize = ControlSize(18)
+    "The radius of the dot of a selected radio button."
     indicator_dot::ControlSize = ControlSize(5)
+    "The width and the height of the track of a switch."
     switch_track::ControlSize = ControlSize(Point2D(44, 24))
+    "The space between the knob of a switch and its track."
     switch_knob_padding::ControlSize = ControlSize(3)
+    "The height of a slider."
     slider_height::ControlSize = ControlSize(24)
+    "The height of the track of a slider."
     slider_track::ControlSize = ControlSize(4)
+    "The radius of the knob of a slider."
     slider_knob::ControlSize = ControlSize(9)
+    "The height of a progress bar."
     progress_height::ControlSize = ControlSize(8)
+    "The thickness of a scroll bar."
     scroll_bar_thickness::ControlSize = ControlSize(12)
+    "The smallest length of the thumb of a scroll bar."
     scroll_thumb_minimum::ControlSize = ControlSize(8)
     # ── Icons ──
+    "Half the side of a chevron."
     chevron::IconSize = IconSize(4)
+    "The width of the column of the chevrons of a tree."
     tree_chevron_column::IconSize = IconSize(18)
+    "The width of the column of the icons of a tree."
     tree_icon_column::IconSize = IconSize(20)
 end
 

@@ -151,6 +151,28 @@ of `T`. A theme type with no method has none.
 get_theme_presets(::Type) = Pair{String,Any}[]
 
 """
+    find_theme_field_text(T, name) -> String | Nothing
+
+The docstring of the field `name` of the theme type `T`: the string before the
+field in its `@theme` declaration. A field with no docstring, and a type whose
+declaration has no docstring of its own, answer `nothing`, because Julia records
+the docstrings of the fields with the docstring of the type.
+"""
+function find_theme_field_text(T::Type, name::Symbol)
+    binding = Base.Docs.Binding(parentmodule(T), nameof(T))
+    for m in Base.Docs.modules
+        multidoc = get(Base.Docs.meta(m), binding, nothing)
+        multidoc === nothing && continue
+        for docstr in values(multidoc.docs)
+            fields = get(docstr.data, :fields, nothing)
+            fields isa AbstractDict && haskey(fields, name) &&
+                return String(strip(string(fields[name])))
+        end
+    end
+    nothing
+end
+
+"""
     get_base_theme(scaled) -> Theme
 
 The theme that a scaled theme scales.
@@ -262,13 +284,17 @@ Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
 - `make_scaled_theme(theme::T, appearance)` makes a `ScaledT`,
   `get_theme_field_names(T)` answers the names of the fields, and
   `get_theme_type(theme)` answers `T`.
+- A string before a field is the docstring of the field, as in a plain struct.
+  `find_theme_field_text(T, name)` answers it, and the appearance tab shows it.
 
 A projection reads a scaled theme, not a theme.
 
 # Example
 
     @theme struct JsonTheme
+        "The text of a key."
         key_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+        "The indent of a nested value."
         indent::Spacing     = Spacing(16)
     end
     scaled = make_scaled_theme(JsonTheme(), Appearance(spacing_scale = 1.5))
@@ -285,10 +311,11 @@ macro theme(definition)
     fields = Symbol[]
     types = Any[]
     for line in definition.args[3].args
-        line isa LineNumberNode && continue
+        (line isa LineNumberNode || line isa String) && continue
         declaration = line isa Expr && line.head === :(=) ? line.args[1] : line
         (declaration isa Expr && declaration.head === :(::) && declaration.args[1] isa Symbol) ||
-            throw(ArgumentError("@theme: each field is `name::Type = default`, got `$line`"))
+            throw(ArgumentError("@theme: each field is `name::Type = default`, " *
+                                "with a string before it as its docstring, got `$line`"))
         line isa Expr && line.head === :(=) ||
             throw(ArgumentError("@theme: the field `$(declaration.args[1])` needs a default"))
         declaration.args[1] in (:theme, :appearance) &&
