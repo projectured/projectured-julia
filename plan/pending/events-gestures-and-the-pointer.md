@@ -1598,5 +1598,12 @@ it holds the example.
 Not in the steps: the web client sends no motion while no button is held (study
 §4), so the browser has no hover. That needs a decision of its own.
 
+Also open: Q15 of
+[a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md),
+a document that a view shows inside a widget and that a second view draws gets
+no mouse target. Decided (owner 2026-10-02, "Agreed", on Claude's option a):
+find the cause first, with the smallest case in projectured alone, and bring the
+ways to fix it with their costs; no change to the source before that.
+
 The files of the kernel that the refactor changes are unsealed, and they stay
 unsealed after the work (D34).
