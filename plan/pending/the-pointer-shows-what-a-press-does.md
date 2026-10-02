@@ -277,6 +277,10 @@ arrow.
 8. **The documents** of the graphics, widget, screen, drag tracking and of each
    backend, and the user guide of the pointer.
 
+   In part: the graphics, the widget, the text, SDL, the web, the video and the
+   guide of the pointer describe steps 1 to 5. The screen and the drag tracking
+   wait for step 6, and the hourglass for step 7.
+
 ## 7. Risks
 
 - **The cost of a move.** A walk of the graphics at the point for each move. The
