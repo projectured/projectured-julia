@@ -1592,6 +1592,20 @@ it holds the example.
   documents of the drag came with step 5b of the pointer plan (2026-10-02):
   `package/platform/dragtracking/dragtracking.md` and `guide/dragging-guide.md`.
   Open: the rules (`PAR-NO-NEW-SYNTHETIC-EVENT`, D40, D44).
+  The rules, decided one at a time (owner 2026-10-02). A fact first: two rules
+  of today contradict the approved drag. `PAR-NO-NEW-SYNTHETIC-EVENT` forbade a
+  `read_intent` method for a new payload type, and the readers read `DragMove`,
+  `DragEnd` and `DragCancel`; `PAR-NO-GLOBAL-ROUTING` said that no global
+  component fixes the path of an input, and the drag wrapper sends the drag
+  gestures by a kept path. D40 is `PAR-DECIDE-LOCALLY` already.
+  - 4a ("Agreed", on Claude's option a): `PAR-NO-NEW-SYNTHETIC-EVENT` is
+    written again along the real line. The reader chain reads what a person
+    does, an event of a device and a gesture that a recognition or a tracker
+    makes of such events (a click, a dwell, a chord, a part of a drag); no
+    `SyntheticEvent` type and no `read_intent` method for a payload that carries
+    an operation, a request or a question; a new gesture type only with the
+    owner's agreement, as for the three drag gestures. Rejected: option b, the
+    rule as it was with a list of accepted exceptions.
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
 
