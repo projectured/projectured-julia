@@ -360,6 +360,15 @@ the first to read.
 const PROJECTURED_JULIA_COMPAT = "1.11"
 
 """
+    PROJECTURED_CI_JULIA_VERSIONS
+
+The Julia versions on which the workflow of the release repository tests each
+package: the oldest that the packages name in their `[compat]`, and the newest
+release.
+"""
+const PROJECTURED_CI_JULIA_VERSIONS = [PROJECTURED_JULIA_COMPAT, "1"]
+
+"""
     collect_projectured_release_packages(context) -> Vector{String}
 
 The packages of this repository that go into the registry: every package that
@@ -397,6 +406,7 @@ function build_projectured_package_release!(output::AbstractString;
                            licences = PROJECTURED_LICENCES,
                            readme = _format_projectured_package_readme,
                            tests = name -> _find_projectured_release_test(context, name),
+                           workflow = _format_projectured_release_workflow,
                            julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry,
                            kwargs...)
 end
@@ -433,6 +443,86 @@ _format_projectured_runtests(test_package, suite) = """
     using $test_package
     $suite()
     """
+
+# The workflow of the release repository: one job for each package and Julia
+# version. A job develops the folders that the test of its package needs, runs
+# `Pkg.test` with coverage, and sends the coverage of the code of the package to
+# Codecov.
+function _format_projectured_release_workflow(jobs)
+    versions = join(("'$version'" for version in PROJECTURED_CI_JULIA_VERSIONS), ", ")
+    matrix = join(["        julia: [$versions]",
+                   "        package:",
+                   ("          - $(job.name)" for job in jobs)...,
+                   "        include:",
+                   ("          - {package: $(job.name), " *
+                    "develop: '$(join(job.develop, ' '))', " *
+                    "coverage: '$(join(job.coverage, ','))'}" for job in jobs)...], "\n")
+    """
+    # The test of each package of this repository, with coverage. The release of
+    # ProjecturEd writes this file, from source/tool/builder/ProjecturedProgram.jl
+    # in projectured-julia.
+    #
+    # A package reaches its siblings through a registry, which holds a version only
+    # after its commit. So a job develops the folders of the packages that its test
+    # needs, and tests this commit.
+    name: CI
+
+    on:
+      push:
+        branches: [main]
+      pull_request:
+      workflow_dispatch:
+
+    concurrency:
+      group: \${{ github.workflow }}-\${{ github.ref }}
+      cancel-in-progress: true
+
+    permissions:
+      contents: read
+
+    jobs:
+      test:
+        name: \${{ matrix.package }}, Julia \${{ matrix.julia }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 180
+        permissions:
+          contents: read
+          id-token: write          # the upload to Codecov through OIDC
+        strategy:
+          fail-fast: false
+          matrix:
+    $matrix
+        env:
+          SDL_VIDEODRIVER: offscreen      # SDL draws into memory; the runner has no display
+          JULIA_PKG_PRECOMPILE_AUTO: '0'  # the test compiles what it loads
+          PACKAGE: \${{ matrix.package }}
+          DEVELOP: \${{ matrix.develop }}
+        steps:
+          - uses: actions/checkout@v7
+          - uses: julia-actions/setup-julia@v3
+            with:
+              version: \${{ matrix.julia }}
+          - uses: julia-actions/cache@v3
+          - name: Develop the packages that the test needs
+            run: >-
+              julia --project="\$RUNNER_TEMP/environment"
+              -e 'using Pkg; Pkg.develop([PackageSpec(path = abspath(folder))
+              for folder in split(ENV["DEVELOP"])])'
+          - name: Test
+            run: >-
+              julia --project="\$RUNNER_TEMP/environment"
+              -e 'using Pkg; Pkg.test(ENV["PACKAGE"]; coverage = true)'
+          - uses: julia-actions/julia-processcoverage@v1
+            with:
+              directories: \${{ matrix.coverage }}
+          - uses: codecov/codecov-action@v7
+            with:
+              files: lcov.info
+              flags: \${{ matrix.package }}
+              use_oidc: true
+              fail_ci_if_error: false
+    """
+end
 
 const _CHECK_WEB = "http://127.0.0.1:8080"
 const _CHECK_MCP = "http://127.0.0.1:9876/mcp"

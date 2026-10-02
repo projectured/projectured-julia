@@ -71,10 +71,14 @@ repository." The owner started it on 2026-10-02 ("yes").
       `_collect_release_test_closure` reads the package, its test project and
       each support package. The fixture also checks a sibling that only a
       support package names. `test_package_release()` 60 of 60.
-- [ ] **Step 2, the workflow of this repository.** Its text, the constant of
+- [x] **Step 2, the workflow of this repository.** Its text, the constant of
       D1, and a test: the YAML parses, it has one job for each released
       package, and each job's `develop` holds the packages that its test
-      project names.
+      project names. Done: `_format_projectured_release_workflow` and
+      `PROJECTURED_CI_JULIA_VERSIONS` (`["1.11", "1"]` until D1 is decided).
+      The test reads the text, because the builder has no YAML parser; PyYAML
+      parsed the generated file by hand: 32 packages, 2 versions, the folded
+      `run` lines join into one command each. The umbrella develops 31 folders.
 - [ ] **Step 3, the check.** Generate the release copy of this repository under
       `/var/tmp`, and run the commands of the workflow for three jobs, each in
       an empty compiled cache: `ProjecturedKernel`, `ProjecturedJSON` and the

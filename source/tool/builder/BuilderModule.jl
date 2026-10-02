@@ -49,6 +49,7 @@ export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_SOURCE_OFFERS,
        build_projectured_executable,
        build_projectured_distribution, PROJECTURED_RELEASE_EXCLUSIONS,
        PROJECTURED_PACKAGE_ASSETS, PROJECTURED_JULIA_COMPAT,
+       PROJECTURED_CI_JULIA_VERSIONS,
        collect_projectured_release_packages, build_projectured_package_release!,
        check_projectured_copy
 export get_fixed_build_binary, get_build_invocation, BUILD_BINARIES, BUILD_OPTIONS,

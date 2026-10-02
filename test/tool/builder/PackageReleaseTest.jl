@@ -478,6 +478,15 @@ function test_package_release()
         results = build_projectured_package_release!(output; context)
         @test length(results) == length(names)
         @test all(result -> result.status === :new, results)
+        # The workflow tests each package that has tests, on each Julia version,
+        # and a job develops the packages that its test needs.
+        workflow = read(joinpath(output, ".github", "workflows", "CI.yml"), String)
+        tested = filter(name -> isfile(joinpath(output, name, "test", "runtests.jl")), names)
+        @test sort([m[1] for m in eachmatch(r"- \{package: (\w+),", workflow)]) == sort(tested)
+        versions = match(r"julia: \[(.*)\]", workflow)[1]
+        @test all(version -> occursin("'$version'", versions), PROJECTURED_CI_JULIA_VERSIONS)
+        develop = split(match(r"- \{package: ProjecturedJSON, develop: '([^']*)'", workflow)[1])
+        @test issubset(["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedJSON"], develop)
         rm(dirname(output); recursive = true)
     end
 end
