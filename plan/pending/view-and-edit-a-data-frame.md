@@ -1231,6 +1231,15 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       frame tests pass.
   - [ ] **4.3** The cells are primitive documents, and a `Date` stays a label
     (R4); a click opens an entry; the cost of a scroll.
+    Facts found 2026-10-02: the natural renderer draws a primitive through the
+    syntax domain, so a string cell shows its quotes, a number its full text,
+    and a label declines a click, so a cell that stays a label opens no entry.
+    The writer proposed cells that stay labels until an edit, as in a
+    spreadsheet; the owner chose primitive cells (R2): "no it's 1, but we need
+    to fix the projections … primitive documents doesn't have to go through
+    syntax, they can go directly to the text domain … let's design this". The
+    design is [a-primitive-draws-as-plain-text.md](a-primitive-draws-as-plain-text.md),
+    and it comes first.
   - [ ] **4.4** The entries of `edits`: keys, a type-in in an entry, and the
     selection stays in an entry after a scroll.
   - [ ] **4.5** The generic commit, the mark and its tooltip, in the widget
