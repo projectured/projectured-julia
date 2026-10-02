@@ -462,10 +462,12 @@ BookmarkList
   `@theme` declares it, so `ScaledBookmarkTheme` holds each value times its scale.
   """
   @theme struct BookmarkTheme
+      "The font that the texts of this theme follow: its family, its weight and its size."
+      font::StyleFont = StyleFont("Ubuntu Mono", 20)
       "The title of a bookmark."
-      title_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
+      title_text::TextRole = TextRole(color_solarized_blue; weight = 700)
       "The address of a bookmark."
-      url_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
+      url_text::TextRole = TextRole(color_solarized_cyan)
   end
 
   _get_bookmark_style(theme, name::Symbol) =
@@ -477,6 +479,10 @@ BookmarkList
       url_style::StyleText   = _get_bookmark_style(theme, :url_text)
   end
   ```
+
+  The texts are roles over the base font `font`, so a person who changes the
+  family or the size of `font` changes both. A projection still reads a
+  `StyleText`: the scaled theme holds the text that each role gives.
 
   The factory takes `theme` and gives it to each projection, and the natural
   registration passes `theme = get_scaled_theme!(appearance, BookmarkTheme)`.

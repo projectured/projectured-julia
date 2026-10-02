@@ -18,16 +18,18 @@ A fault log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct FaultTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
     "The count of the occurrences of a fault."
-    count_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
+    count_text::TextRole = TextRole(color_slate_500)
     "The barrier that catches a fault, such as `print`, `device` or `tool`."
-    site_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
+    site_text::TextRole = TextRole(color_slate_500)
     "The name of the type or the function whose code fails."
-    origin_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_red)
+    origin_text::TextRole = TextRole(color_solarized_red; weight = 700)
     "The message of the first occurrence of a fault."
-    message_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_700)
+    message_text::TextRole = TextRole(color_slate_700)
     "The line the log shows while it holds no fault."
-    empty_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
+    empty_text::TextRole = TextRole(color_slate_500)
 end
 
 # The style field of a fault log projection that holds the text `name` of the

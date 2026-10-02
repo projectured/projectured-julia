@@ -68,6 +68,7 @@ field says which scale applies to it:
 | Type of the field | Scale |
 | --- | --- |
 | `StyleFont`, and the font of a `StyleText` | font scale |
+| `FontRole`, and the font of a `TextRole` | font scale, after the role takes its base |
 | `StyleStroke`, its width | line scale |
 | `Spacing` | spacing scale |
 | `Radius` | radius scale |
@@ -81,6 +82,31 @@ cell whose declared type is not checked, so the declared type decides the kind:
 a bare number in a field declared `Radius` scales as a radius
 (`convert_theme_value`). `scale_length` multiplies a length
 and keeps a length above 0 at least 1, so a line or a gap never disappears.
+
+**Base fonts and roles.** A theme holds its fonts as base fonts and roles. A base
+font is a `StyleFont` field, usually `font`, and `code_font` in a theme that draws
+both prose and code. Every other font of the theme is a role over a base: a
+[`FontRole`](../../../../source/platform/style/FontRole.jl) names the field of its
+base, and sets only what differs from it: a family, a weight, a slant, and a size
+relative to the base. A `TextRole` is a font role and a color.
+
+```julia
+@theme struct JsonTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    "The key of an object member, with its quotes."
+    key_text::TextRole = TextRole(color_solarized_blue)
+    "The brackets of an array and the braces of an object."
+    delimiter_text::TextRole = TextRole(color_solarized_gray; weight = 700)
+end
+```
+
+The scaled theme holds the `StyleFont` or the `StyleText` that each role gives:
+`apply_font_role(role, base)`, then the font scale. Its cell reads the base font,
+so a person who changes the family or the size of the base changes every role of
+the theme, and a heading of `relative_size = 1.8` stays 1.8 times the body. A
+role field can also hold a `StyleFont` or a `StyleText` as it is, which scales as
+before; the appearance tab and an appearance file accept both forms.
 
 A string before a field is the docstring of the field, as in a plain struct, and
 it says what the value draws. `@theme` keeps the docstrings in

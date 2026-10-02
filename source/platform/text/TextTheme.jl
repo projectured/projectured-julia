@@ -36,15 +36,15 @@ colors and fonts as keywords: no view of the platform builds them.
     "The radius of the corners of the band under the selected text."
     highlight_radius::Radius = Radius(4)
     "A boolean that a primitive projection prints as text."
-    bool_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
+    bool_text::TextRole = TextRole(color_solarized_cyan)
     "A number that a primitive projection prints as text."
-    number_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_magenta)
+    number_text::TextRole = TextRole(color_solarized_magenta)
     "A string that a primitive projection prints as text."
-    string_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
+    string_text::TextRole = TextRole(color_solarized_green)
     "The text of a type-in that is no value yet, such as `1e` on the way to a number."
     wrong_color::StyleColor = color_solarized_red
     "What an empty type-in shows, such as `missing` in a cell of a data frame."
-    placeholder_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_completion_hint)
+    placeholder_text::TextRole = TextRole(color_completion_hint)
 end
 
 # The style field of type `T` of a text projection that holds the field `name` of

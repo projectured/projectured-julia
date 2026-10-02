@@ -18,16 +18,18 @@ A gesture log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct GestureLogTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
     "The number of the entry."
-    index_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
+    index_text::TextRole = TextRole(color_slate_500)
     "The gesture that the entry records."
-    gesture_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_cyan)
+    gesture_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
     "The operation the gesture makes."
-    operation_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_700)
+    operation_text::TextRole = TextRole(color_slate_700)
     "A line that records a selection, which is context and not a change."
-    muted_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
+    muted_text::TextRole = TextRole(color_slate_500)
     "The line the log shows while it holds no gesture."
-    empty_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
+    empty_text::TextRole = TextRole(color_slate_500)
 end
 
 # The style field of a gesture log projection that holds the text `name` of the

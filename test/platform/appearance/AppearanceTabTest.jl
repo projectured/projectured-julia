@@ -180,7 +180,7 @@ end
     @test !any(t -> occursin('`', t[1]), texts)
 end
 
-@testset "a text style has the controls of its colour and of its font" begin
+@testset "a text role has the controls of its colour and of its font role" begin
     appearance = Appearance()
     get_scaled_theme!(appearance, SyntaxTheme)
     syntax = get_theme(appearance, SyntaxTheme)
@@ -189,24 +189,33 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
     @test "bool text" in texts
-    @test !any(t -> startswith(t, "StyleText"), texts)
+    @test !any(t -> startswith(t, "TextRole") || startswith(t, "StyleText"), texts)
     @test format_style_color(syntax.bool_text.color) in texts
+    # The base font of the theme shows its family once; a role shows its size in
+    # percent of the base.
+    @test count(==("Ubuntu Mono"), texts) == 1
+    @test "% of font" in texts
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     before = syntax.bool_text
-    # The colour text of `bool_text`: a typed digit writes a style with the new
-    # colour and the same font.
+    # The colour text of `bool_text`: a typed digit writes a role with the new
+    # colour and the same font role.
     writes = [first(edit(1, 1, "f")) for edit in values(tab.edits) if edit(1, 1, "f") !== nothing]
     write = only(w for w in writes
                  if w.document === syntax && w.reference.head == FieldReferenceStep("bool_text"))
-    @test write.value isa StyleText
-    @test (write.value.font.family, write.value.font.size) == (before.font.family, before.font.size)
+    @test write.value isa TextRole && write.value.font == before.font
     @test format_style_color(write.value.color)[2] == 'f'
-    # The next font keeps the colour.
-    step = only(op for (action, op) in tab.commands if action.label == "›" &&
-                op.document === syntax && op.reference.head == FieldReferenceStep("bool_text"))
-    @test step.value.font.family != before.font.family
-    @test step.value.font.size == before.font.size
+    # The step to a heavier weight sets the weight of the role and keeps the colour.
+    step = only(op for (action, op) in tab.commands if action.label == "+" &&
+                op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                op.reference.head == FieldReferenceStep("bool_text"))
+    @test step.value.font.weight == 700 && step.value.font.relative_size == 1.0
     @test is_color_equal(step.value.color, before.color)
+    # The size of the role in percent writes its relative size.
+    writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                           op.reference.head == FieldReferenceStep("bool_text")
+    box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 100 &&
+               writes_bool_text(write(150)))
+    @test tab.writes[box](150).value.font.relative_size == 1.5
 end
 
 @testset "in an editor, Ctrl+, opens the tab, and a press prints the new value" begin

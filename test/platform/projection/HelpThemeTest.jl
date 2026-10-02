@@ -5,7 +5,7 @@
 
 # Every (projection field, theme field) pair of `roles`: the plain projection
 # `plain` (no theme) holds the font size and the color of the field `theme_field`
-# of the unscaled theme `defaults`, and `scaled` (built with a theme at a font
+# of the default theme at no scale, `defaults`, and `scaled` (built with a theme at a font
 # scale of 1.5) holds a font 1.5 times as large, with the same color.
 function _check_theme_roles(plain, scaled, defaults, roles)
     for (field, theme_field) in roles
@@ -23,7 +23,7 @@ function test_help_themes()
 @testset "the gesture help, the help menu and the inspectors follow the scales of the appearance" begin
 
 @testset "GestureMapToSyntax reads GestureHelpTheme" begin
-    defaults = GestureHelpTheme()
+    defaults = make_scaled_theme(GestureHelpTheme())
     plain = GestureMapToSyntax()
     scaled = GestureMapToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
     _check_theme_roles(plain, scaled, defaults,
@@ -32,7 +32,7 @@ function test_help_themes()
 end
 
 @testset "CommandPaletteToSyntax reads GestureHelpTheme" begin
-    defaults = GestureHelpTheme()
+    defaults = make_scaled_theme(GestureHelpTheme())
     plain = CommandPaletteToSyntax()
     scaled = CommandPaletteToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
     _check_theme_roles(plain, scaled, defaults,
@@ -57,7 +57,7 @@ end
 end
 
 @testset "HelpListToSyntax reads HelpTheme" begin
-    defaults = HelpTheme()
+    defaults = make_scaled_theme(HelpTheme())
     plain = HelpListToSyntax()
     scaled = HelpListToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
     _check_theme_roles(plain, scaled, defaults,
@@ -66,7 +66,7 @@ end
 end
 
 @testset "AboutPageToSyntax reads HelpTheme" begin
-    defaults = HelpTheme()
+    defaults = make_scaled_theme(HelpTheme())
     plain = AboutPageToSyntax()
     scaled = AboutPageToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
     _check_theme_roles(plain, scaled, defaults,
@@ -74,7 +74,7 @@ end
 end
 
 @testset "ReferenceToText reads ReferenceTheme" begin
-    defaults = ReferenceTheme()
+    defaults = make_scaled_theme(ReferenceTheme())
     plain = ReferenceToText()
     scaled = ReferenceToText(theme = get_scaled_theme!(Appearance(font_scale = 1.5), ReferenceTheme))
     @test plain.font.size == defaults.font.size
@@ -88,7 +88,7 @@ end
 end
 
 @testset "ReferenceInspectorToText reads InspectorTheme" begin
-    defaults = InspectorTheme()
+    defaults = make_scaled_theme(InspectorTheme())
     plain = ReferenceInspectorToText()
     scaled = ReferenceInspectorToText(theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme))
     @test plain.font.size == defaults.font.size

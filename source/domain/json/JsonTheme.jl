@@ -18,22 +18,24 @@ A JSON projection reads the scaled theme through its `UntrackedCell` style field
 with no theme it holds the plain values of the default theme.
 """
 @theme struct JsonTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 20)
     "A null value."
-    null_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_magenta)
+    null_text::TextRole = TextRole(color_solarized_magenta)
     "A boolean value."
-    bool_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_yellow)
+    bool_text::TextRole = TextRole(color_solarized_yellow)
     "A number value."
-    number_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_magenta)
+    number_text::TextRole = TextRole(color_solarized_magenta)
     "A string value."
-    string_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
+    string_text::TextRole = TextRole(color_solarized_green)
     "The quotes around a string."
-    quote_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_yellow)
+    quote_text::TextRole = TextRole(color_solarized_yellow)
     "The key of an object member, with its quotes."
-    key_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
+    key_text::TextRole = TextRole(color_solarized_blue)
     "The brackets of an array and the braces of an object."
-    delimiter_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_gray)
+    delimiter_text::TextRole = TextRole(color_solarized_gray; weight = 700)
     "A comma, and the colon of a member."
-    separator_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
+    separator_text::TextRole = TextRole(color_solarized_gray)
 end
 
 # The style field of a JSON projection that holds the text `name` of the theme

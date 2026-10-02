@@ -272,9 +272,11 @@ Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
   Load keep them. Each field needs a default, so `T()` is the default theme.
 - `ScaledT` holds, for each field, a computed cell: the value of the field times
   the scale of its kind. The type of the field names the kind: `StyleFont`,
-  `StyleText`, `StyleStroke`, `Spacing`, `Radius`, `LineWidth`, `ControlSize` or
-  `IconSize`. Any other value takes no scale. A bare number in a field declared
-  with a kind of length takes that kind, so `T(radius = 2)` scales as a radius.
+  `StyleText`, `FontRole`, `TextRole`, `StyleStroke`, `Spacing`, `Radius`,
+  `LineWidth`, `ControlSize` or `IconSize`. Any other value takes no scale. A bare
+  number in a field declared with a kind of length takes that kind, so
+  `T(radius = 2)` scales as a radius. A `FontRole` or a `TextRole` takes the font
+  that it gives over its base font in `T`, so its cell follows the base too.
 - `make_scaled_theme(theme::T, appearance)` makes a `ScaledT`,
   `get_theme_field_names(T)` answers the names of the fields, and
   `get_theme_type(theme)` answers `T`.
@@ -288,13 +290,16 @@ A projection reads a scaled theme, not a theme.
 # Example
 
     @theme struct JsonTheme
+        "The font that the texts of this theme follow."
+        font::StyleFont     = StyleFont("Ubuntu Mono", 20)
         "The text of a key."
-        key_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
+        key_text::TextRole  = TextRole(color_solarized_blue; weight = 700)
         "The indent of a nested value."
         indent::Spacing     = Spacing(16)
     end
     scaled = make_scaled_theme(JsonTheme(), Appearance(spacing_scale = 1.5))
     scaled.indent                      # 24
+    scaled.key_text.font               # StyleFont("Ubuntu Mono", 20; weight = 700)
 """
 macro theme(definition)
     (definition isa Expr && definition.head === :struct) ||

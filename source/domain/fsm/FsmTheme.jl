@@ -19,18 +19,20 @@ A Fsm projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FsmTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 20)
     "The keywords: `component`, `variable`, `timer`, `event`, `machine`, `state`, `initial`, `on`, `when`, `stay`, `ignore`, `entry` and `ignoring unhandled`."
-    keyword_text::StyleText     = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_blue)
+    keyword_text::TextRole     = TextRole(color_solarized_blue; weight = 700)
     "The name of a component, a variable, a timer, an event, a machine or a state."
-    name_text::StyleText        = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
+    name_text::TextRole        = TextRole(color_solarized_green)
     "A trigger, a target and an `initial`, read from the referenced part, and the reference of a transition label in a diagram."
-    reference_text::StyleText   = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_violet)
+    reference_text::TextRole   = TextRole(color_solarized_violet)
     "The punctuation around a part, and the chrome of a transition label in a diagram."
-    chrome_text::StyleText      = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
+    chrome_text::TextRole      = TextRole(color_solarized_gray)
     "The name of a state in a diagram."
-    state_label_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_green)
+    state_label_text::TextRole = TextRole(color_solarized_green; weight = 700)
     "The keyword of a transition label in a diagram."
-    trigger_text::StyleText     = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
+    trigger_text::TextRole     = TextRole(color_solarized_blue)
 end
 
 # The style field of a Fsm projection that holds the text `name` of the theme

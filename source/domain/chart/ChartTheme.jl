@@ -45,11 +45,11 @@ holds the plain values of the default theme. A value that a chart's own
     "The rubber band of a zoom drag."
     band_fill::StyleColor       = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x30 / 255)
     "The font of the chart's own title."
-    title_font::StyleFont       = StyleFont("Ubuntu", 16; weight = 700)
+    title_font::FontRole       = FontRole(base = :axis_font, weight = 700, relative_size = 16 / 14)
     "The font of an axis title, a tick label and a strip's segment name."
     axis_font::StyleFont        = StyleFont("Ubuntu", 14)
     "The font of a legend item's label."
-    legend_font::StyleFont      = StyleFont("Ubuntu", 14)
+    legend_font::FontRole      = FontRole(base = :axis_font)
     "The space around the whole chart."
     padding::Spacing            = Spacing(8)
     "The length a tick mark reaches outside the plot frame."

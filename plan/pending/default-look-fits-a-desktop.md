@@ -443,9 +443,19 @@ inet-julia uses, the same step changes them, so that they always load.
   before. Save and load write a role as a table with `base` and no `size`, and
   read either form. The appearance tab shows a role as "− weight +", a checkbox
   for italic and its size in percent of its base.
-- [ ] **R2.** Each of the 29 themes gets its base fonts and its roles. The roles
+- [x] **R2.** Each of the 29 themes gets its base fonts and its roles. The roles
   give the old sizes, for example a Markdown heading of 36 px is 1.8 times
-  20 px.
+  20 px. *Done:* a script (`/var/tmp/default-look/convert_theme_roles.py`)
+  converted 27 themes; `GraphTheme` has no font, and `Theme.jl` holds only the
+  docstring example. Per theme, the family with the most fields gets a base:
+  `font`, and `code_font` when a theme has both a proportional and a monospace
+  family. A family with one field follows the base of its kind with a family
+  override, such as the DejaVu Sans Mono markers of Markdown. An existing plain
+  font field of the base family and size is the base: `SyntaxTheme.font`,
+  `FormulaTheme.plain_font`, `ChartTheme.axis_font`. 23 base fields are new.
+  The scaled value of each of the 366 font and text fields, at the font scale
+  1 and 1.5, is the same before and after; the image check finds 315 of 315
+  outputs equal; the theme tests of the 19 domains and slices pass.
 
 ### Part T: every style value in a theme
 

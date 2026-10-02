@@ -20,16 +20,18 @@ A DbCatalog projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct DbCatalogTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 20)
     "A column, with its type."
-    column_text::StyleText   = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_magenta)
+    column_text::TextRole   = TextRole(color_solarized_magenta)
     "The name of a table."
-    table_text::StyleText    = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_green)
+    table_text::TextRole    = TextRole(color_solarized_green; weight = 700)
     "The name of a schema."
-    schema_text::StyleText   = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_blue)
+    schema_text::TextRole   = TextRole(color_solarized_blue; weight = 700)
     "The name of a database and of an RDBMS."
-    database_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_red)
+    database_text::TextRole = TextRole(color_solarized_red; weight = 700)
     "The keyword that opens a group of children, such as \"Columns\", \"Tables\", \"Schemas\" or \"Databases\"."
-    keyword_text::StyleText  = StyleText(StyleFont("Ubuntu Mono", 20), color_default)
+    keyword_text::TextRole  = TextRole(color_default)
 end
 
 # The style field of a DbCatalog projection that holds the text `name` of the

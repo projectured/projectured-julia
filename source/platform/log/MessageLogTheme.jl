@@ -18,12 +18,14 @@ A message log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct MessageLogTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
     "The level of a message, such as `Info` or `Warn`."
-    level_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_cyan)
+    level_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
     "The text of the message."
-    message_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_700)
+    message_text::TextRole = TextRole(color_slate_700)
     "The line the log shows while it holds no message."
-    empty_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
+    empty_text::TextRole = TextRole(color_slate_500)
 end
 
 # The style field of a message log projection that holds the text `name` of the

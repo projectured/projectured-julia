@@ -76,9 +76,9 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     "The font of the text of a widget."
     font::StyleFont = StyleFont("Ubuntu", 20)
     "The font of a title and of a header."
-    font_bold::StyleFont = StyleFont("Ubuntu", 20; weight = 700)
+    font_bold::FontRole = FontRole(weight = 700)
     "The font of a caption and of a badge."
-    font_small::StyleFont = StyleFont("Ubuntu", 18)
+    font_small::FontRole = FontRole(relative_size = 0.9)
     # ── Spacing ──
     "The space inside a button, a text box and the other controls."
     control_padding::Spacing = Spacing(Inset(9, 9, 14, 14))
