@@ -1,7 +1,8 @@
 # A printer fault costs the smallest part that it can
 
-> **Status:** pending. Written 2026-10-01. Not started. The owner decided the
-> direction on 2026-10-01 and 2026-10-02 (§5). This plan holds D3, D4 and D6
+> **Status:** pending. Written 2026-10-01. Steps 1 to 8 are done on the branch
+> `printer-fault`, rebased onto `main` at aa7ce9223 and not landed; §11 holds what
+> is open. The owner decided the direction on 2026-10-01 and 2026-10-02 (§5). This plan holds D3, D4 and D6
 > of [a-fault-is-easy-to-see-and-stays-small.md](a-fault-is-easy-to-see-and-stays-small.md).
 
 ## 1. The request
@@ -516,7 +517,7 @@ runs2[]               # 3: each pull runs the computation again
         nothing.
       - The reader and the maps recorded a `RecordedFaultException` again; they
         do not.
-- [ ] **Step 6: the barriers of the application** (§6.7), with the count of cells
+- [x] **Step 6: the barriers of the application** (§6.7), with the count of cells
       and the frame time. If it costs too much, the fallback of §6.7.
   - [x] 6a. Move the barrier and `FaultReport` to the projection algebra
         (`higherorder/FaultCatching.jl`, `ProjectionDocument.jl`), and each mark
@@ -643,3 +644,19 @@ runs2[]               # 3: each pull runs the computation again
       `get_content_iomap`), `higher-order-projections.md` and
       `system-anatomy.md` (the barrier among the higher-order projections). The
       guard of the documents passes. The debugging guide stays true as it is.
+
+## 11. What is open
+
+- **The cost.** Barriers at every recursion point cost 7.5 % more bytes and
+  10.2 % more allocations for each node of a print under the tolerant policy
+  (step 6c). Whether that is too costly, and the fallback of §5 point 6 is
+  needed, is the owner's decision.
+- **A timing.** No frame time and no print time is measured. A timing needs an
+  idle machine and the owner's word.
+- **A click on a mark of a syntax stage** reaches the barrier through the
+  selection and not by its point (§6.5). It is not checked in a live window.
+- **Retry A in the worst case.** One bug in thousands of nodes runs one
+  computation and two throws for each mark after each frame with an operation.
+  A bound waits for a measurement.
+- **The landing.** The branch is not on `main`. The plan moves to `plan/done/`
+  when the owner accepts it.
