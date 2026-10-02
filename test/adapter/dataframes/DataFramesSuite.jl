@@ -31,6 +31,7 @@ function test_dataframes()
         test_data_frame_view()
         test_data_frame_columns()
         test_data_frame_paths()
+        test_data_frame_cells()
         test_data_frame_filter()
         test_data_frame_sort()
         test_data_frame_refresh()
@@ -41,6 +42,6 @@ function test_dataframes()
 end
 
 export test_dataframes, test_dataframes_layering, test_data_frame_example, test_data_frame_view,
-       test_data_frame_columns, test_data_frame_paths, test_data_frame_filter,
+       test_data_frame_columns, test_data_frame_paths, test_data_frame_cells, test_data_frame_filter,
        test_data_frame_sort, test_data_frame_refresh, test_data_frame_duplicate,
        test_data_frame_column_width, test_data_frame_display

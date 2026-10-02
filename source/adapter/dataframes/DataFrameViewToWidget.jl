@@ -130,8 +130,7 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
                                           for name in _get_shown_columns(view)])
     align = Cell(@computation Symbol[_get_column_align(eltype(view.frame[!, name]))
                                      for name in _get_shown_columns(view)])
-    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.kept_rows,
-                                            view.anchor))
+    rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor))
     row_headers, corner = _make_row_numbers(view)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, rows, column_count, border_width,
@@ -196,8 +195,8 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
         _make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(view, columns[c]))))
     align = Cell(@computation (columns = _get_shown_columns(view);
         _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
-    rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.kept_rows,
-                                            view.anchor, view.column_anchor))
+    rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
+                                            view.column_anchor))
     # The width that a person gave a column, else none, which leaves the
     # column at the width of the list and at least as wide as its header.
     policies = Cell(@computation (columns = _get_shown_columns(view);
@@ -347,9 +346,10 @@ read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, event::K
     read_gesture(iomap.input, event)
 
 # A selection in the table selects in the view: a header selects its column, a
-# field of the filter row or of the expression bar its text, and the corner or
-# the whole table the view. Any other place in the table has no place in the
-# view yet.
+# field of the filter row or of the expression bar its text, a row, a column and
+# a cell their place in the frame, and the corner or the whole table the view. A
+# caret in a cell that is not open opens it first: the selection goes into the
+# document of its new entry, so its path is typed when the entry is there.
 function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
                      operation::ReplaceSelectionOperation)
     expression = _find_expression_path(operation.path)
@@ -358,7 +358,42 @@ function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
     path = _find_table_path(operation.path)
     path === nothing && return nothing
     target = _find_view_path(iomap, path)
-    target === nothing ? nothing : ReplaceSelectionOperation(annotate_reference_types(iomap.input, target))
+    target === nothing && return nothing
+    view = iomap.input
+    open = _make_open_cell_operation(view, target)
+    open === nothing || return CompoundOperation(Any[open, ReplaceSelectionOperation(target)])
+    ReplaceSelectionOperation(_find_cell_tail(target) === nothing ? annotate_reference_types(view, target) : target)
+end
+
+# The row of the frame, the column of the frame and the rest of `path`, a path of
+# the view that goes on into a cell, `rows[r][c]…` with a rest that is not empty;
+# `nothing` for any other path.
+function _find_cell_tail(path)
+    (path isa ConcreteReference && path.head == FieldReferenceStep("rows")) || return nothing
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
+    rest = tail.tail
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep && !(rest.tail isa EmptyReference)) ||
+        return nothing
+    (tail.head.stop, rest.head.stop, rest.tail)
+end
+
+# The opening of the cell that `path`, a path of the view, goes on into: a new
+# entry, whose document is a new primitive document of the value, when the cell
+# is not open and takes keys; `nothing` otherwise. It is view state, so no step
+# of undo.
+function _make_open_cell_operation(view::DataFrameView, path)
+    found = _find_cell_tail(path)
+    found === nothing && return nothing
+    r, c, _ = found
+    frame = view.frame
+    (1 <= r <= nrow(frame) && 1 <= c <= ncol(frame)) || return nothing
+    name = names(frame)[c]
+    _find_cell_edit(view, r, name) === nothing || return nothing
+    document = make_data_frame_cell(frame[r, c], eltype(frame[!, c]))
+    document isa PrimitiveDocument || return nothing
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(
+        view, "edits", Any[view.edits..., DataFrameCellEdit(r, name, document)]))
 end
 
 # A place in the table that has a place in the view maps back to it, as a
@@ -394,7 +429,8 @@ end
 # its range for a field of the filter row, the view for the table and for the
 # rest of its corner, `columns[c]` of the frame for a column and for its header,
 # `rows[r]` for a row and for its header, which hold no state of their own in the
-# view, `rows[r][c]` for a whole cell, and `nothing` for any other place.
+# view, `rows[r][c]` for a cell with the rest of the path in it, and `nothing`
+# for any other place.
 function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     path isa EmptyReference && return EmptyReference()
     (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
@@ -415,9 +451,8 @@ function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     rest = tail.tail
     rest isa EmptyReference && return _make_element_reference("rows", r, rest)
     name == "rows" || return nothing
-    (rest isa ConcreteReference && rest.head isa RangeReferenceStep && rest.tail isa EmptyReference) ||
-        return nothing
-    column = _find_frame_column_path(iomap, rest.head.stop, EmptyReference())
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
+    column = _find_frame_column_path(iomap, rest.head.stop, rest.tail)
     column === nothing && return nothing
     _make_element_reference("rows", r, column.tail)
 end

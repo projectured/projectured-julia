@@ -1229,7 +1229,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       an Alt+press on a cell; a hidden column keeps its path; a duplicate steps
       through its own fields) and the column tests on `columns[c]`; 289 data
       frame tests pass.
-  - [ ] **4.3** The cells are primitive documents, and a `Date` stays a label
+  - [x] **4.3** The cells are primitive documents, and a `Date` stays a label
     (R4); a click opens an entry; the cost of a scroll.
     Facts found 2026-10-02: the natural renderer draws a primitive through the
     syntax domain, so a string cell shows its quotes, a number its full text,
@@ -1239,7 +1239,40 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     to fix the projections … primitive documents doesn't have to go through
     syntax, they can go directly to the text domain … let's design this". The
     design is [a-primitive-draws-as-plain-text.md](../done/a-primitive-draws-as-plain-text.md),
-    and it comes first.
+    and it comes first. Done 2026-10-02, after it:
+    - `make_data_frame_cell(value, type)` gives a `PrimitiveNumber` for a
+      number, a `PrimitiveBool` for a Bool and a `PrimitiveString` for a
+      string; a `missing` value an empty `PrimitiveInsertion` limited to the
+      type of its column, with the placeholder `missing`; any other value a
+      label of its compact print whose tooltip says that it takes no key (R4).
+    - The view has `edits`, a list of `DataFrameCellEdit` documents (the row,
+      the column name, the document of the cell). Each cell of the table is a
+      computation that shows the document of the entry of the cell while it is
+      open, and else the document of the value, which the cell keeps, so an
+      entry that opens rebuilds no row. In a list of columns the node of a cell
+      holds the computation; `_make_index_list` takes `computed`.
+    - `rows[r][c]` of the view gives the document of the entry while the cell
+      is open. The objects behind `rows` and `columns` are documents with no
+      selection of their own, as `DataFrameColumn` is, so the walk of a
+      selection goes through them to the document of an open cell and writes
+      its caret there; a value that is not a document stops the walk.
+    - A click in a cell that is not open and holds a primitive document opens
+      it: one operation of view state adds the entry, with a new document of
+      the value, and the selection goes into it, untyped until the entry is
+      there. A click on a label selects the row, as a click on a cell that
+      declines it does. A duplicate starts with no open cell. A key in an open
+      cell does nothing yet: the reader of a text edit maps only the query
+      (4.4).
+    - The cost of a scroll (mine, with the allocations, because a time needs an
+      idle machine and the word of the owner): a frame of ten million rows and
+      six columns of numbers and Bools, 40 turns of three steps of the wheel,
+      each drawn again. The same 438 texts show. Main, with labels: 212 KiB a
+      turn; primitive cells: 333 KiB a turn, about 7 KiB more for each new
+      cell. The 40 turns take about 0.02 s and 0.03 s, a rough time.
+    - Tests: `test_data_frame_cells()` (the document of each kind of cell, a
+      string with no quotes, a click that opens an entry and the caret in its
+      document, the cell that the table shows, a second click, a missing value,
+      a label, a duplicate); 311 data frame tests pass.
   - [ ] **4.4** The entries of `edits`: keys, a type-in in an entry, and the
     selection stays in an entry after a scroll.
   - [ ] **4.5** The generic commit, the mark and its tooltip, in the widget

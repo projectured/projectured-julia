@@ -18,7 +18,9 @@ column of the frame by their numbers, with the steps of a table: `rows[r]` is a
 row, `columns[c]` a column and `rows[r][c]` a cell, through the fields `rows`
 and `columns`, which hold a [`DataFrameViewRows`](@ref) and a
 [`DataFrameViewColumns`](@ref) of the view. So a sort, a filter, a hidden column
-and a scroll do not change what a path names.
+and a scroll do not change what a path names. `edits` holds a
+[`DataFrameCellEdit`](@ref) for each cell that a person opened and did not
+commit: `rows[r][c]` gives its document, and the table shows it in its cell.
 
 `anchor` is the place, among the kept rows, of the row at the head of the list
 of rows, and `scroll_position` is the offset of the table from that row, in
@@ -52,13 +54,35 @@ the data of the frame reads `frame_version` too.
     frame_snapshot::Any
     rows::Any
     columns::Any
+    edits::Vector{Any}
+end
+
+"""
+    DataFrameCellEdit(row, column, document)
+
+A cell of a view that a person opened and did not commit: the row of the frame,
+the name of the column, and the primitive document that shows its value and
+takes the keys. A click in a cell opens one.
+"""
+@document struct DataFrameCellEdit
+    row::Int
+    column::String
+    document::Any
+end
+
+# The entry of the cell in row `row` of the frame and column `name`, or `nothing`.
+function _find_cell_edit(view::DataFrameView, row::Int, name::String)
+    for edit in view.edits
+        edit.row == row && edit.column == name && return edit
+    end
+    nothing
 end
 
 function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1)
     view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
                          Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
                          Cell(Dict{String,Int}()), Cell(0), Cell(nothing), Cell(nothing), Cell(nothing),
-                         Cell(nothing))
+                         Cell(Any[]), Cell(nothing))
     _set_path_fields!(_set_kept_row_computations!(view))
 end
 
@@ -68,9 +92,11 @@ end
 The value of the field `rows` of a [`DataFrameView`](@ref): what the path
 `rows[r]` of a row of the frame steps through. `[r]` gives row `r` of the frame,
 a [`DataFrameViewRow`](@ref), and a number past the frame is out of bounds. It
-holds the view, and reads the frame only when it is indexed.
+holds the view, and reads the frame only when it is indexed. It is a document
+with no selection of its own, so the walk of a selection goes through it to the
+document of an open cell.
 """
-struct DataFrameViewRows
+struct DataFrameViewRows <: Document
     view::DataFrameView
 end
 
@@ -78,9 +104,10 @@ end
     DataFrameViewRow(view, row)
 
 Row `row` of the frame of `view`, what the path `rows[r]` names. `[c]` gives the
-value in column `c` of the frame.
+document of the entry of the cell in column `c` when the cell is open, and else
+the value in column `c` of the frame.
 """
-struct DataFrameViewRow
+struct DataFrameViewRow <: Document
     view::DataFrameView
     row::Int
 end
@@ -92,9 +119,11 @@ The value of the field `columns` of a [`DataFrameView`](@ref): what the path
 `columns[c]` of a column of the frame steps through. `[c]` gives column `c` of
 the frame, a [`DataFrameColumn`](@ref).
 """
-struct DataFrameViewColumns
+struct DataFrameViewColumns <: Document
     view::DataFrameView
 end
+
+get_selection(::Union{DataFrameViewRows,DataFrameViewRow,DataFrameViewColumns}) = nothing
 
 function Base.getindex(rows::DataFrameViewRows, r::Integer)
     1 <= r <= nrow(rows.view.frame) || throw(BoundsError(rows, r))
@@ -102,8 +131,10 @@ function Base.getindex(rows::DataFrameViewRows, r::Integer)
 end
 
 function Base.getindex(row::DataFrameViewRow, c::Integer)
-    1 <= c <= ncol(row.view.frame) || throw(BoundsError(row, c))
-    row.view.frame[row.row, c]
+    frame = row.view.frame
+    1 <= c <= ncol(frame) || throw(BoundsError(row, c))
+    edit = _find_cell_edit(row.view, row.row, names(frame)[c])
+    edit === nothing ? frame[row.row, c] : edit.document
 end
 
 function Base.getindex(columns::DataFrameViewColumns, c::Integer)
@@ -151,7 +182,7 @@ copy_document(policy::DuplicatePolicy, view::DataFrameView) =
     _set_path_fields!(_set_kept_row_computations!(
         copy_document_fields(policy, view; frame = view.frame, expression_result = (nothing, nothing),
                              kept_rows = Int[], frame_version = 0, frame_snapshot = nothing,
-                             rows = nothing, columns = nothing)))
+                             rows = nothing, columns = nothing, edits = Any[])))
 
 """
     jump_to_row(view::DataFrameView, row::Integer) -> Operation or nothing
@@ -191,13 +222,35 @@ end
 const _CELL_TEXT_LIMIT = 200
 
 """
-    make_data_frame_cell(value) -> WidgetDocument
+    make_data_frame_cell(value, type = typeof(value)) -> Document
 
-The widget that shows one value of a frame. A value prints in the compact form
-that a data frame prints in the REPL, cut at 200 characters.
+The document that shows one value of a column of element type `type`, and takes
+its keys. A number, a Bool and a string are the primitive document of their
+value, which the natural renderer draws as plain text. A `missing` value is an
+empty type-in limited to the type of its column, which shows `missing`. A value
+of any other type, such as a `Date`, takes no key: it is a label of its compact
+print, cut at 200 characters, whose tooltip says why.
 """
-make_data_frame_cell(::Missing) = WidgetLabel("missing")
-make_data_frame_cell(value) = WidgetLabel(_get_cell_text(value))
+make_data_frame_cell(value::Bool, type::Type = Bool) = PrimitiveBool(value)
+make_data_frame_cell(value::Real, type::Type = typeof(value)) = PrimitiveNumber(value)
+make_data_frame_cell(value::AbstractString, type::Type = String) = PrimitiveString(String(value))
+function make_data_frame_cell(::Missing, type::Type = Missing)
+    primitive = _find_primitive_type(nonmissingtype(type))
+    primitive === nothing && return WidgetLabel("missing")
+    PrimitiveInsertion(; allowed_types = (primitive,), placeholder = "missing")
+end
+make_data_frame_cell(value, type::Type = typeof(value)) =
+    WidgetLabel(_get_cell_text(value); tooltip = "A value of type $(typeof(value)) takes no key here")
+
+# The primitive document of the values of a column of element type `type`, or
+# `nothing` for a type that no primitive document holds.
+function _find_primitive_type(type::Type)
+    type === Union{} && return nothing
+    type <: Bool && return PrimitiveBool
+    type <: Real && return PrimitiveNumber
+    type <: AbstractString && return PrimitiveString
+    nothing
+end
 
 # The loop of an editor keeps the world of its start, and a value can have a type
 # of a package that was loaded later, so the print runs in the newest world.
@@ -208,40 +261,60 @@ end
 
 # ── The list of rows ─────────────────────────────────────────────────────────
 
-# The list of the `kept` rows of `frame` with its head at the place `anchor`, or
-# an empty vector when it keeps no row: a table draws an empty vector as no rows.
-# A row is a vector of its cells in the `columns` that the view shows, or, when
-# `column_anchor` is given, a list of them with its head at that column.
-function _make_row_list(frame::AbstractDataFrame, columns::Vector{String}, kept::Vector{Int},
+# The list of the `kept` rows of the frame of `view` with its head at the place
+# `anchor`, or an empty vector when it keeps no row: a table draws an empty
+# vector as no rows. A row is a vector of its cells in the `columns` that the view
+# shows, or, when `column_anchor` is given, a list of them with its head at that
+# column. A cell shows the document of its value, or the document of its entry
+# while it is open.
+function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vector{Int},
                         anchor::Int, column_anchor = nothing)
     isempty(kept) && return CellVector()
-    row_of(i) = column_anchor === nothing ?
-        make_widget_table_row(Any[make_data_frame_cell(frame[i, name]) for name in columns]) :
-        _make_index_list(length(columns), column_anchor, c -> make_data_frame_cell(frame[i, columns[c]]))
+    frame = view.frame
+    types = Dict(name => eltype(frame[!, name]) for name in columns)
+    shown(i, name) = (base = make_data_frame_cell(frame[i, name], types[name]);
+                      () -> _get_shown_cell_document(view, i, name, base))
+    function row_of(i)
+        column_anchor === nothing || return _make_index_list(length(columns), column_anchor,
+                                                             c -> shown(i, columns[c]); computed = true)
+        cells = Cell[Cell(nothing) for _ in columns]
+        foreach(((cell, name),) -> set_cell_computation!(cell, shown(i, name)), zip(cells, columns))
+        CellVector(cells)
+    end
     _make_index_list(length(kept), anchor, k -> row_of(kept[k]))
+end
+
+# The document that the cell in row `i` of the frame and column `name` shows: the
+# document of its entry while the cell is open, and else `base`, the document of
+# its value, which the cell keeps, so a cell that no entry changes is the same.
+function _get_shown_cell_document(view::DataFrameView, i::Int, name::String, base)
+    edit = _find_cell_edit(view, i, name)
+    edit === nothing ? base : edit.document
 end
 
 # The list of the values of the indices `1:count`, with its head at the index
 # `at`, clamped to the range: `value_of(i)` makes the value of index `i` when a
-# walk first reaches it.
-_make_index_list(count::Int, at::Int, value_of) =
-    _make_index_node(count, clamp(at, 1, count), value_of, nothing, nothing)
+# walk first reaches it, or, with `computed`, the function of no arguments that
+# computes it.
+_make_index_list(count::Int, at::Int, value_of; computed::Bool = false) =
+    _make_index_node(count, clamp(at, 1, count), value_of, nothing, nothing; computed)
 
 # The node of index `i`. A neighbour that is given is linked as a value; the
 # other link builds its neighbour when it is first read, and the neighbour links
 # back to this node, so a walk down and back up meets the same nodes. The first
 # index has no `prev` and the last has no `next`, so a pane stops at both.
-function _make_index_node(count::Int, i::Int, value_of, before, after)
-    node = ListNode(value_of(i))
+function _make_index_node(count::Int, i::Int, value_of, before, after; computed::Bool = false)
+    node = computed ? ListNode(nothing) : ListNode(value_of(i))
+    computed && set_cell_computation!(getfield(node, :value), value_of(i))
     if after === nothing
         set_cell_computation!(getfield(node, :next),
-            () -> i < count ? _make_index_node(count, i + 1, value_of, node, nothing) : nothing)
+            () -> i < count ? _make_index_node(count, i + 1, value_of, node, nothing; computed) : nothing)
     else
         set_cell_value!(getfield(node, :next), after)
     end
     if before === nothing
         set_cell_computation!(getfield(node, :prev),
-            () -> i > 1 ? _make_index_node(count, i - 1, value_of, nothing, node) : nothing)
+            () -> i > 1 ? _make_index_node(count, i - 1, value_of, nothing, node; computed) : nothing)
     else
         set_cell_value!(getfield(node, :prev), before)
     end
