@@ -112,6 +112,12 @@ environment's manifest. Only `test/Project.toml` names a support package, by
 from the registry. A job now also develops the folders of its support packages,
 and the JSON job passed by hand, 225 of 225.
 
+### 6.2 What the coverage of a job holds
+
+`Pkg.test(name; coverage = true)` writes coverage for every file under the
+folder of `name`, its `test/support/` included. The job sends only `src`,
+`source` and `ext` to Codecov, so the coverage is of the code of the package.
+
 ### 6.3 The test of the umbrella does not load the umbrella
 
 The released test of `Projectured` is `ProjecturedTest` with
@@ -119,9 +125,3 @@ The released test of `Projectured` is `ProjecturedTest` with
 `Projectured`. So its job writes no coverage file in `Projectured/`: the
 release tests the flat namespace and never the umbrella. This came with R30;
 the coverage of this workflow shows it. Open: a fix is a question for the owner.
-
-### 6.2 What the coverage of a job holds
-
-`Pkg.test(name; coverage = true)` writes coverage for every file under the
-folder of `name`, its `test/support/` included. The job sends only `src`,
-`source` and `ext` to Codecov, so the coverage is of the code of the package.
