@@ -380,6 +380,14 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   windows added, and fewer new themes. A chrome value that a field of
   `WidgetTheme` already says takes that field; a new theme only for a slice
   with several values of its own.
+- **D18** (2026-10-02, T2). A widget document that sets no padding takes the
+  padding of its kind from `WidgetTheme`, as a browser takes a default style
+  for each kind of element. The builders of window chrome, of the assistant
+  and of a card leave the padding out. The owner: "yes".
+- **D19** (2026-10-02, T2). A small `GraphicsTheme` in the graphics slice holds
+  the selection ring and the fault mark of the graphics and layout slices,
+  which lie below every other theme; `WidgetTheme` reads the ring from it and
+  has no copy of its own. The owner: "yes".
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
