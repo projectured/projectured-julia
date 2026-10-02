@@ -164,3 +164,65 @@ function compute_font_path(font::StyleFont)
     index == 0 && (index = _find_font_face_index(_DEFAULT_FONT_FAMILY, font.weight, font.italic))
     _FONT_FACE_PATHS[index]
 end
+
+# ── Fallback faces ──────────────────────────────────────────────────────────
+#
+# A face draws only the characters it carries. For a character it lacks, a
+# renderer draws with the face that `find_glyph_font_file` names, and
+# `FontFileMeasure` measures with the same face, so a line is drawn as wide as it
+# was measured.
+
+# The families that draw a character that the face of a font lacks, in order:
+# DejaVu Sans Mono carries arrows, check marks, stars, geometric shapes and box
+# drawing, and Noto Emoji carries pictographs.
+const _FALLBACK_FONT_FAMILIES = ("DejaVu Sans Mono", "Noto Emoji")
+
+const _EMOJI_FONT_PATH = _FONT_FACE_PATHS[_find_font_face_index("Noto Emoji", 400, false)]
+
+"""
+    get_fallback_font_files(font) -> Vector{String}
+
+The files that a text set in `font` falls back to, in order. For each fallback
+family, DejaVu Sans Mono and then Noto Emoji: its upright face at the weight of
+`font`, then its upright regular face, because a bold face can lack a glyph that
+the regular face carries. A fallback glyph stands upright in an italic text too.
+"""
+function get_fallback_font_files(font::StyleFont)
+    files = String[]
+    for family in _FALLBACK_FONT_FAMILIES, weight in (Int(font.weight), 400)
+        path = _FONT_FACE_PATHS[_find_font_face_index(family, weight, false)]
+        path in files || push!(files, path)
+    end
+    files
+end
+
+const _FONT_AVAILABLE = Dict{String,Bool}()
+
+_is_font_available(path::AbstractString) =
+    get!(() -> isfile(font_file(path)), _FONT_AVAILABLE, String(path))
+
+"""
+    find_glyph_font_file(font, character) -> String or nothing
+
+The file of the face that draws `character` in a text set in `font`: the file
+that [`compute_font_path`](@ref) gives when its face carries the character, else
+the first file of [`get_fallback_font_files`](@ref) that does. `nothing` when no
+face carries it, and the caller then draws the character in its own font, which
+draws the missing-glyph box. A fallback file that is not installed is skipped.
+
+A character outside the basic plane is nearly always a pictograph, and Noto
+Emoji draws it even when the font carries one: DejaVu Sans does, in a style of
+its own.
+"""
+function find_glyph_font_file(font::StyleFont, character::UInt32)
+    character > 0xFFFF && _has_file_glyph(_EMOJI_FONT_PATH, character) && return _EMOJI_FONT_PATH
+    path = compute_font_path(font)
+    has_font_glyph(load_truetype_font(path), character) && return path
+    for fallback in get_fallback_font_files(font)
+        _has_file_glyph(fallback, character) && return fallback
+    end
+    nothing
+end
+
+_has_file_glyph(path::AbstractString, character::UInt32) =
+    _is_font_available(path) && has_font_glyph(load_truetype_font(path), character)

@@ -362,72 +362,12 @@ end
 
 get_ascent_pixels(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
 
-# ════════════════════════════════════════════════════════════════════════
-# Fallback fonts
-# ════════════════════════════════════════════════════════════════════════
-#
-# A font draws only the characters it carries. For a character it lacks, a
-# renderer draws with the font `find_glyph_font_file` names, and
-# `FontFileMeasure` measures with the same font, so a line is drawn as wide as it
-# was measured.
-
-const _EMOJI_FONT_FILE       = joinpath(_FONT_DIR, "NotoEmoji-Regular.ttf")
-const _DEJAVU_MONO_FILE      = joinpath(_FONT_DIR, "DejaVuSansMono.ttf")
-const _DEJAVU_MONO_BOLD_FILE = joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf")
-
-const _FALLBACK_FONT_FILES = [_DEJAVU_MONO_FILE, _EMOJI_FONT_FILE]
-# DejaVu Sans Mono Bold lacks some glyphs of the regular face, so the regular
-# face follows it.
-const _BOLD_FALLBACK_FONT_FILES = [_DEJAVU_MONO_BOLD_FILE, _DEJAVU_MONO_FILE, _EMOJI_FONT_FILE]
-
-"""
-    get_fallback_font_files(path) -> Vector{String}
-
-The fonts that a text set in the font at `path` falls back to, in order: DejaVu
-Sans Mono, which carries arrows, check marks, stars, geometric shapes and box
-drawing, and then Noto Emoji. A bold font, whose file name ends in `-B` or
-`-Bold`, takes the bold face of DejaVu first.
-"""
-get_fallback_font_files(path::AbstractString) =
-    occursin(r"-B(old)?(I|Italic|Oblique)?\.[ot]tf$", basename(path)) ?
-        _BOLD_FALLBACK_FONT_FILES : _FALLBACK_FONT_FILES
-
-const _FONT_AVAILABLE = Dict{String,Bool}()
-
-_is_font_available(path::AbstractString) =
-    get!(() -> isfile(font_file(path)), _FONT_AVAILABLE, String(path))
-
 """
     has_font_glyph(font::TrueTypeFont, character) -> Bool
 
 Whether `font` carries a glyph for `character`.
 """
 has_font_glyph(font::TrueTypeFont, character::UInt32) = get_glyph_id(font, character) != 0
-
-"""
-    find_glyph_font_file(path, character) -> String or nothing
-
-The file of the font that draws `character` in a text set in the font at `path`:
-that font when it carries the character, else the first font of
-[`get_fallback_font_files`](@ref) that does. `nothing` when no font carries it,
-and the caller then draws the character in its own font, which draws the
-missing-glyph box. A fallback file that is not installed is skipped.
-
-A character outside the basic plane is nearly always a pictograph, and Noto
-Emoji draws it even when the font carries one: DejaVu Sans does, in a style of
-its own.
-"""
-function find_glyph_font_file(path::AbstractString, character::UInt32)
-    character > 0xFFFF && _has_file_glyph(_EMOJI_FONT_FILE, character) && return _EMOJI_FONT_FILE
-    has_font_glyph(load_truetype_font(path), character) && return String(path)
-    for fallback in get_fallback_font_files(path)
-        _has_file_glyph(fallback, character) && return fallback
-    end
-    nothing
-end
-
-_has_file_glyph(path::AbstractString, character::UInt32) =
-    _is_font_available(path) && has_font_glyph(load_truetype_font(path), character)
 
 """
     is_presentation_selector(character) -> Bool

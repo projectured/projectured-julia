@@ -200,7 +200,7 @@ function _serialize_node(elem)
         offsets = compute_caret_offsets(FontFileMeasure(), text, font)
         path = compute_font_path(font)
         families = [_font_family(path);
-                    [_font_family(file) for file in get_fallback_font_files(path)]]
+                    [_font_family(file) for file in get_fallback_font_files(font)]]
         return Dict("t" => "text", "x" => Int(elem.x), "y" => Int(elem.y), "b" => ascent,
                     "s" => text, "o" => round.(offsets; digits = 2), "f" => families,
                     "sz" => font_logical_size(font), "c" => _rgba(elem.color))

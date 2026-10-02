@@ -113,7 +113,7 @@ function _each_drawn_character(text, font::StyleFont)
         is_presentation_selector(code) && continue
         file = path
         if get_glyph_id(primary, code) == 0 || code > 0xFFFF
-            fallback = find_glyph_font_file(path, code)
+            fallback = find_glyph_font_file(font, code)
             fallback === nothing || (file = fallback)
         end
         push!(drawn, (index, file))

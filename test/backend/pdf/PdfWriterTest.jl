@@ -215,7 +215,7 @@ end
     primary = load_truetype_font(compute_font_path(font))
     check = '✓'
     @test !has_font_glyph(primary, UInt32(check))
-    fallback_file = find_glyph_font_file(compute_font_path(font), UInt32(check))
+    fallback_file = find_glyph_font_file(font, UInt32(check))
     @test fallback_file isa String && fallback_file != compute_font_path(font)
     fallback = load_truetype_font(fallback_file)
     # U+FE0F asks for emoji presentation; it has no width, and the writer drops it.

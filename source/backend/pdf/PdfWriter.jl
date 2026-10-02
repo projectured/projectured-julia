@@ -111,16 +111,15 @@ end
 # `glyf` table. A font with CFF outlines has no `glyf` table.
 _is_embeddable_font(ttf::TrueTypeFont) = ttf.glyf_off != 0
 
-# The registration of the font that draws `character` in a text set in the font
-# at `path`. It is the font that `find_glyph_font_file` names, which is the font
+# The registration of the font that draws `character` in a text set in `font`. It is the font that `find_glyph_font_file` names, which is the font
 # that `FontFileMeasure` measures the character in. A fallback font that
 # the writer can not embed is skipped, and the character is drawn in the font
 # of the text.
 function _register_glyph_font!(ctx::PageContext, primary::FontRegistration,
-                               path::AbstractString, character::UInt32)
+                               font::StyleFont, character::UInt32)
     character <= 0xFFFF && has_font_glyph(primary.ttf, character) && return primary
-    file = find_glyph_font_file(path, character)
-    (file === nothing || file == path) && return primary
+    file = find_glyph_font_file(font, character)
+    (file === nothing || file == compute_font_path(font)) && return primary
     _is_embeddable_font(load_truetype_font(file)) || return primary
     register_font!(ctx, file)
 end
@@ -128,13 +127,13 @@ end
 # Split `text` into runs of consecutive characters that one font draws. Each run
 # is the registration of its font and its glyph identifiers. A presentation
 # selector has no width, and the measurer skips it, so it is dropped.
-function _split_font_runs!(ctx::PageContext, text::AbstractString, path::AbstractString)
-    primary = register_font!(ctx, path)
+function _split_font_runs!(ctx::PageContext, text::AbstractString, font::StyleFont)
+    primary = register_font!(ctx, compute_font_path(font))
     runs = Tuple{FontRegistration,Vector{UInt16}}[]
     for c in text
         character = UInt32(c)
         is_presentation_selector(character) && continue
-        reg = _register_glyph_font!(ctx, primary, path, character)
+        reg = _register_glyph_font!(ctx, primary, font, character)
         gid = get_glyph_id(reg.ttf, character)
         push!(reg.used, gid)
         get!(reg.gid_to_uni, gid, character)
@@ -413,7 +412,7 @@ function paint_text!(ctx, t, ox, oy)
     size = font_logical_size(t.font)
     _, ascent, descent = compute_text_extent(t.text, t.font)
     _on_page(ctx, gy, gy + ascent + descent) || return
-    runs = _split_font_runs!(ctx, t.text, compute_font_path(t.font))
+    runs = _split_font_runs!(ctx, t.text, t.font)
     isempty(runs) && return
     baseline = _flip(ctx, gy + ascent)
     print(ctx.buf, "/", gs_for!(ctx, ta), " gs ",

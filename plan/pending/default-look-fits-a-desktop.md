@@ -403,7 +403,13 @@ inet-julia uses, the same step changes them, so that they always load.
   constants finds the file that it named before. The image check of section
   7.1 found 315 of 315 outputs equal (105 examples, a PNG at the density 1 and
   2, and a PDF). omnet-julia changes one test that read `font.filename`.
-- [ ] **F3.** The fallback chain comes from the registry.
+- [x] **F3.** The fallback chain comes from the registry. *Done:*
+  `get_fallback_font_files(font)` and `find_glyph_font_file(font, character)`
+  take a font. The fallback families are DejaVu Sans Mono and then Noto Emoji.
+  For each, the chain takes the upright face at the weight of the font, then
+  the upright regular face. For every bundled face this gives the files that
+  the rule on the file name gave, italic text included: its fallback glyphs
+  stand upright. The fallback section is in `FontFace.jl`.
 - [ ] **F4.** The appearance tab chooses a family, a weight, a slant and a size,
   in place of the steps through the files.
 - [ ] **F5.** Each use of a font constant becomes a description, in all three

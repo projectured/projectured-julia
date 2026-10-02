@@ -43,7 +43,7 @@ Every value is a real number in logical pixels; a `TextMeasure` rounds nothing. 
 
 `FontFileMeasure()` reads the font files, as every backend draws them: the `hmtx` advance of each glyph, the `kern` pairs between two glyphs of one font, the fallback font of a character the font lacks, and the vertical metrics by FreeType's rule. It is the measure of the application and the exports, and the PDF and web backends use it. `FixedMeasure(advance, ascent, descent, line_gap; fonts = Dict())` answers fixed numbers for a test: every character is `advance` wide, there is no kerning, and every font has the given metrics, except a font that `fonts` gives its own `FontMetrics`.
 
-A font does not carry every glyph. `find_glyph_font_file(path, character)` finds the file that has a glyph: the font itself, then DejaVu Sans Mono, then Noto Emoji. `FontFileMeasure` measures each character in the font that draws it. The variation selectors U+FE0E and U+FE0F measure as zero width, because the SDL renderer does no shaping.
+A font does not carry every glyph. `find_glyph_font_file(font, character)` finds the file that has a glyph: the face of the font, then the faces of `get_fallback_font_files(font)`. These are DejaVu Sans Mono and then Noto Emoji, each at the weight of the font and then regular, and always upright. `FontFileMeasure` measures each character in the font that draws it. The variation selectors U+FE0E and U+FE0F measure as zero width, because the SDL renderer does no shaping.
 
 ### Line spacing
 

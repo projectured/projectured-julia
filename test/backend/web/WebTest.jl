@@ -34,7 +34,7 @@ function test_web_backend()
         @test node["o"][2] < measure_string(FontFileMeasure(), "A", font).width
         @test node["f"][1] == "Ubuntu-R"
         @test node["f"][2:end] == [splitext(basename(file))[1]
-                                   for file in get_fallback_font_files(compute_font_path(font))]
+                                   for file in get_fallback_font_files(font)]
     end
 
     @testset "a decoded message is read from the queue" begin
