@@ -1,6 +1,6 @@
 # A person sets the zoom, the scales and the themes of an editor
 
-> **Status:** pending, not started. Written on 2026-09-30 at the owner's
+> **Status:** done on 2026-10-02. Written on 2026-09-30 at the owner's
 > request. The owner decided the design on 2026-10-01; section 5 logs each
 > decision. The owner approved the unseal of `device/Display.jl` (step N1) and
 > of `cell/CellModule.jl`, `cell/ReactiveCell.jl`, `struct/CellStructPlan.jl`
@@ -10,8 +10,9 @@
 > `struct/CellStructModule.jl`, where they say that only a reactive cell
 > computes or that there are three kinds.
 >
-> **In progress** on the branch `appearance`, in the worktree
-> `.claude/worktrees/appearance`. Section 9 holds what the work found.
+> The steps landed on `main` by fast-forward, the last of them, Part Q, at
+> `85f7a96cc`, with the omnet follow-up at omnet-julia `a12eaa87`. Section 9
+> holds what the work found.
 
 ## 1. The request
 
@@ -972,10 +973,10 @@ W1 lands on `main`, so W1 lands as soon as it is done (my reading of that plan,
       the appearance (a check that builds every row of every registry).
     - [x] The data frame view follows a change of the spacing scale and of the
       font scale of its appearance.
-  - [ ] The images of the examples whose widgets change font (D30), for the
-    owner's review: `/var/tmp/appearance-d30-review/` holds the tabs, a data
-    frame table and the workspace explorer, before on the left and after on the
-    right. The owner had them when the branch landed, and has not answered yet.
+  - [x] The images of the examples whose widgets change font (D30), for the
+    owner's review: the tabs, a data frame table and the workspace explorer,
+    before on the left and after on the right. The owner accepted them on
+    2026-10-02.
 - **The landing after B2** (2026-10-01, at the owner's word): projectured-julia
   `main` at `3c2557b32` and omnet-julia `main` at `635f342a`, by fast-forward,
   not pushed. The owner asked to land before the broad sweep; a sub-agent runs

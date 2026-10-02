@@ -21,7 +21,7 @@ The owner asked on 2026-10-01:
 > let's design this, what settings make sense, how to store them, how to
 > conifure them, how to apply them, how to save/load them, where, etc.
 
-"How themes will be edited" is `plan/pending/zoom-and-theme-controls.md`, the
+"How themes will be edited" is `plan/done/zoom-and-theme-controls.md`, the
 appearance plan below. This plan follows its form: a collection of documents for
 each editor, a wrapper of `build_editor` that handles a change, a tool tab, and a
 TOML file. "Dirty render" is the red outline of the region that a frame repaints,
@@ -150,7 +150,7 @@ The search of 2026-10-01 found these values. This plan leaves them out:
 
 ### 3.8 The appearance plan
 
-`plan/pending/zoom-and-theme-controls.md` landed its steps up to W2 on `main`
+`plan/done/zoom-and-theme-controls.md` landed its steps up to W2 on `main`
 on 2026-10-01 (`03e83ba36`): `UntrackedCell`, `@theme`, `Appearance`,
 `InvalidateProjectionOperation`, the slice `source/platform/appearance/` and the
 seam of the build. The tab (W3) and the save and the load (W6) are not done.

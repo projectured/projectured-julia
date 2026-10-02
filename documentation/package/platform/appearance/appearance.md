@@ -116,7 +116,7 @@ The slice depends on the kernel and on the layout, natural, primitive, projectio
 
 ## Design decisions
 
-- **The editor knows nothing about themes.** The wrapper handles every change of the appearance, and the kernel only passes the arguments of the wrappers on. See [plan/pending/zoom-and-theme-controls.md](../../../../plan/pending/zoom-and-theme-controls.md), D4, D20, D29 and D32.
+- **The editor knows nothing about themes.** The wrapper handles every change of the appearance, and the kernel only passes the arguments of the wrappers on. See [plan/done/zoom-and-theme-controls.md](../../../../plan/done/zoom-and-theme-controls.md), D4, D20, D29 and D32.
 - **A change prints the whole view again.** The view has no edge to the theme, so a print of the whole view is the one way a change reaches it, and it costs one print for a rare event.
 - **A change of a theme is a step of a history** (finding 29 of the plan, from D14 of the settings plan). The window history holds the pane tree, so it holds the tab, as it does for the settings tab. `ReplaceThemeValueOperation` is the counterpart of `ApplySettingOperation`: the wrapper makes it from a plain write, so the inverse prints the view again too.
 - **The state of the tab is in the `Appearance`.** The tab is a new tree after each change, so its place and its open cards can live nowhere else; they are view state, and the file does not keep them.
