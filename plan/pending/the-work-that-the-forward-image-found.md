@@ -89,6 +89,11 @@ give their one child the whole range that they were given:
     its gap. Test: `test_size_range_one_child()`. The three examples with a title
     pane keep their counts (12701 pass, 196 fail, 4 broken, the same without the
     change: the fails are type-in and navigation baselines).
+  - [x] `WidgetTooltip` and `WidgetContextMenu` (2026-10-02). Each gives its
+    child `_get_overlay_content_context`: the edge less the insets, bounded. In
+    the exact range of a window, both took the whole window before (400 by 300
+    for a label of 40 by 24). Test: `test_size_range_one_child()`; the context
+    menu, popup, tooltip, tracking screen and shell tests pass (88 and 209).
 
 ## 3. The file chooser draws its parts at one place
 

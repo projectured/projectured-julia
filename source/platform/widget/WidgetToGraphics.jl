@@ -2079,11 +2079,23 @@ end
 
 # ── WidgetTooltip ───────────────────────────────────────────────────────────
 
+# The range of the content of an overlay, a tooltip or a context menu: the edge of
+# its range less its insets, and never a slot, because an overlay is as large as
+# its content (§3 of layout-rules.md). A content in a slot would stretch to the
+# whole window, and the overlay with it.
+function _get_overlay_content_context(p, w::WidgetDocument, ctx)
+    ctx === nothing && return nothing
+    inner = with_inner_size(ctx; width = Cell(@computation _inset_total(p, w)[1]),
+                            height = Cell(@computation _inset_total(p, w)[2]))
+    with_bounded_size(inner; width = inner.maximum_width, height = inner.maximum_height)
+end
+
 function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTooltip, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pos = w.position::Point2D
     # The child is reconciled and forced only in the WidgetDocument branch.
-    child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+    content_ctx = _get_overlay_content_context(p, w, ctx)
+    child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = Cell(@computation begin
         # The padding of the projection keeps the box off the text, unless the
         # document gives a padding of its own.
@@ -2170,7 +2182,8 @@ ProjectionModule.get_child_iomaps(iomap::WidgetContextMenuToGraphicsCanvasIoMap)
 function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     w.child isa Document || return SimpleIoMap(p, w, _empty_canvas())
-    child_iomap = reconcile_child_iomap(() -> w.child, c -> print_child(recursion, c, ctx))
+    child_ctx = _get_overlay_content_context(p, w, ctx)
+    child_iomap = reconcile_child_iomap(() -> w.child, c -> print_child(recursion, c, child_ctx))
     build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         inner = child_iomap[].output::GraphicsCanvas

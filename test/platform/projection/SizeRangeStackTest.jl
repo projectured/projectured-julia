@@ -103,7 +103,8 @@ function _range_one_child_sizes(widget, width, height; exact = true)
           exact ? PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}()) :
           with_bounded_size(PrinterContext(); width = Cell(width), height = Cell(height))
     iomap = print_document(projection, nothing, widget, ctx)
-    x, y, child = only(getfield(iomap, :child_iomaps)[])
+    x, y, child = hasfield(typeof(iomap), :child_iomaps) ? only(getfield(iomap, :child_iomaps)[]) :
+                  (0, 0, iomap.child_iomap)
     ((Int(iomap.output.w[]), Int(iomap.output.h[])), (x, y),
      (Int(child.output.w[]), Int(child.output.h[])))
 end
@@ -128,5 +129,20 @@ function test_size_range_one_child()
     _, _, content = _range_one_child_sizes(WidgetTitlePane("T", WidgetLabel(_RANGE_PROSE)), 300, 200;
                                            exact = false)
     @test 200 < content[1] <= 300 - frame[1]
+end
+
+@testset "an overlay is as large as its content, and wraps it inside its box" begin
+    menu() = WidgetMenu(Any[WidgetMenuItem("Cut")])
+    for (name, make) in (("a tooltip", text -> WidgetTooltip(WidgetLabel(text))),
+                         ("a context menu", text -> WidgetContextMenu(WidgetLabel(text), menu())))
+        free, _, content = _range_one_child_sizes(make("Name"), nothing, nothing)
+        frame = (free[1] - content[1], free[2] - content[2])
+        # In the exact range of a window, the overlay keeps the size of its content.
+        @test _range_one_child_sizes(make("Name"), 400, 300)[[1, 3]] == (free, content)
+        # A long text wraps inside the box, so the overlay stays inside the window.
+        size, _, content = _range_one_child_sizes(make(_RANGE_PROSE), 400, 300)
+        @test 300 < content[1] <= 400 - frame[1]
+        @test size[1] <= 400
+    end
 end
 end # test_size_range_one_child
