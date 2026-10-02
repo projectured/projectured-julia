@@ -152,6 +152,10 @@ Each one fails the same way on `main` at `aa7ce9223`:
   record `MouseMove`.
 - `test_table_cell_editing()`: a typed character in a JSON string cell gives no
   operation.
+- `test_click_roundtrips()` inside the full `test_integration()`: three
+  `@test_broken` markers at `ClickRoundtripTest.jl:323` pass. Alone, the sweep
+  keeps them broken.
+- The arguments guard: 6 findings.
 
 ## 7. Measurements (U3)
 
@@ -175,3 +179,14 @@ case differ by 0.04 s at most; the table gives their middle value.
 The kernel loads in 0.03 s and the platform in 0.12 s on both. In
 `environment/all`, `using Projectured` loads every installed package, so it costs
 what the flat namespace costs. The script is `/var/tmp/r30/times/measure.sh`.
+
+## 8. The final check
+
+`ci14`, 2026-10-02, a fresh clone of `5a1499df9` (on `main` `0d17c1385`), every
+CI job in its own environment, in `unshare -rn`:
+
+- The 32 package suites pass, except the kernel fault of 6.5.
+- `test_repository()` 370 of 370; `test_builder()` 381 of 381.
+- `test_integration()` and the guards give exactly the failures of a fresh clone
+  of `main` at `ce541bf1f`, which 6.5 lists.
+- omnet-julia and inet-julia precompile with 0 errors against the branch.
