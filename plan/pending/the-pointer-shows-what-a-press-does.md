@@ -1,6 +1,6 @@
 # The pointer shows what a press does there
 
-Status: a plan, not started. Written 2026-10-02 at the owner's word ("c affects
+Status: a plan, not started. The owner decided P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
 many other places, needs a plan"), after G3 of step 5.7 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) chose a lit edge
 for the edge of a column, and the shape of the pointer for later.
@@ -38,9 +38,15 @@ does.
 | a drag that is on, anywhere | the shape of its press | drag tracking |
 | everywhere else | the arrow | — |
 
-Other candidates, for the owner (P2): the hand over a button, a link and a tab;
-the grab and the grabbing hand over a tab that drags; "not allowed" over a drop
-that a place refuses; the busy shape while the editor waits.
+Also in this plan, at the owner's word (P2, "all mentioned"):
+
+| Where the pointer is | Shape | Owner |
+|---|---|---|
+| a button, a link, a tab | pointing hand | widget, pane |
+| a tab that can drag, before the press | open hand | pane, dragging |
+| a drag that carries a thing, over a place that takes it | closed hand | drag tracking and the keeper |
+| a drag that carries a thing, over a place that refuses it | crossed circle | drag tracking and the keeper |
+| anywhere, while the editor is busy | hourglass | the backend (§4.3) |
 
 ## 4. The design: the shape is part of what a part draws
 
@@ -79,22 +85,68 @@ of the mouse target, and sends the shape to the backend. Rejected (mine):
   as the view of a data frame now answers the mouse target for its table.
 - A drag would need its own rule for its shape anyway.
 
+### 4.1 The shape during a drag
+
+The drag tracking keeps the shape while a drag is on, because it is the code that
+already keeps the drag and gives the dragged part each move by its path, wherever
+the pointer is:
+
+1. At the press, when it takes the `StartDragOperation` of a part, it reads the
+   shape at the press point from the graphics of the window
+   (`find_pointer_shape`), and keeps it in its state beside the path of the drag.
+2. While the drag is on, it draws one more region over the whole of every window
+   of the screen, last, marked as a region of a drag. The backend reads only the
+   regions of a drag while one is drawn, and the last one that holds the point
+   wins, so the shape of the press stays over the cells, outside the table, and
+   in another window.
+3. At the release, at Escape and at a lost release, the drag ends, the region
+   goes, and the shape follows the part under the pointer again.
+
+A drag that carries a thing (`dragged` is not `nothing`), such as a tab, takes
+its shape from the place under the pointer and not from the press: the keeper of
+the drag already asks `find_drop_zone` at each move to light the zone, and it
+draws a region of a drag over its own extent with the closed hand where a zone
+takes the thing and the crossed circle where none does. It draws after the region
+of the drag tracking, so it wins over its own extent, and the closed hand of the
+drag tracking holds everywhere else.
+
+### 4.2 Outside the window
+
+While the button is held, SDL2 keeps giving the moves outside the window to the
+window of the press (its mouse capture of a held button), and the window system
+keeps the shape of that window on the pointer. To check on the machine in step 2.
+The web client must capture the pointer at a press (`setPointerCapture`), which
+it does not do now, so the canvas keeps the moves and its `cursor` while the
+pointer is outside it.
+
+### 4.3 The hourglass
+
+The busy shape is a state of the editor and not of a part, so it has no region.
+The backend shows the hourglass while the loop is in a frame that takes longer
+than a threshold, and the shape at the pointer again after it. The web backend
+already sends a message of a busy editor to the client.
+
 ## 5. The vocabulary of the shapes
 
-A `Symbol` of a small set, so a backend maps each to its own:
+A `Symbol` of a small set, named by the picture (P1), so a backend maps each to
+its own:
 
-| Shape | SDL | CSS |
+| Shape | SDL2 | CSS |
 |---|---|---|
-| `:default` | `SDL_SYSTEM_CURSOR_ARROW` | `default` |
-| `:text` | `SDL_SYSTEM_CURSOR_IBEAM` | `text` |
-| `:resize_across` | `SDL_SYSTEM_CURSOR_SIZEWE` | `col-resize` |
-| `:resize_down` | `SDL_SYSTEM_CURSOR_SIZENS` | `row-resize` |
-| `:hand` | `SDL_SYSTEM_CURSOR_HAND` | `pointer` |
-| `:move` | `SDL_SYSTEM_CURSOR_SIZEALL` | `move` |
-| `:not_allowed` | `SDL_SYSTEM_CURSOR_NO` | `not-allowed` |
+| `:arrow` | `SDL_SYSTEM_CURSOR_ARROW` | `default` |
+| `:ibeam` | `SDL_SYSTEM_CURSOR_IBEAM` | `text` |
+| `:double_arrow_horizontal` | `SDL_SYSTEM_CURSOR_SIZEWE` | `col-resize` |
+| `:double_arrow_vertical` | `SDL_SYSTEM_CURSOR_SIZENS` | `row-resize` |
+| `:pointing_hand` | `SDL_SYSTEM_CURSOR_HAND` | `pointer` |
+| `:open_hand` | a color cursor made from an image | `grab` |
+| `:closed_hand` | a color cursor made from an image | `grabbing` |
+| `:crossed_circle` | `SDL_SYSTEM_CURSOR_NO` | `not-allowed` |
+| `:hourglass` | `SDL_SYSTEM_CURSOR_WAIT` | `wait` |
 
-The names say what a press does, not how the picture looks (P1). A shape that a
-backend does not know is the arrow.
+SDL2 has no open and no closed hand of the system, so the backend makes the two
+with `SDL_CreateColorCursor` from an image of each, such as the glyphs `hand`
+and `grab` of the Lucide font. A shape that a backend does not know is the
+arrow.
 
 ## 6. Steps
 
@@ -113,16 +165,21 @@ backend does not know is the arrow.
 3. **The web backend.** It sends `{"type": "pointer", "window", "shape"}` when
    the shape changes, and the client sets `cursor` of the canvas.
 4. **The video backend.** It draws the pointer of each shape: an image for each
-   of the seven, in the style of the arrow it draws now (P4).
+   of the nine, in the style of the arrow it draws now (P4).
 5. **The parts.** The edge of a column (a region of 7 pixels around each edge of
-   the header row), the divider of a split pane, and the text of a text field, a
-   text area and a text document that a person edits. Each with a test of its
-   region.
-6. **The drag.** The drag tracking reads the shape at the press from the graphics
-   of the content, keeps it in its state, and draws a region over the whole window
-   while the drag is on. A test: a drag of the edge of a column keeps the resize
-   shape over the cells and outside the table.
-7. **The documents** of the graphics, widget, screen, drag tracking and of each
+   the header row), the divider of a split pane, the text of a text field, a text
+   area and a text document that a person edits, a button, a link and a tab, and
+   a tab that can drag. Each with a test of its region, which presses in the
+   region and checks the answer of the reader.
+6. **The drag** (§4.1). The drag tracking keeps the shape of the press and draws
+   the region of a drag in every window; the keeper of a drag that carries a
+   thing draws the closed hand and the crossed circle over its zones; the web
+   client captures the pointer. Tests: a drag of the edge of a column keeps the
+   double arrow over the cells, outside the table and in a second window; a tab
+   that drags shows the closed hand over a group and the crossed circle where no
+   zone takes it.
+7. **The hourglass** (§4.3), in SDL and in the web client.
+8. **The documents** of the graphics, widget, screen, drag tracking and of each
    backend, and the user guide of the pointer.
 
 ## 7. Risks
@@ -137,16 +194,18 @@ backend does not know is the arrow.
 - **The video and a review of the takes.** A take that shows the pointer shows the
   new shapes, so the screenplays of the videos may want a new take.
 
-## 8. Points for the owner
+## 8. The owner's decisions
 
-- **P1.** The names of the shapes: by what a press does (`:resize_across`), as
-  above, or by the picture (`:double_arrow`). Recommendation: by what a press
-  does.
-- **P2.** Which parts get a shape in this plan: the three of §3, or also the hand
-  over a button, a link and a tab, and the grab over a tab that drags.
-  Recommendation: the three of §3 and the drag first; the hand and the grab as a
-  second step, because a hand over every button is a question of style.
-- **P3.** The design of §4 (a region of the graphics) against the alternative (the
-  mouse target and a seam). Recommendation: the region.
-- **P4.** The video backend: draw the shapes, or keep the arrow in videos.
-  Recommendation: draw them, because a video shows what a person sees.
+The owner, 2026-10-02:
+
+- **P1. Name by the picture** (against the recommendation of the writer, which
+  was by what a press does): `:double_arrow_horizontal`, not `:resize_across`.
+- **P2. All mentioned:** the shapes of §3, and the pointing hand, the open and
+  the closed hand, the crossed circle and the hourglass.
+- **P3. A region of the graphics** (§4).
+- **P4. Yes:** the video backend draws the shapes.
+
+The owner asked, with the decisions: "what will keep the cursor shape during a
+drag when it moves away from the part being dragged but still operates?" The
+answer is §4.1: the drag tracking, which keeps the shape of the press and draws a
+region of a drag over every window while the drag is on.
