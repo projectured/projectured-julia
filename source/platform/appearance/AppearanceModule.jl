@@ -57,7 +57,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward,
 
 export AppearanceDocument, make_appearance_document, find_editor_appearance
 export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_to_display!,
-       SaveAppearanceOperation, LoadAppearanceOperation, ReplaceThemeValueOperation
+       ReplaceThemeValueOperation, SaveAppearanceOperation, LoadAppearanceOperation
 export AppearanceManagingProjection, AppearanceManagingIoMap, is_appearance_change
 export AppearanceToWidget, AppearanceToWidgetIoMap
 
