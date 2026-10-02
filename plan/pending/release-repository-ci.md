@@ -80,11 +80,20 @@ repository." The owner started it on 2026-10-02 ("yes").
       The test reads the text, because the builder has no YAML parser; PyYAML
       parsed the generated file by hand: 32 packages, 2 versions, the folded
       `run` lines join into one command each. The umbrella develops 31 folders.
-- [ ] **Step 3, the check.** Generate the release copy of this repository under
+- [x] **Step 3, the check.** Generate the release copy of this repository under
       `/var/tmp`, and run the commands of the workflow for three jobs, each in
       an empty compiled cache: `ProjecturedKernel`, `ProjecturedJSON` and the
       umbrella, whose test needs almost every package. The coverage files must
-      appear in the folders that the job names.
+      appear in the folders that the job names. Done on 2026-10-02 with
+      `/var/tmp/r31/job.sh`: the `run` lines of the generated YAML, a fresh copy
+      of the release, an empty compiled cache, no network:
+      - `ProjecturedKernel`, Julia 1.13: 4129 pass, 1 fail (`RoutedChangeTest`,
+        a fault of `main`); 99 coverage files in `src` and `source`.
+      - `ProjecturedKernel`, Julia 1.11: also the 2 assertions of D1.
+      - `ProjecturedJSON`, Julia 1.13: 225 of 225, 11 folders developed.
+      - The umbrella, Julia 1.13: 86 folders; `test_integration()` gives exactly
+        the faults of `main` (6 fail, 4 error), in 60 minutes. No coverage file
+        in its folders: see 6.3.
 - [ ] **Step 4, the guides.** The build guide says that the release repository
       tests itself, and what the owner turns on: the Codecov app for
       `projectured/Projectured.jl`. The release plan marks R31.
@@ -102,6 +111,14 @@ environment's manifest. Only `test/Project.toml` names a support package, by
 (`ProjecturedPDF` for `ProjecturedJSONExample`) was dropped and resolved again
 from the registry. A job now also develops the folders of its support packages,
 and the JSON job passed by hand, 225 of 225.
+
+### 6.3 The test of the umbrella does not load the umbrella
+
+The released test of `Projectured` is `ProjecturedTest` with
+`test_integration()`, and `ProjecturedTest` loads `ProjecturedAll`, not
+`Projectured`. So its job writes no coverage file in `Projectured/`: the
+release tests the flat namespace and never the umbrella. This came with R30;
+the coverage of this workflow shows it. Open: a fix is a question for the owner.
 
 ### 6.2 What the coverage of a job holds
 

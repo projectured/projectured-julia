@@ -148,8 +148,9 @@ release repository, `projectured/Projectured.jl`, with one folder for each
 package, `<Name>/`, and the licence files at its root. Each package folder holds
 everything the package reads, because Pkg installs only the folder of a
 package, and its tests: `Pkg.test` runs the suite of its test package on the
-installed package. [builder.md](../package/tool/builder/builder.md) says how the copy is
-made.
+installed package. The release repository tests each package on every push, in
+the workflow `.github/workflows/CI.yml` that the build writes.
+[builder.md](../package/tool/builder/builder.md) says how the copy is made.
 
 **Warning: do not rewrite the history of the release repository.** The registry
 names each version by the git tree of the package folder, and Pkg must find that
@@ -171,7 +172,11 @@ tree for as long as the version exists.
    A changed package gets the next patch version. A new package gets a new
    folder. `results` lists each package with its status and its version,
    dependencies first.
-3. Commit the release repository, and push it.
+3. Commit the release repository, and push it. The push starts the workflow: a
+   job for each package with tests, on Julia 1.11 and on the newest release.
+   Wait until it passes before you register. A job sends its coverage to
+   Codecov; the upload needs the Codecov app on `projectured/Projectured.jl`,
+   and a job does not fail without it.
 4. Register the new and the changed packages in the order of `results`:
 
    - In a local registry, with `LocalRegistry`, for each package:
