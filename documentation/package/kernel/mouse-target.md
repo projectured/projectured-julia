@@ -57,6 +57,8 @@ A printer maps the mouse target of its input forward into its output, as it maps
 
 So a widget that a view makes for a part of a domain lights when the pointer is over that part. The view needs no code of its own for this.
 
+A view that puts a document of its input whole into its output, such as the reflected object in a scroll pane of an inspector, which a later view draws, maps a path through that document with `map_held_node_forward` and `map_held_node_backward` of the focus slice. Its backward map then keeps the steps of the input (`PAR-CROSS-DOMAIN-LATE`): the chain write reaches the document, and the later view finds its own part in the mouse target of the document and lights it.
+
 ### The light
 
 Each projection draws from its own mouse target, as it draws the selection ring from its selection, and no reader writes a state for this. A widget lights while its mouse target is set, that is while the pointer is on it or on a part inside it; a list, a table and a tree light the row that their mouse target names. [widget.md](../platform/widget/widget.md) describes each widget's light. A light never changes the layout: it draws a layer over the surface or the row, never a different size or place ([`PAR-LIGHT-KEEPS-LAYOUT`](../../rule/architecture-invariants.md#par-light-keeps-layout)).
@@ -137,5 +139,5 @@ one.mouse_target[]     ← nothing                     (off the path)
 
 ## Limits
 
-- **A domain document that a view shows inside a widget, and that a second view also draws, gets no mouse target.** This is an open question.
+- **A document that a view makes itself, puts into its output, and a second view draws gets no mouse target**, such as the graph of a topology card: the outer walk leaves it out, and no document of the input holds it. This is an open question.
 - **An edit that is no operation keeps no path right.** A direct write into a cell does not move or clear the mouse target paths that pass through it. An assistant or a script that edits a document must make an operation, also for this reason.

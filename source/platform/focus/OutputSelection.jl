@@ -123,3 +123,73 @@ _is_same_output_step(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b
 _is_same_output_step(a::RangeReferenceStep, b::RangeReferenceStep) =
     a.start == b.start && a.stop == b.stop
 _is_same_output_step(a, b) = false
+
+"""
+    find_output_node_path(root, node) -> Reference | Nothing
+
+The path from `root`, the output of a view, to `node`, a document of the input
+of the view that the output holds, as a widget holds the document it shows. The
+search goes by identity through the child documents, nearer ones first, and does
+not enter `node`; `nothing` when the output does not hold it.
+"""
+function find_output_node_path(root, node)
+    level = Any[(root, ())]
+    seen = IdDict{Any,Bool}()
+    while !isempty(level)
+        next = Any[]
+        for (candidate, steps) in level
+            candidate === node && return _prepend_steps(steps, EmptyReference())
+            haskey(seen, candidate) && continue
+            seen[candidate] = true
+            for (child_steps, child) in _child_document_refs(candidate)
+                push!(next, (child, (steps..., child_steps...)))
+            end
+        end
+        level = next
+    end
+    nothing
+end
+
+"""
+    map_held_node_forward(output, node, reference) -> Reference | Nothing
+
+`reference`, a path of `node`, as a path of `output`: the path to `node` in the
+output before it. `node` is a document of the input of a view that the view puts
+into its output whole, such as the document that a scroll pane of the view
+shows, and that a later view draws. `nothing` when the output does not hold
+`node`.
+
+A view that holds a document of its input so maps a path of that document
+forward, and [`map_held_node_backward`](@ref) maps it back: the path keeps the
+steps of the input for as long as it has a pre-image (`PAR-CROSS-DOMAIN-LATE`),
+so the part under the pointer reaches the document, and the later view finds
+its own part in it.
+"""
+function map_held_node_forward(output, node, reference)
+    prefix = find_output_node_path(output, node)
+    prefix === nothing && return nothing
+    annotate_reference_types(output, concat_references(prefix, strip_reference_types(reference)))
+end
+
+"""
+    map_held_node_backward(output, node, reference) -> Reference | Nothing
+
+`reference`, a path of `output`, as a path of `node`: the rest of the path after
+the step that reaches `node`, a document of the input of the view that the
+output holds. `nothing` when the path does not pass through `node`. The inverse
+of [`map_held_node_forward`](@ref).
+"""
+function map_held_node_backward(output, node, reference)
+    current = output
+    rest = reference
+    while true
+        current === node && return rest
+        rest isa ConcreteReference || return nothing
+        current = try
+            unwrap_cell(evaluate_reference_step(get_reference_head(rest), current))
+        catch
+            return nothing
+        end
+        rest = get_reference_tail(rest)
+    end
+end

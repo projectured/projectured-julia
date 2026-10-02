@@ -1,6 +1,7 @@
 # A document that a second view draws gets the part under the pointer
 
-> **Status (2026-10-02): pending, the owner chooses the fix.** This is Q15 of
+> **Status (2026-10-02): decided, in work.** The owner chose (a) ("agreed", on
+> Claude's recommendation). This is Q15 of
 > [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md),
 > moved here when
 > [events-gestures-and-the-pointer.md](../done/events-gestures-and-the-pointer.md)
@@ -65,8 +66,27 @@ input. It needs its own question after the choice above.
 
 ## Steps
 
-- [ ] 1. The owner chooses (a), (b) or (c).
+- [x] 1. The owner chooses (a), (b) or (c). Decided (owner 2026-10-02, "agreed"):
+  (a), with the helper. Rejected: (b), the view prints the shadow itself; (c),
+  the walk in the default of the kernel.
 - [ ] 2. The fix and its test, in the repository that the choice names.
+  - [x] 2a. projectured: the helper in the focus slice, beside
+    `follow_output_mouse_target!`. `find_output_node_path(root, node)` finds the
+    path from the output of a view to a document that the output holds, by
+    identity through the child documents (`_child_document_refs`);
+    `map_held_node_forward(output, node, reference)` puts that path before a path
+    of the node, and `map_held_node_backward(output, node, reference)` walks a
+    path of the output and answers the rest of it after the node. A test with
+    the shape of the inspector: a row that a second view draws lights.
+    Built (2026-10-02): `OutputSelection.jl` of the focus slice, exported. The
+    test in `MouseTargetMoveTest.jl` (a view `MtmHeldObjectView` and a stage
+    that draws a reflected object with `ReflectionToWidget`) fails with the
+    default backward map (no row lights) and passes with the helper (76 in
+    `test_mouse_target_move`). `focus.md` and `mouse-target.md` describe the
+    helper, and the limit of `mouse-target.md` names only the case of step 3.
+  - [ ] 2b. omnet, after 2a is on main: `SimulationInspectorToWidget` maps a
+    path of the shadow forward and back with the helper, and a test moves onto
+    a row of the inspector.
 - [ ] 3. The question of the topology graph.
 - [ ] 4. The documents: `mouse-target.md` drops its limit, and the move of this
   plan to `plan/done/`.

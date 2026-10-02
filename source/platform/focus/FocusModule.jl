@@ -50,7 +50,8 @@ export FocusCyclingProjection, FocusCyclingIoMap
 export SelectionWalkingProjection, SelectionWalkingIoMap,
        get_selection_walk_direction, compute_selection_walk, is_selection_walk_stop
 export OutputReferenceStep, make_output_reference, find_output_path,
-       follow_output_selection!, follow_output_mouse_target!
+       follow_output_selection!, follow_output_mouse_target!,
+       find_output_node_path, map_held_node_forward, map_held_node_backward
 
 
 include("Focus.jl")

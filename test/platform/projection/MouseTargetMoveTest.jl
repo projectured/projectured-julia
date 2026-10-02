@@ -103,6 +103,55 @@ function _mtm_collect_canvas_boxes(canvas)
     found
 end
 
+# A view that puts its input, a reflected object, whole into a scroll pane of a
+# card, as the inspector of a simulation does, and a later stage that draws the
+# object with `ReflectionToWidget`. The view maps a path of the object through the
+# pane that holds it.
+mutable struct MtmHeldInner
+    a::Int
+    b::String
+end
+mutable struct MtmHeldOuter
+    name::String
+    inner::MtmHeldInner
+end
+
+struct MtmHeldObjectView <: Projection end
+
+function ProjectionModule.print_document(p::MtmHeldObjectView, recursion, shadow, ctx)
+    pane = WidgetScrollPane(shadow; size = Point2D(240, 200))
+    card = WidgetCard(; title = "Form", content = VerticalLayout(Any[pane]; gap = 6, child_width = Fill))
+    iomap = SimpleIoMap(p, shadow, card)
+    follow_output_mouse_target!(card, () ->
+        map_mouse_target_forward(shadow, path -> map_reference_forward(p, iomap, path));
+        is_followed = node -> node isa WidgetDocument || node isa LayoutDocument)
+    iomap
+end
+
+function ProjectionModule.map_reference_forward(p::MtmHeldObjectView, iomap::SimpleIoMap, reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return annotate_reference_types(iomap.output, introduced)
+    map_held_node_forward(iomap.output, iomap.input, reference)
+end
+
+function ProjectionModule.map_reference_backward(p::MtmHeldObjectView, iomap::SimpleIoMap, reference)
+    held = map_held_node_backward(iomap.output, iomap.input, reference)
+    held === nothing || return held
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+ProjectionModule.read_intent(p::MtmHeldObjectView, iomap::SimpleIoMap, op::CompoundOperation) =
+    has_mouse_target(op) ? read_move_answer(p, iomap, op) : op
+
+# The widget stage, where a reflected object goes through `ReflectionToWidget`.
+function _mtm_reflection_stage()
+    base = vcat(LayoutToGraphics().dispatch,
+                WidgetToGraphics(font_ubuntu_regular_20; measure = _mtm_measure()).dispatch)
+    RecursiveProjection(TypeDispatchingProjection(vcat(base, Pair{Type,Any}[
+        AReflectedNode => ChainingProjection(ReflectionToWidget(),
+                                             RecursiveProjection(TypeDispatchingProjection(base)))])))
+end
+
 function test_mouse_target_move()
 @testset "a move writes the part under the pointer" begin
 
@@ -333,6 +382,33 @@ end
           get_mouse_target(other) === nothing
     _mtt_leave!(driver, 2.3)
     @test WidgetModule._widget_element_selected(get_mouse_target(list), "items") == 0
+end
+
+@testset "a document that a view holds whole, and a later view draws, holds the part under the pointer" begin
+    shadow = reflect_document(MtmHeldOuter("root", MtmHeldInner(1, "x")),
+                              DepthPolicy(depth = 1, elements = 32))
+    driver = MttDriver(ChainingProjection(MtmHeldObjectView(), _mtm_reflection_stage()), shadow)
+    card = driver.iomap.step_iomaps[1][].output
+    pane = card.content.children[1]
+    # The path to the object in the output, and a path of the object there and back.
+    @test find_output_node_path(card, shadow) !== nothing
+    field = extend_reference(EmptyReference(), FieldReferenceStep("children"), ElementReferenceStep(1))
+    @test strip_reference_types(map_held_node_backward(card, shadow,
+              map_held_node_forward(card, shadow, field))) == field
+    # Down the pane: a row is a part of the later view, the object holds it, and
+    # the pane on the way holds the rest of the path.
+    row(t) = find_introduced_path(ReflectionToWidget(), t)
+    lit = nothing
+    for (k, y) in enumerate(0:2:200)
+        _mtt_move!(driver, 20, y, 1.0 + k / 1000)
+        row(get_mouse_target(shadow)) === nothing || (lit = y; break)
+    end
+    @test lit !== nothing
+    @test get_mouse_target(pane) !== nothing
+    # The later view reads the part from the object and lights its row.
+    @test get_mouse_target(print_document(ReflectionToWidget(), shadow).output) !== nothing
+    _mtt_leave!(driver, 3.0)
+    @test row(get_mouse_target(shadow)) === nothing
 end
 
 @testset "a light changes the layout of no widget" begin
