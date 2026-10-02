@@ -106,4 +106,5 @@ run_example(["json", "xml"]; backend = WebBackend())       # the first in the pa
 ## Limits
 
 - No test covers the draw list or the patches.
+- The pointer shows no hourglass while a frame is long: the task that sends the messages runs on the thread of the frame.
 - One client for each editor, and the transport is JSON in both directions. [plan/done/web-backend.md](../../../../plan/done/web-backend.md) holds both as the choices of the first version.

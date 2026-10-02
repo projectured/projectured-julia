@@ -1,7 +1,9 @@
 # The pointer shows what a press does there
 
-Status: in progress on the branch `pointer-shape` (worktree
-`.claude/worktrees/pointer-shape`). Steps 1 to 6 are done (§6); step 7 waits for a decision. The owner decided
+Status: done on the branch `pointer-shape` (worktree
+`.claude/worktrees/pointer-shape`), except step 7, the hourglass, which the owner
+deferred on 2026-10-02; it is
+[the-pointer-shows-the-hourglass.md](../pending/the-pointer-shows-the-hourglass.md). The owner decided
 P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
 many other places, needs a plan"), after G3 of step 5.7 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) chose a lit edge
@@ -127,6 +129,8 @@ it does not do now, so the canvas keeps the moves and its `cursor` while the
 pointer is outside it.
 
 ### 4.3 The hourglass
+
+**Deferred (step 7).**
 
 The busy shape is a state of the editor and not of a part, so it has no region.
 The backend shows the hourglass while the loop is in a frame that takes longer
@@ -317,13 +321,19 @@ arrow.
    double arrow over the cells, outside the table and in a second window; a tab
    that drags shows the closed hand over a group and the crossed circle where no
    zone takes it.
-7. **The hourglass** (§4.3), in SDL and in the web client.
+7. ⏸ **The hourglass** (§4.3), in SDL and in the web client.
+
+   Deferred by the owner on 2026-10-02 ("defer this change"). The thread that
+   runs a long frame is the only one that SDL lets change the cursor, so the
+   hourglass needs a watcher on a second thread or shows only between reads. The
+   facts and the four options are in
+   [the-pointer-shows-the-hourglass.md](../pending/the-pointer-shows-the-hourglass.md).
 8. **The documents** of the graphics, widget, screen, drag tracking and of each
    backend, and the user guide of the pointer.
 
-   In part: the graphics, the widget, the text, SDL, the web, the video and the
-   guide of the pointer describe steps 1 to 5. The screen and the drag tracking
-   wait for step 6, and the hourglass for step 7.
+   ✅ Done for steps 1 to 6: the graphics, the widget, the text, the pane, the
+   screen, the drag tracking, SDL, the web, the video and the guide of the
+   pointer. SDL and the web name the missing hourglass as a limit.
 
 ## 7. Risks
 

@@ -139,3 +139,4 @@ projection = TextToGraphics(measure = FontFileMeasure())
 - `render_canvas` returns an empty `GraphicsImage`: `render_sdl_canvas` draws nothing yet.
 - The partial repaint is off by default.
 - A change of the `style` of a window is recorded and not applied, because SDL can change only some window flags after the window exists.
+- The pointer shows no hourglass while a frame is long: the thread that runs the frame is the only one that SDL lets change the cursor.
