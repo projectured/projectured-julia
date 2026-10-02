@@ -62,6 +62,15 @@
 # read every name 485 times under `Document`, and the first key in a name buffer
 # would wait seconds for it.
 
+# Every name bound in `m`, in `world` where Julia reads names by world.
+@static if VERSION >= v"1.13"
+    _collect_module_names(m::Module, world::UInt) = Base.unsorted_names(m; all = true, world)
+else
+    # Julia 1.12 reads the names of the newest world; `_collect_named_types` checks
+    # each one in `world` with `isdefinedglobal`.
+    _collect_module_names(m::Module, world::UInt) = Base.unsorted_names(m; all = true)
+end
+
 # Every type bound under its own name in its own module, among the loaded
 # modules and their submodules, filed under the name of its direct supertype.
 function _collect_named_types(world::UInt)
@@ -69,7 +78,7 @@ function _collect_named_types(world::UInt)
     mods = Base.loaded_modules_array()
     while !isempty(mods)
         m = pop!(mods)
-        for s in Base.unsorted_names(m; all = true, world)
+        for s in _collect_module_names(m, world)
             if !Base.isdeprecated(m, s) && Base.invoke_in_world(world, isdefinedglobal, m, s)
                 t = Base.invoke_in_world(world, getglobal, m, s)
                 dt = isa(t, UnionAll) ? Base.unwrap_unionall(t) : t
