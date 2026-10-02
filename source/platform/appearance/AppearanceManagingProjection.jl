@@ -9,10 +9,14 @@ Show the content of an [`AppearanceDocument`](@ref) through `inner`, and handle
 a change of its `Appearance`.
 
 The content reads each input first. When it declines, the keys of the
-`AppearanceDocument` answer: the zoom and the scales. An answer that changes the
-appearance ([`is_appearance_change`](@ref)) gets `InvalidateProjectionOperation`
-after it, so the editor prints the whole view again in the frame, and the inputs
-after it wait for the new view. The projections read their scaled themes with
+`AppearanceDocument` answer: the zoom and the scales. In the answer, each write of
+a field of a theme of the appearance, alone or inside a compound or a wrapping
+operation, becomes a [`ReplaceThemeValueOperation`](@ref), which prints the view
+again, and so does its inverse; so a history that records the write, such as the
+one of a window around the appearance tab, takes it back with the view. An answer
+that changes the appearance ([`is_appearance_change`](@ref)) gets
+`InvalidateProjectionOperation` after it, so the editor prints the whole view
+again in the frame, and the inputs after it wait for the new view. The projections read their scaled themes with
 no edge, so this is the one place that a change of the appearance reaches the
 view. The projection holds no cell and no edge.
 """
@@ -82,11 +86,26 @@ _get_device_event(gesture) = gesture
 _get_collected_intents(operation::CollectedIntentsOperation) = operation
 _get_collected_intents(_) = nothing
 
-# `operation`, with `InvalidateProjectionOperation` after it when it changes the
-# appearance of `document`.
-_mark_appearance_change(document::AppearanceDocument, operation) =
+# `operation` with each write of a theme made a `ReplaceThemeValueOperation`, and
+# with `InvalidateProjectionOperation` after it when it changes the appearance of
+# `document`.
+function _mark_appearance_change(document::AppearanceDocument, operation)
+    operation = _wrap_theme_writes(document.appearance, operation)
     is_appearance_change(document.appearance, operation) ?
         CompoundOperation(Any[operation, InvalidateProjectionOperation()]) : operation
+end
+
+# `operation` with each write of a field of a theme of `appearance` made a
+# `ReplaceThemeValueOperation`, also inside a compound or a wrapping operation.
+_wrap_theme_writes(appearance::Appearance, operation) = operation
+_wrap_theme_writes(appearance::Appearance, operation::ReplaceThemeValueOperation) = operation
+_wrap_theme_writes(appearance::Appearance, operation::ReplaceReferencedValueOperation) =
+    any(entry -> operation.document === entry.theme, values(appearance.themes)) ?
+        ReplaceThemeValueOperation(operation) : operation
+_wrap_theme_writes(appearance::Appearance, operation::CompoundOperation) =
+    CompoundOperation(Any[_wrap_theme_writes(appearance, member) for member in operation.operations])
+_wrap_theme_writes(appearance::Appearance, operation::WrappingOperation) =
+    rewrap_operation(operation, _wrap_theme_writes(appearance, get_wrapped_operation(operation)))
 
 """
     is_appearance_change(appearance, operation) -> Bool

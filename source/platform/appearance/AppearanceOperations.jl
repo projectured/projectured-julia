@@ -84,6 +84,52 @@ make_inverse_operation(document, ::Union{AdjustZoomOperation, AdjustScaleOperati
 operation_travels_unchanged(::Union{AdjustZoomOperation, AdjustScaleOperation}) = true
 
 """
+    ReplaceThemeValueOperation(write)
+
+`write`, a `ReplaceReferencedValueOperation` of one field of a theme, and then a
+new print of the view, so that every projection reads the new value. The
+projections read their themes with no edge, so the write alone changes no view.
+
+The inverse writes the old value and prints the view again. So a history that
+records a change of a theme takes it back, and the view shows the old value. The
+`appearance` wrapper makes this operation from each write of a theme of its
+appearance; any other path can post it as it is.
+"""
+struct ReplaceThemeValueOperation <: WrappingOperation
+    operation::ReplaceReferencedValueOperation
+    function ReplaceThemeValueOperation(operation::ReplaceReferencedValueOperation)
+        operation.document isa Theme ||
+            throw(ArgumentError("ReplaceThemeValueOperation writes into a theme, " *
+                                "not into $(typeof(operation.document))"))
+        new(operation)
+    end
+end
+
+get_wrapped_operation(operation::ReplaceThemeValueOperation) = operation.operation
+rewrap_operation(::ReplaceThemeValueOperation, inner) = ReplaceThemeValueOperation(inner)
+
+function evaluate_operation(editor, operation::ReplaceThemeValueOperation)
+    evaluate_operation(editor, operation.operation)
+    editor === nothing || evaluate_operation(editor, InvalidateProjectionOperation())
+    nothing
+end
+
+function make_inverse_operation(document, operation::ReplaceThemeValueOperation)
+    inverse = make_inverse_operation(document, operation.operation)
+    inverse isa ReplaceReferencedValueOperation ? ReplaceThemeValueOperation(inverse) : inverse
+end
+
+function describe_operation(operation::ReplaceThemeValueOperation)
+    write = operation.operation
+    head = get_reference_head(strip_reference_types(write.reference))
+    field = head isa AFieldReferenceStep ? replace(head.name, "_" => " ") : "a value"
+    "set " * field * " of " * string(nameof(get_theme_type(write.document)))
+end
+
+# It carries the theme that it writes, so it travels up a chain as it is.
+operation_travels_unchanged(::ReplaceThemeValueOperation) = true
+
+"""
     SaveAppearanceOperation(appearance, path = get_appearance_file())
 
 Write `appearance` into the file `path` with `save_appearance!`. The view does not

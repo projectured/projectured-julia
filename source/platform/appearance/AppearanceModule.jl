@@ -15,8 +15,8 @@ and the editor prints the whole view again.
 
 - [`AppearanceDocument.jl`](AppearanceDocument.jl) — `AppearanceDocument`, and
   the keys of the zoom and the scales.
-- [`AppearanceOperations.jl`](AppearanceOperations.jl) — `AdjustZoomOperation`
-  and `AdjustScaleOperation`.
+- [`AppearanceOperations.jl`](AppearanceOperations.jl) — `AdjustZoomOperation`,
+  `AdjustScaleOperation`, `ReplaceThemeValueOperation`, and the save and the load.
 - [`AppearanceManagingProjection.jl`](AppearanceManagingProjection.jl) — the
   printer, the reader and the mappings of the wrapper.
 - [`AppearanceWrapper.jl`](AppearanceWrapper.jl) — the `appearance` wrapper of
@@ -50,13 +50,14 @@ using ..WidgetModule
 import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_wrapper_argument
 import ..OperationModule: evaluate_operation, describe_operation, make_inverse_operation,
-                          operation_travels_unchanged
+                          operation_travels_unchanged, get_wrapped_operation,
+                          rewrap_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
 export AppearanceDocument, make_appearance_document, find_editor_appearance
 export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_to_display!,
-       SaveAppearanceOperation, LoadAppearanceOperation
+       SaveAppearanceOperation, LoadAppearanceOperation, ReplaceThemeValueOperation
 export AppearanceManagingProjection, AppearanceManagingIoMap, is_appearance_change
 export AppearanceToWidget, AppearanceToWidgetIoMap
 

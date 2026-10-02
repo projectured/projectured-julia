@@ -277,5 +277,67 @@ end
     @test format_style_color(theme.primary) == "#f0" * before[4:end]
 end
 
+
+@testset "the wrapper makes a write of a theme a step that prints the view again, and so is its inverse" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, WidgetTheme)
+    theme = get_theme(appearance, WidgetTheme)
+    wrap(operation) = ProjecturedPlatform.AppearanceModule._wrap_theme_writes(appearance, operation)
+    write = ReplaceReferencedValueOperation(theme, "item_gap", Spacing(7))
+    wrapped = wrap(CompoundOperation(Any[ReplaceViewStateOperation(write)]))
+    step = get_wrapped_operation(only(wrapped.operations))
+    @test step isa ReplaceThemeValueOperation && step.operation === write
+    @test describe_operation(step) == "set item gap of WidgetTheme"
+    # A write into a document that is no theme of the appearance stays as it is.
+    other = ReplaceReferencedValueOperation(WidgetTheme(), "item_gap", Spacing(7))
+    @test wrap(other) === other
+    @test wrap(ReplaceReferencedValueOperation(appearance, "open_sections", String[])) isa
+          ReplaceReferencedValueOperation
+    inverse = make_inverse_operation(nothing, step)
+    @test inverse isa ReplaceThemeValueOperation
+    @test inverse.operation.value == Spacing(4)
+    @test_throws ArgumentError ReplaceThemeValueOperation(
+        ReplaceReferencedValueOperation(appearance, "zoom", 2.0))
+end
+
+@testset "Ctrl+Z in the history of the window takes back a change of a theme, and the view shows it" begin
+    backend = HeadlessBackend()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 900, height = 900), tabs = (; title = "Doc"),
+                          undo = true)
+    run_frame!(editor)
+    appearance = find_editor_appearance(editor)
+    theme = get_theme(appearance, WidgetTheme)
+    before = format_style_color(theme.primary)
+    changed = "#f" * before[3:end]
+    time = Ref(1.0)
+    send!(events...) = begin
+        for event in events
+            push_event!(backend, WindowInput(:T, event))
+        end
+        run_frame!(editor)
+        run_frame!(editor)
+        time[] += 1.0
+    end
+    drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+    appearance.open_sections = ["WidgetTheme"]
+    send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
+    _, _, row_y = only(t for t in drawn() if t[1] == "primary")
+    appearance.scroll_position = Point2D(0, max(0, row_y - 300))
+    run_frame!(editor)
+    x, y = _at_find_row_button(drawn(), "primary", before)
+    send!(_at_click(x - 1, y, time[])...)
+    send!(KeyDown(:home, ModifierKeys(); time = time[]), KeyDown(:right, ModifierKeys(); time = time[] + 0.1))
+    send!(KeyPress('f'; time = time[]))
+    @test format_style_color(theme.primary) == changed
+    @test changed in first.(drawn())
+    send!(KeyDown(:z, ModifierKeys(ctrl = true); time = time[]))
+    @test format_style_color(theme.primary) == before
+    @test !(changed in first.(drawn()))
+    send!(KeyDown(:y, ModifierKeys(ctrl = true); time = time[]))
+    @test format_style_color(theme.primary) == changed
+    @test changed in first.(drawn())
+end
+
 end
 end

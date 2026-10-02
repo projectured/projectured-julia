@@ -25,11 +25,18 @@ Show an `Appearance` as widgets, in a pane that scrolls:
 
 A press of a button answers the operation of the button, and a step of a spin box,
 a choice of a preset or an edit of a colour answers a write of the theme, so the
-`appearance` wrapper of the editor prints the view again, with this tab. A press
-on the chevron of a card answers a write of `open_sections`, as view state, and
-the card follows it with no new print. Every
-write is view state: a change of the appearance is no edit of a document, and the
-history does not take it back. The gaps of the tab are those of the widget theme
+`appearance` wrapper of the editor prints the view again, with this tab.
+
+- A write of a theme is an edit: the wrapper makes it a
+  `ReplaceThemeValueOperation`, so a history around the tab, such as the history
+  of a window, records it, and Ctrl+Z takes it back and prints the view again.
+- A step of the zoom or of a scale takes nothing back, as from its keys.
+- A press on the chevron of a card answers a write of `open_sections`, and a
+  scroll of the tab a write of `scroll_position`. Both are view state: the
+  history does not record them, and no view prints again; the card and the pane
+  follow their cells.
+
+The gaps of the tab are those of the widget theme
 of the appearance, so they follow its spacing scale. `scroll_pane` is the printer
 of a `WidgetScrollPane` with the widget theme of the editor, which draws the pane
 and, through the recursion, the widgets in it.
@@ -79,10 +86,10 @@ _make_step_operation(appearance::Appearance, field::Symbol, delta::Integer) =
 # A factor as a person reads it, in percent.
 _get_percent_text(factor::Real) = string(round(Int, factor * 100), "%")
 
-# A write of the field `field` of `theme`. It is view state, so the history does
-# not record it.
+# A write of the field `field` of `theme`. It is an edit: the `appearance` wrapper
+# makes it a `ReplaceThemeValueOperation`, and a history around the tab records it.
 _write_theme_field(theme, field::Symbol, value) =
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(theme, String(field), value))
+    ReplaceReferencedValueOperation(theme, String(field), value)
 
 # The font files that a font of a theme can take, in the order of their names:
 # the files of the font folder, without the icon font and the emoji font.
