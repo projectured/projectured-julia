@@ -139,5 +139,5 @@ one.mouse_target[]     ← nothing                     (off the path)
 
 ## Limits
 
-- **A document that a view makes itself, puts into its output, and a second view draws gets no mouse target**, such as the graph of a topology card: the outer walk leaves it out, and no document of the input holds it. This is an open question.
+- **A graph draws no light under the pointer.** The graph domain maps no mouse target forward and draws only its explicit highlight. The topology card of a simulation also gives the graph that it makes no mouse target: its outer walk leaves the graph out, and no document of the input holds it.
 - **An edit that is no operation keeps no path right.** A direct write into a cell does not move or clear the mouse target paths that pass through it. An assistant or a script that edits a document must make an operation, also for this reason.

@@ -1,6 +1,8 @@
 # A document that a second view draws gets the part under the pointer
 
-> **Status (2026-10-02): decided, in work.** The owner chose (a) ("agreed", on
+> **Status (2026-10-02): done.** Step 3 is deferred to
+> [a-graph-lights-the-part-under-the-pointer.md](../pending/a-graph-lights-the-part-under-the-pointer.md).
+> Decided before: The owner chose (a) ("agreed", on
 > Claude's recommendation). This is Q15 of
 > [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md),
 > moved here when
@@ -95,6 +97,12 @@ input. It needs its own question after the choice above.
     draws two lists now (the count says one), and the workbench stops at
     `Projectured` in `DoctypeLookup.jl:41`, which the umbrella of the kernel and
     the platform no longer holds.
-- [ ] 3. The question of the topology graph.
-- [ ] 4. The documents: `mouse-target.md` drops its limit, and the move of this
+- [x] 3. The question of the topology graph. The owner chose (a) at first
+  ("Agreed"), on Claude's recommendation that the walk follow into the graph so
+  that the graph view lights the vertex. Then a check found that the graph
+  domain handles no part under the pointer at all: it maps none forward and draws
+  no light, only the explicit highlight. So (a) alone shows nothing. The owner
+  deferred the case to its own plan ("defer this to another plan"):
+  [a-graph-lights-the-part-under-the-pointer.md](../pending/a-graph-lights-the-part-under-the-pointer.md).
+- [x] 4. The documents: `mouse-target.md` drops its limit, and the move of this
   plan to `plan/done/`.
