@@ -14,7 +14,7 @@ julia --project=environment/all
 ```
 
 ```julia
-julia> using Projectured, ProjecturedExample, ProjecturedTest
+julia> using ProjecturedAll, ProjecturedExample, ProjecturedTest
 ```
 
 ## Running an example interactively
@@ -452,7 +452,7 @@ encodes the result to an MP4 — headless, no window required. Timing is in
 rendering takes.
 
 ```julia
-julia> using Projectured, ProjecturedExample
+julia> using ProjecturedAll, ProjecturedExample
 julia> gestures = [
            (event = KeyPress('h'; time = time()),                   hold = 0.3),
            (event = KeyPress('i'; time = time()),                   hold = 0.3),
@@ -506,7 +506,7 @@ same `(event|operation = …, hold = …)` entries). One timeline drives both a
 headless recording and a live, watch-it-happen window:
 
 ```julia
-julia> using Projectured, ProjecturedExample
+julia> using ProjecturedAll, ProjecturedExample
 julia> record_live_example("json_typein", "/tmp/demo.mp4")  # headless MP4
 julia> play_live_example("json_typein")                     # real window, wall-clock speed
 ```
@@ -532,7 +532,7 @@ you need an on-disk fixture.
 
 ## Common workflow
 
-1. `using Projectured, ProjecturedExample` to pull in everything.
+1. `using ProjecturedAll, ProjecturedExample` to pull in everything.
 2. `print_example("name")` to confirm the printer doesn't blow up.
 3. `run_example("name"; reset=true)` to see it on screen.
 4. If something is wrong, grab `ex = some_example; ex.document, ex.projection`

@@ -12,7 +12,7 @@ and no synonyms.
 - **Package** — a Julia package with its own `Project.toml`. The project
   consists of packages: the `ProjecturedKernel` engine, `ProjecturedPlatform`,
   the seventeen domain packages, the `Projectured`
-  umbrella, their sibling test and example packages, and the opt-in packages
+  umbrella, the `ProjecturedAll` development package, their sibling test and example packages, and the opt-in packages
   (`sdl`, `web`, `odbc`, `video`, `tulip`, `anthropic`, `ollama`, `mcp`, …). A
   package is one concept and a boundary of dependencies and consumers. The
   packages form an acyclic graph, not a chain.
@@ -38,7 +38,7 @@ and no synonyms.
 
 - **Module** — a Julia `module`, the namespace/import boundary. One layer
   (or slice) contains one or more modules; module names are de-facto public
-  API because the umbrella re-exports them.
+  API because `Projectured` and `ProjecturedAll` re-export them.
 
 - **Leaf** — a package **nothing depends on and nothing loads after**:
   `ProjecturedREPL`, which the alias loads, and the package that a build writes
@@ -59,7 +59,7 @@ enforce.
 
 ```
 project
-└─ packages                 kernel ← platform ← domains ← umbrella  (+ opt-in)
+└─ packages                 kernel ← platform ← domains ← ProjecturedAll  (+ umbrella, opt-in)
    │                        an acyclic graph; each package is one concept
    └─ layers                the kernel alone: ordered, depend only on lower layers
       └─ modules            one or more Julia modules per package or layer

@@ -46,7 +46,7 @@ run_value_viewer(my_value)              # a window on any value of your own
 
 Press **Escape** to close the window.
 
-`environment/all` holds every package of the repository. A program of your own uses the packages by path instead; [own-project-guide.md](own-project-guide.md) says how.
+`environment/all` holds every package of the repository. `using Projectured` gives the names of the kernel and the platform, and loads the other packages; `using ProjecturedAll` gives the names of every package in one namespace, as the tests and the examples use them. A program of your own uses the packages by path instead; [own-project-guide.md](own-project-guide.md) says how.
 
 ## Look at a view without a window
 

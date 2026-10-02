@@ -429,7 +429,7 @@ fault_policy, feeds)`. It builds the state and does nothing else: it starts no
 backend and prints nothing, and its fault policy is strict.
 
 ```julia
-using Projectured
+using Projectured, ProjecturedJSON
 
 document = JsonString("hello world")
 projection = ChainingProjection(
@@ -603,8 +603,8 @@ speaks JSON-RPC 2.0 via HTTP+SSE using
 [ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
 
 Tools exposed by the server include `execute_julia_code` (run arbitrary
-Julia in the editor process with `editor` bound and `using Projectured`
-preloaded), plus resource listings for guides, modules, classes, and
+Julia in the editor process with `editor` bound and every loaded ProjecturEd
+package imported), plus resource listings for guides, modules, classes, and
 function documentation. The intent is that an AI assistant can inspect and
 manipulate `editor.document` and `editor.projection` live.
 

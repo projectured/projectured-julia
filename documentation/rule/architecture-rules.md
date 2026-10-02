@@ -54,7 +54,7 @@ give each its own.
 ## The package chain and what belongs to each
 
 ```
-kernel  →  platform  →  domain  →  (umbrella)     opt-in: sdl web odbc video tulip anthropic ollama mcp
+kernel  →  platform  →  domain  →  (ProjecturedAll)     umbrella: kernel + platform     opt-in: sdl web odbc video tulip anthropic ollama mcp
 ```
 
 - **kernel** — machinery and interfaces only: cells, the document/reference/operation
@@ -111,7 +111,7 @@ The three kinds form **parallel DAGs with identical shape** (the module names ke
 the `-Test` / `-Example` suffixes even though the directories share one folder):
 
 ```
-main:      kernel ← the platform ← the 17 domains ← Projectured (umbrella) ← {sdl, odbc, tulip, video, anthropic, ollama, mcp, web}
+main:      kernel ← the platform ← the 17 domains ← ProjecturedAll
 tests:     kernel/test ← platform/test ← <domain>/test ← projectured/test
 examples:  kernel/example ← platform/example ← <domain>/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
 ```

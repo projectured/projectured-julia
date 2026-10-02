@@ -136,6 +136,12 @@ end
 
 include("../../../source/bookmark/Bookmark.jl")
 
+# The names of the domain at the level of the package.
+using .BookmarkModule
+for _n in names(BookmarkModule)
+    _n === :BookmarkModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedBookmark
 ```
 
@@ -145,9 +151,11 @@ have it resolve: it walks each dependency package (`ProjecturedPlatform`,
 a `const` of the same name here — so `..CollectionModule` inside a submodule
 of `ProjecturedBookmark` finds the `const CollectionModule = ProjecturedPlatform.CollectionModule`
 the loop wrote. `parentmodule(_m) !== Main` is what keeps a package's own
-re-exported aliases of a *lower* package from being bound twice. Every real
-domain package's root module is this same loop with a different dependency
-tuple and a different `include` — compare
+re-exported aliases of a *lower* package from being bound twice. The second loop
+exports the names of `BookmarkModule` from the package, so that
+`using ProjecturedBookmark` gives `BookmarkList`. Every real
+domain package's root module is these same two loops with a different dependency
+tuple, a different `include` and a different module — compare
 [package/ProjecturedJSON/src/ProjecturedJSON.jl](../../package/ProjecturedJSON/src/ProjecturedJSON.jl).
 
 Because the aliases are written by a loop rather than `const` lines a reader

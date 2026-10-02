@@ -86,8 +86,11 @@ julia --project=environment/all
 ```
 
 ```julia
-julia> using Projectured, ProjecturedExample, ProjecturedTest
+julia> using ProjecturedAll, ProjecturedExample, ProjecturedTest
 ```
+
+`ProjecturedAll` gives the names of every package in one namespace, as the
+test packages and the example packages use them.
 
 ## The top-level entry point
 

@@ -51,16 +51,18 @@ says why. `test_package_graph()` asserts it, along with two more:
 
 ### A package with a third-party dependency is a stem, not a sub-stem
 
-`Projectured` aggregates its layers — Kernel, Base, Visual and the twenty-one
-domain packages, none of which has a third-party dependency. It deliberately does not
-aggregate `ProjecturedSDL`, `ProjecturedODBC`, `ProjecturedTulip`,
+`ProjecturedAll` aggregates the kernel, the platform, the console and PDF
+backends and the seventeen domain packages, none of which has a third-party
+dependency. It deliberately does not aggregate `ProjecturedSDL`, `ProjecturedODBC`, `ProjecturedTulip`,
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMCP`,
 `ProjecturedWeb`, `ProjecturedDataFrames` or
-`ProjecturedAdaptagrams`, each of which owns one.
+`ProjecturedAdaptagrams`, each of which owns one. The umbrella `Projectured`
+depends on the kernel and the platform alone, and loads each other package that
+the environment of the session holds.
 
 The rule: a sub-stem is a layer and carries no third-party dependency of its
 own; a package that has one is a stem in its own right, named explicitly by
-whoever wants it. Without it, `using Projectured` would drag an ODBC driver
+whoever wants it. Without it, `using ProjecturedAll` would drag an ODBC driver
 manager and a linear-programming solver into every session.
 
 ## Why the leaf matters
@@ -235,12 +237,13 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 
 | package | depends on |
 | --- | --- |
-| `Projectured` (umbrella) | Kernel, the platform, the 17 domains |
+| `Projectured` (umbrella) | Kernel, the platform; every other released package as a weak dependency |
+| `ProjecturedAll` (development) | Kernel, the platform, Console, PDF, the 17 domains |
 | `ProjecturedPlatformExample` | the platform, KernelExample |
 | `ProjecturedPlatformTest` | the platform, KernelTest, PlatformExample |
 | `<Stem>Example` | `<Stem>`, the Examples below it |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it |
-| `ProjecturedREPL` **(leaf)** | Projectured, Example, Test, Sdl |
+| `ProjecturedREPL` **(leaf)** | ProjecturedAll, Example, Test, Sdl |
 | `build/app/<name>` **(leaf, written by a build)** | the packages the build names |
 | `ProjecturedBuilder` (tool) | — |
 

@@ -60,7 +60,8 @@ depend on, and why the leaf the alias loads is the only place a
 
 ProjecturEd is organized as **one kernel, one platform package of
 thirty-eight slices, seventeen domain packages, five backends and eight
-adapters**, plus an umbrella and the tools. The kernel
+adapters**, plus an umbrella, the development package `ProjecturedAll` and
+the tools. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
@@ -114,12 +115,17 @@ The seventeen domain packages  one package per concrete source domain
         │                      Deps: the kernel, the platform,
         │                      and the domains it embeds. See
         │                      [domain-inventory.md](domain-inventory.md).
-Projectured (projectured/)     umbrella: `using Projectured` re-exports every
-                               package above as a single flat public API, and
-                               its extensions load each installed integration
-                               (SDL, Video, DataFrames, ODBC, Tulip, MCP) when
-                               the package it joins is loaded too, and each
-                               installed model adapter with it.
+Projectured (projectured/)     umbrella: depends on the kernel and the
+                               platform and re-exports their names. After the
+                               load of the session it loads each installed
+                               domain, Console, Pdf and model adapter, and its
+                               extensions load each installed integration (SDL,
+                               Video, DataFrames, ODBC, Tulip, MCP) when the
+                               package it joins is loaded too.
+ProjecturedAll (all/)          development: re-exports the kernel, the platform,
+                               Console, Pdf and the 17 domains as one flat
+                               namespace for the tests, the examples and the
+                               REPL. The registry does not hold it.
 
 The five backends (depend on the kernel and the platform):
   Console (console/) → required, no third-party dependency   the ANSI terminal backend
@@ -360,15 +366,20 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄── Projectured
-       ▲                     ▲                      ▲            (umbrella)
-       │                     │                      │
-   Mcp, Anthropic,  Console, Pdf, Sdl, Web,   Odbc, Adaptagrams
+ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄── ProjecturedAll
+       ▲                  ▲       ▲                 ▲            (development)
+       │                  │       │                 │
+       │                  │   Projectured      Odbc, Adaptagrams
+       │                  │   (umbrella)
+       │                  │
+   Mcp, Anthropic,  Console, Pdf, Sdl, Web,
    Ollama,          Video, Tulip,
    OpenRouter       DataFrames
-   (opt-in)            (required: Console, Pdf;      (opt-in)
-                         opt-in: the others)
 ```
+
+The umbrella depends on the kernel and the platform alone. Every other package
+is one that a user adds by name, and the umbrella loads it when the environment
+of the session holds it. `ProjecturedAll` also depends on Console and Pdf.
 
 The platform's thirty-eight slices form their own DAG, and so do the
 seventeen domains. [package-rules.md](../rule/package-rules.md) has the

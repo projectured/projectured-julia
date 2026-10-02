@@ -97,11 +97,20 @@ for _src in (ProjecturedGraph, ProjecturedJulia, ProjecturedKernel, ProjecturedP
 end
 
 include("../../../source/domain/fsm/FsmModule.jl")
-…
+
+# The names of the domain at the level of the package, so that `using ProjecturedFSM`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .FsmModule
+for _n in names(FsmModule)
+    _n === :FsmModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
+
+end # module ProjecturedFSM
 ```
 
 The loop binds every submodule that a package defines, and every submodule that it re-aliases from a package below it. Because the aliases are written by a loop rather than as `const` lines, the static layering guard can not read them off the file: the test package measures the set from the loaded package and passes it as `extra_aliases`.
+
+The second loop exports the names of the domain module from the package. The umbrella exports only the names of the kernel and the platform, so a user who writes `FsmDiagram` loads `ProjecturedFSM`.
 
 ## Adding a domain
 
@@ -110,7 +119,10 @@ The loop binds every submodule that a package defines, and every submodule that 
 1. Create the three packages `package/Projectured<Name>/`, `…Example/` and `…Test/`, each with a `Project.toml` and a root module as above. Put the code in `source/<name>/`.
 2. Write the documents, the parser and the projections; [domain-anatomy.md](domain-anatomy.md) lists the parts.
 3. In the `__init__` of the module, register the natural notation with `register_natural_domain!`, and the file type with `register_file_document_type!`.
-4. Add the package to the `import` list and the `_SOURCES` tuple of `Projectured`, in `source/projectured/Projectured.jl`. That tuple is the one place the full set is written down.
+4. Add the package to the three lists of the full set, which `test_repository()` and `test_builder()` keep equal:
+   - `ProjecturedAll`: the `[deps]` and `[sources]` of its `Project.toml`, the `import` list of its root module, and the `_SOURCES` tuple in `source/all/ProjecturedAll.jl`;
+   - the umbrella: `_INSTALLED_PACKAGES` in `source/projectured/Projectured.jl`, and the `[weakdeps]` of `package/Projectured/Project.toml`;
+   - the binary: `PROJECTURED_APPLICATION_IMPORTS` in `source/tool/builder/ProjecturedProgram.jl`.
 5. Add the test package to `ProjecturedTest`.
 6. Add the three packages to `[deps]` and `[sources]` of `environment/all/Project.toml`, then run `Pkg.resolve()`.
 

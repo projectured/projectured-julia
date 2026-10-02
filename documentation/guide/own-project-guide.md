@@ -19,10 +19,12 @@ The packages are not in the General registry yet. A project reaches them by path
    ```toml
    [deps]
    Projectured = "…"
+   ProjecturedJSON = "…"
    ProjecturedSDL = "…"
 
    [sources]
    Projectured = {path = "../projectured-julia/package/Projectured"}
+   ProjecturedJSON = {path = "../projectured-julia/package/ProjecturedJSON"}
    ProjecturedSDL = {path = "../projectured-julia/package/ProjecturedSDL"}
    ```
 
@@ -34,13 +36,15 @@ The packages are not in the General registry yet. A project reaches them by path
 
 | Package | What you get |
 | --- | --- |
-| `Projectured` | the umbrella: the kernel, the platform and every domain, and each installed integration whose package you load |
+| `Projectured` | the umbrella: the names of the kernel and the platform, and the load of each ProjecturEd package that you installed |
 | `ProjecturedSDL` | the native window |
 | `ProjecturedWeb` | the browser backend |
 | `ProjecturedExample` | the examples, the gallery, `run_value_viewer` and the application |
-| one domain, for example `ProjecturedJSON` | that domain alone, with the kernel below it |
+| one domain, for example `ProjecturedJSON` | the names of that domain, with the kernel and the platform below it |
 
-A program that shows data of one domain loads that domain and a backend. A program that shows anything loads the umbrella. [package-rules.md](../rule/package-rules.md) says what each kind of package may depend on.
+`add Projectured` installs the kernel and the platform, and nothing more. Add each domain that your program shows, and the console or the PDF backend if you use one. The umbrella loads each ProjecturEd package that you installed, so that a window shows every installed domain. The names of a domain stay in its package: to write `JsonString`, add `using ProjecturedJSON`.
+
+A program that shows data of one domain can load that domain and a backend without the umbrella. [package-rules.md](../rule/package-rules.md) says what each kind of package may depend on.
 
 ## Two ways to load the integrations
 
@@ -74,7 +78,7 @@ projection = NaturalToGraphics(measure = FontFileMeasure())
 run_editor!(document, projection; window = (; title = "My data"))
 ```
 
-`run_editor!` puts the view in a window of the title you give, and returns when the window closes. SDL is the one loaded backend that draws windows, so the call needs no `backend`. `mcp = true` starts the MCP server beside it, so an external client can drive the same editor ([mcp-guide.md](mcp-guide.md)).
+The JSON domain is installed (step 2), so the umbrella loads it and `parse_natural_text` reads `:json`. `run_editor!` puts the view in a window of the title you give, and returns when the window closes. SDL is the one loaded backend that draws windows, so the call needs no `backend`. `mcp = true` starts the MCP server beside it, so an external client can drive the same editor ([mcp-guide.md](mcp-guide.md)).
 
 `NaturalToGraphics` is the general renderer: it draws a document of any domain, and a struct of your own through reflection. A projection you wrote yourself goes in its place.
 
