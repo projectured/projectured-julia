@@ -14,11 +14,11 @@
 
 module Rehearsal
 
-using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
+using ProjecturedAll, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
       ProjecturedSDL, ProjecturedSDLExample
 using Dates
 
-const LlmModule = Projectured.LlmModule
+const LlmModule = ProjecturedAll.LlmModule
 
 const WIDTH, HEIGHT = 1506, 847
 
@@ -361,7 +361,7 @@ end
 # The guides and the API are indexed once in a process. A guide or a docstring
 # that changed since then is in the next search only after this.
 function reset_documentation_indexes!()
-    tool = Projectured.ToolModule
+    tool = ProjecturedAll.ToolModule
     lock(tool._INDEX_LOCK) do
         tool._GUIDE_INDEX[] = nothing
         tool._API_INDEX[] = nothing
@@ -562,7 +562,7 @@ end
 function format_named_documentation(names)
     io = IOBuffer()
     for name in names
-        value = getfield(Projectured, name)
+        value = getfield(ProjecturedAll, name)
         println(io, "### `", name, "`\n")
         println(io, strip(string(Base.Docs.doc(value))), "\n")
     end

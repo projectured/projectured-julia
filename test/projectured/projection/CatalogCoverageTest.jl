@@ -47,7 +47,7 @@ end
 # names somebody has to maintain.
 function _coverage_wanted()
     want = Set{Any}()
-    for m in methods(Projectured.ProjectionModule.print_document)
+    for m in methods(ProjecturedAll.ProjectionModule.print_document)
         sig = Base.unwrap_unionall(m.sig)
         length(sig.parameters) == 5 || continue
         P, D = sig.parameters[2], sig.parameters[4]
@@ -57,7 +57,7 @@ function _coverage_wanted()
         (T === nothing || !_coverage_ours(T)) && continue
         body = T isa UnionAll ? Base.unwrap_unionall(T) : T
         (body isa DataType && isabstracttype(body)) && continue
-        body <: Projectured.DocumentModule.Document || continue
+        body <: ProjecturedAll.DocumentModule.Document || continue
         push!(want, T)
     end
     want

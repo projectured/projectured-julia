@@ -63,11 +63,12 @@ function test_whole_surface_documentation()
         # check reads them in the newest world.
         execute_julia_code!(tools, nothing, "@__MODULE__")
         scratch = get_last_evaluated_value(tools)
+        surface = Dict(ToolModule._collect_surface_modules())
         is_writable = entry -> begin
             module_name, name = split(entry.qualname, '.')
             symbol = Symbol(name)
             isdefined(scratch, symbol) && getfield(scratch, symbol) ===
-                getfield(getfield(Projectured, Symbol(module_name)), symbol)
+                getfield(surface[Symbol(module_name)], symbol)
         end
         entries = ToolModule._api_index()
         @test length(entries) > 2000

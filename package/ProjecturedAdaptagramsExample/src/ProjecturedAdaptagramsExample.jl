@@ -14,7 +14,7 @@ shim is built.
 """
 module ProjecturedAdaptagramsExample
 
-using Projectured
+using ProjecturedAll
 using ProjecturedAdaptagrams   # AdaptagramsLayout
 import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,

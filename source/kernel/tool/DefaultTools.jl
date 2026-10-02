@@ -49,9 +49,9 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "Execute arbitrary Julia code in the editor process. " *
     "The variable `editor` is bound to the running Editor instance " *
     "which holds `editor.document` and `editor.projection`.\n\n" *
-    "Projectured is already imported with `using Projectured` before executing the code, " *
-    "making all Projectured exports available. Do NOT add `using Projectured` to your code - " *
-    "it is already included automatically.\n\n" *
+    "Every loaded Projectured package is already imported before executing the code, " *
+    "making all its exports available, and `Projectured.X` names any of them. " *
+    "Do NOT add `using Projectured` to your code - it is already included automatically.\n\n" *
     _ANSWER_DESCRIPTION *
     _VARIABLES_DESCRIPTION *
     _make_editing_description("a verb, such as " * _join_verbs([last(verb) for verb in _EDITING_VERBS]) *

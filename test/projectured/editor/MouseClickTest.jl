@@ -11,7 +11,7 @@
 #   3. For clicks outside text, verify the reader handles it appropriately.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using Projectured
+using ProjecturedAll
 using ProjecturedExample
 
 # ── Distance measurement ─────────────────────────────────────────────────────

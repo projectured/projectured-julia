@@ -1,7 +1,7 @@
-for _n in names(Projectured; all = true)
-    isdefined(Projectured, _n) || continue
-    _m = getfield(Projectured, _n)
-    (_m isa Module && _m !== Projectured && parentmodule(_m) !== Main) || continue
+for _n in names(ProjecturedAll; all = true)
+    isdefined(ProjecturedAll, _n) || continue
+    _m = getfield(ProjecturedAll, _n)
+    (_m isa Module && _m !== ProjecturedAll && parentmodule(_m) !== Main) || continue
     Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
 end
 
@@ -114,7 +114,7 @@ using ProjecturedConsoleTest
 using ProjecturedPDFTest
 using ProjecturedWebTest
 using ProjecturedMCPTest
-using Projectured: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
+using ProjecturedAll: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
                    TextSpanReferenceStep,
                    ConcreteReference, EmptyReference, Reference,
                    map_reference_forward, map_reference_backward,

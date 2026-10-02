@@ -1,6 +1,6 @@
 module ProjecturedExample
 
-using Projectured
+using ProjecturedAll
 using Profile
 # The harness core (the `Example` struct + the seam-based image/video entry
 # points) lives at the bottom of the example-package DAG; the name-lookup

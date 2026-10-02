@@ -6,7 +6,7 @@
 # no recording, and print what it did. The take is recorded only after a
 # rehearsal that works (D9).
 
-using Projectured, ProjecturedExample, ProjecturedOllama, ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
+using ProjecturedAll, ProjecturedExample, ProjecturedOllama, ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
 
 const WIDTH, HEIGHT = 1280, 720
 const PROMPT = length(ARGS) >= 1 ? ARGS[1] :

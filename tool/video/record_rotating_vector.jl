@@ -19,7 +19,7 @@
 # The take keeps video time: the animation reads the editor's clock, and each
 # frame is 1/30 s after the one before, also while a key makes a frame slow.
 
-using Projectured, ProjecturedExample, ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
+using ProjecturedAll, ProjecturedExample, ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "rotating_vector.mp4") : ARGS[1]
 

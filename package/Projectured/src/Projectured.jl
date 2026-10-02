@@ -1,52 +1,21 @@
 """
     Projectured
 
-Umbrella package — a thin **REPL convenience**. It depends on the kernel, on
-`ProjecturedPlatform` and on every concrete domain, and
-re-exports their combined public API as
-a single flat namespace (`using Projectured`) plus their submodules as
-`Projectured.XxxModule` aliases for qualified access.
+The umbrella. It depends on the kernel and the platform, and re-exports their
+public API as one flat namespace (`using Projectured`), with their submodules as
+`Projectured.XxxModule` for qualified access.
 
-The re-exports are **generated mechanically** by the loop below — one pass over the
-submodules of every source package — so adding a document, a projection or a symbol
-upstream needs no edit here. The exported *set* may change freely; this is a
-convenience front-door, not a curated API boundary, so it re-exports every public name
-of every submodule.
-
-Adding a **new package** does need an edit here: put it in the `import` list and
-in `_SOURCES`. That is the only place the full set is written down.
-
-Sources are brought in with `import` (not `using`) so this loop is the sole source of
-re-exports — nothing is pulled into the flat namespace except via the pass below. There
-are no name collisions between the submodules (verified by
-`ProjecturedTest.test_export_collisions`), so the per-symbol `using` is unambiguous.
+After the load of the session it loads every ProjecturEd package that the user
+installed: the domains, the console and PDF backends and the model adapters. Its
+extensions load an integration with another package, such as `ProjecturedSDL`,
+when that package is loaded too. A loaded package keeps its names: a session that
+writes `JsonDocument` loads `ProjecturedJSON`. The flat namespace of every package
+is `ProjecturedAll`, a development package that the registry does not hold.
 """
 module Projectured
 
 import ProjecturedKernel
 import ProjecturedPlatform
-import ProjecturedConsole
-import ProjecturedPDF
-
-# The concrete domains, in dependency order: the ones that need no other domain,
-# then the ones that build on them, then the application on top.
-import ProjecturedJSON
-import ProjecturedYAML
-import ProjecturedXML
-import ProjecturedMarkdown
-import ProjecturedRST
-import ProjecturedBook
-import ProjecturedMath
-import ProjecturedJulia
-import ProjecturedSQL
-import ProjecturedDatabase
-import ProjecturedGraph
-import ProjecturedChart
-import ProjecturedSequenceChart
-import ProjecturedDBCatalog
-import ProjecturedFormula
-import ProjecturedFSM
-import ProjecturedProcess
 
 include("../../../source/projectured/Projectured.jl")
 

@@ -8,13 +8,13 @@ authors = []
 # opt-in example packages do.
 
 [deps]
-Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAll = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 
 [sources]
-Projectured = {path = "../Projectured"}
+ProjecturedAll = {path = "../ProjecturedAll"}
 ProjecturedExample = {path = "../ProjecturedExample"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}

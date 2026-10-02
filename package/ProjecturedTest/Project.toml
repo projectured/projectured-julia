@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [deps]
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAll = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
 ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"

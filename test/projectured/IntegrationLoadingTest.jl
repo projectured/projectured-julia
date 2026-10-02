@@ -6,6 +6,7 @@
 # the integration.
 
 const _INTEGRATION_NAMES = ("Projectured", "ProjecturedAnthropic", "ProjecturedDataFrames",
+                            "ProjecturedJSON",
                             "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama",
                             "ProjecturedOpenRouter", "ProjecturedSDL", "ProjecturedTulip",
                             "ProjecturedVideo", "ProjecturedWeb")
@@ -23,29 +24,58 @@ function _read_loaded_integrations(environment, code)
     split(read(command, String))
 end
 
-# An environment that names the umbrella and the trigger of SDL, and not
-# `ProjecturedSDL`: the manifest of the development environment, with its paths
-# made absolute.
-function _make_environment_without_sdl(repository)
+# An environment that names only `deps`, `"<name>" => "<uuid>"`: the manifest of
+# the development environment with its paths made absolute, and `extra`, entries
+# of the manifest for packages of the test.
+function _make_scratch_environment(repository, deps; extra = "")
     folder = mktempdir()
     manifest = read(joinpath(repository, "environment", "all", "Manifest.toml"), String)
     write(joinpath(folder, "Manifest.toml"),
           replace(manifest, "path = \"../../package/" =>
-                            "path = \"" * joinpath(repository, "package") * "/"))
-    write(joinpath(folder, "Project.toml"), """
+                            "path = \"" * joinpath(repository, "package") * "/") * extra)
+    write(joinpath(folder, "Project.toml"),
+          "[deps]\n" * join(["$name = \"$uuid\"\n" for (name, uuid) in deps]))
+    folder
+end
+
+# A package that depends on the umbrella and on the Ollama adapter, so that Julia
+# loads both in one batch, in an environment that also names the OpenRouter adapter.
+function _make_environment_with_umbrella_and_adapter(repository)
+    folder = mktempdir()
+    uuid = "10000000-0000-0000-0000-000000000021"
+    package = joinpath(folder, "UmbrellaWithAdapter")
+    mkpath(joinpath(package, "src"))
+    write(joinpath(package, "Project.toml"), """
+        name = "UmbrellaWithAdapter"
+        uuid = "$uuid"
+        version = "0.1.0"
+
         [deps]
         Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
-        SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
+        ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
         """)
-    folder
+    write(joinpath(package, "src", "UmbrellaWithAdapter.jl"),
+          "module UmbrellaWithAdapter\nusing Projectured\nusing ProjecturedOllama\nend\n")
+    _make_scratch_environment(repository,
+        ["UmbrellaWithAdapter" => uuid,
+         "ProjecturedOpenRouter" => "52a43d73-2617-4b68-a734-0e5186e9ad8a"];
+        extra = """
+
+            [[deps.UmbrellaWithAdapter]]
+            deps = ["Projectured", "ProjecturedOllama"]
+            path = "$package"
+            uuid = "$uuid"
+            version = "0.1.0"
+            """)
 end
 
 function test_umbrella_loads_integrations()
     @testset "the umbrella loads the installed integration of each trigger" begin
         repository = normpath(joinpath(@__DIR__, "..", ".."))
         environment = joinpath(repository, "environment", "all")
-        # The model adapters load with the umbrella when they are installed.
-        with_umbrella(names...) = sort!(["Projectured", "ProjecturedAnthropic",
+        # The domains and the model adapters load with the umbrella when they are
+        # installed; JSON stands for the domains.
+        with_umbrella(names...) = sort!(["Projectured", "ProjecturedAnthropic", "ProjecturedJSON",
                                          "ProjecturedOllama", "ProjecturedOpenRouter",
                                          names...])
         both = with_umbrella("ProjecturedDataFrames", "ProjecturedSDL")
@@ -60,17 +90,22 @@ function test_umbrella_loads_integrations()
               ["ProjecturedDataFrames", "ProjecturedWeb"]
         # The umbrella alone loads no integration that has a trigger.
         @test _read_loaded_integrations(environment, "using Projectured") == with_umbrella()
-        # A package that depends on the umbrella and on two adapters loads them in one
-        # batch, and the umbrella loads the third adapter after the batch.
-        @test _read_loaded_integrations(environment, "using ProjecturedExample") == with_umbrella()
+        # A package that depends on the umbrella and on an adapter loads them in one
+        # batch, and the umbrella loads another installed adapter after the batch.
+        @test _read_loaded_integrations(_make_environment_with_umbrella_and_adapter(repository),
+            "using UmbrellaWithAdapter") ==
+              ["Projectured", "ProjecturedOllama", "ProjecturedOpenRouter"]
         # Each of the other triggers; Video loads SDL, which it needs.
         @test _read_loaded_integrations(environment,
             "using FFMPEG, ODBC, Tulip, ModelContextProtocol, Projectured") ==
               with_umbrella("ProjecturedMCP", "ProjecturedODBC", "ProjecturedSDL",
                             "ProjecturedTulip", "ProjecturedVideo")
-        # An integration or an adapter that the environment does not name stays
-        # out, with no error.
-        @test _read_loaded_integrations(_make_environment_without_sdl(repository),
+        # A domain, an integration or an adapter that the environment does not name
+        # stays out, with no error.
+        @test _read_loaded_integrations(
+            _make_scratch_environment(repository,
+                ["Projectured" => "92922de3-b970-4d9a-8b2a-9d6f361397b5",
+                 "SimpleDirectMediaLayer" => "98e33af6-2ee5-5afd-9e75-cbc738b767c4"]),
             "using SimpleDirectMediaLayer, Projectured") == ["Projectured"]
     end
 end

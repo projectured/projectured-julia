@@ -7,11 +7,11 @@ category, so a person can watch each barrier work from the REPL. See
 """
 module ProjecturedFaultExample
 
-using Projectured
+using ProjecturedAll
 using ProjecturedPlatform
-# The module aliases the umbrella binds are constants, not exports; the
+# The module aliases that `ProjecturedAll` binds are constants, not exports; the
 # extensions below name their generics through them.
-import Projectured: ProjectionModule, OperationModule, BackendModule
+import ProjecturedAll: ProjectionModule, OperationModule, BackendModule
 import ProjecturedExample: Example, run_example, make_example_editor
 import ProjecturedPlatform: default_backend
 import ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,

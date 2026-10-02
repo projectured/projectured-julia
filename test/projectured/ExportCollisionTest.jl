@@ -97,7 +97,7 @@ bindings, so bare `using ..XxxModule` can never become ambiguous. See
 """
 function test_export_collisions()
     @testset "no cross-module export collisions" begin
-        errs = export_collisions([Projectured])
+        errs = export_collisions([ProjecturedAll])
         if !isempty(errs)
             println(stderr, "\nExport collisions (PAR-QUALIFIED-EXTENSION):")
             foreach(e -> println(stderr, "  ", e), errs)

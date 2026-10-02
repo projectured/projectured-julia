@@ -12,7 +12,7 @@
 # named `stop` in <directory>/cmd ends the session.
 
 using Revise
-using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
+using ProjecturedAll, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
       ProjecturedSDL, ProjecturedSDLExample
 
 const SESSION_DIRECTORY = abspath(ARGS[1])

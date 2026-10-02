@@ -12,7 +12,7 @@
 # then sees what it returned. A warm-up with a scripted model runs the same steps
 # first, so the take does not fire its entries in a burst after a slow start.
 
-using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
+using ProjecturedAll, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
       ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_window.mp4") : ARGS[1]
@@ -113,7 +113,7 @@ const ASSISTANT = Ref{Any}(nothing)
 # then with its answer open for `result_pause` seconds, so the viewer sees what the
 # code returned. What the model does is its own; only the time between its rounds
 # is longer.
-const LlmModule = Projectured.LlmModule
+const LlmModule = ProjecturedAll.LlmModule
 struct PacedLlm <: LlmModule.Llm
     inner::LlmModule.Llm
     code_pause::Float64

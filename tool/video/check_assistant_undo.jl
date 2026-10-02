@@ -10,7 +10,7 @@
 # take prints the people, the steps of each history and the lines of the log
 # after each beat.
 
-using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedSDL,
+using ProjecturedAll, ProjecturedExample, ProjecturedKernelExample, ProjecturedSDL,
       ProjecturedSDLExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_undo.mp4") : ARGS[1]

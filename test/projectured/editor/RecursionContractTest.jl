@@ -48,7 +48,7 @@ _SpyRecursion(real) = _SpyRecursion(real, Ref(0))
 
 # print_child(spy, child, ctx) == print_document(spy, spy, child, ctx),
 # so a delegating node lands here once per child; flatten-by-self never does.
-function Projectured.print_document(s::_SpyRecursion, recursion, input, ctx)
+function ProjecturedAll.print_document(s::_SpyRecursion, recursion, input, ctx)
     s.count[] += 1
     print_document(s.real, s.real, input, ctx)
 end
@@ -58,10 +58,10 @@ end
 # false, so the probe never false-flags a leaf or an own-domain primitive (e.g.
 # TextToGraphics consuming TextString/TextNewline is correctly NOT a delegator).
 function _should_delegate(input)
-    input isa Projectured.SyntaxNode && return length(input.children) > 0
-    input isa Projectured.JsonArray  && return length(input.elements) > 0
-    input isa Projectured.JsonObject && return length(input.entries) > 0
-    input isa Projectured.XmlElement && return length(input.children) > 0
+    input isa ProjecturedAll.SyntaxNode && return length(input.children) > 0
+    input isa ProjecturedAll.JsonArray  && return length(input.elements) > 0
+    input isa ProjecturedAll.JsonObject && return length(input.entries) > 0
+    input isa ProjecturedAll.XmlElement && return length(input.children) > 0
     false
 end
 
@@ -126,7 +126,7 @@ function probe_delegation(document, projection)
         # package/kernel/doc/projection-system.md). `ChainingProjection` is the
         # pipeline wrapper at the top of every curated example; probing it is a
         # false positive (the spy never sees a node recurse through the chain).
-        p isa Projectured.ChainingProjection && continue
+        p isa ProjecturedAll.ChainingProjection && continue
         _should_delegate(input) || continue
         key = (objectid(p), objectid(input))
         key in seen && continue
@@ -134,7 +134,7 @@ function probe_delegation(document, projection)
         spy = _SpyRecursion(projection)
         ok = true
         try
-            res = print_document(p, spy, input, Projectured.PrinterContext())
+            res = print_document(p, spy, input, ProjecturedAll.PrinterContext())
             _walk!(res, Set{UInt64}(), String[])   # force lazy child cells
         catch e
             ok = false                              # probe could not run; don't assert

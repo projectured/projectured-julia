@@ -8,12 +8,12 @@ authors = []
 # cell's invalidation fans out. Not a dependency of anything that ships.
 
 [deps]
-Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedAll = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [sources]
-Projectured = {path = "../Projectured"}
+ProjecturedAll = {path = "../ProjecturedAll"}
 ProjecturedExample = {path = "../ProjecturedExample"}
 
 [compat]

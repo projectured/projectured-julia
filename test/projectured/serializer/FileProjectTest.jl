@@ -2,9 +2,9 @@ using Test
 using ProjecturedPlatform.SerializationModule
 using ProjecturedJSON.JsonModule
 using ProjecturedXML.XmlModule
-using Projectured.MarkdownModule
-using Projectured.RstModule
-using Projectured.JuliaModule
+using ProjecturedAll.MarkdownModule
+using ProjecturedAll.RstModule
+using ProjecturedAll.JuliaModule
 using ProjecturedKernel.DocumentModule: @document
 using ProjecturedKernel.CellModule: ImmutableCell
 

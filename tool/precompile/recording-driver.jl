@@ -11,20 +11,20 @@
 # driver does not offer.
 
 using ProjecturedREPL
-using Projectured
+using ProjecturedAll
 using ProjecturedExample
 using ProjecturedSDL: SdlBackend
 
-using Projectured.EditorModule: Editor, evaluate!, print!
-using Projectured.BackendModule: initialize_backend!, quit_backend!, configure_devices!
-using Projectured.DeviceModule: Device, Display, Keyboard, Mouse
-using Projectured.ClockModule: set_clock_time!
-using Projectured.EventModule: WindowInput, MouseMove, MouseScroll,
+using ProjecturedAll.EditorModule: Editor, evaluate!, print!
+using ProjecturedAll.BackendModule: initialize_backend!, quit_backend!, configure_devices!
+using ProjecturedAll.DeviceModule: Device, Display, Keyboard, Mouse
+using ProjecturedAll.ClockModule: set_clock_time!
+using ProjecturedAll.EventModule: WindowInput, MouseMove, MouseScroll,
     KeyDown, KeyPress, ModifierKeys
-using Projectured.GestureModule: MouseClick
-using Projectured.IntentModule: Intent
-using Projectured.ProjectionModule: read_intent
-using Projectured.OperationModule: Operation
+using ProjecturedAll.GestureModule: MouseClick
+using ProjecturedAll.IntentModule: Intent
+using ProjecturedAll.ProjectionModule: read_intent
+using ProjecturedAll.OperationModule: Operation
 
 const WIDTH, HEIGHT = 1600, 1000
 
@@ -35,7 +35,7 @@ ProjecturedExample.precompile_workload()
 # The warm-up a binary runs: the application window, and a tab made with the
 # Insert key. The examples below never type into a name buffer, and its first
 # key compiles a method for every document type that the buffer can make.
-Projectured.warm_application()
+ProjecturedAll.warm_application()
 
 backend = SdlBackend()
 initialize_backend!(backend)

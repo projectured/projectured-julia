@@ -22,10 +22,10 @@ repository. Each is a function, so a session can run several and compare:
 """
 module ProjecturedBench
 
-using Projectured
+using ProjecturedAll
 using ProjecturedExample
 using Statistics
-using Projectured: ReactiveCell, ImmutableCell, MutableCell, AbstractCell, Cell
+using ProjecturedAll: ReactiveCell, ImmutableCell, MutableCell, AbstractCell, Cell
 
 # The bodies are measurements, not code that ships, so they live under `test/`
 # with every other thing a person runs to check the system.

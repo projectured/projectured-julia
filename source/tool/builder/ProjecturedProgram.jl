@@ -215,6 +215,21 @@ function make_projectured_usage(backends)
 end
 
 """
+    PROJECTURED_APPLICATION_IMPORTS
+
+The packages that the binary loads beside the umbrella, its backends and its
+adapters, so that it opens every format: the console and PDF backends and the
+domains. The umbrella depends on the kernel and the platform alone, and loads the
+others where the environment of a session names them, which a binary has not.
+"""
+const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
+    "ProjecturedJSON", "ProjecturedYAML", "ProjecturedXML", "ProjecturedMarkdown",
+    "ProjecturedRST", "ProjecturedBook", "ProjecturedMath", "ProjecturedJulia",
+    "ProjecturedSQL", "ProjecturedDatabase", "ProjecturedGraph", "ProjecturedChart",
+    "ProjecturedSequenceChart", "ProjecturedDBCatalog", "ProjecturedFormula",
+    "ProjecturedFSM", "ProjecturedProcess"]
+
+"""
     build_projectured_executable(; name = "projectured", backends = (:sdl, :web),
                                  workload = true,
                                  context = make_projectured_build_context(),
@@ -258,6 +273,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
     build_executable(context; name = name,
                      packages = vcat(["Projectured", "ProjecturedOllama", "ProjecturedAnthropic",
                                       "ProjecturedMCP"], backend_packages),
+                     imports = PROJECTURED_APPLICATION_IMPORTS,
                      main = main,
                      workload = workload ? :(Projectured.warm_application()) : nothing,
                      usage = make_projectured_usage(collect(backends)),
@@ -306,11 +322,13 @@ end
 
 The packages that stay out of the registry although they are neither an example
 package nor a test package: each one depends on a package that the registry
-does not hold, reads a folder outside its own, or compiles native code on the
-machine of the user.
+does not hold, reads a folder outside its own, compiles native code on the
+machine of the user, or serves only the development of this repository, as the
+flat namespace of `ProjecturedAll` does.
 """
-const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedBench",
-                                        "ProjecturedBuilder", "ProjecturedREPL"]
+const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedAll",
+                                        "ProjecturedBench", "ProjecturedBuilder",
+                                        "ProjecturedREPL"]
 
 """
     PROJECTURED_PACKAGE_ASSETS

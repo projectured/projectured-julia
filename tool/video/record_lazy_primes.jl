@@ -13,7 +13,7 @@
 # run it once in the same process before the take, so that no step of the take
 # compiles.
 
-using Projectured, ProjecturedKernelExample, ProjecturedSDLExample
+using ProjecturedAll, ProjecturedKernelExample, ProjecturedSDLExample
 using Random
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "lazy_primes.mp4") : ARGS[1]

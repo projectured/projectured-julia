@@ -14,7 +14,7 @@ driver is installed.
 """
 module ProjecturedODBCExample
 
-using Projectured
+using ProjecturedAll
 using ProjecturedODBC          # OdbcConnectionPool, OdbcDatabaseAdapter, DatabaseInstanceToDbCatalog, SqlToCellTable, execute_db_raw, insert_into_db!, RawDatabaseResult
 import ProjecturedExample: Example, run_example, run_console_example,
                            print_example, write_example_image, write_example_pdf, record_example_video,

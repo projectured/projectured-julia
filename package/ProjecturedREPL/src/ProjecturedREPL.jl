@@ -29,7 +29,7 @@
 
 module ProjecturedREPL
 
-using Projectured
+using ProjecturedAll
 using ProjecturedExample
 using ProjecturedSDL
 using ProjecturedTest
@@ -40,7 +40,7 @@ using ProjecturedTest
 #
 # A name exported by two of them with different bindings would be ambiguous —
 # `test_export_collisions` is the guard that keeps that from happening.
-for _module in (Projectured, ProjecturedExample, ProjecturedSDL, ProjecturedTest)
+for _module in (ProjecturedAll, ProjecturedExample, ProjecturedSDL, ProjecturedTest)
     for _name in names(_module)
         _name === nameof(_module) && continue
         @eval export $_name

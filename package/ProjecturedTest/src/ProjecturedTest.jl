@@ -1,9 +1,9 @@
 module ProjecturedTest
 
 using Test
-using Projectured
+using ProjecturedAll
 
-# The umbrella binds every submodule of every package as `Projectured.XxxModule`
+# `ProjecturedAll` binds every submodule of every package as `ProjecturedAll.XxxModule`
 # but exports only their symbols, so bind the module names here too. The suites
 # below were written against the flat namespace and name a module directly
 # (`ProjectionModule.print_document`, …).

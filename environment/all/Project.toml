@@ -6,6 +6,7 @@ ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 ProjecturedAdaptagramsExample = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
+ProjecturedAll = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 ProjecturedAnthropic = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
 ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 ProjecturedBench = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
@@ -108,6 +109,7 @@ Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 Projectured = {path = "../../package/Projectured"}
 ProjecturedAdaptagrams = {path = "../../package/ProjecturedAdaptagrams"}
 ProjecturedAdaptagramsExample = {path = "../../package/ProjecturedAdaptagramsExample"}
+ProjecturedAll = {path = "../../package/ProjecturedAll"}
 ProjecturedAnthropic = {path = "../../package/ProjecturedAnthropic"}
 ProjecturedAnthropicTest = {path = "../../package/ProjecturedAnthropicTest"}
 ProjecturedBench = {path = "../../package/ProjecturedBench"}

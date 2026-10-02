@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "962d29d40836f9fe6a3c95347a2c35209ac16589"
+project_hash = "a7ab29098252650add8512a38ff2c40b04355cc4"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -913,11 +913,11 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedProcess", "ProjecturedRST", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedXML", "ProjecturedYAML"]
+deps = ["ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/Projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
-weakdeps = ["DataFrames", "FFMPEG", "ModelContextProtocol", "ODBC", "ProjecturedAnthropic", "ProjecturedDataFrames", "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter", "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo", "SimpleDirectMediaLayer", "Tulip"]
+weakdeps = ["DataFrames", "FFMPEG", "ModelContextProtocol", "ODBC", "ProjecturedAnthropic", "ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDataFrames", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedMCP", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter", "ProjecturedPDF", "ProjecturedProcess", "ProjecturedRST", "ProjecturedSDL", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedTulip", "ProjecturedVideo", "ProjecturedXML", "ProjecturedYAML", "SimpleDirectMediaLayer", "Tulip"]
 
     [deps.Projectured.extensions]
     ProjecturedDataFramesExt = "DataFrames"
@@ -934,9 +934,15 @@ uuid = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 version = "0.1.0"
 
 [[deps.ProjecturedAdaptagramsExample]]
-deps = ["Projectured", "ProjecturedAdaptagrams", "ProjecturedConsole", "ProjecturedExample", "ProjecturedODBCExample", "ProjecturedPDF", "ProjecturedPlatform"]
+deps = ["ProjecturedAdaptagrams", "ProjecturedAll", "ProjecturedConsole", "ProjecturedExample", "ProjecturedODBCExample", "ProjecturedPDF", "ProjecturedPlatform"]
 path = "../../package/ProjecturedAdaptagramsExample"
 uuid = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
+version = "0.1.0"
+
+[[deps.ProjecturedAll]]
+deps = ["ProjecturedBook", "ProjecturedChart", "ProjecturedConsole", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedFSM", "ProjecturedFormula", "ProjecturedGraph", "ProjecturedJSON", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedProcess", "ProjecturedRST", "ProjecturedSQL", "ProjecturedSequenceChart", "ProjecturedXML", "ProjecturedYAML"]
+path = "../../package/ProjecturedAll"
+uuid = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 version = "0.1.0"
 
 [[deps.ProjecturedAnthropic]]
@@ -952,7 +958,7 @@ uuid = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 version = "0.1.0"
 
 [[deps.ProjecturedBench]]
-deps = ["Projectured", "ProjecturedExample", "Statistics"]
+deps = ["ProjecturedAll", "ProjecturedExample", "Statistics"]
 path = "../../package/ProjecturedBench"
 uuid = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
 version = "0.1.0"
@@ -1078,7 +1084,7 @@ uuid = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
 version = "0.1.0"
 
 [[deps.ProjecturedExample]]
-deps = ["InteractiveUtils", "Profile", "Projectured", "ProjecturedAnthropic", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDBCatalogExample", "ProjecturedDatabaseExample", "ProjecturedFSMExample", "ProjecturedFormulaExample", "ProjecturedGraphExample", "ProjecturedJSONExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedOllama", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedProcessExample", "ProjecturedRSTExample", "ProjecturedSQLExample", "ProjecturedSequenceChartExample", "ProjecturedXMLExample", "ProjecturedYAMLExample"]
+deps = ["InteractiveUtils", "Profile", "ProjecturedAll", "ProjecturedAnthropic", "ProjecturedBookExample", "ProjecturedChartExample", "ProjecturedConversationExample", "ProjecturedDBCatalogExample", "ProjecturedDatabaseExample", "ProjecturedFSMExample", "ProjecturedFormulaExample", "ProjecturedGraphExample", "ProjecturedJSONExample", "ProjecturedJuliaExample", "ProjecturedKernelExample", "ProjecturedMarkdownExample", "ProjecturedMathExample", "ProjecturedOllama", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedProcessExample", "ProjecturedRSTExample", "ProjecturedSQLExample", "ProjecturedSequenceChartExample", "ProjecturedXMLExample", "ProjecturedYAMLExample"]
 path = "../../package/ProjecturedExample"
 uuid = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 version = "0.1.0"
@@ -1102,7 +1108,7 @@ uuid = "01095f28-dae7-4131-b352-cd496415c16e"
 version = "0.1.0"
 
 [[deps.ProjecturedFaultExample]]
-deps = ["Projectured", "ProjecturedExample", "ProjecturedKernelExample", "ProjecturedPlatform"]
+deps = ["ProjecturedAll", "ProjecturedExample", "ProjecturedKernelExample", "ProjecturedPlatform"]
 path = "../../package/ProjecturedFaultExample"
 uuid = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
 version = "0.1.0"
@@ -1251,7 +1257,7 @@ uuid = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 version = "0.1.0"
 
 [[deps.ProjecturedODBCExample]]
-deps = ["Projectured", "ProjecturedConsole", "ProjecturedExample", "ProjecturedODBC", "ProjecturedPDF", "ProjecturedPlatform"]
+deps = ["ProjecturedAll", "ProjecturedConsole", "ProjecturedExample", "ProjecturedODBC", "ProjecturedPDF", "ProjecturedPlatform"]
 path = "../../package/ProjecturedODBCExample"
 uuid = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
 version = "0.1.0"
@@ -1335,7 +1341,7 @@ uuid = "4e12067a-a745-4784-a5a3-977285a45110"
 version = "0.1.0"
 
 [[deps.ProjecturedREPL]]
-deps = ["PrecompileTools", "Preferences", "Projectured", "ProjecturedExample", "ProjecturedSDL", "ProjecturedTest"]
+deps = ["PrecompileTools", "Preferences", "ProjecturedAll", "ProjecturedExample", "ProjecturedSDL", "ProjecturedTest"]
 path = "../../package/ProjecturedREPL"
 uuid = "6b3f1e12-a33e-4b24-a01a-a986c90b1b68"
 version = "0.1.0"
@@ -1413,7 +1419,7 @@ uuid = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 version = "0.1.0"
 
 [[deps.ProjecturedTest]]
-deps = ["HTTP", "Projectured", "ProjecturedAnthropicTest", "ProjecturedBookTest", "ProjecturedChartTest", "ProjecturedConsoleTest", "ProjecturedConversationExample", "ProjecturedDBCatalogTest", "ProjecturedDataFramesTest", "ProjecturedDatabaseTest", "ProjecturedExample", "ProjecturedFSMTest", "ProjecturedFormulaTest", "ProjecturedGraphTest", "ProjecturedJSON", "ProjecturedJSONTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMCP", "ProjecturedMCPTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedODBC", "ProjecturedODBCTest", "ProjecturedOllamaTest", "ProjecturedPDFTest", "ProjecturedPlatform", "ProjecturedPlatformTest", "ProjecturedProcessTest", "ProjecturedRSTTest", "ProjecturedSDL", "ProjecturedSDLTest", "ProjecturedSQLTest", "ProjecturedSequenceChartTest", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWeb", "ProjecturedWebTest", "ProjecturedXML", "ProjecturedXMLTest", "ProjecturedYAML", "ProjecturedYAMLTest", "Sockets", "Test"]
+deps = ["HTTP", "ProjecturedAll", "ProjecturedAnthropicTest", "ProjecturedBookTest", "ProjecturedChartTest", "ProjecturedConsoleTest", "ProjecturedConversationExample", "ProjecturedDBCatalogTest", "ProjecturedDataFramesTest", "ProjecturedDatabaseTest", "ProjecturedExample", "ProjecturedFSMTest", "ProjecturedFormulaTest", "ProjecturedGraphTest", "ProjecturedJSON", "ProjecturedJSONTest", "ProjecturedJulia", "ProjecturedJuliaTest", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedMCP", "ProjecturedMCPTest", "ProjecturedMarkdown", "ProjecturedMarkdownTest", "ProjecturedMathTest", "ProjecturedODBC", "ProjecturedODBCTest", "ProjecturedOllamaTest", "ProjecturedPDFTest", "ProjecturedPlatform", "ProjecturedPlatformTest", "ProjecturedProcessTest", "ProjecturedRSTTest", "ProjecturedSDL", "ProjecturedSDLTest", "ProjecturedSQLTest", "ProjecturedSequenceChartTest", "ProjecturedTulip", "ProjecturedTulipTest", "ProjecturedVideo", "ProjecturedVideoTest", "ProjecturedWeb", "ProjecturedWebTest", "ProjecturedXML", "ProjecturedXMLTest", "ProjecturedYAML", "ProjecturedYAMLTest", "Sockets", "Test"]
 path = "../../package/ProjecturedTest"
 uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"
@@ -1425,7 +1431,7 @@ uuid = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 version = "0.1.0"
 
 [[deps.ProjecturedTulipExample]]
-deps = ["Projectured", "ProjecturedConsole", "ProjecturedExample", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedTulip"]
+deps = ["ProjecturedAll", "ProjecturedConsole", "ProjecturedExample", "ProjecturedPDF", "ProjecturedPlatform", "ProjecturedTulip"]
 path = "../../package/ProjecturedTulipExample"
 uuid = "4b11a654-d873-42c4-ad7f-89627ca1ee14"
 version = "0.1.0"

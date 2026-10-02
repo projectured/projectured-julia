@@ -1,9 +1,4 @@
-const _SOURCES = (ProjecturedKernel, ProjecturedPlatform, ProjecturedConsole,
-                  ProjecturedPDF, ProjecturedJSON, ProjecturedYAML, ProjecturedXML,
-                  ProjecturedMarkdown, ProjecturedRST, ProjecturedBook, ProjecturedMath,
-                  ProjecturedJulia, ProjecturedSQL, ProjecturedDatabase, ProjecturedGraph,
-                  ProjecturedChart, ProjecturedSequenceChart, ProjecturedDBCatalog,
-                  ProjecturedFormula, ProjecturedFSM, ProjecturedProcess)
+const _SOURCES = (ProjecturedKernel, ProjecturedPlatform)
 
 # A binding is re-exported when it is a submodule this source defines, or a
 # submodule of a package this source reaches but the list does not name. A module
@@ -35,13 +30,38 @@ for _src in _SOURCES
     end
 end
 
-# The model adapters that the user installed load with the umbrella. They have no
-# package of their own to trigger them, and a loaded one changes nothing until a
-# session asks for it by name (`assistant = :ollama`).
-const _INSTALLED_ADAPTERS = ("ProjecturedOllama", "ProjecturedAnthropic", "ProjecturedOpenRouter")
+# The ProjecturEd packages that load with the umbrella when the user installed
+# them: the console and PDF backends, the domains, and the model adapters. None of
+# them needs a package of another registry, and a loaded one does nothing until a
+# session uses it; an adapter waits until a session asks for it by name
+# (`assistant = :ollama`). The integrations with another package load in the
+# extensions, when that package is loaded too.
+const _INSTALLED_PACKAGES = (
+    "ProjecturedConsole",
+    "ProjecturedPDF",
+    "ProjecturedJSON",
+    "ProjecturedYAML",
+    "ProjecturedXML",
+    "ProjecturedMarkdown",
+    "ProjecturedRST",
+    "ProjecturedBook",
+    "ProjecturedMath",
+    "ProjecturedJulia",
+    "ProjecturedSQL",
+    "ProjecturedDatabase",
+    "ProjecturedGraph",
+    "ProjecturedChart",
+    "ProjecturedSequenceChart",
+    "ProjecturedDBCatalog",
+    "ProjecturedFormula",
+    "ProjecturedFSM",
+    "ProjecturedProcess",
+    "ProjecturedOllama",
+    "ProjecturedAnthropic",
+    "ProjecturedOpenRouter")
 
 # Julia restores the packages of one load together, and an `__init__` inside that
-# load can not load one of them again. So the adapters load once the load is done,
+# load can not load one of them again. So they load once the load is done,
 # where Julia runs the extensions: in the callbacks after a package loads. The
 # callback stays in the list, because Julia walks the list while it calls it, and a
 # flag makes every later call return at once.
@@ -50,7 +70,7 @@ function __init__()
     push!(Base.package_callbacks, _ -> begin
         loaded[] && return nothing
         loaded[] = true
-        foreach(ProjecturedPlatform.load_installed_package!, _INSTALLED_ADAPTERS)
+        foreach(ProjecturedPlatform.load_installed_package!, _INSTALLED_PACKAGES)
         nothing
     end)
     nothing

@@ -2,17 +2,15 @@
 # which run the code of the `execute_julia_code` tool, and the persistent namespace
 # they evaluate into.
 
-# The packages of the whole surface. The umbrella `Projectured` package (loaded,
-# but not a dependency of the kernel — that would be circular) re-exports every
-# submodule of every package below it, so it alone is enough. In a per-package
-# test environment the umbrella is absent, and the surface holds every loaded
-# Projectured package. The set is read at run time rather than written down,
-# because the packages below the umbrella are many and each test environment
-# loads a different subset.
+# The packages of the whole surface: every loaded ProjecturEd package that is not
+# a test or an example package. The umbrella loads only the packages that a user
+# installed, so the surface is what the session loaded, and not a list written
+# down. A package that only re-exports others, such as the umbrella, adds nothing,
+# because each module counts once, under the package that defines it.
 function _collect_surface_packages()
     loaded = Dict(String(id.name) => mod for (id, mod) in Base.loaded_modules)
-    haskey(loaded, "Projectured") && return Module[loaded["Projectured"]]
-    packages = sort([n for n in keys(loaded) if startswith(n, "Projectured")])
+    packages = sort([n for n in keys(loaded) if startswith(n, "Projectured") &&
+                                                !endswith(n, "Test") && !endswith(n, "Example")])
     isempty(packages) && return Module[parentmodule(@__MODULE__)]
     Module[loaded[n] for n in packages]
 end
@@ -90,18 +88,20 @@ function _scratch_module(set::ToolSet)
     m = Module(:ToolScratch)
     srcs = _scratch_sources(set)
     mods = Module[entry.module_ for entry in srcs]
-    # Bind each source under its own name, so qualified access still works.
+    # Bind each source under its own name, so qualified access still works. The
+    # umbrella is the exception: `Projectured` names the scratch module below.
     for mod in mods
+        nameof(mod) === :Projectured && continue
         Core.eval(m, :(const $(nameof(mod)) = $mod))
     end
     if isempty(set.api)
         for mod in mods
             _flat_reexport!(m, mod, mods)
         end
-        # `Projectured` names the umbrella when it is loaded, and the scratch module
-        # itself otherwise: after the re-export the scratch module holds the same
-        # flat namespace, so `Projectured.CellVector` resolves either way.
-        Core.eval(m, :(const Projectured = $(nameof(mods[1]) === :Projectured ? mods[1] : m)))
+        # `Projectured` names the scratch module itself: after the re-export it holds
+        # the flat namespace of the whole surface, so `Projectured.CellVector` and
+        # `Projectured.JsonObject` resolve whatever the umbrella depends on.
+        Core.eval(m, :(const Projectured = $m))
     else
         # Each entry gives the names it declared, or every name its module
         # exports — and a declared name arrives **unqualified**, exactly as an

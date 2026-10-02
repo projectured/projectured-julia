@@ -12,7 +12,7 @@
 # With `--gestures`, a panel in a corner shows each key and the operation it made.
 # With `--check`, the script stops after the replay.
 
-using Projectured, ProjecturedExample, ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
+using ProjecturedAll, ProjecturedExample, ProjecturedSDL, ProjecturedSDLExample, ProjecturedVideo
 
 const GESTURES = "--gestures" in ARGS
 const PATHS = filter(argument -> !startswith(argument, "--"), ARGS)
