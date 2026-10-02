@@ -159,14 +159,16 @@ they do not scale to this size.
 
 ### 3.4 The selection
 
-A path in the view names the **source row index** and the **column name**:
-`rows[row].columns[name]`, then the caret in the text of the cell. So the
-selection survives a sort, a filter, a column move and a switch to another
-view of the same frame. A row of a data frame has no identity other than its
+A path in the view names a **row of the frame** and a **column of the frame**,
+by their numbers, with the steps of a table and no step of its own:
+`rows[5][3]` is the cell of row 5 and column 3 of the frame, then the caret in
+the document of the cell, `rows[5][3].value{2}`. `rows[5]` is a row and
+`columns[3]` a column. So the selection survives a sort, a filter, a hidden
+column and a scroll. A row of a data frame has no identity other than its
 index. An insert or a delete by the view moves the selection with it. An
-insert or a delete from the REPL can put the selection on another row. The
-chart domain already has its own reference step (`ChartSampleReferenceStep`),
-so a domain step for a row and for a column is not a new mechanism.
+insert or a delete from the REPL can put the selection on another row or
+column. The view maps its paths to the paths of its table, whose numbers count
+the shown rows and columns (R3 of phase 4).
 
 ### 3.5 Lazy rows: a list anchored at any row
 
@@ -1004,30 +1006,100 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     turned into". The plan is
     [a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md); it is
     step 4.0.
-  - **R3. A cell that has no edit is named `column("price")[5]`**: the column
-    step of 5.2 and the ordinary index step, with the row of the frame (the
-    owner: "yes").
+  - **R3. The paths of a table mean the obvious, and no new step** (the owner,
+    2026-10-02). A first R3, a cell named `column("price")[5]` with the column
+    step of 5.2, was rejected: "we only introduce new reference steps if we
+    must because the current steps cannot represent what is needed", and "a
+    table widget definitely doesn't need a special column reference step". A
+    path on a table is `column_headers[3]` for a column header, `row_headers[3]`
+    for a row header, `columns[3]` for a column, `rows[4]` for a row and
+    `rows[4][3]` for a cell. The owner agreed with the rest of R3 as the writer
+    proposed it:
+    - **The numbers.** In the data frame view a number names the row and the
+      column in the frame: `rows[5][3]` is row 5 and column 3 of the frame, so
+      a sort, a filter, a hidden column and a scroll do not change what a path
+      names. In the widget table a number names the row in the whole table, not
+      counted from the head of the list: a list table gets the number of its
+      head row from its owner, which knows it (the anchor of the view). A row or
+      a column that the REPL inserts moves the selection to another one, as
+      §3.4 says.
+    - **The fields.** A field step reads a field of a struct or an entry of a
+      dictionary, so each name of a path is a field. The widget table gets a
+      computed field `columns`, whose `[3]` gives a column. The view gets two
+      computed, read-only fields: `rows`, whose `[5]` gives a row and whose
+      `[5][3]` gives the document of the entry of the cell when it has one, and
+      otherwise the value in the frame; and `columns`, whose `[3]` gives the
+      `DataFrameColumn`, which keeps its menu of 5.2.
+      `DataFrameColumnReferenceStep` goes.
+    - **The clicks.** A click on a column header selects `columns[c]`; a click
+      in its text field puts the caret in `column_headers[c]…`. A click on a row
+      header selects `rows[r]`. Now a whole column is `column_headers[c]` and a
+      row header can stand for its row, so the selection shapes of the table and
+      their tests change, and the markdown table and the cell table follow.
+    - **All the paths:**
+
+      | Category | In the widget table | In the data frame view |
+      |---|---|---|
+      | the whole table | `∅` | `∅` |
+      | the corner | `corner` | `∅` |
+      | the pattern of the names | `corner.….content{k}` | `.query.column_pattern{k}` |
+      | a column header | `column_headers[3]` | its column, `columns[3]` |
+      | the text of a filter | `column_headers[3].….content{k}` | `.query.column_filters[i].text{k}` |
+      | a row header | `row_headers[4]` | its row, `rows[5]` |
+      | a column | `columns[3]` | `columns[3]` |
+      | a row | `rows[4]` | `rows[5]` |
+      | a cell | `rows[4][3]` | `rows[5][3]` |
+      | a caret in a cell | `rows[4][3].value{2}` | `rows[5][3].value{2}` |
+      | the expression | a child of the grid, not of the table | `.query.expression{k}` |
+
+      A header holds no state of its own in the view, so it maps to its column
+      or its row. A whole row has a path, so 4b needs no step for it. A hidden
+      column and a row that a filter hides keep a path in the view. A range,
+      `rows[2:5]` or `columns[1:3]`, fits the same steps when range selection
+      comes.
+    - **A column of a table can become a real document later** (the owner's
+      note, 2026-10-02): "there may be additional data that needs to be stored
+      on the column. the column header is a distinct thing from the column
+      itself … some tables are better expressed by columns not rows." Now the
+      data of a column is spread over the parallel fields `column_policies`,
+      `column_align` and `column_cell_policies`, beside `column_headers`. A
+      `WidgetTableColumn` document can hold them, and the cells too for a table
+      that is better expressed by columns. The path `columns[3]` is the same
+      when the field is computed and when it holds documents, so 4a does not
+      wait for it (mine).
   - **R4. A column whose element type has no primitive document**, such as a
     `Date`, a `Symbol` or a type of another package: the cell shows the value
     as now and takes no key, and its tooltip says why (the recommendation of
     the writer; the owner: "I agree with the unsupported Date cell plans").
+  - **R5. The picture of 4a** (the owner accepted it, 2026-10-02, except its
+    path, which R3 replaces): the walk of the keys through a number cell
+    below; each key in an entry is a step of undo, as a key in a filter field
+    is, and the undo of a commit puts back the old value but not the text of
+    the edit; a `missing` value shows "missing" as the placeholder of the
+    primitive document of its cell.
 
-  The design that follows from R1 to R4 (each point mine unless the owner made
+  The design that follows from R1 to R5 (each point mine unless the owner made
   it above):
   - **A cell holds the primitive document of its value**: a `PrimitiveNumber`,
     a `PrimitiveString` or a `PrimitiveBool`. The table edits it as it edits
     any cell document.
-  - **The view keeps the cells that a person edited and did not commit**: a
-    field `edits`, a list of documents, each with the row of the frame, the
-    column name and the primitive document of the cell. The selection in an
-    edited cell points there with ordinary steps, `.edits[i].document…`, and
-    the printer shows that document in the cell and maps the path forward to
-    `rows[k][c]…`, as it maps a filter field now.
-  - **The first key in a cell that has no edit** comes up from the table as an
-    edit at `rows[k][c]…`. The view turns it into a new entry of `edits` that
-    holds what the key made: a copy of the cell document with the key applied,
-    or the type-in that replaced a number (R2). The selection goes into the
-    entry.
+  - **The view keeps an entry for each cell that a person opened and did not
+    commit**: a field `edits`, a list of documents, each with the row and the
+    column in the frame and the primitive document of the cell. The view finds
+    an entry by its cell, and `rows[5][3]` of the view gives the document of
+    the entry, so the selection never names a place in the list. The printer
+    shows the document of the entry in its cell.
+  - **A click in a cell opens an entry**, which holds a primitive document of
+    the value in the frame, so the caret has a `value` to stand in:
+    `rows[5][3].value{2}`. (Mine. The path of R3 needs it: without an entry,
+    `rows[5][3]` gives the value in the frame, which has no `value`. The owner
+    has not answered this point yet.) The path stays the same through every key,
+    also when a key turns the number into a type-in, or the type-in into a
+    number, because the document of the entry is replaced in place.
+  - **A move out of the cell commits the entry.** An entry with no change goes
+    away and writes nothing. After a commit and after Escape the whole cell is
+    selected, `rows[5][3]`. So at most one entry has no change, the one with
+    the caret; any other entry is an edit whose commit failed.
   - **The commit is generic.** Enter, Tab and a move out of the cell make the
     table write an operation that commits the cell, which the owner of the
     table converts, as the width of a column of 5.7 is written by the table and
@@ -1035,12 +1107,13 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     because its cell documents are the documents themselves.
   - **The commit of the view** first commits a type-in of the entry, as Enter
     in the type-in does (R2), and converts the value of the entry to the
-    element type of the column. When it converts, one operation writes the frame and
-    removes the entry, so the commit is one step of undo:
+    element type of the column. When it converts, one operation writes the
+    frame, so the commit is one step of undo:
     `SetDataFrameValueOperation(frame, row, column, value)`, whose inverse
-    writes the old value (E4 stays). When it does not convert, the entry stays
-    and the cell shows a mark, with the reason in a tooltip. The mark and its
-    tooltip are generic, a part of a cell of the widget table.
+    writes the old value (E4 stays); the entry goes away as view state. When it
+    does not convert, the entry stays and the cell shows a mark, with the
+    reason in a tooltip. The mark and its tooltip are generic, a part of a cell
+    of the widget table.
   - **An empty text** writes `missing` where the column allows it.
   - **A `DataFrameRow`** shows as a table of two columns, the name and the
     value, whose cells are primitive documents as above (E5, in 4b).
@@ -1048,22 +1121,49 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     §5.1). The editor takes input during a REPL input. After the input, the
     display calls `refresh_document!` on each shown view (phase 3).
 
+  The walk of the keys (R5). Cell `price`, row 5 of the frame, holds `12`;
+  the person clicks after `12`:
+
+  | Key | The cell shows | The document of the cell | The selection in the view |
+  |---|---|---|---|
+  | click | `12` | entry: `PrimitiveNumber(12)` | `rows[5][3].value{2}` |
+  | Backspace | `1` | `PrimitiveNumber(1)` | `rows[5][3].value{1}` |
+  | Backspace | the placeholder | `PrimitiveInsertion("")` | `rows[5][3].value{0}` |
+  | `-` | `-`, red | `PrimitiveInsertion("-")` | `rows[5][3].value{1}` |
+  | `5` | `-5` | `PrimitiveNumber(-5)` | `rows[5][3].value{2}` |
+  | Enter | `-5` | a primitive document of the frame value | the row below (D10) |
+  | Ctrl+Z | `12` | — | — |
+
+  Enter writes `-5` to the frame with `SetDataFrameValueOperation`, the
+  version of the frame moves (trigger A), and the view sorts and filters
+  again (D6). A text that does not parse, such as `1e`, stays red after Enter,
+  with the mark; Escape drops the entry.
+
   Open:
   - The cost of a primitive document in each shown cell, in place of a label,
-    for a scroll of the frame of ten million rows. Measure it in 4.1.
+    for a scroll of the frame of ten million rows. Measure it in 4.3.
 
   Steps of 4a, the edit of a cell, each with its tests:
   - [ ] **4.0** A number that can not show a key becomes a type-in
     ([a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md)).
-  - [ ] **4.1** The cells are primitive documents; a click selects
-    `column(name)[row]`, and the view maps it forward to the cell.
-  - [ ] **4.2** The entries of `edits`: the first key makes one, the cell
-    shows it, and the selection stays in it after a scroll.
-  - [ ] **4.3** The generic commit, the mark and its tooltip, in the widget
+  - [ ] **4.1** The paths of a table (the widget table, generic): the computed
+    field `columns`; a number of a list table counts in the whole table, from
+    the number of its head row that its owner gives; a click on a column
+    header selects `columns[c]`, a click on a row header selects `rows[r]`;
+    the selection shapes; the markdown table and the cell table follow.
+  - [ ] **4.2** The paths of the view: the computed fields `rows` and
+    `columns`; `DataFrameColumnReferenceStep` goes and `DataFrameColumn` is
+    `columns[c]`; the view maps its paths, in numbers of the frame, to the
+    paths of the table and back.
+  - [ ] **4.3** The cells are primitive documents, and a `Date` stays a label
+    (R4); a click opens an entry; the cost of a scroll.
+  - [ ] **4.4** The entries of `edits`: keys, a type-in in an entry, and the
+    selection stays in an entry after a scroll.
+  - [ ] **4.5** The generic commit, the mark and its tooltip, in the widget
     table.
-  - [ ] **4.4** The commit of the view: `SetDataFrameValueOperation` and undo,
+  - [ ] **4.6** The commit of the view: `SetDataFrameValueOperation` and undo,
     the write through a `SubDataFrame`, and trigger A of refresh.
-  - [ ] **4.5** The sort and the filter again after a commit (D6), and the
+  - [ ] **4.7** The sort and the filter again after a commit (D6), and the
     selection after it (D10).
 
   4b, after 4a: the other operations of §3.6 (insert, delete, rename, move and
@@ -1153,7 +1253,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         numbers at their rows.
       - Open, small: the row numbers align left; a data frame prints them
         aligned right. The header column has no alignment of its own yet.
-    - [x] **5.2 The path of a column (E1).**
+    - [x] **5.2 The path of a column (E1).** The step goes in 4.2: the owner
+      rejected it on 2026-10-02, and a column is `columns[c]` (R3 of phase 4).
       `DataFrameColumnReferenceStep(name)` evaluates on the view to a
       `DataFrameColumn` (the view and the name). The view maps the path of a
       header to it and back. `compute_context_menu(::DataFrameColumn)` gives
