@@ -39,8 +39,37 @@ The rule is generic, so the same questions stand in every container that draws
 parts of other domains. Find the other places first, with the round trip test
 of the widget examples as the check.
 
-- [ ] 1. Find every backward map of a point that stops at a part which holds
+- [x] 1. Find every backward map of a point that stops at a part which holds
   drawn parts of its own, in the widgets and in the other domains.
+
+  Found (2026-10-02, a search of the platform and the domains):
+  - `WidgetTable`, the table of vectors (`_map_wt_point`,
+    `WidgetToGraphics.jl:9401-9412`) and the table of a list
+    (`WidgetTableParts.jl:1118-1141`): a point answers `corner`,
+    `row_headers[k]`, `column_headers[c]` or `rows[r][c]` whole, although each is
+    printed through `print_child` and has an IO map of its own. The press
+    readers of the list table reach that IO map already
+    (`_read_table_cell_press`, `_read_table_header_press`).
+  - `WidgetAccordion` (`WidgetToGraphics.jl:8619-8626`): a point in a header
+    answers `items[i]` whole, also when the title is a document with its own IO
+    map (`title_iomaps`). A point in the open body goes on into the body.
+  - `WidgetText` and `WidgetTextarea` (`_map_text_point`): a point answers
+    `.content` with the point as its last step, and does not ask the IO map of a
+    `Document` content. For a text content the content is the part and the point
+    a position in it; for a content of another kind, such as a widget, the point
+    stops early. A question, not yet a finding.
+  - Every other container hands the point on (`_map_point_to_child`, the
+    layouts, the panes, the vertices of a graph), and the controls and the plots
+    are leaves.
+  - The selection of `row_headers[i]` draws the whole row, and of
+    `column_headers[c]` the whole column (`_wt_selection_shape`,
+    `WidgetToGraphics.jl:9110-9133`). Alt and an arrow in a table
+    (`_wt_key_navigate`, `WidgetToGraphics.jl:9558-9601`) walk from a row to a
+    row or to its first cell, from a column to a column or to its first cell,
+    and from a cell to a cell; from a cell no Alt and arrow reaches its row or
+    its column (Shift+Space and Ctrl+Space do). The table answers every Alt and
+    arrow that it knows, so the general walk (`SelectionWalking.jl`) does not
+    run there, and `test_selection_walking` holds no table.
 - [ ] 2. Decide with the owner how a selected header is drawn, and how Alt and
   the arrow keys reach a row and a column.
 - [ ] 3. Build it, with a test for each case.
@@ -123,6 +152,28 @@ a chooser.
 
 - [ ] 1. Find how the file dialog must draw its chooser, and connect the
   printer there.
+
+  Facts (2026-10-02):
+  - `FileSystemChooserToWidget.jl:23-35` prints the directory and the name
+    through `print_child` and puts both outputs in one `WidgetComposite` with no
+    position for either, so the field covers the tree. `name_file` (:28) is made
+    and used nowhere.
+  - `make_file_dialog` (`source/platform/shell/FileDialog.jl:17-25`) makes a
+    `WidgetDialog` whose content is the chooser. The dialog prints its content
+    through the dispatch that reaches it: in the application,
+    `make_application_content_projections` (`Application.jl:142-189`) and then
+    the widget rows of `make_opened_window_projections`; in `test_file_dialog`,
+    `make_widget_projection_example`. Neither has a row for `FileSystemChooser`,
+    so the chooser projection must join one of those tables.
+  - The slice table (`PLATFORM_SLICE_EDGES` in `test/platform/PlatformSuite.jl`)
+    lets `filesystem` use `widget` but not `layout`; `widget`, `natural`,
+    `pane`, `fileformat`, `assistant` and `conversation` use `layout`.
+  - A composite gives no slot, and a `Fill` child reaches the edge from its own
+    position (§3 of `layout-rules.md`). So a composite can not make the tree fill
+    the height above the field: the tree would run under the field. A composite
+    can put the field above the tree, which then fills to the bottom, or give the
+    tree a fixed height. A `VerticalLayout` gives the tree the height that the
+    field leaves.
 - [ ] 2. Arrange the tree above the field, the tree filling the height. A
   `VerticalLayout` makes the file system package depend on the layout package;
   decide with the owner whether that is right, or whether a composite with the
