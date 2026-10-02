@@ -147,10 +147,14 @@ function test_web_backend()
         move = read_from_devices(backend, Device[]).event
         @test move isa MouseMove
         @test move.buttons == MouseButtons(:left, :right)
-        # A motion with no button held is not sent on.
+        # A motion with no button held goes on too, so the part under the
+        # pointer lights in the browser.
         _WEB._decode_and_enqueue!(backend,
-            """{"type":"mousemove","window":"main","x":5,"y":6,"buttons":0}""")
-        @test read_from_devices(backend, Device[]) === nothing
+            """{"type":"mousemove","window":"main","x":7,"y":8,"buttons":0}""")
+        free = read_from_devices(backend, Device[]).event
+        @test free isa MouseMove
+        @test (free.x, free.y) == (7, 8)
+        @test free.buttons == MouseButtons()
     end
 
     @testset "the pointer that leaves a window is a window event of that window" begin

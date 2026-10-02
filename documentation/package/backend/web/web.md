@@ -44,7 +44,7 @@ Each client message holds `t`: the time of its browser event in milliseconds sin
 | Client message | Event |
 | --- | --- |
 | `mousedown`, `mouseup` | `MouseDown`, `MouseUp` |
-| `mousemove` | `MouseMove`, only while a button is held |
+| `mousemove` | `MouseMove`: with a button held at once, with no button held at most once per animation frame |
 | `scroll` | `MouseScroll` |
 | `keydown`, `keyup` | `KeyDown`, `KeyUp`, through `convert_web_key_to_symbol` |
 | `keypress` | `KeyPress` |
@@ -89,5 +89,4 @@ run_example(["json", "xml"]; backend = WebBackend())       # the first in the pa
 ## Limits
 
 - No test covers the draw list or the patches.
-- The client sends pointer motion only while a button is held. A hover effect and a tooltip, which need motion with no button, do not happen in the browser.
 - One client for each editor, and the transport is JSON in both directions. [plan/done/web-backend.md](../../../../plan/done/web-backend.md) holds both as the choices of the first version.

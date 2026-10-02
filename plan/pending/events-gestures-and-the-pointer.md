@@ -1522,7 +1522,15 @@ it holds the example.
     `build_editor` with its defaults, the gallery and the screen examples
     opened no tooltip and no context menu. Rejected: option b, every host passes
     the windows itself.
-- [x] 10. **Replaced by step 5b of
+    Built (2026-10-02): `EditorParts.window_wrappers` (kernel `EditorBuild.jl`);
+    the `tooltip` wrapper (`:window => -20`, `TooltipWindow.jl`) and the
+    `context_menu` wrapper (`:window => -10`, `ContextMenuWindow.jl`) push their
+    window functions there, and the `window` wrapper puts `window_wrappers`
+    before its own `inner_wrappers`. The application passes the two windows no
+    longer; the gallery, which calls `make_tracking_screen` itself, passes them;
+    the omnet IDE passes them no longer. Test: `test_tracking_screen` checks the
+    order of the states and the two keywords off; an application test counts two
+    more levels.- [x] 10. **Replaced by step 5b of
   [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)**
   (Q13 there, settled 2026-10-01: the drag wrapper keeps the path of the part
   whose drag is on, local drags keep their own state, the part under the
@@ -1621,6 +1629,9 @@ it holds the example.
     at the still pointer, and a light that moved another part under the pointer
     would light that part next, frame after frame. Rejected: option b, the
     sentences in `mouse-target.md` and `widget.md` and their test only.
+  - Written (2026-10-02) in `architecture-invariants.md`: the two rules again and
+    `PAR-LIGHT-KEEPS-LAYOUT`, with their rows in the table;
+    `mouse-target.md` and `widget.md` link the new rule.
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
   Decided (owner 2026-10-02, "Agreed", on Claude's option a): after 9f, the
@@ -1642,6 +1653,10 @@ tooltip, the lit brackets and the light during a drag work in the browser as on
 SDL. Facts: `asset/web/client.js` sent a move only while a button was held, and
 `WebBackend.jl` dropped a move with no button too; the leave of the window is
 sent already. Rejected: option b, no hover in the browser as a documented limit.
+Built (2026-10-02): `asset/web/client.js` sends a held move at once and keeps
+the last move with no button for the next animation frame; `WebBackend.jl`
+passes every move; `test_web` (118) checks a move with no button; `web.md`
+follows.
 
 Also open: Q15 of
 [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md),

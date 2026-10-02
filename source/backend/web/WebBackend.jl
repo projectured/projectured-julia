@@ -579,8 +579,9 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         put!(backend.inbound, WindowInput(wid, MouseUp(b, x, y, m; time = at)))
 
     elseif typ == "mousemove"
+        # Every move: the client sends a move with no button held at most once
+        # per animation frame, and a move with a button held at once.
         mask = Int(get(obj, :buttons, 0))
-        mask == 0 && return  # only forward motion while a button is held
         put!(backend.inbound, WindowInput(wid,
             MouseMove(Int(obj[:x]), Int(obj[:y]), _get_held_mouse_buttons(mask),
                       _mods(obj); time = at)))

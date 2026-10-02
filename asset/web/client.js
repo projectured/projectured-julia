@@ -657,13 +657,31 @@
       send({ type: "mouseup", window: idFn(), button, x, y, mods: mods(ev),
              t: stamp(ev) });
     });
+    // Every move goes, so the part under the pointer lights and a tooltip comes.
+    // A move with a button held goes at once, for a drag; a move with no button
+    // held goes at most once per animation frame, the last one of the frame.
+    let pendingMove = null;
     canvas.addEventListener("mousemove", (ev) => {
-      if (ev.buttons === 0) return;            // only forward motion while held
       const { x, y } = pos(ev, canvas);
-      send({ type: "mousemove", window: idFn(), x, y, buttons: ev.buttons, mods: mods(ev),
-             t: stamp(ev) });
+      const move = { type: "mousemove", window: idFn(), x, y, buttons: ev.buttons,
+                     mods: mods(ev), t: stamp(ev) };
+      if (ev.buttons !== 0) {
+        pendingMove = null;
+        send(move);
+        return;
+      }
+      const isFirst = pendingMove === null;
+      pendingMove = move;
+      if (isFirst) {
+        p.win.requestAnimationFrame(() => {
+          const last = pendingMove;
+          pendingMove = null;
+          if (last !== null) send(last);
+        });
+      }
     });
-    // The pointer went out of the window: a tracker unlights what it lit.
+    // The pointer went out of the window: the screen gives the window a move off
+    // it, so nothing in it stays lit.
     canvas.addEventListener("mouseleave", (ev) => {
       send({ type: "leave", window: idFn(), t: stamp(ev) });
     });
