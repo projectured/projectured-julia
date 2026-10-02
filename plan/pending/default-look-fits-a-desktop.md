@@ -1,0 +1,436 @@
+# The default look fits a desktop at 100%
+
+> **Status:** pending, not started. Written on 2026-10-02 at the owner's
+> request. The owner decided the goal, the reference, the scope and the font
+> model on 2026-10-02 (section 5). Section 4 holds the questions that are still
+> open.
+
+## 1. The request
+
+The owner wrote on 2026-10-02:
+
+> in projectured-julia, the text size and spacing size feels large on my current
+> screen and I'm not sure we are using sensible defaults
+>
+> I changed the settings to make it look good: font size to 80%, spacing size to
+> 67%
+>
+> I would like to have sensible defaults which look good on most computers for
+> other users
+
+After the first report, the owner answered:
+
+> for 1, we can do the same as VS code around
+> for 2, yes, follow them
+> for 3, … we should find sensible spacing defaults that works on a desktop
+> program. The scales should be kept 100%
+>
+> all places should use themes for fonts and sizes and have sensible default. I
+> don't care about the recorded videos, they don't have to match exactly.
+>
+> maybe we should also get rid of the color and font constants and use some
+> registry which caches the immutable instances and looks them up during
+> projection construction based on parameters. what do you think?
+
+The owner answered "yes" to the counter-proposal of section 3.1 and 3.2: a font
+is a description, and a registry of font faces finds its file. There is no
+cache of instances.
+
+## 2. What exists
+
+### 2.1 The screen and the density
+
+- The screen of the owner is HDMI-1, 1920×1200 on 520×320 mm, about 94 dots per
+  inch. `xrdb -query` gives `Xft.dpi: 96`. The GNOME interface font is
+  Adwaita Sans 11 pt, which is 14.7 px.
+- `_detect_display_density!` in `source/backend/sdl/SdlBackend.jl` reads
+  `Xft.dpi / 96` and gives the density 1.0. This is correct, so the density is
+  not the cause.
+- At the density 1, one logical pixel is 1/96 inch, the reference pixel of CSS.
+  A default that looks right on this screen at 100% is a correct default for a
+  desktop.
+
+### 2.2 The sizes
+
+- The widgets draw text in Ubuntu 20 px (`WidgetTheme.font`). The syntax, text,
+  JSON and most other domain themes use Ubuntu Mono 20 px. The Markdown
+  headings are 36, 24, 22 and 18 px.
+- The Lisp original used 24 px. Commit `0d86b6712` (2026-06-30) changed every
+  24 to 20.
+- Other programs at the density 1:
+
+  | Program | Text size |
+  | --- | --- |
+  | VS Code | 13 px interface, 14 px editor |
+  | JetBrains | 13 px |
+  | macOS | 13 px |
+  | Windows | 12 to 14 px |
+  | GNOME on the screen of the owner | 14.7 px |
+  | Web body text | 16 px |
+
+- The spacings of `WidgetTheme` follow shadcn/ui, which is made for web pages:
+  a control padding of 9/14, a card padding of 16, a badge padding of 3/10,
+  gaps from 4 to 12 and a tree indent of 22. The parts of controls are a
+  checkbox of 18, a switch of 44×24, a slider of 24 and a scroll bar of 12. The
+  radii are 8 and 4.
+- The look that the owner chose on this screen is the font scale 0.8, so text of
+  16 px, and the spacing scale 0.67. The owner did not save it.
+
+### 2.3 The font model
+
+- A font is `StyleFont(filename, size)` in `source/platform/style/Font.jl`. The
+  file is the identity of a face. The family, the weight and the slant are only
+  in the name of the file.
+- `Font.jl` defines 143 constants, one for each face and size. They cover
+  Ubuntu, Ubuntu Mono, DejaVu Sans, DejaVu Sans Mono, Liberation Sans and
+  Liberation Serif, each regular, bold and italic. The sizes are 14, 16, 18,
+  20, 22, 24, 30, 36, 42 and 48. Two more are Inconsolata 18 and the Lucide
+  icon font. No constant has the size 13.
+- `font_file` in `TrueType.jl` finds a file by its name in the font search path
+  at run time, so a bundle on another machine finds its fonts.
+- Twelve files read `font.filename`: `SdlBackend.jl` (the TTF handle cache
+  `_font_cache`, keyed by file and device size), `TextMeasure.jl`,
+  `TrueType.jl` (the fallback chain), `PdfWriter.jl` (one embedded font for each
+  file), `WebBackend.jl`, `VideoBackend.jl`, `AppearanceToWidget.jl` (steps
+  through the files), `Appearance.jl` (saves a font as a file and a size),
+  `WidgetToGraphics.jl`, `SyntaxToText.jl`, `FileDialog.jl` and
+  `MathToGraphics.jl`.
+- A theme holds a full font in each text field. `SyntaxTheme` repeats Ubuntu
+  Mono 20 in 15 `StyleText` fields and in its `font` field. To change the
+  family or the size of code text, a person changes 16 fields.
+- `WidgetTheme.font_bold` is a separate file from `WidgetTheme.font`. When a
+  person changes `font` to DejaVu Sans, the titles stay in Ubuntu Bold.
+- The fallback chain for a missing glyph is one list for every font: DejaVu
+  Sans Mono, then Noto Emoji. A bold font tries DejaVu Sans Mono Bold first.
+
+### 2.4 The colors
+
+`Color.jl` defines 1077 color constants with 1076 names, because
+`color_pastel_orange` occurs two times. They are curated ramps (slate, zinc,
+indigo, solarized, …) and a list of color names. The themes take their defaults
+from the ramps.
+
+### 2.5 The theme model
+
+- A domain declares its theme with `@theme struct`. There are 29 themes, all in
+  projectured-julia. The type of a field chooses its scale: `StyleFont` and
+  `StyleText` take the font scale, `Spacing` the spacing scale, and so on.
+- A projection takes its scaled theme with `get_scaled_theme!(appearance, T)`
+  while it is built. A constructor takes a theme as a keyword with a default,
+  for tests and examples.
+- A font in a document is as its author set it, and a scale does not change it
+  (`plan/done/zoom-and-theme-controls.md`, section 4.3).
+- `scale_length` keeps a length above 0 at 1 or more.
+
+### 2.6 Fixed values outside a theme
+
+An inventory of 2026-10-02 counted the style values that are fixed outside a
+`@theme` declaration:
+
+| Repository | Fonts | Colors | `StyleText` | Fixed lengths |
+| --- | --- | --- | --- | --- |
+| projectured-julia, `source/` | 44 | about 300 | 50 | about 40 constants, about 150 keyword defaults |
+| projectured-julia, `example/` | 102 | about 110 | 4 | about 90 |
+| omnet-julia | 116 | 156 | 79 | 20 constants, about 200 keyword defaults |
+| inet-julia | 6 | 11 | 3 | 1 |
+
+- omnet-julia and inet-julia declare no theme. The NED, INI, test file and
+  result views of omnet-julia fix Ubuntu Mono 24, so the font scale does not
+  reach them. `NedToSyntax.jl` alone holds 43 fonts and 43 colors. The other
+  views of omnet-julia use the themes of projectured-julia.
+- In projectured-julia, most fixed colors are in `WidgetToGraphics.jl` (92),
+  `SqlToSyntax.jl` (32), `JuliaToSyntax.jl` (18) and `GraphicsDocument.jl`
+  (18).
+- Some fonts are fixed in a projection and do not follow the font scale, for
+  example `_PROMPT_STYLE` in `EvaluatorToWidget.jl`, the fonts of
+  `ConversationToWidget.jl`, `FaultLogOverlay.jl` and `GestureLogOverlay.jl`.
+- Some fixed values are not a style. `color_transparent` means "no paint". About
+  140 keyword defaults are `= 0`, which means "no fixed size". `indentation` in
+  `RstToSyntax.jl` is a depth of recursion.
+
+### 2.7 Related plans
+
+`plan/pending/line-spacing-from-the-theme.md` is not started. No theme sets the
+line spacing, so every text has single spacing. VS Code draws its 14 px editor
+text on lines 19 px apart.
+
+## 3. The design
+
+### 3.1 A font is a description
+
+A font says its family, its size, its weight and its slant:
+`StyleFont("Ubuntu Mono", 14; weight = 700)`. CSS, fontconfig and Qt's `QFont`
+use this model.
+
+- The weight is a CSS number from 100 to 900: 400 is regular, 700 is bold. The
+  OpenType `usWeightClass` uses the same scale.
+- The slant is upright or italic. An oblique face counts as italic when the
+  family has no italic face.
+- The size stays an `Int` in logical pixels.
+- Two equal descriptions are equal values, as two equal fonts are now. There is
+  no cache of instances (D5).
+- The exact names of the fields and the functions follow
+  `documentation/rule/naming-rules.md` and are fixed at step F2.
+
+### 3.2 The registry of font faces
+
+- The registry is a table from family, weight and slant to the name of a file.
+  It holds the bundled faces of `asset/font/`: Ubuntu (light, regular, medium,
+  bold, each upright and italic), Ubuntu Condensed, Ubuntu Mono, DejaVu Sans,
+  DejaVu Sans Mono, Liberation Sans, Liberation Serif, Liberation Mono,
+  Inconsolata, Lucide and Noto Emoji.
+- The table is a constant in code. It holds file names, not paths, and
+  `font_file` resolves a name at run time, as now.
+- The lookup follows the font matching of CSS: the family, then the nearest
+  weight, then the slant. An italic that the family does not have falls back to
+  upright. A family that the table does not hold falls back to a default family.
+- The fallback chain for a missing glyph comes from the registry.
+- Only the measure and the backends ask the registry: SDL, PDF, web, video, and
+  `MathToGraphics.jl`. A projection never asks it.
+- The SDL handle cache and the PDF font embed stay keyed by the file. Two
+  descriptions can find one file, for example weight 500 and weight 400 in a
+  family with no medium face.
+
+### 3.3 A theme holds base fonts and text roles
+
+This section depends on question Q1.
+
+- A theme that draws text holds its base fonts: `font` for proportional text
+  and `code_font` for monospace text, each with a family and a size.
+- A text field holds a role: a color, a weight, a slant, a relative size with
+  the default 1.0, and the base font it starts from.
+- The scaled theme computes the final `StyleText` of each role from its base
+  font, so the printers do not change.
+- The Markdown headings become 2.0, 1.5, 1.25 and 1.0 times the body text, as
+  in GitHub.
+- The appearance tab shows the family and the size of a base font one time for
+  each theme.
+- `@theme` needs a field that it computes from two fields: the base font and the
+  role. Now each scaled field reads only its own base value.
+
+### 3.4 Every style value comes from a theme
+
+Each fixed value of section 2.6 is one of three kinds:
+
+- **A style of a projection.** It becomes a field of the theme of its domain.
+  A domain that has no theme gets one. Examples: the prompt of the evaluator,
+  the fonts of the conversation, the padding of the window menu, the colors of
+  `SqlToSyntax.jl` and `JuliaToSyntax.jl`.
+- **The content of a document.** A font, a color or a size that the author of a
+  document gives stays in the document: the examples, `WidgetSpinBox(width =
+  80)`, a text that a document constructor makes. It is written with a font
+  description, at the new sizes. Question Q4 is about this kind.
+- **Not a style.** `color_transparent`, a `0` that means "no fixed size", a
+  depth of recursion, a protocol constant.
+
+omnet-julia gets themes for its NED, INI, test file, result and workbench
+views. inet-julia gets a theme for the packet diagram. They declare `@theme` in
+their own repository, and the `Appearance` holds them by type, as any theme.
+
+### 3.5 The guard
+
+A static test in each repository, beside the layering guard and the naming
+guard, fails when one of these occurs outside an allowed place:
+
+- a font description, a palette color, `StyleColor(` or `StyleText(`;
+- `Inset(`, `Spacing(`, `Radius(`, `LineWidth(`, `ControlSize(` or `IconSize(`
+  with a number.
+
+The allowed places are a `@theme` declaration, a preset function of a theme,
+the palette, the registry, the examples and the tests. A line in a document
+constructor that sets content carries the marker
+`# @style: content of the document`, as `# @positional:` marks an exception to
+the argument count. `color_transparent` is allowed everywhere. The guard does
+not read bare numbers. Step T1 classifies them one time, and a review covers
+them after that.
+
+### 3.6 The default values
+
+The reference is VS Code on Linux at the density 1 (D1).
+
+- The interface text is Ubuntu 13 px.
+- The code text is 14 px. Ubuntu Mono has glyphs 0.5 em wide and DejaVu Sans
+  Mono 0.6 em, so Ubuntu Mono 14 looks smaller than the 14 px of VS Code. Step V1
+  shows Ubuntu Mono 14, 15 and 16 and DejaVu Sans Mono 14, and the owner chooses.
+- The prose text of Markdown, reStructuredText and books is 14 px.
+- If the owner takes question Q2: code lines 1.35 times the font size, as VS
+  Code on Linux (19 px for 14 px), prose 1.5, widgets single.
+
+A first proposal for `WidgetTheme`. Step V1 shows it in images, and the owner
+chooses:
+
+| Field | Now | Proposal | Reference |
+| --- | --- | --- | --- |
+| `font` | Ubuntu 20 | Ubuntu 13 | VS Code interface 13 |
+| `font_bold` | Ubuntu Bold 20 | Ubuntu Bold 13 | |
+| `font_small` | Ubuntu 18 | Ubuntu 11 | VS Code badge 11 |
+| `control_padding` | 9, 9, 14, 14 | 5, 5, 10, 10 | VS Code button 26 px high |
+| `container_padding` | 16 | 12 | |
+| `compact_padding` | 3, 3, 10, 10 | 2, 2, 6, 6 | VS Code badge 3/6 |
+| `item_gap` | 4 | 2 | |
+| `title_gap` | 6 | 4 | |
+| `label_gap` | 6 | 6 | |
+| `section_gap` | 10 | 8 | |
+| `bar_gap` | 12 | 8 | VS Code menu bar item 8 |
+| `indent` | 22 | 12 | VS Code tree indent 8 |
+| `radius` | 8 | 6 | VS Code 2 to 4, GNOME 6 |
+| `radius_small` | 4 | 3 | |
+| `indicator_size` | 18 | 16 | VS Code checkbox 18, GNOME 14 |
+| `indicator_dot` | 5 | 4 | |
+| `switch_track` | 44×24 | 36×20 | macOS 38×22 |
+| `switch_knob_padding` | 3 | 2 | |
+| `slider_height` | 24 | 20 | |
+| `slider_knob` | 9 | 7 | |
+| `progress_height` | 8 | 4 | |
+| `scroll_bar_thickness` | 12 | 10 | VS Code lists 10, editor 14 |
+| `tree_chevron_column` | 18 | 16 | VS Code twistie 16 |
+
+The other fields keep their values. The spacings of the other themes, such as
+`MarkdownTheme.block_gap` and the chart spacings, are set at step V2 with the
+same reference.
+
+## 4. Questions for the owner
+
+Each answer below is my recommendation, not a decision.
+
+1. **Q1. Base fonts and roles, or a full font in each field?** Section 3.3
+   describes base fonts and roles. The other choice keeps a full font in each
+   field and only replaces the constants. That choice is smaller, but a change of
+   the code size stays 16 changes in the syntax theme alone. Recommendation: base
+   fonts and roles, Part R.
+2. **Q2. Does this plan take in `line-spacing-from-the-theme.md`?** The line
+   height is half of what makes code look dense: VS Code draws 14 px text on
+   19 px lines, and single spacing draws it on about 15 px lines. The themes of
+   this plan are the place for it. Recommendation: yes, as step V2.
+3. **Q3. Which families are the defaults?** Recommendation: Ubuntu for the
+   interface, as now. It is bundled, so the metrics are the same on each
+   machine, and the measure needs a file. The code family follows the images of
+   step V1. A system font is not in this plan.
+4. **Q4. Fonts in documents.** One choice keeps a font in the content of a
+   document, marked for the guard. The other choice lets a text without a font
+   take the font of the theme of the projection that prints it, as HTML text
+   takes its font from the style sheet. Recommendation: keep the font in the
+   content now. The second choice changes the text documents and every reader of
+   `TextString.font`, so it needs its own plan.
+5. **Q5. Saved appearance files with a font as a file name.** Recommendation:
+   drop that form. A key that is not known is ignored and the default applies.
+   The owner has no saved file.
+
+## 5. The decision log
+
+- **D1** (2026-10-02). The reference is VS Code: interface text 13 px, editor
+  text 14 px. The owner: "we can do the same as VS code around".
+- **D2** (2026-10-02). omnet-julia and inet-julia follow in the same work.
+- **D3** (2026-10-02). Every scale stays at 100%. The new look is in the base
+  values of the themes. The spacings are the defaults of a desktop program.
+- **D4** (2026-10-02). Every place takes its fonts and sizes from a theme, with
+  a sensible default.
+- **D5** (2026-10-02). A font is a description, and a registry of font faces
+  finds its file. There is no cache of instances. The colors stay palette data,
+  and only a theme default or a preset names a palette color.
+- **D6** (2026-10-02). The recorded videos do not need to match.
+- **D7** (2026-10-02). The density probe does not change.
+
+## 6. Steps
+
+The work is done in a worktree of each repository. Each step is one commit.
+Parts F, R and T change no pixel, and section 7.1 checks each of their steps.
+Part V changes the look. When a step changes a name that omnet-julia or
+inet-julia uses, the same step changes them, so that they always load.
+
+### Part F: the font description and the registry
+
+- [ ] **F1.** The registry of the bundled faces and its lookup, with tests. No
+  caller yet.
+- [ ] **F2.** `StyleFont` becomes the description. The twelve readers of
+  `font.filename` ask the registry. The 143 constants stay, now defined as
+  descriptions, so their callers do not change. `save_appearance!` and
+  `load_appearance!` write and read the family, the weight, the slant and the
+  size.
+- [ ] **F3.** The fallback chain comes from the registry.
+- [ ] **F4.** The appearance tab chooses a family, a weight, a slant and a size,
+  in place of the steps through the files.
+- [ ] **F5.** Each use of a font constant becomes a description, in all three
+  repositories. The 143 constants and their exports go.
+
+### Part R: base fonts and text roles (if Q1 is yes)
+
+- [ ] **R1.** `@theme` computes a role field from the base font and the role.
+  Tests with `test_theme`.
+- [ ] **R2.** Each of the 29 themes gets its base fonts and its roles. The roles
+  give the old sizes, for example a Markdown heading of 36 px is 1.8 times
+  20 px.
+
+### Part T: every style value in a theme
+
+- [ ] **T1.** Classify each fixed value of section 2.6 as a style, content or
+  not a style. Record the lists in section 10. The owner reviews the lists of
+  content and of "not a style".
+- [ ] **T2.** projectured-julia: each style value moves into a theme. A domain
+  with no theme gets one.
+- [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
+  workbench views, and the values move into them.
+- [ ] **T4.** inet-julia: the theme of the packet diagram.
+- [ ] **T5.** The guard of section 3.5 in each repository.
+
+### Part V: the new defaults
+
+- [ ] **V1.** Images of a fixed set of views at the density 1 and 2: the IDE
+  window with the explorer, a JSON document, Julia code, a Markdown document,
+  the settings tab, the appearance tab and a chart, and the omnet workbench with
+  a NED file. Each view in three looks: now, the look of the owner (0.8 and
+  0.67), and the proposal of section 3.6 with the candidates for the code font.
+  The images go on one page, and the owner chooses.
+- [ ] **V2.** The chosen values go into every theme, with the line spacing if Q2
+  is yes.
+- [ ] **V3.** The tests that check a pixel size follow, for example the line box
+  of 23 px for Ubuntu 20. The count of broken tests does not change.
+- [ ] **V4.** The owner looks at the live editor at 100% on the screen of
+  section 2.1.
+
+### Part G: the guides
+
+- [ ] **G1.** The documents of the style and widget slices in
+  `documentation/package/`, the new-domain guide (a domain declares a theme and
+  writes no font or color in a projection), and the guard in the testing guide.
+
+## 7. Checks
+
+### 7.1 No pixel changes in Parts F, R and T
+
+Write an image of each example offscreen, at the scale 1 and 2, on `main` and on
+the branch. Hash the files and compare the two lists. A difference is a fault of
+the step. The same check runs for omnet-julia and inet-julia against their
+`main`.
+
+### 7.2 Tests
+
+Each step runs the narrowest tests that cover it: `test_theme`,
+`test_font_metrics`, `test_font_fallback`, `test_appearance_file`,
+`test_appearance_tab`, the widget tests, and the layering guard of each package
+that a step touches. Step F5 and Part V also run `test_printers()`. omnet-julia
+runs `Pkg.precompile` and the tests of each package that a step touches.
+
+## 8. Risks
+
+- Step F2 changes a type that every package uses. The three repositories land
+  together, and every package precompiles again.
+- A branch from before this work conflicts in each theme file and in each file
+  that names a font constant.
+- The measure caches by font. A wrong key gives wrong widths and no error.
+  Section 7.1 finds it.
+- Ubuntu Mono 14 can look smaller than the 14 px of VS Code. Step V1 decides.
+- `FixedMeasure` tables in the tests are keyed by font constants. Step F5 changes
+  them.
+
+## 9. Not in this plan
+
+- System fonts in the registry: fontconfig, DirectWrite, Core Text.
+- A text size that follows the settings of the desktop.
+- A dark theme that follows the operating system.
+- A text without a font that takes the font of the theme (Q4), if the owner keeps
+  the font in the content.
+
+## 10. Findings during the work
+
+None yet.
