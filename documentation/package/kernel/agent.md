@@ -301,6 +301,8 @@ Concrete backends live outside `main`: `AnthropicLlm` in the opt-in
 (PAR-NO-TEST-DOUBLES-IN-MAIN). A caller names a backend by symbol,
 `make_llm(:ollama; model = …)`, so nothing in the core stack names a concrete
 backend and `get_llm_backend_names()` says which packages are loaded.
+[anthropic.md](../adapter/anthropic/anthropic.md) and
+[ollama.md](../adapter/ollama/ollama.md) describe the two adapters.
 
 ### Choose a backend
 

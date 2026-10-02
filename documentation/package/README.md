@@ -81,7 +81,8 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 
 | Package | Document | What it holds |
 | --- | --- | --- |
-| `ProjecturedAnthropic`, `ProjecturedOllama` | [llm.md](kernel/llm/llm.md) | the two language model backends |
+| `ProjecturedAnthropic` | [anthropic.md](adapter/anthropic/anthropic.md) | the language model backend for a Claude model over the Anthropic API |
+| `ProjecturedOllama` | [ollama.md](adapter/ollama/ollama.md) | the language model backend for a model on a local Ollama server, and its meaning vectors |
 | `ProjecturedOpenRouter` | [openrouter.md](adapter/openrouter/openrouter.md) | the relevance model on the Decisions API of OpenRouter |
 | `ProjecturedMCP` | [mcp.md](adapter/mcp/mcp.md) | the MCP server |
 | `ProjecturedTulip` | [tulip.md](adapter/tulip/tulip.md) | the constraint solver of the layout |

@@ -1,6 +1,6 @@
 # The assistant
 
-> **Kind:** design · **Status:** current · **Stands on:** [conversation.md](../conversation/conversation.md), [agent.md](../../kernel/agent.md), [llm.md](../../kernel/llm/llm.md)
+> **Kind:** design · **Status:** current · **Stands on:** [conversation.md](../conversation/conversation.md), [agent.md](../../kernel/agent.md), [anthropic.md](../../adapter/anthropic/anthropic.md), [ollama.md](../../adapter/ollama/ollama.md)
 
 The assistant slice of `ProjecturedPlatform` puts a chat with a model beside the panes of a window: the `Assistant` document, the turn that streams a reply and runs tools, and the pane that shows the transcript over the composer. This document says how a turn uses the `tool`, `llm` and `agent` layers of the kernel, how a conversation becomes the messages of a request, and what does not work yet. [assistant-guide.md](../../../guide/assistant-guide.md) says how to run it.
 
@@ -79,7 +79,7 @@ A copy of an assistant is a fork: it has the conversation so far and a draft of 
 
 ## How it fits
 
-The assistant slice depends on the kernel and on the conversation, collection, domain, natural, layout, primitive, projection, serialization, style, text and widget slices of `ProjecturedPlatform`. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, and [llm.md](../../kernel/llm/llm.md) describes both.
+The assistant slice depends on the kernel and on the conversation, collection, domain, natural, layout, primitive, projection, serialization, style, text and widget slices of `ProjecturedPlatform`. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, which [ollama.md](../../adapter/ollama/ollama.md) and [anthropic.md](../../adapter/anthropic/anthropic.md) describe.
 
 The shell slice puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). The [application slice](../application/application.md) puts the explorer, the files and the assistant in one pane tree.
 

@@ -29,7 +29,7 @@ run_editor!(make_editor(document, projection; backend); mcp = true)
 - `render_mcp_tools(editor, tools)` makes one `MCPTool` for each `Tool`. The handler of each is a closure over the editor and the tool. It answers the text of the tool as a `TextContent`, which has no media type, so the `result_mime_type` of a tool does not reach the client.
 - `render_mcp_resources(resources)` makes one `MCPResource` for each `Resource`. Its data provider calls the provider of the resource and returns the text as `TextResourceContents`.
 
-The assistant in the window uses the same `ToolSet`, so a tool that a program registers before the server starts reaches both. The kernel `Tool` has no wire format: this package renders it for MCP, and each `Llm` adapter renders it for its provider; see [llm.md](../../kernel/llm/llm.md).
+The assistant in the window uses the same `ToolSet`, so a tool that a program registers before the server starts reaches both. The kernel `Tool` has no wire format: this package renders it for MCP, and each `Llm` adapter renders it for its provider; see [anthropic.md](../anthropic/anthropic.md) and [ollama.md](../ollama/ollama.md).
 
 ### On which task a tool runs
 
