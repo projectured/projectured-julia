@@ -164,7 +164,7 @@ function _make_part_region(pane, graphics; x::Cell, y::Cell, origin_x::Cell = Ce
                            layout::LayoutDirection = layout_none)
     out = pane.output
     content = _get_part_content(pane)
-    cox, coy = _content_offset(pane.projection, pane.input)
+    cox, coy = _content_offset(get_content_iomap(pane).projection, pane.input)
     graphics_x = Cell(@computation Int32(cox - pad_x - bw + Int(content.x) - Int(origin_x[])))
     graphics_y = Cell(@computation Int32(coy - pad_y - bw + Int(content.y) - Int(origin_y[])))
     canvas = GraphicsCanvas(graphics_x, graphics_y, Cell(Int32(0)), Cell(Int32(0)), graphics,
@@ -182,8 +182,8 @@ end
 # table.
 function _read_cells_wheel(table, pane, x::Int, y::Int, evt::MouseScroll)
     (0 <= evt.x < Int(table.w) && 0 <= evt.y < Int(table.h)) || return nothing
-    cox, coy = _content_offset(pane.projection, pane.input)
-    tx, ty = _inset_total(pane.projection, pane.input)
+    cox, coy = _content_offset(get_content_iomap(pane).projection, pane.input)
+    tx, ty = _inset_total(get_content_iomap(pane).projection, pane.input)
     view_w = max(1, Int(pane.output.w) - tx)
     view_h = max(1, Int(pane.output.h) - ty)
     point_x = clamp(evt.x - x, cox, cox + view_w - 1)
@@ -958,7 +958,7 @@ end
 # A point of the pane of a part, in the coordinates of the rules of that part.
 function _get_rule_point(st::WidgetTablePartsState, pane, x::Int, y::Int)
     content = _get_part_content(pane)
-    cox, coy = _content_offset(pane.projection, pane.input)
+    cox, coy = _content_offset(get_content_iomap(pane).projection, pane.input)
     (x - cox + st.pad_x + st.bw - Int(content.x), y - coy + st.pad_y + st.bw - Int(content.y))
 end
 

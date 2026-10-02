@@ -810,6 +810,7 @@ end
 # target of a report this projection answers.
 function _pane_node_for(iomap, widget)
     iomap === nothing && return nothing
+    iomap = get_content_iomap(iomap)
     # The children first, then this node. A tree prints *as* its root, so it
     # shares that widget — asking the tree first would answer every group's
     # report with the tree.

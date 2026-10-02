@@ -521,6 +521,7 @@ end
 # the operation the part said. A card this walk does not find is not the
 # transcript's, and its operation travels unchanged.
 function _find_fold_operation(iomap, card)
+    iomap = get_content_iomap(iomap)
     if iomap isa ConversationPartToWidgetIoMap
         for (folded, operation) in iomap.folds
             folded === card && return operation

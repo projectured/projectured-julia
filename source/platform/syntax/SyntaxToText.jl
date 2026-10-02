@@ -360,7 +360,7 @@ function _child_elem_range(iomap::SyntaxCompoundToTextIoMap, child_i::Int, tail)
     step = peel_child_step(tail)
     step === nothing && return nothing
     gj, gtail = step
-    cim = iomap.child_iomaps[child_i]
+    cim = get_content_iomap(iomap.child_iomaps[child_i])
     cim isa SyntaxCompoundToTextIoMap || return nothing
     sub = _child_elem_range(cim, gj, gtail)
     sub === nothing && return nothing
@@ -711,7 +711,8 @@ end
 # too. Records the element range the child occupies.
 function _splice_child!(buf::SpliceBuffer, cim, widen::Bool)
     base = length(buf.elements) + 1
-    child_iset = cim isa SyntaxCompoundToTextIoMap ? Set(cim.indent_indices) : Set{Int}()
+    content = get_content_iomap(cim)
+    child_iset = content isa SyntaxCompoundToTextIoMap ? Set(content.indent_indices) : Set{Int}()
     for (j, s) in enumerate(cim.output.elements)
         if j in child_iset && widen
             s = _widen_indent_span(buf.deco, (buf.nid, :widen, objectid(cim.input), j),
@@ -973,7 +974,7 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
 
     for (i, r) in enumerate(iomap.child_elem_ranges)
         if j in r
-            cim = iomap.child_iomaps[i]
+            cim = get_content_iomap(iomap.child_iomaps[i])
             if cim isa SyntaxCompoundToTextIoMap
                 # Delegate the child-local element click to the child's resolver.
                 inner = _resolve_click(cim.projection, cim, gesture, _text_elem_path(j - r.start + 1, c))

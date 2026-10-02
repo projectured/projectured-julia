@@ -17,6 +17,7 @@ that a session loads, and a session decides what it holds by what it loads:
 """
 module ApplicationModule
 
+using ..GraphicsModule
 using ..KernelModule
 using ..AssistantModule
 using ..CollectionModule

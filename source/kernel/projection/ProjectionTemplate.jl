@@ -1400,6 +1400,7 @@ function find_template_value_retype(iomap::RuleIoMap, reference)
     focused = _focused_child(w, iomap, reference)
     focused === nothing && return nothing
     child, steps = focused
+    child = get_content_iomap(child)
     child isa RuleIoMap || return nothing
     rest = reference
     for _ in steps
@@ -1459,8 +1460,9 @@ function _read_override_gesture(iomap::RuleIoMap, evt, claimed)
     sel = getfield(input, :selection)[]
     if sel !== nothing
         fc = _focused_child(iomap.wiring, iomap, sel)
-        if fc !== nothing && fc[1] isa RuleIoMap
+        if fc !== nothing && get_content_iomap(fc[1]) isa RuleIoMap
             child, steps = fc
+            child = get_content_iomap(child)
             child_op = _read_override_gesture(child, evt, claimed)
             child_op === nothing || return reroot_operation(child_op, steps)
         end

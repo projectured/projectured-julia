@@ -1825,7 +1825,8 @@ function _edge_path(iomap::MathIoMap, first::Bool)
     children = _math_children(iomap)
     isempty(children) && return EmptyReference()
     child = first ? children[1] : children[end]
-    inner = child.iomap isa MathIoMap ? _edge_path(child.iomap, first) : EmptyReference()
+    content = get_content_iomap(child.iomap)
+    inner = content isa MathIoMap ? _edge_path(content, first) : EmptyReference()
     _prepend(child.steps, inner)
 end
 

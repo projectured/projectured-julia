@@ -239,7 +239,10 @@ function _app_find_view_trees(iomap, found = Any[], seen = IdDict())
     seen[iomap] = true
     output = get_iomap_output(iomap)
     output = output isa Cell ? output[] : output
-    output isa WidgetScrollPane && output.content isa WidgetTree && push!(found, output.content)
+    # A wrapper of an IoMap, such as a fault barrier, shows the output of the
+    # IoMap that it wraps, so one tree is found once.
+    output isa WidgetScrollPane && output.content isa WidgetTree &&
+        !any(tree -> tree === output.content, found) && push!(found, output.content)
     for field in fieldnames(typeof(iomap))
         value = getfield(iomap, field)
         value = value isa Cell ? value[] : value

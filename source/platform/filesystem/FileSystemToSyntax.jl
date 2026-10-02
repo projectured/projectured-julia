@@ -230,9 +230,13 @@ function __init__()
     register_natural_syntax!(:filesystem, (; appearance) -> Pair{Type,Any}[
         FileSystemDocument => FileSystemToSyntax(; theme = get_scaled_theme!(appearance, FileSystemTheme))])
     register_natural_graphics!(:workspace, (; measure, appearance) -> Pair{Type,Any}[
-        WorkspaceDocument => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
-                                                RecursiveProjection(FileSystemToWidget()),
-                                                RecursiveProjection(WidgetToGraphics(; measure = measure,
-                                                                                     theme = get_scaled_theme!(appearance, WidgetTheme)))),
+        WorkspaceDocument => ChainingProjection(
+            RecursiveProjection(WorkspaceToFileSystem()),
+            RecursiveProjection(FaultCatchingProjection(inner = FileSystemToWidget(),
+                                                        substitute = FaultToWidget())),
+            RecursiveProjection(FaultCatchingProjection(
+                inner = WidgetToGraphics(; measure = measure,
+                                         theme = get_scaled_theme!(appearance, WidgetTheme)),
+                substitute = FaultToGraphics()))),
     ])
 end

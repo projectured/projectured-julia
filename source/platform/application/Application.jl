@@ -157,25 +157,34 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         # overrides it for one reason: what a file opens WITH is the
         # application's choice, and a slice cannot know that this application
         # gives every file it opens a history.
+        # The file system stage has no mark of its own, so a fault in it costs the
+        # workspace, at the barrier of the renderer that draws it.
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
-            RecursiveProjection(FileSystemToWidget(
-                open_file = path -> OpenFileOperation(path;
-                                                      wrap = make_history_wrap(settings)))),
-            RecursiveProjection(WidgetToGraphics(; measure = measure,
-                                                 theme = get_scaled_theme!(appearance, WidgetTheme)))),
+            RecursiveProjection(FaultCatchingProjection(
+                inner = FileSystemToWidget(
+                    open_file = path -> OpenFileOperation(path; wrap = make_history_wrap(settings))),
+                substitute = FaultToWidget())),
+            RecursiveProjection(FaultCatchingProjection(
+                inner = WidgetToGraphics(; measure = measure,
+                                         theme = get_scaled_theme!(appearance, WidgetTheme)),
+                substitute = FaultToGraphics()))),
         # A tab of its own: the pane group hands the assistant's own split pane
         # to a fresh renderer, rather than re-entering the one already dispatching
         # on it — a tab's content is read through `print_child`, which does not
         # reduce a projection's own output to a fixpoint the way a top-level
         # print does, so a bare `Assistant => AssistantToWidgetSplitPane()` row
         # would hand the tab a widget, not the graphics it draws.
-        Assistant         => ChainingProjection(RecursiveProjection(AssistantToWidgetSplitPane()),
+        Assistant         => ChainingProjection(RecursiveProjection(FaultCatchingProjection(
+                                                    inner = AssistantToWidgetSplitPane(),
+                                                    substitute = FaultToWidget())),
                                                 NaturalToGraphics(measure = measure, extra = conversation_rows,
                                                                   appearance = appearance)),
         conversation_rows...,
         # A tab title and a plain text file are prose, not a quoted string.
-        PrimitiveDocument => ChainingProjection(RecursiveProjection(PrimitiveToText()),
+        PrimitiveDocument => ChainingProjection(RecursiveProjection(FaultCatchingProjection(
+                                                    inner = PrimitiveToText(),
+                                                    substitute = FaultToText())),
                                                 text_to_graphics),
     ]
 end
@@ -268,7 +277,9 @@ _make_assistant_factory(assistant::Assistant) =
 # row, so the renderer draws them without this application naming them.
 function _make_application_pane_projection(content, measure, appearance::Appearance)
     renderer = NaturalToGraphics(measure = measure, extra = content, appearance = appearance)
-    ChainingProjection(RecursiveProjection(PaneToWidget()), renderer)
+    ChainingProjection(RecursiveProjection(FaultCatchingProjection(inner = PaneToWidget(),
+                                                                   substitute = FaultToWidget())),
+                       renderer)
 end
 
 """

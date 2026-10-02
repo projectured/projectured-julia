@@ -73,11 +73,20 @@ what is drawn. `appearance` is the `Appearance` of the editor, whose syntax and
 text themes the stages take.
 """
 make_natural_prose_graphics(; measure::TextMeasure, appearance::Appearance) = ChainingProjection(
-    RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
-    RecursiveProjection(SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme))),
+    _make_natural_syntax_stages(appearance)...,
     WordWrapping(measure = measure),
     TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)),
 )
+
+# The two recursive stages of the fabric, each with a barrier at its recursion
+# point, so a fault costs one node of the syntax tree or of its text.
+_make_natural_syntax_stages(appearance::Appearance) = (
+    RecursiveProjection(FaultCatchingProjection(
+        inner = TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance)),
+        substitute = FaultToSyntax())),
+    RecursiveProjection(FaultCatchingProjection(
+        inner = SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme)),
+        substitute = FaultToText())))
 
 # The rows this package fills the natural renderer's fallback with. The four
 # editing states are here and not in the renderer because only these leaves can
@@ -89,8 +98,7 @@ make_natural_prose_graphics(; measure::TextMeasure, appearance::Appearance) = Ch
 # reflected struct.
 function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearance)
     fabric = ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
-        RecursiveProjection(SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme))),
+        _make_natural_syntax_stages(appearance)...,
         TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)),
     )
     Pair{Type,Any}[

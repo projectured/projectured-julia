@@ -189,7 +189,10 @@ function NaturalToGraphics(; measure::TextMeasure,
         ],
     )
 
-    RecursiveProjection(TypeDispatchingProjection(table))
+    # A barrier at the one recursion point: a fault costs one widget, one layout
+    # or one document of a domain, and it draws as a line of graphics.
+    RecursiveProjection(FaultCatchingProjection(inner = TypeDispatchingProjection(table),
+                                                substitute = FaultToGraphics()))
 end
 
 # The projection of an editor on a document when the caller names none: the

@@ -50,6 +50,7 @@ using ProjecturedPlatform.ProjectionAlgebraModule: WindowInputUnwrappingProjecti
 using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedKernel.ProjectionModule: map_reference_backward
 using ProjecturedKernel.ProjectionModule: map_reference_forward
+using ProjecturedKernel.ProjectionModule: get_content_iomap
 using ProjecturedKernel.EventModule: KeyDown
 using ProjecturedKernel.EventModule: ModifierKeys
 using ProjecturedPlatform.ReflectionModule

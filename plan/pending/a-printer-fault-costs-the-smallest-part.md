@@ -532,9 +532,63 @@ runs2[]               # 3: each pull runs the computation again
         report, which holds the tooltip and the menu. `record_computation_fault!`
         takes `traceback` as a keyword, as `record_fault!` does, because the
         argument guard takes four positional arguments as advice.
-  - [ ] 6b. A barrier at each recursion point of §6.7, and
+  - [x] 6b. A barrier at each recursion point of §6.7, and
         `get_content_iomap` where a reader or a printer checks the type of the
         IoMap of a child.
+        Done. Against cd427b547: `test_platform()` 84549 pass and 8 broken
+        (baseline 84522 and 8; the rest are the new fault tests);
+        `test_application()` 329 pass and 2 broken, as the baseline;
+        `test_json()` 220, as the baseline; `test_kernel()` 4117 pass and 2
+        broken. The first sweep found what a barrier around every node breaks,
+        and these fixed it:
+        - The IoMap of the barrier is one mutable struct whose field
+          `inner_iomap` holds the IoMap of the part, as other transparent
+          wrappers keep theirs, so a walk over the fields of IoMaps reaches the
+          part. It forwards every property that it does not have to that IoMap
+          while the part prints, so a parent that reads the grid of a pane and
+          the cells of the grid reads through the barrier. `@iomap` defines a
+          `getproperty` of its own, so the struct is a plain one.
+        - A parent reads `.output` through the barrier, so a mark shows, and the
+          projection of a child through `get_content_iomap`: `WidgetTableParts`
+          reads the margins of the projection of a pane.
+        - The grid functions that dispatch on `GridLayoutListIoMap` take any
+          IoMap and look through it: `get_grid_list_head`,
+          `get_grid_list_column_head`, `find_grid_list_row`,
+          `find_grid_list_cell`.
+        - The barrier maps a reference through the projection that its inner
+          IoMap names, as a transparent dispatcher does; through `p.inner` the
+          call was ambiguous between `TypeDispatchingProjection` and `RuleIoMap`.
+        - The input of a node can be a `Cell`, which the old `@iomap`
+          constructor tried to convert.
+        - Two tests looked at an IoMap of a child: the helper of the cell
+          editing test of `WidgetTable` looks through the barrier, and the
+          helper of the application test that finds the trees of the navigator
+          finds each tree once.
+        What was written:
+        - Barriers: the one recursion point of `NaturalToGraphics`
+          (`FaultToGraphics`); the two of the syntax fabric, in
+          `_fallback_rows` and `make_natural_prose_graphics`, through
+          `_make_natural_syntax_stages` (`FaultToSyntax`, `FaultToText`);
+          the pane stage of the application and of `make_tabs_projection`
+          (`FaultToWidget`), and the renderer of the tabs (`FaultToGraphics`);
+          the rows of the application for a workspace, the assistant and a
+          primitive; the two conversation rows; the workspace row of the file
+          system slice.
+        - No barrier: `WorkspaceToFileSystem`, whose output domain has no mark,
+          so its fault costs the workspace at the barrier of the renderer;
+          `make_natural_projection`, which serves a text export, where a fault
+          must fail loudly; the wrappers of the whole window (shell, scene,
+          clipboard, history) and the small pipelines of the overlays.
+        - `get_content_iomap` in `SyntaxToText` (three places),
+          `ProjectionTemplate` (two), the menu items of `WidgetToGraphics`,
+          `MathToGraphics`, `ConversationToWidget` and `PaneToWidget`.
+          `WidgetTableParts` needs none: `_content_offset` does not dispatch on
+          the projection.
+        - New slice edges to graphics, for `FaultToGraphics`: pane, file system
+          and application.
+        - `main` moved about 30 commits on (the wrappers of `build_editor`, the
+          umbrella extensions), and 13 files of this branch changed there too.
+          The branch is rebased after step 6c, and the tests run again.
   - [ ] 6c. The count of cells and objects for each node, before and after.
 - [ ] **Step 7: the renderer catch** around each element, with the frame time.
 - [ ] **Step 8: the documentation**: `fault.md` (the pull stack, the scope, the

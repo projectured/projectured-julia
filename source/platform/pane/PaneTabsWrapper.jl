@@ -28,8 +28,11 @@ function make_tabs_projection(projection; appearance::Appearance = Appearance(),
                           WidgetToGraphics(; measure = measure,
                                            theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch;
                           Any => NestingProjection(projection; recursion = IdentityProjection())]
-    ChainingProjection(RecursiveProjection(PaneToWidget()),
-                       RecursiveProjection(TypeDispatchingProjection(rows)))
+    ChainingProjection(
+        RecursiveProjection(FaultCatchingProjection(inner = PaneToWidget(),
+                                                    substitute = FaultToWidget())),
+        RecursiveProjection(FaultCatchingProjection(inner = TypeDispatchingProjection(rows),
+                                                    substitute = FaultToGraphics())))
 end
 
 """

@@ -83,23 +83,45 @@ end
 FaultCatchingProjection(; inner, substitute = nothing) =
     FaultCatchingProjection(inner, substitute)
 
-# What a barrier knows about the print of its part, which changes when a fault
-# comes and when the part prints again.
+# The IoMap of one part, and what the barrier knows about the print of that part,
+# which changes when a fault comes and when the part prints again.
 #
-# `fault` and `report` are `nothing` while the part prints. `report` is the mark
-# as a document, kept rather than made again on demand, because a selection names
-# it by identity: a report made for each press would name a different object every
-# time, and the selection would be lost on the next frame. `failed_computation` is
-# the function of the computation that threw, which a retry runs again, and
-# `nothing` for a fault in the print. `computation` computes the output of the
-# inner IoMap, and was made in the scope of the barrier. `is_noted` holds from the
-# fault until the part prints again, so a part whose cells fail twice goes on the
-# list once. `is_retrying` holds while a retry runs. `can_show_mark` is false
-# after the substitute failed to draw the mark. `enclosing` is the scope that held
-# when the barrier printed, the barrier of the part around this one, or `nothing`:
-# a fault that this barrier can not show goes there.
-mutable struct _FaultBarrierState
-    enclosing::Any
+# `output` is the one reactive field: it computes the output of the part, or
+# holds the mark, and `barrier.output` reads its value as the output of every
+# IoMap reads. `store`, `policy` and `noted` are the ones the printer context
+# held, because the reader and the maps get no context. `recursion` and
+# `context` are those of the print, because a retry prints again. `enclosing` is
+# the scope that held when the barrier printed, the barrier of the part around
+# this one, or `nothing`: a fault that this barrier can not show goes there.
+#
+# `inner_iomap` is the IoMap of the part, as a transparent wrapper keeps the IoMap
+# that it wraps, and `nothing` after a fault in the print. `computation` computes
+# its output, and was made in the scope of the barrier. `fault` and `report` are
+# `nothing` while the part prints. `report` is the mark as a document, kept
+# rather than made again on demand, because a selection names it by identity: a
+# report made for each press would name a different object every time, and the
+# selection would be lost on the next frame. `failed_computation` is the function
+# of the computation that threw, which a retry runs again, and `nothing` for a
+# fault in the print. `is_noted` holds from the fault until the part prints
+# again, so a part whose cells fail twice goes on the list once. `is_retrying`
+# holds while a retry runs. `can_show_mark` is false after the substitute failed
+# to draw the mark.
+#
+# While the part prints, the barrier adds nothing to it, so a property that the
+# barrier does not have is the property of the IoMap of the part: a parent that
+# reads the grid of a pane, or the cells of a grid, reads them through the
+# barrier as if it were not there. While the mark stands, the part has no such
+# property, and the read throws, in the computation of the parent.
+mutable struct FaultCatchingIoMap <: IoMap
+    const projection::Any
+    const input::Any
+    const output::Cell
+    const store::Any
+    const policy::Any
+    const noted::Any
+    const recursion::Any
+    const context::Any
+    const enclosing::Any
     inner_iomap::Any
     computation::Any
     fault::Any
@@ -110,37 +132,33 @@ mutable struct _FaultBarrierState
     can_show_mark::Bool
 end
 
-_FaultBarrierState(enclosing) =
-    _FaultBarrierState(enclosing, nothing, nothing, nothing, nothing, nothing, false, false,
-                       true)
+function Base.getproperty(barrier::FaultCatchingIoMap, name::Symbol)
+    name === :output && return getfield(barrier, :output)[]
+    hasfield(FaultCatchingIoMap, name) && return getfield(barrier, name)
+    getproperty(_get_printing_iomap(barrier, name), name)
+end
 
-# The fields are plain and not reactive on purpose: a projection in a reactive
-# field becomes a computation, and a reader that then calls it with no arguments
-# gets a different thing than it asked for. `GestureLogRecordingProjection` keeps
-# its filter the same way. `output` is the one reactive field: it computes the
-# output of the part, or holds the mark. `store`, `policy` and `noted` are the
-# ones the printer context held, because the reader and the maps get no context.
-# `recursion` and `context` are those of the print, because a retry prints again.
-@iomap struct FaultCatchingIoMap
-    projection::ImmutableCell{Any}
-    input::ImmutableCell{Any}
-    output::Cell
-    store::ImmutableCell{Any}
-    policy::ImmutableCell{Any}
-    noted::ImmutableCell{Any}
-    recursion::ImmutableCell{Any}
-    context::ImmutableCell{Any}
-    state::ImmutableCell{Any}
+Base.propertynames(barrier::FaultCatchingIoMap, private::Bool = false) =
+    _get_mark_report(barrier) === nothing && _get_inner_iomap(barrier) !== nothing ?
+        unique((fieldnames(FaultCatchingIoMap)...,
+                propertynames(_get_inner_iomap(barrier), private)...)) :
+        fieldnames(FaultCatchingIoMap)
+
+function _get_printing_iomap(barrier::FaultCatchingIoMap, name::Symbol)
+    inner = _get_inner_iomap(barrier)
+    (inner === nothing || _get_mark_report(barrier) !== nothing) &&
+        error("the part shows a fault mark and has no property `$name`")
+    inner
 end
 
 # Whether the barrier takes `exception` rather than let it go on.
 _is_fault_caught(policy::FaultPolicy, exception) =
     policy.is_barrier_enabled && !is_passthrough_exception(exception)
 
-_get_inner_iomap(barrier::FaultCatchingIoMap) = barrier.state.inner_iomap
+_get_inner_iomap(barrier::FaultCatchingIoMap) = getfield(barrier, :inner_iomap)
 
 # The mark of this part as a document, or `nothing` while the part prints.
-_get_mark_report(barrier::FaultCatchingIoMap) = barrier.state.report
+_get_mark_report(barrier::FaultCatchingIoMap) = getfield(barrier, :report)
 
 # While the part prints, the barrier adds nothing to its output, so a reader that
 # looks at the IoMap of a child sees the IoMap of the part. A mark is the barrier's
@@ -160,7 +178,8 @@ function print_document(p::FaultCatchingProjection, recursion, input, ctx)
                                  get_property(ctx, :fault_store, nothing),
                                  get_property(ctx, :fault_policy, make_strict_fault_policy()),
                                  get_property(ctx, :noted_barriers, nothing),
-                                 recursion, ctx, _FaultBarrierState(find_fault_scope()))
+                                 recursion, ctx, find_fault_scope(),
+                                 nothing, nothing, nothing, nothing, nothing, false, false, true)
     if barrier.policy.is_barrier_enabled
         printed = try
             _print_in_scope(barrier)
@@ -188,13 +207,12 @@ function _print_in_scope(barrier::FaultCatchingIoMap)
 end
 
 function _show_part!(barrier::FaultCatchingIoMap, inner, computation)
-    state = barrier.state
-    state.inner_iomap = inner
-    state.computation = computation
-    state.fault = nothing
-    state.report = nothing
-    state.failed_computation = nothing
-    state.is_noted = false
+    barrier.inner_iomap = inner
+    barrier.computation = computation
+    barrier.fault = nothing
+    barrier.report = nothing
+    barrier.failed_computation = nothing
+    barrier.is_noted = false
     getfield(barrier, :output)[] = computation
     nothing
 end
@@ -206,11 +224,10 @@ end
 # outside every `try`, so a substitute that throws goes on up as the fault of this
 # print.
 function _take_print_fault!(barrier::FaultCatchingIoMap, exception, traceback)
-    state = barrier.state
-    state.inner_iomap = nothing
-    state.computation = nothing
-    state.failed_computation = nothing
-    state.fault = if exception isa RecordedFaultException
+    barrier.inner_iomap = nothing
+    barrier.computation = nothing
+    barrier.failed_computation = nothing
+    barrier.fault = if exception isa RecordedFaultException
         make_fault_record(:print; origin = barrier.projection.inner,
                           reference = barrier.context.reference,
                           exception = exception.exception)
@@ -243,9 +260,9 @@ end
 # Put the barrier on the list of the editor once, so the next drain shows its mark
 # and the retry after an operation reaches it.
 function _note_barrier!(barrier::FaultCatchingIoMap)
-    state, noted = barrier.state, barrier.noted
-    (noted === nothing || state.is_noted) && return nothing
-    state.is_noted = true
+    noted = barrier.noted
+    (noted === nothing || barrier.is_noted) && return nothing
+    barrier.is_noted = true
     push!(noted, barrier)
     nothing
 end
@@ -253,13 +270,13 @@ end
 # The report is kept only when its mark is drawn, so a part whose mark failed to
 # draw still reads as a part that prints, and its faults go to the scope above.
 function _show_mark!(barrier::FaultCatchingIoMap)
-    state, p = barrier.state, barrier.projection
-    state.report === nothing || return nothing
-    report = FaultReport(state.fault;
+    p = barrier.projection
+    barrier.report === nothing || return nothing
+    report = FaultReport(barrier.fault;
                          retry = ReplaceViewStateOperation(RetryBarrierPrintOperation(barrier)))
     mark = p.substitute === nothing ? report :
            print_document(p.substitute, p.substitute, report, barrier.context).output
-    state.report = report
+    barrier.report = report
     getfield(barrier, :output)[] = mark
     nothing
 end
@@ -274,22 +291,21 @@ end
 # nothing would show the mark, so the barrier lets the fault go on.
 function record_computation_fault!(barrier::FaultCatchingIoMap, computation, exception;
                                    traceback)
-    state = barrier.state
-    state.is_retrying && return true
+    barrier.is_retrying && return true
     barrier.noted === nothing && return false
-    (state.report === nothing && state.can_show_mark) ||
+    (barrier.report === nothing && barrier.can_show_mark) ||
         return _record_in_enclosing_scope!(barrier, computation, exception; traceback)
-    state.is_noted && return true
-    state.fault = _take_fault(barrier.store, _get_fault_origin(barrier),
+    barrier.is_noted && return true
+    barrier.fault = _take_fault(barrier.store, _get_fault_origin(barrier),
                               barrier.context.reference, exception, traceback)
-    state.failed_computation = computation
+    barrier.failed_computation = computation
     _note_barrier!(barrier)
     true
 end
 
 function _record_in_enclosing_scope!(barrier::FaultCatchingIoMap, computation, exception;
                                      traceback)
-    enclosing = barrier.state.enclosing
+    enclosing = barrier.enclosing
     enclosing === nothing && return false
     record_computation_fault!(enclosing, computation, exception; traceback)
 end
@@ -302,9 +318,8 @@ function show_barrier_mark!(barrier::FaultCatchingIoMap)
         _show_mark!(barrier)
     catch exception
         _is_fault_caught(barrier.policy, exception) || rethrow()
-        state = barrier.state
-        state.can_show_mark = false
-        state.is_noted = false
+        barrier.can_show_mark = false
+        barrier.is_noted = false
         record_fault!(barrier.store, :print; origin = barrier.projection.substitute,
                       exception, traceback = catch_backtrace())
     end
@@ -312,16 +327,15 @@ function show_barrier_mark!(barrier::FaultCatchingIoMap)
 end
 
 function retry_barrier_print!(barrier::FaultCatchingIoMap)
-    state = barrier.state
-    state.report === nothing && return true
-    state.is_retrying = true
+    barrier.report === nothing && return true
+    barrier.is_retrying = true
     try
         printed = _try_part_again(barrier)
         printed === nothing && return false
         _show_part!(barrier, printed...)
         return true
     finally
-        state.is_retrying = false
+        barrier.is_retrying = false
     end
 end
 
@@ -330,15 +344,14 @@ end
 # fault in the print prints the part again, and reads its output, as its parent
 # reads it first.
 function _try_part_again(barrier::FaultCatchingIoMap)
-    state = barrier.state
     try
-        if state.inner_iomap === nothing || state.failed_computation === nothing
+        if barrier.inner_iomap === nothing || barrier.failed_computation === nothing
             inner, computation = _print_in_scope(barrier)
             inner.output
             return (inner, computation)
         end
-        state.failed_computation()
-        return (state.inner_iomap, state.computation)
+        barrier.failed_computation()
+        return (barrier.inner_iomap, barrier.computation)
     catch exception
         _is_fault_caught(barrier.policy, exception) || rethrow()
         return nothing
@@ -435,8 +448,12 @@ function _map_through_inner(p::FaultCatchingProjection, barrier::FaultCatchingIo
                             reference, map)
     inner = _get_inner_iomap(barrier)
     inner === nothing && return nothing
+    # A dispatcher answers the IoMap of the rule it chose, so the map goes to the
+    # projection that the inner IoMap names, as the dispatcher's own map does.
+    projection = get_iomap_projection(inner)
+    projection === nothing && (projection = p.inner)
     try
-        map(p.inner, inner, reference)
+        map(projection, inner, reference)
     catch exception
         _is_fault_caught(barrier.policy, exception) || rethrow()
         _record_unrecorded_fault!(barrier, :map, p.inner, reference, exception,

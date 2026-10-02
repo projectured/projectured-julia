@@ -2721,9 +2721,10 @@ end
 # The IO map of a menu item below the transparent wrappers of a host, such as a
 # reference dispatch, which keep the IO map that they wrap in `inner_iomap`.
 function _find_menu_item_iomap(iomap)
+    iomap = get_content_iomap(iomap)
     while !(iomap isa WidgetMenuItemToGraphicsCanvasIoMap)
         hasproperty(iomap, :inner_iomap) || return nothing
-        iomap = iomap.inner_iomap
+        iomap = get_content_iomap(iomap.inner_iomap)
     end
     iomap
 end
@@ -2731,15 +2732,19 @@ end
 # A laid-out item's advance along the main axis. A `WidgetMenuItem` knows its own
 # rendered width (its canvas is 0-sized — the size lives on the iomap); any other
 # widget carries it on its output canvas.
-_menu_item_width(cim) =
-    cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_width :
+function _menu_item_width(cim)
+    content = get_content_iomap(cim)
+    content isa WidgetMenuItemToGraphicsCanvasIoMap ? content.control_width :
         (cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0)
+end
 
 # The same item's extent across the main axis, so a padded item takes its whole
 # row and the next row starts below it.
-_menu_item_height(cim) =
-    cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_height :
+function _menu_item_height(cim)
+    content = get_content_iomap(cim)
+    content isa WidgetMenuItemToGraphicsCanvasIoMap ? content.control_height :
         (cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0)
+end
 
 # The extent that a bar reaches: the box parts in `box`, and each item of
 # `child_iomaps` at its place. A menu item and a toolbar item draw inside the size

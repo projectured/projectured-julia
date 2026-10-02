@@ -207,6 +207,8 @@ dependency.
 """
 get_grid_list_column_head(iomap::GridLayoutListIoMap) =
     iomap.state.column_head === nothing ? nothing : iomap.state.column_head[]
+get_grid_list_column_head(iomap::IoMap) =
+    get_grid_list_column_head(_get_grid_list_iomap(iomap))
 
 # The index of the column under `x`, counted from the head column, walking from
 # the head toward it, or `nothing` in a gap or past an end.
@@ -237,6 +239,9 @@ head, walked to and built on the way: the `x` of the cell in the grid, its `y`
 in the canvas of the row, and its IO map, which is `nothing` for an empty cell.
 `nothing` when a list ends before it.
 """
+find_grid_list_cell(iomap::IoMap, k::Integer, c::Integer) =
+    find_grid_list_cell(_get_grid_list_iomap(iomap), k, c)
+
 function find_grid_list_cell(iomap::GridLayoutListIoMap, k::Integer, c::Integer)
     state = iomap.state
     found = _find_grid_list_row(state, Int(k))

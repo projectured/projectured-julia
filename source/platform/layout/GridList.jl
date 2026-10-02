@@ -223,6 +223,17 @@ read is a dependency: a new head in `children` reaches the reader.
 """
 get_grid_list_head(iomap::GridLayoutListIoMap) = iomap.state.head[]
 
+# The grid of a list behind a wrapper of its IO map, such as a fault barrier at
+# the recursion point that printed the grid.
+function _get_grid_list_iomap(iomap::IoMap)
+    content = get_content_iomap(iomap)
+    content isa GridLayoutListIoMap ||
+        throw(ArgumentError("no grid of a list behind a $(typeof(iomap))"))
+    content
+end
+
+get_grid_list_head(iomap::IoMap) = get_grid_list_head(_get_grid_list_iomap(iomap))
+
 """
     find_grid_list_row(iomap::GridLayoutListIoMap, k) -> (canvas, entries, height) or nothing
 
@@ -234,6 +245,7 @@ the columns are a list, `entries` holds the cells built so far, by their index
 from the head column; `find_grid_list_cell` gives any one of them.
 """
 find_grid_list_row(iomap::GridLayoutListIoMap, k::Integer) = _find_grid_list_row(iomap.state, Int(k))
+find_grid_list_row(iomap::IoMap, k::Integer) = find_grid_list_row(_get_grid_list_iomap(iomap), k)
 
 # Row `k` as `(row canvas, cell entries, row height)`, walked to from the head
 # and built on the way, or `nothing` when the list ends before it.

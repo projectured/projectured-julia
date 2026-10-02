@@ -525,6 +525,7 @@ function test_widget_table_cell_editing()
     ]
     # A point four pixels inside the left edge of body cell (1, c).
     function get_cell_point(iomap, c)
+        iomap = get_content_iomap(iomap)
         if hasproperty(iomap, :geometry)
             g = iomap.geometry
             return (g.col_x[c] + g.grid_off_x + 4, g.row_y[2] + g.grid_off_y + 4)
