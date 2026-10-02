@@ -219,3 +219,11 @@ All the work is in a worktree, and each step is a commit.
    in the paragraphs after it; review fixed "markdown" to "Markdown". A helper
    `strip_code_marks` of the kernel tool layer drops the backticks of a
    docstring that the tabs show.
+7. **A description is closer to its field** (2026-10-02, the owner's request after
+   the first images). The grid has one `vertical_gap`, so a description stood
+   as far from the next field as from its own row. `GridLayout` takes
+   `row_gaps`, the gap above each row, with `nothing` for `vertical_gap`; a
+   weighted row shares what the gaps leave. The settings tab puts 0 above a
+   description and 12 between two settings; the appearance tab puts 0 above a
+   description and the section gap of the widget theme between two fields. The
+   combined tests give 1330 pass, and the images of all 105 examples stay equal.
