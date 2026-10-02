@@ -2350,23 +2350,21 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     title = string(w.title)
     title_w, title_h = _text_size(p.measure, title_text.font, title)
 
-    # Content: a recursed child widget, a plain string, or nothing.
-    content = w.content
-    content_iomap = nothing; content_w = 0; content_h = 0
-    if content isa Document
-        content_iomap = print_child(recursion, content, ctx)
-        cc = content_iomap.output
-        content_w, content_h = cc isa GraphicsCanvas ? (Int(cc.w[]), Int(cc.h[])) : (0, 0)
-    elseif content !== nothing
-        content_w, content_h = _text_size(p.measure, body_text.font, string(content))
-    end
+    # The card takes its size from what it holds, so it gives no slot: each part
+    # gets the edge of the window less the margin, the border and the padding
+    # around it (§3 of layout-rules.md).
+    inset_width, inset_height = _inset_total(p, w)
+    edge_w = max(0, avail_w - inset_width)
+    edge_h = max(0, avail_h - inset_height - title_h)
 
-    # Buttons laid out in a row.
+    # Buttons laid out in a row, which offers no width.
+    button_ctx = ctx === nothing ? nothing :
+                 with_bounded_size(withhold_offer(ctx, :x); height = Cell(Int32(edge_h)))
     button_iomaps = Any[]
     btn_w = 0; btn_h = 0
     for b in w.buttons
         b isa WidgetDocument || continue
-        bim = print_child(recursion, b, ctx)
+        bim = print_child(recursion, b, button_ctx)
         bc = bim.output
         bw, bh = bc isa GraphicsCanvas ? (Int(bc.w[]), Int(bc.h[])) : (0, 0)
         push!(button_iomaps, (bim, bw, bh))
@@ -2374,6 +2372,22 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     end
     nbtn = length(button_iomaps)
     nbtn > 1 && (btn_w += (nbtn - 1) * gap)
+
+    # Content: a recursed child widget, a plain string, or nothing. It stands
+    # between the title and the row of buttons, a gap from each.
+    content = w.content
+    content_iomap = nothing; content_w = 0; content_h = 0
+    if content isa Document
+        content_edge_h = max(0, edge_h - gap - (nbtn > 0 ? gap + btn_h : 0))
+        content_ctx = ctx === nothing ? nothing :
+                      with_bounded_size(ctx; width = Cell(Int32(edge_w)),
+                                        height = Cell(Int32(content_edge_h)))
+        content_iomap = print_child(recursion, content, content_ctx)
+        cc = content_iomap.output
+        content_w, content_h = cc isa GraphicsCanvas ? (Int(cc.w[]), Int(cc.h[])) : (0, 0)
+    elseif content !== nothing
+        content_w, content_h = _text_size(p.measure, body_text.font, string(content))
+    end
 
     has_content = content_w > 0 || content_h > 0
     has_buttons = nbtn > 0

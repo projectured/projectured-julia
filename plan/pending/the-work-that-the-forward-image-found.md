@@ -100,6 +100,12 @@ give their one child the whole range that they were given:
     no stretch), so the test holds a label, which wraps at its edge: before, it
     wrapped at 290 in a field of 300 with 26 of insets, and in a slot the field
     grew to 326.
+  - [x] `WidgetDialog` (2026-10-02). The card takes its size from what it holds,
+    so it gives no slot: the buttons are printed first, with no offer on the width
+    (a row) and the edge of the window less the card and the title on the height;
+    the content gets the edge of the window less the card on the width, and less
+    the title, the gaps and the row of buttons on the height, bounded. Before, in
+    a window of 400 the card was 430 wide and a button with no width was 400.
 
 ## 3. The file chooser draws its parts at one place
 

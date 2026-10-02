@@ -169,4 +169,19 @@ end
         @test content[1] == 300 - frame
     end
 end
+
+@testset "a dialog gives its content and its buttons the edge of the window, less its card" begin
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+    dialog = WidgetDialog("Title", WidgetLabel(_RANGE_PROSE), Any[WidgetButton("OK")])
+    ctx = PrinterContext(EmptyReference(), Cell(400), Cell(300), Dict{Symbol,Any}())
+    iomap = print_document(projection, nothing, dialog, ctx)
+    card_x, _, card_w, _ = iomap.card
+    x, _, content = iomap.content_entry
+    # The long label wraps inside the card, and the card stays in the window.
+    @test x + Int(content.output.w[]) <= card_x + card_w <= 400
+    # A button with no width keeps the width of its label.
+    _, _, button = only(_range_force(iomap.button_entries))
+    @test Int(button.output.w[]) < 100
+end
 end # test_size_range_one_child
