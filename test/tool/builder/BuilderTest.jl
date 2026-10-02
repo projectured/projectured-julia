@@ -132,6 +132,15 @@ function test_build_executable()
                        make_projectured_usage([:sdl]).options)
         end
 
+        @testset "the binary loads every package of the flat namespace" begin
+            context = BuildContext(normpath(joinpath(@__DIR__, "..", "..", "..")))
+            project = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+                joinpath(get_package_directory(context, "ProjecturedAll"), "Project.toml"))
+            flat = [name for name in keys(project["deps"]) if startswith(name, "Projectured")]
+            @test sort(PROJECTURED_APPLICATION_IMPORTS) ==
+                  sort(setdiff(flat, ["ProjecturedKernel", "ProjecturedPlatform"]))
+        end
+
         @testset "the help text says the three flags every binary answers" begin
             text = format_usage("a-binary", Usage("What it does."; synopsis = "[options] <file>",
                                                 options = ["--wide=<n>" => "how wide"]))

@@ -109,3 +109,36 @@ function test_umbrella_loads_integrations()
             "using SimpleDirectMediaLayer, Projectured") == ["Projectured"]
     end
 end
+
+# The `Projectured*` names under the heading `section`, for example `"[deps]"`, of
+# the `Project.toml` of the package `name`.
+function _read_project_packages(repository, name, section)
+    packages = String[]
+    inside = false
+    for line in eachline(joinpath(repository, "package", name, "Project.toml"))
+        if startswith(line, "[")
+            inside = line == section
+        elseif inside
+            m = match(r"^(Projectured\w*) = ", line)
+            m === nothing || push!(packages, m.captures[1])
+        end
+    end
+    packages
+end
+
+function test_umbrella_names_every_package()
+    @testset "the umbrella loads every package of the flat namespace" begin
+        repository = normpath(joinpath(@__DIR__, "..", ".."))
+        flat = setdiff(_read_project_packages(repository, "ProjecturedAll", "[deps]"),
+                       ["ProjecturedKernel", "ProjecturedPlatform"])
+        adapters = ["ProjecturedAnthropic", "ProjecturedOllama", "ProjecturedOpenRouter"]
+        code = "using Projectured; print(join(Projectured._INSTALLED_PACKAGES, ' '))"
+        environment = joinpath(repository, "environment", "all")
+        command = addenv(`$(Base.julia_cmd()) --startup-file=no --project=$environment -e $code`,
+                         "JULIA_PKG_OFFLINE" => "true")
+        installed = split(read(command, String))
+        @test sort(installed) == sort([flat; adapters])
+        # Each one is a weak dependency, for its `[compat]` bound.
+        @test issubset(installed, _read_project_packages(repository, "Projectured", "[weakdeps]"))
+    end
+end
