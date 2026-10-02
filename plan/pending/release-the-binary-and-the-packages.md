@@ -1354,7 +1354,25 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       each package on Julia 1.11; a job develops the folders that its test needs.
 - [x] Each registered package has a short README. Done on 2026-10-02:
       [release-package-readmes.md](../done/release-package-readmes.md).
-- [ ] The full test of Step B4 again, with a local registry on this machine.
+- [x] The full test of Step B4 again, with a local registry on this machine.
+      Done on 2026-10-02 with `/var/tmp/b4r/run.sh`, from the branch of the
+      READMEs (`5fd84f1e1`), in empty depots:
+      - The 32 packages generated and registered in a local registry named
+        `ProjecturedRegistry`, all `0.1.0`.
+      - `add Projectured ProjecturedJSON ProjecturedSDL`: 134 packages, 5 of
+        ours; `using Projectured, ProjecturedSDL` in 0.9 s after the compile,
+        and the umbrella loads `ProjecturedJSON`; the fonts come from the
+        installed `ProjecturedPlatform`; a real window drew 40 frames.
+      - `Pkg.test("ProjecturedJSON")` on the installed package: 225 of 225. It
+        installs the released siblings that its support packages need, so it
+        needs the registries; offline it can not find `ProjecturedPDF`.
+      - `add Projectured ProjecturedJSON ProjecturedWeb ProjecturedMCP`: the web
+        client, a font and the guide list over HTTP and MCP, from the installed
+        packages.
+      - A second release, one comment in the JSON domain: only
+        `ProjecturedJSON` became `0.1.1`, and `Pkg.update()` downloaded only it.
+      - Julia 1.11.9: `add Projectured ProjecturedJSON`, and `JsonString`
+        works.
 - [x] The owner makes the repository of the local registry,
       `projectured/ProjecturedRegistry` (R10). Done on 2026-10-01, private and
       empty. Its content, `Registry.toml` with the uuid of the registry, comes
