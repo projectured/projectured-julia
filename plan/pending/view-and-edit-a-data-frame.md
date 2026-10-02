@@ -996,14 +996,23 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 
   **The owner's decisions, 2026-10-02:**
   - **R1. The state is in the view** (the owner: "in the view").
-  - **R2. The number keeps its text**, instead of a string document in the view
-    for a number cell (the owner: "fix the number instead"). The plan is
-    [a-number-keeps-its-text.md](a-number-keeps-its-text.md); it is step 4.0.
+  - **R2. A number that can not show a key becomes a type-in**, instead of a
+    string document in the view for a number cell. The owner first said "fix
+    the number instead", then rejected a number that keeps its text: "it would
+    be better to store the number when it's parsed", with a `PrimitiveInsertion`
+    "when it's a type-in", which "could have a parameter to limit what it can be
+    turned into". The plan is
+    [a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md); it is
+    step 4.0.
   - **R3. A cell that has no edit is named `column("price")[5]`**: the column
     step of 5.2 and the ordinary index step, with the row of the frame (the
     owner: "yes").
+  - **R4. A column whose element type has no primitive document**, such as a
+    `Date`, a `Symbol` or a type of another package: the cell shows the value
+    as now and takes no key, and its tooltip says why (the recommendation of
+    the writer; the owner: "I agree with the unsupported Date cell plans").
 
-  The design that follows from R1 to R3 (each point mine unless the owner made
+  The design that follows from R1 to R4 (each point mine unless the owner made
   it above):
   - **A cell holds the primitive document of its value**: a `PrimitiveNumber`,
     a `PrimitiveString` or a `PrimitiveBool`. The table edits it as it edits
@@ -1015,16 +1024,18 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     the printer shows that document in the cell and maps the path forward to
     `rows[k][c]…`, as it maps a filter field now.
   - **The first key in a cell that has no edit** comes up from the table as an
-    edit at `rows[k][c]…`. The view turns it into a new entry of `edits`, a copy
-    of the cell document with the key applied, and the selection goes into the
+    edit at `rows[k][c]…`. The view turns it into a new entry of `edits` that
+    holds what the key made: a copy of the cell document with the key applied,
+    or the type-in that replaced a number (R2). The selection goes into the
     entry.
   - **The commit is generic.** Enter, Tab and a move out of the cell make the
     table write an operation that commits the cell, which the owner of the
     table converts, as the width of a column of 5.7 is written by the table and
     converted by the view. A table that no owner converts commits nothing,
     because its cell documents are the documents themselves.
-  - **The commit of the view** converts the value of the entry to the element
-    type of the column. When it converts, one operation writes the frame and
+  - **The commit of the view** first commits a type-in of the entry, as Enter
+    in the type-in does (R2), and converts the value of the entry to the
+    element type of the column. When it converts, one operation writes the frame and
     removes the entry, so the commit is one step of undo:
     `SetDataFrameValueOperation(frame, row, column, value)`, whose inverse
     writes the old value (E4 stays). When it does not convert, the entry stays
@@ -1037,16 +1048,13 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     §5.1). The editor takes input during a REPL input. After the input, the
     display calls `refresh_document!` on each shown view (phase 3).
 
-  Open (for the owner, before 4.1):
-  - A column whose element type has no primitive document, such as a `Date`,
-    a `Symbol` or a type of another package. Mine: the cell shows the value as
-    now and takes no key, and its tooltip says why.
+  Open:
   - The cost of a primitive document in each shown cell, in place of a label,
     for a scroll of the frame of ten million rows. Measure it in 4.1.
 
   Steps of 4a, the edit of a cell, each with its tests:
-  - [ ] **4.0** The number keeps its text
-    ([a-number-keeps-its-text.md](a-number-keeps-its-text.md)).
+  - [ ] **4.0** A number that can not show a key becomes a type-in
+    ([a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md)).
   - [ ] **4.1** The cells are primitive documents; a click selects
     `column(name)[row]`, and the view maps it forward to the cell.
   - [ ] **4.2** The entries of `edits`: the first key makes one, the cell
