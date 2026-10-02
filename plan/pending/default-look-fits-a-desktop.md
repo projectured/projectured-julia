@@ -370,6 +370,11 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   The measurement of section 2.3 shows that it does not. The weight and the
   slant of a font are small integers, so a font stays at 24 bytes inline or
   less, and a new font allocates nothing.
+- **D14** (2026-10-02, V1). The code font is Ubuntu Mono. The owner: "Ubuntu
+  Mono".
+- **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
+  backend, and the glyph cursor of the SDL backend, stay as they are: they mark
+  a recording or the system cursor, not the look of the editor.
 
 ## 6. Steps
 
