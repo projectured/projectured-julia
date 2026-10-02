@@ -63,22 +63,69 @@ The owner accepted the three recommendations on 2026-10-02 ("Agreed, start").
 
 ## 5. Steps
 
-- [ ] **Step 1, the development package.** `ProjecturedAll` with the flat
-      namespace of today, from `source/projectured/`; `environment/all` names it.
-- [ ] **Step 2, its users.** The eight packages here change to it; the guards
-      and the suites of the umbrella, the examples and the REPL pass.
-- [ ] **Step 3, the umbrella.** `[deps]` the kernel and the platform, the rest
-      `[weakdeps]`, and the load of every installed package after the load.
-- [ ] **Step 4, the binary.** Its package list names the domains, the console
-      and PDF; build and check.
-- [ ] **Step 5, the test of the two ways.** The integration test adds the
-      domains: an installed domain loads with the umbrella, and one that is not
-      installed does not.
-- [ ] **Step 6, downstream.** omnet-julia and inet-julia, on branches of their
-      own, land together with this one.
-- [ ] **Step 7, the guides.** The own-project guide, the setup guide, the
-      system anatomy, the testing guide and the README.
+- [x] **Step 1, the development package.** `ProjecturedAll` with the flat
+      namespace of today; `environment/all` names it. Done in `3d8dc8e10`. Its
+      loop is `source/all/ProjecturedAll.jl`, not in `source/projectured/`: the
+      package-graph test finds the owner of a folder by its source, and two
+      packages in one folder made that test mix them.
+- [x] **Step 2, its users.** The eight packages here and 18 test and tool
+      scripts change to it, by `julia-rename.jl`. Done in `3d8dc8e10`. The code
+      tool of the assistant changes too: see 6.2.
+- [x] **Step 3, the umbrella.** `[deps]` the kernel and the platform, the rest
+      `[weakdeps]` without `[sources]` (Pkg refuses them), and the load of every
+      installed package after the load, through the callback of the model
+      adapters. Done in `3d8dc8e10`.
+- [x] **Step 4, the binary.** `PROJECTURED_APPLICATION_IMPORTS` names the
+      console, PDF and the 17 domains. Done in `3d8dc8e10`; the binary built in
+      493 s and passed its check.
+- [x] **Step 5, the test of the two ways.** JSON stands for the domains: it
+      loads with the umbrella in `environment/all`, and it does not load in the
+      environment that names only the umbrella and a trigger. Done in
+      `3d8dc8e10`.
+- [x] **Step 6, downstream.** omnet-julia `61d6f6a0` (120 files) and
+      inet-julia `d0519bf` (24 files), on branches `umbrella-core`; both
+      precompile with 0 errors against this branch.
+- [x] **Step 7, the guides.** The own-project guide, the setup, testing and
+      debugging guides, the system anatomy, the package and architecture rules,
+      the division terminology, the domain inventory, the new-domain guide, and
+      the editor, application, kernel architecture and builder documents. The
+      README and `CONTRIBUTING.md` need no change: their sessions call only names
+      of `ProjecturedExample`. `architecture-invariants.md` is sealed and stays;
+      its direction `kernel → platform → domain → umbrella` is still true.
 
 ## 6. Decisions made during the work
 
-(filled in as the work goes)
+### 6.1 Each domain package exports its names
+
+Before this change, the root module of a domain package exported nothing: the
+names reached a user only through the flat namespace of the umbrella. With an
+umbrella of the kernel and the platform, `using Projectured, ProjecturedJSON`
+gave no `JsonString`. The owner agreed on 2026-10-02 ("I agree with the
+reexport"): each of the 17 root modules does `using .<Domain>Module` and exports
+every name of it, as `ProjecturedPlatform` exports the names of `PlatformModule`.
+Commit `4d5070acd`. `ProjecturedAll` still loads beside them, with 6113 names.
+
+### 6.2 The code tool imports every loaded ProjecturEd package
+
+`execute_julia_code` ran in a scratch module with `using Projectured`, which
+gave every name. It now imports every loaded `Projectured*` package that is not a
+test or an example package, re-exports their names, and binds `Projectured` to
+the scratch module itself. So `Projectured.JsonObject` keeps working in the code
+that a model writes, although the umbrella does not export that name.
+
+### 6.3 Three lists name the full set, and two tests keep them equal
+
+The `_SOURCES` of `ProjecturedAll`, the `_INSTALLED_PACKAGES` of the umbrella and
+`PROJECTURED_APPLICATION_IMPORTS` of the builder each name the packages above the
+kernel and the platform. A domain that one list misses does not load with the
+umbrella, or is not in the binary, and nothing reports it. So
+`test_umbrella_names_every_package()` (in `test_repository()`) and a test of
+`test_builder()` compare each list with the `[deps]` of `ProjecturedAll`; the
+first also checks that each installed package is a weak dependency of the
+umbrella. One list read at precompile time from the `Project.toml` was the
+alternative; the explicit tuples are easier to read, and the tests close the gap.
+
+### 6.4 Faults found on `main`, not of this change
+
+`test/kernel/projection/RoutedChangeTest.jl:199` fails on `main` too: it came
+with the gesture work of another session.
