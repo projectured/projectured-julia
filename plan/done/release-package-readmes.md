@@ -74,6 +74,6 @@ document that exists.
 ### 6.1 The check of Step B4
 
 The release plan holds the results: the READMEs went into a local
-`ProjecturedRegistry` with the 32 packages, and each package folder showed its
+`ProjecturedRegistry` with the 32 packages, and each package folder held its
 README. The install line of a README, `add Projectured ProjecturedJSON
 ProjecturedSDL` with the SDL backend added, installed and opened a window.
