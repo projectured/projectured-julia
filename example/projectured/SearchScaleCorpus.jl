@@ -27,7 +27,7 @@ const SCALE_SEARCH_MODULE_NAMES =
 The modules [`SCALE_SEARCH_MODULE_NAMES`](@ref) names.
 """
 get_scale_search_modules() =
-    Module[getfield(Projectured, name) for name in SCALE_SEARCH_MODULE_NAMES]
+    Module[getfield(ProjecturedAll, name) for name in SCALE_SEARCH_MODULE_NAMES]
 
 """
     SCALE_SEARCH_QUESTIONS
