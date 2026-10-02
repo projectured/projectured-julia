@@ -946,6 +946,7 @@ function test_build_executable()
             # The packages of the binary, and the stand-in that keeps the sound
             # libraries out of it.
             @test Set(keys(deps)) == Set(["PrecompileTools", "Projectured",
+                                          PROJECTURED_APPLICATION_IMPORTS...,
                                           "ProjecturedOllama", "ProjecturedAnthropic",
                                           "ProjecturedMCP", "ProjecturedSDL",
                                           "ProjecturedWeb",
