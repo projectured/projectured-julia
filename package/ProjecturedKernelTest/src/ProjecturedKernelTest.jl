@@ -105,6 +105,7 @@ include("../../../test/kernel/tool/MeaningSearchTest.jl")
 include("../../../test/kernel/tool/RelevanceSearchTest.jl")
 include("../../../test/kernel/tool/SearchAnswerTest.jl")
 include("../../../test/kernel/tool/CodeExecutionTest.jl")
+include("../../../test/kernel/tool/DocstringSummaryTest.jl")
 
 # ── generic drivers (document, projection) — reused by every layer above ────
 include("../../../test/kernel/editor/PrinterTest.jl")

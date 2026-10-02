@@ -1,4 +1,5 @@
-# Fragment of `HelpModule` — the first paragraph of the docstring of a type.
+# Fragment of `ToolModule` — the first paragraph of the docstring of a type,
+# which a list of types and a card of a tab show as its description.
 
 """
     compute_docstring_summary(T::Type) -> String

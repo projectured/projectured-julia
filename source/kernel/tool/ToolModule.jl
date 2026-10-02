@@ -16,6 +16,9 @@ be asked to read. Eight fragments share this namespace:
   their classes, a regular expression, or a description.
 - [`Documentation.jl`](Documentation.jl) — the guide / module / type / function
   documentation readers and the two search functions over them.
+- [`DocstringSummary.jl`](DocstringSummary.jl) — `compute_docstring_summary`, the
+  first paragraph of the docstring of a type, which the Help lists and the cards
+  of the appearance and the settings tabs show.
 - [`MeaningSearch.jl`](MeaningSearch.jl) — how a description is ranked by what it
   means, where the vectors of that rank are kept, and how a guide section's
   meaning rank joins the rank of its words.
@@ -70,6 +73,7 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        read_module_documentation, read_type_documentation, read_function_documentation,
        read_value_documentation,
        search_guides, search_api,
+       compute_docstring_summary,
        SearchTerm, KeywordQuery, parse_keyword_query, is_keyword_match
 
 include("Tool.jl")
@@ -77,6 +81,7 @@ include("ToolSet.jl")
 include("CodeExecution.jl")
 include("SearchQuery.jl")
 include("Documentation.jl")
+include("DocstringSummary.jl")
 include("MeaningSearch.jl")
 include("RelevanceSearch.jl")
 include("DefaultTools.jl")

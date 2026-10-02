@@ -172,6 +172,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/CodeExecution.jl`
   - ⬜ `tool/SearchQuery.jl`
   - ⬜ `tool/Documentation.jl`
+  - ⬜ `tool/DocstringSummary.jl`
   - ⬜ `tool/MeaningSearch.jl`
   - ⬜ `tool/DefaultTools.jl`
 - **Layer 19 — llm** (`llm/`)

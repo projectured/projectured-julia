@@ -381,7 +381,6 @@ using ProjecturedPlatform.SyntaxModule: SyntaxToText
 using ProjecturedPlatform.TextModule: TextToString
 using ProjecturedPlatform.HelpModule
 
-include("../../../test/platform/help/DocstringSummaryTest.jl")
 include("../../../test/platform/help/HelpListToSyntaxTest.jl")
 include("../../../test/platform/help/AboutPageToSyntaxTest.jl")
 include("../../../test/platform/help/HelpSuite.jl")

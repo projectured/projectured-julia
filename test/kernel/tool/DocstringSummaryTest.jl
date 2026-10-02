@@ -1,5 +1,6 @@
-# The description a Help list shows for a type: the first paragraph of its
-# docstring. Each fixture below is a type with a docstring of one shape.
+# The description of a type that a Help list and a card of a tab show: the first
+# paragraph of its docstring. Each fixture below is a type with a docstring of one
+# shape.
 
 """
     _SummaryTwoParagraphs(x)
@@ -71,9 +72,9 @@ function test_docstring_summary()
     @test compute_docstring_summary(_SummaryTypeAndConstructor) == "The text of the type."
     @test compute_docstring_summary(_SummaryConstructorOnly) ==
           "The text of the constructor alone."
-    # A document of a package: the macro keeps the docstring of the type.
-    @test startswith(compute_docstring_summary(AboutPage), "What a program says about itself")
+    # A document: the macro keeps the docstring of the type.
+    @test compute_docstring_summary(FieldReferenceStep) == "References a named field of an object/record."
     # A type with parameters is found by its name.
-    @test startswith(compute_docstring_summary(ChainingProjection), "A compound higher-order projection")
+    @test compute_docstring_summary(ImmutableCell) == "A box that holds one value and can never be written."
 end
 end
