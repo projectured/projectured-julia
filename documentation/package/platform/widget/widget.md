@@ -83,7 +83,7 @@ Each widget also compares the point with its own canvas in `_outside_widget`: th
 
 - `WidgetButton`, `WidgetMenuItem` and `WidgetToolbarItem` light while their mouse target is set, that is while the pointer is on them or on a part inside them, and while they are enabled.
 - `WidgetList`, `WidgetTable` (both IO maps) and `WidgetTree` light the row that their mouse target names. A point on a row maps to the row, for example `items[2]`, which is no document, so the list is the deepest part and holds the row in its own mouse target. A column header of a table lights its column.
-- A light never changes the layout: it draws a layer over the surface or the row.
+- A light never changes the layout: it draws a layer over the surface or the row ([`PAR-LIGHT-KEEPS-LAYOUT`](../../../rule/architecture-invariants.md#par-light-keeps-layout)).
 
 **The move is the enter and the leave.** The mouse target of a part is set while the pointer is on it, and the move at a point off the part is the leave. A button ends its press on that move. A dwell takes the way of a click, by position, and opens a tooltip from the gesture table of the part at its point.
 

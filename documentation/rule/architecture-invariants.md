@@ -95,13 +95,14 @@ requirement; the rule is its own lead sentence.
 | [PAR-RECURSION-CONTRACT](#par-recursion-contract) | All recursion flows through those four functions, and only those four (the recursion contract) |
 | [PAR-DELEGATE-ONE-LEVEL](#par-delegate-one-level) | Recurse as little as possible — one level, then delegate ("School A") |
 | [PAR-DECIDE-LOCALLY](#par-decide-locally) | Nothing is decided globally that can be decided locally |
-| [PAR-NO-GLOBAL-ROUTING](#par-no-global-routing) | A route is fixed in advance only to return an operation from one place; every other input travels by position or by the choice of each projection |
+| [PAR-NO-GLOBAL-ROUTING](#par-no-global-routing) | A route is fixed in advance only to return an operation from one place, or to give a drag to the part that started it; every other input travels by position or by the choice of each projection |
 | [PAR-RECURSE-VIA-PRINT-CHILD](#par-recurse-via-print-child) | Recurse through `print_child`, never open-coded |
 | [PAR-BIDIRECTIONAL-PROJECTION](#par-bidirectional-projection) | Every projection is bidirectional: a printer needs its inverse |
 | [PAR-MAPPERS-ARE-INVERSES](#par-mappers-are-inverses) | `print_document` uses `map_reference_forward`; `read_intent` uses `map_reference_backward`, and the two mappers are mutual inverses |
 | [PAR-PREFER-REFERENCE-RETARGET](#par-prefer-reference-retarget) | Write a `read_intent` method only when re-targeting a reference is not enough |
-| [PAR-NO-NEW-SYNTHETIC-EVENT](#par-no-new-synthetic-event) | Add no new `SyntheticEvent` type and no `read_intent` method for a new payload type; the reader chain is not a channel |
+| [PAR-NO-NEW-SYNTHETIC-EVENT](#par-no-new-synthetic-event) | The reader chain reads what a person does; add no `SyntheticEvent` type and no `read_intent` method for a payload that carries an operation, a request or a question |
 | [PAR-REPEATED-MOVE-WRITES-NOTHING](#par-repeated-move-writes-nothing) | A move to the point of the last move writes no cell |
+| [PAR-LIGHT-KEEPS-LAYOUT](#par-light-keeps-layout) | A light changes no size and no place |
 | [PAR-GEOMETRY-FREE-IN-DOCUMENT](#par-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
 | [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
 | [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
@@ -479,11 +480,16 @@ change any part for its own reason, which a central component can not see.
 
 ### PAR-NO-GLOBAL-ROUTING
 
-**A route is fixed in advance only to return an operation from one place.** An
-intent carries a route (`Intent.route`) when an operation must come back from
-one specific projection: a verb that the assistant or a command calls acts at a
-place, and `read_rooted_operation` carries the operation there and back. Every
-other input travels with no route decided:
+**A route is fixed in advance only to return an operation from one place, or to
+give a drag to the part that started it.** An intent carries a route
+(`Intent.route`) when an operation must come back from one specific projection:
+a verb that the assistant or a command calls acts at a place, and
+`read_rooted_operation` carries the operation there and back. A part that starts
+a drag answers `StartDragOperation` with its own path, and the drag wrapper sends
+that part the parts of its drag (`DragMove`, `DragEnd`, `DragCancel`) by that
+path until the drag ends. The part chose the route itself, so no global
+component chooses the part, and the raw events of the drag still go by
+position. Every other input travels with no route decided:
 
 - a mouse event and a mouse gesture, such as a click or a dwell, go down by
   position: each container chooses the child at the point, moves the point into
@@ -491,8 +497,9 @@ other input travels with no route decided:
 - a key goes where each projection sends it, which is usually along the
   selection.
 
-The path of an input is never fixed by a global component, such as a tracker or
-a wrapper at the screen. With such a component, the part is chosen before the
+Apart from the drag that a part started, the path of an input is never fixed by
+a global component, such as a tracker or a wrapper at the screen. With such a
+component, the part is chosen before the
 readers run, and no projection on the path can take the input or send it to
 another child (PAR-DECIDE-LOCALLY).
 
@@ -549,17 +556,22 @@ names `ReplaceSelectionOperation`, because a move of the pointer must not do it.
 ### PAR-NO-NEW-SYNTHETIC-EVENT
 
 **Do not add a new `SyntheticEvent` type, and do not add a `read_intent` method
-for a new payload type.** The reader chain reads what a person does. It is not a
-channel to carry an operation, a request or a question through the projection
-hierarchy. So do not wrap an operation in an event that a reader answers with
+for a payload that carries an operation, a request or a question.** The reader
+chain reads what a person does: an event that a device reports, and a gesture
+that a recognition or a tracker makes of such events, such as a click, a dwell,
+a chord or a part of a drag. It is not a channel to carry an operation, a request
+or a question through the projection hierarchy. So do not wrap an operation in an event that a reader answers with
 the same operation, only to have the wrappers reroot it on its way out. That is
 a new mechanism that goes through every projection, and it breaks the recursion
 contract (PAR-RECURSION-CONTRACT) in spirit even when no fifth function is
 declared. A synthetic event or a reader payload that exists now is not a
 precedent for a new one.
 
-When a change seems to need a new event type or a new payload for the reader,
-stop and ask the owner. Do not add it first and report it after.
+A new gesture type is what a person does too, but every reader can meet it, so
+add one only when the owner agrees, as for `DragMove`, `DragEnd` and
+`DragCancel`. When a change seems to need a new event type, a new gesture type or
+a new payload for the reader, stop and ask the owner. Do not add it first and
+report it after.
 
 ### PAR-REPEATED-MOVE-WRITES-NOTHING
 
@@ -576,6 +588,16 @@ writes nothing when they are equal. The check goes where the cell is written: a
 reader whose answer a projection above it can replace compares in the
 evaluation of its operation, not in the reader.
 
+### PAR-LIGHT-KEEPS-LAYOUT
+
+**A light changes no size and no place.** A part that lights under the pointer
+draws a layer, a colour or a frame over what it draws, and it changes the size
+and the place of no part. After a frame that changed a window, the backend sends
+a move at the still pointer (PAR-REPEATED-MOVE-WRITES-NOTHING). A light that
+moved another part under the pointer would light that part next, which would
+move the first part back, frame after frame. So a widget computes its light
+where it builds its surface, not in its measure, and a syntax compound lights its
+delimiters by their colour only.
 ### PAR-GEOMETRY-FREE-IN-DOCUMENT
 
 **Geometry-free gesture handling belongs to the document, not the projection.**

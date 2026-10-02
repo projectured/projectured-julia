@@ -59,7 +59,7 @@ So a widget that a view makes for a part of a domain lights when the pointer is 
 
 ### The light
 
-Each projection draws from its own mouse target, as it draws the selection ring from its selection, and no reader writes a state for this. A widget lights while its mouse target is set, that is while the pointer is on it or on a part inside it; a list, a table and a tree light the row that their mouse target names. [widget.md](../platform/widget/widget.md) describes each widget's light. A light never changes the layout: it draws a layer over the surface or the row, never a different size or place.
+Each projection draws from its own mouse target, as it draws the selection ring from its selection, and no reader writes a state for this. A widget lights while its mouse target is set, that is while the pointer is on it or on a part inside it; a list, a table and a tree light the row that their mouse target names. [widget.md](../platform/widget/widget.md) describes each widget's light. A light never changes the layout: it draws a layer over the surface or the row, never a different size or place ([`PAR-LIGHT-KEEPS-LAYOUT`](../../rule/architecture-invariants.md#par-light-keeps-layout)).
 
 ### A container that reads its own parts
 
