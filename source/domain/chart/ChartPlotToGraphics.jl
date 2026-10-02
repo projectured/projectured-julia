@@ -1510,10 +1510,12 @@ end
 function _drag_start(g, plot::ChartPlot, event::MouseDown)
     _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
     mode = event.modifiers.shift ? :pan : :zoom
-    _compound(_write_view_state(plot, "drag_anchor",
-                                (event.x, event.y, mode, resolve_view(plot), g.xs, g.ys,
-                                 plot.view)),
-              StartDragOperation(EmptyReference(), nothing))
+    # The pointer keeps the arrow of the press while the drag is on.
+    CompoundOperation(Operation[
+        _write_view_state(plot, "drag_anchor",
+                          (event.x, event.y, mode, resolve_view(plot), g.xs, g.ys, plot.view)),
+        StartDragOperation(EmptyReference(), nothing),
+        make_screen_pointer_shape_operation(:arrow)])
 end
 
 function _drag_move(g, plot::ChartPlot, event::DragMove)
@@ -1538,7 +1540,8 @@ function _drag_end(g, plot::ChartPlot, event::DragEnd)
     ax, ay, mode, _ = anchor
     clear = CompoundOperation(Operation[
         _write_view_state(plot, "drag_anchor", nothing),
-        _write_view_state(plot, "drag_rect", nothing)])
+        _write_view_state(plot, "drag_rect", nothing),
+        make_screen_pointer_shape_operation(nothing)])
     (mode === :zoom && abs(event.x - ax) >= _DRAG_MIN && abs(event.y - ay) >= _DRAG_MIN) || return clear
 
     x0, x1 = minmax(to_data(g.xs, ax), to_data(g.xs, event.x))
@@ -1556,7 +1559,8 @@ function _cancel_drag(plot::ChartPlot)
     (anchor === nothing && plot.drag_rect === nothing) && return nothing
     clear = CompoundOperation(Operation[
         _write_view_state(plot, "drag_anchor", nothing),
-        _write_view_state(plot, "drag_rect", nothing)])
+        _write_view_state(plot, "drag_rect", nothing),
+        make_screen_pointer_shape_operation(nothing)])
     (anchor !== nothing && anchor[3] === :pan) || return clear
     _compound(_set_view(plot, anchor[7]), clear)
 end

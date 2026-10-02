@@ -658,6 +658,12 @@
       send({ type: "mousedown", window: idFn(), button, x, y, mods: mods(ev),
              t: stamp(ev) });
     });
+    // A press captures the pointer: until the release, the canvas gets the moves
+    // and the release, and shows its cursor, also outside the window, so a drag
+    // goes on and keeps its shape there.
+    canvas.addEventListener("pointerdown", (ev) => {
+      try { canvas.setPointerCapture(ev.pointerId); } catch {}
+    });
     canvas.addEventListener("mouseup", (ev) => {
       const button = buttonSym(ev.button);
       if (button === null) return;

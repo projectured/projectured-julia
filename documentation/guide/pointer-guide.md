@@ -16,6 +16,12 @@ Move the pointer over a part of the program. Its shape says what a press there d
 - An open hand over a tab of a pane that lets you drag its tabs.
 - The arrow everywhere else.
 
+During a drag, the pointer keeps the shape of the drag wherever it goes, also over other parts and outside the window, until you release the button or press Escape:
+
+- The double arrow while you drag the edge of a column or a divider.
+- The arrow while you drag a slider or a chart.
+- While you drag a tab: a closed hand where a group takes the tab, and a crossed circle where no group takes it.
+
 ## The part under the pointer lights
 
 Move the pointer over a button, a menu item, or a row of a list, a table or a tree. The part lights while the pointer is on it or on a part inside it. Move the pointer away, and the light goes with it.

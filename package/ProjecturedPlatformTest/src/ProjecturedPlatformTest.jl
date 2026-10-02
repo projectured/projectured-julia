@@ -428,6 +428,7 @@ include("../../../test/platform/shell/WindowWrappersTest.jl")
 include("../../../test/platform/shell/FileDialogTest.jl")
 include("../../../test/platform/shell/TrackingScreenTest.jl")
 include("../../../test/platform/shell/DragTrackingTest.jl")
+include("../../../test/platform/shell/DragPointerShapeTest.jl")
 include("../../../test/platform/shell/PointerLightTest.jl")
 
 include("../../../test/platform/shell/ShellSuite.jl")

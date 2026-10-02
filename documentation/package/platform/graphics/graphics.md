@@ -48,7 +48,7 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 ### The shape of the pointer
 
-`GraphicsPointerShape(x, y, w, h, shape; drag = false)` is a region where the pointer takes `shape`. It draws nothing. A part puts one into what it draws where a press does something: the edge of a column, the divider of a split pane, a text that a person edits. `shape` is one of nine symbols, named by the picture and kept in `POINTER_SHAPES`: `arrow`, `ibeam`, `double_arrow_horizontal`, `double_arrow_vertical`, `pointing_hand`, `open_hand`, `closed_hand`, `crossed_circle` and `hourglass`. A backend maps each one to a cursor of its own, and shows the arrow for a shape it does not know.
+`GraphicsPointerShape(x, y, w, h, shape)` is a region where the pointer takes `shape`. It draws nothing. A part puts one into what it draws where a press does something: the edge of a column, the divider of a split pane, a text that a person edits. `shape` is one of nine symbols, named by the picture and kept in `POINTER_SHAPES`: `arrow`, `ibeam`, `double_arrow_horizontal`, `double_arrow_vertical`, `pointing_hand`, `open_hand`, `closed_hand`, `crossed_circle` and `hourglass`. A backend maps each one to a cursor of its own, and shows the arrow for a shape it does not know.
 
 `find_pointer_shape(canvas, x, y)` finds the shape at a point of `canvas`, the root canvas of a window: the `shape` of the last region that holds the point, in the order of the drawing, or `default` where no region holds it. The walk follows the drawing of a backend:
 
@@ -58,7 +58,7 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 - A canvas that lays out its elements without overlap walks only the elements at the point, from the first one that reaches it, as `hit_element_at` does: a list of rows that the viewport does not show is not walked.
 - A canvas that declares its extent and does not hold the point is not walked either.
 
-With `drag = true`, a region is a region of a drag: it wins over every plain region, wherever each is in the drawing. Among the regions of one kind, plain or of a drag, the last one in the order of the drawing wins.
+Where regions overlap, the last one in the order of the drawing wins.
 
 **A region in a laid-out canvas is an element of the order.** A canvas that lays out its elements without overlap reads a region the same way it reads any other element: put a region there only where its place keeps the order of the elements, or put it in a canvas with no layout.
 

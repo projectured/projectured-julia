@@ -6,8 +6,7 @@
 
 The shape that the pointer takes at `(x, y)` over `canvas`, the root canvas of a
 window: the `shape` of the last [`GraphicsPointerShape`](@ref) that holds the
-point, in the order of the drawing, or `:default` where no region holds it. A
-region of a drag that holds the point wins over every region that is not one.
+point, in the order of the drawing, or `:default` where no region holds it.
 
 The walk follows the drawing of a backend. The root canvas is at the origin of
 the window, a nested canvas moves its elements by its place and clips nothing,
@@ -25,16 +24,14 @@ walked either.
     find_pointer_shape(canvas, 10, 50)    # :default
 """
 function find_pointer_shape(canvas::GraphicsCanvas, x::Real, y::Real)
-    found = _FoundPointerShape(:default, nothing)
+    found = _FoundPointerShape(:default)
     _find_elements_shape!(found, canvas, Float64(x), Float64(y))
-    something(found.drag, found.plain)
+    found.shape
 end
 
-# The shape of the last plain region and of the last region of a drag that hold
-# the point, so far.
+# The shape of the last region that holds the point, so far.
 mutable struct _FoundPointerShape
-    plain::Symbol
-    drag::Union{Symbol,Nothing}
+    shape::Symbol
 end
 
 # The elements of `canvas`, in the order of the drawing, with the point in the
@@ -101,7 +98,7 @@ function _find_element_shape!(found::_FoundPointerShape, element, x::Float64, y:
     if element isa GraphicsPointerShape
         left, top = Int(element.x), Int(element.y)
         if left <= x < left + Int(element.w) && top <= y < top + Int(element.h)
-            element.drag ? (found.drag = element.shape) : (found.plain = element.shape)
+            found.shape = element.shape
         end
     elseif element isa GraphicsCanvas
         x, y = x - Int(element.x), y - Int(element.y)

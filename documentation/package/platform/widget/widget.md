@@ -235,6 +235,8 @@ A widget puts a `GraphicsPointerShape` where a press on it does something, so th
 
 **A region and the reader of the same part read one band function.** `_get_splitter_band(next_position, thickness)` is the band of a divider that the region and `_splitter_band_hit` both read, and `_get_column_edge_band(edge, bw)` is the band of a column edge that the region and `_find_table_column_edge_at` both read, so the band that shows the shape and the band that answers the press can not drift apart.
 
+**During a drag, the part says its shape to the screen.** A part that starts a drag answers `make_screen_pointer_shape_operation(shape)` with its `StartDragOperation`, and `make_screen_pointer_shape_operation(nothing)` at its `DragEnd` and its `DragCancel` ([screen.md](../screen/screen.md#the-shape-of-the-pointer-during-a-drag)). So the pointer keeps the shape of the press wherever it goes: the divider of a split pane and the edge of a column keep their double arrow, and the slider keeps the arrow.
+
 A text field and a text area draw the I-beam region over their whole box, before their content, while they take edits; a disabled one draws the arrow over its box instead, after the content, so the arrow wins over the I-beam that the text view inside still draws for itself.
 
 ### The transform pane

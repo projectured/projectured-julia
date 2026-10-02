@@ -57,6 +57,10 @@ The split pane divider and the slider start their drag at the press; the chart s
 
 The part that keeps the drag draws its own preview from the zone it keeps, such as the rectangle the pane tree draws over the group a tab would land in.
 
+### The shape of the pointer during a drag
+
+The drag tracking does nothing for the shape of the pointer. The part that drags says its shape to the screen at the start of its drag, and gives it back at its `DragEnd` and its `DragCancel`, which the wrapper sends for every end of a drag ([screen.md](../screen/screen.md#the-shape-of-the-pointer-during-a-drag)). The list that the dragging slice reorders says no shape.
+
 ### The light during a drag
 
 A `MouseMove` still goes down by position to the content, and names the part under the pointer, as every move does, whether or not a drag is on ([mouse-target.md](../../kernel/mouse-target.md)). So a part lights while a drag passes over it, and a button that a drag passes off clears its own `pressed`, the same way the leave of the pointer does outside a drag.

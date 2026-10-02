@@ -3980,7 +3980,9 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         coord = orientation === :horizontal ? evt.x : evt.y
         return CompoundOperation(Any[
             ReplaceViewStateOperation(StartSplitterDragOperation(w, k, coord, slot_sizes)),
-            StartDragOperation(EmptyReference(), nothing)])
+            StartDragOperation(EmptyReference(), nothing),
+            make_screen_pointer_shape_operation(orientation === :horizontal ?
+                                                :double_arrow_horizontal : :double_arrow_vertical)])
     elseif evt isa DragMove && active != 0
         anchor = w.drag_anchor
         anchor === nothing && return nothing
@@ -4004,15 +4006,17 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         new_b = size_a + size_b - new_a
         return ReplaceViewStateOperation(ResizeSplitPaneOperation(w, k, new_a, new_b))
     elseif evt isa DragEnd && active != 0
-        return ReplaceViewStateOperation(EndSplitterDragOperation(w))
+        return CompoundOperation(Any[ReplaceViewStateOperation(EndSplitterDragOperation(w)),
+                                     make_screen_pointer_shape_operation(nothing)])
     elseif evt isa DragCancel && active != 0
-        ending = ReplaceViewStateOperation(EndSplitterDragOperation(w))
+        ending = CompoundOperation(Any[ReplaceViewStateOperation(EndSplitterDragOperation(w)),
+                                       make_screen_pointer_shape_operation(nothing)])
         anchor = w.drag_anchor
         (anchor === nothing || !(1 <= active && active + 1 <= n)) && return ending
         return CompoundOperation(Any[
             ReplaceViewStateOperation(ResizeSplitPaneOperation(w, active, anchor.size_a,
                                                                anchor.size_b)),
-            ending])
+            ending.operations...])
     end
     nothing
 end
@@ -6958,10 +6962,13 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
             # control, not of the value it stands for. The drag starts at the
             # press, so the knob follows the pointer from the first pixel, also
             # off the slider; the value at the press comes back on `DragCancel`.
+            # The pointer keeps the arrow of the press while the drag is on, also
+            # over a part that has a shape of its own.
             CompoundOperation(Any[_write_view_state(w, "dragging", true),
                                   _write_view_state(w, "press_value", Float64(w.value)),
                                   ReplaceReferencedValueOperation(document, field, value),
-                                  StartDragOperation(EmptyReference(), nothing)])
+                                  StartDragOperation(EmptyReference(), nothing),
+                                  make_screen_pointer_shape_operation(:arrow)])
         end
         MouseClick(button, x, y) => begin
             button === :left || return nothing
@@ -6994,11 +7001,13 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
     end
 end
 
-# The end of the drag of a slider: the knob is no longer held.
+# The end of the drag of a slider: the knob is no longer held, and the pointer
+# takes the shape of the part under it again.
 function _end_slider_drag(w::WidgetSlider)
     w.dragging === true || return nothing
     CompoundOperation(Any[_write_view_state(w, "dragging", false),
-                          _write_view_state(w, "press_value", nothing)])
+                          _write_view_state(w, "press_value", nothing),
+                          make_screen_pointer_shape_operation(nothing)])
 end
 
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────

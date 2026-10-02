@@ -9,6 +9,9 @@
 #   through the outer pipeline (`recursion`), seeding the window's
 #   `width`/`height` as the available layout extent so layout-aware content
 #   sizes itself to the window;
+# - puts a graphics content in a canvas of the window with the region of the
+#   pointer shape that the screen keeps (`pointer_shape`) over it, so the path of
+#   the content in the output is `content.elements[1]`;
 # - on the reader side, routes an `WindowInput` to the matching window by
 #   `window_id`, hands the inner event to that window's `content` reader, and
 #   prepends the `windows[i].content` steps to the operation that comes back.
@@ -40,22 +43,29 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
     iomap_cell = Cell(nothing)
     # Reconcile windows by identity so opening/closing a sibling reuses the
     # surviving windows' iomaps (PAR-STABLE-IOMAP-IDENTITY).
+    pointer_shape = getfield(input, :pointer_shape)
     window_iomaps = reconcile_child_iomaps(
         () -> input.windows,
-        (i, x) -> print_document(p, recursion, x,
-            make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i))))
+        (i, x) -> _print_window(p, recursion, x,
+            make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i)),
+            pointer_shape))
     out_windows = Cell(@computation CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
     paths = make_output_path_cells(input, path -> begin
         im = iomap_cell[]
         im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    output = ScreenDocument(out_windows, paths.selection, paths.mouse_target)
+    output = ScreenDocument(out_windows, pointer_shape, paths.selection, paths.mouse_target)
     iomap = ScreenToScreenIoMap(p, input, output, window_iomaps)
     iomap_cell[] = iomap
     iomap
 end
 
-function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx)
+# A window printed on its own is on no screen, so it keeps no pointer shape.
+print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx) =
+    _print_window(p, recursion, input, ctx, Cell(nothing))
+
+# The window `input` of a screen whose `pointer_shape` cell is `pointer_shape`.
+function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx, pointer_shape::Cell)
     # Seed the window's pixel size as the available layout extent for its
     # content, so split/tabbed/scroll panes size to the window.
     #
@@ -77,6 +87,7 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     # input screen and rely on this stage to mirror the output (PAR-STABLE-IOMAP-IDENTITY).
     content_iomap = reconcile_child_iomap(() -> input.content,
                                           c -> print_child(recursion, c, content_ctx))
+    cover = _make_pointer_cover(pointer_shape)
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(input, path -> begin
         im = iomap_cell[]
@@ -96,12 +107,42 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
                             bg = getfield(input, :bg), style = getfield(input, :style),
                             auto_dismiss = getfield(input, :auto_dismiss),
                             modal = getfield(input, :modal),
-                            content = Cell(@computation content_iomap[].output),
+                            content = Cell(@computation _cover_window_content(content_iomap[].output,
+                                                                              cover)),
                             paths...)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap
     iomap
 end
+
+# How far the region of the pointer shape that the screen keeps reaches past the
+# origin of a window on each side: over the whole window, and past its edges,
+# where a window that holds the pressed button still gets the moves.
+const _POINTER_COVER_REACH = 1_000_000
+
+# The region of the shape that the screen keeps over a window, of no size while it
+# keeps none.
+function _make_pointer_cover(pointer_shape::Cell)
+    reach(extent) = () -> pointer_shape[] === nothing ? 0 : extent
+    GraphicsPointerShape(reach(-_POINTER_COVER_REACH), reach(-_POINTER_COVER_REACH),
+                         reach(2 * _POINTER_COVER_REACH), reach(2 * _POINTER_COVER_REACH),
+                         () -> something(pointer_shape[], :default))
+end
+
+# The canvas of a window: a graphics content and, over it, the region of the
+# shape that the screen keeps, so that region is the last one at any point. A
+# content that is no canvas is the content itself.
+_cover_window_content(content, cover) = content
+_cover_window_content(content::GraphicsCanvas, cover) =
+    GraphicsCanvas(CellVector(Cell[Cell(content), Cell(cover)]);
+                   w = () -> Int(content.w), h = () -> Int(content.h))
+
+# Whether the output of the content of a window is in the canvas of the window.
+_is_content_covered(iomap::ScreenWindowIoMap) =
+    unwrap_cell(get_iomap_output(iomap.content_iomap)) isa GraphicsCanvas
+
+# The steps from the canvas of a window to its content.
+const _COVERED_CONTENT_STEPS = (FieldReferenceStep("elements"), ElementReferenceStep(1))
 
 # ── Reference mapping (order- and structure-preserving) ───────────────────────
 
@@ -128,15 +169,40 @@ function _map_screen(fn, iomap::ScreenToScreenIoMap, reference)
 end
 
 # Window level: peel `content`, delegate the tail to the content iomap, and re-root
-# what it answers at `content`.
+# what it answers at `content`. In the output, a content in the canvas of the
+# window is one element further: `content.elements[1]`.
 function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReference || return (reference isa Reference ? reference : nothing)
     h = get_reference_head(reference)
     (h isa FieldReferenceStep && h.name == "content") || return reference  # metadata: identity
     cim = iomap.content_iomap
-    mapped = fn(cim.projection, cim, get_reference_tail(reference))
+    tail = get_reference_tail(reference)
+    covered = _is_content_covered(iomap)
+    if fn === map_reference_backward && covered && !_is_point_reference(tail)
+        tail isa EmptyReference || (tail = _drop_covered_steps(tail))
+        tail === nothing && return nothing
+    end
+    mapped = fn(cim.projection, cim, tail)
     mapped === nothing && return nothing
+    fn === map_reference_forward && covered && mapped isa Reference &&
+        (mapped = _prepend(_COVERED_CONTENT_STEPS, mapped))
     ConcreteReference(FieldReferenceStep("content"), mapped)
+end
+
+# Whether `reference` is one point step and nothing more, a point of the window.
+_is_point_reference(reference) =
+    reference isa ConcreteReference && get_reference_head(reference) isa PointReferenceStep &&
+    get_reference_tail(reference) isa EmptyReference
+
+# A path in the canvas of a window without the steps to the content, or `nothing`
+# for a path to another element, the region of the pointer shape.
+function _drop_covered_steps(reference)
+    reference isa ConcreteReference || return nothing
+    head = get_reference_head(reference)
+    (head isa FieldReferenceStep && head.name == "elements") || return nothing
+    rest = get_reference_tail(reference)
+    (rest isa ConcreteReference && get_reference_head(rest) == ElementReferenceStep(1)) || return nothing
+    get_reference_tail(rest)
 end
 
 map_reference_forward(::ScreenToScreen, iomap::ScreenToScreenIoMap, reference) =

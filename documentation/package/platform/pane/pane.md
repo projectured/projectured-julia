@@ -196,6 +196,10 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 `make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
 
+### The shape of the pointer during the drag of a tab
+
+A tab of the tree is an open hand under the pointer, because a press there can drag it. When the drag starts, after the small move, the tree says the shape of the drag to the screen with `make_screen_pointer_shape_operation`: the closed hand while a group takes the tab at the pointer, and the crossed circle while none does. It says it again at a `DragMove` only when the kind of the landing changes, and gives the shape back at its `DragEnd` and its `DragCancel`. See [screen.md](../screen/screen.md#the-shape-of-the-pointer-during-a-drag).
+
 ### The tabs of an editor
 
 The wrapper `tabs` of `build_editor` puts the root document in the one tab of a pane tree. It is on by default, so an editor that is built with this package loaded shows its documents as tabs, and `tabs = false` turns it off. A root that is a `PaneTree` or a `ScreenDocument` already is left as it is. Its argument `(; title, appearance, measure)` names the tab and gives the `Appearance` whose widget theme the pane's widgets draw with, and their measure.

@@ -1,8 +1,18 @@
 # Fragment of `ScreenModule` — `ScreenDocument`, the root that holds the
 # windows, and the window document beneath it.
 
+"""
+    ScreenDocument(; windows, pointer_shape = nothing)
+
+The windows that the editor shows, and `pointer_shape`, the shape that the
+pointer keeps over every window while a part says one, or `nothing`. A part says
+the shape of its drag with [`ChangeScreenPointerShapeOperation`](@ref), and the
+screen draws a region of that shape over each window. `pointer_shape` is view
+state: a history does not record it.
+"""
 @document struct ScreenDocument
     windows::CellVector = CellVector()
+    pointer_shape::Union{Symbol,Nothing} = nothing
 end
 
 # `ScreenDocument()` (empty), `ScreenDocument([w, …])` and `ScreenDocument(w, …)`
@@ -10,7 +20,7 @@ end
 # variadic forms for a struct backed by a single `CellVector`. Only the
 # already-wrapped `CellVector` form needs writing — a `CellVector` is a `Document`,
 # so this more specific method takes it as the *collection*, not as one element.
-ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing))
+ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing), Cell(nothing))
 
 # ── WindowDocument ────────────────────────────────────────────────────────
 
@@ -172,6 +182,35 @@ screen. Intercepted by a window-manager projection, or applied by
 struct CloseWindowOperation <: Operation
     id::Symbol
 end
+
+"""
+    ChangeScreenPointerShapeOperation(shape)
+
+Give the pointer `shape`, one of `POINTER_SHAPES`, over every window of the
+screen, or with `nothing` give the shape back to the regions that the windows
+draw. A part answers it at the start of its drag with the shape of the drag, and
+with `nothing` at its `DragEnd` and its `DragCancel`, so the pointer keeps the
+shape of the drag wherever it goes.
+
+A part marks it with `ReplaceViewStateOperation`, because it is no edit, and a
+history does not record it. The window manager takes it on the way up and answers
+a write of `pointer_shape` of its input screen instead; one that reaches the
+editor applies to the screen that the editor's document wraps.
+"""
+struct ChangeScreenPointerShapeOperation <: Operation
+    shape::Union{Symbol,Nothing}
+end
+
+OperationModule.operation_travels_unchanged(::ChangeScreenPointerShapeOperation) = true
+
+"""
+    make_screen_pointer_shape_operation(shape) -> ReplaceViewStateOperation
+
+The [`ChangeScreenPointerShapeOperation`](@ref) of `shape` marked as view state, as
+a part answers it at the start and at the end of its drag.
+"""
+make_screen_pointer_shape_operation(shape::Union{Symbol,Nothing}) =
+    ReplaceViewStateOperation(ChangeScreenPointerShapeOperation(shape))
 
 """
     ResizeWindowOperation(target, width, height)

@@ -27,18 +27,6 @@ function test_pointer_shape()
             @test find_pointer_shape(canvas, 150, 10) === :default
         end
 
-        @testset "a region of a drag wins over a plain region in any order" begin
-            canvas = GraphicsCanvas([GraphicsPointerShape(0, 0, 200, 100, :closed_hand; drag = true),
-                                     GraphicsPointerShape(0, 0, 50, 50, :ibeam)];
-                                    w = 200, h = 100)
-            @test find_pointer_shape(canvas, 10, 10) === :closed_hand
-            @test find_pointer_shape(canvas, 100, 80) === :closed_hand
-            # Among the regions of a drag, the last one wins.
-            push!(canvas.elements, GraphicsPointerShape(0, 0, 50, 50, :crossed_circle; drag = true))
-            @test find_pointer_shape(canvas, 10, 10) === :crossed_circle
-            @test find_pointer_shape(canvas, 100, 80) === :closed_hand
-        end
-
         @testset "a nested canvas moves its regions" begin
             inner = GraphicsCanvas([GraphicsPointerShape(0, 0, 10, 10, :pointing_hand)]; x = 30, y = 40)
             canvas = GraphicsCanvas([inner]; w = 200, h = 100)

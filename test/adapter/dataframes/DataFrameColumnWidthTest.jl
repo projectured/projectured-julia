@@ -78,7 +78,13 @@ function test_data_frame_column_width()
         @testset "a drag of the edge sets the width, and the view keeps it by name" begin
             send!(MouseDown(:left, edge, name_y + 2, none; time = 1.0))
             send!(MouseMove(edge + 40, name_y + 2, MouseButtons(:left), none; time = 1.1))
+            # The pointer keeps the double arrow over the cells and outside the window.
+            window = last(backend.rendered).windows[1].content
+            @test find_pointer_shape(window, name_x + 20, name_y + 80) === :double_arrow_horizontal
+            @test find_pointer_shape(window, 2000, -30) === :double_arrow_horizontal
             send!(MouseUp(:left, edge + 40, name_y + 2, none; time = 1.2))
+            window = last(backend.rendered).windows[1].content
+            @test find_pointer_shape(window, name_x + 20, name_y + 80) !== :double_arrow_horizontal
             @test haskey(view.column_widths, "id")
             @test label_at("name :: String")[1] == name_x + 40
             # The release ends the drag that the table keeps.

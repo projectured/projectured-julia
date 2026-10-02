@@ -1,7 +1,7 @@
 # The pointer shows what a press does there
 
 Status: in progress on the branch `pointer-shape` (worktree
-`.claude/worktrees/pointer-shape`). Steps 1 to 5 are done (§6). The owner decided
+`.claude/worktrees/pointer-shape`). Steps 1 to 6 are done (§6); step 7 waits for a decision. The owner decided
 P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
 many other places, needs a plan"), after G3 of step 5.7 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) chose a lit edge
@@ -271,10 +271,46 @@ arrow.
    where the reader answers the press of the part. `test_data_frame_column_width()`
    checks the double arrow on the window that a real editor drew. `test_platform()`
    passes, 86393 with the 8 broken of before; `test_application_video()` passes.
-6. **The drag** (P5 and P6 in §8; §4.1 is replaced). Each part that drags answers
-   `ChangeScreenPointerShapeOperation` at its start and with `nothing` at its
-   `DragEnd` and `DragCancel`; the screen keeps `pointer_shape` and draws a
-   region over each window from it. Before: (§4.1). The drag tracking keeps the shape of the press and draws
+6. ✅ **The drag** (P5, P6 and P7 in §8; §4.1 is replaced). Each part that drags
+   answers `ChangeScreenPointerShapeOperation` at its start and with `nothing` at
+   its `DragEnd` and `DragCancel`; the screen keeps `pointer_shape` and draws a
+   region over each window from it. Before: (§4.1).
+
+   Done. What the code does:
+   - `ScreenDocument.pointer_shape::Union{Symbol,Nothing}`, view state, shared by
+     the output screen. `ChangeScreenPointerShapeOperation(shape)` and
+     `make_screen_pointer_shape_operation(shape)`, which marks it with
+     `ReplaceViewStateOperation`, as an opener marks a popup: an undo buffer
+     below the screen would otherwise record it as an edit.
+   - `WindowManagingProjection` takes it on the way up (bare, marked, or in a
+     compound) and answers a marked `ReplaceReferencedValueOperation` of
+     `pointer_shape` of its input screen. `evaluate_operation` applies one that
+     reaches the editor. The safety net is in the same reader: a `MouseUp` or a
+     move with no button held writes `nothing` first, while a shape is kept.
+   - `ScreenToScreen` gives a window whose content draws a `GraphicsCanvas` a
+     canvas of its own, `[content, region]` (P7), always; the region reads
+     `pointer_shape`, reaches 1,000,000 pixels past the origin on each side, and
+     has no size while the screen keeps no shape. `_map_window` adds the step
+     `elements[1]` forward and drops it backward; a path to the region maps to
+     nothing; a point of the window maps as before.
+   - The parts: the divider of a split pane and the edge of a column say their
+     double arrow, the slider and the chart say the arrow (the shape at their
+     press), and the pane tree says the closed hand or the crossed circle when the
+     drag of a tab starts and when the kind of its landing changes. Each says
+     `nothing` at its `DragEnd` and `DragCancel`. The drag tracking does not
+     change. The list reorder says no shape.
+   - The web client captures the pointer at a press (`setPointerCapture`). No
+     JavaScript test runs it: the machine has no Node.js.
+   - §4.2, the cursor of SDL outside the window during a held button: not
+     checked on the machine. A pushed SDL event does not pass the X server, and
+     XTest is not used, so a real drag by hand is the check.
+   - Tests: `test_drag_pointer_shape()` in
+     `test/platform/shell/DragPointerShapeTest.jl` (39) drives the divider, the
+     slider and a tab through a real editor, and checks the safety net, the region
+     in every window and the step in the reference map;
+     `test_data_frame_column_width()` checks the double arrow over the cells and
+     outside the window during the drag of an edge. `test_pane_reader()` reads the
+     end of a splitter drag as the end and the shape. The drag tracking keeps the shape of the press and draws
    the region of a drag in every window; the keeper of a drag that carries a
    thing draws the closed hand and the crossed circle over its zones; the web
    client captures the pointer. Tests: a drag of the edge of a column keeps the
@@ -338,6 +374,12 @@ The owner, later on 2026-10-02, on step 6:
   the screen slice, and shows no closed hand (no new dependency of the slice).
   Rejected: the operation in the kernel, so that the drag tracking sets the shape
   back in one place (option K).
+
+- **P7. The canvas of a window (option A).** `ScreenToScreen` holds a graphics
+  content in a canvas of the window with the region after it, always, so the
+  paths below the content carry one more step, `elements[1]`, which its own maps
+  add and drop. Rejected: a copy of the root canvas with the region added, which
+  keeps every path but copies and extends the output of the content projection.
 
 The owner asked, with the decisions of the morning: "what will keep the cursor shape during a
 drag when it moves away from the part being dragged but still operates?" The

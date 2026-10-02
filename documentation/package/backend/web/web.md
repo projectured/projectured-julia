@@ -45,7 +45,7 @@ After the `update` message, the backend sends `{"type": "pointer", "window": id,
 | `crossed_circle` | `not-allowed` |
 | `hourglass` | `wait` |
 
-A shape that the table does not name sends `default`. The client sets `canvas.style.cursor` of the window to `cursor` (`setPointerCursor` in `asset/web/client.js`).
+A shape that the table does not name sends `default`. The client sets `canvas.style.cursor` of the window to `cursor` (`setPointerCursor` in `asset/web/client.js`). A press captures the pointer (`setPointerCapture`), so until the release the canvas gets the moves and the release, and shows its cursor, also outside the window.
 
 The first `WindowDocument` is the primary one, and the client draws it in the page itself; every other window opens as a browser window. A browser opens a window only inside a user action, and a window that the editor opens by itself comes with none. So the client opens one spare browser window at a user action and gives it to the next window that arrives with no action. The serializer mirrors the painters of the SDL backend: `text`, `rect`, `line`, `circle`, `polyline`, `polygon`, `clip` for a viewport, `group` for a nested canvas, and `image`. A spline is cut into a polyline on the server. An image goes as base64 RGBA, and a `GraphicsFence` or an image held as an SDL texture is skipped. Any output other than a `ScreenDocument` raises an error.
 

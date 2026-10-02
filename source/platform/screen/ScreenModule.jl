@@ -50,6 +50,7 @@ import ..SettingsModule: get_setting_environment_names, is_settings_group_applie
 import ..GraphicsModule: map_operation_position
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
+export ChangeScreenPointerShapeOperation, make_screen_pointer_shape_operation
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap

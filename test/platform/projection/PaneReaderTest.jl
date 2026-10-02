@@ -291,9 +291,13 @@ end
     # split holds are not written again.
     @test _pr_drag(proj, iomap, path, DragMove(300, 150; time = 0.0)) === nothing
 
+    # The release ends the drag of the splitter and gives the shape of the
+    # pointer back to the screen, both marked as view state.
     finish = _pr_drag(proj, iomap, path, DragEnd(300, 150; time = 0.0))
-    @test finish isa ReplaceViewStateOperation
-    @test get_wrapped_operation(finish) isa EndSplitterDragOperation
+    @test finish isa CompoundOperation
+    @test all(member -> member isa ReplaceViewStateOperation, finish.operations)
+    @test get_wrapped_operation(finish.operations[1]) isa EndSplitterDragOperation
+    @test get_wrapped_operation(finish.operations[2]) == ChangeScreenPointerShapeOperation(nothing)
     _apply!(editor, finish)
     @test tree.root.elements[1] === left          # and the layout kept its shape
 end

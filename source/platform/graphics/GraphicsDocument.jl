@@ -585,7 +585,7 @@ _make_shape_cell(shape::Cell) = shape
 _make_shape_cell(shape::Function) = Cell(@computation Symbol(shape()))
 
 """
-    GraphicsPointerShape(x, y, w, h, shape; drag = false)
+    GraphicsPointerShape(x, y, w, h, shape)
 
 A box where the pointer takes `shape`, one of [`POINTER_SHAPES`](@ref). It draws
 nothing.
@@ -594,9 +594,6 @@ A part puts one into what it draws where a press does something: the edge of a
 column, the divider of a split pane, a text that a person edits. A backend finds
 the shape at the pointer with [`find_pointer_shape`](@ref), and every backend
 paints nothing for it.
-
-With `drag = true` the box is a region of a drag: it wins over every region that
-is not one, wherever it is in the drawing.
 
 `shape` is a `Symbol`, a cell that holds one, or a function of no arguments,
 which becomes a computed cell.
@@ -616,16 +613,14 @@ without a layout.
     w::Int32
     h::Int32
     shape::Symbol
-    drag::Bool
 end
 
 # @positional: the geometry of a region, in one order everywhere: x, y, width and height, then the shape.
 function GraphicsPointerShape(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber,
-                              shape::Union{Symbol,Cell,Function}; drag::Bool = false)
+                              shape::Union{Symbol,Cell,Function})
     GraphicsPointerShape(_make_pixel_cell(x), _make_pixel_cell(y),
                          _make_pixel_cell(w), _make_pixel_cell(h),
-                         _make_shape_cell(shape), Cell(drag),
-                         Cell(nothing))
+                         _make_shape_cell(shape), Cell(nothing))
 end
 
 # ── Hit testing ─────────────────────────────────────────────────────────────

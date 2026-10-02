@@ -106,7 +106,40 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     end
 
     inner = read_intent(p.inner, recursion, change, iomap.inner_iomap)
-    return _apply_window_ops(iomap, change, inner)
+    answer = _apply_window_ops(iomap, change, inner)
+    answer = Intent(answer.gesture, _take_pointer_shape(answer.operation, iomap.input))
+    window_input isa WindowInput || return answer
+    _keep_pointer_shape(iomap.input, window_input.event, answer)
+end
+
+# The answer with each `ChangeScreenPointerShapeOperation` in it, bare or marked as
+# view state, made a write of `pointer_shape` of the input screen, which a history
+# does not record.
+_take_pointer_shape(operation, screen) = operation
+_take_pointer_shape(operation::ChangeScreenPointerShapeOperation, screen) =
+    _write_pointer_shape(screen, operation.shape)
+_take_pointer_shape(operation::ReplaceViewStateOperation, screen) =
+    get_wrapped_operation(operation) isa ChangeScreenPointerShapeOperation ?
+        _take_pointer_shape(get_wrapped_operation(operation), screen) : operation
+function _take_pointer_shape(operation::CompoundOperation, screen)
+    members = Any[_take_pointer_shape(member, screen) for member in operation.operations]
+    all(member === original for (member, original) in zip(members, operation.operations)) ?
+        operation : CompoundOperation(members)
+end
+
+_write_pointer_shape(screen, shape) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(screen, "pointer_shape", shape))
+
+# A shape that the screen keeps ends at a release, or at a move with no button
+# held, which shows a release that the window did not get: a part that is gone
+# before its drag ends never answers its `DragEnd`. The write comes first, so a
+# shape that the answer itself says wins.
+function _keep_pointer_shape(screen, event, answer::Intent)
+    screen isa ScreenDocument && screen.pointer_shape !== nothing || return answer
+    (event isa MouseUp || is_move_without_button(event)) || return answer
+    clear = _write_pointer_shape(screen, nothing)
+    operation = answer.operation
+    Intent(answer.gesture, operation === nothing ? clear : CompoundOperation(Any[clear, operation]))
 end
 
 # Intercept window-management operations bubbling up from below and apply them
@@ -219,6 +252,11 @@ evaluate_operation(editor, op::OpenWindowOperation) =
     _open_screen_window!(_find_editor_screen(editor), op)
 evaluate_operation(editor, op::CloseWindowOperation) =
     _close_screen_window!(_find_editor_screen(editor), op)
+function evaluate_operation(editor, op::ChangeScreenPointerShapeOperation)
+    screen = _find_editor_screen(editor)
+    screen isa ScreenDocument && screen.pointer_shape !== op.shape && (screen.pointer_shape = op.shape)
+    nothing
+end
 
 _find_editor_screen(editor) =
     hasproperty(editor, :document) ? get_wrapped_document(editor.document) : nothing

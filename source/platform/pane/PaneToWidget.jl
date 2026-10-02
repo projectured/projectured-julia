@@ -698,8 +698,13 @@ function _read_tab_press(iomap::PaneTreeToWidgetIoMap, state, gesture)
     target, zone = _find_tab_landing(iomap, state, gesture.x, gesture.y)
     CompoundOperation(Any[
         _drag_write(tree, merge(state, (target = target, zone = zone, started = true))),
-        StartDragOperation(EmptyReference(), (group = state.group, index = state.index))])
+        StartDragOperation(EmptyReference(), (group = state.group, index = state.index)),
+        make_screen_pointer_shape_operation(_get_tab_drop_shape(target))])
 end
+
+# The shape of the pointer during the drag of a tab: the closed hand where a group
+# takes the tab, the crossed circle where none does.
+_get_tab_drop_shape(target) = target === nothing ? :crossed_circle : :closed_hand
 
 # The parts of the drag of a tab, which come by the path of the tree: a move sets
 # where the tab would land, the release drops it there, and a cancel drops it
@@ -711,13 +716,17 @@ function _read_tab_drag(iomap::PaneTreeToWidgetIoMap, state, gesture)
         # Only write when the target moved, so a drag across a pane is not one
         # write per pixel.
         (state.target === target && state.zone === zone) && return nothing
-        return _drag_write(tree, merge(state, (target = target, zone = zone)))
+        write = _drag_write(tree, merge(state, (target = target, zone = zone)))
+        shape = _get_tab_drop_shape(target)
+        shape === _get_tab_drop_shape(state.target) && return write
+        return CompoundOperation(Any[write, make_screen_pointer_shape_operation(shape)])
     elseif gesture isa DragEnd
         drop = _drop_operation(tree, state)
-        clear = _drag_write(tree, nothing)
-        return drop === nothing ? clear : CompoundOperation(Any[drop, clear])
+        clear = CompoundOperation(Any[_drag_write(tree, nothing),
+                                      make_screen_pointer_shape_operation(nothing)])
+        return drop === nothing ? clear : CompoundOperation(Any[drop, clear.operations...])
     end
-    _drag_write(tree, nothing)
+    CompoundOperation(Any[_drag_write(tree, nothing), make_screen_pointer_shape_operation(nothing)])
 end
 
 # Where the tab of `state` dragged to `(x, y)` of the view would land: the group and

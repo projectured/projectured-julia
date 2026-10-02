@@ -24,7 +24,9 @@ The screen is data like any other document. To open a window, a program adds a `
 
 It keeps the IO map of each window by identity (`reconcile_child_iomaps`). So a window that opens or closes does not rebuild the other windows, and a new content in a window with the same id replaces the old content in place.
 
-Its reference map gives a path of the content the prefix `windows[i].content`, in both directions. A point reaches the content only after `windows[i].content`, in the frame of the window: the window takes off the place of the root canvas of its content, because a widget reads a point in the frame of its own canvas. A bare point, with no window, names no part and maps to `nothing`.
+**The canvas of a window.** When the content of a window draws a `GraphicsCanvas`, the output window holds a canvas of the window: the content as its first element, and over it the region of the shape of the pointer that the screen keeps ([below](#the-shape-of-the-pointer-during-a-drag)). So the path of the content in the output is `windows[i].content.elements[1]`. A content that draws no canvas is the content itself.
+
+Its reference map gives a path of the content the prefix `windows[i].content`, in both directions, and the step `elements[1]` in the output when the window has its canvas; a path to the region maps to no part. A point reaches the content only after `windows[i].content`, in the frame of the window: the window takes off the place of the root canvas of its content, because a widget reads a point in the frame of its own canvas. A bare point, with no window, names no part and maps to `nothing`.
 
 Its reader routes a `WindowInput` event by the window id, not by the position in the list. The window moves a pointer event into the frame of the root canvas of its content with `shift_event_position`, and moves a position in the answer back. It then adds the prefix `windows[i]` to the operation that comes back. When that operation is an `OpenPopupOperation` inside `ReplaceViewStateOperation`, it adds the window's own screen origin to the popup and turns it into an `OpenWindowOperation` with `style = :popup` and a `maximum_size` of the width and the height of the popup, and drops the mark. So the window takes the extent of what the popup draws, up to that bound, which is `(640, 800)` by default. The mark keeps a popup out of a history only above the window; below the window manager, a popup opens exactly as any other window does.
 
@@ -44,6 +46,17 @@ Its reader routes a `WindowInput` event by the window id, not by the position in
 The projection changes only the input screen. `ScreenToScreen` then updates the output.
 
 **A window operation that reaches the editor opens the window too.** A wrapper outside the screen projection, such as the ones that keep the tooltip window and the context menu window, and a verb, such as `open_file_dialog!`, answer an `OpenWindowOperation` or a `CloseWindowOperation` that passes no window manager. `evaluate_operation` applies it to the screen that the editor's document wraps (`get_wrapped_document`), with the same code as the window manager.
+
+### The shape of the pointer during a drag
+
+`ScreenDocument.pointer_shape` is the shape that the pointer keeps over every window while a part says one, or `nothing`. It is view state, so a history does not record it.
+
+- A part says the shape of its drag with `ChangeScreenPointerShapeOperation(shape)` at the start of the drag, and gives it back with `ChangeScreenPointerShapeOperation(nothing)` at its `DragEnd` and its `DragCancel`. `make_screen_pointer_shape_operation(shape)` makes the operation marked with `ReplaceViewStateOperation`, so a history below the screen does not record it either.
+- `WindowManagingProjection` takes the operation on the way up, bare or marked, also inside a `CompoundOperation`, and answers a view state write of `pointer_shape` of its input screen instead. One that reaches the editor applies to the screen that the editor's document wraps, as a window operation does.
+- `ScreenToScreen` draws, in the canvas of each window, a `GraphicsPointerShape` of that shape after the content, far past the edges of the window. So it is the last region at every point of every window, also at a point outside a window that holds the pressed button, and a backend shows its shape there with no code of its own. While the screen keeps no shape, the region has no size.
+- **The safety net.** A part that is gone before its drag ends, such as a slider in a window that closes during the drag, never answers its `DragEnd`. So the window manager also sets the shape back at a release, or at a move with no button held, while the screen keeps one.
+
+The parts that say a shape are listed in [widget.md](../widget/widget.md#the-shape-of-the-pointer) and [pane.md](../pane/pane.md). No projection reads or changes the output of another one for it: the part says the shape, and the screen keeps it.
 
 ### The place of a part
 
@@ -84,7 +97,7 @@ screen = ScreenDocument([window])
 run_editor!(document, projection; backend = SdlBackend(), window = (; title = "Demo"))
 ```
 
-- Test: no package suite exists. The tooltip, popup, dialog, command palette, gesture help and native window tests use the package.
+- Test: no package suite exists. The tooltip, popup, dialog, command palette, gesture help and native window tests use the package. `test_drag_pointer_shape()` (`test/platform/shell/DragPointerShapeTest.jl`) drives the drags of a divider, a slider and a tab through a real editor and checks the shape that each window shows, the safety net, the region in every window, and the step of the canvas of a window in the reference map.
 
 ## Limits
 

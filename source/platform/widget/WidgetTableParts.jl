@@ -1565,7 +1565,8 @@ function _read_table_column_edge_press(p::WidgetTableToGraphicsCanvas, iomap::Wi
     CompoundOperation(Any[
         ReplaceViewStateOperation(ReplaceReferencedValueOperation(w, "column_drag",
                                                                   (column = c, x = g.x, width = width))),
-        StartDragOperation(EmptyReference(), nothing)])
+        StartDragOperation(EmptyReference(), nothing),
+        make_screen_pointer_shape_operation(:double_arrow_horizontal)])
 end
 
 # A rest of the pointer on the right edge of a header says what a drag there
@@ -1599,8 +1600,9 @@ function read_table_column_drag(w::WidgetTable, g)
     ending = ReplaceViewStateOperation(ReplaceReferencedValueOperation(w, "column_drag", nothing))
     width(value) = ReplaceViewStateOperation(SetTableColumnWidthOperation(w, drag.column, value))
     g isa DragMove && return width(max(_MIN_COLUMN_WIDTH, drag.width + g.x - drag.x))
-    g isa DragEnd && return ending
-    CompoundOperation(Any[width(drag.width), ending])
+    shape = make_screen_pointer_shape_operation(nothing)
+    g isa DragEnd && return CompoundOperation(Any[ending, shape])
+    CompoundOperation(Any[width(drag.width), ending, shape])
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
