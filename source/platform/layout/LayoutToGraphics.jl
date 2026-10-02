@@ -1326,8 +1326,11 @@ function _gl_child_x(i::Int, child_iomaps::Vector,
         col = _grid_col(i, c)
         cellw = col_w[col][]
         a = _col_align(column_align_cell[], col, halign[])
-        off = a === :center ? div(cellw - cw, 2) :
-              a === :right  ? cellw - cw         :
+        # A cell wider than its column starts at its left edge, whatever its
+        # alignment, so a column that clips it shows its start, as the grid of a
+        # list does.
+        off = a === :center ? max(0, div(cellw - cw, 2)) :
+              a === :right  ? max(0, cellw - cw)         :
                               0
         Int32(col_x[col][] + off)
     end))
@@ -1342,8 +1345,9 @@ function _gl_child_y(i::Int, child_iomaps::Vector,
         row = _grid_row(i, c)
         cellh = row_h[row][]
         a = valign[]
-        off = a === :center ? div(cellh - ch, 2) :
-              a === :bottom ? cellh - ch         :
+        # A cell taller than its row starts at its top edge, as across.
+        off = a === :center ? max(0, div(cellh - ch, 2)) :
+              a === :bottom ? max(0, cellh - ch)         :
                               0
         Int32(row_y[row][] + off)
     end))

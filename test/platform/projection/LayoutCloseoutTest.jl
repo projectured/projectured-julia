@@ -93,6 +93,28 @@ end
     @test !(second isa GraphicsViewport)
 end
 
+@testset "a cell wider than its column starts at its left edge, whatever its alignment" begin
+    long = "a value that is far too wide for forty pixels of column"
+    ctx = with_exact_size(PrinterContext(EmptyReference());
+                          width=_LC_Cell(600), height=_LC_Cell(400))
+    for align in (:right, :center)
+        grid = GridLayout(Any[WidgetLabel(long), WidgetLabel("b")], 2;
+                          column_policies=Any[Fixed(40), Content], column_offers=Bool[false],
+                          column_align=Symbol[align, :left])
+        element = print_document(proj, nothing, grid, ctx).output.elements[1]
+        @test element isa GraphicsViewport
+        # The column clips the end of the cell, so its start shows: the content
+        # of the slot is at its left edge.
+        @test Int(element.content.x[]) == 0
+    end
+    # A cell that fits keeps its alignment.
+    grid = GridLayout(Any[WidgetLabel("ab"), WidgetLabel("b")], 2;
+                      column_policies=Any[Fixed(40), Content], column_offers=Bool[false],
+                      column_align=Symbol[:right, :left])
+    first_element = print_document(proj, nothing, grid, ctx).output.elements[1]
+    @test Int(first_element.content.x[]) == 40 - Int(first_element.content.elements[1].w[])
+end
+
 @testset "a flow breaks at the width it is offered, and its children are their content" begin
     words() = Any[WidgetBadge(w) for w in ("alpha", "beta", "gamma", "delta", "epsilon")]
     wide = with_exact_size(PrinterContext(EmptyReference());
