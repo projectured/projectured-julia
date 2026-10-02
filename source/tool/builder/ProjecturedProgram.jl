@@ -368,6 +368,120 @@ package: the oldest that the packages name in their `[compat]`.
 const PROJECTURED_CI_JULIA_VERSIONS = [PROJECTURED_JULIA_COMPAT]
 
 """
+    PROJECTURED_REGISTRY_URL
+
+The registry that serves the released packages, `ProjecturedRegistry`.
+"""
+const PROJECTURED_REGISTRY_URL = "https://github.com/projectured/ProjecturedRegistry"
+
+"""
+    PROJECTURED_PACKAGE_READMES
+
+The README of each released package, as
+`"<package>" => (summary = "<one sentence>", document = "<file of this repository>")`:
+what the package holds or does, for a person who does not know ProjecturEd, and
+the document that says more. A released package without an entry stops the
+release.
+"""
+const PROJECTURED_PACKAGE_READMES = Dict(
+    "Projectured" =>
+        (summary = "The umbrella package of ProjecturEd: it installs the kernel and the platform, and loads every ProjecturEd package that you install.",
+         document = "documentation/guide/own-project-guide.md"),
+    "ProjecturedKernel" =>
+        (summary = "The core of ProjecturEd: reactive cells, documents, references, operations, projections and the editor loop, with no concrete kind of data.",
+         document = "documentation/design/concepts.md"),
+    "ProjecturedPlatform" =>
+        (summary = "What every kind of data shares: text, syntax, graphics, layout, widgets, panes, windows, the generic views and the application.",
+         document = "documentation/package/README.md"),
+    "ProjecturedAnthropic" =>
+        (summary = "Runs the AI assistant of ProjecturEd with a Claude model, through the Anthropic API.",
+         document = "documentation/package/adapter/anthropic/anthropic.md"),
+    "ProjecturedBook" =>
+        (summary = "Structured prose: a book, its chapters, paragraphs of styled text, lists and pictures.",
+         document = "documentation/package/domain/book/book.md"),
+    "ProjecturedChart" =>
+        (summary = "Line, scatter, bar, histogram and strip charts as documents, drawn with no plotting library.",
+         document = "documentation/package/domain/chart/chart.md"),
+    "ProjecturedConsole" =>
+        (summary = "Shows the editor in a terminal with ANSI colours, and reads the keys of the terminal.",
+         document = "documentation/package/backend/console/console.md"),
+    "ProjecturedDataFrames" =>
+        (summary = "Shows a `DataFrame` of DataFrames.jl as a table that you can scroll, sort, filter and edit, while the data stays in the data frame.",
+         document = "documentation/package/README.md"),
+    "ProjecturedDatabase" =>
+        (summary = "The interface of a database adapter, and the documents of a database connection.",
+         document = "documentation/package/domain/database/database.md"),
+    "ProjecturedDBCatalog" =>
+        (summary = "The catalog of a database as a tree of documents: its tables and their columns.",
+         document = "documentation/package/domain/database/database.md"),
+    "ProjecturedFormula" =>
+        (summary = "Named formulas that refer to each other and compute a value, as the cells of a spreadsheet do.",
+         document = "documentation/package/domain/formula/formula.md"),
+    "ProjecturedFSM" =>
+        (summary = "Extended state machines: states, transitions on events, timers or conditions, and variables. A machine draws as a live diagram and generates a Julia module.",
+         document = "documentation/package/domain/fsm/fsm.md"),
+    "ProjecturedGraph" =>
+        (summary = "Node-and-edge diagrams in which each vertex holds a document of any kind.",
+         document = "documentation/package/domain/graph/graph.md"),
+    "ProjecturedJSON" =>
+        (summary = "JSON data as a tree of documents that you edit in the JSON notation.",
+         document = "documentation/package/domain/json/json.md"),
+    "ProjecturedJulia" =>
+        (summary = "Julia source code as a tree of documents that you edit in the Julia notation.",
+         document = "documentation/package/domain/julia/julia.md"),
+    "ProjecturedMarkdown" =>
+        (summary = "A Markdown page as a tree of blocks and inlines.",
+         document = "documentation/package/domain/markdown/markdown.md"),
+    "ProjecturedMath" =>
+        (summary = "A math formula as a tree of documents: its structure, not its picture and not its value.",
+         document = "documentation/package/domain/math/math.md"),
+    "ProjecturedMCP" =>
+        (summary = "Lets a client outside the process, such as an AI assistant, drive a running editor over the Model Context Protocol (MCP).",
+         document = "documentation/package/adapter/mcp/mcp.md"),
+    "ProjecturedODBC" =>
+        (summary = "Connects the database documents to a live database through ODBC.jl, and runs its queries.",
+         document = "documentation/package/adapter/odbc/odbc.md"),
+    "ProjecturedOllama" =>
+        (summary = "Runs the AI assistant of ProjecturEd with a model on your own machine, through a local Ollama server.",
+         document = "documentation/package/adapter/ollama/ollama.md"),
+    "ProjecturedOpenRouter" =>
+        (summary = "A relevance model for the search of the AI assistant, which asks a model through the API of OpenRouter.",
+         document = "documentation/package/adapter/openrouter/openrouter.md"),
+    "ProjecturedPDF" =>
+        (summary = "Writes a view as a vector PDF with selectable text, with no third-party package.",
+         document = "documentation/package/backend/pdf/pdf.md"),
+    "ProjecturedProcess" =>
+        (summary = "An algorithm as a structured flowchart: steps, decisions, loops and jumps. It runs with breakpoints and a live trace.",
+         document = "documentation/package/domain/process/process.md"),
+    "ProjecturedRST" =>
+        (summary = "reStructuredText as a tree of documents, with a parser and two presentations.",
+         document = "documentation/package/domain/rst/rst.md"),
+    "ProjecturedSDL" =>
+        (summary = "Shows the editor in native windows with SDL2, and writes images of a view.",
+         document = "documentation/package/backend/sdl/sdl.md"),
+    "ProjecturedSequenceChart" =>
+        (summary = "Sequence charts: lanes of occurrences with arrows between them, which show what happened where, in which order, and what caused what.",
+         document = "documentation/package/domain/sequencechart/sequencechart.md"),
+    "ProjecturedSQL" =>
+        (summary = "A SQL statement as a tree of clause and expression documents, with a parser.",
+         document = "documentation/package/domain/sql/sql.md"),
+    "ProjecturedTulip" =>
+        (summary = "Solves the relations of a constraint layout with the linear-programming solver Tulip.jl.",
+         document = "documentation/package/adapter/tulip/tulip.md"),
+    "ProjecturedVideo" =>
+        (summary = "Records a scripted editing session as an `.mp4` file, with no window.",
+         document = "documentation/package/backend/video/video.md"),
+    "ProjecturedWeb" =>
+        (summary = "Shows the editor in a web browser, through an HTTP and WebSocket server.",
+         document = "documentation/package/backend/web/web.md"),
+    "ProjecturedXML" =>
+        (summary = "An XML document as a tree of elements, text nodes and attributes.",
+         document = "documentation/package/domain/xml/xml.md"),
+    "ProjecturedYAML" =>
+        (summary = "YAML data as the tree of scalars, sequences and mappings that the JSON domain uses.",
+         document = "documentation/package/domain/yaml/yaml.md"))
+
+"""
     collect_projectured_release_packages(context) -> Vector{String}
 
 The packages of this repository that go into the registry: every package that
@@ -411,16 +525,45 @@ function build_projectured_package_release!(output::AbstractString;
 end
 
 # The README of the folder of one released package, which is also its page on
-# GitHub.
-_format_projectured_package_readme(name) = """
+# GitHub: what it is, how to install it, and where its source is.
+function _format_projectured_package_readme(name)
+    haskey(PROJECTURED_PACKAGE_READMES, name) ||
+        error("build_projectured_package_release!: $name has no README; add it to " *
+              "PROJECTURED_PACKAGE_READMES")
+    readme = PROJECTURED_PACKAGE_READMES[name]
+    install = name in ("Projectured", "ProjecturedKernel", "ProjecturedPlatform") ?
+              "pkg> add Projectured" : "pkg> add Projectured $name"
+    """
     # $name
 
-    A package of [ProjecturEd](https://github.com/projectured/projectured-julia), a
-    projectional editor. The release of ProjecturEd writes this folder: the source
-    of `$name` is `package/$name` there, and a change belongs there.
+    $(readme.summary)
 
-    The licence is the Mozilla Public License 2.0, in `LICENSE`.
+    It is a package of [ProjecturEd]($PROJECTURED_SOURCE), a projectional editor:
+    the data is the source, and every view is computed from it.
+    [$(basename(readme.document))]($PROJECTURED_SOURCE/blob/main/$(readme.document))
+    says more.
+
+    ## Install
+
+    The packages of ProjecturEd are in the registry `ProjecturedRegistry`:
+
+    ```
+    pkg> registry add $PROJECTURED_REGISTRY_URL
+    $install
+    ```
+
+    `Projectured` installs the kernel and the platform, and loads every ProjecturEd
+    package that you install.
+    [ProjecturEd in your own project]($PROJECTURED_SOURCE/blob/main/documentation/guide/own-project-guide.md)
+    says how to open a window from your code.
+
+    ## Source and licence
+
+    The release of ProjecturEd writes this folder from
+    [projectured-julia]($PROJECTURED_SOURCE); a change belongs there. The licence is
+    the Mozilla Public License 2.0, in `LICENSE`.
     """
+end
 
 # The suite that tests a released package of this repository: its test package
 # `<Name>Test` and its aggregator `test_<name>()`. The umbrella runs the part of

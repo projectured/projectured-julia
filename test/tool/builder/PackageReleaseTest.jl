@@ -493,6 +493,16 @@ function test_package_release()
         # The test of the umbrella loads the umbrella, which its test package does not.
         @test occursin("using Projectured\nusing ProjecturedTest\n",
                        read(joinpath(output, "Projectured", "test", "runtests.jl"), String))
+        # Each released package, and no other, has a README entry whose document
+        # exists, and its README holds its sentence and the install lines.
+        @test sort(collect(keys(PROJECTURED_PACKAGE_READMES))) == sort(names)
+        for (name, readme) in PROJECTURED_PACKAGE_READMES
+            @test isfile(joinpath(context.root, readme.document))
+        end
+        readme = read(joinpath(output, "ProjecturedJSON", "README.md"), String)
+        @test occursin(PROJECTURED_PACKAGE_READMES["ProjecturedJSON"].summary, readme)
+        @test occursin("pkg> registry add $PROJECTURED_REGISTRY_URL\n" *
+                       "pkg> add Projectured ProjecturedJSON\n", readme)
         rm(dirname(output); recursive = true)
     end
 end
