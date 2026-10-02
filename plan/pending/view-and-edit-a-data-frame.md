@@ -1273,8 +1273,31 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       string with no quotes, a click that opens an entry and the caret in its
       document, the cell that the table shows, a second click, a missing value,
       a label, a duplicate); 311 data frame tests pass.
-  - [ ] **4.4** The entries of `edits`: keys, a type-in in an entry, and the
-    selection stays in an entry after a scroll.
+  - [x] **4.4** The entries of `edits`: keys, a type-in in an entry, and the
+    selection stays in an entry after a scroll. Done 2026-10-02:
+    - The view maps what comes up from a cell to its own paths
+      (`_convert_cell_operation`): a range edit of the text, the write of the
+      whole cell that replaces its document, as a number that becomes a type-in
+      does, and the selection that goes with it, from `rows[k][j]…` of the
+      table to `rows[r][c]…` of the view. A write of the whole cell evaluates
+      by `setindex!` on the row of the view, which replaces the document of the
+      entry; only an open cell takes one.
+    - The walk that moves a caret in place (`_sync_selection!` of the sealed
+      `SelectionDefaults.jl`) stops at a document that holds no selection, and
+      keeps the stored path only where it meets the same child. So the objects
+      behind `rows` and `rows[r]` are `@document`s, with a selection, and the
+      rows object keeps the row of each number that a path reached; without
+      them a key edited the entry, and the caret stayed where it was.
+    - Each key in an entry is a step of undo: its inverse writes the value of
+      the document of the entry back (R5).
+    - Not yet: Escape in an open cell drops the entry (4.5 and 4.6); now a
+      type-in in a cell takes Escape itself and puts an empty number.
+    - Tests: a key edits the document of the entry and the frame stays; the
+      inverse takes a key back; Backspace to an empty text makes a type-in and
+      `-7` makes a number again, which the table shows; an open cell and its
+      caret stay over a jump far away and back; through a real editor with
+      undo, a press opens a cell, a key edits it and Ctrl+Z takes it back. 335
+      data frame tests pass.
   - [ ] **4.5** The generic commit, the mark and its tooltip, in the widget
     table.
   - [ ] **4.6** The commit of the view: `SetDataFrameValueOperation` and undo,

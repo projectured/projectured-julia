@@ -494,6 +494,8 @@ end
 # its start.
 function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
                      operation::ReplaceStringRangeOperation)
+    cell = _convert_cell_operation(iomap, operation)
+    cell === nothing || return cell
     target = _find_expression_path(operation.reference)
     if target === nothing
         path = _find_table_path(operation.reference)
@@ -550,6 +552,8 @@ end
 # from the view, which the table is a part of: the parts of the drag come back
 # to the view by its path, and the view gives them to the table.
 function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool)
+    cell = _convert_cell_operation(iomap, operation)
+    cell === nothing || return cell
     operation isa StartDragOperation && _find_table_path(get_operation_path(operation)) isa EmptyReference &&
         return StartDragOperation(annotate_reference_types(iomap.input, EmptyReference()), operation.dragged)
     width = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
@@ -572,6 +576,38 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
     k = _find_row_index(iomap.table.rows, value)
     k === nothing && return nothing
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", view.anchor + k - 1))
+end
+
+# An operation of the document in an open cell, in the paths of the view: a key
+# that edits its text, the write of the whole cell that replaces its document,
+# such as a number that becomes a type-in, and the selection that goes with it.
+# The paths go from `rows[k][j]…` of the table to `rows[r][c]…` of the view,
+# which reach the document of the entry. `nothing` for any other operation.
+function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
+    if operation isa ReplaceRangeOperation
+        target = _find_cell_view_path(iomap, operation_reference(operation))
+        return target === nothing ? nothing : retarget_operation(operation, target)
+    elseif operation isa ReplaceReferencedValueOperation && operation.document === nothing
+        target = _find_cell_view_path(iomap, operation.reference)
+        return target === nothing ? nothing : ReplaceReferencedValueOperation(nothing, target, operation.value)
+    elseif operation isa ReplaceSelectionOperation
+        target = _find_cell_view_path(iomap, operation.path)
+        return target === nothing ? nothing : ReplaceSelectionOperation(target)
+    end
+    nothing
+end
+
+# The path of the view of `path`, a path of the output of the view, when it
+# reaches a cell of the table, `rows[k][j]` with or without a rest; `nothing`
+# for any other path.
+function _find_cell_view_path(iomap::DataFrameViewToWidgetIoMap, path)
+    path isa Reference || return nothing
+    table_path = _find_table_path(path)
+    (table_path isa ConcreteReference && table_path.head == FieldReferenceStep("rows")) || return nothing
+    tail = table_path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep &&
+     tail.tail isa ConcreteReference && tail.tail.head isa RangeReferenceStep) || return nothing
+    _find_view_path(iomap, table_path)
 end
 
 # The index of `node` in the list of `head`, counted from the head, or

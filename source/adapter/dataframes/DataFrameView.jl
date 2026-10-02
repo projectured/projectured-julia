@@ -93,12 +93,18 @@ The value of the field `rows` of a [`DataFrameView`](@ref): what the path
 `rows[r]` of a row of the frame steps through. `[r]` gives row `r` of the frame,
 a [`DataFrameViewRow`](@ref), and a number past the frame is out of bounds. It
 holds the view, and reads the frame only when it is indexed. It is a document
-with no selection of its own, so the walk of a selection goes through it to the
-document of an open cell.
+with a selection, as the row is, because the walk of a selection writes each
+document on its path and goes on only through one that holds a selection: so it
+reaches the document of an open cell. `rows` keeps the row of each number that a
+path reached, so a path into a row meets the same row each time and the walk
+keeps the selection in place.
 """
-struct DataFrameViewRows <: Document
-    view::DataFrameView
+@document struct DataFrameViewRows <: Document
+    view::Any
+    rows::Any
 end
+
+DataFrameViewRows(view::DataFrameView) = DataFrameViewRows(view, Dict{Int,Any}())
 
 """
     DataFrameViewRow(view, row)
@@ -107,8 +113,8 @@ Row `row` of the frame of `view`, what the path `rows[r]` names. `[c]` gives the
 document of the entry of the cell in column `c` when the cell is open, and else
 the value in column `c` of the frame.
 """
-struct DataFrameViewRow <: Document
-    view::DataFrameView
+@document struct DataFrameViewRow <: Document
+    view::Any
     row::Int
 end
 
@@ -123,11 +129,12 @@ struct DataFrameViewColumns <: Document
     view::DataFrameView
 end
 
-get_selection(::Union{DataFrameViewRows,DataFrameViewRow,DataFrameViewColumns}) = nothing
+get_selection(::DataFrameViewColumns) = nothing
 
 function Base.getindex(rows::DataFrameViewRows, r::Integer)
-    1 <= r <= nrow(rows.view.frame) || throw(BoundsError(rows, r))
-    DataFrameViewRow(rows.view, Int(r))
+    view = rows.view
+    1 <= r <= nrow(view.frame) || throw(BoundsError(rows, r))
+    get!(() -> DataFrameViewRow(view, Int(r)), rows.rows, Int(r))
 end
 
 function Base.getindex(row::DataFrameViewRow, c::Integer)
@@ -135,6 +142,19 @@ function Base.getindex(row::DataFrameViewRow, c::Integer)
     1 <= c <= ncol(frame) || throw(BoundsError(row, c))
     edit = _find_cell_edit(row.view, row.row, names(frame)[c])
     edit === nothing ? frame[row.row, c] : edit.document
+end
+
+# A write of the whole cell in column `c` replaces the document of its entry, as
+# a key that turns a number into a type-in does. Only an open cell holds a
+# document, so only an open cell takes one.
+function Base.setindex!(row::DataFrameViewRow, document, c::Integer)
+    frame = row.view.frame
+    1 <= c <= ncol(frame) || throw(BoundsError(row, c))
+    edit = _find_cell_edit(row.view, row.row, names(frame)[c])
+    edit === nothing && error("the cell in row ", row.row, " and column ", names(frame)[c],
+                              " is not open, so it holds no document to replace")
+    getfield(edit, :document)[] = document
+    row
 end
 
 function Base.getindex(columns::DataFrameViewColumns, c::Integer)
