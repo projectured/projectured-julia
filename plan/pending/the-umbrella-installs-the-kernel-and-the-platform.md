@@ -125,7 +125,53 @@ first also checks that each installed package is a weak dependency of the
 umbrella. One list read at precompile time from the `Project.toml` was the
 alternative; the explicit tuples are easier to read, and the tests close the gap.
 
-### 6.4 Faults found on `main`, not of this change
+### 6.4 The code tool leaves the aggregates out of its surface
 
-`test/kernel/projection/RoutedChangeTest.jl:199` fails on `main` too: it came
-with the gesture work of another session.
+With every loaded package on the surface, `KernelModule` and `PlatformModule`,
+which gather the layers and the slices, came first in the order of the names, so
+`search_api` answered `ReplaceSelectionOperation` as a type of `KernelModule`
+and a search for `^OperationModule\.Replace` found nothing. A submodule that
+exports names and defines none of them is now left out, so each name counts
+under the module that defines it, as it did when the umbrella was the surface.
+The test reads only the names whose value is not a module: the name of a
+gathered module reaches the aggregate through two imports, and `which` throws
+for it. No other exported name of the 365,924 is ambiguous. Naming the two
+aggregates, as the loop of `ProjecturedAll` does, was the alternative; the
+kernel would then name a module of the platform.
+
+### 6.5 Faults found on `main`, not of this change
+
+Each one fails the same way on `main` at `aa7ce9223`:
+
+- `test/kernel/projection/RoutedChangeTest.jl:199`, from the gesture work.
+- The exports guard: 4 blocks of the application, settings and settings
+  managing slices are not in the order of definition.
+- `test_catalog_coverage()`: seven types of the drag, settings, tooltip and
+  context menu work are not in the catalog.
+- `test_history_sweep()`: `chart_inspector` and `sequencechart_inspector`
+  record `MouseMove`.
+- `test_table_cell_editing()`: a typed character in a JSON string cell gives no
+  operation.
+
+## 7. Measurements (U3)
+
+Both commits in one session on 2026-10-02, a fresh clone and an empty depot for
+each case, CPUs 28, 30 and 31, `JULIA_NUM_PRECOMPILE_TASKS=3`. The machine was
+not idle: the load average was 4 to 8 from other sessions. The five loads of a
+case differ by 0.04 s at most; the table gives their middle value.
+
+| Case | `main` `aa7ce9223` | branch `8901d6c1e` |
+| --- | --- | --- |
+| `environment/all`: precompile | 246 s, 275 files, 531 MB | 244 s, 276 files, 533 MB |
+| `environment/all`: load `using Projectured` | 2.59 s | 2.60 s |
+| `environment/all`: load `using ProjecturedAll` | — | 2.37 s |
+| Only `Projectured`: packages in the manifest | 27 | 8 |
+| Only `Projectured`: precompile | 30 s, 22 files, 78 MB | 17 s, 3 files, 47 MB |
+| Only `Projectured`: load | 2.44 s | 0.18 s |
+| `Projectured` and `ProjecturedJSON`: packages | 27 | 9 |
+| `Projectured` and `ProjecturedJSON`: precompile | 31 s, 22 files, 78 MB | 18 s, 4 files, 48 MB |
+| `Projectured` and `ProjecturedJSON`: load | 2.42 s | 0.25 s |
+
+The kernel loads in 0.03 s and the platform in 0.12 s on both. In
+`environment/all`, `using Projectured` loads every installed package, so it costs
+what the flat namespace costs. The script is `/var/tmp/r30/times/measure.sh`.
