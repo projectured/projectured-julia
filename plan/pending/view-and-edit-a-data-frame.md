@@ -1004,7 +1004,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     be better to store the number when it's parsed", with a `PrimitiveInsertion`
     "when it's a type-in", which "could have a parameter to limit what it can be
     turned into". The plan is
-    [a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md); it is
+    [a-number-becomes-a-type-in.md](../done/a-number-becomes-a-type-in.md); it is
     step 4.0.
   - **R3. The paths of a table mean the obvious, and no new step** (the owner,
     2026-10-02). A first R3, a cell named `column("price")[5]` with the column
@@ -1145,7 +1145,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 
   Steps of 4a, the edit of a cell, each with its tests:
   - [x] **4.0** A number that can not show a key becomes a type-in
-    ([a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md)).
+    ([a-number-becomes-a-type-in.md](../done/a-number-becomes-a-type-in.md)).
     Done 2026-10-02 in the primitive and the syntax slices, with no code of the
     data frame: the type-in is on in `PrimitiveToSyntax`, which the natural
     renderer of a cell uses. The `.pred` text writes the limit of a type-in,

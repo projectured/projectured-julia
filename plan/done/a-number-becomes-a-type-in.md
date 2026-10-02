@@ -1,7 +1,7 @@
 # A number that can not show a key becomes a type-in
 
 Status: done 2026-10-02. Written 2026-10-02 at the owner's word, in the
-review of phase 4 of [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md).
+review of phase 4 of [view-and-edit-a-data-frame.md](../pending/view-and-edit-a-data-frame.md).
 The design of §3 is the owner's. The points of §4 are the writer's, and the
 owner accepted all seven on 2026-10-02 ("Yes, agreed").
 
