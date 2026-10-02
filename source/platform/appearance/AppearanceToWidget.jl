@@ -329,7 +329,50 @@ function _make_field_control(controls, theme, field::Symbol, value::StyleText)
     ]; gap = controls.theme.item_gap)
 end
 
+_make_field_control(controls, theme, field::Symbol, value::FontRole) =
+    _make_role_control(controls, theme, () -> getproperty(theme, field),
+                       role -> _write_theme_field(theme, field, role))
+
+# A text role has the controls of its colour over those of its font role.
+function _make_field_control(controls, theme, field::Symbol, value::TextRole)
+    read = () -> getproperty(theme, field)
+    VerticalLayout(Any[
+        _make_color_control(controls, () -> read().color,
+                            color -> _write_theme_field(theme, field, TextRole(read().font, color))),
+        _make_role_control(controls, theme, () -> read().font,
+                           role -> _write_theme_field(theme, field, TextRole(role, read().color))),
+    ]; gap = controls.theme.item_gap)
+end
+
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
+
+# `role` with its weight, its slant or its relative size replaced.
+_with_font_role(role::FontRole; weight = role.weight, italic = role.italic,
+                relative_size = role.relative_size) =
+    FontRole(; base = role.base, family = role.family, weight, italic, relative_size)
+
+# The controls of the font role that `read()` answers, in one row: its family when
+# it sets one, the steps through the weights of the family of the font that it
+# gives, a checkbox for italic, and its size in percent of its base font. A step or
+# a check sets the weight or the slant of the role, which then no longer follows
+# the base in it. `write(role)` is the operation that sets a new role.
+function _make_role_control(controls, theme, read, write)
+    role = read()
+    font = apply_font_role(role, get_role_base(role, theme))
+    parts = Any[]
+    role.family === nothing || push!(parts, WidgetLabel(role.family))
+    append!(parts, Any[
+        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight))),
+        WidgetLabel(_get_font_weight_name(font.weight)),
+        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight))),
+        controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v))),
+        WidgetLabel("italic"),
+        controls.spin_box(round(Int, role.relative_size * 100),
+                          v -> write(_with_font_role(read(); relative_size = v / 100)); min = 25, max = 400),
+        WidgetLabel("% of " * replace(String(role.base), "_" => " ")),
+    ])
+    HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
+end
 
 # The controls of the font that `read()` answers. The first row steps through the
 # families and names the family of the font. The second row steps through the

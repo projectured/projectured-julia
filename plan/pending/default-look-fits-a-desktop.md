@@ -431,8 +431,18 @@ inet-julia uses, the same step changes them, so that they always load.
 
 ### Part R: base fonts and text roles
 
-- [ ] **R1.** `@theme` computes a role field from the base font and the role.
-  Tests with `test_theme`.
+- [x] **R1.** `@theme` computes a role field from the base font and the role.
+  Tests with `test_theme`. *Done:* `FontRole(; base, family, weight, italic,
+  relative_size)` and `TextRole(color; …)` in `source/platform/style/FontRole.jl`.
+  A role takes the family, the weight and the slant of its base where it sets
+  none, and the size of its base times `relative_size`; `apply_font_role(role,
+  base)` gives the font and `get_role_base(role, theme)` the base. The macro
+  passes the theme to `scale_theme_value(value, theme, appearance)`, so the
+  scaled value of a role reads its base font and follows a change of it. A role
+  field can still hold an absolute `StyleFont` or `StyleText`, which scales as
+  before. Save and load write a role as a table with `base` and no `size`, and
+  read either form. The appearance tab shows a role as "− weight +", a checkbox
+  for italic and its size in percent of its base.
 - [ ] **R2.** Each of the 29 themes gets its base fonts and its roles. The roles
   give the old sizes, for example a Markdown heading of 36 px is 1.8 times
   20 px.

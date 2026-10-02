@@ -111,6 +111,21 @@ scale_theme_value(length::ControlSize, appearance::Appearance) =
 scale_theme_value(length::IconSize, appearance::Appearance) =
     scale_length(length.value, appearance.icon_scale)
 
+"""
+    scale_theme_value(value, theme, appearance)
+
+`value` of a field of `theme` times the scale of its kind in `appearance`. A
+[`FontRole`](@ref) takes the font that it gives over its base font in `theme`, and
+then the font scale; a [`TextRole`](@ref) does the same for its font and keeps its
+color. Every other value scales as [`scale_theme_value`](@ref)`(value, appearance)`
+says. The scaled theme reads the base font, so a role follows a change of it.
+"""
+scale_theme_value(value, theme, appearance::Appearance) = scale_theme_value(value, appearance)
+scale_theme_value(role::FontRole, theme, appearance::Appearance) =
+    scale_theme_value(apply_font_role(role, get_role_base(role, theme)), appearance)
+scale_theme_value(role::TextRole, theme, appearance::Appearance) =
+    StyleText(scale_theme_value(role.font, theme, appearance), role.color)
+
 make_scaled_theme(theme::Theme) = make_scaled_theme(theme, Appearance())
 
 # ── Save and load ───────────────────────────────────────────────────────────
@@ -213,6 +228,16 @@ _encode_appearance_value(font::StyleFont) =
 _encode_appearance_value(text::StyleText) =
     Dict{String,Any}("font" => _encode_appearance_value(text.font),
                      "color" => _encode_appearance_value(text.color))
+function _encode_appearance_value(role::FontRole)
+    table = Dict{String,Any}("base" => String(role.base), "relative_size" => role.relative_size)
+    role.family === nothing || (table["family"] = role.family)
+    role.weight === nothing || (table["weight"] = Int(role.weight))
+    role.italic === nothing || (table["italic"] = role.italic)
+    table
+end
+_encode_appearance_value(role::TextRole) =
+    Dict{String,Any}("font" => _encode_appearance_value(role.font),
+                     "color" => _encode_appearance_value(role.color))
 _encode_appearance_value(stroke::StyleStroke) =
     Dict{String,Any}("color" => _encode_appearance_value(stroke.color), "width" => stroke.width)
 _encode_appearance_value(length::ThemeLength) = _encode_appearance_value(length.value)
@@ -234,6 +259,33 @@ function _decode_appearance_value(current::StyleFont, saved)
     (family isa AbstractString && size isa Integer && size > 0 &&
      weight isa Integer && 1 <= weight <= 1000 && italic isa Bool) || return nothing
     StyleFont(family, size; weight, italic)
+end
+# A role field can hold a font or a text that a person set as it is; the table of
+# such a value names a size, and a role names none.
+_is_absolute_font_table(saved) = saved isa AbstractDict && haskey(saved, "size")
+
+function _decode_appearance_value(current::FontRole, saved)
+    saved isa AbstractDict || return nothing
+    _is_absolute_font_table(saved) &&
+        return _decode_appearance_value(StyleFont(_DEFAULT_FONT_FAMILY, 1), saved)
+    base = get(saved, "base", String(current.base))
+    relative_size = get(saved, "relative_size", current.relative_size)
+    family = get(saved, "family", nothing)
+    weight = get(saved, "weight", nothing)
+    italic = get(saved, "italic", nothing)
+    (base isa AbstractString && relative_size isa Real && relative_size > 0 &&
+     (family === nothing || family isa AbstractString) &&
+     (weight === nothing || weight isa Integer && 1 <= weight <= 1000) &&
+     (italic === nothing || italic isa Bool)) || return nothing
+    FontRole(; base = Symbol(base), family, weight, italic, relative_size)
+end
+function _decode_appearance_value(current::TextRole, saved)
+    saved isa AbstractDict || return nothing
+    _is_absolute_font_table(get(saved, "font", nothing)) &&
+        return _decode_appearance_value(StyleText(StyleFont(_DEFAULT_FONT_FAMILY, 1), current.color), saved)
+    font = _decode_appearance_value(current.font, get(saved, "font", nothing))
+    color = _decode_appearance_value(current.color, get(saved, "color", nothing))
+    TextRole(something(font, current.font), something(color, current.color))
 end
 function _decode_appearance_value(current::StyleText, saved)
     saved isa AbstractDict || return nothing

@@ -332,7 +332,7 @@ macro theme(definition)
     theme = gensym(:theme)
     appearance = gensym(:appearance)
     cells = [:($Cell($Computation(() -> $scale_theme_value(
-                 $convert_theme_value($type, $theme.$f), $appearance))))
+                 $convert_theme_value($type, $theme.$f), $theme, $appearance))))
              for (f, type) in zip(fields, types)]
     scaled_fields = [:($f::$Cell) for f in fields]
     document = Expr(:macrocall, GlobalRef(DocumentModule, Symbol("@document")),
