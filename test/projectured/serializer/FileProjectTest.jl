@@ -467,6 +467,18 @@ function test_file_project()
             @test_throws FileCutException print_pred_text(TestNotWire(5000))
         end
 
+        @testset "a type that a file may build writes as its bare name and reads back" begin
+            text = print_pred_text(TestRun(name = "limited", options = (TestBare, TestWire)))
+            @test occursin("options = (TestBare, TestWire),", text)
+            @test parse_pred_text(text).options == (TestBare, TestWire)
+            # A type that a file may not build is refused at save, a bare name that
+            # no such type has is refused by name at load, and a bare name that does
+            # not start with a capital is no marker.
+            @test_throws FileCutException print_pred_text(TestRun(name = "x", options = (TestNotWire,)))
+            @test_throws r"Secret" parse_pred_text("TestRun(name = \"x\", options = (Secret,))")
+            @test_throws r"marker" parse_pred_text("TestRun(name = \"x\", options = (run,))")
+        end
+
         @testset "a name that two loaded document types have is an error that names both" begin
             @test_throws r"PredTwinFirst\.TestTwin and .*PredTwinSecond\.TestTwin|PredTwinSecond\.TestTwin and .*PredTwinFirst\.TestTwin" get_pred_type("TestTwin")
         end

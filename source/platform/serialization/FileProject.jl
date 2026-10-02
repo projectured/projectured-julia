@@ -362,7 +362,8 @@ end
 
 # The subset: a call whose head is a plain name and whose arguments are
 # literals, keyword arguments, or recursively such calls. No assignment, no
-# control flow, no bare names — a marker is data that happens to read as Julia.
+# control flow, and no bare name but `nothing` and the name of a type that a file
+# may build — a marker is data that happens to read as Julia.
 #
 # Keywords are in the subset because a document is CONSTRUCTED by naming its
 # fields: `UdpHeader(source_port = 5000)` is the same statement as
@@ -425,7 +426,22 @@ end
 # holds nothing has to be writable, and there is no other way to spell it.
 _is_marker_literal(x) = x isa AbstractString || x isa Number || x isa Char ||
                         x isa Bool || x === nothing || x === :nothing ||
-                        _is_marker_symbol(x)
+                        _is_marker_symbol(x) || _is_marker_type_name(x)
+
+# `PrimitiveNumber` bare is a type as a value, as a field that limits what a
+# document can become holds it. Only a name that starts with a capital passes, and
+# the reader looks it up among the types that a file may build, so it runs nothing.
+_is_marker_type_name(x) = x isa Symbol && _is_type_name(x)
+
+# The value of a bare name of a marker: `nothing`, or the type that a file may
+# build with that name.
+function _evaluate_marker_name(name::Symbol)
+    name === :nothing && return nothing
+    T = get_pred_type(String(name))
+    T === nothing && error("a marker names ", name,
+                           ", and no loaded type that a file may build has that name")
+    T
+end
 
 # `:holds` is a symbol literal when its name is an identifier. `Symbol("a b")`
 # is a call, and a call names a type or a verb, never a value.

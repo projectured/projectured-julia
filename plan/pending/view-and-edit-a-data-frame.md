@@ -1148,8 +1148,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     ([a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md)).
     Done 2026-10-02 in the primitive and the syntax slices, with no code of the
     data frame: the type-in is on in `PrimitiveToSyntax`, which the natural
-    renderer of a cell uses. One point is open there: the `.pred` text can not
-    write the limit of a type-in.
+    renderer of a cell uses. The `.pred` text writes the limit of a type-in,
+    a type, by its bare name (the owner chose it).
   - [ ] **4.1** The paths of a table (the widget table, generic): the computed
     field `columns`; a number of a list table counts in the whole table, from
     the number of its head row that its owner gives; a click on a column

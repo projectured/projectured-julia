@@ -175,6 +175,7 @@ function parse_pred_text(text::AbstractString)
 end
 
 _evaluate_pred(literal) = literal === :nothing ? nothing : literal
+_evaluate_pred(name::Symbol) = _evaluate_marker_name(name)
 # `:holds` is a symbol literal. The marker grammar admits one only when its name
 # is an identifier, so the value it reads is the one the writer printed.
 _evaluate_pred(quoted::QuoteNode) = quoted.value
@@ -238,7 +239,8 @@ bytes, so two saves of one document must print the same text.
 Throws a [`FileCutException`](@ref) naming the field when a value is outside the
 notation: a string, a number, a character, a bool, a symbol, `nothing`, a vector
 of those, a document, a value of a type that [`is_pred_constructible`](@ref)
-says a file may build, and a reference are all of it.
+says a file may build, such a type by its bare name, and a reference are all of
+it.
 """
 function print_pred_text(document)
     io = IOBuffer()
@@ -326,6 +328,16 @@ function _print_pred_value(io::IO, document::Document, where, indent)
     print(io, _PRED_INDENT^indent, ")")
 end
 
+# A type that a file may build is its bare name, which the reader looks up as it
+# looks up the name of a call: a field that limits what a document can become
+# holds such types.
+function _print_pred_value(io::IO, value::Type, where, indent)
+    is_pred_constructible(value) || _refuse_pred_value(value, where)
+    name = String(nameof(value))
+    get_pred_type(name) === value || _refuse_pred_value(value, where)
+    print(io, name)
+end
+
 # A value that is data but not a document, of a type that a file may build, is
 # its call on one line: a size or a margin is one value in a diff, as a number is.
 function _print_pred_value(io::IO, value, where, indent)
@@ -351,5 +363,6 @@ function _refuse_pred_value(value, where)
         "cannot write a " * string(typeof(value)) * at *
         " — the .pred notation holds a string, a number, a character, a bool, " *
         "nothing, a vector of those, a group of them, a mapping of names to " *
-        "them, a document, a value of a type that a file may build, and a reference"))
+        "them, a document, a value of a type that a file may build, such a type, " *
+        "and a reference"))
 end

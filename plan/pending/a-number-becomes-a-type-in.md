@@ -1,6 +1,6 @@
 # A number that can not show a key becomes a type-in
 
-Status: steps 1 to 4 done 2026-10-02, on the branch `data-frame`. Written 2026-10-02 at the owner's word, in the
+Status: done 2026-10-02. Written 2026-10-02 at the owner's word, in the
 review of phase 4 of [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md).
 The design of §3 is the owner's. The points of §4 are the writer's, and the
 owner accepted all seven on 2026-10-02 ("Yes, agreed").
@@ -188,8 +188,7 @@ Escape. Both default to what the leaf does now.
   `.pred` text does not: `print_pred_text` refuses a type ("cannot write a
   UnionAll at allowed_types"), because the notation holds no type as a value.
   The session of the user interface is saved as `session.pred`, so a session
-  that holds a type-in when it is saved can not be written. **Open, for the
-  owner:**
+  that holds a type-in when it is saved can not be written. **The options were:**
   - (a) `.pred` writes a document type as a value, by its bare name, and reads
     it through the lookup of names that a constructor call already uses. A
     small change of the serialization slice, and a type is then a value of the
@@ -199,6 +198,18 @@ Escape. Both default to what the leaf does now.
     No change of the notation; the field holds names, not types.
   - (c) No change: a type-in is not written to `.pred`, as a value of a type
     that a file may not build is not, and the save says so.
+
+  The owner chose (a), 2026-10-02 ("yeah, agreed"), after the question why it
+  can not save: the notation has no type as a value, and its reader turns a name
+  into a type only at the head of a call. Done the same day: the grammar of a
+  marker takes a bare name that starts with a capital, and both readers, the
+  `.pred` file and the splice of a marker, look it up with
+  `_evaluate_marker_name` among the types that a file may build; the writer
+  prints such a type by its name and refuses any other. A bare name that starts
+  with a small letter is still no marker, so a file still runs no code. Tests:
+  a round trip of `(TestBare, TestWire)` and the three refusals in
+  `test_file_project()`, and a type-in through a duplicate and `.pred` in
+  `test_primitive_type_in()`.
 - **The cost of a replace.** Each key that crosses between a number and a
   type-in replaces a document, and the printer prints the new one. A person types
   a few keys, so it is not a cost of a loop; it is a cost of a print per key.

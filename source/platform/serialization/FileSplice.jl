@@ -249,6 +249,7 @@ end
 # A literal stands for itself; `nothing` arrives as the name the parser made of
 # the word.
 _evaluate_splice(project, index, literal) = literal === :nothing ? nothing : literal
+_evaluate_splice(project, index, name::Symbol) = _evaluate_marker_name(name)
 
 function _splice_arguments(project, index, e::Expr)
     positional = Any[]

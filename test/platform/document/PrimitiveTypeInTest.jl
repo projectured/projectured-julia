@@ -123,6 +123,19 @@ end
     @test list[1] isa PrimitiveNumber && list[1].value === 12
 end
 
+@testset "a duplicate and a .pred save keep the limit of a type-in" begin
+    insertion = PrimitiveInsertion(; value = "-5.", allowed_types = (PrimitiveNumber,))
+    duplicate = copy_document(DuplicatePolicy(), insertion)
+    @test duplicate !== insertion
+    @test duplicate.value == "-5." && duplicate.allowed_types == (PrimitiveNumber,)
+    serialization = ProjecturedPlatform.SerializationModule
+    text = serialization.print_pred_text(insertion)
+    @test occursin("allowed_types = (PrimitiveNumber,)", text)
+    loaded = serialization.parse_pred_text(text)
+    @test loaded isa PrimitiveInsertion
+    @test loaded.value == "-5." && loaded.allowed_types == (PrimitiveNumber,)
+end
+
 @testset "only a dispatch that prints the type-in turns it on" begin
     @test !PrimitiveNumberToSyntaxLeaf().allows_type_in
     @test PrimitiveNumberToSyntaxLeaf(; allows_type_in = true).allows_type_in
