@@ -20,7 +20,7 @@ Each domain has one design document in the folder of its slice. Read [domain-ana
 | Julia code | [julia.md](../package/domain/julia/julia.md) |
 | Formula | [formula.md](../package/domain/formula/formula.md) |
 | SQL | [sql.md](../package/domain/sql/sql.md) |
-| Database and catalog | [database.md](../package/domain/database/database.md), for `ProjecturedDatabase`, `ProjecturedDBCatalog` and the opt-in `ProjecturedODBC` |
+| Database and catalog | [database.md](../package/domain/database/database.md), for `ProjecturedDatabase` and `ProjecturedDBCatalog`, and [odbc.md](../package/adapter/odbc/odbc.md), for the opt-in `ProjecturedODBC` |
 | File system | [filesystem.md](../package/platform/filesystem/filesystem.md) |
 | Graph | [graph.md](../package/domain/graph/graph.md), with [graph-layout.md](../package/domain/graph/graph-layout.md) for the layout engines |
 | Chart | [chart.md](../package/domain/chart/chart.md) |

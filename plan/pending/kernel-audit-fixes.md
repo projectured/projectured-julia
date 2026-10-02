@@ -610,7 +610,7 @@ One step for each layer. No step changes a sealed file.
 ### Step 2.9: The llm and agent layers
 
 - [x] **L19-5** (Low, State)
-  Replace the one `Ref` with a `Dict` keyed by `(models_url, api_key)` under a lock, so each key and URL gets its own answer. The report gives two ways; the keyed cache is the smaller, and it keeps the documented ask once in a process (llm.md), where a cache on the instance asks once per backend.
+  Replace the one `Ref` with a `Dict` keyed by `(models_url, api_key)` under a lock, so each key and URL gets its own answer. The report gives two ways; the keyed cache is the smaller, and it keeps the documented ask once in a process (anthropic.md), where a cache on the instance asks once per backend.
   *Test:* AnthropicTest.jl: two calls of `get_newest_anthropic_model` with different `models_url` values (one served by a local `HTTP.serve` stub, one not reachable) answer different models.
   *Done:* lane B, 9fdc1490. The cache still keeps the fallback answer of a failed request; the lock is held during the request, so each address and key is asked once.
 - [x] **L20-3** (Medium, Correctness)
@@ -1176,7 +1176,7 @@ Each rename changes a public name. Run the tool with `--report` first, and read 
   *Test:* test_naming(), test_code_execution() and test_declared_api(); then Pkg.precompile and the assistant tests in omnet-julia.
   *Done:* 986e50931; omnet-julia 446f8359 (7 files). Prose that names the MCP tool keeps `"execute_julia_code"`; prose that names the Julia function takes the `!`. The answer in SearchScaleCorpus.jl is `execute_julia_code!`.
 - [x] **L19-6** (Low, Naming) — after L19-3
-  Rename `default_llm_model` to `get_default_llm_model` with workspace/bin/julia-rename.jl (a value at a known place takes `get_`). Then correct the prose in agent.md and llm.md.
+  Rename `default_llm_model` to `get_default_llm_model` with workspace/bin/julia-rename.jl (a value at a known place takes `get_`). Then correct the prose in agent.md, anthropic.md and ollama.md.
   *Test:* test_anthropic_model() and test_ollama_backend() with the new name; the naming guard.
   *Done:* fad43d423; omnet-julia d76c2b4c (a corpus answer).
 

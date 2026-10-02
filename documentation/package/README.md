@@ -87,7 +87,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `ProjecturedMCP` | [mcp.md](adapter/mcp/mcp.md) | the MCP server |
 | `ProjecturedTulip` | [tulip.md](adapter/tulip/tulip.md) | the constraint solver of the layout |
 | `ProjecturedAdaptagrams` | [adaptagrams.md](adapter/adaptagrams/adaptagrams.md) | the native graph layout engine |
-| `ProjecturedODBC` | [database.md](domain/database/database.md) | the ODBC adapter and the live queries |
+| `ProjecturedODBC` | [odbc.md](adapter/odbc/odbc.md) | the ODBC adapter and the live queries |
 
 ## The tools
 
