@@ -1,6 +1,6 @@
 # A primitive document draws as plain text
 
-Status: a design, for the owner. Written 2026-10-02 in step 4.3 of
+Status: a design that the owner decided on 2026-10-02 (§4); not started. Written 2026-10-02 in step 4.3 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md), at the owner's
 word: the cells of a data frame are primitive documents (R2), "but we need to
 fix the projections". Each point is the writer's unless the owner made it.
@@ -51,10 +51,11 @@ fix the projections". Each point is the writer's unless the owner made it.
      rule are in the primitive slice, so the two domains share them.
    - `PrimitiveToText` has the row of the type-in, so its number printer has the
      type-in on.
-3. **A Bool takes the same rule.** A key whose text a Bool can not show, such as
-   `tru`, makes a type-in limited to a Bool, and `true` or `false` makes the
-   Bool again. A text that a Bool shows exactly replaces the Bool with that
-   Bool, because a range edit of a Bool has no result.
+3. **A Bool switches with one key** (the owner, §4): `t` makes it `true` and `f`
+   makes it `false`, as a JSON document takes `t` and `f`, and Space switches it.
+   These are gestures of the `PrimitiveBool` document, so both domains read
+   them. A key that would edit the text of a Bool does nothing, because a range
+   edit of a Bool has no result. (The writer had proposed the rule of a number.)
 4. **A type-in has a placeholder of its own.** `PrimitiveInsertion` gets a field
    `placeholder`, `nothing` for the text of the printer. The cell of a missing
    value in a data frame is an empty type-in limited to the type of its column,
@@ -71,23 +72,22 @@ fix the projections". Each point is the writer's unless the owner made it.
 ## 3. Steps
 
 1. **The text domain.** `PrimitiveInsertionToText`, the rule in
-   `PrimitiveNumberToText` and for a Bool, the field `placeholder`, and the row
-   in `PrimitiveToText`. Tests: the keys of `-5.2e3` through the text chain,
-   Escape, a Bool by keys, the placeholder.
+   `PrimitiveNumberToText`, the keys of a Bool, the field `placeholder`, and the
+   row in `PrimitiveToText`. Tests: the keys of `-5.2e3` through the text chain,
+   Escape, `t`, `f` and Space on a Bool, the placeholder.
 2. **The natural renderer.** The row of §2.1. The tests of the type-in of 4.0
    draw through the natural renderer, so they then run on the text domain. Find
    the tests that read the quotes of a primitive drawn by the natural renderer,
    and change them.
 3. **The documents** of the primitive, the text and the natural slices.
 
-## 4. Points for the owner
+## 4. The owner's decisions, 2026-10-02
 
-1. The row of §2.1 for every primitive outside a syntax tree, or only for the
-   cells of a table? Mine: every one, because a primitive outside a syntax tree
-   has no neighbour that its quotes tell it from.
-2. A Bool by the rule of §2.3, or a toggle by a press or by Space? Mine: the
-   rule now, because it is the rule of a number; a toggle can come with the
-   commit of a cell (4.5).
-3. A number in full (§2.5), with no display format. Mine: yes, because a cell is
-   edited as it is shown; a format for display would need a text that is not
-   the text of the edit.
+1. **Every primitive outside a syntax tree** draws through the text domain
+   (the owner: "yes"; the writer's recommendation, because such a primitive has
+   no neighbour that its quotes tell it from).
+2. **A Bool switches with one key** (the owner: "a bool can be switched from one
+   state to the other with a single key like in json for example, or perhaps
+   space"): §2.3.
+3. **A number in full**, with no display format (the owner: "yes"; the writer's
+   recommendation, because a cell is edited as it is shown).
