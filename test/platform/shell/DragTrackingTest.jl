@@ -8,8 +8,7 @@
 _dt_measure() = FixedMeasure(10, 18, 6, 0)
 
 # The window `W` holds `document` at its origin.
-function _dt_editor(document)
-    projection = make_widget_projection_example(measure = _dt_measure())
+function _dt_editor(document; projection = make_widget_projection_example(measure = _dt_measure()))
     scene = make_window_scene(document, "W"; width = 400, height = 300)
     opened = make_opened_window_projections(; measure = _dt_measure())
     composed = make_window_scene_projection(projection; opened_window_projections = opened)
@@ -35,6 +34,42 @@ _dt_up!(editor, backend, x, y, time) =
 
 # The path of the part whose drag is on, or `nothing`.
 _dt_drag_path(editor) = editor.document.content.drag_path
+
+_dt_force(value) = value isa Cell ? _dt_force(value[]) : value
+
+# Where `text` is drawn in the window `W`, or `nothing`.
+_dt_place_of(editor, text) =
+    _dt_find_text(_dt_force(_dt_force(_dt_force(get_iomap_output(editor.iomap)).windows)[1].content),
+                  text)
+
+function _dt_find_text(node, text, ox = 0, oy = 0)
+    node = _dt_force(node)
+    node === nothing && return nothing
+    x = hasproperty(node, :x) ? ox + Int(_dt_force(node.x)) : ox
+    y = hasproperty(node, :y) ? oy + Int(_dt_force(node.y)) : oy
+    hasproperty(node, :text) && _dt_force(node.text) == text && return (x, y)
+    for field in (:elements, :content)
+        hasproperty(node, field) || continue
+        children = _dt_force(getproperty(node, field))
+        for child in (children isa AbstractVector ? children : (children,))
+            found = _dt_find_text(child, text, x, y)
+            found === nothing || return found
+        end
+    end
+    nothing
+end
+
+# Two groups side by side: the left one holds the tabs `a` and `b`, the right one
+# the tab `c`.
+function _dt_pane_scene()
+    tab(name) = PaneTab(name, WidgetLabel(name))
+    left = PaneGroup(PaneTab[tab("a"), tab("b")])
+    right = PaneGroup(PaneTab[tab("c")])
+    (PaneTree(PaneSplit(:vertical, [left, right])), left, right)
+end
+
+_dt_pane_editor(tree) =
+    _dt_editor(tree; projection = make_pane_projection_example(measure = _dt_measure()))
 
 # A slider at (20, 20) on the left, and a button below it.
 function _dt_slider_scene()
@@ -149,6 +184,56 @@ end
     @test button.pressed === false
     _dt_up!(editor, backend, 390, 280, 1.2)
     @test button.pressed === false
+end
+
+@testset "a tab dragged past the small move drops into the group under the pointer" begin
+    tree, left, right = _dt_pane_scene()
+    editor, backend = _dt_pane_editor(tree)
+    place = _dt_place_of(editor, "b")
+    @test place !== nothing
+    if place !== nothing
+        x, y = place[1] + 3, place[2] + 4
+        _dt_send!(editor, backend, MouseMove(x, y; time = 0.9))
+        _dt_down!(editor, backend, x, y, 1.0)
+        # The press keeps the tab, and no drag is on before the small move.
+        @test tree.drag !== nothing && tree.drag.started == false
+        @test _dt_drag_path(editor) === nothing
+        _dt_held!(editor, backend, x + 12, y, 1.1)
+        @test tree.drag.started
+        @test _dt_drag_path(editor) isa Reference
+        # Over the middle of the right group: the tab would land there, and the
+        # blue rectangle shows it.
+        _dt_held!(editor, backend, 300, 150, 1.2)
+        @test tree.drag.target === right
+        _dt_up!(editor, backend, 300, 150, 1.3)
+        @test tree.drag === nothing
+        @test _dt_drag_path(editor) === nothing
+        @test [get_pane_tab_title_string(right.tabs[i]) for i in 1:length(right.tabs)] == ["c", "b"]
+        @test length(left.tabs) == 1
+    end
+end
+
+@testset "a press on a tab that does not move is a click, and Escape drops a tab nowhere" begin
+    tree, left, right = _dt_pane_scene()
+    editor, backend = _dt_pane_editor(tree)
+    place = _dt_place_of(editor, "b")
+    @test place !== nothing
+    if place !== nothing
+        x, y = place[1] + 3, place[2] + 4
+        _dt_send!(editor, backend, MouseMove(x, y; time = 0.9))
+        _dt_down!(editor, backend, x, y, 1.0)
+        _dt_up!(editor, backend, x, y, 1.05)
+        @test tree.drag === nothing
+        @test get_pane_shown_tab_index(left) == 2
+        @test length(left.tabs) == 2
+        # A drag that Escape ends moves no tab.
+        _dt_down!(editor, backend, x, y, 2.0)
+        _dt_held!(editor, backend, x + 12, y, 2.1)
+        _dt_held!(editor, backend, 300, 150, 2.2)
+        _dt_send!(editor, backend, KeyDown(:escape, _DT_NONE; time = 2.3))
+        @test tree.drag === nothing
+        @test length(left.tabs) == 2 && length(right.tabs) == 1
+    end
 end
 
 end # @testset

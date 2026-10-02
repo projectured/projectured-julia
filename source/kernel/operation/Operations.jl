@@ -210,6 +210,17 @@ make_path_operation(operation::StartDragOperation, path::Reference) =
 
 evaluate_operation(editor, ::StartDragOperation) = nothing
 
+"""
+    find_drop_zone(document, dragged, point) -> zone or nothing
+
+Where `document` takes `dragged`, the thing that a global drag carries, with the
+pointer at `point`: the zone of the drop, or `nothing` when `document` does not
+take it. The part that keeps a global drag asks it at each move and at the
+release, and draws its preview from the zone; `point` is the point of the pointer
+as that part knows it. A document type that takes a dropped thing adds a method.
+"""
+find_drop_zone(document, dragged, point) = nothing
+
 # Split a non-empty path into (everything-but-last-step, last-step). The prefix is
 # rebuilt as a plain skeleton (callers pass an already type-stripped path).
 function _split_terminal_step(path::ConcreteReference)

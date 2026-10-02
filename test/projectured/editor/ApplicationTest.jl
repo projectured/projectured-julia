@@ -1451,10 +1451,18 @@ function test_application()
                 (tx, ty) = last(sort([(x, y) for (text, x, y) in
                                       _app_drawn_at(io.output.windows[1].content)
                                       if text == "a.json"]))
+                # The tree starts the drag after the small move; then the drag
+                # wrapper sends it each move and the release by its path.
                 apply(fire(MouseDown(:left, tx + 4, ty + 4; time = 0.0)))
-                for (mx, my) in ((tx - 100, 500), (400, 500), (160, 500))
+                started = fire(held(tx - 100, 500))
+                tab_path = drag_path(started)
+                @test tab_path isa Reference
+                apply(started)
+                for (mx, my) in ((400, 500), (160, 500))
                     apply(fire(held(mx, my)))
+                    apply(drag(tab_path, DragMove(mx, my; time = 0.0)))
                 end
+                apply(drag(tab_path, DragEnd(160, 500; time = 0.0)))
                 apply(fire(MouseUp(:left, 160, 500; time = 0.0)))
                 title(tab) = get_pane_tab_title_string(tab)
                 @test !any(tab -> title(tab) == "a.json", files.tabs)
