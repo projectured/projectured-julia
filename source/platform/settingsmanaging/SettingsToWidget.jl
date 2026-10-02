@@ -53,7 +53,9 @@ SettingsToWidget(; theme = nothing) = SettingsToWidget(theme)
 end
 
 const _GROUP_GAP = 12
-const _ROW_GAP = 6
+# Between two settings, and between a setting and its text, which belongs to it.
+const _ROW_GAP = 12
+const _DESCRIPTION_GAP = 0
 const _COLUMN_GAP = 12
 
 # ── Printer ───────────────────────────────────────────────────────────────
@@ -97,6 +99,7 @@ function _make_group_card(settings::Settings, group, controls, caption::StyleTex
     T = get_settings_group_type(group)
     is_used = () -> !(T in settings.unused_types)
     cells = Any[]
+    row_gaps = Any[]     # the gap above each row of the grid
     for description in get_setting_descriptions(T)
         control, convert = _make_setting_control(group, description, is_used)
         push!(controls, (control, group, description.name, convert))
@@ -106,12 +109,15 @@ function _make_group_card(settings::Settings, group, controls, caption::StyleTex
                                    () -> _make_reset_operation(group, description))
         set_cell_computation!(getfield(reset, :enabled), is_used)
         push!(cells, reset)
+        push!(row_gaps, nothing)
         text = uppercasefirst(strip_code_marks(description.text))
-        isempty(text) ||
+        if !isempty(text)
             push!(cells, LayoutConstraint(WidgetLabel(text; text_style = caption); column_span = 3))
+            push!(row_gaps, _DESCRIPTION_GAP)
+        end
     end
     grid = GridLayout(cells, 3; horizontal_gap = _COLUMN_GAP, vertical_gap = _ROW_GAP,
-                      vertical_align = :center)
+                      vertical_align = :center, row_gaps)
     card = WidgetCard(; title = WidgetLabel(_make_group_title(T)),
                       content = WidgetComposite(Any[grid]))
     summary = strip_code_marks(compute_docstring_summary(T))

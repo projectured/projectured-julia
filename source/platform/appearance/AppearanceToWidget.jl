@@ -232,16 +232,23 @@ function _make_theme_section(controls, theme)
     end))
     caption = StyleText(controls.theme.font_small, controls.theme.muted_foreground)
     cells = Any[]
+    # The gap above each row of the grid: a field is a section gap from the field
+    # above, and its docstring follows its row with no gap, as a part of it.
+    row_gaps = Any[]
     for field in get_theme_field_names(T)
         push!(cells, WidgetLabel(replace(String(field), "_" => " ")),
               _make_field_control(controls, theme, field, getproperty(theme, field)))
+        push!(row_gaps, nothing)
         text = something(find_theme_field_text(T, field), "")
-        isempty(text) ||
+        if !isempty(text)
             push!(cells, LayoutConstraint(WidgetLabel(strip_code_marks(text); text_style = caption);
                                           column_span = 2))
+            push!(row_gaps, 0)
+        end
     end
     push!(parts, GridLayout(cells, 2; horizontal_gap = controls.theme.label_gap,
-                            vertical_gap = controls.theme.item_gap, vertical_align = :center))
+                            vertical_gap = controls.theme.section_gap, vertical_align = :center,
+                            row_gaps))
     appearance = controls.appearance
     summary = strip_code_marks(compute_docstring_summary(T))
     card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),

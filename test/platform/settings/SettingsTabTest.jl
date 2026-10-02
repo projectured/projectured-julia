@@ -120,6 +120,9 @@ end
     description = only(t for t in texts if t[1] == "Write each new fault to the log.")
     @test description[3] > label[3]
     @test description[2] == label[2]
+    # It belongs to its setting: it is closer to its label than to the next one.
+    next = only(t for t in texts if t[1] == "Fault sound")
+    @test description[3] - label[3] < next[3] - description[3]
     # The card of the group starts with the summary of its type.
     summary = compute_docstring_summary(FaultSettings)
     @test !isempty(summary)

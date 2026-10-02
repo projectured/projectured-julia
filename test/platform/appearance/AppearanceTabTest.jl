@@ -158,6 +158,9 @@ end
     description = only(t for t in texts if startswith(text, t[1]) && length(t[1]) > 10)
     @test description[3] > name[3]
     @test description[2] == name[2]
+    # It belongs to its field: it is closer to its name than to the next one.
+    next = only(t for t in texts if t[1] == "title gap")
+    @test description[3] - name[3] < next[3] - description[3]
     summary = compute_docstring_summary(WidgetTheme)
     @test !isempty(summary)
     @test any(t -> length(t[1]) > 10 && startswith(summary, t[1]), texts)
