@@ -30,10 +30,10 @@ ProjecturedYAML = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 ProjecturedBook = {path = "../ProjecturedBook"}
 ProjecturedChart = {path = "../ProjecturedChart"}
 ProjecturedConsole = {path = "../ProjecturedConsole"}
-ProjecturedDatabase = {path = "../ProjecturedDatabase"}
 ProjecturedDBCatalog = {path = "../ProjecturedDBCatalog"}
-ProjecturedFormula = {path = "../ProjecturedFormula"}
+ProjecturedDatabase = {path = "../ProjecturedDatabase"}
 ProjecturedFSM = {path = "../ProjecturedFSM"}
+ProjecturedFormula = {path = "../ProjecturedFormula"}
 ProjecturedGraph = {path = "../ProjecturedGraph"}
 ProjecturedJSON = {path = "../ProjecturedJSON"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}
@@ -44,7 +44,34 @@ ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedProcess = {path = "../ProjecturedProcess"}
 ProjecturedRST = {path = "../ProjecturedRST"}
-ProjecturedSequenceChart = {path = "../ProjecturedSequenceChart"}
 ProjecturedSQL = {path = "../ProjecturedSQL"}
+ProjecturedSequenceChart = {path = "../ProjecturedSequenceChart"}
 ProjecturedXML = {path = "../ProjecturedXML"}
 ProjecturedYAML = {path = "../ProjecturedYAML"}
+
+# The packages that make the umbrella load an integration, and the integrations
+# themselves, which the umbrella loads only when the user installed them.
+[weakdeps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
+ProjecturedAnthropic = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
+ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
+ProjecturedMCP = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
+ProjecturedODBC = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
+ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
+ProjecturedOpenRouter = "52a43d73-2617-4b68-a734-0e5186e9ad8a"
+ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
+ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
+ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
+SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
+Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
+
+[extensions]
+ProjecturedDataFramesExt = "DataFrames"
+ProjecturedFFMPEGExt = "FFMPEG"
+ProjecturedModelContextProtocolExt = "ModelContextProtocol"
+ProjecturedODBCExt = "ODBC"
+ProjecturedSimpleDirectMediaLayerExt = "SimpleDirectMediaLayer"
+ProjecturedTulipExt = "Tulip"

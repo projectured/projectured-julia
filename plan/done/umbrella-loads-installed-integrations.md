@@ -95,33 +95,86 @@ that and choose what's best for her".
 - **The binary** does not change: it lists its packages, and an extension that
   runs in it finds no environment and loads nothing.
 
-## 4. Open decisions
+## 4. Decisions
 
-| # | Question | Recommendation (mine, not decided) |
+The owner accepted both recommendations on 2026-10-01 ("O2: no message", "O1: yes").
+
+| # | Question | Decision |
 | --- | --- | --- |
 | O1 | Web and the three model adapters have no trigger of their own: all four use `HTTP` and `JSON3`, and the adapters load `HTTP` themselves. | The model adapters: the umbrella loads each one that is installed, with no trigger, in its own `__init__`. Loading one changes nothing until the user asks for it by name (`assistant = :ollama`). Web: no auto-load, because a loaded web backend becomes the default backend when SDL is absent. |
 | O2 | Does the umbrella tell the user what it loaded? | No message. |
 
 ## 5. Steps
 
-- [ ] **Step 1, the load.** `load_installed_package!` in the platform, with
+- [x] **Step 1, the load.** `load_installed_package!` in the platform, with
       its test: an installed package is loaded, a package that is not
       installed gives `nothing`, and a process that writes a cache file loads
       nothing.
-- [ ] **Step 2, the extensions.** `ext/` of the umbrella, `[weakdeps]` and
+      Done (`21edcd706`): `load_installed_package!` in
+      `source/platform/domain/Domain.jl`, and `test_load_installed_package()`
+      in the platform suite, which starts a new process with a stand-in package
+      in a scratch environment (a project and a manifest; the platform comes
+      through the load path of the test). The guard of the cache file is not in
+      that test: a plain process can not report that it writes one
+      (`--output-ji` needs a build of the system image), and a package
+      precompiled on the platform in a scratch environment takes minutes.
+- [x] **Step 2, the extensions.** `ext/` of the umbrella, `[weakdeps]` and
       `[extensions]` in its `Project.toml`, and `environment/all` resolved.
-- [ ] **Step 3, the test of the two ways.** A test that starts a new Julia
+      Done (`3da127769`). Pkg refuses `[sources]` for a weak dependency, so the
+      paths of the integrations come from `environment/all` alone. That
+      environment now names the six triggers too, so its session can load them
+      (they were already in its manifest). By hand, in new processes: the two
+      ways and both orders load exactly what §1 asks.
+- [x] **Step 3, the test of the two ways.** A test that starts a new Julia
       process in a scratch environment, for each way and each order of `using`:
       with the umbrella, an installed integration is loaded and one that is not
       installed is not; without it, only what is listed is loaded.
-- [ ] **Step 4, the release copy.** The generator copies `ext/` and writes the
+      Done (`ecfa48529`): `test_umbrella_loads_integrations()` in
+      `test_repository()`, six cases in new processes in `environment/all`, and
+      one in an environment that names the trigger of SDL and not
+      `ProjecturedSDL`.
+- [x] **Step 4, the release copy.** The generator copies `ext/` and writes the
       `[compat]` of the weak dependencies; `test_package_release()` covers it.
-- [ ] **Step 5, the binary.** Build it, and run the check of the copied
+      Done (`a94ed553f`): a weak dependency counts as a dependency for the
+      closure check, the order of the registration and `[compat]`; `ext/` is
+      copied as it is. The fixture has an extension; `test_builder()` 399.
+- [x] **Step 5, the binary.** Build it, and run the check of the copied
       binary.
-- [ ] **Step 6, the guides.** The setup guide and the own-project guide show
+      Done: `bin/build_projectured` in 468 s, `--help`, and
+      `check_projectured_copy` (web client, fonts, guides, MCP server) pass;
+      again after the change of the adapters (422 s, passes).
+
+**The check before the landing** (2026-10-02): the guards give the findings of
+`main`; `test_integration()` fails at the 7 known sites of `main`;
+`test_repository()` 363, `test_platform()` and `test_builder()` 399 pass;
+omnet-julia (83 packages) and inet-julia (12) precompile against the branch,
+and `OmnetIde`, which uses the platform and not the umbrella, loads.
+- [x] **Step 6, the guides.** The setup guide and the own-project guide show
       the two ways; `documentation/package/` names the extensions; the naming
       rule loses "No package here has one yet".
+      Done (`d774b2b37`): the own-project guide, the system anatomy, the
+      domain document and the naming rule.
 
 ## 6. Decisions made during the work
 
-(filled in as the work goes)
+- **O1 is in the umbrella, not in an extension** (`655e9aafa`): its `__init__`
+  loads each installed model adapter, and the three adapters are weak
+  dependencies for their bounds. The test expects them with the umbrella and
+  never without it.
+- **The adapters load after the load, not in `__init__`** (`edb39efd9`). Julia
+  1.13 restores the packages of one load together; an `__init__` inside that
+  load that asks for a package of the same load stops with
+  `ConcurrencyViolationError: deadlock detected in loading ProjecturedOllama`.
+  The umbrella test package showed it, and so would any package that depends on
+  the umbrella and on an adapter (the IDE of omnet-julia). An extension does not
+  have the problem, because Julia runs extensions in `run_package_callbacks`,
+  after the whole load and without the loading lock. The umbrella now registers
+  a callback in `Base.package_callbacks`, which Julia calls at the same place;
+  a flag makes it run once. `Base.package_callbacks` is not documented API of
+  Julia (`Requires.jl` and Revise use it). The other way, catching the error, was
+  refused: an adapter outside the load whose own dependency is in the load would
+  stop the same way, in silence. The test has the case: `using
+  ProjecturedExample`, which depends on the umbrella and two adapters.
+- **The integration test lives in `test_repository()`**, because it needs the
+  development environment, which names every trigger and integration; an
+  installed umbrella has none of them.

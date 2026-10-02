@@ -134,6 +134,7 @@ include("SearchCorpusTest.jl")
 include("CallSiteTest.jl")
 include("SearchRankingTest.jl")
 include("PackageGraphTest.jl")
+include("IntegrationLoadingTest.jl")
 # The tree guard, which lives at the repository root rather than in a package:
 # it reads directories and project files, and it has to run before the packages
 # it describes exist. See `plan/done/repository-tree.md` §3.
@@ -418,12 +419,14 @@ end
     test_repository()
 
 The tests of the umbrella that read this repository and not only its packages:
-the package graph, from the `Project.toml` files under `package/`. An installed
+the package graph, from the `Project.toml` files under `package/`, and the
+integrations that the umbrella loads, in new processes in `environment/all`. An installed
 package has no repository, so the release test of `Projectured` leaves them out.
 """
 function test_repository()
     @testset "repository" begin
         test_package_graph()
+        test_umbrella_loads_integrations()
     end
 end
 
@@ -534,7 +537,7 @@ function test_table()
     end
 end
 
-export test_all, test_integration, test_repository, test_documents, test_projections, test_domain_examples,
+export test_all, test_integration, test_repository, test_umbrella_loads_integrations, test_documents, test_projections, test_domain_examples,
        test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
 export test_kernel, test_platform, test_domain

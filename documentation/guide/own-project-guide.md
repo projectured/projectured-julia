@@ -34,13 +34,33 @@ The packages are not in the General registry yet. A project reaches them by path
 
 | Package | What you get |
 | --- | --- |
-| `Projectured` | the umbrella: the kernel, the platform and every domain |
+| `Projectured` | the umbrella: the kernel, the platform and every domain, and each installed integration whose package you load |
 | `ProjecturedSDL` | the native window |
 | `ProjecturedWeb` | the browser backend |
 | `ProjecturedExample` | the examples, the gallery, `run_value_viewer` and the application |
 | one domain, for example `ProjecturedJSON` | that domain alone, with the kernel below it |
 
 A program that shows data of one domain loads that domain and a backend. A program that shows anything loads the umbrella. [package-rules.md](../rule/package-rules.md) says what each kind of package may depend on.
+
+## Two ways to load the integrations
+
+An integration joins ProjecturEd to another package: `ProjecturedSDL` to `SimpleDirectMediaLayer`, `ProjecturedVideo` to `FFMPEG`, `ProjecturedDataFrames` to `DataFrames`, `ProjecturedODBC` to `ODBC`, `ProjecturedTulip` to `Tulip`, and `ProjecturedMCP` to `ModelContextProtocol`. Add the integrations that you want; `add Projectured` installs none of them.
+
+- **With the umbrella**, a session loads each installed integration when the package it joins is loaded too, in either order:
+
+  ```julia
+  using SimpleDirectMediaLayer, DataFrames, Projectured    # loads ProjecturedSDL and ProjecturedDataFrames
+  ```
+
+- **Without the umbrella**, a session loads the packages it names, and nothing more:
+
+  ```julia
+  using SimpleDirectMediaLayer, DataFrames, ProjecturedDataFrames, ProjecturedWeb
+  ```
+
+The model adapters `ProjecturedOllama`, `ProjecturedAnthropic` and `ProjecturedOpenRouter` have no package of their own to trigger them: the umbrella loads each one that you installed, and a loaded adapter does nothing until you ask for it by name (`assistant = :ollama`). The web backend loads only when you name it, because a loaded web backend becomes the default backend when SDL is absent.
+
+The umbrella loads an integration so that it works; the names of the integration stay in it. To write `SdlBackend()` yourself, add `using ProjecturedSDL`.
 
 ## Open a window from your code
 

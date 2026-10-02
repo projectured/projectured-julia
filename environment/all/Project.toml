@@ -1,4 +1,8 @@
 [deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 ProjecturedAdaptagramsExample = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
@@ -96,7 +100,9 @@ ProjecturedYAML = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 ProjecturedYAMLExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 ProjecturedYAMLTest = "c50c731e-0b3d-49a3-9d62-8794fc19745c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 
 [sources]
 Projectured = {path = "../../package/Projectured"}

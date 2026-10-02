@@ -114,7 +114,11 @@ The seventeen domain packages  one package per concrete source domain
         │                      and the domains it embeds. See
         │                      [domain-inventory.md](domain-inventory.md).
 Projectured (projectured/)     umbrella: `using Projectured` re-exports every
-                               package above as a single flat public API.
+                               package above as a single flat public API, and
+                               its extensions load each installed integration
+                               (SDL, Video, DataFrames, ODBC, Tulip, MCP) when
+                               the package it joins is loaded too, and each
+                               installed model adapter with it.
 
 The five backends (depend on the kernel and the platform):
   Console (console/) → required, no third-party dependency   the ANSI terminal backend

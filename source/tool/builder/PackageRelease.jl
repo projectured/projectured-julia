@@ -24,8 +24,8 @@ is the order in which a registry must take them. `status` is `:new`,
 `:changed` or `:unchanged`.
 
 - `packages` — the names of the packages to release. Every package of
-  `context` that one of them depends on must be among them, or the copy could
-  not resolve; a missing one stops the build.
+  `context` that one of them depends on, or names as a weak dependency, must be
+  among them, or the copy could not resolve; a missing one stops the build.
 - `output` — the working tree of the release repository. A package folder
   that is already there, `<output>/<Name>/`, is the last release of that
   package. When `output` is a git repository, it must have no uncommitted
@@ -60,7 +60,7 @@ ignores, such as a coverage file, never reaches a user.
 **The version of a package.** A new package keeps the version of its
 `Project.toml`. A package whose content changed gets the next patch version of
 its released one, and caret bounds on its sibling packages from their versions
-in this release. A package whose content did not change keeps its released
+in this release, its weak dependencies too. A package whose content did not change keeps its released
 folder as it is, `[compat]` and `test/` included. The content is every file of
 the folder but those of `test/`, and the `Project.toml` without `version`,
 `[compat]` and `[sources]`: a change of a test gives no package a new version,
@@ -269,8 +269,7 @@ _is_inside_folder(folder, target) =
 # released too.
 function _check_release_is_closed(context::BuildContext, projects)
     missing_packages = String[]
-    for (name, project) in projects,
-        dependency in keys(get(project, "deps", Dict{String,Any}()))
+    for (name, project) in projects, dependency in _get_dependency_names(project)
         has_package_directory(context, dependency) && !haskey(projects, dependency) &&
             push!(missing_packages, "$name → $dependency")
     end
@@ -331,8 +330,15 @@ function _collect_registered_versions(instance, entry)
     collect(keys(info.version_info))
 end
 
+# The dependencies and the weak dependencies of a project, by name: a weak one is a
+# package that an extension needs, and it gets a `[compat]` bound and an order in
+# the registration as a dependency does.
+_get_dependency_names(project) =
+    union(keys(get(project, "deps", Dict{String,Any}())),
+          keys(get(project, "weakdeps", Dict{String,Any}())))
+
 _get_sibling_names(project, projects) =
-    sort!([dependency for dependency in keys(get(project, "deps", Dict{String,Any}()))
+    sort!([dependency for dependency in _get_dependency_names(project)
            if haskey(projects, dependency)])
 
 function _compute_dependency_order(projects)
@@ -411,6 +417,9 @@ function _write_package_content(context::BuildContext, name, destination;
         write(target, replace(text,
                               "include(\"../../../source/" => "include(\"../source/"))
     end
+    # The extensions of a package include nothing of the repository.
+    isdir(joinpath(context.root, package, "ext")) &&
+        _copy_tracked_files(context, joinpath(package, "ext"), joinpath(destination, "ext"))
     for (from, to) in assets
         _copy_tracked_files(context, from, joinpath(destination, to))
     end
@@ -549,7 +558,8 @@ function _read_registered_versions(manifest::AbstractString)
 end
 
 const _PROJECT_KEY_ORDER = Dict("name" => 1, "uuid" => 2, "version" => 3, "authors" => 4,
-                                "deps" => 5, "compat" => 6)
+                                "deps" => 5, "weakdeps" => 6, "extensions" => 7,
+                                "compat" => 8)
 
 function _write_release_project(path, project, version;
                                 versions, registered, julia_compat)
@@ -557,7 +567,7 @@ function _write_release_project(path, project, version;
                                 if key != "sources")
     released["version"] = string(version)
     compat = Dict{String,Any}(get(project, "compat", Dict{String,Any}()))
-    for dependency in keys(get(project, "deps", Dict{String,Any}()))
+    for dependency in _get_dependency_names(project)
         if haskey(versions, dependency)
             compat[dependency] = string(versions[dependency])
         elseif !haskey(compat, dependency) && haskey(registered, dependency)
