@@ -51,13 +51,15 @@ she didn't ask for." The owner accepted way (B) the same day ("Yes"):
 - **The binary** names its domains, the console and PDF in its package list.
 - **A user who wants the names of a domain** loads it: `using ProjecturedJSON`.
 
-## 4. Open decisions
+## 4. Decisions
 
-| # | Question | Recommendation (mine, not decided) |
+The owner accepted the three recommendations on 2026-10-02 ("Agreed, start").
+
+| # | Question | Decision |
 | --- | --- | --- |
 | U1 | The name of the development package. | `ProjecturedAll`: it says what it holds, and it is not a name a user of the registry meets. |
 | U2 | Downstream: change `using Projectured` to the development package, or to the packages each file uses? | The development package now: one mechanical change in 79 files. Naming the packages is a change of its own, file by file, later if at all. |
-| U3 | Measure the precompile and the load of `using Projectured` before and after? | Yes, the same way as the fold measured them, with the owner's word for the run. |
+| U3 | Measure the precompile and the load of `using Projectured` before and after? | Yes, the same way as the fold measured them: both commits in one session at the end, a fresh clone and an empty compiled folder for each. |
 
 ## 5. Steps
 
