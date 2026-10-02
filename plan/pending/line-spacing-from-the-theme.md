@@ -3,7 +3,11 @@
 > **Status:** pending, not started. A follow-up of
 > [a-line-of-text-sits-on-one-baseline.md](../done/a-line-of-text-sits-on-one-baseline.md):
 > the owner decided on 2026-09-26 to treat the theme value of question 3 there as
-> a separate step.
+> a separate step. On 2026-10-02 the owner moved this work into
+> [default-look-fits-a-desktop.md](default-look-fits-a-desktop.md) (decision
+> D9). The spacing is a theme value, as section 4 recommends. Step V2 there sets
+> it: code 1.35, prose 1.5, widgets single. This plan moves to `plan/done/` with
+> that plan.
 
 ## 1. The request
 

@@ -2,8 +2,8 @@
 
 > **Status:** pending, not started. Written on 2026-10-02 at the owner's
 > request. The owner decided the goal, the reference, the scope and the font
-> model on 2026-10-02 (section 5). Section 4 holds the questions that are still
-> open.
+> model on 2026-10-02, and answered the five questions of section 4 the same
+> day. Section 5 logs each decision. No question is open.
 
 ## 1. The request
 
@@ -193,7 +193,7 @@ use this model.
 
 ### 3.3 A theme holds base fonts and text roles
 
-This section depends on question Q1.
+The owner chose this model on 2026-10-02 (D8).
 
 - A theme that draws text holds its base fonts: `font` for proportional text
   and `code_font` for monospace text, each with a family and a size.
@@ -219,7 +219,7 @@ Each fixed value of section 2.6 is one of three kinds:
 - **The content of a document.** A font, a color or a size that the author of a
   document gives stays in the document: the examples, `WidgetSpinBox(width =
   80)`, a text that a document constructor makes. It is written with a font
-  description, at the new sizes. Question Q4 is about this kind.
+  description, at the new sizes (D11).
 - **Not a style.** `color_transparent`, a `0` that means "no fixed size", a
   depth of recursion, a protocol constant.
 
@@ -253,8 +253,8 @@ The reference is VS Code on Linux at the density 1 (D1).
   Mono 0.6 em, so Ubuntu Mono 14 looks smaller than the 14 px of VS Code. Step V1
   shows Ubuntu Mono 14, 15 and 16 and DejaVu Sans Mono 14, and the owner chooses.
 - The prose text of Markdown, reStructuredText and books is 14 px.
-- If the owner takes question Q2: code lines 1.35 times the font size, as VS
-  Code on Linux (19 px for 14 px), prose 1.5, widgets single.
+- The line spacing (D9): code lines 1.35 times the font size, as VS Code on
+  Linux (19 px for 14 px), prose 1.5, widgets single.
 
 A first proposal for `WidgetTheme`. Step V1 shows it in images, and the owner
 chooses:
@@ -291,7 +291,8 @@ same reference.
 
 ## 4. Questions for the owner
 
-Each answer below is my recommendation, not a decision.
+Each question had a recommendation. On 2026-10-02 the owner took every
+recommendation: "agreed on all". Section 5 logs them as D8 to D12.
 
 1. **Q1. Base fonts and roles, or a full font in each field?** Section 3.3
    describes base fonts and roles. The other choice keeps a full font in each
@@ -330,6 +331,19 @@ Each answer below is my recommendation, not a decision.
   and only a theme default or a preset names a palette color.
 - **D6** (2026-10-02). The recorded videos do not need to match.
 - **D7** (2026-10-02). The density probe does not change.
+- **D8** (2026-10-02, Q1). A theme holds base fonts and text roles (section
+  3.3, Part R).
+- **D9** (2026-10-02, Q2). This plan takes in
+  `plan/pending/line-spacing-from-the-theme.md`. The line spacing is a theme
+  value. Step V2 sets it: code 1.35 times the font size, prose 1.5, widgets
+  single. Both plans move to `plan/done/` when this plan is done.
+- **D10** (2026-10-02, Q3). Ubuntu stays the interface font. The images of step
+  V1 choose the code font.
+- **D11** (2026-10-02, Q4). A document keeps the fonts that its author gives,
+  marked for the guard. A text without a font that takes the font of the theme
+  needs its own plan.
+- **D12** (2026-10-02, Q5). The saved form of a font as a file name goes. A key
+  that is not known is ignored, and the default applies.
 
 ## 6. Steps
 
@@ -353,7 +367,7 @@ inet-julia uses, the same step changes them, so that they always load.
 - [ ] **F5.** Each use of a font constant becomes a description, in all three
   repositories. The 143 constants and their exports go.
 
-### Part R: base fonts and text roles (if Q1 is yes)
+### Part R: base fonts and text roles
 
 - [ ] **R1.** `@theme` computes a role field from the base font and the role.
   Tests with `test_theme`.
@@ -381,8 +395,8 @@ inet-julia uses, the same step changes them, so that they always load.
   a NED file. Each view in three looks: now, the look of the owner (0.8 and
   0.67), and the proposal of section 3.6 with the candidates for the code font.
   The images go on one page, and the owner chooses.
-- [ ] **V2.** The chosen values go into every theme, with the line spacing if Q2
-  is yes.
+- [ ] **V2.** The chosen values go into every theme, with the line spacing of
+  section 3.6.
 - [ ] **V3.** The tests that check a pixel size follow, for example the line box
   of 23 px for Ubuntu 20. The count of broken tests does not change.
 - [ ] **V4.** The owner looks at the live editor at 100% on the screen of
@@ -428,8 +442,7 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
 - System fonts in the registry: fontconfig, DirectWrite, Core Text.
 - A text size that follows the settings of the desktop.
 - A dark theme that follows the operating system.
-- A text without a font that takes the font of the theme (Q4), if the owner keeps
-  the font in the content.
+- A text without a font that takes the font of the theme (D11).
 
 ## 10. Findings during the work
 
