@@ -15,13 +15,22 @@ function _collect_surface_packages()
     Module[loaded[n] for n in packages]
 end
 
+# A module that exports names and defines none of them. A module that it exports
+# is left out of the test: the name of a gathered module reaches the aggregate
+# through two imports, and `which` refuses such a name.
+function _is_aggregate_module(m::Module)
+    exported = [name for name in names(m)
+                if isdefined(m, name) && !(getfield(m, name) isa Module)]
+    !isempty(exported) && all(name -> which(m, name) !== m, exported)
+end
+
 # The submodules of `package` on the whole surface, each under the name that the
 # package binds it by: a submodule the package defines, or a submodule of a
-# package it reaches but `packages` does not name. The second case is a concrete
-# domain in its own package: the umbrella binds it, so it arrives through that
-# binding. A submodule whose parent IS in `packages` is skipped, so a kernel
-# module that three packages alias is there once. A package module itself
-# (parent `Main`) is not a submodule.
+# package it reaches but `packages` does not name. A submodule whose parent IS in
+# `packages` is skipped, so a kernel module that three packages alias is there
+# once. A package module itself (parent `Main`) is not a submodule. An aggregate,
+# such as `KernelModule`, is left out: it defines none of the names it exports,
+# so each of them counts under the module that defines it.
 function _collect_package_submodules(package::Module, packages)
     found = Pair{Symbol,Module}[]
     for name in sort!(names(package; all = true))
@@ -30,6 +39,7 @@ function _collect_package_submodules(package::Module, packages)
         (sub isa Module && sub !== package) || continue
         parent = parentmodule(sub)
         (parent === package || (parent !== Main && !(parent in packages))) || continue
+        _is_aggregate_module(sub) && continue
         push!(found, name => sub)
     end
     found
