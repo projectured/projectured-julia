@@ -16,7 +16,7 @@
 
 """
     build_package_release!(context; packages, output, assets, licences, readme,
-                           tests, workflow, manifest, julia_compat,
+                           tests, workflow, overview, manifest, julia_compat,
                            registry) -> Vector
 
 Write the release copy of `packages` into `output`, one folder per package, and
@@ -31,8 +31,8 @@ is the order in which a registry must take them. `status` is `:new`,
   that is already there, `<output>/<Name>/`, is the last release of that
   package. When `output` is a git repository, it must have no uncommitted
   change: the last release is what its last commit holds. The build changes
-  only the folders of the changed packages, and the licence files and the
-  workflow at the root.
+  only the folders of the changed packages, and the licence files, the
+  workflow and the overview at the root.
 - `assets` —
   `"<package>" => ["<folder of the repository>" => "<folder in the package>", …]`,
   the folders that a package reads while it runs, a package of `tests` too.
@@ -58,6 +58,9 @@ is the order in which a registry must take them. `status` is `:new`,
   folders instead; and the sandbox of `Pkg.test` keeps the version of a
   sibling only when the manifest of the environment reaches it, so the
   support packages that need it are developed too.
+- `overview` — `nothing`, or a function `overview(names)` whose text goes into
+  `README.md` at the root of `output`, the front page of the release
+  repository. `names` are the released packages, dependencies first.
 - `manifest` — the manifest whose versions give the `[compat]` bounds of the
   packages from other registries.
 - `julia_compat` — the `[compat]` bound of Julia, for a package that names none.
@@ -95,6 +98,7 @@ function build_package_release!(context::BuildContext; packages,
                                   readme = nothing,
                                   tests = nothing,
                                   workflow = nothing,
+                                  overview = nothing,
                                   manifest::AbstractString = joinpath(context.root,
                                       "environment", "all", "Manifest.toml"),
                                   julia_compat::AbstractString = "1.11",
@@ -163,6 +167,7 @@ function build_package_release!(context::BuildContext; packages,
         cp(joinpath(context.root, licence), joinpath(output, basename(licence)); force = true)
     end
     workflow === nothing || _write_release_workflow(output, workflow, order)
+    overview === nothing || write(joinpath(output, "README.md"), overview(order))
     counts = Dict(status => count(result -> result.status === status, results)
                   for status in (:new, :changed, :unchanged))
     @info("build_package_release!: wrote $output", packages = length(results),

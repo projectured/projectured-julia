@@ -279,6 +279,15 @@ function test_package_release()
                   ["Low", "Middle", "Top"]
         end
 
+        @testset "the overview is the front page of the release repository" begin
+            front = joinpath(mktempdir(), "Release.jl")
+            build_package_release!(context; packages = ["FakeTop", "FakeBase"], output = front,
+                assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
+                licences = ["LICENSE"], overview = names -> "# Release\n$(join(names, ' '))\n",
+                manifest)
+            @test read(joinpath(front, "README.md"), String) == "# Release\nFakeBase FakeTop\n"
+        end
+
         @testset "a release with no change keeps every folder and every version" begin
             before = _read_release_folder(output)
             # A file that git does not track never reaches the copy.
@@ -499,6 +508,10 @@ function test_package_release()
         for (name, readme) in PROJECTURED_PACKAGE_READMES
             @test isfile(joinpath(context.root, readme.document))
         end
+        # The front page has a row for each released package, and the install lines.
+        front = read(joinpath(output, "README.md"), String)
+        @test all(name -> occursin("| [$name]($name) | ", front), names)
+        @test occursin("pkg> registry add $PROJECTURED_REGISTRY_URL\n", front)
         readme = read(joinpath(output, "ProjecturedJSON", "README.md"), String)
         @test occursin(PROJECTURED_PACKAGE_READMES["ProjecturedJSON"].summary, readme)
         @test occursin("pkg> registry add $PROJECTURED_REGISTRY_URL\n" *

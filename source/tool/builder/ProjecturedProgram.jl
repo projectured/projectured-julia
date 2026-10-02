@@ -376,6 +376,13 @@ The registry that serves the released packages, `ProjecturedRegistry`.
 const PROJECTURED_REGISTRY_URL = "https://github.com/projectured/ProjecturedRegistry"
 
 """
+    PROJECTURED_RELEASE_URL
+
+The release repository, which holds one folder for each released package.
+"""
+const PROJECTURED_RELEASE_URL = "https://github.com/projectured/Projectured.jl"
+
+"""
     PROJECTURED_PACKAGE_READMES
 
 The README of each released package, as
@@ -521,6 +528,7 @@ function build_projectured_package_release!(output::AbstractString;
                            readme = _format_projectured_package_readme,
                            tests = name -> _find_projectured_release_test(context, name),
                            workflow = _format_projectured_release_workflow,
+                           overview = _format_projectured_release_overview,
                            julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry,
                            kwargs...)
 end
@@ -591,6 +599,55 @@ _format_projectured_runtests(name, test_package, suite) = """
     using $test_package
     $suite()
     """
+
+# The front page of the release repository: what it is, how to install from it,
+# and one row for each package with the sentence of its README. The umbrella, the
+# kernel and the platform come first, then the others by name.
+function _format_projectured_release_overview(names)
+    core = ["Projectured", "ProjecturedKernel", "ProjecturedPlatform"]
+    order = [filter(in(names), core); sort(filter(!in(core), names))]
+    rows = join(["| [$name]($name) | $(PROJECTURED_PACKAGE_READMES[name].summary) |\n"
+                 for name in order])
+    """
+    # Projectured.jl
+
+    [![CI]($PROJECTURED_RELEASE_URL/actions/workflows/CI.yml/badge.svg)]($PROJECTURED_RELEASE_URL/actions/workflows/CI.yml)
+
+    The released packages of [ProjecturEd]($PROJECTURED_SOURCE), a projectional
+    editor: the data is the source, and every view is computed from it. Each folder
+    is one package. The release of ProjecturEd writes this repository from
+    [projectured-julia]($PROJECTURED_SOURCE), so a change belongs there.
+
+    ## Install
+
+    The packages are in the registry `ProjecturedRegistry`:
+
+    ```
+    pkg> registry add $PROJECTURED_REGISTRY_URL
+    pkg> add Projectured ProjecturedJSON ProjecturedSDL
+    ```
+
+    `Projectured` installs the kernel and the platform, and loads every ProjecturEd
+    package that you install. Add the packages of the data that you open and of the
+    backend that you draw with.
+    [ProjecturEd in your own project]($PROJECTURED_SOURCE/blob/main/documentation/guide/own-project-guide.md)
+    says how to open a window from your code.
+
+    ## The packages
+
+    | Package | What it holds or does |
+    | --- | --- |
+    $rows
+    ## Tests
+
+    Each package holds its tests in `test/`. The workflow `.github/workflows/CI.yml`
+    runs them for each package on every push, on Julia $PROJECTURED_JULIA_COMPAT.
+
+    ## Licence
+
+    The Mozilla Public License 2.0, in `LICENSE`.
+    """
+end
 
 # The workflow of the release repository: one job for each package and Julia
 # version. A job develops the folders that the test of its package needs, runs
