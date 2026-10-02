@@ -30,7 +30,7 @@ GraphGraph ──GraphGraphToGraphLayout──▶ GraphLayout ──GraphLayoutT
 ```
 
 1. **Size, then place.** `GraphGraphToGraphLayout(engine; extent, border, constraints)` prints the `content` of each vertex through the recursion into a canvas and reads its width and height. One computed cell then calls `layout_graph` with those sizes. The cell reads the vertex list, the edge list, the sizes and the constraints, so the engine runs again only when one of them changes. `constraints` is a function of the graph, because a constraint names a vertex, and the vertices exist only when there is a document.
-2. **Draw.** `GraphLayoutToGraphicsCanvas` draws the edges first, as `GraphicsPolyline`s with an arrowhead when `directed` is true. It prints each edge `label` and centres it on the midpoint of the route by arc length. It then draws each box as a rounded `GraphicsRect`, 8 pixels larger than the vertex on each side, with the content canvas on top.
+2. **Draw.** `GraphLayoutToGraphicsCanvas` draws the edges first, as `GraphicsPolyline`s with an arrowhead when `directed` is true. It prints each edge `label` and centres it on the midpoint of the route by arc length. It then draws each box as a rounded `GraphicsRect`, larger than the vertex by the padding of the theme on each side, with the content canvas on top.
 
 The size of the output canvas is a computed cell over the layout: the right and bottom edges of the boxes, of the highlight ring and of the route points. So a vertical layout above a graph reserves the right height, and the height grows when the vertices arrive after the first print.
 
@@ -83,6 +83,10 @@ A producer sets the two fields as computed cells over the state it follows. Two 
 
 In both, the content of a vertex is the domain node itself, held by identity. So a click on a box selects the real state or step through the path above, and the domain adds no code for drawing or for clicks.
 
+### The theme
+
+`GraphTheme` holds the look of the drawing: the fill, the border, the border width, the radius and the padding of the box of a node; the color and the width of an edge and the size of its arrowhead; and the color, the width and the gap of the ring of a highlight. Each value has the default that the domain draws with no appearance, and each field has a docstring, which the appearance tab shows as the tooltip of the field. `GraphLayoutToGraphicsCanvas(; theme)` takes a `GraphTheme` or a scaled one, and holds all values as one `NamedTuple`, which a print reads once; with no theme it holds the default values. `GraphToGraphics` passes its `theme` on. The natural registration gives the scaled theme of the `Appearance` of the editor, so the drawing follows its scales, and the appearance tab shows a section for `GraphTheme`. The content of a node follows the themes of its own domain.
+
 ## How it fits
 
 `ProjecturedGraph` depends on the kernel and the platform. `ProjecturedFSM` and `ProjecturedProcess` depend on it, and `ProjecturedAdaptagrams` adds an engine to it.
@@ -110,7 +114,7 @@ run_example(graph, projection; name = "graph")
 ```
 
 - Examples: `graph_example`, a table, a JSON object and an XML element joined by edges, in `example/domain/graph/`. The atomic catalog has the entries `graph/graph` and `graph/layout`. `graph_adaptagrams_example` is in `ProjecturedAdaptagramsExample`.
-- Test: `test_graph()` runs the layering guard, `test_graph_projection()` and `test_fruchterman_reingold_layout()`.
+- Test: `test_graph()` runs the layering guard, `test_graph_projection()`, `test_fruchterman_reingold_layout()` and `test_graph_theme()`.
 
 ## Limits
 

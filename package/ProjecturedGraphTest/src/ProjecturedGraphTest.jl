@@ -46,6 +46,7 @@ end
 
 include("../../../test/domain/graph/projection/GraphProjectionTest.jl")
 include("../../../test/domain/graph/projection/FruchtermanReingoldLayoutTest.jl")
+include("../../../test/domain/graph/projection/GraphThemeTest.jl")
 
 include("../../../test/domain/graph/GraphSuite.jl")
 

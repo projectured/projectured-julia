@@ -29,6 +29,7 @@ export FruchtermanReingoldLayout
 export DeferredLayout, make_deferred_layout_engine, register_layout_engine!,
        resolve_layout_engine, make_pure_julia_layout_engine
 export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
+export GraphTheme, ScaledGraphTheme
 export GraphLayoutToGraphicsCanvas, GraphToGraphics,
        GraphLayoutToGraphicsCanvasIoMap
 export GraphGraph, GraphVertex, GraphEdge, GraphConstraint, GraphLayout, VertexLayout, EdgeLayout
@@ -40,6 +41,7 @@ include("GraphLayoutEngine.jl")
 include("FruchtermanReingoldLayout.jl")
 include("GraphLayoutChoice.jl")
 include("GraphToGraphLayout.jl")
+include("GraphTheme.jl")
 include("GraphLayoutToGraphics.jl")
 
 end # module

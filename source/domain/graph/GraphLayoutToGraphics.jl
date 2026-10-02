@@ -14,23 +14,11 @@
 # `vertex_layouts[i].vertex.content.…`, so a selection into vertex content
 # round-trips through the whole graph pipeline. Edges are decorations in v1
 # (selectable later via the Phase 1 polyline hit-test).
-# Node box visual style.
-const _BORDER_W = 2
-const _BORDER = StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0)   # solarized base01
-const _FILL   = StyleColor(1.0, 1.0, 1.0, 1.0)   # opaque white fill
-const _RADIUS = 6
-const _PAD    = 8
-# Edge style.
-const _EDGE = StyleColor(0x58 / 255, 0x6e / 255, 0x75 / 255, 1.0)
-const _EDGE_W = 2
-const _ARROW = 10
-# Highlight style (`GraphLayout.highlight_vertex` / `highlight_edge`): a ring
+#
+# The highlight (`GraphLayout.highlight_vertex` / `highlight_edge`) is a ring
 # just outside the node's box, and a re-stroke over the edge's own line. Both
 # are *extra* elements keyed on the highlight cells alone — never a change to a
 # node's content or geometry, so a highlight move never re-runs the layout.
-const _HIGHLIGHT = StyleColor(0xb5 / 255, 0x89 / 255, 0x00 / 255, 1.0)   # solarized yellow
-const _HIGHLIGHT_W = 3
-const _HIGHLIGHT_GAP = 3
 
 # The point halfway along a polyline route by arc length — where an edge label
 # sits. Falls back to the single point / origin for degenerate routes.
@@ -53,7 +41,19 @@ function _route_midpoint(route)
     (Int(route[n][1]), Int(route[n][2]))
 end
 
-struct GraphLayoutToGraphicsCanvas <: Projection end
+"""
+    GraphLayoutToGraphicsCanvas(; theme = nothing)
+
+The drawing of a `GraphLayout`. `theme` is a [`GraphTheme`](@ref), a scaled one,
+or `nothing` for the default values; `style` holds every value of the theme as one
+`NamedTuple`, read once at each print with `unwrap_cell`.
+"""
+struct GraphLayoutToGraphicsCanvas <: Projection
+    style::Any
+end
+
+GraphLayoutToGraphicsCanvas(; theme = nothing) =
+    GraphLayoutToGraphicsCanvas(make_theme_values_field(GraphTheme, scale_theme(theme)))
 
 @iomap struct GraphLayoutToGraphicsCanvasIoMap
     projection::Any
@@ -64,6 +64,7 @@ struct GraphLayoutToGraphicsCanvas <: Projection end
 end
 
 function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
+    style = unwrap_cell(p.style)
     # Recurse each vertex's content into a canvas, tracking its placed origin.
     child_iomaps = Cell(@computation begin
         n = length(layout.vertex_layouts)
@@ -127,13 +128,14 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             length(route) < 2 && continue
             e = getfield(el, :edge)[]
             directed = e isa GraphEdge ? e.directed : false
-            push!(result, GraphicsPolyline(route; color = _EDGE,
-                width=_EDGE_W, end_arrow=directed, arrow_size=_ARROW))
+            push!(result, GraphicsPolyline(route; color = style.edge,
+                width = style.edge_width, end_arrow = directed, arrow_size = style.arrow_size))
             # The highlighted edge is re-stroked over its own line, keeping the
             # arrowhead it already drew.
             if highlight_edge !== nothing && e === highlight_edge
-                push!(result, GraphicsPolyline(route; color = _HIGHLIGHT,
-                    width=_HIGHLIGHT_W, end_arrow=directed, arrow_size=_ARROW))
+                push!(result, GraphicsPolyline(route; color = style.highlight,
+                    width = style.highlight_width, end_arrow = directed,
+                    arrow_size = style.arrow_size))
             end
             lim = i <= length(labels) ? labels[i] : nothing
             if lim !== nothing
@@ -151,19 +153,20 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             vl = layout.vertex_layouts[i]
             vl isa VertexLayout || continue
             x, y, w, h = Int(vl.x), Int(vl.y), Int(vl.w), Int(vl.h)
-            bx, by = x - _PAD, y - _PAD
-            bw, bh = w + 2*_PAD, h + 2*_PAD
+            pad = style.node_padding
+            bx, by = x - pad, y - pad
+            bw, bh = w + 2*pad, h + 2*pad
             # The ring goes behind the box, inflated by the gap, so the box's
             # own opaque fill leaves only the ring's edge showing.
             v = getfield(vl, :vertex)[]
             if highlight_vertex !== nothing && v === highlight_vertex
-                g = _HIGHLIGHT_GAP + _HIGHLIGHT_W
+                g = style.highlight_gap + style.highlight_width
                 push!(result, GraphicsRect(bx - g, by - g, bw + 2*g, bh + 2*g;
-                    color = _HIGHLIGHT, radius = _RADIUS + g))
+                    color = style.highlight, radius = style.node_radius + g))
             end
             push!(result, GraphicsRect(bx, by, bw, bh;
-                color = _FILL, radius = _RADIUS,
-                border_width=_BORDER_W, border_color=_BORDER))
+                color = style.node_fill, radius = style.node_radius,
+                border_width = style.node_border_width, border_color = style.node_border))
             node_at[i] = length(result)
             entry = i <= length(entries) ? entries[i] : nothing
             if entry !== nothing && entry[3] !== nothing
@@ -200,9 +203,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         right = bottom = 0
         for vertex_layout in layout.vertex_layouts
             vertex_layout isa VertexLayout || continue
-            # The node BOX is the vertex inflated by `_PAD` on every side, and a
-            # highlight ring sits outside that — both are painted, so both count.
-            margin = _PAD + _HIGHLIGHT_GAP + _HIGHLIGHT_W
+            # The node BOX is the vertex inflated by its padding on every side,
+            # and a highlight ring sits outside that — both are painted, so both
+            # count.
+            margin = style.node_padding + style.highlight_gap + style.highlight_width
             right  = max(right,  Int(vertex_layout.x) + Int(vertex_layout.w) + margin)
             bottom = max(bottom, Int(vertex_layout.y) + Int(vertex_layout.h) + margin)
         end
@@ -424,20 +428,21 @@ end
 
 """
     GraphToGraphics(engine = GridEmbedding(); extent = nothing, border = 0,
-                    constraints = nothing) -> ChainingProjection
+                    constraints = nothing, theme = nothing) -> ChainingProjection
 
 The pipeline from a `GraphGraph` straight to a `GraphicsCanvas`, with no
 `TextToGraphics` step, like `TableToGraphics`: the chain of
 `GraphGraphToGraphLayout(engine; extent, border, constraints)` and
-`GraphLayoutToGraphicsCanvas()`. The stages have no recursion of their own, so
+`GraphLayoutToGraphicsCanvas(; theme)`. The stages have no recursion of their own, so
 the content of a vertex prints through the recursion that encloses the chain,
 for example a `NestingProjection`.
 """
 GraphToGraphics(engine::GraphLayoutEngine = GridEmbedding();
-                extent = nothing, border::Integer = 0, constraints = nothing) =
+                extent = nothing, border::Integer = 0, constraints = nothing,
+                theme = nothing) =
     ChainingProjection(GraphGraphToGraphLayout(engine; extent = extent, border = border,
                                                constraints = constraints),
-                       GraphLayoutToGraphicsCanvas())
+                       GraphLayoutToGraphicsCanvas(; theme))
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # A graph is a diagram, not a syntax tree: it goes through its own two stages
@@ -449,6 +454,7 @@ GraphToGraphics(engine::GraphLayoutEngine = GridEmbedding();
 function __init__()
     register_natural_graphics!(:graph, (; measure, appearance) -> Pair{Type,Any}[
         GraphGraph => ChainingProjection(GraphGraphToGraphLayout(),
-                                         GraphLayoutToGraphicsCanvas()),
+                                         GraphLayoutToGraphicsCanvas(
+                                             theme = get_scaled_theme!(appearance, GraphTheme))),
     ])
 end
