@@ -5,6 +5,9 @@
 """
     WidgetTheme
 
+The colors, the fonts and the sizes of every widget on screen: a button, a
+card, a menu, a checkbox and a slider.
+
 The theme of the widgets: the colors, the fonts and the sizes that every widget
 projection draws with. `@theme` declares it, so `ScaledWidgetTheme` holds each
 value times its scale, and `WidgetTheme()` is the default theme, the slate light

@@ -5,6 +5,10 @@
 """
     MarkdownTheme
 
+The colors and the fonts of a markdown document, in its source form and in its
+rendered form. They color a heading, a link, a bold run, an italic run and a
+code block.
+
 The theme of the Markdown projections. `@theme` declares it, so
 `ScaledMarkdownTheme` holds each value times its scale, and `MarkdownTheme()`
 is the default theme.

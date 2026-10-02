@@ -5,6 +5,10 @@
     PointerSettings(; multi_click_max_interval = 0.3, click_max_displacement = 5,
                       dwell_delay = 0.5)
 
+How the editor recognizes a click and a double click of the pointer. It sets
+the time between two clicks, the distance a click allows, and the rest before
+a tooltip opens.
+
 The limits of the recognitions of the pointer: the time of a double click, the
 distance that a click can move, and the rest of the pointer before a dwell, which
 opens a tooltip. [`make_standard_recognitions`](@ref)`(settings)` gives the

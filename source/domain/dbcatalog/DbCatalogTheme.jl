@@ -5,6 +5,9 @@
 """
     DbCatalogTheme
 
+The fonts and the colors of a database catalog: a column, a table, a schema, a
+database and the keyword that opens a group.
+
 The theme of the DbCatalog projections. `@theme` declares it, so
 `ScaledDbCatalogTheme` holds each value times its scale, and
 `DbCatalogTheme()` is the default theme.

@@ -4,6 +4,10 @@
 """
     SyntaxTheme
 
+The colors and the fonts of a syntax view: its values, its names, its brackets
+and its separators. They also color the text a person types to add a value,
+and the fields of an object that a person inspects.
+
 The theme of the syntax projections. `@theme` declares it, so `ScaledSyntaxTheme`
 holds each value times its scale, and `SyntaxTheme()` is the default theme.
 

@@ -5,6 +5,9 @@
 """
     FsmTheme
 
+The fonts and the colors of a state machine: its keywords, its names, its
+references and the labels of a state diagram.
+
 The theme of the Fsm projections. `@theme` declares it, so `ScaledFsmTheme`
 holds each value times its scale, and `FsmTheme()` is the default theme.
 

@@ -5,6 +5,9 @@
 """
     FormulaTheme
 
+The fonts and the colors of a formula: its insertion placeholder, a reference
+to another formula, a name, an operator and a result.
+
 The theme of the Formula projections. `@theme` declares it, so
 `ScaledFormulaTheme` holds each value times its scale, and `FormulaTheme()` is
 the default theme.

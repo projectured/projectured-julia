@@ -4,6 +4,9 @@
 """
     YamlTheme
 
+The colors and the fonts of a YAML document: its values, its keys, its
+delimiters and its separators.
+
 The theme of the YAML projections. `@theme` declares it, so `ScaledYamlTheme`
 holds each value times its scale, and `YamlTheme()` is the default theme.
 

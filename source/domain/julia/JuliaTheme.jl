@@ -5,6 +5,9 @@
 """
     JuliaTheme
 
+The colors and the fonts of Julia code: a name, a value, a keyword, an
+operator and a called function.
+
 The theme of the Julia projections. `@theme` declares it, so `ScaledJuliaTheme`
 holds each value times its scale, and `JuliaTheme()` is the default theme.
 

@@ -5,6 +5,9 @@
 """
     SequenceChartTheme
 
+The colors, the fonts and the spacing of a sequence chart: its lanes, its
+arrows, its events and the selection and hover rings.
+
 The theme of the SequenceChart projections. `@theme` declares it, so
 `ScaledSequenceChartTheme` holds each value times its scale, and
 `SequenceChartTheme()` is the default theme.

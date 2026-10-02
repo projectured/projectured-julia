@@ -4,6 +4,9 @@
 """
     FrameStatisticsTheme
 
+The fonts and the colors of the Statistics panel: its header, its rows of
+measurements and the line it shows when empty.
+
 The theme of the statistics table. `@theme` declares it, so
 `ScaledFrameStatisticsTheme` holds each value times its scale, and
 `FrameStatisticsTheme()` is the default theme.

@@ -4,6 +4,9 @@
 """
     GraphTheme
 
+The colors and the sizes of a graph drawing: the box of a node, the line of an
+edge and the ring around a highlight.
+
 The theme of `GraphLayoutToGraphicsCanvas`. `@theme` declares it, so
 `ScaledGraphTheme` holds each value times its scale, and `GraphTheme()` is the
 default theme.

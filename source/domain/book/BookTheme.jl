@@ -5,6 +5,9 @@
 """
     BookTheme
 
+The fonts and the colors of a book: its title, its author, a chapter heading,
+a paragraph, a bullet and a picture caption.
+
 The theme of the Book projections. `@theme` declares it, so `ScaledBookTheme`
 holds each value times its scale, and `BookTheme()` is the default theme.
 

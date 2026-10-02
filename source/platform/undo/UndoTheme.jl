@@ -4,6 +4,9 @@
 """
     UndoTheme
 
+The fonts and the colors of the undo history: a step, the current marker, a
+barrier and the line it shows when empty.
+
 The theme of the undo history. `@theme` declares it, so `ScaledUndoTheme` holds
 each value times its scale, and `UndoTheme()` is the default theme.
 

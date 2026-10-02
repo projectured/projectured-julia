@@ -5,6 +5,9 @@
 """
     ProcessTheme
 
+The fonts and the colors of a process: its keywords, its names, a step, the
+current step of a run and a breakpoint.
+
 The theme of the Process projections. `@theme` declares it, so
 `ScaledProcessTheme` holds each value times its scale, and `ProcessTheme()` is
 the default theme.

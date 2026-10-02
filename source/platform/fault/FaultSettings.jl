@@ -4,6 +4,9 @@
     FaultSettings(; is_barrier_enabled = true, is_console_enabled = true,
                     is_sound_enabled = true)
 
+Whether the editor catches a fault and goes on, writes it to the log, and
+plays a sound for it.
+
 What an editor does with a fault: the three flags of its `FaultPolicy`. The
 settings reach the policy of the editor through `apply_settings!`. A change of
 `is_barrier_enabled` prints the view again, because each barrier reads it while

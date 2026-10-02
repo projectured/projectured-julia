@@ -4,6 +4,9 @@
 """
     TextTheme
 
+The font, the caret and the highlight of text in a document, and the colors of
+a boolean, a number and a string.
+
 The theme of the text projections. `@theme` declares it, so `ScaledTextTheme`
 holds each value times its scale, and `TextTheme()` is the default theme.
 

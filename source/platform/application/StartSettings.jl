@@ -4,6 +4,9 @@
 """
     StartSettings(; assistant = :ollama, model = "", context = 0, mcp = false)
 
+The assistant the application starts with, its model, how much of the
+conversation it can see, and whether the MCP server starts too.
+
 What the application starts with: the backend and the model of the assistant, the
 context of the model, and whether the MCP server starts beside the window. The
 application reads them once, when it starts, so a change takes effect at the next

@@ -4,6 +4,9 @@
 """
     HelpTheme
 
+The fonts and the colors of the help lists and the about page: a heading, a
+name, a description and the program title.
+
 The theme of [`HelpListToSyntax`](@ref) and [`AboutPageToSyntax`](@ref).
 `@theme` declares it, so `ScaledHelpTheme` holds each value times its scale, and
 `HelpTheme()` is the default theme.

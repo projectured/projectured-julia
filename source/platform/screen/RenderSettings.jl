@@ -4,6 +4,9 @@
     RenderSettings(; partial_render = false, debug_dirty = false,
                      debug_dirty_hold = 0.0, supersample = 2)
 
+How the editor repaints its windows: only the parts that changed, an outline
+of what it repaints, and how smooth the edges look.
+
 How a backend repaints the windows of the screen. A backend that draws windows
 applies the group with a method of `apply_settings!`; a backend with no method
 ignores it.

@@ -4,6 +4,9 @@
 """
     GestureHelpTheme
 
+The fonts and the colors of the gesture map and the command palette: a
+heading, a gesture, its description and the search field.
+
 The theme of the gesture map and the command palette. `@theme` declares it, so
 `ScaledGestureHelpTheme` holds each value times its scale, and
 `GestureHelpTheme()` is the default theme.

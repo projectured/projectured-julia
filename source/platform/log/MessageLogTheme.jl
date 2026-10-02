@@ -4,6 +4,9 @@
 """
     MessageLogTheme
 
+The fonts and the colors of the Log panel: a message's level, its text and the
+line it shows when empty.
+
 The theme of the message log. `@theme` declares it, so `ScaledMessageLogTheme`
 holds each value times its scale, and `MessageLogTheme()` is the default theme.
 

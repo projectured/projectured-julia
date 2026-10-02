@@ -4,6 +4,9 @@
 """
     MathTheme
 
+The fonts and the colors of a formula, in its typed form and in its typeset
+form: a variable, an operator and a symbol.
+
 The theme of the Math projections. `@theme` declares it, so `ScaledMathTheme`
 holds each value times its scale, and `MathTheme()` is the default theme.
 

@@ -4,6 +4,9 @@
 """
     SqlTheme
 
+The fonts and the colors of a SQL statement: its keywords, its table names and
+its other words.
+
 The theme of the SQL projections. `@theme` declares it, so `ScaledSqlTheme`
 holds each value times its scale, and `SqlTheme()` is the default theme.
 

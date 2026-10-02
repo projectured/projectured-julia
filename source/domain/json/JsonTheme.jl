@@ -4,6 +4,9 @@
 """
     JsonTheme
 
+The colors and the fonts of a JSON document: its values, its keys, its
+brackets and its separators.
+
 The theme of the JSON projections. `@theme` declares it, so `ScaledJsonTheme`
 holds each value times its scale, and `JsonTheme()` is the default theme.
 

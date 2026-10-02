@@ -4,6 +4,9 @@
 """
     ChartTheme
 
+The colors, the fonts and the spacing of a chart: its background, its axes,
+its gridlines, its series and its legend.
+
 The theme of the Chart projections. `@theme` declares it, so `ScaledChartTheme`
 holds each value times its scale, and `ChartTheme()` is the default theme.
 

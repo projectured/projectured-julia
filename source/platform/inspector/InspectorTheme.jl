@@ -5,6 +5,9 @@
 """
     InspectorTheme
 
+The font and the colors of the Reference tab and the Selection tab: the body
+text and the section headers.
+
 The theme of [`ReferenceInspectorToText`](@ref) and
 [`SelectionInspectorToText`](@ref). `@theme` declares it, so
 `ScaledInspectorTheme` holds each value times its scale, and

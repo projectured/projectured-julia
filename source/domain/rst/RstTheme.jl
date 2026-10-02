@@ -6,6 +6,10 @@
 """
     RstTheme
 
+The colors and the fonts of a reStructuredText document, in its source form
+and in its rendered form. They color a section title, a reference, a
+directive and an admonition.
+
 The theme of the RST projections. `@theme` declares it, so `ScaledRstTheme`
 holds each value times its scale, and `RstTheme()` is the default theme.
 

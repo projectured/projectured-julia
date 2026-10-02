@@ -3,6 +3,9 @@
 """
     HistorySettings(; undo_capacity = 100)
 
+How many steps the undo history of each document keeps before it drops the
+oldest one.
+
 How many steps each history of an editor keeps. A builder gives each `UndoBuffer`
 that it makes the cell of the setting, `get_setting_cell(settings,
 :undo_capacity)`, so a change reaches every buffer, and a buffer that holds more

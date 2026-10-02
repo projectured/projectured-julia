@@ -4,6 +4,9 @@
 """
     GestureLogTheme
 
+The fonts and the colors of the Gestures panel: an entry's number, its
+gesture, the change it makes and the line it shows when empty.
+
 The theme of the gesture log. `@theme` declares it, so `ScaledGestureLogTheme`
 holds each value times its scale, and `GestureLogTheme()` is the default theme.
 

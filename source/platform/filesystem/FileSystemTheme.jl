@@ -4,6 +4,8 @@
 """
     FileSystemTheme
 
+The fonts and the colors of a file and a directory in the Explorer tab.
+
 The theme of the file-system tree, as syntax. `@theme` declares it, so
 `ScaledFileSystemTheme` holds each value times its scale, and
 `FileSystemTheme()` is the default theme.

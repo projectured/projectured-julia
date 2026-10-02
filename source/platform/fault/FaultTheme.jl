@@ -4,6 +4,9 @@
 """
     FaultTheme
 
+The fonts and the colors of the Faults panel: a count, a site, a cause, a
+message and the line it shows when empty.
+
 The theme of the fault log. `@theme` declares it, so `ScaledFaultTheme` holds
 each value times its scale, and `FaultTheme()` is the default theme.
 

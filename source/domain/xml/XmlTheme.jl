@@ -4,6 +4,9 @@
 """
     XmlTheme
 
+The fonts and the colors of an XML document: its text, its tags, its
+attributes and its delimiters.
+
 The theme of the XML projections. `@theme` declares it, so `ScaledXmlTheme`
 holds each value times its scale, and `XmlTheme()` is the default theme.
 

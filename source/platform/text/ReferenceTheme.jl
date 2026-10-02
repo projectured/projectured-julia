@@ -6,6 +6,10 @@
 """
     ReferenceTheme
 
+The font and the colors of a reference shown as text, in the reference tab and
+in the selection tab. A name, an index, a type and other kinds of word each
+take their own color.
+
 The theme of [`ReferenceToText`](@ref) and [`ReferenceToHumanReadableText`](@ref).
 `@theme` declares it, so `ScaledReferenceTheme` holds each value times its
 scale, and `ReferenceTheme()` is the default theme.
