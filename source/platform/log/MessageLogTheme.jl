@@ -27,4 +27,4 @@ end
 # theme `theme`: a `MessageLogTheme`, a scaled one, or `nothing` for the default
 # values.
 _get_messagelog_style(theme, name::Symbol) =
-    make_style_field(MessageLogTheme, scale_theme(theme), StyleText, name)
+    make_style_field(MessageLogTheme, scale_theme(theme), StyleText; name)

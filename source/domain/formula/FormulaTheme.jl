@@ -36,7 +36,7 @@ end
 # `name` of the theme `theme`: a `FormulaTheme`, a scaled one, or `nothing` for
 # the default values.
 _get_formula_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(FormulaTheme, scale_theme(theme), T, name)
+    make_style_field(FormulaTheme, scale_theme(theme), T; name)
 
 # The font that a plain Formula projection field draws with: the font of
 # `plain_font`, read from the scaled theme, or from the default theme with no

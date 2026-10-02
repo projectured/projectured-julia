@@ -101,7 +101,7 @@ appearance, at a scale of 1.
 **A projection reads a theme through its style fields.** A projection declared
 `@projection UntrackedCell struct` holds one field for each value that it draws.
 Its constructor takes `theme`, calls `scale_theme(theme)` once, and gives each
-field `make_style_field(K, theme, T, name)`: with a scaled theme of `K`, a cell
+field `make_style_field(K, theme, T; name)`: with a scaled theme of `K`, a cell
 that reads the value at each read with no edge (`make_theme_cell`); with no theme,
 the plain value of the default theme (`get_theme_defaults(K)`, made once for each
 theme type). So a projection that a printer builds at each print makes no theme,

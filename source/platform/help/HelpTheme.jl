@@ -32,4 +32,4 @@ end
 
 # The style field of a help projection that holds the text `name` of the theme
 # `theme`: a `HelpTheme`, a scaled one, or `nothing` for the default values.
-_get_help_style(theme, name::Symbol) = make_style_field(HelpTheme, scale_theme(theme), StyleText, name)
+_get_help_style(theme, name::Symbol) = make_style_field(HelpTheme, scale_theme(theme), StyleText; name)

@@ -51,7 +51,7 @@ end
 # the theme `theme`, of the value type `T`: a `GestureHelpTheme`, a scaled one,
 # or `nothing` for the default values.
 _get_gesturehelp_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(GestureHelpTheme, scale_theme(theme), T, name)
+    make_style_field(GestureHelpTheme, scale_theme(theme), T; name)
 
 # The themes that a wrapper of the gesture help gives its chains: the gesture help
 # theme, the syntax theme and the text theme of the `Appearance` of the build, or

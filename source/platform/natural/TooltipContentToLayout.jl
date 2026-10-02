@@ -18,7 +18,7 @@ struct TooltipContentToVerticalLayout <: Projection
 end
 
 TooltipContentToVerticalLayout(; theme = nothing) =
-    TooltipContentToVerticalLayout(make_style_field(WidgetTheme, scale_theme(theme), Int, :item_gap))
+    TooltipContentToVerticalLayout(make_style_field(WidgetTheme, scale_theme(theme), Int; name = :item_gap))
 
 function print_document(p::TooltipContentToVerticalLayout, recursion, content::TooltipContent, ctx)
     layers = content.layers

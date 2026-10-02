@@ -28,4 +28,4 @@ end
 # theme `theme`: a `FrameStatisticsTheme`, a scaled one, or `nothing` for the
 # default values.
 _get_frame_statistics_style(theme, name::Symbol) =
-    make_style_field(FrameStatisticsTheme, scale_theme(theme), StyleText, name)
+    make_style_field(FrameStatisticsTheme, scale_theme(theme), StyleText; name)

@@ -33,4 +33,4 @@ end
 
 # The style field of a YAML projection that holds the text `name` of the theme
 # `theme`: a `YamlTheme`, a scaled one, or `nothing` for the default values.
-_get_yaml_style(theme, name::Symbol) = make_style_field(YamlTheme, scale_theme(theme), StyleText, name)
+_get_yaml_style(theme, name::Symbol) = make_style_field(YamlTheme, scale_theme(theme), StyleText; name)

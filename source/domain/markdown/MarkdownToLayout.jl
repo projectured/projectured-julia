@@ -21,7 +21,7 @@
 @projection UntrackedCell struct MarkdownRootToVerticalLayout
     theme::Any = nothing
     horizontal_align::Symbol = :left
-    gap::Int = make_style_field(MarkdownTheme, scale_theme(theme), Int, :block_gap)
+    gap::Int = make_style_field(MarkdownTheme, scale_theme(theme), Int; name = :block_gap)
 end
 
 function print_document(p::MarkdownRootToVerticalLayout, recursion, root::MarkdownRoot, ctx)

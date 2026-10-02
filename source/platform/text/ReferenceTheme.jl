@@ -40,4 +40,4 @@ end
 # The style field of `name`, of the value type `T`, of a reference projection: a
 # `ReferenceTheme`, a scaled one, or `nothing` for the default values.
 _get_reference_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(ReferenceTheme, scale_theme(theme), T, name)
+    make_style_field(ReferenceTheme, scale_theme(theme), T; name)

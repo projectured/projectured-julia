@@ -46,4 +46,4 @@ end
 # of the theme `theme`: a `MathTheme`, a scaled one, or `nothing` for the
 # default values.
 _get_math_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(MathTheme, scale_theme(theme), T, name)
+    make_style_field(MathTheme, scale_theme(theme), T; name)

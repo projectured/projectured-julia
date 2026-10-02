@@ -28,7 +28,7 @@
 @projection UntrackedCell struct RstRootToVerticalLayout
     theme::Any = nothing
     horizontal_align::Symbol = :left
-    gap::Int = make_style_field(RstTheme, scale_theme(theme), Int, :block_gap)
+    gap::Int = make_style_field(RstTheme, scale_theme(theme), Int; name = :block_gap)
 end
 
 function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ctx)
@@ -62,7 +62,7 @@ map_reference_backward(::RstRootToVerticalLayout, iomap, reference) =
 @projection UntrackedCell struct RstSectionToVerticalLayout
     theme::Any = nothing
     horizontal_align::Symbol = :left
-    gap::Int = make_style_field(RstTheme, scale_theme(theme), Int, :block_gap)
+    gap::Int = make_style_field(RstTheme, scale_theme(theme), Int; name = :block_gap)
 end
 
 function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSection, ctx)
@@ -91,7 +91,7 @@ end
 _title_block(theme, section::RstSection) =
     TextBlock([TextString(_title_text(section),
                           StyleText(unwrap_cell(_title_font(theme, section.level)),
-                                   unwrap_cell(make_style_field(RstTheme, scale_theme(theme), StyleColor, :title_color))))])
+                                   unwrap_cell(make_style_field(RstTheme, scale_theme(theme), StyleColor; name = :title_color))))])
 
 function _title_text(section::RstSection)
     buffer = IOBuffer()

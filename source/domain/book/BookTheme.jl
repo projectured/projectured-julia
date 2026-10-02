@@ -39,4 +39,4 @@ end
 # The style field of a Book projection that holds the text `name` of the
 # theme `theme`: a `BookTheme`, a scaled one, or `nothing` for the default
 # values.
-_get_book_style(theme, name::Symbol) = make_style_field(BookTheme, scale_theme(theme), StyleText, name)
+_get_book_style(theme, name::Symbol) = make_style_field(BookTheme, scale_theme(theme), StyleText; name)

@@ -25,7 +25,7 @@ end
 
 # The style field of a SQL projection that holds the text `name` of the theme
 # `theme`: a `SqlTheme`, a scaled one, or `nothing` for the default values.
-_get_sql_style(theme, name::Symbol) = make_style_field(SqlTheme, scale_theme(theme), StyleText, name)
+_get_sql_style(theme, name::Symbol) = make_style_field(SqlTheme, scale_theme(theme), StyleText; name)
 
 # The plain font of a SQL projection that holds only a `StyleFont`, not a full
 # style: the font of `plain_text` in the theme `theme`, scaled or not.

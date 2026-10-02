@@ -65,7 +65,7 @@ end
 # The style field of an RST projection that holds the text `name` of the
 # theme `theme`: an `RstTheme`, a scaled one, or `nothing` for the default
 # values.
-_get_rst_style(theme, name::Symbol) = make_style_field(RstTheme, scale_theme(theme), StyleText, name)
+_get_rst_style(theme, name::Symbol) = make_style_field(RstTheme, scale_theme(theme), StyleText; name)
 
 # The font of a section title at `level` (1-based; every level past the third
 # takes `title_font`), read from the theme `theme`.
@@ -73,5 +73,5 @@ function _title_font(theme, level::Int)
     name = level <= 1 ? :title_1_font :
            level == 2 ? :title_2_font :
            level == 3 ? :title_3_font : :title_font
-    make_style_field(RstTheme, scale_theme(theme), StyleFont, name)
+    make_style_field(RstTheme, scale_theme(theme), StyleFont; name)
 end

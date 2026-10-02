@@ -452,7 +452,7 @@ BookmarkList
   end
 
   _get_bookmark_style(theme, name::Symbol) =
-      make_style_field(BookmarkTheme, scale_theme(theme), StyleText, name)
+      make_style_field(BookmarkTheme, scale_theme(theme), StyleText; name)
 
   @projection UntrackedCell struct BookmarkEntryToSyntaxNode
       theme::Any = nothing

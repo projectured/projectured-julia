@@ -37,4 +37,4 @@ end
 # The style field of a Process projection that holds the text `name` of the
 # theme `theme`: a `ProcessTheme`, a scaled one, or `nothing` for the default
 # values.
-_get_process_style(theme, name::Symbol) = make_style_field(ProcessTheme, scale_theme(theme), StyleText, name)
+_get_process_style(theme, name::Symbol) = make_style_field(ProcessTheme, scale_theme(theme), StyleText; name)

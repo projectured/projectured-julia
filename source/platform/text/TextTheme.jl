@@ -41,4 +41,4 @@ end
 
 # The style field of type `T` of a text projection that holds the field `name` of
 # the text theme: `make_style_field` of `TextTheme`.
-_get_text_style(theme, ::Type{T}, name::Symbol) where {T} = make_style_field(TextTheme, theme, T, name)
+_get_text_style(theme, ::Type{T}, name::Symbol) where {T} = make_style_field(TextTheme, theme, T; name)

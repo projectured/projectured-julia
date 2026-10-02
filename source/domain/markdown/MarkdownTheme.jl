@@ -61,7 +61,7 @@ end
 # The style field of a Markdown projection that holds the text `name` of the
 # theme `theme`: a `MarkdownTheme`, a scaled one, or `nothing` for the default
 # values.
-_get_markdown_style(theme, name::Symbol) = make_style_field(MarkdownTheme, scale_theme(theme), StyleText, name)
+_get_markdown_style(theme, name::Symbol) = make_style_field(MarkdownTheme, scale_theme(theme), StyleText; name)
 
 # The font of a heading at `level` (1-based; every level past the third takes
 # `heading_font`), read from the theme `theme`.
@@ -69,5 +69,5 @@ function _heading_font(theme, level::Int)
     name = level <= 1 ? :heading_1_font :
            level == 2 ? :heading_2_font :
            level == 3 ? :heading_3_font : :heading_font
-    make_style_field(MarkdownTheme, scale_theme(theme), StyleFont, name)
+    make_style_field(MarkdownTheme, scale_theme(theme), StyleFont; name)
 end

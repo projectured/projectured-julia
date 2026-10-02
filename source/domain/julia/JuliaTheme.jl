@@ -47,4 +47,4 @@ end
 # of the theme `theme`: a `JuliaTheme`, a scaled one, or `nothing` for the
 # default values.
 _get_julia_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(JuliaTheme, scale_theme(theme), T, name)
+    make_style_field(JuliaTheme, scale_theme(theme), T; name)

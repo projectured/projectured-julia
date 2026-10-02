@@ -35,4 +35,4 @@ end
 
 # The style field of a JSON projection that holds the text `name` of the theme
 # `theme`: a `JsonTheme`, a scaled one, or `nothing` for the default values.
-_get_json_style(theme, name::Symbol) = make_style_field(JsonTheme, scale_theme(theme), StyleText, name)
+_get_json_style(theme, name::Symbol) = make_style_field(JsonTheme, scale_theme(theme), StyleText; name)

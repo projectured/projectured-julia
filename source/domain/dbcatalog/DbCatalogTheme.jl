@@ -32,4 +32,4 @@ end
 # The style field of a DbCatalog projection that holds the text `name` of the
 # theme `theme`: a `DbCatalogTheme`, a scaled one, or `nothing` for the default
 # values.
-_get_dbcatalog_style(theme, name::Symbol) = make_style_field(DbCatalogTheme, scale_theme(theme), StyleText, name)
+_get_dbcatalog_style(theme, name::Symbol) = make_style_field(DbCatalogTheme, scale_theme(theme), StyleText; name)

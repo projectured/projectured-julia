@@ -950,7 +950,7 @@ struct RstStrongToStyledNode <: RstStyledInline
     body_text::Any
 end
 RstStrongToStyledNode(; theme = nothing) =
-    RstStrongToStyledNode(make_style_field(RstTheme, scale_theme(theme), StyleFont, :bold_font),
+    RstStrongToStyledNode(make_style_field(RstTheme, scale_theme(theme), StyleFont; name = :bold_font),
                           _get_rst_style(theme, :body_text))
 
 struct RstEmphasisToStyledNode <: RstStyledInline
@@ -958,7 +958,7 @@ struct RstEmphasisToStyledNode <: RstStyledInline
     body_text::Any
 end
 RstEmphasisToStyledNode(; theme = nothing) =
-    RstEmphasisToStyledNode(make_style_field(RstTheme, scale_theme(theme), StyleFont, :italic_font),
+    RstEmphasisToStyledNode(make_style_field(RstTheme, scale_theme(theme), StyleFont; name = :italic_font),
                             _get_rst_style(theme, :body_text))
 
 # Augment the ambient style with what this container's mode draws. There is no
@@ -1052,7 +1052,7 @@ end
 function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
     indent = _ambient(ctx)
     title_style = StyleText(unwrap_cell(_title_font(p.theme, doc.level)),
-                            unwrap_cell(make_style_field(RstTheme, scale_theme(p.theme), StyleColor, :title_color)))
+                            unwrap_cell(make_style_field(RstTheme, scale_theme(p.theme), StyleColor; name = :title_color)))
     child_iomaps = Cell(@computation begin
         maps = Any[]
         for (i, child) in enumerate(doc.title)

@@ -31,4 +31,4 @@ end
 # theme `theme`: a `GestureLogTheme`, a scaled one, or `nothing` for the default
 # values.
 _get_gesturelog_style(theme, name::Symbol) =
-    make_style_field(GestureLogTheme, scale_theme(theme), StyleText, name)
+    make_style_field(GestureLogTheme, scale_theme(theme), StyleText; name)

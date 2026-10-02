@@ -27,4 +27,4 @@ end
 # the theme `theme`: a `FileSystemTheme`, a scaled one, or `nothing` for the
 # default values.
 _get_filesystem_style(theme, name::Symbol) =
-    make_style_field(FileSystemTheme, scale_theme(theme), StyleText, name)
+    make_style_field(FileSystemTheme, scale_theme(theme), StyleText; name)

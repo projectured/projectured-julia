@@ -32,4 +32,4 @@ end
 
 # The style field of a Fsm projection that holds the text `name` of the theme
 # `theme`: a `FsmTheme`, a scaled one, or `nothing` for the default values.
-_get_fsm_style(theme, name::Symbol) = make_style_field(FsmTheme, scale_theme(theme), StyleText, name)
+_get_fsm_style(theme, name::Symbol) = make_style_field(FsmTheme, scale_theme(theme), StyleText; name)

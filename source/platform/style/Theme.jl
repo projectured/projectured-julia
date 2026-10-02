@@ -234,7 +234,7 @@ scale_theme(theme::Theme) = make_scaled_theme(theme)
 scale_theme(theme::Union{ScaledTheme,Nothing}) = theme
 
 """
-    make_style_field(K, theme, T, name) -> T or UntrackedCell{T}
+    make_style_field(K, theme, T; name) -> T or UntrackedCell{T}
 
 The style field of type `T` of a projection that holds the field `name` of the
 theme type `K`. With a scaled theme of `K`, it is a cell that reads the value of
@@ -242,9 +242,9 @@ theme type `K`. With a scaled theme of `K`, it is a cell that reads the value of
 is the plain value of the default theme ([`get_theme_defaults`](@ref)), and the
 projection reads no cell.
 """
-make_style_field(::Type{K}, ::Nothing, ::Type{T}, name::Symbol) where {K,T} =
+make_style_field(::Type{K}, ::Nothing, ::Type{T}; name::Symbol) where {K,T} =
     convert(T, getproperty(get_theme_defaults(K), name))
-make_style_field(::Type{K}, theme::ScaledTheme, ::Type{T}, name::Symbol) where {K,T} =
+make_style_field(::Type{K}, theme::ScaledTheme, ::Type{T}; name::Symbol) where {K,T} =
     make_theme_cell(T, theme, scaled -> getproperty(scaled, name))
 
 """

@@ -346,7 +346,7 @@ struct MarkdownStrongToStyledNode <: MarkdownStyledInline
     body_text::Any
 end
 MarkdownStrongToStyledNode(; theme = nothing) =
-    MarkdownStrongToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleFont, :bold_font),
+    MarkdownStrongToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleFont; name = :bold_font),
                                _get_markdown_style(theme, :body_text))
 
 struct MarkdownEmphasisToStyledNode <: MarkdownStyledInline
@@ -354,7 +354,7 @@ struct MarkdownEmphasisToStyledNode <: MarkdownStyledInline
     body_text::Any
 end
 MarkdownEmphasisToStyledNode(; theme = nothing) =
-    MarkdownEmphasisToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleFont, :italic_font),
+    MarkdownEmphasisToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleFont; name = :italic_font),
                                  _get_markdown_style(theme, :body_text))
 
 struct MarkdownLinkToStyledNode <: MarkdownStyledInline
@@ -362,7 +362,7 @@ struct MarkdownLinkToStyledNode <: MarkdownStyledInline
     body_text::Any
 end
 MarkdownLinkToStyledNode(; theme = nothing) =
-    MarkdownLinkToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleColor, :link_color),
+    MarkdownLinkToStyledNode(make_style_field(MarkdownTheme, scale_theme(theme), StyleColor; name = :link_color),
                              _get_markdown_style(theme, :body_text))
 
 struct MarkdownHeadingToStyledNode <: MarkdownStyledInline
@@ -372,7 +372,7 @@ struct MarkdownHeadingToStyledNode <: MarkdownStyledInline
 end
 MarkdownHeadingToStyledNode(; theme = nothing) =
     MarkdownHeadingToStyledNode(scale_theme(theme),
-                                make_style_field(MarkdownTheme, scale_theme(theme), StyleColor, :heading_color),
+                                make_style_field(MarkdownTheme, scale_theme(theme), StyleColor; name = :heading_color),
                                 _get_markdown_style(theme, :body_text))
 
 # Augment the ambient style with what this container's mode draws. There is no

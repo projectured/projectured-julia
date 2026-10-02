@@ -32,4 +32,4 @@ end
 
 # The style field of an undo projection that holds the text `name` of the theme
 # `theme`: an `UndoTheme`, a scaled one, or `nothing` for the default values.
-_get_undo_style(theme, name::Symbol) = make_style_field(UndoTheme, scale_theme(theme), StyleText, name)
+_get_undo_style(theme, name::Symbol) = make_style_field(UndoTheme, scale_theme(theme), StyleText; name)

@@ -30,4 +30,4 @@ end
 # The style field of a fault log projection that holds the text `name` of the
 # theme `theme`: a `FaultTheme`, a scaled one, or `nothing` for the default
 # values.
-_get_fault_style(theme, name::Symbol) = make_style_field(FaultTheme, scale_theme(theme), StyleText, name)
+_get_fault_style(theme, name::Symbol) = make_style_field(FaultTheme, scale_theme(theme), StyleText; name)
