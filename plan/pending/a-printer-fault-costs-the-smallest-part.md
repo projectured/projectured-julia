@@ -589,7 +589,25 @@ runs2[]               # 3: each pull runs the computation again
         - `main` moved about 30 commits on (the wrappers of `build_editor`, the
           umbrella extensions), and 13 files of this branch changed there too.
           The branch is rebased after step 6c, and the tests run again.
-  - [ ] 6c. The count of cells and objects for each node, before and after.
+  - [x] 6c. The count of cells and objects for each node, before and after.
+        Done, as allocations, which do not depend on the load of the machine.
+        A JSON array of `n` arrays of three values (4n + 1 nodes), printed
+        through JSON → syntax → text → string and read whole, with barriers at
+        the recursion points of the syntax and text stages
+        (`/var/tmp/printer-fault/scripts/measure_body.jl`, 2026-10-02):
+
+        | Pipeline | Bytes per node | Allocations per node |
+        | --- | --- | --- |
+        | no barrier | 46 712 | 836.6 |
+        | barriers, strict policy | 48 471 (+3.8 %) | 872.7 (+4.3 %) |
+        | barriers, tolerant policy | 50 216 (+7.5 %) | 921.9 (+10.2 %) |
+
+        The output is the same in the three, and the numbers for n = 250 and
+        n = 1000 agree, so the cost grows with the nodes and not faster. The
+        tolerant policy adds the wrapper of each computation made in a scope and
+        the scope of each print. No time was measured: a timing needs an idle
+        machine and the owner's word. Whether this is too costly, and option b
+        of §5 point 6 is needed, is the owner's decision.
 - [ ] **Step 7: the renderer catch** around each element, with the frame time.
 - [ ] **Step 8: the documentation**: `fault.md` (the pull stack, the scope, the
       heal that does not happen, the test), `cell.md` (a computation keeps its
