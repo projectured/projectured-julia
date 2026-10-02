@@ -18,7 +18,7 @@
 # with `JuliaToSyntax`).
 # ── Leaf helpers ─────────────────────────────────────────────────────────────
 
-_empty(font) = TextString("", font, color_default)
+_empty(font) = TextString("", font)
 
 # ── FormulaInsertionToSyntaxLeaf ───────────────────────────────────────────────
 #
@@ -107,12 +107,12 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
     name_leaf = SyntaxLeaf(TextString(() -> f.name, p.name))
     eq_leaf = SyntaxLeaf(
         TextString("=", p.op);
-        open=TextString(" ", p.op.font, color_default),
-        close=TextString(" ", p.op.font, color_default))
+        open=TextString(" ", p.op.font),
+        close=TextString(" ", p.op.font))
     arrow_leaf = SyntaxLeaf(
         TextString("⇒", p.op);
-        open=TextString(" ", p.op.font, color_default),
-        close=TextString(" ", p.op.font, color_default))
+        open=TextString(" ", p.op.font),
+        close=TextString(" ", p.op.font))
     result_leaf = SyntaxLeaf(TextString(() -> _result_to_string(f.result), p.result))
 
     iomap_cell = Cell(nothing)
@@ -205,7 +205,7 @@ function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::Formula
     end)
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
-        sep=TextString("\n", p.font, color_default),
+        sep=TextString("\n", p.font),
         paths...)
     iomap = ChildrenIoMap(p, e, node, child_iomaps)
     iomap_cell[] = iomap

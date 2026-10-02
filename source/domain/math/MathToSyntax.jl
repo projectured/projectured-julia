@@ -163,7 +163,7 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]);
-        sep=TextString(" ", p.op.font, color_default),
+        sep=TextString(" ", p.op.font),
         selection=sel, mouse_target)
     iomap = ChildrenIoMap(p, m, node, Cell(@computation [left_iomap[], right_iomap[]]))
     iomap_cell[] = iomap
@@ -339,7 +339,7 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]);
-        sep=TextString(" ", p.eq.font, color_default),
+        sep=TextString(" ", p.eq.font),
         selection=sel, mouse_target)
     iomap = ChildrenIoMap(p, m, node, Cell(@computation [target_iomap[], value_iomap[]]))
     iomap_cell[] = iomap

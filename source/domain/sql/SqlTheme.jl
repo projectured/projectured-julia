@@ -26,6 +26,8 @@ fields; with no theme it holds the plain values of the default theme.
     plain_text::TextRole   = TextRole(color_default)
     "A table name."
     name_text::TextRole    = TextRole(color_solarized_green)
+    "The brackets, the commas, the spaces and the semicolons between the parts of a statement."
+    punctuation_text::TextRole = TextRole(color_default; weight = 700)
 end
 
 # The style field of a SQL projection that holds the text `name` of the theme

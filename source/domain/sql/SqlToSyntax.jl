@@ -107,6 +107,8 @@ end
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
     name::StyleFont = _get_sql_font(theme)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    plain::StyleText = _get_sql_style(theme, :plain_text)
 end
 
 function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
@@ -131,11 +133,11 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
                 push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
                     TextString(() -> doc.alias === nothing ? "" : doc.alias.name,
-                               p.name, color_default)))
+                               p.plain.font, p.plain.color)))
             end
             docs
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -199,6 +201,8 @@ end
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
     name::StyleFont = _get_sql_font(theme)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    plain::StyleText = _get_sql_style(theme, :plain_text)
 end
 
 function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
@@ -219,11 +223,11 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
                 push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
                     TextString(() -> doc.column_alias === nothing ? "" : doc.column_alias.name,
-                               p.name, color_default)))
+                               p.plain.font, p.plain.color)))
             end
             docs
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -269,6 +273,7 @@ read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 @projection UntrackedCell struct SqlSelectClauseToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelectClause, ctx)
@@ -292,7 +297,7 @@ function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelec
             push!(kws, items_body)
             kws
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, item_ims)
@@ -348,6 +353,7 @@ read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 @projection UntrackedCell struct SqlJoinedFromItemToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
@@ -378,7 +384,7 @@ function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoi
             cond_im === nothing ? SyntaxDocument[jt.output, fi.output] :
                                   SyntaxDocument[jt.output, fi.output, cond_im.output]
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -452,6 +458,7 @@ read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 @projection UntrackedCell struct SqlJoinOnConditionToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
@@ -468,7 +475,7 @@ function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJo
     node = SyntaxNode(
         CellVector(@computation(SyntaxDocument[_kw("ON", p.keyword),
                                                expr_im[].output]));
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -518,22 +525,24 @@ read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 @projection UntrackedCell struct SqlJoinUsingConditionToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 @projection_template SqlJoinUsingConditionToSyntaxNode SqlJoinUsingCondition (p, doc) ->
     SyntaxNode(SyntaxDocument[
             _kw("USING", p.keyword),
             SyntaxNode(collection(:column_names);
-                       open=TextString("(", p.keyword.font, color_default),
-                       close=TextString(")", p.keyword.font, color_default),
-                       sep=TextString(", ", p.keyword.font, color_default))];
-        sep=TextString(" ", p.keyword.font, color_default))
+                       open=TextString("(", p.punctuation.font, p.punctuation.color),
+                       close=TextString(")", p.punctuation.font, p.punctuation.color),
+                       sep=TextString(", ", p.punctuation.font, p.punctuation.color))];
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color))
 
 # ── SqlFromItemToSyntaxNode ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlFromItemToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem, ctx)
@@ -564,7 +573,7 @@ function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem,
             isempty(joins) ? SyntaxDocument[base.output] :
                              SyntaxDocument[base.output, joins_body]
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -631,6 +640,7 @@ read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 @projection UntrackedCell struct SqlFromClauseToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromClause, ctx)
@@ -649,7 +659,7 @@ function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromCla
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[_kw("FROM", p.keyword), items_body]);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, item_ims)
@@ -764,6 +774,7 @@ read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = n
 @projection UntrackedCell struct SqlWhereClauseToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereClause, ctx)
@@ -784,7 +795,7 @@ function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereC
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[_kw("WHERE", p.keyword), cond_body]);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -875,6 +886,7 @@ end
 @projection UntrackedCell struct SqlComparisonToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlComparison, ctx)
@@ -898,7 +910,7 @@ function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlCompari
             left, right = projected[]
             SyntaxDocument[left.output, _kw(doc.operator, p.keyword), right.output]
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -956,10 +968,12 @@ read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 @projection UntrackedCell struct SqlBooleanBinaryToSyntaxNode <: Projection
     keyword::String
     keyword_style::StyleText
+    punctuation::StyleText
 end
 SqlBooleanBinaryToSyntaxNode(keyword; theme = nothing,
-                             keyword_style = _get_sql_style(theme, :keyword_text)) =
-    SqlBooleanBinaryToSyntaxNode(keyword, keyword_style)
+                             keyword_style = _get_sql_style(theme, :keyword_text),
+                             punctuation = _get_sql_style(theme, :punctuation_text)) =
+    SqlBooleanBinaryToSyntaxNode(keyword, keyword_style, punctuation)
 
 function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     projected = Cell(@computation begin
@@ -982,9 +996,9 @@ function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
             left, right = projected[]
             SyntaxDocument[left.output, _kw(p.keyword, p.keyword_style), right.output]
         end);
-        open=TextString("(", p.keyword_style.font, color_default),
-        close=TextString(")", p.keyword_style.font, color_default),
-        sep=TextString(" ", p.keyword_style.font, color_default),
+        open=TextString("(", p.punctuation.font, p.punctuation.color),
+        close=TextString(")", p.punctuation.font, p.punctuation.color),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -1042,6 +1056,7 @@ read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 @projection UntrackedCell struct SqlNotToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
@@ -1057,9 +1072,9 @@ function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]);
-        open=TextString("(", p.keyword.font, color_default),
-        close=TextString(")", p.keyword.font, color_default),
-        sep=TextString(" ", p.keyword.font, color_default),
+        open=TextString("(", p.punctuation.font, p.punctuation.color),
+        close=TextString(")", p.punctuation.font, p.punctuation.color),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -1209,6 +1224,7 @@ end
 @projection UntrackedCell struct SqlInsertStatementToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
@@ -1255,7 +1271,7 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
             push!(docs, values_paren)
             docs
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
@@ -1350,6 +1366,7 @@ read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 @projection UntrackedCell struct SqlUpdateAssignmentToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
@@ -1373,7 +1390,7 @@ function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlU
             col_im, val_im = projected[]
             SyntaxDocument[col_im.output, _kw("=", p.keyword), val_im.output]
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -1439,6 +1456,7 @@ read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 @projection UntrackedCell struct SqlUpdateStatementToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
@@ -1482,7 +1500,7 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
             end
             docs
         end);
-        sep=TextString(" ", p.keyword.font, color_default),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
@@ -1588,7 +1606,7 @@ function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlC
         CellVector(@computation(SyntaxDocument[
             col_im[].output,
             SyntaxLeaf(TextString(() -> doc.data_type, p.type))]));
-        sep=TextString(" ", p.type.font, color_default),
+        sep=TextString(" ", p.type.font, p.type.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
@@ -1643,6 +1661,7 @@ read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 @projection UntrackedCell struct SqlCreateTableStatementToSyntaxNode
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
 end
 
 function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
@@ -1680,8 +1699,8 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
                            table_im.output,
                            columns_body]
         end);
-        close=TextString(";", p.keyword.font, color_default),
-        sep=TextString(" ", p.keyword.font, color_default),
+        close=TextString(";", p.punctuation.font, p.punctuation.color),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, child_iomaps_cell)
@@ -1754,6 +1773,8 @@ read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = n
     theme::Any = nothing
     keyword::StyleText = _get_sql_style(theme, :keyword_text)
     name::StyleFont = _get_sql_font(theme)
+    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    name_style::StyleText = _get_sql_style(theme, :name_text)
 end
 
 function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
@@ -1767,9 +1788,9 @@ function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt
         CellVector(@computation(SyntaxDocument[
             _kw("CREATE", p.keyword),
             _kw("SCHEMA", p.keyword),
-            SyntaxLeaf(TextString(() -> stmt.schema_name, p.name, color_solarized_green))]));
-        close=TextString(";", p.keyword.font, color_default),
-        sep=TextString(" ", p.keyword.font, color_default),
+            SyntaxLeaf(TextString(() -> stmt.schema_name, p.name_style.font, p.name_style.color))]));
+        close=TextString(";", p.punctuation.font, p.punctuation.color),
+        sep=TextString(" ", p.punctuation.font, p.punctuation.color),
         paths...)
 
     iomap = ChildrenIoMap(p, stmt, node, Cell(@computation Any[]))
@@ -1809,13 +1830,14 @@ read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = 
 @projection UntrackedCell struct SqlStatementListToSyntaxNode
     theme::Any = nothing
     name::StyleFont = _get_sql_font(theme)
+    plain::StyleText = _get_sql_style(theme, :plain_text)
 end
 
 _has_own_semicolon(statement) = statement isa Union{SqlCreateTableStatement, SqlCreateSchemaStatement}
 
 _close_statement(p::SqlStatementListToSyntaxNode, im) =
     _has_own_semicolon(get_iomap_input(im)) ? im.output :
-        SyntaxNode(SyntaxDocument[im.output]; close=TextString(";", p.name, color_default))
+        SyntaxNode(SyntaxDocument[im.output]; close=TextString(";", p.plain.font, p.plain.color))
 
 # The path inside a statement that the list closed, from the path inside the node
 # that closes it: the node is the whole statement, and its one child is the
@@ -1839,7 +1861,7 @@ function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStat
 
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[_close_statement(p, im) for im in stmt_ims[]]);
-        sep=TextString("\n\n", p.name, color_default),
+        sep=TextString("\n\n", p.plain.font, p.plain.color),
         paths...)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)

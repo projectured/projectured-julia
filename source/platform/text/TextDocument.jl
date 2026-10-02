@@ -136,6 +136,11 @@ end
 TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
+# A space, a newline or an empty text between two parts draws no ink, so it names
+# only its font, which sets its width and its line; its color is the default
+# color of a text.
+TextString(content::AbstractString, font::StyleFont) = TextString(content, font, color_default)
+
 TextString(content::AbstractString) =
     TextString(Cell(content), StyleFont("Ubuntu Mono", 20), color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
