@@ -1,6 +1,12 @@
 # The work that the forward image found
 
 Status: pending. Owner request 2026-09-29: "put it in a new plan".
+The order (owner 2026-10-02, "Agreed", on Claude's proposal): after the decided
+points of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
+are built and checked, §2 is built directly, one widget at a time with a size
+test for each, because it follows a rule that exists; the search of §1 runs and
+brings its questions (how a selected header is drawn, how Alt and the arrows
+reach a row and a column); §3 brings its question of the layout with its facts.
 
 The plan [the-forward-image-of-a-part.md](../done/the-forward-image-of-a-part.md)
 made every part of a widget map forward to the node that draws it, and a point
