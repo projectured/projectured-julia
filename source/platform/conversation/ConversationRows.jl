@@ -13,7 +13,8 @@ conversation document too.
 """
 make_conversation_row(; measure::TextMeasure, appearance::Appearance = Appearance()) =
     ConversationDocument => ChainingProjection(
-        RecursiveProjection(FaultCatchingProjection(inner = ConversationToWidget(),
+        RecursiveProjection(FaultCatchingProjection(inner = ConversationToWidget(;
+                                                    theme = get_scaled_theme!(appearance, ConversationTheme)),
                                                     substitute = FaultToWidget())),
         NaturalToGraphics(measure = measure, appearance = appearance))
 
@@ -25,6 +26,7 @@ assistant, as a chat bubble that reads every gesture itself.
 """
 make_conversation_draft_row(; measure::TextMeasure, appearance::Appearance = Appearance()) =
     ConversationDraft => ChainingProjection(
-        RecursiveProjection(FaultCatchingProjection(inner = ConversationComposerToWidget(),
+        RecursiveProjection(FaultCatchingProjection(inner = ConversationComposerToWidget(;
+                                                    theme = get_scaled_theme!(appearance, ConversationTheme)),
                                                     substitute = FaultToWidget())),
         NaturalToGraphics(measure = measure, appearance = appearance))

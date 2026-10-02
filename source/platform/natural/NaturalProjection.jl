@@ -114,7 +114,7 @@ layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
               First match wins, so `extra` beats the defaults.
 """
 function NaturalToGraphics(; measure::TextMeasure,
-                           font = StyleFont("Ubuntu Mono", 20),
+                           font = nothing,
                            wrap::Bool = true,
                            extra = Pair{Type,Any}[],
                            appearance::Appearance = Appearance())
@@ -127,8 +127,8 @@ function NaturalToGraphics(; measure::TextMeasure,
     prose_chain = wrap ? ChainingProjection(WordWrapping(measure = measure), text) : text
 
     style = font === nothing ?
-        make_theme_cell(StyleText, text_theme, scaled -> StyleText(scaled.font, color_default)) :
-        StyleText(font, color_default)
+        make_theme_cell(StyleText, text_theme, scaled -> scaled.plain_text) :
+        StyleText(font, text_theme.plain_text.color)
 
     # A fallback registers rows for exact types and, usually, one for `Any`. The
     # two go to different places in the table: the exact ones before this

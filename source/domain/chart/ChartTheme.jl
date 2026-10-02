@@ -1,5 +1,6 @@
 # Fragment of `ChartModule` — the theme of the chart renderer: the frame's
-# colors, the three fonts a chart draws with, and the lengths of its layout.
+# colors, the three fonts a chart draws with, the lengths of its layout, and
+# the dash and the opacity of what it draws.
 
 """
     ChartTheme
@@ -10,9 +11,10 @@ its gridlines, its series and its legend.
 The theme of the Chart projections. `@theme` declares it, so `ScaledChartTheme`
 holds each value times its scale, and `ChartTheme()` is the default theme.
 
-The fields are in groups: the colors, the three fonts and the lengths of the
-layout. Each field has a docstring that says what it draws, which the
-appearance tab shows under its name.
+The fields are in groups: the colors, the three fonts, the lengths of the
+layout and the look of a drawn line: its dash and its opacity. Each field has
+a docstring that says what it draws, which the appearance tab shows under its
+name.
 
 A chart projection reads the scaled theme through `ChartPlotToGraphicsCanvas`'s
 `style` field, which holds every value as one `NamedTuple`; with no theme it
@@ -40,6 +42,8 @@ holds the plain values of the default theme. A value that a chart's own
     strip_swatch::StyleColor    = StyleColor(0.5, 0.5, 0.5, 0.55)
     "The border between adjacent strip segments."
     strip_edge::StyleColor      = StyleColor(0.0, 0.0, 0.0, 0.10)
+    "The label of a strip segment whose own color is too dark for the normal text color."
+    strip_contrast_text::StyleColor = StyleColor(1.0, 1.0, 1.0, 1.0)
     "The readout lines of the pointer."
     crosshair::StyleColor       = StyleColor(0xdc / 255, 0x32 / 255, 0x2f / 255, 0.7)
     "The rubber band of a zoom drag."
@@ -56,10 +60,44 @@ holds the plain values of the default theme. A value that a chart's own
     tick_length::ControlSize    = ControlSize(4)
     "The space between a tick mark and its label, and between a legend swatch and its label."
     label_gap::Spacing          = Spacing(3)
+    "The space below an axis title, above the axis it sits over."
+    axis_title_gap::Spacing     = Spacing(2)
     "The target space between two ticks."
     tick_spacing::Spacing       = Spacing(70)
     "The width of the color sample of a legend item."
     swatch::ControlSize         = ControlSize(14)
     "The space between a legend swatch and its label, and between the columns of a legend."
     legend_gap::Spacing         = Spacing(6)
+    "The space inside the legend box, from its edge to its items."
+    legend_padding::Spacing     = Spacing(6)
+    "The space added to the height of a legend row, above its text."
+    legend_line_gap::Spacing    = Spacing(4)
+    "How far a highlight reaches past what it highlights: a legend item, the chart title, or the legend box."
+    highlight_inset::Spacing    = Spacing(3)
+    "The margin above and below the chart title inside its selection highlight."
+    title_highlight_margin::Spacing = Spacing(2)
+    "The rounded corner of a box the chart draws: the legend, a selection or hover highlight, and the pointer readout."
+    radius::Radius               = Radius(3)
+    "The rounded corner of a legend's color swatch."
+    swatch_radius::Radius        = Radius(2)
+    "The rounded corner of the box an empty chart draws in place of its plot."
+    placeholder_radius::Radius   = Radius(4)
+    "The border drawn around a filled shape: a histogram bar, a strip segment, a marker, the pointer readout and the empty-chart placeholder."
+    border_width::LineWidth      = LineWidth(1)
+    "The outline of a selected part: the whole chart's frame, the legend box, or a selected sample."
+    selected_width::LineWidth    = LineWidth(2)
+    "The line of a histogram series drawn in outline mode."
+    histogram_outline_width::LineWidth = LineWidth(2)
+    "The dash of a gridline."
+    grid_dash::Tuple{Int,Int}    = (2, 3)
+    "The dash of the crosshair's readout lines."
+    crosshair_dash::Tuple{Int,Int} = (3, 3)
+    "The dash of a line series drawn dotted."
+    dotted_line_dash::Tuple{Int,Int} = (1, 3)
+    "The dash of a line series drawn dashed."
+    dashed_line_dash::Tuple{Int,Int} = (6, 4)
+    "The opacity of a series that is not the one the pointer is on, while another is lit."
+    veil_alpha::Float64          = 0.25
+    "The opacity of the cell of a histogram that holds the values below or above its range, relative to the color of its series."
+    overflow_alpha::Float64      = 0.5
 end

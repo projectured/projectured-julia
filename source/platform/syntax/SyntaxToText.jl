@@ -1252,7 +1252,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::
     # The paragraph separator inherits this element's content font (the first
     # rendered span) so a blank line's height tracks the content size rather than a
     # baked-in default; fall back to the module default only for an empty render.
-    nl_font = !isempty(spans) && spans[1] isa TextString ? spans[1].font : StyleFont("Ubuntu Mono", 20)
+    nl_font = !isempty(spans) && spans[1] isa TextString ? spans[1].font : UNSTYLED_TEXT_FONT
     nl_node = ListNode(TextNewline(font=nl_font))
     set_cell_value!(getfield(cur_out, :next), nl_node)
     set_cell_value!(getfield(nl_node, :prev), cur_out)
@@ -1332,8 +1332,8 @@ end
 # is the enclosing node's own delimiter font (`node.open.font`, passed in as
 # `font`), so decoration tracks whatever size the upstream projection chose.
 _indent_span(indent_size::Int, depth::Int, font::StyleFont) =
-    TextString(" " ^ (depth * indent_size), font, color_default)
-_newline_span(font::StyleFont) = TextString("\n", font, color_default)
+    TextString(" " ^ (depth * indent_size), font)
+_newline_span(font::StyleFont) = TextString("\n", font)
 
 # Widen a child's line-start indent span by `extra` spaces when an
 # `indentation != 0` parent splices it (re-indent-on-splice — Settled decision 2).

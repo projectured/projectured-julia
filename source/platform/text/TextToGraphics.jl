@@ -1030,7 +1030,7 @@ function _get_image_caret_font(group, index::Int, block_font::Cell)
         span = spans[k][2]
         span isa TextString && return span.font::StyleFont
     end
-    something(block_font[], StyleFont("Ubuntu Mono", 20))
+    something(block_font[], UNSTYLED_TEXT_FONT)
 end
 
 # At least one span to put a caret beside, at either depth: a `TextString`, or an

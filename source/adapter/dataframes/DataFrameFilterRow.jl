@@ -8,13 +8,6 @@
 # selection of the view, as a printer computes the selection of its output, and
 # an edit of a field is an edit of the text of the query.
 
-# The width of a text field of the filter row, so an empty field has room for a
-# press.
-const _QUERY_FIELD_WIDTH = 80
-
-# The style of a field whose text does not parse.
-const _QUERY_FIELD_ERROR_STYLE = WidgetStyle(; content_color = color_lighten(color_red, 0.75))
-
 # ── The paths of the texts of the query ──────────────────────────────────────
 
 # The path in a view of the range `range` of the text of the filter at place `i`
@@ -98,9 +91,10 @@ _make_field_child_reference(path) =
 
 # A text field of the query: `text()` is its text, `range()` the range of its
 # caret or `nothing`, and `reason()` why its text does not parse, or `nothing`.
-# A text that does not parse colors the field, and its tooltip says the reason.
-# `placeholder()` is the example that the empty field shows, or `nothing`.
-function _make_query_field(text, range, reason; width::Int = _QUERY_FIELD_WIDTH,
+# A text that does not parse colors the field with `invalid_query`, and its
+# tooltip says the reason. `placeholder()` is the example that the empty field
+# shows, or `nothing`.
+function _make_query_field(text, range, reason, width::Int, invalid_query::StyleColor;
                            language::Union{Nothing,Symbol} = nothing, placeholder = nothing)
     field = WidgetText(""; width, language)
     placeholder === nothing || set_cell_computation!(getfield(field, :placeholder), placeholder)
@@ -109,7 +103,7 @@ function _make_query_field(text, range, reason; width::Int = _QUERY_FIELD_WIDTH,
                           () -> (r = range(); r === nothing ? nothing : _make_content_range_reference(r)))
     set_cell_computation!(getfield(field, :tooltip), reason)
     set_cell_computation!(getfield(field, :style),
-                          () -> reason() === nothing ? nothing : _QUERY_FIELD_ERROR_STYLE)
+                          () -> reason() === nothing ? nothing : WidgetStyle(; content_color = invalid_query))
     field
 end
 
@@ -121,8 +115,8 @@ function _make_labeled_field(label, field)
 end
 
 # The header of column `name`: its name and type and the glyph of its sort,
-# above the field of its filter.
-function _make_filter_header(view, name::String)
+# above the field of its filter. `p` carries the style of the data frame theme.
+function _make_filter_header(p, view, name::String)
     filter = _find_column_filter(view.query, name)
     text() = filter === nothing ? "" : filter.text
     function reason()
@@ -131,15 +125,16 @@ function _make_filter_header(view, name::String)
         condition isa String ? condition : nothing
     end
     label = HorizontalLayout(Any[WidgetLabel(_get_header_text(name, eltype(view.frame[!, name]))),
-                                 _make_sort_glyph(view, name)...]; gap = 4)
-    _make_labeled_field(label, _make_query_field(text, () -> _find_filter_range(view, name), reason))
+                                 _make_sort_glyph(p, view, name)...]; gap = p.filter_gap)
+    _make_labeled_field(label, _make_query_field(text, () -> _find_filter_range(view, name), reason,
+                                                 p.query_field_width, p.invalid_query))
 end
 
 # The corner: the count of the kept rows, padded with figure spaces, which are
 # as wide as a digit, to the digits of the count of all rows, so the header
 # column is as wide as the widest row number; and under it the field of the
-# pattern of the column names.
-function _make_query_corner(view)
+# pattern of the column names. `p` carries the style of the data frame theme.
+function _make_query_corner(p, view)
     label = WidgetLabel("")
     set_cell_computation!(getfield(label, :content),
                           () -> lpad(string(length(view.kept_rows)), ndigits(nrow(view.frame)), '\u2007'))
@@ -148,28 +143,26 @@ function _make_query_corner(view)
         keep isa String ? keep : nothing
     end
     field = _make_query_field(() -> view.query.column_pattern, () -> _find_query_text_range(view, :pattern),
-                              reason)
+                              reason, p.query_field_width, p.invalid_query)
     _make_labeled_field(label, field)
 end
-
-# The width of the field of the expression.
-const _EXPRESSION_FIELD_WIDTH = 480
 
 # The bar above the table: the field of the expression of the query, after the
 # words that it ends, so it reads "Rows where age > 30", the find field, and at
 # the right end the glyph that reads the frame again, as F5 does. The field of
 # the expression is Julia code, which the Julia domain colors when it is loaded.
 # An empty field shows an example made of the columns of the frame. The bar is a
-# grid of one row, whose third column takes the room between the two fields.
-function _make_expression_bar(view)
+# grid of one row, whose third column takes the room between the two fields. `p`
+# carries the style of the data frame theme.
+function _make_expression_bar(p, view)
     field = _make_query_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
-                              () -> last(view.expression_result); width = _EXPRESSION_FIELD_WIDTH,
+                              () -> last(view.expression_result), p.expression_field_width, p.invalid_query;
                               language = :julia,
                               placeholder = () -> (view.frame_version; _make_expression_example(view.frame)))
     find = _make_query_field(() -> view.find_text, () -> _find_find_range(view), () -> _get_find_reason(view);
                              width = _FIND_FIELD_WIDTH, placeholder = () -> "Find (Ctrl+F)")
     bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), find, _make_refresh_glyph(view)], 5;
-                     horizontal_gap = 8, vertical_align = :center,
+                     horizontal_gap = p.expression_gap, vertical_align = :center,
                      column_policies = Any[Content, Content, Fill, Content, Content])
     set_cell_computation!(getfield(bar, :selection), () -> begin
         inner = _make_field_child_reference(field.selection)

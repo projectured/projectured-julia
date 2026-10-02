@@ -109,8 +109,11 @@ end
     @test write.document === theme && write.value == Spacing(5)
     evaluate_operation(nothing, translate(ReplaceReferencedValueOperation(box, "value", 5)))
     @test get_scaled_theme!(appearance, WidgetTheme).item_gap == 5
-    # The choice of the dark preset writes every field of the preset.
-    choice = only(w for (w, _) in tab.writes if w isa WidgetRadioGroup)
+    # The choice of the dark preset writes every field of the preset. Other themes
+    # have presets too; the choice of the widget theme writes the widget theme.
+    writes_widget_theme(op) = op isa CompoundOperation &&
+                              all(member -> unwrap(member).document === theme, op.operations)
+    choice = only(w for (w, write) in tab.writes if w isa WidgetRadioGroup && writes_widget_theme(write(2)))
     preset = translate(ReplaceReferencedValueOperation(choice, "selected", 2))
     @test preset isa CompoundOperation
     @test length(preset.operations) == length(get_theme_field_names(WidgetTheme))

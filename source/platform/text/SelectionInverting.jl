@@ -47,8 +47,11 @@ projection is stateless beyond its style options.
     block_cursor::ImmutableCell{Bool}
 end
 
-SelectionInverting(; default_bg::StyleColor=color_solarized_background_dark,
-                     default_fg::StyleColor=color_solarized_content_lighter,
+SelectionInverting(; theme = nothing,
+                     default_bg::StyleColor = unwrap_cell(_get_text_style(scale_theme(theme), StyleColor,
+                                                                          :inverted_background)),
+                     default_fg::StyleColor = unwrap_cell(_get_text_style(scale_theme(theme), StyleColor,
+                                                                          :inverted_foreground)),
                      block_cursor::Bool=true) =
     SelectionInverting(default_bg, default_fg, block_cursor)
 

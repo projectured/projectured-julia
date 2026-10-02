@@ -55,6 +55,7 @@ include("../../../test/adapter/dataframes/DataFrameRefreshTest.jl")
 include("../../../test/adapter/dataframes/DataFrameDuplicateTest.jl")
 include("../../../test/adapter/dataframes/DataFrameColumnWidthTest.jl")
 include("../../../test/adapter/dataframes/DataFrameDisplayTest.jl")
+include("../../../test/adapter/dataframes/DataFrameThemeTest.jl")
 include("../../../test/adapter/dataframes/DataFramesSuite.jl")
 
 end # module ProjecturedDataFramesTest

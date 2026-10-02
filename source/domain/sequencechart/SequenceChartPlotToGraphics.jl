@@ -241,7 +241,14 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
        arrow = t.arrow, event = t.event,
        selected = t.selected, hover = t.hover,
        padding = t.padding, gutter_padding = t.gutter_padding,
-       label_gap = t.label_gap, band_height = t.band_height)
+       label_gap = t.label_gap, band_height = t.band_height,
+       radius = t.radius, line_width = t.line_width,
+       border_width = t.border_width, ring_width = t.ring_width,
+       ring_margin = t.ring_margin, selected_width = t.selected_width,
+       band_overlay_alpha = t.band_overlay_alpha,
+       hairline_dash = t.hairline_dash, cursor_dash = t.cursor_dash,
+       dashed_arrow_dash = t.dashed_arrow_dash, dotted_arrow_dash = t.dotted_arrow_dash,
+       continuation_dash = t.continuation_dash)
 end
 
 _lane_band_height(axis::SequenceChartAxis, band_height) = length(axis.bands) > 0 ? Float64(band_height) : 0.0
@@ -389,7 +396,7 @@ function _gutter_elements!(out, g)
     for (strip_x, strip_y, strip_w, strip_h) in _gutter_rects(g, height)
         push!(out, GraphicsRect(round(Int, strip_x), round(Int, strip_y),
                                 round(Int, strip_w), round(Int, strip_h);
-                                color = background, border_width=1, border_color=g.gutter_border))
+                                color = background, border_width=g.border_width, border_color=g.gutter_border))
     end
 
     isempty(g.prefix) || begin
@@ -498,7 +505,7 @@ function _hairline_elements!(out, g)
         x1, y1 = flow_point(g.frame, flow, cross_hi)
         push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
                                 round(Int, x1), round(Int, y1);
-                                color = g.hairline, width = 1, dash = (2, 3)))
+                                color = g.hairline, width = g.line_width, dash = g.hairline_dash))
     end
     out
 end
@@ -515,7 +522,7 @@ function _lane_elements!(out, g)
         x1, y1 = flow_point(g.frame, flow_hi, cross)
         push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
                                 round(Int, x1), round(Int, y1);
-                                color = _or(axis.color, default), width = 1))
+                                color = _or(axis.color, default), width = g.line_width))
     end
     out
 end
@@ -531,7 +538,7 @@ function _band_elements!(out, g)
             f0 = to_pixel(g.scale, c0); f1 = to_pixel(g.scale, c1)
             width = f1 - f0
             width >= 1 || continue
-            color = _band_color(document, value, cycle)
+            color = _band_color(document, value, cycle, g.band_overlay_alpha)
             x, y, w, h = flow_rect(g.frame, f0, band.cross - g.band_height - 2,
                                    width, g.band_height)
             push!(out, GraphicsRect(round(Int, x), round(Int, y),
@@ -549,14 +556,14 @@ function _band_elements!(out, g)
     out
 end
 
-function _band_color(band::SequenceChartBandSeries, value::Real, cycle)
+function _band_color(band::SequenceChartBandSeries, value::Real, cycle, overlay_alpha::Real)
     colors = band.colors
     index = round(Int, value) + 1
     if colors !== nothing && 1 <= index <= length(colors)
         return colors[index]
     end
     color = get_series_color(nothing, max(index, 1), cycle)
-    StyleColor(color.red, color.green, color.blue, 0.45)
+    StyleColor(color.red, color.green, color.blue, overlay_alpha)
 end
 
 # The arrows. A same-lane arrow arcs off its lane, because a straight line along
@@ -568,7 +575,7 @@ function _arrow_elements!(out, g)
     for shape in g.shapes
         kind = shape.kind
         color = _kind_color(kind, shape.index, cycle, g.arrow)
-        dash = _line_dash(kind === nothing ? :solid : kind.line_style)
+        dash = _line_dash(kind === nothing ? :solid : kind.line_style, g)
         head = kind === nothing ? true : kind.arrowhead
         if shape.route === :arc
             _arc_elements!(out, g, shape, color, dash, head)
@@ -612,7 +619,7 @@ function _split_elements!(out, g, shape, color, dash, head)
     x3, y3 = flow_point(g.frame, far[1], shape.c1)
     push!(out, GraphicsPolyline([(round(Int, x2), round(Int, y2)),
                                  (round(Int, x3), round(Int, y3))];
-                                color, width=g.style.arrow_width, dash=(2, 3),
+                                color, width=g.style.arrow_width, dash=g.continuation_dash,
                                 end_arrow=head, arrow_size=g.style.arrowhead_size))
     out
 end
@@ -627,7 +634,7 @@ function _elided_marker!(out, g, shape, color)
         x, y = flow_point(g.frame, mid_flow + offset, mid_cross + side)
         push!(points, (round(Int, x), round(Int, y)))
     end
-    push!(out, GraphicsPolyline(points; color, width=1))
+    push!(out, GraphicsPolyline(points; color, width=g.line_width))
     out
 end
 
@@ -648,8 +655,8 @@ function _arrow_label!(out, g, shape, color)
     out
 end
 
-_line_dash(style::Symbol) =
-    style === :dashed ? (5, 3) : style === :dotted ? (2, 2) : nothing
+_line_dash(style::Symbol, g) =
+    style === :dashed ? g.dashed_arrow_dash : style === :dotted ? g.dotted_arrow_dash : nothing
 
 function _event_elements!(out, g)
     events = g.chart.events
@@ -746,11 +753,11 @@ function _event_ring!(out, g, row::Integer, color)
     position === nothing && return out
     flow = to_pixel(g.scale, g.coordinates[row])
     x, y = flow_point(g.frame, flow, position)
-    radius = g.style.event_radius + 4
+    radius = g.style.event_radius + g.ring_margin
     # Transparent fill, so the mark underneath still shows through the ring.
     push!(out, GraphicsCircle(round(Int, x), round(Int, y), radius;
                               color = color_transparent,
-                              border_width=2, border_color=color))
+                              border_width=g.ring_width, border_color=color))
     out
 end
 
@@ -761,13 +768,13 @@ function _arrow_highlight!(out, g, row::Integer, color)
             points = get_arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
             placed = [(round(Int, x), round(Int, y))
                       for (x, y) in (flow_point(g.frame, f, c) for (f, c) in points)]
-            push!(out, GraphicsSpline(placed; color, kind=:bezier, width=3))
+            push!(out, GraphicsSpline(placed; color, kind=:bezier, width=g.selected_width))
         else
             x0, y0 = flow_point(g.frame, shape.f0, shape.c0)
             x1, y1 = flow_point(g.frame, shape.f1, shape.c1)
             push!(out, GraphicsPolyline([(round(Int, x0), round(Int, y0)),
                                          (round(Int, x1), round(Int, y1))];
-                                        color, width=3))
+                                        color, width=g.selected_width))
         end
         break
     end
@@ -788,7 +795,7 @@ function _cursor_elements!(out, g, plot)
     x1, y1 = flow_point(g.frame, flow, cross_hi)
     push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
                             round(Int, x1), round(Int, y1);
-                            color = g.selected, width = 1, dash = (3, 3)))
+                            color = g.selected, width = g.line_width, dash = g.cursor_dash))
     out
 end
 
@@ -922,8 +929,8 @@ function _empty_elements(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceCha
     w, h = _canvas_size(p, ctx)
     Any[GraphicsRect(0, 0, w, h; color = t.background),
         GraphicsRect(t.padding, t.padding, w - 2 * t.padding, h - 2 * t.padding;
-                     color = t.body_background, radius = 4,
-                     border_width=1, border_color=t.axis),
+                     color = t.body_background, radius = t.radius,
+                     border_width=t.border_width, border_color=t.axis),
         GraphicsText("empty sequence chart", t.padding * 2, h ÷ 2;
                      font = t.axis_font, color = t.text_color)]
 end

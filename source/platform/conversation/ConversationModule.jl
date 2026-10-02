@@ -59,6 +59,7 @@ export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
        ToggleEvaluatorOptionOperation,
        RecallEvaluatorFormOperation
 export ConversationDocument, make_conversation_thinking_part
+export ConversationTheme, ScaledConversationTheme
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
        ConversationPartToWidget,
@@ -79,6 +80,7 @@ export ConversationConversation, EvaluatorForm, EvaluatorToplevel, ConversationT
 
 include("Evaluator.jl")
 include("ConversationDocument.jl")
+include("ConversationTheme.jl")
 include("ConversationToWidget.jl")
 include("EvaluatorToWidget.jl")
 include("ConversationEditor.jl")

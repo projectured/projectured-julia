@@ -30,6 +30,14 @@ with no theme it holds the plain values of the default theme.
     muted_text::TextRole = TextRole(color_slate_500)
     "The line the log shows while it holds no gesture."
     empty_text::TextRole = TextRole(color_slate_500)
+    "The surface of the panel that shows the log over the content of a window: dark and translucent, so the content stays readable and the light text of the log reads over any content."
+    panel_background::StyleColor = StyleColor(0.0, 0.0, 0.0, 0.72)
+    "The space between the panel and the edges of the window."
+    panel_margin::Spacing = Spacing(12)
+    "The space inside the panel, around the lines of the log."
+    panel_padding::Spacing = Spacing(8)
+    "The radius of the corners of the panel."
+    panel_radius::Radius = Radius(4)
 end
 
 # The style field of a gesture log projection that holds the text `name` of the
@@ -37,3 +45,17 @@ end
 # values.
 _get_gesturelog_style(theme, name::Symbol) =
     make_style_field(GestureLogTheme, scale_theme(theme), StyleText; name)
+
+"""
+    make_gesture_log_panel_theme() -> GestureLogTheme
+
+The gesture log theme of the panel over a window: light text for the dark
+background of the panel.
+"""
+make_gesture_log_panel_theme() =
+    GestureLogTheme(index_text = TextRole(color_gray159), operation_text = TextRole(color_gray223),
+                    muted_text = TextRole(color_solarized_gray), empty_text = TextRole(color_solarized_gray))
+
+# The two presets, for the appearance tab.
+get_theme_presets(::Type{GestureLogTheme}) =
+    Pair{String,Any}["Light" => GestureLogTheme, "Panel" => make_gesture_log_panel_theme]

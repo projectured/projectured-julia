@@ -10,11 +10,13 @@
 @projection struct TextLineNumbering <: Projection
     width::ImmutableCell{Int}      # 0 = auto (derived from total line count)
     separator::ImmutableCell{String}
-    font::ImmutableCell{StyleFont}
+    style::ImmutableCell{StyleText}
 end
 
-TextLineNumbering(; width::Int = 0, separator::String = " | ", font=StyleFont("Ubuntu Mono", 20)) =
-    TextLineNumbering(width, separator, font)
+TextLineNumbering(; width::Int = 0, separator::String = " | ", theme = nothing,
+                  style::StyleText = unwrap_cell(_get_text_style(scale_theme(theme), StyleText,
+                                                                  :line_number_text))) =
+    TextLineNumbering(width, separator, style)
 
 # Projection print: wraps input.elements in a reactive Cell that rebuilds
 # the output element list whenever the input spans change.  For each line
@@ -33,8 +35,7 @@ function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
         end
         total_lines = n_newlines + 1
         w = p.width > 0 ? p.width : ndigits(total_lines)
-        prefix_color = StyleColor(88/255, 110/255, 117/255, 1.0)
-        make_prefix(n) = TextString(lpad(string(n), w) * p.separator, p.font, prefix_color)
+        make_prefix(n) = TextString(lpad(string(n), w) * p.separator, p.style)
         result = TextDocument[]
         line = 1
         push!(result, make_prefix(line))
@@ -163,6 +164,6 @@ end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-function LineNumbering(; width::Int = 0, separator::String = " | ", font=StyleFont("Ubuntu Mono", 20))
-    TextLineNumbering(width=width, separator=separator, font=font)
+function LineNumbering(; width::Int = 0, separator::String = " | ", theme = nothing)
+    TextLineNumbering(; width, separator, theme)
 end

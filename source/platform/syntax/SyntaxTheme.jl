@@ -59,6 +59,11 @@ that prints its own leaves styles them with a theme of its own.
     lit_delimiter::StyleColor = color_solarized_orange
     "The font of the indentation and the line breaks of a node with no delimiter of its own, such as the body of a block."
     font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    "A bracket and a space of a reflected object, in the font of its field names."
+    object_delimiter_text::TextRole = TextRole(color_default)
+    "The mark of a part whose projection failed, in place of that part."
+    fault_text::TextRole = TextRole(color_solarized_red; family = "DejaVu Sans Mono", weight = 700,
+                                    relative_size = 0.8)
 end
 
 # The style field of type `T` of a syntax projection that holds the field `name`

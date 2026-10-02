@@ -311,8 +311,9 @@ function test_command_palette_decorator()
         panel = iomap.output.elements[2].elements[1]
         content = iomap.palette_iomap.output
         @test panel isa GraphicsRect
-        @test panel.w == content.w + 2 * PALETTE_PADDING
-        @test panel.h == content.h + 2 * PALETTE_PADDING
+        padding = get_theme_defaults(GestureHelpTheme).palette_padding
+        @test panel.w == content.w + 2 * padding
+        @test panel.h == content.h + 2 * padding
         @test panel.w > 0 && panel.h > 0        # the text measured for real
         tall = panel.h
         # The panel follows the list: a query that narrows it makes the panel shorter.

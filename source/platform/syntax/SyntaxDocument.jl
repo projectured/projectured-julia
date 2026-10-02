@@ -450,7 +450,7 @@ SyntaxLeaf(value; open=nothing, close=nothing, kwargs...) =
 # they inherit the same defaults.
 SyntaxLeaf(value::AbstractString; kwargs...) = SyntaxLeaf(TextString(value); kwargs...)
 SyntaxLeaf(f::Function; kwargs...) =
-    SyntaxLeaf(TextString(f, StyleFont("Ubuntu Mono", 20), color_default); kwargs...)
+    SyntaxLeaf(TextString(f, UNSTYLED_TEXT_FONT, color_default); kwargs...)
 
 # ── Node ─────────────────────────────────────────────────────────────────
 

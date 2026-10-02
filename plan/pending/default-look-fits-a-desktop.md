@@ -485,7 +485,39 @@ inet-julia uses, the same step changes them, so that they always load.
   as the padding of a pane or the gap of a tooltip, takes that field instead.
   Waiting for the review of the owner.
 - [ ] **T2.** projectured-julia: each style value moves into a theme. A domain
-  with no theme gets one.
+  with no theme gets one. *In progress:* batches, each checked by the image
+  check and the suites of the slices it touches.
+  - Domain syntax (`cd52731ea`): `SqlTheme.punctuation_text`, the brackets of
+    a Julia operation take `JuliaTheme.punctuation_text`.
+    `TextString(content, font)` is a separator that draws no ink.
+  - Overlays: `FaultTheme` and `GestureLogTheme` get `panel_background`,
+    `panel_margin`, `panel_padding`, `panel_radius` and a preset "Panel" with
+    the light text; `FAULT_LOG_BACKGROUND` and `GESTURE_LOG_BACKGROUND` go.
+  - Text and syntax: `SyntaxTheme.object_delimiter_text` and `fault_text`;
+    `TextTheme.plain_text`, `line_number_text`, `match_highlight`,
+    `inverted_background`, `inverted_foreground` and `fault_text`;
+    `UNSTYLED_TEXT_FONT` is the one font of a text that names none (content,
+    D11). `NaturalToGraphics(; font = nothing)` follows the text theme, as its
+    docstring says. `PALETTE_PADDING` goes: `GestureHelpTheme.palette_padding`
+    holds it.
+  - Agents did three batches, which I reviewed: `DataFrameTheme` (7 fields;
+    the scroll bar beside the table reads `WidgetTheme.scroll_bar_thickness`),
+    `ConversationTheme` (25 fields, reached from the appearance in
+    `ConversationRows.jl`), and 29 new fields of `ChartTheme` and
+    `SequenceChartTheme` (radii, line widths, dashes, opacities). Left: the
+    default color cycle of a chart series, a default of the chart document;
+    the defaults of two geometry helpers that their callers pass.
+  - Check of these batches: the images are 315 of 315 equal; the suites of
+    the platform, the data frames, the charts, the sequence charts, the
+    command palette and the gesture log pass, and `test_printers()`. Two tests
+    needed a change: the appearance tab now shows three preset choices.
+  - Not a style, left: the widths of the columns of the logs, which count
+    characters; the window size of the gesture help; the parameters of the
+    Adaptagrams and Fruchterman–Reingold layouts.
+  - Open questions for the owner: the documents that the chrome builders make
+    (window chrome, assistant, object card, pane border); the selection ring
+    and the fault mark of the graphics and layout slices, below every theme;
+    the colors of `compute_code_pieces`.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them.
 - [ ] **T4.** inet-julia: the theme of the packet diagram.

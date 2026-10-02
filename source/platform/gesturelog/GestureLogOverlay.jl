@@ -16,53 +16,49 @@
 # [`GestureLogToSyntax`](GestureLogToSyntax.jl) derives its lines from
 # `log.entries` inside a cell: an append invalidates the lines, and the text and
 # graphics stages below re-derive from there.
-"""
-    GESTURE_LOG_BACKGROUND
-
-The panel background: a dark, translucent rectangle. The content below the panel
-stays readable, and the light text of the log stays readable over any content.
-"""
-const GESTURE_LOG_BACKGROUND = StyleColor(0.0, 0.0, 0.0, 0.72)
-
 # Extra width of the panel, in pixels. See `panel_width` below.
 const _WIDTH_SLACK = 8
 
 """
-    make_gesture_log_panel_syntax_projection(; operation_width = typemax(Int)) -> GestureLogToSyntax
+    make_gesture_log_panel_syntax_projection(; operation_width = typemax(Int),
+                                               theme = make_gesture_log_panel_theme()) -> GestureLogToSyntax
 
-A `GestureLogToSyntax` with light text, for the dark background of the panel.
-`operation_width` is the most characters of an operation that a line shows.
+A `GestureLogToSyntax` with the texts of `theme`: by default the light text of
+the panel theme, for the dark background of the panel. `operation_width` is the
+most characters of an operation that a line shows.
 """
-make_gesture_log_panel_syntax_projection(; operation_width::Integer = typemax(Int)) =
-    GestureLogToSyntax(index_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_gray159),
-                       operation_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_gray223),
-                       muted_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_solarized_gray),
-                       empty_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_solarized_gray),
-                       operation_width = Int(operation_width))
+make_gesture_log_panel_syntax_projection(; operation_width::Integer = typemax(Int),
+                                           theme = make_gesture_log_panel_theme()) =
+    GestureLogToSyntax(; theme, operation_width = Int(operation_width))
 
 """
     make_gesture_log_content_projection(; measure::TextMeasure = FontFileMeasure(),
-                                          operation_width = typemax(Int))
+                                          operation_width = typemax(Int),
+                                          theme = make_gesture_log_panel_theme())
 
-The chain that renders a `GestureLog` down to graphics, with the colors of the
-panel. `operation_width` limits the operation of a line, and so the width of the
-panel, which follows its longest line.
+The chain that renders a `GestureLog` down to graphics, with the texts of `theme`,
+by default the panel theme. `operation_width` limits the operation of a line, and
+so the width of the panel, which follows its longest line.
 """
 make_gesture_log_content_projection(; measure::TextMeasure = FontFileMeasure(),
-                                      operation_width::Integer = typemax(Int)) =
-    ChainingProjection(make_gesture_log_panel_syntax_projection(; operation_width),
+                                      operation_width::Integer = typemax(Int),
+                                      theme = make_gesture_log_panel_theme()) =
+    ChainingProjection(make_gesture_log_panel_syntax_projection(; operation_width, theme),
                        RecursiveProjection(SyntaxToText()),
                        TextToGraphics(measure = measure))
 
 """
-    GestureLogOverlayProjection(; inner, log, content = …, anchor = :top_right,
-                                  margin = 12, padding = 8,
-                                  background = GESTURE_LOG_BACKGROUND)
+    GestureLogOverlayProjection(; inner, log, theme = make_gesture_log_panel_theme(),
+                                  content = …, anchor = :top_right,
+                                  margin, padding, radius, background)
 
 Decorator over `inner` (a content pipeline whose output is a `GraphicsCanvas`)
 that draws `log` in the corner that `anchor` names: `:top_right`, `:top_left`,
 `:bottom_right` or `:bottom_left`. `margin` is the distance from the edges of
 the window, `padding` the distance between the panel border and the text.
+`theme` gives the texts of the log and the margin, the padding, the radius and
+the background of the panel; a keyword of the same name sets one of them as it
+is.
 
 The panel needs the size of the window to reach a right or a bottom corner. The
 printer takes it from the available size of the printer context, which the
@@ -76,17 +72,22 @@ struct GestureLogOverlayProjection <: Projection
     anchor::Symbol
     margin::Int
     padding::Int
+    radius::Int
     background::StyleColor
 end
 
 function GestureLogOverlayProjection(; inner, log::GestureLog,
-                                       content = make_gesture_log_content_projection(),
+                                       theme = make_gesture_log_panel_theme(),
+                                       content = make_gesture_log_content_projection(; theme),
                                        anchor::Symbol = :top_right,
-                                       margin::Integer = 12, padding::Integer = 8,
-                                       background::StyleColor = GESTURE_LOG_BACKGROUND)
+                                       margin::Integer = scale_theme(theme).panel_margin,
+                                       padding::Integer = scale_theme(theme).panel_padding,
+                                       radius::Integer = scale_theme(theme).panel_radius,
+                                       background::StyleColor = scale_theme(theme).panel_background)
     anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||
         error("GestureLogOverlayProjection: unknown anchor :$anchor")
-    GestureLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding), background)
+    GestureLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding),
+                                Int(radius), background)
 end
 
 @iomap struct GestureLogOverlayIoMap
@@ -121,7 +122,7 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
     set_cell_computation!(getfield(body, :w), () -> Int32(body_width()))
     set_cell_computation!(getfield(body, :h), () -> Int32(body_height()))
 
-    background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = 4)
+    background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = p.radius)
     set_cell_computation!(getfield(background, :w), () -> Int32(panel_width()))
     set_cell_computation!(getfield(background, :h), () -> Int32(panel_height()))
 

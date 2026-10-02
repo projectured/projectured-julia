@@ -22,29 +22,19 @@
 # inside a cell: an append invalidates the lines, and the text and graphics
 # stages below re-derive from there.
 
-"""
-    FAULT_LOG_BACKGROUND
-
-The panel background: a dark, translucent rectangle with a red cast. The content
-below stays readable, and the panel says at a glance that it is not chrome.
-"""
-const FAULT_LOG_BACKGROUND = StyleColor(0.18, 0.02, 0.02, 0.80)
-
 # Extra width of the panel, in pixels. It covers the small difference between
 # the measure the printer used and the text metrics of the backend that
 # draws. Without it the last characters of the longest line sit on the border.
 const _FAULT_WIDTH_SLACK = 8
 
 """
-    make_fault_log_panel_syntax_projection() -> FaultLogToSyntax
+    make_fault_log_panel_syntax_projection(; theme = make_fault_log_panel_theme()) -> FaultLogToSyntax
 
-A `FaultLogToSyntax` with light text, for the dark background of the panel.
+A `FaultLogToSyntax` with the texts of `theme`: by default the light text of the
+panel theme, for the dark background of the panel.
 """
-make_fault_log_panel_syntax_projection() =
-    FaultLogToSyntax(count_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_gray159),
-                     site_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_solarized_gray),
-                     message_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_gray223),
-                     empty_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_solarized_gray))
+make_fault_log_panel_syntax_projection(; theme = make_fault_log_panel_theme()) =
+    FaultLogToSyntax(; theme)
 
 """
     make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
@@ -60,14 +50,16 @@ make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
                        TextToGraphics(measure = measure))
 
 """
-    FaultLogOverlayProjection(; inner, log, content = …, anchor = :bottom_left,
-                                margin = 12, padding = 8,
-                                background = FAULT_LOG_BACKGROUND)
+    FaultLogOverlayProjection(; inner, log, theme = make_fault_log_panel_theme(),
+                                content = …, anchor = :bottom_left,
+                                margin, padding, radius, background)
 
 Decorator over `inner` (a content pipeline whose output is a `GraphicsCanvas`)
 that draws `log` in the corner that `anchor` names: `:top_right`, `:top_left`,
 `:bottom_right` or `:bottom_left`. The default corner is the bottom left, which
-is the one the gesture log panel does not use.
+is the one the gesture log panel does not use. `theme` gives the texts of the
+log and the margin, the padding, the radius and the background of the panel; a
+keyword of the same name sets one of them as it is.
 
 Nothing is drawn while `log` is empty.
 
@@ -87,19 +79,23 @@ struct FaultLogOverlayProjection <: Projection
     anchor::Symbol
     margin::Int
     padding::Int
+    radius::Int
     background::StyleColor
 end
 
 function FaultLogOverlayProjection(; inner, log::FaultLog,
+                                     theme = make_fault_log_panel_theme(),
                                      content = make_fault_log_content_projection(
-                                         syntax = make_fault_log_panel_syntax_projection()),
+                                         syntax = make_fault_log_panel_syntax_projection(; theme)),
                                      anchor::Symbol = :bottom_left,
-                                     margin::Integer = 12, padding::Integer = 8,
-                                     background::StyleColor = FAULT_LOG_BACKGROUND)
+                                     margin::Integer = scale_theme(theme).panel_margin,
+                                     padding::Integer = scale_theme(theme).panel_padding,
+                                     radius::Integer = scale_theme(theme).panel_radius,
+                                     background::StyleColor = scale_theme(theme).panel_background)
     anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||
         error("FaultLogOverlayProjection: unknown anchor :$anchor")
     FaultLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding),
-                              background)
+                              Int(radius), background)
 end
 
 @iomap struct FaultLogOverlayIoMap
@@ -130,7 +126,7 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
     set_cell_computation!(getfield(body, :w), () -> Int32(body_width()))
     set_cell_computation!(getfield(body, :h), () -> Int32(body_height()))
 
-    background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = 4)
+    background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = p.radius)
     set_cell_computation!(getfield(background, :w), () -> Int32(panel_width()))
     set_cell_computation!(getfield(background, :h), () -> Int32(panel_height()))
 

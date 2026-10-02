@@ -131,6 +131,15 @@ refers to the cursor within the span's `content` field:  `.content{k}`
     padding::Inset
 end
 
+"""
+    UNSTYLED_TEXT_FONT
+
+The font of a text that names none: a run that a document makes with no font,
+and the line of a block with no run. It is a default of the text document, the
+content that an author leaves out, and not a style of a projection.
+"""
+const UNSTYLED_TEXT_FONT = StyleFont("Ubuntu Mono", 20)
+
 # font / font_color are passed RAW so they land in their ImmutableCell default;
 # content stays a reactive Cell. Passing a Cell for font/colour overrides the default.
 TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
@@ -142,7 +151,7 @@ TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
 TextString(content::AbstractString, font::StyleFont) = TextString(content, font, color_default)
 
 TextString(content::AbstractString) =
-    TextString(Cell(content), StyleFont("Ubuntu Mono", 20), color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(content), UNSTYLED_TEXT_FONT, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(Computation(content)), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))

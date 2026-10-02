@@ -56,7 +56,7 @@ function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, c
         value_node = inner[].output
         name === nothing ? value_node :
             SyntaxNode(SyntaxDocument[SyntaxLeaf(TextString(name, p.field_name)), value_node];
-                       sep = TextString(" ", p.field_name.font, color_default), indentation = ind)
+                       sep = TextString(" ", p.field_name.font), indentation = ind)
     end)
     SimpleIoMap(p, field, output)
 end

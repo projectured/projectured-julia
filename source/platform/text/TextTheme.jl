@@ -45,6 +45,19 @@ colors and fonts as keywords: no view of the platform builds them.
     wrong_color::StyleColor = color_solarized_red
     "What an empty type-in shows, such as `missing` in a cell of a data frame."
     placeholder_text::TextRole = TextRole(color_completion_hint)
+    "A text that no other field styles, such as the name of an empty document."
+    plain_text::TextRole = TextRole(color_default)
+    "The number before each line of a text with line numbers."
+    line_number_text::TextRole = TextRole(StyleColor(88 / 255, 110 / 255, 117 / 255, 1.0))
+    "The surface behind each match of a search in a text."
+    match_highlight::StyleColor = color_yellow
+    "The surface of the character under a block caret, which shows inverted."
+    inverted_background::StyleColor = color_solarized_background_dark
+    "The character under a block caret, which shows inverted."
+    inverted_foreground::StyleColor = color_solarized_content_lighter
+    "The mark of a part whose projection failed, in place of that part."
+    fault_text::TextRole = TextRole(color_solarized_red; family = "DejaVu Sans Mono", weight = 700,
+                                    relative_size = 0.8)
 end
 
 # The style field of type `T` of a text projection that holds the field `name` of

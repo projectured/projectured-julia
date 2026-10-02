@@ -8,7 +8,8 @@
 # in the frame.
 
 """
-    DataFrameViewToWidget(; row_height = 0, row_step = 0)
+    DataFrameViewToWidget(; row_height = 0, row_step = 0, scroll_bar_width,
+                            theme = nothing)
 
 Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts, and
 a vertical `WidgetScrollBar` beside it, under the expression bar, in a
@@ -25,10 +26,11 @@ number. Every row is `row_height` tall, as a header column of a list needs.
 
 A frame of more than 64 columns draws its columns as a list, from the column
 `column_anchor` of the view, so it builds only the columns that the table
-shows: each column is 160 pixels wide and at least as wide as its header, and
-each row is `row_height` tall, the height of a line of the font of the table,
-because a row as tall as its cells would change as the table scrolls to the
-side. When the table moves its head column, the view moves `column_anchor`.
+shows: each column is `list_column_width` pixels wide and at least as wide as
+its header, and each row is `row_height` tall, the height of a line of the font
+of the table, because a row as tall as its cells would change as the table
+scrolls to the side. When the table moves its head column, the view moves
+`column_anchor`.
 
 The scroll bar shows the row at the top of the table, `anchor + top_row - 1`,
 among the rows of the frame. Its thumb is as long as the share of the rows that
@@ -48,13 +50,28 @@ so a right click there opens the menu of the column or of the view.
 The reader gives the view a key that the table does not take, so the gestures
 of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
 on.
+
+`theme` is a `DataFrameTheme`, a scaled one, or `nothing` for the default
+styles: the width of a field of the filter row and of the expression bar, the
+gaps of their parts, the color of a query that does not parse and of the
+glyph of a column that does not sort, and `list_column_width`.
+`scroll_bar_width` is the width of the scroll bar beside the table: by default
+the scroll bar thickness of the default widget theme, and the builder gives the
+one of its appearance.
 """
 @projection UntrackedCell struct DataFrameViewToWidget
-    row_height::Int
-    row_step::Int
+    row_height::Int = 0
+    row_step::Int = 0
+    scroll_bar_width::Int = get_theme_defaults(WidgetTheme).scroll_bar_thickness
+    theme::Any = nothing
+    query_field_width::Int = _get_data_frame_style(theme, :query_field_width, Int)
+    expression_field_width::Int = _get_data_frame_style(theme, :expression_field_width, Int)
+    filter_gap::Int = _get_data_frame_style(theme, :filter_gap, Int)
+    expression_gap::Int = _get_data_frame_style(theme, :expression_gap, Int)
+    invalid_query::StyleColor = _get_data_frame_style(theme, :invalid_query, StyleColor)
+    unsorted_glyph::StyleColor = _get_data_frame_style(theme, :unsorted_glyph, StyleColor)
+    list_column_width::Int = _get_data_frame_style(theme, :list_column_width, Int)
 end
-
-DataFrameViewToWidget(; row_height = 0, row_step = 0) = DataFrameViewToWidget(row_height, row_step)
 
 @iomap struct DataFrameViewToWidgetIoMap
     projection::Any
@@ -65,17 +82,13 @@ DataFrameViewToWidget(; row_height = 0, row_step = 0) = DataFrameViewToWidget(ro
     visible::Cell            # Int: how many rows the table shows
 end
 
-# The width of the scroll bar beside the table.
-const _SCROLL_BAR_WIDTH = 12
-
 # A weight and no minimum: the table gives the column an equal share of the
 # width, and the width of its header at least.
 const _COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
 
-# A frame with more columns than this draws them as a list, each column this
-# wide and at least as wide as its header.
+# A frame with more columns than this draws them as a list, each column
+# `p.list_column_width` wide and at least as wide as its header.
 const _LIST_COLUMN_COUNT = 64
-const _LIST_COLUMN_WIDTH = 160
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
     # The cells of the table follow the view, so a hidden column leaves the
@@ -97,9 +110,9 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # The expression bar over the table, and the table and the scroll bar under
     # it; the cell beside the expression bar is empty.
-    expression = _make_expression_bar(view)
+    expression = _make_expression_bar(p, view)
     grid = GridLayout(Any[expression, WidgetLabel(""), table, bar], 2;
-                      column_policies = Any[Fill, Fixed(_SCROLL_BAR_WIDTH)], row_policies = Any[Content, Fill])
+                      column_policies = Any[Fill, Fixed(p.scroll_bar_width)], row_policies = Any[Content, Fill])
     # The grid gives a key to the expression bar or to the table, by their
     # selection.
     set_cell_computation!(getfield(grid, :selection), () -> begin
@@ -126,12 +139,12 @@ _get_scroll_bar_row(value::Real, count::Int, visible::Int) =
 # The table of a frame whose columns share its width: every column a weight,
 # and at least as wide as its header.
 function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
-    headers = CellVector(@computation Any[_make_filter_header(view, name)
+    headers = CellVector(@computation Any[_make_filter_header(p, view, name)
                                           for name in _get_shown_columns(view)])
     align = Cell(@computation Symbol[_get_column_align(eltype(view.frame[!, name]))
                                      for name in _get_shown_columns(view)])
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor))
-    row_headers, corner = _make_row_numbers(view)
+    row_headers, corner = _make_row_numbers(p, view)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, rows, column_count, border_width,
     # column_policy, row_policy, column_policies, row_policies, cell_policy,
@@ -176,13 +189,13 @@ print_document(p::DataFrameViewToWidget, view::DataFrameView) =
 
 # The header of each kept row, its row number in the frame, as a list that moves
 # in step with the rows, and the corner of the filter row. A frame with no rows
-# has neither.
-function _make_row_numbers(view::DataFrameView)
+# has neither. `p` carries the style of the data frame theme.
+function _make_row_numbers(p, view::DataFrameView)
     headers = Cell(@computation (kept = view.kept_rows;
                                  isempty(kept) ? CellVector() :
                                      _make_index_list(length(kept), view.anchor,
                                                       k -> WidgetLabel(string(kept[k])))))
-    corner = Cell(@computation nrow(view.frame) == 0 ? nothing : _make_query_corner(view))
+    corner = Cell(@computation nrow(view.frame) == 0 ? nothing : _make_query_corner(p, view))
     (headers, corner)
 end
 
@@ -193,7 +206,7 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     # The headers are built when a walk reaches them, so the list reads the sort
     # keys itself, and a new sort builds the list again.
     headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
-        _make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(view, columns[c]))))
+        _make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(p, view, columns[c]))))
     align = Cell(@computation (columns = _get_shown_columns(view);
         _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
@@ -203,11 +216,11 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     policies = Cell(@computation (columns = _get_shown_columns(view);
         _make_index_list(length(columns), view.column_anchor,
                          c -> _get_column_width_policy(view, columns[c], nothing))))
-    row_headers, corner = _make_row_numbers(view)
+    row_headers, corner = _make_row_numbers(p, view)
     # Positional, as in `_make_view_table` above.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
                         Cell(WidgetTableColumns()), Cell(0), Cell(1),
-                        Cell(Fixed(_LIST_COLUMN_WIDTH)), Cell(Fixed(p.row_height)),
+                        Cell(Fixed(p.list_column_width)), Cell(Fixed(p.row_height)),
                         policies, Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
@@ -331,18 +344,22 @@ then the printer of a grid, which prints the table and the scroll bar through
 the recursion. A row of the natural renderer ends in graphics, because a type
 dispatch does not print an output again. The table draws with the widget theme
 of `appearance`. The height of a row is a line of the font of that theme, and
-its step adds the padding of a cell of the theme and a rule; both read the
-scaled theme at each print, with no edge, as a style field of a widget does.
+its step adds the padding of a cell of the theme and a rule, and the scroll bar
+beside the table takes the thickness of that theme; all three read the scaled
+theme at each print, with no edge, as a style field of a widget does. The filter
+row and the expression bar draw with the scaled `DataFrameTheme` of `appearance`.
 """
 function make_data_frame_view_projection(; measure::TextMeasure,
                                          appearance::Appearance = Appearance())
     theme = get_scaled_theme!(appearance, WidgetTheme)
+    frame_theme = get_scaled_theme!(appearance, DataFrameTheme)
     widgets = WidgetToGraphics(; measure, theme)
     table = last(only(p for p in widgets.dispatch if first(p) === WidgetTable))
     grid = last(only(p for p in LayoutToGraphics().dispatch if first(p) === GridLayout))
     row_height = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M", theme.font).height))
     row_step = UntrackedCell{Int}(@computation row_height[] + 2 * Int(table.cell_padding.top[]) + 1)
-    ChainingProjection(DataFrameViewToWidget(; row_height, row_step), grid)
+    scroll_bar_width = UntrackedCell{Int}(@computation theme.scroll_bar_thickness)
+    ChainingProjection(DataFrameViewToWidget(; row_height, row_step, scroll_bar_width, theme = frame_theme), grid)
 end
 
 # The name of a column and its element type. A type that allows `missing`
