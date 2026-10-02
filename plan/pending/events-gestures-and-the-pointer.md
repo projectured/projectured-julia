@@ -1614,6 +1614,13 @@ it holds the example.
     ends; the part chose the route, so no global component chooses the part,
     and the raw events of the drag still go by position. Rejected: option b, an
     accepted exception below the rule.
+  - 4c ("Agreed", on Claude's option a): D44 becomes the rule
+    `PAR-LIGHT-KEEPS-LAYOUT`, beside `PAR-REPEATED-MOVE-WRITES-NOTHING`: a light
+    changes no size and no place; a part that lights draws a layer, a colour or
+    a frame over what it draws. After a changed frame the backend sends a move
+    at the still pointer, and a light that moved another part under the pointer
+    would light that part next, frame after frame. Rejected: option b, the
+    sentences in `mouse-target.md` and `widget.md` and their test only.
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
 
