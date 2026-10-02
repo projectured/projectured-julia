@@ -42,7 +42,7 @@ import ..SerializationModule: pred_arguments
 import ..StyleModule: get_theme_presets
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
 import ..GraphicsModule: map_operation_position
-import ..OperationModule: evaluate_operation, is_collecting_operation,
+import ..OperationModule: evaluate_operation, operation_travels_unchanged, is_collecting_operation,
                           join_collected_operations, reroot_operation,
                           operation_reference, retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
@@ -51,7 +51,8 @@ import ..SelectionModule: has_dormant_selection
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
        WidgetTreeNode, CloseTabOperation, OpenTabOperation,
        DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
-       EndSplitterDragOperation, Shortcut, matches_action_shortcut,
+       EndSplitterDragOperation, SetTableColumnWidthOperation, read_table_column_drag, Shortcut,
+       matches_action_shortcut,
        InvokeActionOperation, resolve_action,
        make_numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,

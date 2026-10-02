@@ -139,6 +139,7 @@ function _make_page_table(table::MarkdownTable)
                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
                          Cell(Point2D(0, 0)),              # scroll_position
                          Cell(1),                          # top_row
+                         Cell(nothing),                    # column_drag
                          Cell(nothing))                    # tooltip
     set_output_path_computations!(widget, table, _map_table_path_forward)
     widget

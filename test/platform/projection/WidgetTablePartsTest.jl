@@ -814,5 +814,56 @@ end
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
 end
 
+@testset "a drag of the right edge of a header sets the width of its column" begin
+    table = WidgetTable(; column_headers = Any[WidgetLabel("name"), WidgetLabel("age")],
+                        rows = make_list(5, texts_of), column_count = 2, column_policies = policies)
+    io = print_document(rec, nothing, table, context())
+    (x1, y1) = text_at(io, "name")
+    (x2, _) = text_at(io, "age")
+    # The right edge of the first column is the rule before the second, a cell
+    # padding and a rule before the text of the second header.
+    edge = x2 - io.state.pad_x - io.state.bw
+    start = read(io, MouseDown(:left, edge, y1 + 2; time = 0.0))
+    @test start isa CompoundOperation && any(op -> op isa StartDragOperation, start.operations)
+    apply!(table, start)
+    @test table.column_drag.column == 1 && table.column_drag.width == 120
+    # A move gives the column the width at the press plus the move.
+    move = read(io, DragMove(edge + 30, y1; time = 0.1))
+    @test get_wrapped_operation(move) isa SetTableColumnWidthOperation
+    apply!(table, move)
+    @test table.column_policies[1] == Fixed(150)
+    @test text_at(io, "age")[1] == x2 + 30
+    # The width does not go under the narrowest width.
+    apply!(table, read(io, DragMove(edge - 500, y1; time = 0.2)))
+    @test table.column_policies[1] == Fixed(24)
+    # A cancel puts back the width at the press, and ends the drag.
+    apply!(table, read(io, DragCancel(; time = 0.3)))
+    @test table.column_policies[1] == Fixed(120)
+    @test table.column_drag === nothing
+    @test text_at(io, "age")[1] == x2
+    # A press on a header away from its edge starts no drag.
+    away = read(io, MouseDown(:left, x1 + 10, y1 + 2; time = 0.4))
+    @test !(away isa CompoundOperation && any(op -> op isa StartDragOperation, away.operations))
+end
+
+@testset "a table whose columns are a list takes the width of a column from its owner" begin
+    widths = make_list_of(1_000, c -> c == 2 ? Fixed(100) : nothing)
+    table = make_wide_table(100, 1_000)
+    table.column_policies = widths
+    io = print_document(rec, nothing, table, context())
+    hgap = 2 * io.state.pad_x + io.state.bw
+    # The width that the owner gives wins; the other columns are as before.
+    @test text_x(io, "r1 c3") - text_x(io, "r1 c2") == 100 + hgap
+    @test text_x(io, "r1 c2") - text_x(io, "r1 c1") == 60 + hgap
+    # A drag of the edge of the second column answers its width, counted from
+    # the head column, and the owner keeps it.
+    (_, hy, _) = only(t for t in texts(io.output) if t[3] == "h2")
+    edge = text_x(io, "r1 c3") - io.state.pad_x - io.state.bw
+    apply!(table, read(io, MouseDown(:left, edge, hy + 2; time = 0.0)))
+    @test table.column_drag.column == 2 && table.column_drag.width == 100
+    move = get_wrapped_operation(read(io, DragMove(edge + 20, hy; time = 0.1)))
+    @test move isa SetTableColumnWidthOperation && move.column == 2 && move.width == 120
+end
+
 end
 end

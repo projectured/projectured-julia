@@ -429,6 +429,46 @@ function _find_table_column_at(st::WidgetTablePartsState, x::Int)
     c
 end
 
+# How near, in pixels, a press must be to the right edge of a header to start
+# the drag of the width of its column, and the narrowest width that a drag gives.
+const _COLUMN_EDGE_REACH = 3
+const _MIN_COLUMN_WIDTH = 24
+
+# The column whose right edge is within `_COLUMN_EDGE_REACH` of `x`, in the
+# coordinates of the rules, and the width of its cells, as `(c, width)`;
+# `nothing` when `x` is near no edge. The edge of a column is the rule of the
+# column after it.
+function _find_table_column_edge_at(st::WidgetTablePartsState, x::Int)
+    hgap = 2 * st.pad_x + st.bw
+    near(edge) = abs(x - (edge + st.bw ÷ 2)) <= _COLUMN_EDGE_REACH
+    if !st.column_list
+        edges = st.edges[]
+        for c in 1:(length(edges) - 1)
+            near(edges[c + 1]) && return (c, edges[c + 1] - edges[c] - hgap)
+        end
+        return nothing
+    end
+    node = _get_table_column_head(st)
+    node isa ListNode || return nothing
+    c = 1
+    # The column whose band holds `x`, then the one before it, whose edge is at
+    # the left of that band.
+    while x < Int(node.value.x) && node.prev !== nothing
+        node = node.prev
+        c -= 1
+    end
+    while x >= Int(node.value.x) + Int(node.value.w) + hgap && node.next !== nothing
+        node = node.next
+        c += 1
+    end
+    for (candidate, column) in ((node, c), (node.prev, c - 1))
+        candidate === nothing && continue
+        x0, w0 = Int(candidate.value.x), Int(candidate.value.w)
+        near(x0 + w0 + hgap) && return (column, w0)
+    end
+    nothing
+end
+
 # The left edge and the width of the band that `named` draws in row `k`, or in
 # the header row for `k === nothing`; `(0, 0)` for no band there. The table and
 # a column band every row and the header row, a row and a cell only their own
@@ -687,11 +727,14 @@ end
 # ── Columns that are a list ──────────────────────────────────────────────────
 
 # The node of the policy of column `k`, which mirrors the node of its header:
-# `Fixed`, `width` wide and at least as wide as the header, which the grid of
-# the header row prints; `header_grid` holds that grid once it prints.
-function _make_column_policy_node(header_node::ListNode, k::Int, width::Int, header_grid::Cell)
+# the policy that `given`, the node of the list of policies of the table, holds,
+# else `Fixed`, `width` wide and at least as wide as the header, which the grid
+# of the header row prints; `header_grid` holds that grid once it prints.
+function _make_column_policy_node(header_node::ListNode, k::Int, width::Int, header_grid::Cell, given)
     node = ListNode(Fixed(width))
     set_cell_computation!(getfield(node, :value), () -> begin
+        policy = given isa ListNode ? given.value : nothing
+        policy isa SizePolicy && return policy
         grid = header_grid[]
         cell = grid === nothing ? nothing : find_grid_list_cell(grid, 1, k)
         Fixed(max(width, cell === nothing ? 0 : _get_part_child_width(cell[3])))
@@ -699,14 +742,16 @@ function _make_column_policy_node(header_node::ListNode, k::Int, width::Int, hea
     set_cell_computation!(getfield(node, :next), () -> begin
         following = header_node.next
         following === nothing && return nothing
-        next_node = _make_column_policy_node(following, k + 1, width, header_grid)
+        next_node = _make_column_policy_node(following, k + 1, width, header_grid,
+                                             given isa ListNode ? given.next : nothing)
         set_cell_value!(getfield(next_node, :prev), node)
         next_node
     end)
     set_cell_computation!(getfield(node, :prev), () -> begin
         preceding = header_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_column_policy_node(preceding, k - 1, width, header_grid)
+        prev_node = _make_column_policy_node(preceding, k - 1, width, header_grid,
+                                             given isa ListNode ? given.prev : nothing)
         set_cell_value!(getfield(prev_node, :next), node)
         prev_node
     end)
@@ -787,7 +832,10 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     header_grid = Cell(nothing)
     policies = Cell(@computation begin
         headers = w.column_headers
-        headers isa ListNode ? _make_column_policy_node(headers, 1, width, header_grid) : nothing
+        given = w.column_policies
+        headers isa ListNode ?
+            _make_column_policy_node(headers, 1, width, header_grid, given isa ListNode ? given : nothing) :
+            nothing
     end)
     header_row_policy = Cell(@computation begin
         grid = header_grid[]
@@ -1418,10 +1466,57 @@ function _read_table_corner(st::WidgetTablePartsState, event)
     reroot_operation(read_intent(cim.projection, cim, event), (FieldReferenceStep("corner"),))
 end
 
+# A left press within `_COLUMN_EDGE_REACH` of the right edge of a header starts
+# the drag of the width of its column: the column, the point and the width at
+# the press are the state of the drag, and the moves come by the path of the
+# table, wherever the pointer is. `nothing` for a press anywhere else.
+function _read_table_column_edge_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
+                                       g::MouseDown)
+    w = iomap.input
+    w.column_drag === nothing || return nothing
+    found = _find_table_part_at(p, iomap, g.x, g.y)
+    (found === nothing || found[1] !== :header) && return nothing
+    edge = _find_table_column_edge_at(iomap.state, found[2])
+    edge === nothing && return nothing
+    c, width = edge
+    CompoundOperation(Any[
+        ReplaceViewStateOperation(ReplaceReferencedValueOperation(w, "column_drag",
+                                                                  (column = c, x = g.x, width = width))),
+        StartDragOperation(EmptyReference(), nothing)])
+end
+
+"""
+    read_table_column_drag(table, gesture) -> Operation or nothing
+
+The answer of `table` to a part of the drag of the width of a column that is on
+(`column_drag`): a `DragMove` gives the column the width at the press plus the
+move along x, and at least a narrowest width; a `DragEnd` ends the drag; a
+`DragCancel` puts back the width at the press and ends the drag. Each is view
+state, so a history records no part of a drag. `nothing` when no drag is on.
+
+The table reads its drag itself. An owner that the parts of a drag reach by its
+own path, because the table is a part that it made, gives them on with this
+function, with the x of the point in the frame of the table.
+"""
+function read_table_column_drag(w::WidgetTable, g)
+    drag = w.column_drag
+    drag === nothing && return nothing
+    ending = ReplaceViewStateOperation(ReplaceReferencedValueOperation(w, "column_drag", nothing))
+    width(value) = ReplaceViewStateOperation(SetTableColumnWidthOperation(w, drag.column, value))
+    g isa DragMove && return width(max(_MIN_COLUMN_WIDTH, drag.width + g.x - drag.x))
+    g isa DragEnd && return ending
+    CompoundOperation(Any[width(drag.width), ending])
+end
+
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
                      iomap::WidgetTableListIoMap)
     g = change.gesture
+    g isa Union{DragMove,DragEnd,DragCancel} && return Intent(g, read_table_column_drag(iomap.input, g))
     if change.operation === nothing
+        if g isa MouseDown && g.button === :left
+            op = _read_table_column_edge_press(p, iomap, g)
+            op === nothing || return Intent(g, op)
+        end
         g isa MouseClick && g.button === :left && return Intent(g, _read_table_parts_press(p, iomap, g))
         # A pointer motion does not go into the cells: the part under the pointer
         # is the backward map of the point. A dwell goes to the cell under it.
@@ -1439,7 +1534,14 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
+    # The parts of the drag of the width of a column come by the path of the
+    # table, wherever the pointer is.
+    event isa Union{DragMove,DragEnd,DragCancel} && return read_table_column_drag(iomap.input, event)
     _outside_widget(iomap, event) && return nothing
+    if event isa MouseDown && event.button === :left
+        op = _read_table_column_edge_press(p, iomap, event)
+        op === nothing || return op
+    end
     if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||
        event isa MouseMove
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation

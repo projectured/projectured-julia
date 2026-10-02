@@ -2253,6 +2253,10 @@ that the grids report ("layout is just layout").
 - `scroll_position`, `top_row` — view state: the one offset of the scrolled
   parts, and the row at the top of a list of rows, counted from its head. The
   row or the column under the pointer lights from the table's mouse target.
+- `column_drag` — view state: the drag of the right edge of a header that is
+  on, as `(column, x, width)`, the column and the point and the width at the
+  press, or `nothing`. A left press within 3 pixels of that edge starts it, and
+  each move gives the column a width ([`SetTableColumnWidthOperation`](@ref)).
 
 The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
@@ -2281,6 +2285,7 @@ See also `make_result_table` and `WidgetList` for one column.
     style::Any
     scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
     top_row::Int                 # view state: the row at the top of a list of rows, counted from its head
+    column_drag::Any             # view state: the drag of the edge of a column that is on, or nothing
     tooltip::Any
 end
 
@@ -2345,7 +2350,10 @@ the head.
 
 **A body column and a body row take a `SizePolicy`**, the way a `GridLayout`'s
 do: `column_policy` / `row_policy` say what every one is and the two vectors name
-the ones that differ. Both default to `Content`, which is what a table has always
+the ones that differ. A table whose columns are a list takes `column_policies`
+as a list beside its headers, as it takes `column_align`: a value that is a
+`Fixed` gives that column its width, and `nothing` leaves the column at
+`column_policy` and at least as wide as its header. Both default to `Content`, which is what a table has always
 been. A header strip is always `Content` — it is as wide, or as tall, as the
 labels in it — so the policies below are the BODY's and the table shifts them
 over the strip itself.
@@ -2391,11 +2399,12 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                 _table_rows(rows),
                 Cell(Int(column_count)), Cell(Int(border_width)),
                 Cell(column_policy), Cell(row_policy),
-                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
+                Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),
+                Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
                 Cell(column_align isa ListNode ? column_align : collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(scroll_position), Cell(1), Cell(tooltip))
+                Cell(scroll_position), Cell(1), Cell(nothing), Cell(tooltip))
 end
 
 """
@@ -2627,6 +2636,22 @@ Finish a splitter drag: reset `active_splitter` to `0` and clear `drag_anchor`.
 """
 struct EndSplitterDragOperation <: Operation
     split::WidgetSplitPane
+end
+
+"""
+    SetTableColumnWidthOperation(table, column, width)
+
+Give column `column` of `table` the width `width`, the width of its cells in
+pixels: the drag of the right edge of a header answers it at each move. A table
+whose columns are a vector keeps it as `Fixed(width)` in `column_policies`, and
+`column` counts from its first column. A table whose columns are a list counts
+`column` from its head column and keeps no width of its own: the owner that
+gives its policies as a list reads the operation and keeps the width.
+"""
+struct SetTableColumnWidthOperation <: Operation
+    table::WidgetTable
+    column::Int
+    width::Int
 end
 
 # ── Action (Stage 4) ────────────────────────────────────────────────────────
@@ -2862,6 +2887,25 @@ end
 function evaluate_operation(editor, op::EndSplitterDragOperation)
     op.split.active_splitter = 0
     op.split.drag_anchor = nothing
+end
+
+# The width operation names its table, so it travels up a chain as it is, and the
+# owner of a table whose columns are a list reads it on the way.
+operation_travels_unchanged(::SetTableColumnWidthOperation) = true
+
+function evaluate_operation(editor, op::SetTableColumnWidthOperation)
+    table = op.table
+    policies = table.column_policies
+    (policies isa AbstractVector && op.column >= 1) || return nothing
+    width = Fixed(op.width)
+    op.column <= length(policies) && policies[op.column] == width && return nothing
+    written = Any[policies...]
+    while length(written) < op.column
+        push!(written, table.column_policy)
+    end
+    written[op.column] = width
+    table.column_policies = written
+    nothing
 end
 
 function evaluate_operation(editor, op::InvokeActionOperation)
