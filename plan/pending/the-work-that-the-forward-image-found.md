@@ -60,11 +60,35 @@ give their one child the whole range that they were given:
   content, so they must give a bounded range;
 - the document content of `WidgetText` and `WidgetTextarea`.
 
-- [ ] 1. For each widget, write down its extent and the parts it draws around
+- [x] 1. For each widget, write down its extent and the parts it draws around
   the child, and what it must give the child: a slot less those parts, or a
   bounded range.
+
+  Facts (2026-10-02, `WidgetToGraphics.jl`). The tool is `with_inner_size`: it
+  keeps the state of each axis (a slot stays a slot, an edge stays an edge, free
+  stays free) and takes the parts around the child off, as the tabbed pane does
+  with its insets and its tab strip.
+
+  | Widget | Its extent | Parts around the child | What the child must get |
+  | --- | --- | --- | --- |
+  | `WidgetTitlePane` | the range it was given; with no slot, the title or the content | the insets; the title bar and its gap above | `with_inner_size`: the insets on both axes, and the title bar on the height |
+  | `WidgetDialog` | its window, which the scrim fills; the card in it comes from what it holds | the margin, the border and the padding of the card; the title and a gap above the content; a gap and the row of buttons below it | the content: the edge of the window less those parts, bounded, because the card takes its size from it; each button: no offer on the width (a row) and the same bounded height |
+  | `WidgetTooltip`, `WidgetContextMenu` | their content, capped at the edge (`_resolve_overlay`) | the insets | a bounded range: the edge less the insets, never a slot, because an overlay is as large as its content |
+  | `WidgetText`, `WidgetTextarea` | the range, never under the content and the insets | the insets | `with_inner_size` with the insets, for a `Document` content and for the plain text view |
+
+  Also found: `WidgetContextMenu` takes the size of the child canvas but not its
+  place, so a child that has its own position draws outside the box of the menu,
+  and a right click there opens no menu (the live check of 2026-10-02). That is
+  a question of its own for the owner, and this step does not change it.
 - [ ] 2. Build it, one widget at a time, with a size test for each, as
   `test_size_range_composite()` tests the composite.
+  - [x] `WidgetTitlePane` (2026-10-02). The pane resolves its own extent from its
+    range (`_resolve_width`, `_resolve_height`): it measured only what it drew, so
+    in a slot of 300 by 200 it was 40 by 54. Its content gets
+    `with_inner_size` of the range, less the insets and less the title bar and
+    its gap. Test: `test_size_range_one_child()`. The three examples with a title
+    pane keep their counts (12701 pass, 196 fail, 4 broken, the same without the
+    change: the fails are type-in and navigation baselines).
 
 ## 3. The file chooser draws its parts at one place
 

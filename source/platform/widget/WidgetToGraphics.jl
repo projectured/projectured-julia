@@ -3443,7 +3443,8 @@ end
 
 function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::WidgetTitlePane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+    content_ctx = _get_title_pane_content_context(p, w, ctx)
+    content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = Cell(@computation begin
         content_x, content_y0 = _content_offset(p, w)
         title_text = _get_part_text(w, :title_text, p.title_text)
@@ -3466,20 +3467,35 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
             cw, ch = _text_size(p.measure, body_text.font, content)
             _push_text!(body_elems, p.measure, body_text.font, content, content_x, content_y, body_text.color)
         end
-        box_content_width = max(tw, cw)
-        box_content_height = (content_y - content_y0) + ch
+        # The pane takes its slot, and with no slot the title and the content.
+        inset_width, inset_height = _inset_total(p, w)
+        outer_width = _resolve_width(ctx, 0, max(tw, cw) + inset_width)
+        outer_height = _resolve_height(ctx, 0, (content_y - content_y0) + ch + inset_height)
+        box_content_width = outer_width - inset_width
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), box_content_width,
-                         box_content_height)
+                         outer_height - inset_height)
         title_bar_color = _get_part_color(w, :title_bar_color, p.title_bar_color)
         _push_panel!(elems, content_x, content_y0, box_content_width, th; fill = title_bar_color)
         # Card-like: bold title, body in the content style.
         _push_text!(elems, p.measure, title_text.font, title, content_x, content_y0, title_text.color)
         append!(elems, body_elems)
-        (elements=elems, child_iomaps=child_iomaps)
+        (width=outer_width, height=outer_height, elements=elems, child_iomaps=child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
-                  Cell(@computation build[].child_iomaps))
+    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
+end
+
+# The range of the content: the range of the pane less its insets, and less the
+# title bar and its gap on the height, in the same state, so a slot stays a slot
+# and an edge stays an edge (§3 of layout-rules.md).
+function _get_title_pane_content_context(p::WidgetTitlePaneToGraphicsCanvas, w::WidgetTitlePane, ctx)
+    ctx === nothing && return nothing
+    inset_width = Cell(@computation _inset_total(p, w)[1])
+    above = Cell(@computation begin
+        title_text = _get_part_text(w, :title_text, p.title_text)
+        _inset_total(p, w)[2] + _text_size(p.measure, title_text.font, string(w.title))[2] + p.title_gap
+    end)
+    with_inner_size(ctx; width = inset_width, height = above)
 end
 
 map_reference_forward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)

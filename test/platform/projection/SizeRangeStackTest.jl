@@ -92,3 +92,41 @@ end
     @test sizes[2] == (80, 24)
 end
 end # test_size_range_composite
+
+# A widget with one child printed in a range of `width` by `height`: exact when
+# `exact`, bounded when not, free with no `width`. The size of the widget, and
+# the place and the size of its child.
+function _range_one_child_sizes(widget, width, height; exact = true)
+    projection = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+    ctx = width === nothing ? PrinterContext() :
+          exact ? PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}()) :
+          with_bounded_size(PrinterContext(); width = Cell(width), height = Cell(height))
+    iomap = print_document(projection, nothing, widget, ctx)
+    x, y, child = only(getfield(iomap, :child_iomaps)[])
+    ((Int(iomap.output.w[]), Int(iomap.output.h[])), (x, y),
+     (Int(child.output.w[]), Int(child.output.h[])))
+end
+
+"""
+    test_size_range_one_child()
+
+A widget with one child gives the child its own range less the parts it draws
+around the child: a slot stays a slot and an edge stays an edge (§3 of
+layout-rules.md).
+"""
+function test_size_range_one_child()
+@testset "a title pane gives its content its slot less the insets and the title bar" begin
+    pane() = WidgetTitlePane("T", WidgetLabel("Name"))
+    free, _, content = _range_one_child_sizes(pane(), nothing, nothing)
+    frame = (free[1] - content[1], free[2] - content[2])
+    size, (x, y), content = _range_one_child_sizes(pane(), 300, 200)
+    @test size == (300, 200)
+    @test content == (300 - frame[1], 200 - frame[2])
+    @test x + content[1] <= 300 && y + content[2] <= 200
+    # At an edge, a long label wraps inside the pane.
+    _, _, content = _range_one_child_sizes(WidgetTitlePane("T", WidgetLabel(_RANGE_PROSE)), 300, 200;
+                                           exact = false)
+    @test 200 < content[1] <= 300 - frame[1]
+end
+end # test_size_range_one_child
