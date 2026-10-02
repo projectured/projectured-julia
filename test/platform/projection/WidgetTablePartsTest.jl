@@ -202,7 +202,7 @@ end
     (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "value")
     column = read(io, MouseClick(:left, hx + 2, hy + 2, mods; time = 0.0))
     @test column isa ReplaceSelectionOperation
-    @test column.path.head.name == "column_headers"
+    @test column.path.head.name == "columns"
     @test column.path.tail.head.start + 1 == 2
 end
 
@@ -485,10 +485,15 @@ span(rect) = (Int(rect.x), Int(rect.w))
     io = print_document(rec, nothing, table, context())
     edges = io.state.edges[]
     column = (edges[2], edges[3] - edges[2])
-    getfield(table, :selection)[] = ConcreteReference(FieldReferenceStep("column_headers"),
+    getfield(table, :selection)[] = ConcreteReference(FieldReferenceStep("columns"),
         ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
     @test span(header_graphics(io)[3]) == column
     @test all(k -> span(row_graphics(io, k)[2]) == column, 1:3)
+    # The header alone is a part of its own: it bands the header row only.
+    getfield(table, :selection)[] = ConcreteReference(FieldReferenceStep("column_headers"),
+        ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+    @test span(header_graphics(io)[3]) == column
+    @test all(k -> span(row_graphics(io, k)[2]) == (0, 0), 1:3)
     # The whole table bands every row from edge to edge.
     getfield(table, :selection)[] = EmptyReference()
     @test span(row_graphics(io, 2)[2]) == (0, last(edges) + io.state.bw)
@@ -505,7 +510,7 @@ end
     table = make_table(make_list(5, texts_of))
     io = print_document(rec, nothing, table, context())
     key(name; kw...) = read(io, KeyDown(name, ModifierKeys(; kw...); time = 0.0))
-    column(c) = ConcreteReference(FieldReferenceStep("column_headers"),
+    column(c) = ConcreteReference(FieldReferenceStep("columns"),
                     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
     getfield(table, :selection)[] = column(1)
     @test key(:right).path == column(2)
@@ -579,7 +584,7 @@ text_x(io, label) = only(t[1] for t in texts(io.output) if t[3] == label)
     # A press on a header selects its column, and on a cell its row.
     (hx, hy, _) = only(t for t in texts(io.output) if t[3] == "h2")
     column = read(io, MouseClick(:left, hx + 2, hy + 2, mods; time = 0.0))
-    @test column.path.head.name == "column_headers" && column.path.tail.head.start + 1 == 2
+    @test column.path.head.name == "columns" && column.path.tail.head.start + 1 == 2
     (x, y) = place(io, 2, 4)
     cell = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
     @test (row_of(cell.path), column_of(cell.path)) == (2, 4)
@@ -712,12 +717,19 @@ end
 end
 
 @testset "a press on a row header selects its row, and a press on the corner the table" begin
-    io = print_document(rec, nothing, make_headed_table(1000), context())
+    table = make_headed_table(1000)
+    io = print_document(rec, nothing, table, context())
     (x, y) = text_at(io, "#2")
     op = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0))
     @test op.path.head.name == "rows" && row_of(op.path) == 2
     (x, y) = text_at(io, "corner")
     @test read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path == EmptyReference()
+    # The row bands its cells; its header alone is a part of its own and bands
+    # none of them.
+    getfield(table, :selection)[] = op.path
+    @test span(row_graphics(io, 2)[2])[2] > 0
+    getfield(table, :selection)[] = row_header_reference(2)
+    @test span(row_graphics(io, 2)[2]) == (0, 0)
 end
 
 @testset "a reference reaches a row header and the corner, and a point maps back to them" begin
@@ -807,9 +819,13 @@ end
     @test key isa ReplaceStringRangeOperation
     @test get_reference_steps(strip_reference_types(key.reference))[1:2] ==
           [FieldReferenceStep("column_headers"), RangeReferenceStep(1, 2)]
-    # A header that declines a press selects its column.
+    # A header that declines a press selects its column, and an Alt+press selects
+    # the header itself.
     (x, y) = text_at(io, "name")
     path = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path
+    @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("columns"),
+        ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+    path = read(io, MouseClick(:left, x + 2, y + 2, ModifierKeys(alt = true); time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("column_headers"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
 end

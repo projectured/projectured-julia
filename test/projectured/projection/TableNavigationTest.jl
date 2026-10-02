@@ -11,7 +11,7 @@
 #   re-applied, re-printed and the iomap walked. Returns (state_count, errors).
 #
 # Reference vocabulary on WidgetTable: whole cell = `rows[r][c]`, whole row =
-# `rows[r]`, whole column = `column_headers[c]`, whole table = `∅`, in-cell
+# `rows[r]`, whole column = `columns[c]`, whole table = `∅`, in-cell
 # cursor = `rows[r][c].<tail>`.
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -101,7 +101,7 @@ function explore_table_selections(document, projection; onstate=nothing)
     (state_count=length(visited), errors=errors)
 end
 
-# A structural selection is `∅`, `rows[r]∅`, `column_headers[c]∅`, or
+# A structural selection is `∅`, `rows[r]∅`, `columns[c]∅`, `column_headers[c]∅`, or
 # `rows[r][c]∅` — i.e. it terminates at an element, not inside cell content.
 function _wt_is_structural(path)
     path isa EmptyReference && return true
@@ -118,7 +118,7 @@ function _wt_is_structural(path)
         t2 isa ConcreteReference || return false
         (t2.head isa RangeReferenceStep && is_element_reference_step(t2.head)) || return false
         return t2.tail isa EmptyReference
-    elseif h.name == "column_headers"
+    elseif h.name in ("columns", "column_headers")
         return t.tail isa EmptyReference
     end
     return false
@@ -200,7 +200,7 @@ end
 
     # Shift+Space / Ctrl+Space widen the active cell to its row / column.
     @test nav(KeyDown(:space, ModifierKeys(shift=true); time = 0.0), _wt_cell(2, 2)) == ".rows[2]"
-    @test nav(KeyDown(:space, ModifierKeys(ctrl=true); time = 0.0),  _wt_cell(2, 2)) == ".column_headers[2]"
+    @test nav(KeyDown(:space, ModifierKeys(ctrl=true); time = 0.0),  _wt_cell(2, 2)) == ".columns[2]"
 
     # A whole row steps between rows and narrows to its first cell.
     @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[3]"
@@ -209,8 +209,8 @@ end
     @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[2][1]"
 
     # A whole column steps between columns and narrows to its first cell.
-    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_col(2)) == ".column_headers[3]"
-    @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".column_headers[1]"
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_col(2)) == ".columns[3]"
+    @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".columns[1]"
     @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".rows[1][2]"
     @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_col(2)) == ".rows[1][2]"
 
@@ -251,9 +251,15 @@ end
     # Column header strip (grid row 1) over data column 3.
     gc = 3 + geom.col_offset
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
+    # The header is a string, so a plain click puts the caret in it, and an
+    # Alt+click selects the header itself; a header of labels, which declines a
+    # click, selects its column (`test_widget_table`).
     col_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
     @test col_op isa ReplaceSelectionOperation
-    @test string(col_op.path) == ".column_headers[3]"
+    steps = get_reference_steps(strip_reference_types(col_op.path))
+    @test steps[1:2] == [FieldReferenceStep("column_headers"), RangeReferenceStep(2, 3)] && length(steps) > 2
+    alt_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(alt = true); time = 0.0))
+    @test string(alt_op.path) == ".column_headers[3]"
 
     # Row header strip (grid column 1) over data row 2.
     gr = 2 + geom.row_offset

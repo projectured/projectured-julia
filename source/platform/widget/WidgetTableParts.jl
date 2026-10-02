@@ -265,11 +265,12 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height::
 end
 
 # The band of the light or of the selection in row `k` of the header column:
-# the whole column for the table or for row `k`, and nothing else.
+# the whole column for the table, for row `k` or for its header, and nothing
+# else.
 function _get_header_column_band_span(named, k, st::WidgetTablePartsState)
     named === nothing && return (0, 0)
     shape, row, _ = named
-    (shape === :table || (shape === :row && row == k)) || return (0, 0)
+    (shape === :table || (shape in (:row, :row_header) && row == k)) || return (0, 0)
     (0, Int(st.header_width[]))
 end
 
@@ -364,17 +365,20 @@ end
 # ── The graphics of the rows ─────────────────────────────────────────────────
 
 # What a reference names in a table of a list, as `(shape, row, column)`:
-# `(:table, 0, 0)` for `∅`, `(:row, k, 0)` for `rows[k]∅` and for its header
-# `row_headers[k]∅`, `(:cell, k, c)` for `rows[k][c]∅` and `(:column, 0, c)` for
-# `column_headers[c]∅`; `nothing` for anything else. A row can have an index of
-# 0 or less, before the head.
+# `(:table, 0, 0)` for `∅`, `(:row, k, 0)` for `rows[k]∅`, `(:column, 0, c)` for
+# `columns[c]∅`, `(:cell, k, c)` for `rows[k][c]∅`, and the header of a row or of
+# a column, a part of its own, `(:row_header, k, 0)` for `row_headers[k]∅` and
+# `(:column_header, 0, c)` for `column_headers[c]∅`; `nothing` for anything else.
+# A row can have an index of 0 or less, before the head.
 function _find_named_part(reference)
     reference isa EmptyReference && return (:table, 0, 0)
     terminal = _wt_field_element_terminal(reference)
     if terminal !== nothing
         field, index = terminal
-        field in ("rows", "row_headers") && return (:row, index, 0)
-        field == "column_headers" && return (:column, 0, index)
+        field == "rows" && return (:row, index, 0)
+        field == "row_headers" && return (:row_header, index, 0)
+        field == "columns" && return (:column, 0, index)
+        field == "column_headers" && return (:column_header, 0, index)
         return nothing
     end
     cell = _wt_cell_terminal(reference)
@@ -531,12 +535,15 @@ end
 # The left edge and the width of the band that `named` draws in row `k`, or in
 # the header row for `k === nothing`; `(0, 0)` for no band there. The table and
 # a column band every row and the header row, a row and a cell only their own
-# row.
+# row, a column header only the header row, and a row header none here.
 function _get_band_span(named, k, st::WidgetTablePartsState)
     named === nothing && return (0, 0)
     shape, row, column = named
     shape === :table && return _get_table_row_span(st)
     shape === :column && return something(_get_table_column_span(st, column), (0, 0))
+    shape === :column_header &&
+        return k === nothing ? something(_get_table_column_span(st, column), (0, 0)) : (0, 0)
+    shape === :row_header && return (0, 0)
     (k === nothing || row != k) && return (0, 0)
     shape === :row && return _get_table_row_span(st)
     something(_get_table_column_span(st, column), (0, 0))
@@ -1166,7 +1173,7 @@ function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTab
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
-    part === :header && return _wt_col_ref(c)
+    part === :header && return _wt_column_header_ref(c)
     k = _find_table_row_at(st, y)
     k === nothing ? nothing : _wt_cell_ref(k, c)
 end
@@ -1203,8 +1210,9 @@ end
 
 # A left press: a row header selects its row; the corner takes the press, and a
 # press that it declines selects the table. In the header row and in the cells,
-# an Alt+press selects the column or the cell, and a plain press goes to the
-# header or the cell. A header that declines it selects its column, and a cell
+# an Alt+press selects the header or the cell, each a part of its own, and a
+# plain press goes to the header or the cell. A header that declines it selects
+# its column, `columns[c]`, and a cell
 # that declines it — a label has nothing to say to one — leaves it to the row,
 # and the row is selected: a table of text is a table of rows.
 function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
@@ -1224,7 +1232,7 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     if part === :header
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_col_ref(c))
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(c))
         op = _read_table_header_press(st, c, g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_col_ref(c)) : op
     end
@@ -1347,14 +1355,15 @@ function _make_advanced_row_node(row_node, c::Int)
     node
 end
 
-# `column_headers[c]…` and `rows[r][c]…` with `c` counted from a head column
-# `distance` columns further on; any other reference, the same object.
+# `columns[c]…`, `column_headers[c]…` and `rows[r][c]…` with `c` counted from a
+# head column `distance` columns further on; any other reference, the same
+# object.
 function _shift_column_reference(reference, distance::Int)
     reference isa ConcreteReference && reference.head isa FieldReferenceStep || return reference
     shift(step) = RangeReferenceStep(step.start - distance, step.stop - distance)
     tail = reference.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
-    if reference.head.name == "column_headers"
+    if reference.head.name in ("columns", "column_headers")
         return ConcreteReference(reference.head, ConcreteReference(shift(tail.head), tail.tail))
     elseif reference.head.name == "rows"
         rest = tail.tail
@@ -1376,11 +1385,11 @@ function _find_list_node(head, k::Int)
     node
 end
 
-# `rows[r]…` with `r` counted from a head `distance` rows further on; any other
-# reference, the same object.
+# `rows[r]…` and `row_headers[r]…` with `r` counted from a head `distance` rows
+# further on; any other reference, the same object.
 function _shift_row_reference(reference, distance::Int)
     (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
-     reference.head.name == "rows") || return reference
+     reference.head.name in ("rows", "row_headers")) || return reference
     tail = reference.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
     step = tail.head
@@ -1403,7 +1412,7 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     named = _find_named_part(iomap.input.selection)
     named === nothing && return nothing
     shape, k, c = named
-    shape === :table && return nothing
+    shape in (:table, :column_header, :row_header) && return nothing
     if shape === :column
         top = iomap.input.top_row
         evt.key === :return && return ReplaceSelectionOperation(_wt_cell_ref(top, c))

@@ -10,7 +10,8 @@
 # a 2-D highlight band. Reference vocabulary on WidgetTable:
 #   * whole table   → `∅`
 #   * whole row r   → `rows[r]∅`
-#   * whole column c→ `column_headers[c]∅`
+#   * whole column c→ `columns[c]∅`
+#   * header of c   → `column_headers[c]∅`, a part of its own
 #   * whole cell    → `rows[r][c]∅`
 #   * in-cell cursor→ `rows[r][c].<content-tail>` (draws no band; the cell's own
 #                     pipeline draws the caret).
@@ -22,8 +23,12 @@ _table_measure() = FixedMeasure(10, 15, 5, 0)
 # Reference builders in the WidgetTable vocabulary.
 _wt_row(r)     = ConcreteReference(FieldReferenceStep("rows"),
                     ConcreteReference(ElementReferenceStep(r), EmptyReference()))
-_wt_col(c)     = ConcreteReference(FieldReferenceStep("column_headers"),
+_wt_col(c)     = ConcreteReference(FieldReferenceStep("columns"),
                     ConcreteReference(ElementReferenceStep(c), EmptyReference()))
+_wt_column_header(c) = ConcreteReference(FieldReferenceStep("column_headers"),
+                    ConcreteReference(ElementReferenceStep(c), EmptyReference()))
+_wt_row_header(r) = ConcreteReference(FieldReferenceStep("row_headers"),
+                    ConcreteReference(ElementReferenceStep(r), EmptyReference()))
 _wt_cell(r, c) = ConcreteReference(FieldReferenceStep("rows"),
                     ConcreteReference(ElementReferenceStep(r),
                         ConcreteReference(ElementReferenceStep(c), EmptyReference())))
@@ -71,6 +76,8 @@ function test_table_selection()
     row_hs   = th(_wt_row(2))
     col_hs   = th(_wt_col(3))
     cell_hs  = th(_wt_cell(2, 3))     # row 2, column 3 = intersection of the bands
+    header_hs = th(_wt_column_header(3))
+    row_header_hs = th(_wt_row_header(2))
 
     @test length(table_hs) == 1
     @test length(row_hs) == 1
@@ -97,6 +104,20 @@ function test_table_selection()
 
     # Table extent agrees with the bands.
     @test T.w == R.w && T.h == C.h
+
+    # A header is a part of its own: the cell of the header of its column, or of
+    # its row, and not the column or the row.
+    H, RH = only(header_hs), only(row_header_hs)
+    @test H.x == C.x && H.w == C.w && H.y == 0 && 0 < H.h < C.h
+    @test RH.y == R.y && RH.h == R.h && RH.x == 0 && 0 < RH.w < R.w
+end
+
+@testset "a whole column is a path that a table evaluates" begin
+    doc = make_math_table_document_example()
+    column = try_evaluate_reference(doc, _wt_col(2))
+    @test column isa WidgetTableColumn && column.index == 2
+    set_selection!(doc, _wt_col(2))
+    @test strip_reference_types(get_selection(doc)) == _wt_col(2)
 end
 
 @testset "highlight is drawn behind the grid content" begin

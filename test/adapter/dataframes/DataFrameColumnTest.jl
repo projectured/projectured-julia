@@ -22,7 +22,7 @@ function test_data_frame_columns()
             change isa Intent ? change.operation : change
         end
         table_of(io) = _data_frame_table_iomap(io).input
-        header_reference(c) = ConcreteReference(FieldReferenceStep("column_headers"),
+        column_reference(c) = ConcreteReference(FieldReferenceStep("columns"),
             ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
         module_ = ProjecturedDataFrames.DataFramesModule
         labels_of(menu) = [item.action.label for item in menu.elements]
@@ -37,9 +37,9 @@ function test_data_frame_columns()
             @test strip_reference_types(op.path).head == DataFrameColumnReferenceStep("name")
             column = try_evaluate_reference(view, op.path)
             @test column isa DataFrameColumn && column.view === view && column.name == "name"
-            # The table shows the selection of the view on the header of the column.
+            # The table shows the selection of the view on the column.
             getfield(view, :selection)[] = op.path
-            @test strip_reference_types(table_of(io).selection) == header_reference(2)
+            @test strip_reference_types(table_of(io).selection) == column_reference(2)
         end
 
         @testset "a press on the corner selects the view" begin
@@ -139,7 +139,7 @@ function test_data_frame_columns()
             op = press(io, x + 2, y + 2)
             @test strip_reference_types(op.path).head == DataFrameColumnReferenceStep("c51")
             getfield(view, :selection)[] = op.path
-            @test strip_reference_types(table_of(io).selection) == header_reference(2)
+            @test strip_reference_types(table_of(io).selection) == column_reference(2)
         end
     end
 end

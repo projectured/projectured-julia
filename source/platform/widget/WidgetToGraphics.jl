@@ -8860,10 +8860,11 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
 # default every part of the box of the table is transparent and every inset is
 # zero, so the box costs nothing.
 #
-# **Selection.** Field names `rows` / `column_headers` / `row_headers` are the
-# public reference vocabulary. A whole-element selection is a path terminating at
-# the element (`∅`); the table, the one place with the geometry, turns a 1-D
-# handle into a 2-D band. An in-cell cursor (`rows[r][c].…`) descends into the
+# **Selection.** Field names `rows` / `columns` / `column_headers` / `row_headers`
+# are the public reference vocabulary: `rows[r]` a row, `columns[c]` a column,
+# `rows[r][c]` a cell, and a header a part of its own. A whole-element selection
+# is a path terminating at the element (`∅`); the table, the one place with the
+# geometry, turns a 1-D handle into a 2-D band, and a header into its cell. An in-cell cursor (`rows[r][c].…`) descends into the
 # cell's own sub-pipeline and is drawn there.
 
 @projection UntrackedCell struct WidgetTableToGraphicsCanvas
@@ -9160,7 +9161,9 @@ function _wt_field_element_terminal(sel)
     (h.name, r.start + 1)
 end
 
-# (:table,_,_) | (:row,r,_) | (:col,c,_) | (:cell,r,c) | nothing
+# (:table,_,_) | (:row,r,_) | (:col,c,_) | (:cell,r,c) | (:column_header,c,_) |
+# (:row_header,r,_) | nothing. A header is a part of its own, apart from its
+# column or its row.
 function _wt_selection_shape(sel, geom::WTGeometry)
     sel isa EmptyReference && return (:table, 0, 0)
     fe = _wt_field_element_terminal(sel)
@@ -9169,12 +9172,15 @@ function _wt_selection_shape(sel, geom::WTGeometry)
         if field == "rows"
             (1 <= idx <= geom.nrows) || return nothing
             return (:row, idx, 0)
-        elseif field == "column_headers"
+        elseif field == "columns"
             (1 <= idx <= geom.ncols) || return nothing
             return (:col, idx, 0)
+        elseif field == "column_headers"
+            (geom.has_col_headers && 1 <= idx <= geom.ncols) || return nothing
+            return (:column_header, idx, 0)
         elseif field == "row_headers"
-            (1 <= idx <= geom.nrows) || return nothing
-            return (:row, idx, 0)
+            (geom.has_row_headers && 1 <= idx <= geom.nrows) || return nothing
+            return (:row_header, idx, 0)
         end
         return nothing
     end
@@ -9234,6 +9240,12 @@ function _wt_highlight_bounds(sel, geom::WTGeometry)
         gc = shape[3] + geom.col_offset
         return (geom.col_x[gc], geom.row_y[gr],
                 geom.col_x[gc + 1] - geom.col_x[gc], geom.row_y[gr + 1] - geom.row_y[gr])
+    elseif kind === :column_header
+        gc = shape[2] + geom.col_offset
+        return (geom.col_x[gc], geom.row_y[1], geom.col_x[gc + 1] - geom.col_x[gc], geom.row_y[2] - geom.row_y[1])
+    elseif kind === :row_header
+        gr = shape[2] + geom.row_offset
+        return (geom.col_x[1], geom.row_y[gr], geom.col_x[2] - geom.col_x[1], geom.row_y[gr + 1] - geom.row_y[gr])
     end
     (0, 0, 0, 0)
 end
@@ -9513,13 +9525,32 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
     elseif kind === :row
         return ReplaceSelectionOperation(_wt_row_ref(hit[2]))
     elseif kind === :col
-        return ReplaceSelectionOperation(_wt_col_ref(hit[2]))
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(hit[2]))
+        return _wt_route_header_click(iomap, hit[2], g, x, y)
     elseif kind === :cell
         r, c = hit[2], hit[3]
         g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(r, c))
         return _wt_route_cell_click(iomap, r, c, g, x, y)
     end
     return nothing
+end
+
+# Route a plain click at `(x, y)`, in the coordinates of the geometry, into the
+# content of the header of column `c`, and root what it answers under the
+# header. A header that declines it — a label has nothing to say to one —
+# selects its column, as the table of a list does.
+function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, c::Int, g::MouseClick,
+                                x::Int, y::Int)
+    column = ReplaceSelectionOperation(_wt_col_ref(c))
+    found = _wt_find_part_entry(iomap, _wt_column_header_ref(c))
+    found === nothing && return column
+    pane, i, steps, _ = found
+    cell = _wt_find_part_cell(iomap, pane, i)
+    cell === nothing && return column
+    cim, left, top = cell
+    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count, g.modifiers;
+                                                     time = g.time))
+    op === nothing ? column : reroot_operation(op, steps)
 end
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
@@ -9543,8 +9574,9 @@ end
 
 # ── The light (whole row) ────────────────────────────────────────────────────
 # The light marks the *row* of a place in the table (a body cell or a row header →
-# that row); a column header → its column; the corner → none. The reference of the
-# row or the column of the place that `target` names, or nothing.
+# that row); a column header → its column, which a press there selects; the
+# corner → none. The reference of the row or the column of the place that
+# `target` names, or nothing.
 function _find_wt_lit_reference(target)
     row = _widget_element_selected(target, "rows")
     row > 0 && return _wt_row_ref(row)
@@ -9659,7 +9691,10 @@ end
 
 _wt_row_ref(r::Int) = ConcreteReference(FieldReferenceStep("rows"),
     ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
-_wt_col_ref(c::Int) = ConcreteReference(FieldReferenceStep("column_headers"),
+_wt_col_ref(c::Int) = ConcreteReference(FieldReferenceStep("columns"),
+    ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+# The header of column `c` itself, a part apart from its column.
+_wt_column_header_ref(c::Int) = ConcreteReference(FieldReferenceStep("column_headers"),
     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
 _wt_cell_ref(r::Int, c::Int) = ConcreteReference(FieldReferenceStep("rows"),
     ConcreteReference(RangeReferenceStep(r - 1, r),
@@ -9718,7 +9753,7 @@ function _wt_read_cell_under(p::WidgetTableToGraphicsCanvas,
     x, y = _wt_get_unscrolled_point(p, iomap, Int(event.x), Int(event.y))
     hit = _wt_hit_test(geom, x, y)
     reference = hit[1] === :cell ? _wt_cell_ref(hit[2], hit[3]) :
-                hit[1] === :col  ? _wt_col_ref(hit[2]) :
+                hit[1] === :col  ? _wt_column_header_ref(hit[2]) :
                 (hit[1] === :row && geom.has_row_headers) ?
                     ConcreteReference(FieldReferenceStep("row_headers"),
                                       ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2]),

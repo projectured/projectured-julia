@@ -1150,11 +1150,55 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     data frame: the type-in is on in `PrimitiveToSyntax`, which the natural
     renderer of a cell uses. The `.pred` text writes the limit of a type-in,
     a type, by its bare name (the owner chose it).
-  - [ ] **4.1** The paths of a table (the widget table, generic): the computed
+  - [x] **4.1** The paths of a table (the widget table, generic): the computed
     field `columns`; a number of a list table counts in the whole table, from
     the number of its head row that its owner gives; a click on a column
     header selects `columns[c]`, a click on a row header selects `rows[r]`;
     the selection shapes; the markdown table and the cell table follow.
+    Done 2026-10-02, except the count in the whole table, which waits for the
+    owner (below):
+    - A field step reads a field with `getfield`, and `@document` has no
+      computed field, so `columns` is a field that holds a
+      `WidgetTableColumns`, which holds nothing; its `[c]` gives a
+      `WidgetTableColumn(c)`. The four positional calls of `WidgetTable` (the
+      cell table, the markdown table, the two tables of the view) pass it.
+    - `_wt_col_ref(c)` is `columns[c]`, and `_wt_column_header_ref(c)` is the
+      header. A point on a header maps back to the header; the light of a
+      header is its column, which a press there selects; Ctrl+Space and the
+      arrows of a column give `columns[c]`.
+    - The shapes: `columns[c]` bands the column, `column_headers[c]` and
+      `row_headers[r]` band their own cell only, in both forms; a row header
+      alone bands no cell of its row. Keys do nothing on a whole header.
+    - A press on a column header goes to the header first and selects the
+      column when the header declines it, now in both forms: the eager form
+      never sent it to the header before, and the list form did. So a click on
+      a header that is text, a markdown entry or a string, puts the caret in it,
+      and a header of labels selects its column. An Alt+press selects the
+      header itself (mine).
+    - The markdown table maps `columns[c]` to nothing, because a page has no
+      column; a click on its header puts the caret in the entry.
+    - The view maps `columns[c]` and `column_headers[c]` to its column, and
+      shows its column as `columns[c]`. Its own paths change in 4.2.
+    - **The count in the whole table is not done.** The generic `getindex` of a
+      `ListNode` (collection slice), the kernel step that evaluates a path and
+      the selection walker (`SelectionDefaults.jl`, sealed) all read `rows[k]`
+      of a list as the node `k` from the head, so the table alone can not count
+      in the whole table. Options for the owner: (1) a list node knows its
+      number and `getindex` walks to it, a change of the meaning of a list for
+      every user; (2) `rows` holds a numbered view of the list, which every
+      reader of `rows` follows; (3) the table keeps the count from the head,
+      and the view, which keeps its selection in numbers of the frame and
+      computes the table's selection from them, maps them. Recommendation of
+      the writer: (3), because only the view builds a list table, and its
+      selection does not go stale after a scroll.
+    - Tests: the list table 214 (a header band alone, a row header alone, Alt
+      on a header), the table selection 25 (the band of a header cell, a column
+      that a table evaluates), the navigation 66 (a click in a string header
+      puts the caret in it), the markdown 233 (a click on a header puts the
+      caret in its entry), the data frames 272, the platform 86,666 (8 broken),
+      the cell table, the light, the forward and the backward maps of a widget.
+      The cell editing test of the umbrella fails in "a JSON string" with 3
+      failures and 1 error, a known failure of main.
   - [ ] **4.2** The paths of the view: the computed fields `rows` and
     `columns`; `DataFrameColumnReferenceStep` goes and `DataFrameColumn` is
     `columns[c]`; the view maps its paths, in numbers of the frame, to the

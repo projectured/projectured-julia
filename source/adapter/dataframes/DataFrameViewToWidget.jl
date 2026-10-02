@@ -141,6 +141,7 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
     policies = Cell(@computation Any[_get_column_width_policy(view, name, _COLUMN_POLICY)
                                      for name in _get_shown_columns(view)])
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
+                        Cell(WidgetTableColumns()),
                         Cell(@computation length(_get_shown_columns(view))), Cell(1),
                         Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), policies, Cell(Any[]),
                         Cell(:clip), Cell(Symbol[]), align,
@@ -202,7 +203,8 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                          c -> _get_column_width_policy(view, columns[c], nothing))))
     row_headers, corner = _make_row_numbers(view)
     # Positional, as in `_make_view_table` above.
-    table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows, Cell(0), Cell(1),
+    table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
+                        Cell(WidgetTableColumns()), Cell(0), Cell(1),
                         Cell(Fixed(_LIST_COLUMN_WIDTH)), Cell(Fixed(p.row_height)),
                         policies, Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
@@ -230,16 +232,18 @@ function _get_table_selection(view::DataFrameView, column_list::Bool)
         return _make_header_reference(view, view.query.column_filters[found[1]].column, field, column_list)
     end
     (selection isa ConcreteReference && selection.head isa DataFrameColumnReferenceStep) || return nothing
-    _make_header_reference(view, selection.head.name, EmptyReference(), column_list)
+    _make_header_reference(view, selection.head.name, EmptyReference(), column_list; field = "columns")
 end
 
-# The path in the table of the header of column `name`, followed by `tail`, or
-# `nothing` when the view does not show the column.
-function _make_header_reference(view::DataFrameView, name::String, tail, column_list::Bool)
+# The path in the table of the header of column `name`, followed by `tail`, or,
+# with `field = "columns"`, of the whole column; `nothing` when the view does
+# not show the column.
+function _make_header_reference(view::DataFrameView, name::String, tail, column_list::Bool;
+                                field::String = "column_headers")
     c = findfirst(==(name), _get_shown_columns(view))
     c === nothing && return nothing
     column_list && (c -= view.column_anchor - 1)
-    ConcreteReference(FieldReferenceStep("column_headers"),
+    ConcreteReference(FieldReferenceStep(field),
                       ConcreteReference(RangeReferenceStep(c - 1, c), tail))
 end
 
@@ -328,8 +332,8 @@ end
 
 # The path in the view of `path`, a path in the table: the text of the query and
 # its range for a field of the filter row, the view for the table and for the
-# rest of its corner, a column for the header of the column, and `nothing` for
-# any other place.
+# rest of its corner, a column for the column and for its header, which holds no
+# state of its own in the view, and `nothing` for any other place.
 function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     path isa EmptyReference && return EmptyReference()
     (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
@@ -337,7 +341,7 @@ function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     text = _find_query_text_path(view, path, c -> _find_shown_column(iomap, c))
     text === nothing || return text
     path.head.name == "corner" && return EmptyReference()
-    path.head.name == "column_headers" || return nothing
+    path.head.name in ("columns", "column_headers") || return nothing
     tail = path.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.tail isa EmptyReference) ||
         return nothing

@@ -2187,6 +2187,27 @@ WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Intege
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
 """
+    WidgetTableColumns()
+
+The value of the field `columns` of a [`WidgetTable`](@ref): what the path
+`columns[c]` of a whole column steps through. It holds nothing, and `[c]` gives
+the column `c`.
+"""
+struct WidgetTableColumns end
+
+Base.getindex(::WidgetTableColumns, c::Integer) = WidgetTableColumn(c)
+
+"""
+    WidgetTableColumn(index)
+
+A whole column of a table, what the path `columns[c]` names, apart from its
+header `column_headers[c]`. It holds its number.
+"""
+struct WidgetTableColumn
+    index::Int
+end
+
+"""
     WidgetTable(; position, column_headers, rows, column_count, row_headers, ...)
     WidgetTable(headers::Vector, rows::Vector; position)
 
@@ -2230,8 +2251,15 @@ that the grids report ("layout is just layout").
   rows; a row is a `CellVector` of `Document` cells either way. A list is drawn
   one row at a time as a viewport reaches it, and `rows[i]` counts from the
   list's head — the head is row 1, and a row reached through `prev` has an
-  index of zero or less. Field names `rows` / `column_headers` / `row_headers`
-  are the public reference vocabulary for selection.
+  index of zero or less.
+- `columns` — a [`WidgetTableColumns`](@ref), which holds nothing: what the path
+  `columns[c]` of a whole column steps through.
+
+The paths of a table are its field names: `rows[r]` is a row, `columns[c]` a
+column, `rows[r][c]` a cell, `column_headers[c]` the header of a column and
+`row_headers[r]` the header of a row, each a part of its own. A press on a
+column header selects its column and a press on a row header its row; a press
+in the content of a header goes to the header.
 - `column_count::Int` — number of columns.
 - `border_width::Int` — the width of the outer frame and the grid lines. The
   padding inside a cell is the projection's `cell_padding`, from the theme.
@@ -2269,6 +2297,7 @@ See also `make_result_table` and `WidgetList` for one column.
     row_headers::CellVector      # of Document (or nothing) — optional left strip; a ListNode beside a list of rows
     corner::Any                  # Document or nothing — where the header row and the header column meet
     rows::Any                    # CellVector of rows, or a ListNode of them; a row is a CellVector of Document cells
+    columns::Any                 # WidgetTableColumns: what the path `columns[c]` of a whole column steps through
     column_count::Int
     border_width::Int
     column_policy::Any           # SizePolicy — what every body column is
@@ -2396,7 +2425,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                 row_headers isa ListNode ? Cell(row_headers) :
                     CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
                 Cell(_table_cell_doc(corner)),
-                _table_rows(rows),
+                _table_rows(rows), Cell(WidgetTableColumns()),
                 Cell(Int(column_count)), Cell(Int(border_width)),
                 Cell(column_policy), Cell(row_policy),
                 Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),

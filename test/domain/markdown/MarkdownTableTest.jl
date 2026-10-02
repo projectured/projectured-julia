@@ -123,6 +123,37 @@ end
     @test maximum(x + length(text) * 8 for (x, text) in texts) <= 400
 end
 
+@testset "a click on a header puts the caret in its entry" begin
+    page = parse_markdown(source)
+    renderer = NaturalToGraphics(measure = _measure)
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(400)),
+                                                height = Cell(Int32(800)))
+    chain = ChainingProjection(MarkdownRootToVerticalLayout(), VerticalLayoutToGraphicsCanvas())
+    iomap = print_document(chain, renderer, page, context)
+    # The place of the first text that reads `Type`, the first header.
+    function place_of(node, word, ox = 0, oy = 0)
+        if node isa GraphicsCanvas || node isa GraphicsViewport
+            elements = node isa GraphicsCanvas ? node.elements : (node.content,)
+            for element in elements
+                found = place_of(element, word, ox + Int(node.x), oy + Int(node.y))
+                found === nothing || return found
+            end
+        elseif node isa GraphicsText && occursin(word, string(node.text))
+            return (ox + Int(node.x), oy + Int(node.y))
+        end
+        nothing
+    end
+    (x, y) = place_of(iomap.output, "Type")
+    change = read_intent(chain, renderer, Intent(MouseClick(:left, x + 2, y + 2, ModifierKeys(); time = 0.0),
+                                                 nothing), iomap)
+    operation = change isa Intent ? change.operation : change
+    @test operation isa ReplaceSelectionOperation
+    steps = get_reference_steps(strip_reference_types(operation.path))
+    @test steps[1:5] == [FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("header"),
+                         FieldReferenceStep("elements"), RangeReferenceStep(0, 1)]
+    @test length(steps) > 5
+end
+
 @testset "a column sits where the delimiter row says" begin
     renderer = NaturalToGraphics(measure = _measure)
     context = with_exact_size(PrinterContext(); width = Cell(Int32(400)),
