@@ -964,50 +964,103 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   from the thread of the editor. A write of one value does no harm to an
   input that reads the frame. A row insert or delete while an input reads the
   same frame is the rare race of §4.3 in the other direction.
-  Implementation design, 2026-09-30, with points E1 to E6 for the owner;
-  each recommendation is mine:
-  - **E1. The path of a cell.** The view has no field for its rows or
-    columns, so a path names them with steps of the domain, as a chart names
-    a sample with `ChartSampleReferenceStep` (§3.4): a
-    `DataFrameCellReferenceStep(row, column)` of a source row index and a
-    column name, which evaluates on the view to the text of the cell, and the
-    caret goes on inside that text as in any text; `DataFrameRowReferenceStep`
-    and `DataFrameColumnReferenceStep` for a whole row and a whole column. The
-    projection of the view maps the paths of the table, `rows[k][c]…`, to
-    these and back, with the anchors. Recommendation: these three steps,
-    rather than the fields `rows[row].columns[name]` of §3.4, which the view
-    does not have.
-  - **E2. The pending text.** The view keeps, as view state, a map from a cell
-    (source row, column name) to the text that a person typed there and did
-    not commit. A cell with a pending text shows it, with a mark when it did
-    not parse, and its reason in a tooltip; any other cell shows its value.
-    Enter, Tab or a move out commits; Escape drops it. A text that does not
-    parse stays in the map while the selection moves on, as §3.6 says.
-    Recommendation: the map, with one entry for each cell that has a pending
-    text.
-  - **E3. An editable cell.** A cell is a `WidgetText` over a cell that
-    computes the pending text or the printed value, where it is a
-    `WidgetLabel` now; the table sends a key to the selected cell, and the
-    view turns the write of the text (`ReplaceStringRangeOperation` at
-    `rows[k][c]`) into a write of the pending text. Recommendation: every
-    cell a `WidgetText`; the table builds only the cells that show.
-  - **E4. The operations and undo.** `SetDataFrameValueOperation(frame, row,
-    column, value)`, whose inverse through `make_inverse_operation` writes
-    the old value, so a commit is one step of undo and Ctrl+Z takes it back.
-    A write of a pending text is view state and no step of undo. The other
-    operations of §3.6 (insert, delete, rename, move and convert rows and
-    columns) need gestures that no step designs yet. Recommendation: phase 4
-    in two steps: 4a the edit of a cell with undo and `SubDataFrame`; 4b the other operations with a context menu on the
-    header of a column and on a row.
-  - **E5. A `DataFrameRow`** is shown as a form: a table of two columns, the
-    name and the value of each column, editable as a cell is.
-    Recommendation: after 4a, in 4b.
+  The first design (2026-09-30, points E1 to E6) put a new reference step
+  `DataFrameCellReferenceStep(row, column)` on each cell, a map of pending
+  texts in the view, and a `WidgetText` in every cell. The owner rejected it
+  in a review, 2026-10-02:
+  - No new reference step type. If the state is in the view, the path points
+    there as normal and the printer maps it forward as usual. If the state is
+    in the widget stage, the path points into the stage that the projection
+    made, whose headers, rows and cells are already part of the document.
+  - No widget in a cell for the edit: a value is edited as the document that
+    presents it, which can be a primitive document. So a widget table with
+    JSON in a cell is edited the same way.
+  - Most of the table of a data frame must be generic widget table code, so
+    other domains do not repeat it.
+
+  Facts of the review (2026-10-02, from the code):
+  - The table already gives a key to the document in its selected cell, in
+    both forms, and reroots the answer
+    ([edit-inside-a-table-cell.md](../done/edit-inside-a-table-cell.md)).
+  - `rows` of the table of the view is a computation over the anchor, the kept
+    rows, the shown columns and the version of the frame, so a scroll, a sort,
+    a filter, a refresh and a column move make new cell documents. A text
+    typed into a cell document of the widget stage is lost at the next scroll.
+  - An introduced path evaluates to its output path, not to the output
+    document, and a reader declines an edit whose path has an introduced
+    step. To edit a document of the widget stage by its path is a new
+    mechanism.
+  - `rows[k]` of a list table counts from the head of the list, so a kept path
+    into the widget stage names another row after a scroll.
+  - A number document holds a number or `nothing`, so `-` and `1e` are lost.
+
+  **The owner's decisions, 2026-10-02:**
+  - **R1. The state is in the view** (the owner: "in the view").
+  - **R2. The number keeps its text**, instead of a string document in the view
+    for a number cell (the owner: "fix the number instead"). The plan is
+    [a-number-keeps-its-text.md](a-number-keeps-its-text.md); it is step 4.0.
+  - **R3. A cell that has no edit is named `column("price")[5]`**: the column
+    step of 5.2 and the ordinary index step, with the row of the frame (the
+    owner: "yes").
+
+  The design that follows from R1 to R3 (each point mine unless the owner made
+  it above):
+  - **A cell holds the primitive document of its value**: a `PrimitiveNumber`,
+    a `PrimitiveString` or a `PrimitiveBool`. The table edits it as it edits
+    any cell document.
+  - **The view keeps the cells that a person edited and did not commit**: a
+    field `edits`, a list of documents, each with the row of the frame, the
+    column name and the primitive document of the cell. The selection in an
+    edited cell points there with ordinary steps, `.edits[i].document…`, and
+    the printer shows that document in the cell and maps the path forward to
+    `rows[k][c]…`, as it maps a filter field now.
+  - **The first key in a cell that has no edit** comes up from the table as an
+    edit at `rows[k][c]…`. The view turns it into a new entry of `edits`, a copy
+    of the cell document with the key applied, and the selection goes into the
+    entry.
+  - **The commit is generic.** Enter, Tab and a move out of the cell make the
+    table write an operation that commits the cell, which the owner of the
+    table converts, as the width of a column of 5.7 is written by the table and
+    converted by the view. A table that no owner converts commits nothing,
+    because its cell documents are the documents themselves.
+  - **The commit of the view** converts the value of the entry to the element
+    type of the column. When it converts, one operation writes the frame and
+    removes the entry, so the commit is one step of undo:
+    `SetDataFrameValueOperation(frame, row, column, value)`, whose inverse
+    writes the old value (E4 stays). When it does not convert, the entry stays
+    and the cell shows a mark, with the reason in a tooltip. The mark and its
+    tooltip are generic, a part of a cell of the widget table.
+  - **An empty text** writes `missing` where the column allows it.
+  - **A `DataFrameRow`** shows as a table of two columns, the name and the
+    value, whose cells are primitive documents as above (E5, in 4b).
   - **E6. The busy flag. Withdrawn** (the owner, 2026-09-30, D3 changes in
     §5.1). The editor takes input during a REPL input. After the input, the
     display calls `refresh_document!` on each shown view (phase 3).
-  Without sort and filter (phase 5), a commit writes the value, Enter moves
-  the selection to the cell below and Tab to the next cell (D10 without its
-  sort).
+
+  Open (for the owner, before 4.1):
+  - A column whose element type has no primitive document, such as a `Date`,
+    a `Symbol` or a type of another package. Mine: the cell shows the value as
+    now and takes no key, and its tooltip says why.
+  - The cost of a primitive document in each shown cell, in place of a label,
+    for a scroll of the frame of ten million rows. Measure it in 4.1.
+
+  Steps of 4a, the edit of a cell, each with its tests:
+  - [ ] **4.0** The number keeps its text
+    ([a-number-keeps-its-text.md](a-number-keeps-its-text.md)).
+  - [ ] **4.1** The cells are primitive documents; a click selects
+    `column(name)[row]`, and the view maps it forward to the cell.
+  - [ ] **4.2** The entries of `edits`: the first key makes one, the cell
+    shows it, and the selection stays in it after a scroll.
+  - [ ] **4.3** The generic commit, the mark and its tooltip, in the widget
+    table.
+  - [ ] **4.4** The commit of the view: `SetDataFrameValueOperation` and undo,
+    the write through a `SubDataFrame`, and trigger A of refresh.
+  - [ ] **4.5** The sort and the filter again after a commit (D6), and the
+    selection after it (D10).
+
+  4b, after 4a: the other operations of §3.6 (insert, delete, rename, move and
+  convert of rows and columns) from a context menu on the header of a column
+  and on a row, and the `DataFrameRow`.
 - [ ] **5. Sort and filter.** The query document, the header gestures, the
   quick filters, the expression filter, column hide and move. The sort and
   the filter again on a commit (D6), and the selection after it (D10). Column
