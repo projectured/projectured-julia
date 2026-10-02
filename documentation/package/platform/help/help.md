@@ -35,6 +35,12 @@ CellVector   ProjecturedPlatform   type: cell vector
 
 With the packages of the application loaded, the Documents list holds 170 types and the Projections list holds about 445. The first `get_insertion_candidates(Document)` of a session walks every loaded module and takes 3 to 5 seconds; an empty tab pays the same cost once. After that walk, the first list that `compute_help_entries` builds takes about 0.2 seconds, and the next takes about 0.01 seconds.
 
+### The theme
+
+`HelpTheme` holds the text of a heading, a name, a detail, a description and a muted note of the lists of help, and the title of the about page. Each value has the default that the slice draws with no
+appearance. `HelpListToSyntax` and `AboutPageToSyntax` take `theme`, a `HelpTheme` or a scaled one; with none they hold the
+default values. The registration of help gives the scaled theme of the `Appearance`.
+
 ## How it fits
 
 The help slice depends on the domain slice for `get_insertion_candidates`, `compute_concrete_subtypes` and `get_insertion_names`; on the syntax and text slices for the `SyntaxNode`, `SyntaxLeaf` and `TextString` that the two printers build; on the style slice for the styles of a list and of the page; on the natural slice for `register_natural_syntax!`; and on the serialization slice for `pred_arguments`, besides the kernel.

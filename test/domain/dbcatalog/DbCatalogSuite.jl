@@ -30,9 +30,10 @@ function test_dbcatalog()
         test_db_catalog_rdbms_to_sql()
         test_db_catalog_marker_eligible()
         test_db_catalog_sql()
+        test_dbcatalog_theme()
     end
 end
 
 export test_dbcatalog, test_dbcatalog_layering, test_db_catalog_column_to_sql
 export test_db_catalog_table_to_sql, test_db_catalog_schema_to_sql, test_db_catalog_database_to_sql
-export test_db_catalog_rdbms_to_sql, test_db_catalog_marker_eligible, test_db_catalog_sql
+export test_db_catalog_rdbms_to_sql, test_db_catalog_marker_eligible, test_db_catalog_sql, test_dbcatalog_theme

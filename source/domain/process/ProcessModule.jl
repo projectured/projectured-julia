@@ -56,6 +56,7 @@ export ProcessTrace, ProcessStoppedException, process_at!,
 export ProcessDiagram, ProcessTerminal, ProcessEdgeLabel
 export ProcessDebugSession, is_stale, has_breakpoint, toggle_breakpoint!,
        set_process_position!, sync_process_debug!, detach_process_debug!
+export ProcessTheme, ScaledProcessTheme
 export ProcessSequenceToSyntaxNode, ProcessModelToSyntaxNode,
        ProcessStepToSyntaxNode, ProcessDecisionToSyntaxNode,
        ProcessWhileToSyntaxNode, ProcessForeachToSyntaxNode,
@@ -77,6 +78,7 @@ include("ProcessDocument.jl")
 include("ProcessRuntime.jl")
 include("ProcessDiagram.jl")
 include("ProcessDebugSession.jl")
+include("ProcessTheme.jl")
 include("ProcessToSyntax.jl")
 include("ProcessToProcessDiagram.jl")
 include("ProcessDiagramToGraph.jl")

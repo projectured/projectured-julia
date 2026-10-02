@@ -25,8 +25,9 @@
 # are the actual items.
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
-@projection struct DbCatalogColumnToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+@projection UntrackedCell struct DbCatalogColumnToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_dbcatalog_style(theme, :column_text)
 end
 
 function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
@@ -181,7 +182,7 @@ end
 # the caller can set it after building the ChildrenIoMap.
 
 function _catalog_syntax_node(p, recursion, ctx, input_doc,
-                              name_style::StyleText,
+                              name_style::StyleText, keyword_style::StyleText,
                               keyword::String, label, children)
     child_iomaps = Cell(@computation begin
         [print_child(recursion, elem, make_child_context(ctx, ElementReferenceStep(i)))
@@ -192,7 +193,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
     # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
         CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
-        open=TextString(" " * keyword, font_ubuntu_monospace_regular_20, color_default),
+        open=TextString(" " * keyword, keyword_style),
         indentation=-1,
         collapsed=Cell(!_children_realized(children)))
 
@@ -214,13 +215,15 @@ end
 
 # ── DbCatalogTableToSyntaxNode ────────────────────────────────────────────────
 
-@projection struct DbCatalogTableToSyntaxNode
-    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+@projection UntrackedCell struct DbCatalogTableToSyntaxNode
+    theme::Any = nothing
+    name::StyleText    = _get_dbcatalog_style(theme, :table_text)
+    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
 end
 
 function print_document(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
-        p, recursion, ctx, table, p.name,
+        p, recursion, ctx, table, p.name, p.keyword,
         "Columns", () -> " " * table.name, table.columns)
     iomap = ChildrenIoMap(p, table, node, child_iomaps)
     iomap_cell[] = iomap
@@ -236,13 +239,15 @@ read_intent(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePath
 
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
 
-@projection struct DbCatalogSchemaToSyntaxNode
-    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+@projection UntrackedCell struct DbCatalogSchemaToSyntaxNode
+    theme::Any = nothing
+    name::StyleText    = _get_dbcatalog_style(theme, :schema_text)
+    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
 end
 
 function print_document(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
-        p, recursion, ctx, schema, p.name,
+        p, recursion, ctx, schema, p.name, p.keyword,
         "Tables", () -> " " * schema.name, schema.tables)
     iomap = ChildrenIoMap(p, schema, node, child_iomaps)
     iomap_cell[] = iomap
@@ -258,13 +263,15 @@ read_intent(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePat
 
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
 
-@projection struct DbCatalogDatabaseToSyntaxNode
-    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+@projection UntrackedCell struct DbCatalogDatabaseToSyntaxNode
+    theme::Any = nothing
+    name::StyleText    = _get_dbcatalog_style(theme, :database_text)
+    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
 end
 
 function print_document(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
-        p, recursion, ctx, db, p.name,
+        p, recursion, ctx, db, p.name, p.keyword,
         "Schemas", () -> " " * db.name, db.schemas)
     iomap = ChildrenIoMap(p, db, node, child_iomaps)
     iomap_cell[] = iomap
@@ -280,13 +287,15 @@ read_intent(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceP
 
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
 
-@projection struct DbCatalogRdbmsToSyntaxNode
-    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+@projection UntrackedCell struct DbCatalogRdbmsToSyntaxNode
+    theme::Any = nothing
+    name::StyleText    = _get_dbcatalog_style(theme, :database_text)
+    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
 end
 
 function print_document(p::DbCatalogRdbmsToSyntaxNode, recursion, rdbms::DbCatalogRdbms, ctx)
     node, child_iomaps, iomap_cell = _catalog_syntax_node(
-        p, recursion, ctx, rdbms, p.name,
+        p, recursion, ctx, rdbms, p.name, p.keyword,
         "Databases", () -> " " * rdbms.host * ":" * string(rdbms.port), rdbms.databases)
     iomap = ChildrenIoMap(p, rdbms, node, child_iomaps)
     iomap_cell[] = iomap
@@ -323,12 +332,15 @@ is_dbcatalog_marker_eligible(node::SyntaxNode) =
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 
-function DbCatalogToSyntax()
+# `theme` is a `DbCatalogTheme`, a scaled one, or `nothing` for the default
+# styles.
+function DbCatalogToSyntax(; theme = nothing)
+    theme = scale_theme(theme)
     TypeDispatchingProjection(
-        DbCatalogRdbms      => DbCatalogRdbmsToSyntaxNode(),
-        DbCatalogDatabase   => DbCatalogDatabaseToSyntaxNode(),
-        DbCatalogSchema     => DbCatalogSchemaToSyntaxNode(),
-        DbCatalogTable      => DbCatalogTableToSyntaxNode(),
-        DbCatalogColumn     => DbCatalogColumnToSyntaxLeaf(),
+        DbCatalogRdbms      => DbCatalogRdbmsToSyntaxNode(; theme),
+        DbCatalogDatabase   => DbCatalogDatabaseToSyntaxNode(; theme),
+        DbCatalogSchema     => DbCatalogSchemaToSyntaxNode(; theme),
+        DbCatalogTable      => DbCatalogTableToSyntaxNode(; theme),
+        DbCatalogColumn     => DbCatalogColumnToSyntaxLeaf(; theme),
     )
 end

@@ -99,6 +99,12 @@ Embedded code sees `ctx`, the schedule context, `m`, the host struct, and `paylo
 
 A timer works in two ways, and the reference machines use both: as a timeout trigger, and as a guard that polls `is_scheduled(m.t)`. So `expire_<timer>!` dispatches the timeout event to each machine that has the timer as a trigger, and a dispatch of event `0` to each other machine that has condition-only transitions.
 
+### The theme
+
+`FsmTheme` holds the text of a keyword, a name, a reference and the chrome, and the name of a state and the trigger of a transition in a diagram. Each value has the default that the slice draws with no
+appearance. `FsmToSyntax(; theme, julia_theme, syntax_theme)` and the two label projections of a diagram take `theme`, a `FsmTheme` or a scaled one; with none they hold the
+default values. The Julia code of a guard or an action takes `julia_theme`. The FSM has no view in this repository's application, so a builder that has the themes passes them.
+
 ## How it fits
 
 `ProjecturedFSM` depends on `ProjecturedJulia`, because the code is Julia documents, and on `ProjecturedGraph`, because the diagram is a graph. It also depends on the kernel and the platform. No package depends on it. `process` is its complement; see [process.md](../process/process.md).

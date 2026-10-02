@@ -38,6 +38,12 @@ The panel reads the maximum width and height of the range in the printer context
 
 `GestureLogToSyntax` prints one line for each entry, the newest first, so the newest line stays in one place. It uses DejaVu Sans Mono, which has the glyphs `←` and `∅`. A glyph from a fallback font has a width of its own, and the columns would not align. A line of a selection operation is muted. The panel is 8 pixels wider than its text, because the measure function of the printer and the text metrics of the backend differ a little.
 
+### The theme
+
+`GestureLogTheme` holds the text of the index, the gesture, the operation and the muted parts of a line of the gesture log, and of an empty log. Each value has the default that the slice draws with no
+appearance. `GestureLogToSyntax` takes `theme`, a `GestureLogTheme` or a scaled one; with none it holds the
+default values. The registration of the gesture log gives the scaled theme of the `Appearance`. The overlay keeps its own styles.
+
 ## How it fits
 
 The gesturelog slice depends on the kernel and on the collection, domain, graphics, natural, projection, serialization, style, syntax and text slices.

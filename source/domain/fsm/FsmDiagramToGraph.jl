@@ -28,9 +28,9 @@
 # transition as its trigger/guard/action — the target is the edge itself, so
 # repeating it on the label would be noise.
 
-@projection struct FsmStateToSyntaxLabel
-    name::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+@projection UntrackedCell struct FsmStateToSyntaxLabel
+    theme::Any = nothing
+    name::StyleText = _get_fsm_style(theme, :state_label_text)
 end
 
 @projection_template FsmStateToSyntaxLabel FsmState (p, doc) ->
@@ -39,13 +39,11 @@ end
                                       placeholder = "state",
                                       style = p.name)))
 
-@projection struct FsmTransitionToSyntaxLabel
-    keyword::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    ref::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
-    chrome::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct FsmTransitionToSyntaxLabel
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :trigger_text)
+    ref::StyleText     = _get_fsm_style(theme, :reference_text)
+    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
 end
 
 _trigger_label(doc) = begin

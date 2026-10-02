@@ -16,6 +16,12 @@ A message travels through three parts. This is the feed pattern of the editor; [
 
 `MessageLogToSyntax` prints one line for each entry, newest first, so the newest line keeps its place on the screen. The level and the message are two columns in DejaVu Sans Mono, because a glyph that falls back to another font has another width and breaks the columns. The view has no reader: a log is not edited.
 
+### The theme
+
+`MessageLogTheme` holds the text of the level and the message of a line of the message log, and of an empty log. Each value has the default that the slice draws with no
+appearance. `MessageLogToSyntax` takes `theme`, a `MessageLogTheme` or a scaled one; with none it holds the
+default values. The registration of the message log gives the scaled theme of the `Appearance`.
+
 ## How it fits
 
 The log slice depends on the kernel for the feed contract, and on the syntax and text slices for the view. Its `__init__` registers the view with `register_natural_syntax!(:messagelog, …)`. `pred_arguments` saves only the capacity, so a loaded log starts empty.

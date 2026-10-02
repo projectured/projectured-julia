@@ -38,6 +38,7 @@ import ..ProjectionModule: print_document, map_reference_forward, map_reference_
 export get_fsm_states, get_fsm_transitions, find_fsm,
        find_state, find_event, find_timer, get_fsm_transition_index
 export FsmDiagram
+export FsmTheme, ScaledFsmTheme
 export FsmVariableToSyntaxNode, FsmTimerToSyntaxLeaf, FsmEventToSyntaxLeaf,
        FsmTransitionToSyntaxNode, FsmStateToSyntaxNode, FsmMachineToSyntaxNode,
        FsmComponentToSyntaxNode, FsmInsertionToSyntaxLeaf, FsmToSyntax
@@ -52,6 +53,7 @@ export FsmDocument, FsmNothing, FsmInsertion, FsmComponent, FsmMachine, FsmState
 
 include("FsmDocument.jl")
 include("FsmDiagram.jl")
+include("FsmTheme.jl")
 include("FsmToSyntax.jl")
 include("FsmToFsmDiagram.jl")
 include("FsmDiagramToGraph.jl")

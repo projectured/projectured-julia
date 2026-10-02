@@ -1062,9 +1062,34 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     gives the tuple to the helpers in place of the module consts.
   - `ChartStyle.legend_font` and `SequenceChartStyle.label_font` were read by
     nothing; the legend and the labels of events, arrows and bands draw with them.
-- [ ] **P4. The tools and the overlays:** `fault`, `gesturelog`,
+- [x] **P4. The tools and the overlays:** `fault`, `gesturelog`,
   `gesturehelp` (with the command palette), `inspector`, `log`, `statistics`,
-  `undo`, `process`, `fsm`, `help`, `dbcatalog`, `filesystem`.
+  `undo`, `process`, `fsm`, `help`, `dbcatalog`, `filesystem`. Done with this
+  form (finding 31):
+  - A theme for each slice, with the roles that its projections draw, in the form
+    of P2. A theme reaches a projection where its builder has an `Appearance`:
+    the natural registrations, `make_window_wrap` (the command palette and the
+    gesture help decorator) and `make_opened_window_projections` (the window of
+    the gesture map). These also pass the syntax and the text themes to the
+    chains that they build, so the palette and the F1 window scale.
+  - The overlays of the fault log and of the gesture log, and the substitutes of
+    a fault barrier (`FaultToSyntax`, `FaultToText`, `FaultToGraphics`), have no
+    builder with an `Appearance`; they keep their literals.
+  - `UndoBufferToSyntax` has no view in the application; it takes `theme` like
+    the others, and a builder that has one passes it.
+  - `ReferenceTheme` in the text slice holds the colors of the tokens of a
+    reference (`ReferenceToText`), and `InspectorTheme` the header of the
+    inspector.
+  - Process, FSM and the database catalog have no view in this repository's
+    application; their factories take `theme`, and process and FSM pass
+    `julia_theme` and `syntax_theme` on to `JuliaToSyntax`.
+  - Three agents run one after another, because the platform slices are one
+    package and a second agent would compile it while the first edits it.
+- [ ] **Open: the graph domain** has no step in Part P. Its look (the border,
+  the fill, the radius and the padding of a box, the color and the width of an
+  edge and of an arrow, the highlight) is a set of module consts in
+  `GraphLayoutToGraphics.jl`, and the diagrams of process and FSM draw through
+  it.
 
 ### Part W: the wrapper and its controls
 
@@ -1494,3 +1519,30 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     - The sequence chart has no natural registration, so only a builder that
       passes `theme` themes it; omnet-julia builds both printers with keywords and
       passes no theme yet.
+31. **P4: the tools and the overlays have themes** (2026-10-02). Thirteen themes:
+    `FaultTheme`, `GestureLogTheme`, `MessageLogTheme`, `FrameStatisticsTheme`,
+    `UndoTheme`, `FileSystemTheme`, `GestureHelpTheme`, `HelpTheme`,
+    `InspectorTheme`, `ReferenceTheme` (text slice), `ProcessTheme`, `FsmTheme`
+    and `DbCatalogTheme`. Every default equals the literal of the code, so the
+    images of all 94 examples that draw as one image equal those of `9b5d1210a`
+    byte for byte. The tests: 377 and 211 pass in the platform parts, 208 in
+    the umbrella tests of help, the palette and the inspector, 309, 159 and 72
+    in the suites of process, FSM and the catalog, and 1031 in a last run of the
+    umbrella tests of the tools, the application and the guards (2 old broken
+    markers of the navigator). Facts found:
+    - The shell slice uses the syntax and the text slices, because
+      `make_window_wrap` and `make_opened_window_projections` pass their themes
+      to the command palette and to the window of the gesture map. The table of
+      the slice edges names the two new edges.
+    - `GestureHelpDecoratorProjection` only opens the window of a gesture map;
+      the renderer of that window takes the themes, so the decorator has none.
+    - A style field that holds a `NamedTuple` of values is declared
+      `::NamedTuple`, because the cell struct layer makes an `Any` field an
+      `UntrackedCell{Any}`, which takes no `UntrackedCell{NamedTuple}`.
+    - A theme type that a module of the export rule exports can not appear in
+      its export block, because only the macro defines the scaled type; `@theme`
+      exports the theme as `@document` does.
+    - The six log tools named their style fields by role (`count_text`, …); the
+      help, palette and inspector projections kept theirs.
+    - The catalog has no design document, so its theme is described only in its
+      docstring.

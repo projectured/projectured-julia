@@ -126,6 +126,12 @@ Both views read the session. The flowchart draws the ring and the edge. The nota
 
 **Staleness.** A session records `node_count` when the code is realized. When the tree has a different count, the bridge sets `status = :stale` and clears the position, and both views draw no highlight: a wrong box that looks right is worse than none. An edit of an embedded Julia expression renumbers nothing, so the node count is enough as a stamp.
 
+### The theme
+
+`ProcessTheme` holds the text of a keyword, a name, an action, the chrome, the current step and a breakpoint, and the label of a terminal in a diagram. Each value has the default that the slice draws with no
+appearance. `ProcessToSyntax(; session, theme, julia_theme, syntax_theme)` and `ProcessToSyntaxLabel` take `theme`, a `ProcessTheme` or a scaled one; with none they hold the
+default values. The Julia code of a step takes `julia_theme`. Process has no view in this repository's application, so a builder that has the themes passes them.
+
 ## How it fits
 
 `ProjecturedProcess` depends on the same packages as `ProjecturedFSM`: `ProjecturedJulia` for the code, `ProjecturedGraph` for the flowchart, and the kernel and the platform. The two domains do not depend on each other. No package depends on it.

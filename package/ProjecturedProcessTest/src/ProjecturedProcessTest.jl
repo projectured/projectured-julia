@@ -48,6 +48,7 @@ include("../../../test/domain/process/projection/ProcessDebugTest.jl")
 include("../../../test/domain/process/projection/ProcessDiagramTest.jl")
 include("../../../test/domain/process/projection/ProcessToJuliaCodeTest.jl")
 include("../../../test/domain/process/projection/ProcessToSyntaxTest.jl")
+include("../../../test/domain/process/projection/ProcessThemeTest.jl")
 
 include("../../../test/domain/process/ProcessSuite.jl")
 

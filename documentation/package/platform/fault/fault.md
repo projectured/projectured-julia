@@ -117,6 +117,12 @@ The editor layer holds one limit for each counter, and `get_consecutive_fault_li
 
 `fault_log = true` is the wrapper of `build_editor` that attaches the fault log of the session (`get_session_fault_log()`) to the fault store of the editor in a start step, so the log holds every fault that the editor catches. It is off by default. It acts in the layer `:screen` with the number 30, which acts once, on the root, rather than nesting around the content.
 
+### The theme
+
+`FaultTheme` holds the text of the count, the site, the origin and the message of a line of the fault log, and of an empty log. Each value has the default that the slice draws with no
+appearance. `FaultLogToSyntax` takes `theme`, a `FaultTheme` or a scaled one; with none it holds the
+default values. The registration of the fault log gives the scaled theme of the `Appearance`. The overlay of the fault log and the substitutes of a fault barrier keep their own styles, because no builder of them has an `Appearance`.
+
 ## How it fits
 
 The kernel layer `fault` is the lowest layer of the kernel and imports nothing. The fault slice depends on the kernel and on the collection, domain, graphics, natural, projection, serialization, style, syntax, text and widget slices. It needs the four output domains for the four marks.

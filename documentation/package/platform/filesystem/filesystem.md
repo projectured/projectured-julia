@@ -43,6 +43,12 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 
 `has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate is a copy of the folders; see [document.md](../../kernel/document.md#the-duplicate). The selected row and the open folders are not in the workspace. The reader writes the row selection on the computed `FileSystemDirectory`, and the open folders are a cell of the `WidgetTree` (`expanded`). So a duplicate opens with no row selected and only the first level open.
 
+### The theme
+
+`FileSystemTheme` holds the text of a file and of a directory in the syntax form. Each value has the default that the slice draws with no
+appearance. `FileSystemToSyntax` takes `theme`, a `FileSystemTheme` or a scaled one; with none it holds the
+default values. The registration gives the scaled theme of the `Appearance`. The tree of the explorer is made of widgets, so it follows the widget theme.
+
 ## How it fits
 
 The file-system slice depends on the file-format and pane slices for the open, on the widget slice for the tree, and on the focus slice for the Alt+press that selects the workspace. The shell slice uses it for the dialogs and for the Explorer button of the toolbar.

@@ -132,6 +132,12 @@ none they draw the default values. The natural renderer gives them the scaled
 `TextTheme` of its `Appearance`. `TextHighlighting`, `SelectionInverting` and
 `TextLineNumbering` take their colors and fonts as keywords.
 
+`ReferenceTheme` holds the font, the italic font and the colors of the tokens of a
+reference that `ReferenceToText` and `ReferenceToHumanReadableText` draw: the
+punctuation, a name, an index, a type, a projection and an unknown step. Each
+projection holds all its values as one style field and reads it once at each
+print. The inspector gives it the scaled theme of its `Appearance`.
+
 ## How it fits
 
 The text slice depends on the kernel and on the collection, domain, primitive, projection, style and graphics slices. The syntax slice prints every leaf and node to it, so every domain with a syntax chain uses it. Widgets, the conversation view, the console backend and the undo view use it directly.

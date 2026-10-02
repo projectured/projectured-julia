@@ -48,6 +48,12 @@ The output is one `GraphicsCanvas` whose first element is the inner output, open
 
 Nothing but declare its gestures with `@gestures`. The description of a rule is what both lists show, and a rule with no description shows its key alone. A rule with `nothing` in the pattern slot has no key; it appears in the palette by its name.
 
+### The theme
+
+`GestureHelpTheme` holds the text of the header, a gesture, a description and the muted parts of the gesture map; the text of the query, a header, the selected row, a command and the muted parts of the command palette; and the background, the border, the radius, the border width and the padding of the panel of the palette. Each value has the default that the slice draws with no
+appearance. `GestureMapToSyntax`, `CommandPaletteToSyntax` and `CommandPaletteDecoratorProjection` take `theme`, a `GestureHelpTheme` or a scaled one; with none they hold the
+default values. `make_window_wrap` gives the palette its theme and the syntax and the text themes of the `Appearance`, and `make_opened_window_projections` gives them to the window of the gesture map, so both scale with the editor.
+
 ## How it fits
 
 The gesturehelp slice depends on the kernel and on the collection, graphics, projection, screen, style, syntax and text slices. It takes the collection of intents from the gesture bindings of the kernel, and the window operations from the screen slice.

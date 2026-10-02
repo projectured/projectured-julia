@@ -55,9 +55,9 @@
 # never its children — projecting a decision through the full notation would
 # inline both its branches into the box the branches hang off.
 
-@projection struct ProcessStepToSyntaxLabel
-    text::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+@projection UntrackedCell struct ProcessStepToSyntaxLabel
+    theme::Any = nothing
+    text::StyleText = _get_process_style(theme, :action_text)
 end
 
 # A described step shows its prose; a code-only step shows its code, which is
@@ -77,9 +77,9 @@ end
         end
     end)
 
-@projection struct ProcessDecisionToSyntaxLabel
-    chrome::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct ProcessDecisionToSyntaxLabel
+    theme::Any = nothing
+    chrome::StyleText = _get_process_style(theme, :chrome_text)
 end
 
 @projection_template ProcessDecisionToSyntaxLabel ProcessDecision (p, doc) ->
@@ -87,11 +87,10 @@ end
                                    SyntaxLeaf(TextString("<condition>", p.chrome)) :
                                    project(:condition) ])
 
-@projection struct ProcessWhileToSyntaxLabel
-    keyword::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    chrome::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct ProcessWhileToSyntaxLabel
+    theme::Any = nothing
+    keyword::StyleText = _get_process_style(theme, :keyword_text)
+    chrome::StyleText  = _get_process_style(theme, :chrome_text)
 end
 
 @projection_template ProcessWhileToSyntaxLabel ProcessWhile (p, doc) ->
@@ -100,11 +99,10 @@ end
                                    SyntaxLeaf(TextString("<condition>", p.chrome)) :
                                    project(:condition) ])
 
-@projection struct ProcessForeachToSyntaxLabel
-    keyword::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-    chrome::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct ProcessForeachToSyntaxLabel
+    theme::Any = nothing
+    keyword::StyleText = _get_process_style(theme, :keyword_text)
+    chrome::StyleText  = _get_process_style(theme, :chrome_text)
 end
 
 @projection_template ProcessForeachToSyntaxLabel ProcessForeach (p, doc) ->
@@ -118,40 +116,45 @@ end
         children
     end)
 
-@projection struct ProcessTerminalToSyntaxLabel
-    style::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+@projection UntrackedCell struct ProcessTerminalToSyntaxLabel
+    theme::Any = nothing
+    style::StyleText = _get_process_style(theme, :terminal_text)
 end
 
 @projection_template ProcessTerminalToSyntaxLabel ProcessTerminal (p, doc) ->
     SyntaxLeaf(TextString(() -> String(doc.kind), p.style))
 
-@projection struct ProcessEdgeLabelToSyntaxLeaf
-    style::ImmutableCell{StyleText} =
-        StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct ProcessEdgeLabelToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_process_style(theme, :chrome_text)
 end
 
 @projection_template ProcessEdgeLabelToSyntaxLeaf ProcessEdgeLabel (p, doc) ->
     SyntaxLeaf(TextString(() -> doc.text, p.style))
 
 """
-    ProcessToSyntaxLabel()
+    ProcessToSyntaxLabel(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
 
 The diagram's label table: the compact per-node forms above, with the full
 notation as the fallback so a box holding a foreign content type still renders.
+`theme` is a `ProcessTheme`, a scaled one, or `nothing` for the default styles;
+`julia_theme` and `syntax_theme` reach the fallback's embedded Julia nodes.
 """
-ProcessToSyntaxLabel() = TypeDispatchingProjection(
-    ProcessStep     => ProcessStepToSyntaxLabel(),
-    ProcessDecision => ProcessDecisionToSyntaxLabel(),
-    ProcessWhile    => ProcessWhileToSyntaxLabel(),
-    ProcessForeach  => ProcessForeachToSyntaxLabel(),
-    ProcessBreak    => ProcessBreakToSyntaxLeaf(),
-    ProcessContinue => ProcessContinueToSyntaxLeaf(),
-    ProcessReturn   => ProcessReturnToSyntaxNode(),
-    ProcessTerminal => ProcessTerminalToSyntaxLabel(),
-    ProcessEdgeLabel => ProcessEdgeLabelToSyntaxLeaf(),
-    Any             => ProcessToSyntax(),
-)
+function ProcessToSyntaxLabel(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
+    scaled = scale_theme(theme)
+    TypeDispatchingProjection(
+        ProcessStep     => ProcessStepToSyntaxLabel(theme = scaled),
+        ProcessDecision => ProcessDecisionToSyntaxLabel(theme = scaled),
+        ProcessWhile    => ProcessWhileToSyntaxLabel(theme = scaled),
+        ProcessForeach  => ProcessForeachToSyntaxLabel(theme = scaled),
+        ProcessBreak    => ProcessBreakToSyntaxLeaf(theme = scaled),
+        ProcessContinue => ProcessContinueToSyntaxLeaf(theme = scaled),
+        ProcessReturn   => ProcessReturnToSyntaxNode(theme = scaled),
+        ProcessTerminal => ProcessTerminalToSyntaxLabel(theme = scaled),
+        ProcessEdgeLabel => ProcessEdgeLabelToSyntaxLeaf(theme = scaled),
+        Any             => ProcessToSyntax(; theme, julia_theme, syntax_theme),
+    )
+end
 
 # ── The flowchart walk ───────────────────────────────────────────────────────
 

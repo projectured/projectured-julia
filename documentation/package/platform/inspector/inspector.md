@@ -32,6 +32,12 @@ A function becomes the computation of a cell in the `source` field. So a read of
 
 `SelectionInspectorToText` holds a `ReferenceInspectorToText` and gives it all the rendering. Its computed text reads `source`, makes a `ReferenceInspector` with `find_inspected_selection(source, root)` and `get_inspected_document(source, root)`, and prints that. `root` is the document of the editor, which the editor puts into the printer context under `:root`. A `nothing` source falls back to `root`, and a reference is read against `root`. So the words of a step are written in one place.
 
+### The theme
+
+`InspectorTheme` holds the font of the inspector and the font and the color of its header. Each value has the default that the slice draws with no
+appearance. `ReferenceInspectorToText` and `SelectionInspectorToText` take `theme`, a `InspectorTheme` or a scaled one; with none they hold the
+default values. The tokens of a reference take the colors of `ReferenceTheme` of the text slice. The registration of the inspector gives both scaled themes of the `Appearance`, and the text theme to its `TextToGraphics`.
+
 ## How it fits
 
 The code is in `source/platform/inspector/`, one file for each document and each projection. The inspector slice depends on the kernel and on the domain, natural, projection, serialization, style and text slices. It names no domain: it reads a `Reference` and a `Document` of any kind.

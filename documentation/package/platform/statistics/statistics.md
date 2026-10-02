@@ -29,6 +29,12 @@ One table and one series of frame times exist for each session, `get_session_fra
 
 `write_frame_measurements!(path, editor.frame_measurements)` writes the frames of the ring as CSV, with a time in milliseconds in a column whose name ends in `_ms`. `collect_recent_frame_measurements` gives the same frames as vectors.
 
+### The theme
+
+`FrameStatisticsTheme` holds the text of the header and of a row of the frame statistics, and of an empty table. Each value has the default that the slice draws with no
+appearance. `FrameStatisticsToSyntax` takes `theme`, a `FrameStatisticsTheme` or a scaled one; with none it holds the
+default values. The registration of the statistics gives the scaled theme of the `Appearance`.
+
 ## How it fits
 
 The statistics slice depends on the kernel for the feed contract and the performance layer, on the syntax and text slices for the table, and on the natural slice for its row. It depends on no domain: the chart domain depends on it for the chart of the frame times. The `frame_statistics` wrapper of `build_editor`, in this slice, gives the editor a `FrameStatisticsFeed`, and the toolbar has a button that opens the table and one that opens the frame times, only when the wrapper is on.

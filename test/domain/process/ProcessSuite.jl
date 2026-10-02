@@ -28,9 +28,10 @@ function test_process()
         test_process_diagram()
         test_process_to_julia_code()
         test_process_to_syntax()
+        test_process_theme()
     end
 end
 
 export test_process, test_process_layering, test_process_document, test_process
 export test_process_debug, test_process_diagram, test_process_to_julia_code
-export test_process_to_syntax
+export test_process_to_syntax, test_process_theme

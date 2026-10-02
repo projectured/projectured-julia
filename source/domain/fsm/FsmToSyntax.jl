@@ -47,11 +47,9 @@
 # a part that a rule printed, and the rule names a caret on it by its own
 # introduced step.
 # ── Shared styles ────────────────────────────────────────────────────────────
-
-const _KEYWORD = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-const _NAME    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-const _REF     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
-const _CHROME  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+#
+# Each role comes from the projection's theme (`_get_fsm_style`), so a document
+# with no theme renders the plain values of `FsmTheme`.
 
 # The name of a referenced part, read reactively so a rename propagates. An
 # unresolved reference renders `?` rather than erroring — a machine under
@@ -60,13 +58,14 @@ _referent_name(x) = x === nothing ? "?" : x.name
 
 # ── FsmInsertion / FsmNothing ────────────────────────────────────────────────
 
-FsmInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(FsmDocument)
+FsmInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(FsmDocument; theme)
 
 # ── FsmTimerToSyntaxLeaf ─────────────────────────────────────────────────────
 
-@projection struct FsmTimerToSyntaxLeaf
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    name::ImmutableCell{StyleText}    = _NAME
+@projection UntrackedCell struct FsmTimerToSyntaxLeaf
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
+    name::StyleText    = _get_fsm_style(theme, :name_text)
 end
 
 @projection_template FsmTimerToSyntaxLeaf FsmTimer (p, doc) ->
@@ -78,9 +77,10 @@ end
 
 # ── FsmEventToSyntaxLeaf ─────────────────────────────────────────────────────
 
-@projection struct FsmEventToSyntaxLeaf
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    name::ImmutableCell{StyleText}    = _NAME
+@projection UntrackedCell struct FsmEventToSyntaxLeaf
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
+    name::StyleText    = _get_fsm_style(theme, :name_text)
 end
 
 @projection_template FsmEventToSyntaxLeaf FsmEvent (p, doc) ->
@@ -96,10 +96,11 @@ end
 # The type and default are embedded Julia expressions, so they are `project`ed
 # through the shared recursion; absent ones contribute no child at all.
 
-@projection struct FsmVariableToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    name::ImmutableCell{StyleText}    = _NAME
-    chrome::ImmutableCell{StyleText}  = _CHROME
+@projection UntrackedCell struct FsmVariableToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
+    name::StyleText    = _get_fsm_style(theme, :name_text)
+    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
 end
 
 @projection_template FsmVariableToSyntaxNode FsmVariable (p, doc) ->
@@ -128,10 +129,11 @@ end
 # *referent's* name, which is bound to the referenced document, not to a field
 # of this transition.
 
-@projection struct FsmTransitionToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    ref::ImmutableCell{StyleText}     = _REF
-    chrome::ImmutableCell{StyleText}  = _CHROME
+@projection UntrackedCell struct FsmTransitionToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
+    ref::StyleText     = _get_fsm_style(theme, :reference_text)
+    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
 end
 
 # `on EVENT` / `on timeout(TIMER)`; a condition-only transition has no trigger
@@ -168,10 +170,11 @@ end
 # transitions. The body is a nested sub-node keying off this same state (F1),
 # so each transition lands on its own indented line.
 
-@projection struct FsmStateToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    name::ImmutableCell{StyleText}    = _NAME
-    chrome::ImmutableCell{StyleText}  = _CHROME
+@projection UntrackedCell struct FsmStateToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
+    name::StyleText    = _get_fsm_style(theme, :name_text)
+    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
 end
 
 @projection_template FsmStateToSyntaxNode FsmState (p, doc) ->
@@ -199,10 +202,11 @@ end
 
 # ── FsmMachineToSyntaxNode ───────────────────────────────────────────────────
 
-@projection struct FsmMachineToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    name::ImmutableCell{StyleText}    = _NAME
-    ref::ImmutableCell{StyleText}     = _REF
+@projection UntrackedCell struct FsmMachineToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
+    name::StyleText    = _get_fsm_style(theme, :name_text)
+    ref::StyleText     = _get_fsm_style(theme, :reference_text)
 end
 
 @projection_template FsmMachineToSyntaxNode FsmMachine (p, doc) ->
@@ -233,9 +237,10 @@ end
 # collection renders nothing, so the sections that a given component does not
 # use simply do not appear.
 
-@projection struct FsmComponentToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    name::ImmutableCell{StyleText}    = _NAME
+@projection UntrackedCell struct FsmComponentToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
+    name::StyleText    = _get_fsm_style(theme, :name_text)
 end
 
 @projection_template FsmComponentToSyntaxNode FsmComponent (p, doc) ->
@@ -259,15 +264,21 @@ end
 # ── Compound convenience constructor ─────────────────────────────────────────
 #
 # Merged with the Julia table so an embedded guard/action/entry/helper renders
-# through the same recursion (the `FormulaToSyntax` precedent).
+# through the same recursion (the `FormulaToSyntax` precedent). `theme` is a
+# `FsmTheme`, a scaled one, or `nothing` for the default styles; `julia_theme`
+# and `syntax_theme` style the embedded Julia nodes, through `JuliaToSyntax`.
 
-FsmToSyntax() = JuliaToSyntax(
-    FsmVariable   => FsmVariableToSyntaxNode(),
-    FsmTimer      => FsmTimerToSyntaxLeaf(),
-    FsmEvent      => FsmEventToSyntaxLeaf(),
-    FsmTransition => FsmTransitionToSyntaxNode(),
-    FsmState      => FsmStateToSyntaxNode(),
-    FsmMachine    => FsmMachineToSyntaxNode(),
-    FsmComponent  => FsmComponentToSyntaxNode(),
-    FsmInsertion  => FsmInsertionToSyntaxLeaf(),
-    FsmNothing    => InsertionNothingToSyntaxLeaf())
+function FsmToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
+    theme = scale_theme(theme)
+    JuliaToSyntax(
+        FsmVariable   => FsmVariableToSyntaxNode(; theme),
+        FsmTimer      => FsmTimerToSyntaxLeaf(; theme),
+        FsmEvent      => FsmEventToSyntaxLeaf(; theme),
+        FsmTransition => FsmTransitionToSyntaxNode(; theme),
+        FsmState      => FsmStateToSyntaxNode(; theme),
+        FsmMachine    => FsmMachineToSyntaxNode(; theme),
+        FsmComponent  => FsmComponentToSyntaxNode(; theme),
+        FsmInsertion  => FsmInsertionToSyntaxLeaf(theme = syntax_theme),
+        FsmNothing    => InsertionNothingToSyntaxLeaf(theme = syntax_theme);
+        theme = julia_theme, syntax_theme)
+end

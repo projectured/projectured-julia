@@ -18,6 +18,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 export DbCatalogDocument
 export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,
        DbCatalogTableToSql, DbCatalogColumnToSql, DbCatalogToSql
+export DbCatalogTheme, ScaledDbCatalogTheme
 export DbCatalogColumnToSyntaxLeaf, DbCatalogTableToSyntaxNode, DbCatalogSchemaToSyntaxNode,
        DbCatalogDatabaseToSyntaxNode, DbCatalogRdbmsToSyntaxNode, DbCatalogToSyntax,
        is_dbcatalog_marker_eligible
@@ -26,6 +27,7 @@ export DbCatalogRdbms, DbCatalogDatabase
 
 include("DbCatalogDocument.jl")
 include("DbCatalogToSql.jl")
+include("DbCatalogTheme.jl")
 include("DbCatalogToSyntax.jl")
 
 end # module

@@ -43,6 +43,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/domain/dbcatalog/external/DbCatalogSqlTest.jl")
+include("../../../test/domain/dbcatalog/projection/DbCatalogThemeTest.jl")
 
 include("../../../test/domain/dbcatalog/DbCatalogSuite.jl")
 

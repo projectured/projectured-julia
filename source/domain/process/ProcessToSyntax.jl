@@ -58,18 +58,13 @@
 # ── Shared styles ────────────────────────────────────────────────────────────
 #
 # Control-flow keywords take the Julia projection's keyword colour: an embedded
-# expression and the structure holding it are one language on the page.
-
-const _KEYWORD = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
-const _NAME    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
-const _TEXT    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
-const _CHROME  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
-
-# Where a realized run is, and where it is set to stop. Both are style swaps on
+# expression and the structure holding it are one language on the page. Each
+# role comes from the projection's theme (`_get_process_style`), so a document
+# with no theme renders the plain values of `ProcessTheme`.
+#
+# Where a realized run is, and where it is set to stop are both style swaps on
 # a keyword that is printed anyway — nothing is added to the line, so a live
 # position cannot shift a single caret offset out from under the reader.
-const _CURRENT    = StyleText(font_ubuntu_monospace_bold_20, color_solarized_orange)
-const _BREAKPOINT = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 
 # The style a node's leading keyword takes. Where a run *is* wins over where it
 # is set to stop, and a node that is neither prints exactly as it always does —
@@ -95,7 +90,7 @@ const _NO_ITERABLE  = "<iterable>"
 
 # ── ProcessInsertion / ProcessNothing ────────────────────────────────────────
 
-ProcessInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(ProcessDocument)
+ProcessInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(ProcessDocument; theme)
 
 # ── ProcessSequenceToSyntaxNode ──────────────────────────────────────────────
 #
@@ -112,10 +107,11 @@ end
 
 # ── ProcessModelToSyntaxNode ─────────────────────────────────────────────────
 
-@projection struct ProcessModelToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    name::ImmutableCell{StyleText}    = _NAME
-    chrome::ImmutableCell{StyleText}  = _CHROME
+@projection UntrackedCell struct ProcessModelToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText = _get_process_style(theme, :keyword_text)
+    name::StyleText    = _get_process_style(theme, :name_text)
+    chrome::StyleText  = _get_process_style(theme, :chrome_text)
 end
 
 @projection_template ProcessModelToSyntaxNode ProcessModel (p, doc) ->
@@ -140,12 +136,13 @@ end
 # step with code and no description is a clean `step / …` line, and a step with
 # neither still renders its description leaf so there is somewhere to type.
 
-@projection struct ProcessStepToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    text::ImmutableCell{StyleText}    = _TEXT
-    chrome::ImmutableCell{StyleText}  = _CHROME
-    current::ImmutableCell{StyleText}    = _CURRENT
-    breakpoint::ImmutableCell{StyleText} = _BREAKPOINT
+@projection UntrackedCell struct ProcessStepToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText    = _get_process_style(theme, :keyword_text)
+    text::StyleText       = _get_process_style(theme, :action_text)
+    chrome::StyleText     = _get_process_style(theme, :chrome_text)
+    current::StyleText    = _get_process_style(theme, :current_text)
+    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -176,11 +173,12 @@ end
 # newline chrome of its own: the indented sequence on either side of it emits
 # one (the `JuliaIf` precedent, for the same reason).
 
-@projection struct ProcessDecisionToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    chrome::ImmutableCell{StyleText}  = _CHROME
-    current::ImmutableCell{StyleText}    = _CURRENT
-    breakpoint::ImmutableCell{StyleText} = _BREAKPOINT
+@projection UntrackedCell struct ProcessDecisionToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText    = _get_process_style(theme, :keyword_text)
+    chrome::StyleText     = _get_process_style(theme, :chrome_text)
+    current::StyleText    = _get_process_style(theme, :current_text)
+    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -199,11 +197,12 @@ end
 
 # ── ProcessWhileToSyntaxNode ─────────────────────────────────────────────────
 
-@projection struct ProcessWhileToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    chrome::ImmutableCell{StyleText}  = _CHROME
-    current::ImmutableCell{StyleText}    = _CURRENT
-    breakpoint::ImmutableCell{StyleText} = _BREAKPOINT
+@projection UntrackedCell struct ProcessWhileToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText    = _get_process_style(theme, :keyword_text)
+    chrome::StyleText     = _get_process_style(theme, :chrome_text)
+    current::StyleText    = _get_process_style(theme, :current_text)
+    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -218,11 +217,12 @@ end
 
 # ── ProcessForeachToSyntaxNode ───────────────────────────────────────────────
 
-@projection struct ProcessForeachToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    chrome::ImmutableCell{StyleText}  = _CHROME
-    current::ImmutableCell{StyleText}    = _CURRENT
-    breakpoint::ImmutableCell{StyleText} = _BREAKPOINT
+@projection UntrackedCell struct ProcessForeachToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText    = _get_process_style(theme, :keyword_text)
+    chrome::StyleText     = _get_process_style(theme, :chrome_text)
+    current::StyleText    = _get_process_style(theme, :current_text)
+    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -240,31 +240,34 @@ end
 
 # ── Jumps ────────────────────────────────────────────────────────────────────
 
-@projection struct ProcessBreakToSyntaxLeaf
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    current::ImmutableCell{StyleText}    = _CURRENT
-    breakpoint::ImmutableCell{StyleText} = _BREAKPOINT
+@projection UntrackedCell struct ProcessBreakToSyntaxLeaf
+    theme::Any = nothing
+    keyword::StyleText    = _get_process_style(theme, :keyword_text)
+    current::StyleText    = _get_process_style(theme, :current_text)
+    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
     session::Any = nothing
 end
 
 @projection_template ProcessBreakToSyntaxLeaf ProcessBreak (p, doc) ->
     SyntaxLeaf(TextString(() -> "break", _keyword_style(p, doc)))
 
-@projection struct ProcessContinueToSyntaxLeaf
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    current::ImmutableCell{StyleText}    = _CURRENT
-    breakpoint::ImmutableCell{StyleText} = _BREAKPOINT
+@projection UntrackedCell struct ProcessContinueToSyntaxLeaf
+    theme::Any = nothing
+    keyword::StyleText    = _get_process_style(theme, :keyword_text)
+    current::StyleText    = _get_process_style(theme, :current_text)
+    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
     session::Any = nothing
 end
 
 @projection_template ProcessContinueToSyntaxLeaf ProcessContinue (p, doc) ->
     SyntaxLeaf(TextString(() -> "continue", _keyword_style(p, doc)))
 
-@projection struct ProcessReturnToSyntaxNode
-    keyword::ImmutableCell{StyleText} = _KEYWORD
-    chrome::ImmutableCell{StyleText}  = _CHROME
-    current::ImmutableCell{StyleText}    = _CURRENT
-    breakpoint::ImmutableCell{StyleText} = _BREAKPOINT
+@projection UntrackedCell struct ProcessReturnToSyntaxNode
+    theme::Any = nothing
+    keyword::StyleText    = _get_process_style(theme, :keyword_text)
+    chrome::StyleText     = _get_process_style(theme, :chrome_text)
+    current::StyleText    = _get_process_style(theme, :current_text)
+    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -281,17 +284,24 @@ end
 # ── Compound convenience constructor ─────────────────────────────────────────
 #
 # Merged with the Julia table so an embedded action/condition/iterable renders
-# through the same recursion (the `FsmToSyntax` precedent).
+# through the same recursion (the `FsmToSyntax` precedent). `theme` is a
+# `ProcessTheme`, a scaled one, or `nothing` for the default styles;
+# `julia_theme` and `syntax_theme` style the embedded Julia nodes, through
+# `JuliaToSyntax`.
 
-ProcessToSyntax(; session = nothing) = JuliaToSyntax(
-    ProcessSequence  => ProcessSequenceToSyntaxNode(),
-    ProcessModel     => ProcessModelToSyntaxNode(),
-    ProcessStep      => ProcessStepToSyntaxNode(session = session),
-    ProcessDecision  => ProcessDecisionToSyntaxNode(session = session),
-    ProcessWhile     => ProcessWhileToSyntaxNode(session = session),
-    ProcessForeach   => ProcessForeachToSyntaxNode(session = session),
-    ProcessBreak     => ProcessBreakToSyntaxLeaf(session = session),
-    ProcessContinue  => ProcessContinueToSyntaxLeaf(session = session),
-    ProcessReturn    => ProcessReturnToSyntaxNode(session = session),
-    ProcessInsertion => ProcessInsertionToSyntaxLeaf(),
-    ProcessNothing   => InsertionNothingToSyntaxLeaf())
+function ProcessToSyntax(; session = nothing, theme = nothing, julia_theme = nothing, syntax_theme = nothing)
+    theme = scale_theme(theme)
+    JuliaToSyntax(
+        ProcessSequence  => ProcessSequenceToSyntaxNode(),
+        ProcessModel     => ProcessModelToSyntaxNode(; theme),
+        ProcessStep      => ProcessStepToSyntaxNode(; theme, session),
+        ProcessDecision  => ProcessDecisionToSyntaxNode(; theme, session),
+        ProcessWhile     => ProcessWhileToSyntaxNode(; theme, session),
+        ProcessForeach   => ProcessForeachToSyntaxNode(; theme, session),
+        ProcessBreak     => ProcessBreakToSyntaxLeaf(; theme, session),
+        ProcessContinue  => ProcessContinueToSyntaxLeaf(; theme, session),
+        ProcessReturn    => ProcessReturnToSyntaxNode(; theme, session),
+        ProcessInsertion => ProcessInsertionToSyntaxLeaf(theme = syntax_theme),
+        ProcessNothing   => InsertionNothingToSyntaxLeaf(theme = syntax_theme);
+        theme = julia_theme, syntax_theme)
+end
