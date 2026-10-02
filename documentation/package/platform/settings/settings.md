@@ -43,4 +43,4 @@ The effect is in the evaluation, not in a projection. An `ApplySettingOperation`
 
 The settingsmanaging slice puts the settings in the view: [settingsmanaging.md](../settingsmanaging/settingsmanaging.md).
 
-See [plan/pending/editor-settings.md](../../../../plan/pending/editor-settings.md) for the design and its decisions.
+See [plan/done/editor-settings.md](../../../../plan/done/editor-settings.md) for the design and its decisions.

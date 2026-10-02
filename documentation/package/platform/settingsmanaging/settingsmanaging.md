@@ -42,4 +42,4 @@ The `window` wrapper takes the `PointerSettings` of the same editor from `Editor
 
 The wrapper changes the root of every editor that `build_editor` makes. A test that checks the root document after `build_editor`, or the depth of a selection path, turns it off with `settings = false`, as it turns off `appearance` and `tabs`.
 
-See [plan/pending/editor-settings.md](../../../../plan/pending/editor-settings.md) for the design and its decisions.
+See [plan/done/editor-settings.md](../../../../plan/done/editor-settings.md) for the design and its decisions.
