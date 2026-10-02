@@ -254,7 +254,7 @@ function _follow_tab_paths!(p::AppearanceToWidget, appearance::Appearance, pane)
     hasfield(typeof(pane), :mouse_target) &&
         set_cell_computation!(getfield(pane, :mouse_target),
                               () -> map_mouse_target_forward(appearance, path -> _get_tab_path(p, path)))
-    _follow_parent_paths!(pane, Base.IdSet{Any}())
+    set_output_tree_path_computations!(pane)
 end
 
 # The path in the widget tree that `reference`, a path of the appearance, names:
@@ -264,28 +264,6 @@ function _get_tab_path(p::AppearanceToWidget, reference)
     step = reference.head
     (step isa ProjectionReferenceStep && step.projection === p) ? step.output_path : nothing
 end
-
-# Each document below `node` holds the part of each path of its parent below the
-# step that reaches it.
-function _follow_parent_paths!(node, seen::Base.IdSet{Any})
-    node in seen && return
-    push!(seen, node)
-    for (step, child) in child_reference_steps(node)
-        child = unwrap_cell(child)
-        (child isa Document && hasfield(typeof(child), :selection) &&
-         getfield(child, :selection) isa Cell) || continue
-        set_cell_computation!(getfield(child, :selection),
-                              () -> map_selection_forward(node, path -> _get_child_path(path, step)))
-        hasfield(typeof(child), :mouse_target) &&
-            set_cell_computation!(getfield(child, :mouse_target),
-                                  () -> map_mouse_target_forward(node, path -> _get_child_path(path, step)))
-        _follow_parent_paths!(child, seen)
-    end
-end
-
-# The part of `path` below its first step when that step is `step`, or `nothing`.
-_get_child_path(path, step) =
-    (path isa ConcreteReference && path.head == step) ? path.tail : nothing
 
 # The path that the appearance holds for `path`, a path in the widget tree from the
 # pane: a step of this projection around it, typed in the tree. The pane whole is

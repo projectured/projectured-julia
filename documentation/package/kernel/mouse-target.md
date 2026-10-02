@@ -51,7 +51,7 @@ A leave of the window is a move to `(-1, -1)`, a point off every part. It clears
 
 ### The forward map
 
-A printer maps the mouse target of its input forward into its output, as it maps the selection forward: the output document's `mouse_target` is a computed cell that reads `map_mouse_target_forward(input, map_forward)` (`source/kernel/projection/OutputPaths.jl`), where `map_forward` is normally built from `map_reference_forward`. `make_output_path_cells(input, map_forward)` gives this cell and the selection cell together, as a named tuple.
+A printer maps the mouse target of its input forward into its output, as it maps the selection forward: the output document's `mouse_target` is a computed cell that reads `map_mouse_target_forward(input, map_forward)` (`source/kernel/projection/OutputPaths.jl`), where `map_forward` is normally built from `map_reference_forward`. `make_output_path_cells(input, map_forward)` gives this cell and the selection cell together, as a named tuple. A printer that builds a tree of output documents wires the root of the tree with `set_output_path_computations!` and then calls `set_output_tree_path_computations!(root)`, which gives each document below the root the part of its parent's paths below the step that reaches it, so a key reaches the part that the selection names.
 
 So a widget that a view makes for a part of a domain lights when the pointer is over that part. The view needs no code of its own for this.
 

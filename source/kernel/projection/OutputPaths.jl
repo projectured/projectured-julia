@@ -65,3 +65,35 @@ function map_mouse_target_forward(input, map_forward)
     path = getfield(input, :mouse_target)[]
     path === nothing ? nothing : map_forward(path)
 end
+
+"""
+    set_output_tree_path_computations!(root) -> root
+
+Set the path cells of each document below `root`, an output that a printer built:
+each child holds the part of each kind of path of its parent below the step that
+reaches it, as [`set_output_path_computations!`](@ref) makes them. A key is routed
+by the selection, and every container between the root of the output and the part
+that holds the caret must carry the path, or the key stops at the first that does
+not. Wire the paths of `root` itself first, with `set_output_path_computations!`.
+"""
+function set_output_tree_path_computations!(root)
+    _set_child_path_computations!(root, Base.IdSet{Any}())
+    root
+end
+
+function _set_child_path_computations!(node, seen::Base.IdSet{Any})
+    node in seen && return nothing
+    push!(seen, node)
+    for (step, child) in child_reference_steps(node)
+        child = unwrap_cell(child)
+        (child isa Document && hasfield(typeof(child), :selection) &&
+         getfield(child, :selection) isa Cell) || continue
+        set_output_path_computations!(child, node, path -> _get_path_below(path, step))
+        _set_child_path_computations!(child, seen)
+    end
+    nothing
+end
+
+# The part of `path` below its first step when that step is `step`, or `nothing`.
+_get_path_below(path, step) =
+    (path isa ConcreteReference && path.head == step) ? path.tail : nothing

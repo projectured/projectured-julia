@@ -65,7 +65,7 @@ selection mechanism.
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
 | [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics and the open seams |
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
-| [`OutputPaths.jl`](OutputPaths.jl) | `make_output_path_cells` — every kind of path of an output document, from one forward map |
+| [`OutputPaths.jl`](OutputPaths.jl) | `make_output_path_cells` — every kind of path of an output document, from one forward map; `set_output_tree_path_computations!` carries them down a built output |
 | [`ProjectionMacro.jl`](ProjectionMacro.jl) | `@projection` — the projection codegen |
 | [`GestureBindings.jl`](GestureBindings.jl) | the default gesture table of a projection, and `read_projection_gesture` |
 | [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine that many structural projections are written with |
@@ -89,7 +89,8 @@ export Projection, print_document, print_child, print_document_pure, print_child
        read_intent, map_reference_forward, map_reference_backward, read_routed_intent,
        get_child_iomaps, read_routed_child, read_child_by_route, read_gesture_outward
 export @projection, print_pure
-export make_output_path_cells, set_output_path_computations!, map_mouse_target_forward
+export make_output_path_cells, set_output_path_computations!, map_mouse_target_forward,
+       set_output_tree_path_computations!
 export read_move_answer
 export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
        has_introduced_step, find_introduced_path, normalize_named_node_reference
