@@ -5,8 +5,8 @@
 > decision. Step W1 of the appearance plan landed on `main` on 2026-10-01
 > (`03e83ba36`), so the work can start (D10). Section 9 of the appearance plan
 > and 3.8 here give what W1 changed. The kernel word "setting" of a wrapper
-> becomes "argument" first (D12, step R1). Left open: the command "Open
-> settings" in the palette (S8), which the appearance tab lacks too.
+> becomes "argument" first (D12, step R1). The palette command "Show the
+> settings" came on 2026-10-02, after the plan was done (S8).
 
 ## 1. The request
 
@@ -831,9 +831,13 @@ the pixels and the test counts of the baseline of S0.
   - The toolbar button and the View menu item open the tab with
     `find_editor_settings(editor)`. The gear glyph `:settings` (0xe154, checked
     in `asset/font/lucide.ttf`) joined the icon table.
-  - **"Open settings" in the palette is left open.** The palette lists only the
-    rules of gesture tables, and the shell, which can open a tool tab, comes after
-    the slice of the wrapper. The theme tab has the same need.
+  - **The palette command came on 2026-10-02, as "Show the settings".** The
+    reason given here before, that only the shell can open a tool tab, was
+    wrong. `show_document!` of the screen slice opens a tab or focuses it, and
+    the appearance tab already has "Show the appearance" (Ctrl+,). The command
+    is a rule with no key in `@gestures SettingsDocument`, so the palette lists
+    it as it lists the two toggles. `get_document_title(::Settings) = "Settings"`
+    gives the same tab title on the toolbar path and on the palette path.
   - D14 holds: a test puts an `UndoBuffer` around the tab, and Ctrl+Z and Ctrl+Y
     take a change back and put it back, with the apply.
   What the step holds: `SettingsToWidget`, the toolbar item, the View menu

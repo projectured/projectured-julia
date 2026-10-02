@@ -31,6 +31,9 @@ settings with no file, such as those of a test.
     file::String = ""
 end
 
+# A tab that shows the settings is named so, whatever opens it.
+get_document_title(::Settings) = "Settings"
+
 """
     compute_loaded_settings_types() -> Vector{Type}
 

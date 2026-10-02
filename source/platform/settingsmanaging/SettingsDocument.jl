@@ -63,7 +63,11 @@ function make_toggle_setting_operation(settings::Settings, T::Type{<:SettingsGro
 end
 
 # The commands of the settings, with no key: a person runs them from the palette.
+# "Show the settings" focuses the tab that shows the settings, or opens one.
 @gestures SettingsDocument begin
+    nothing => "Show the settings" =>
+        InvokeActionOperation(Action("Show the settings";
+            callback = editor -> show_document!(editor, doc.settings; title = "Settings")))
     nothing => "Toggle partial render" =>
         make_toggle_setting_operation(doc.settings, RenderSettings, :partial_render)
     nothing => "Toggle repaint outline" =>

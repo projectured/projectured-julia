@@ -6,6 +6,7 @@
 import ProjecturedKernelExample: HeadlessBackend, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!, EditorParts
 import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
+import ProjecturedPlatform.PaneModule: get_pane_groups, get_pane_tab_title_string
 
 # A projection that answers Ctrl+`key` with `write`, as a view of a settings
 # group does, and passes every other input to `inner`.
@@ -119,6 +120,27 @@ end
     @test get_settings_group!(settings, RenderSettings).partial_render
     @test make_toggle_setting_operation(Settings(), RenderSettings, :partial_render) isa
           DoNothingOperation
+end
+
+@testset "Show the settings opens one tab that shows the settings" begin
+    settings = make_settings()
+    editor = build_editor(WidgetLabel("Name"), _sw_natural(); backend = HeadlessBackend(),
+                          devices = Device[Keyboard(), Mouse(), Display()],
+                          appearance = false, settings, focus_cycling = false)
+    run_frame!(editor)
+    answer = read_intent(editor.projection, nothing, Intent(CollectIntents()), editor.iomap)
+    collected = answer isa Intent ? answer.operation : answer
+    shows = [intent for intent in collected.intents if intent.description == "Show the settings"]
+    @test length(shows) == 1
+    for _ in 1:2
+        evaluate_operation(editor, shows[1].operation)
+        run_frame!(editor)
+    end
+    tree = get_wrapped_document(editor.document).windows[1].content
+    tabs = [tab for group in get_pane_groups(tree) for tab in group.tabs]
+    @test count(tab -> tab.content === settings, tabs) == 1
+    @test get_pane_tab_title_string(only(filter(tab -> tab.content === settings, tabs))) ==
+          "Settings"
 end
 
 @testset "two editors keep two settings" begin

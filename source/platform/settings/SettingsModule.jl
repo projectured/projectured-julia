@@ -28,6 +28,7 @@ using ..ReferenceModule
 
 import TOML
 
+import ..DocumentModule: get_document_title
 import ..OperationModule: evaluate_operation, describe_operation, make_inverse_operation,
                           operation_travels_unchanged, get_wrapped_operation,
                           rewrap_operation
