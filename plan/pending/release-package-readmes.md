@@ -64,9 +64,10 @@ document that exists.
       and `PROJECTURED_REGISTRY_URL`; the test also refuses an entry for a
       package that is not released. `ProjecturedDataFrames` links the package
       index, because it has no design document.
-- [ ] **Step 2, the guides.** The build guide names `ProjecturedRegistry` in
+- [x] **Step 2, the guides.** The build guide names `ProjecturedRegistry` in
       the register step. The builder document says what the README holds. The
-      release plan marks the item.
+      release plan marks the item. Done; the build guide also shows the
+      `registry` keyword of the build for a local registry.
 
 ## 6. Decisions made during the work
 

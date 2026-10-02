@@ -1352,7 +1352,8 @@ seals go beyond the kernel in time (only kernel files are sealed today).
 - [x] R31: the release repository has its CI workflow. Done on 2026-10-02:
       [release-repository-ci.md](../done/release-repository-ci.md). One job for
       each package on Julia 1.11; a job develops the folders that its test needs.
-- [ ] Each registered package has a short README.
+- [x] Each registered package has a short README. Done on 2026-10-02:
+      [release-package-readmes.md](../done/release-package-readmes.md).
 - [ ] The full test of Step B4 again, with a local registry on this machine.
 - [x] The owner makes the repository of the local registry,
       `projectured/ProjecturedRegistry` (R10). Done on 2026-10-01, private and
@@ -1360,7 +1361,8 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       from `LocalRegistry.create_registry` in the test of the item above.
 - [ ] The owner pushes the release copy and the registry, and makes both
       repositories public.
-- [ ] The build guide names `ProjecturedRegistry` where it says `<registry>`.
+- [x] The build guide names `ProjecturedRegistry` where it says `<registry>`.
+      Done on 2026-10-02 with the READMEs.
 
 **R34, open: the move from `ProjecturedRegistry` to General.** AutoMerge
 accepts only 0.0.1, 0.1.0 or X.0.0 (1.0.0, 2.0.0, …) as the first version of a

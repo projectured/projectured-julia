@@ -166,7 +166,7 @@ tree for as long as the version exists.
    ```
 
    The build checks General. For a local registry, give its name or its folder
-   as `registry`. The build stops when a version of the last release is not in
+   as `registry`, for example `registry = "ProjecturedRegistry"`. The build stops when a version of the last release is not in
    that registry yet, because a registry refuses a version that skips the one
    before it. A package whose content did not change keeps its folder as it is.
    A changed package gets the next patch version. A new package gets a new
@@ -184,7 +184,7 @@ tree for as long as the version exists.
 
      ```julia
      using LocalRegistry
-     register("../Projectured.jl/<Name>"; registry = "<registry>")
+     register("../Projectured.jl/<Name>"; registry = "ProjecturedRegistry")
      ```
 
      LocalRegistry finds the folder of the package in the repository, and the
