@@ -1,7 +1,7 @@
 # A primitive document draws as plain text
 
 Status: done 2026-10-02 (§5). Written 2026-10-02 in step 4.3 of
-[view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md), at the owner's
+[view-and-edit-a-data-frame.md](../pending/view-and-edit-a-data-frame.md), at the owner's
 word: the cells of a data frame are primitive documents (R2), "but we need to
 fix the projections". Each point is the writer's unless the owner made it.
 
@@ -22,7 +22,7 @@ fix the projections". Each point is the writer's unless the owner made it.
   prose, not a quoted string"). The owner: "primitive documents doesn't have to
   go through syntax, they can go directly to the text domain".
 - **The type-in of a number is in the syntax domain only**
-  ([a-number-becomes-a-type-in.md](../done/a-number-becomes-a-type-in.md)):
+  ([a-number-becomes-a-type-in.md](a-number-becomes-a-type-in.md)):
   the text domain has no printer of a `PrimitiveInsertion`, and its number
   printer has no rule for a key that the number can not show.
 - **A `PrimitiveBool` has no edit.** It has no gestures, and a text edit of its

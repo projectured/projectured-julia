@@ -1238,7 +1238,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     spreadsheet; the owner chose primitive cells (R2): "no it's 1, but we need
     to fix the projections … primitive documents doesn't have to go through
     syntax, they can go directly to the text domain … let's design this". The
-    design is [a-primitive-draws-as-plain-text.md](a-primitive-draws-as-plain-text.md),
+    design is [a-primitive-draws-as-plain-text.md](../done/a-primitive-draws-as-plain-text.md),
     and it comes first.
   - [ ] **4.4** The entries of `edits`: keys, a type-in in an entry, and the
     selection stays in an entry after a scroll.
