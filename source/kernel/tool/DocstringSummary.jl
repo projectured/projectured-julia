@@ -63,3 +63,11 @@ function _find_first_paragraph(text::AbstractString)
     end
     join(paragraph, " ")
 end
+
+"""
+    strip_code_marks(text) -> String
+
+`text` with no Markdown code mark, the backtick, so a view that shows a docstring
+to a person shows `<:` as `<:` and `name` as `name`.
+"""
+strip_code_marks(text::AbstractString) = replace(String(text), '`' => "")

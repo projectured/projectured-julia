@@ -73,7 +73,7 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        read_module_documentation, read_type_documentation, read_function_documentation,
        read_value_documentation,
        search_guides, search_api,
-       compute_docstring_summary,
+       compute_docstring_summary, strip_code_marks,
        SearchTerm, KeywordQuery, parse_keyword_query, is_keyword_match
 
 include("Tool.jl")

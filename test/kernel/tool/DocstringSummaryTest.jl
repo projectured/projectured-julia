@@ -76,5 +76,7 @@ function test_docstring_summary()
     @test compute_docstring_summary(FieldReferenceStep) == "References a named field of an object/record."
     # A type with parameters is found by its name.
     @test compute_docstring_summary(ImmutableCell) == "A box that holds one value and can never be written."
+    # A view for a person drops the code marks.
+    @test strip_code_marks("The keywords: `on`, `when` and `<:`.") == "The keywords: on, when and <:."
 end
 end
