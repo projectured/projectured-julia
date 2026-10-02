@@ -89,6 +89,11 @@ of the mouse target, and sends the shape to the backend. Rejected (mine):
 
 ### 4.1 The shape during a drag
 
+**Replaced by P5 and P6 (§8).** The design below made the drag tracking read the
+graphics of the windows and put a region into the output of the projections
+inside it. The owner rejected that: projections do not communicate through each
+other's output. What is built is in §8, P5 and P6, and in step 6.
+
 The drag tracking keeps the shape while a drag is on, because it is the code that
 already keeps the drag and gives the dragged part each move by its path, wherever
 the pointer is:
@@ -266,7 +271,10 @@ arrow.
    where the reader answers the press of the part. `test_data_frame_column_width()`
    checks the double arrow on the window that a real editor drew. `test_platform()`
    passes, 86393 with the 8 broken of before; `test_application_video()` passes.
-6. **The drag** (§4.1). The drag tracking keeps the shape of the press and draws
+6. **The drag** (P5 and P6 in §8; §4.1 is replaced). Each part that drags answers
+   `ChangeScreenPointerShapeOperation` at its start and with `nothing` at its
+   `DragEnd` and `DragCancel`; the screen keeps `pointer_shape` and draws a
+   region over each window from it. Before: (§4.1). The drag tracking keeps the shape of the press and draws
    the region of a drag in every window; the keeper of a drag that carries a
    thing draws the closed hand and the crossed circle over its zones; the web
    client captures the pointer. Tests: a drag of the edge of a column keeps the
@@ -304,7 +312,34 @@ The owner, 2026-10-02:
 - **P3. A region of the graphics** (§4).
 - **P4. Yes:** the video backend draws the shapes.
 
-The owner asked, with the decisions: "what will keep the cursor shape during a
+The owner, later on 2026-10-02, on step 6:
+
+- **P5. An operation, not a wrapper that reads the output.** "Projections should
+  not communicate the way you describe, at least we should try to avoid it." The
+  drag tracking neither reads the graphics of the windows nor changes the output
+  of the projections inside it. A part says the shape of its drag with
+  `ChangeScreenPointerShapeOperation(shape)`, a type of the screen slice. The
+  screen projection takes it on the way up and answers instead a view state write
+  of `pointer_shape` of its input `ScreenDocument`; one that reaches the editor,
+  from a wrapper outside the screen, applies to the screen that the editor's
+  document wraps, as `OpenWindowOperation` does. The printer of the screen draws a
+  region over each window from `pointer_shape`, so the backends do not change. The
+  `drag` flag of `GraphicsPointerShape` goes: the last region wins. (The owner
+  first proposed a write of the region in the output; the write goes to the input,
+  because a value written into an output is lost when the IO map prints again.)
+- **P6. The part sets the shape back (option S).** Each part answers `DragEnd` and
+  `DragCancel` with `ChangeScreenPointerShapeOperation(nothing)`: the slider, the
+  divider, the edge of a column, the chart and the pane tree. The drag tracking
+  already turns every end of a drag into one of the two. A safety net in the
+  screen projection sets the shape back at a release, or at a move with no button
+  held, while a shape is set, for a part that is gone before its drag ends. The
+  pane tree answers the closed hand or the crossed circle at each `DragMove` when
+  the zone changes. The list reorder of the dragging slice can not name a type of
+  the screen slice, and shows no closed hand (no new dependency of the slice).
+  Rejected: the operation in the kernel, so that the drag tracking sets the shape
+  back in one place (option K).
+
+The owner asked, with the decisions of the morning: "what will keep the cursor shape during a
 drag when it moves away from the part being dragged but still operates?" The
 answer is §4.1: the drag tracking, which keeps the shape of the press and draws a
 region of a drag over every window while the drag is on.
