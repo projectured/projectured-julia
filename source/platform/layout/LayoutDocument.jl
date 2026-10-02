@@ -455,6 +455,9 @@ falls back to the bare-child interpretation for that field.
 Say it with a [`SizePolicy`](@ref) rather than four numbers wherever one fits:
 `LayoutConstraint(card; width = Fill, height = Content)`. A field written beside a
 policy wins over it.
+
+`column_span` is the number of columns of a `GridLayout` that `child` takes, 1
+by default; see [`get_column_span`](@ref). Every other layout ignores it.
 """
 @document struct LayoutConstraint
     child::Document
@@ -466,6 +469,7 @@ policy wins over it.
     preferred_height::Any
     max_height::Any
     weight_height::Any
+    column_span::Any
 end
 
 function LayoutConstraint(child::Document;
@@ -474,7 +478,8 @@ function LayoutConstraint(child::Document;
                           min_width=nothing, preferred_width=nothing,
                           max_width=nothing, weight_width=nothing,
                           min_height=nothing, preferred_height=nothing,
-                          max_height=nothing, weight_height=nothing)
+                          max_height=nothing, weight_height=nothing,
+                          column_span=nothing)
     # A policy writes the four fields; an explicit field beside it wins, so a
     # caller can say `width = Fill, min_width = 120` and mean both.
     if width !== nothing
@@ -494,7 +499,7 @@ function LayoutConstraint(child::Document;
                      Cell(max_width), Cell(weight_width),
                      Cell(min_height), Cell(preferred_height),
                      Cell(max_height), Cell(weight_height),
-                     Cell(nothing))
+                     Cell(column_span), Cell(nothing))
 end
 
 # ── Constraint reading helpers ───────────────────────────────────────────────
@@ -542,6 +547,19 @@ function layout_preferred(doc, axis::Symbol, intrinsic::Integer; default=nothing
     doc isa LayoutConstraint || return _policy_field(default, :preferred, Int(intrinsic))
     v = axis === :x ? doc.preferred_width : doc.preferred_height
     v === nothing ? _policy_field(default, :preferred, Int(intrinsic)) : Int(v)
+end
+
+"""
+    get_column_span(doc) -> Int
+
+The number of columns of a `GridLayout` that the child `doc` takes: the
+`column_span` of its `LayoutConstraint`, at least 1, and 1 for a bare child or a
+constraint that names none.
+"""
+function get_column_span(doc)
+    doc isa LayoutConstraint || return 1
+    span = doc.column_span
+    span === nothing ? 1 : max(1, Int(span))
 end
 
 """

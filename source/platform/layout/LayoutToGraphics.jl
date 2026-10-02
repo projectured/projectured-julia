@@ -1193,16 +1193,38 @@ end
 
 # ── GridLayout ─────────────────────────────────────────────────────────────
 
-_grid_row(i::Int, c::Int) = div(i - 1, c) + 1
-_grid_col(i::Int, c::Int) = mod(i - 1, c) + 1
+# Where each child of a grid stands: its row, its column, and the number of
+# columns that it takes (`get_column_span`). The grid fills its rows in order. A
+# child that takes more columns than its row has left starts the next row, and a
+# span past the number of columns takes the whole row. With every span 1, child
+# `i` stands at row `div(i - 1, c) + 1` and column `mod(i - 1, c) + 1`.
+function _gl_place(spans::Vector{Int}, c::Int)
+    c = max(c, 1)
+    places = Vector{NTuple{3,Int}}(undef, length(spans))
+    row, col = 1, 1
+    for (i, span) in enumerate(spans)
+        s = min(span, c)
+        if col + s - 1 > c
+            row += 1
+            col = 1
+        end
+        places[i] = (row, col, s)
+        col += s
+        if col > c
+            row += 1
+            col = 1
+        end
+    end
+    places
+end
 
-function _gl_col_w_cell(col::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
+# A child that spans columns adds nothing to the width of a column: it is offered
+# the width of the columns that it spans, and breaks its lines there.
+function _gl_col_w_cell(col::Int, child_iomaps::Vector, places::Cell)
     Cell(Computation(function ()
-        c = cols_cell[]
-        col > c && return 0
         w = 0
-        for k in 1:n
-            if _grid_col(k, c) == col
+        for (k, (_, child_col, span)) in enumerate(places[])
+            if child_col == col && span == 1
                 cw = _child_w(child_iomaps[k])
                 cw > w && (w = cw)
             end
@@ -1211,19 +1233,30 @@ function _gl_col_w_cell(col::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
     end))
 end
 
-function _gl_row_h_cell(row::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
+function _gl_row_h_cell(row::Int, child_iomaps::Vector, places::Cell)
     Cell(Computation(function ()
-        c = cols_cell[]
-        nrows = div(n + c - 1, c)
-        row > nrows && return 0
         h = 0
-        for k in 1:n
-            if _grid_row(k, c) == row
+        for (k, (child_row, _, _)) in enumerate(places[])
+            if child_row == row
                 ch = _child_h(child_iomaps[k])
                 ch > h && (h = ch)
             end
         end
         h
+    end))
+end
+
+# The width of the columns that child `i` spans, with the gaps between them: the
+# width of its column for a child that spans one.
+function _gl_span_w_cell(i::Int, places::Cell, col_w::Vector{Cell}, hgap::Cell)
+    Cell(Computation(function ()
+        _, col, span = places[][i]
+        last_col = min(col + span - 1, length(col_w))
+        total = 0
+        for k in col:last_col
+            total += Int(col_w[k][])
+        end
+        total + max(0, last_col - col) * Int(hgap[])
     end))
 end
 
@@ -1317,14 +1350,12 @@ _gl_extent_cell(extents, k::Int) =
         k <= length(e) ? e[k] : 0
     end))
 
-function _gl_child_x(i::Int, child_iomaps::Vector,
-                    cols_cell::Cell, col_w::Vector{Cell}, col_x::Vector{Cell},
-                    halign::Cell, column_align_cell::Cell)
+function _gl_child_x(i::Int, child_iomaps::Vector, places::Cell, span_w::Vector{Cell},
+                     col_x::Vector{Cell}, halign::Cell, column_align_cell::Cell)
     Cell(Computation(function ()
-        c = cols_cell[]
+        _, col, _ = places[][i]
         cw = _child_w(child_iomaps[i])
-        col = _grid_col(i, c)
-        cellw = col_w[col][]
+        cellw = span_w[i][]
         a = _col_align(column_align_cell[], col, halign[])
         # A cell wider than its column starts at its left edge, whatever its
         # alignment, so a column that clips it shows its start, as the grid of a
@@ -1336,13 +1367,11 @@ function _gl_child_x(i::Int, child_iomaps::Vector,
     end))
 end
 
-function _gl_child_y(i::Int, child_iomaps::Vector,
-                    cols_cell::Cell, row_h::Vector{Cell}, row_y::Vector{Cell},
-                    valign::Cell)
+function _gl_child_y(i::Int, child_iomaps::Vector, places::Cell,
+                     row_h::Vector{Cell}, row_y::Vector{Cell}, valign::Cell)
     Cell(Computation(function ()
-        c = cols_cell[]
+        row, _, _ = places[][i]
         ch = _child_h(child_iomaps[i])
-        row = _grid_row(i, c)
         cellh = row_h[row][]
         a = valign[]
         # A cell taller than its row starts at its top edge, as across.
@@ -1406,15 +1435,18 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # offers its slot to the cells in it. They read `child_iomaps` lazily, and the
     # loop below fills that vector; nothing forces an extent while it runs.
     child_iomaps = Any[]
+    # Where each child stands. The spans are read once here, as the children are.
+    spans = Int[get_column_span(doc.children[i]) for i in 1:n]
+    places = Cell(@computation _gl_place(spans, cols_cell[]))
     row_count_cell = Cell(Computation(function ()
-        c = cols_cell[]
-        c <= 0 ? 0 : div(n + c - 1, c)
+        p = places[]
+        isempty(p) ? 0 : maximum(first, p)
     end))
     content_col_w = Cell[]
     content_row_h = Cell[]
     for k in 1:n
-        push!(content_col_w, _gl_col_w_cell(k, n, child_iomaps, cols_cell))
-        push!(content_row_h, _gl_row_h_cell(k, n, child_iomaps, cols_cell))
+        push!(content_col_w, _gl_col_w_cell(k, child_iomaps, places))
+        push!(content_row_h, _gl_row_h_cell(k, child_iomaps, places))
     end
     col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w;
                                    reads = k -> !offers_to_cells(k))
@@ -1444,19 +1476,27 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         end)
     end
     column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:n]
+    span_w = Cell[_gl_span_w_cell(i, places, col_w, hgap) for i in 1:n]
+    # The columns that child `i` spans, at the column count of this print.
+    places_now = places[]
+    spanned_columns(i::Int) = places_now[i][2]:min(places_now[i][2] + places_now[i][3] - 1, n)
 
     # What each cell is given. A column or a row that may hand out its extent
     # gives it exactly — §3, and §4's rule that only a weighted item is given a
     # slot. A `Content` column gives its cells its edge, so a cell draws its
     # content up to it; a row that does not hand out its extent keeps the height
-    # free, because no content reflows with its height.
+    # free, because no content reflows with its height. A child that spans
+    # columns is given their width exactly when each of them hands out its
+    # extent, and as a bound otherwise.
     for i in 1:n
-        c = cols_cell[]
-        col = c > 0 ? _grid_col(i, c) : 1
-        row = c > 0 ? _grid_row(i, c) : 1
+        row, col, span = places_now[i]
         cctx = ctx
         if cctx !== nothing
-            cctx = offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
+            cctx = span > 1 ?
+                       (all(offers_to_cells, spanned_columns(i)) ?
+                            with_exact_size(cctx; width = _gl_int32_cell(span_w[i])) :
+                            with_bounded_size(cctx; width = _gl_int32_cell(span_w[i]))) :
+                   offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    withhold_offer(cctx, :x)
             cctx = offers_to_row_cells(row) ?
@@ -1478,8 +1518,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     child_x = Cell[]
     child_y = Cell[]
     for i in 1:n
-        push!(child_x, _gl_child_x(i, child_iomaps, cols_cell, col_w, col_x, halign, column_align_cell))
-        push!(child_y, _gl_child_y(i, child_iomaps, cols_cell, row_h, row_y, valign))
+        push!(child_x, _gl_child_x(i, child_iomaps, places, span_w, col_x, halign, column_align_cell))
+        push!(child_y, _gl_child_y(i, child_iomaps, places, row_h, row_y, valign))
     end
 
     outer_w = Cell(Computation(function ()
@@ -1492,8 +1532,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end))
 
     outer_h = Cell(Computation(function ()
-        c = cols_cell[]
-        nrows = div(n + c - 1, c)
+        nrows = row_count_cell[]
         total = 0
         for rr in 1:nrows
             total += row_h[rr][]
@@ -1505,19 +1544,18 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # slot; every other child is drawn where the alignment put it and reaches as
     # far as it reaches. The column count is read once here: a grid whose column
     # count changes is rebuilt by the cell around this function.
-    columns_now = cols_cell[]
     wrapped = Any[]
     for i in 1:n
         c = child_iomaps[i].output
         c isa GraphicsDocument || continue
-        col = columns_now > 0 ? _grid_col(i, columns_now) : 1
-        row = columns_now > 0 ? _grid_row(i, columns_now) : 1
-        clip_x = _gl_offers(peek_column_policy(col))
+        row, col, span = places_now[i]
+        clip_x = all(k -> _gl_offers(peek_column_policy(k)), spanned_columns(i))
         clip_y = _gl_offers(peek_row_policy(row))
         if clip_x || clip_y
             push!(wrapped, clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i],
                                               y_cell = child_y[i], slot_x = col_x[col],
-                                              slot_y = row_y[row], slot_w = col_w[col],
+                                              slot_y = row_y[row],
+                                              slot_w = span > 1 ? span_w[i] : col_w[col],
                                               slot_h = row_h[row], clip_x, clip_y))
         else
             push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))

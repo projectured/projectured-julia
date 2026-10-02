@@ -36,7 +36,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, allocate_axis,
        compute_axis_offsets, find_axis_band, compute_axis_extents, layout_min,
-       layout_max, layout_preferred, layout_weight,
+       layout_max, layout_preferred, get_column_span, layout_weight,
        SizePolicy, Fixed, Content, Relative, Fill,
        AnchoredEntry, AnchoredLayout, compute_anchored_positions
 export SolverAnchor, SolverRelation, ConstraintSolver, FallbackConstraintSolver,
