@@ -49,11 +49,15 @@ is the order in which a registry must take them. `status` is `:new`,
 - `workflow` — `nothing`, or a function `workflow(jobs)` whose text goes into
   `.github/workflows/CI.yml` at the root of `output`. `jobs` holds one
   `(name, develop, coverage)` for each package with a `test/runtests.jl`,
-  dependencies first: `develop`, the folders of the packages that
-  `Pkg.test(name)` needs in its environment, `name` included and dependencies
-  first, and `coverage`, the folders of its code. A released package reaches
-  its siblings through a registry, which holds a version only after its commit,
-  so a test of the commit develops their folders instead.
+  dependencies first: `develop`, the folders that a test of the commit
+  develops into the environment of `Pkg.test(name)`, and `coverage`, the
+  folders of its code. `develop` holds the released packages that the test
+  needs, `name` included and dependencies first, then the support packages of
+  its `test/`. A released package reaches its siblings through a registry,
+  which holds a version only after its commit, so the test develops their
+  folders instead; and the sandbox of `Pkg.test` keeps the version of a
+  sibling only when the manifest of the environment reaches it, so the
+  support packages that need it are developed too.
 - `manifest` — the manifest whose versions give the `[compat]` bounds of the
   packages from other registries.
 - `julia_compat` — the `[compat]` bound of Julia, for a package that names none.
@@ -309,7 +313,9 @@ end
 # code. It reads the folders as the release leaves them, so a package that keeps
 # its released folder gets the jobs of its released tests.
 function _write_release_workflow(output, workflow, order)
-    jobs = [(name = name, develop = _collect_release_test_closure(output, name, order),
+    jobs = [(name = name,
+             develop = [_collect_release_test_closure(output, name, order);
+                        _collect_support_folders(output, name)],
              coverage = [joinpath(name, folder) for folder in ("src", "source", "ext")
                          if isdir(joinpath(output, name, folder))])
             for name in order if isfile(joinpath(output, name, "test", "runtests.jl"))]
@@ -319,17 +325,23 @@ function _write_release_workflow(output, workflow, order)
     nothing
 end
 
+# The folders of the support packages of `name`, relative to `output`.
+function _collect_support_folders(output, name)
+    support = joinpath(name, "test", "support")
+    isdir(joinpath(output, support)) || return String[]
+    [joinpath(support, entry) for entry in readdir(joinpath(output, support))
+     if isfile(joinpath(output, support, entry, "Project.toml"))]
+end
+
 # The released packages that `Pkg.test(name)` needs in its environment, `name`
 # included, in the order of `order`: what `name`, its test project and its
 # support packages depend on, and what those depend on in turn. A support
 # package names a released sibling without `[sources]`, so that sibling counts.
 function _collect_release_test_closure(output, name, order)
-    test = joinpath(output, name, "test")
-    projects = [joinpath(output, name, "Project.toml"), joinpath(test, "Project.toml")]
-    support = joinpath(test, "support")
-    isdir(support) && append!(projects, joinpath(support, entry, "Project.toml")
-                                        for entry in readdir(support)
-                                        if isfile(joinpath(support, entry, "Project.toml")))
+    projects = [joinpath(output, name, "Project.toml"),
+                joinpath(output, name, "test", "Project.toml"),
+                (joinpath(output, folder, "Project.toml")
+                 for folder in _collect_support_folders(output, name))...]
     found = Set([name])
     while !isempty(projects)
         project = TOML.parsefile(pop!(projects))

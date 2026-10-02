@@ -252,9 +252,12 @@ function test_package_release()
 
         @testset "the workflow tests each package that has tests, with the folders its test needs" begin
             # `FakeBase` has no tests, so no job; `FakeTop` develops the sibling it
-            # depends on, and its code is in three folders.
+            # depends on, then its support packages, and its code is in three
+            # folders.
             @test read(joinpath(output, ".github", "workflows", "CI.yml"), String) ==
-                  "FakeTop: FakeBase FakeTop | FakeTop/src FakeTop/source FakeTop/ext\n"
+                  "FakeTop: FakeBase FakeTop FakeTop/test/support/FakeTopExample " *
+                  "FakeTop/test/support/FakeTopTest | " *
+                  "FakeTop/src FakeTop/source FakeTop/ext\n"
 
             # A released package that only a support package names is developed
             # too, and one that nothing names is not.
