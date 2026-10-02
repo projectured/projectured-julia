@@ -45,6 +45,42 @@ function report_frame_faults!(editor::Editor)
     length(records)
 end
 
+# The editor whose output a device reads now, or `nothing` outside a paint.
+const _PAINTING_EDITOR = ScopedValue{Any}(nothing)
+
+"""
+    record_paint_fault!(exception; origin) -> Bool
+
+Record a fault that a device met while it read one element of the output, and
+answer whether it is recorded, so that the device skips that element and draws
+the rest.
+
+A renderer calls it inside its catch around one element, with the type of the
+element as `origin`. While an editor with its barriers on paints, the answer is
+`true`: the editor records the fault as a fault of a printer, unless it is a
+`RecordedFaultException`, which a fault barrier recorded already and whose mark
+the next frame draws. Outside a paint of an editor, under the strict policy and
+for an exception that `is_passthrough_exception` names, the answer is `false`,
+and the renderer throws the exception again.
+
+# Example
+
+    try
+        draw_element!(renderer, element)
+    catch exception
+        record_paint_fault!(exception; origin = typeof(element)) || rethrow()
+    end
+"""
+function record_paint_fault!(exception; origin)
+    editor = _PAINTING_EDITOR[]
+    editor === nothing && return false
+    editor.fault_policy.is_barrier_enabled || return false
+    is_passthrough_exception(exception) && return false
+    exception isa RecordedFaultException && return true
+    record_fault!(editor.faults, :print; origin, exception, traceback = catch_backtrace())
+    true
+end
+
 # The barriers that took a fault show their marks, and from now on the editor
 # tries them again after an operation. The list is emptied first, so a mark that
 # throws leaves no barrier on it for the next frame.

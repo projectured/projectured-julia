@@ -592,9 +592,12 @@ runs2[]               # 3: each pull runs the computation again
         Rebased on 2026-10-02 onto aa7ce9223, with conflicts only in lists of
         exports, imports and slice edges, and in the workspace row of
         `Application.jl`, whose history wrap is now `make_history_wrap(settings)`.
-        On the rebased branch `test_platform()` has 84780 pass and 8 broken. The
-        four export findings and the four argument findings of `test/suite` are
-        in `main` as well.
+        On the rebased branch `test_platform()` has 84780 pass and 8 broken, and
+        `test_application()` 342 pass and 2 broken. `test_kernel()` has 4129
+        pass and one failure, "a gesture reaches the child its route names, and
+        the child reads it" in `RoutedChangeTest.jl:199`, which fails on a clean
+        copy of `main` at aa7ce9223 as well. The four export findings and the
+        four argument findings of `test/suite` are in `main` as well.
   - [x] 6c. The count of cells and objects for each node, before and after.
         Done, as allocations, which do not depend on the load of the machine.
         A JSON array of `n` arrays of three values (4n + 1 nodes), printed
@@ -614,7 +617,21 @@ runs2[]               # 3: each pull runs the computation again
         the scope of each print. No time was measured: a timing needs an idle
         machine and the owner's word. Whether this is too costly, and option b
         of §5 point 6 is needed, is the owner's decision.
-- [ ] **Step 7: the renderer catch** around each element, with the frame time.
+- [x] **Step 7: the renderer catch** around each element, with the frame time.
+      Done, with no frame time: a timing needs an idle machine and the owner's
+      word. The editor sets a scope with itself around `write_to_devices`, and
+      exports `record_paint_fault!(exception; origin)`: `true` while an editor
+      with its barriers on paints, after it records a fault that no barrier took;
+      `false` outside a paint, under the strict policy and for an exception that
+      passes every barrier. The seam is in the editor layer because
+      `BackendModule.jl` is sealed. The SDL walk `_render_canvas!`, which the
+      window and the offscreen paths share, draws each element through
+      `_render_element_guarded!` and reads the coordinate of the early stop
+      through `_find_render_coordinate`. Test: `test_paint_fault()` in the SDL
+      suite: outside a paint and under the strict policy the fault goes on;
+      with the barriers on, the rows around a broken row are read and the fault
+      is recorded. `test_sdl()` 832 pass, `test_fault()` 98 pass. The other
+      renderers (web, console, PDF) have no catch around an element.
 - [x] **Step 8: the documentation**: `fault.md` (the pull stack, the scope, the
       heal that does not happen, the test), `cell.md` (a computation keeps its
       scope), `projection-system.md`.

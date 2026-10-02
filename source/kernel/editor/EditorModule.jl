@@ -33,6 +33,7 @@ The module lives in ten fragments that share this namespace:
 """
 module EditorModule
 
+using Base.ScopedValues: ScopedValue, with
 using ..AgentModule
 using ..BackendModule
 using ..CellModule
@@ -60,7 +61,7 @@ export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!
        post_operation!, drain_operations!, is_editor_degraded,
        get_consecutive_fault_limit,
        is_editor_in_safe_mode, enter_safe_mode!, leave_safe_mode!,
-       report_frame_faults!,
+       report_frame_faults!, record_paint_fault!,
        InboxFeed, wake_editor!, drain_feeds!,
        get_backend_name, get_backend_output, collect_backend_types, make_default_backend,
        EditorParts, EDITOR_WRAPPER_LAYERS, wrap_editor!, get_wrapper_layers,

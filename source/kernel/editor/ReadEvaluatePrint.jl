@@ -198,7 +198,9 @@ end
 # the fault counts as a fault of the device, and the device barrier bounds it.
 function _write_output_to_devices!(editor::Editor)
     try
-        write_to_devices(editor.backend, editor.devices, editor.iomap.output)
+        with(_PAINTING_EDITOR => editor) do
+            write_to_devices(editor.backend, editor.devices, editor.iomap.output)
+        end
     catch exception
         (exception isa RecordedFaultException && !isempty(editor.noted_barriers)) ||
             rethrow()

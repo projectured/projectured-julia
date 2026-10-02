@@ -1752,13 +1752,13 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
         while prev_node !== nothing
             elem = prev_node.value
             if !(elem isa GraphicsFence)
-                _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
+                _render_element_guarded!(renderer, elem, ox, oy, edges, ratio)
                 if early_stop
                     if layout == layout_vertical
-                        ey = _render_elem_y(elem)
+                        ey = _find_render_coordinate(_render_elem_y, elem)
                         ey !== nothing && (ey + oy) < edges.top && break
                     elseif layout == layout_horizontal
-                        ex = _render_elem_x(elem)
+                        ex = _find_render_coordinate(_render_elem_x, elem)
                         ex !== nothing && (ex + ox) < edges.left && break
                     end
                 end
@@ -1772,14 +1772,14 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
             if !(elem isa GraphicsFence)
                 if early_stop
                     if layout == layout_vertical
-                        ey = _render_elem_y(elem)
+                        ey = _find_render_coordinate(_render_elem_y, elem)
                         ey !== nothing && (ey + oy) > edges.bottom && break
                     elseif layout == layout_horizontal
-                        ex = _render_elem_x(elem)
+                        ex = _find_render_coordinate(_render_elem_x, elem)
                         ex !== nothing && (ex + ox) > edges.right && break
                     end
                 end
-                _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
+                _render_element_guarded!(renderer, elem, ox, oy, edges, ratio)
             end
             node = node.next
         end
@@ -1792,14 +1792,14 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
             elem isa GraphicsFence && continue
             if early_stop
                 if layout == layout_vertical
-                    ey = _render_elem_y(elem)
+                    ey = _find_render_coordinate(_render_elem_y, elem)
                     ey !== nothing && (ey + oy) > edges.bottom && break
                 elseif layout == layout_horizontal
-                    ex = _render_elem_x(elem)
+                    ex = _find_render_coordinate(_render_elem_x, elem)
                     ex !== nothing && (ex + ox) > edges.right && break
                 end
             end
-            _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
+            _render_element_guarded!(renderer, elem, ox, oy, edges, ratio)
         end
     end
 end
@@ -1843,6 +1843,31 @@ end
 
 _render_elem_x(elem) = hasproperty(elem, :x) ? Int(elem.x) : nothing
 _render_elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
+
+# One element drawn, or skipped when reading it throws while an editor paints
+# with its barriers on: the editor records the fault, the rest of the canvas
+# draws, and a fault that a barrier took draws as its mark on the next frame.
+# Outside such a paint the exception goes on, so a test sees it.
+function _render_element_guarded!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int,
+                                  edges::_ClipEdges, ratio::Float64)
+    try
+        _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
+    catch exception
+        record_paint_fault!(exception; origin = typeof(elem)) || rethrow()
+    end
+    nothing
+end
+
+# The place of an element on the axis of the early stop, or `nothing` when it has
+# none, or when reading it throws and the editor that paints records the fault.
+function _find_render_coordinate(read, elem)
+    try
+        read(elem)
+    catch exception
+        record_paint_fault!(exception; origin = typeof(elem)) || rethrow()
+        nothing
+    end
+end
 
 # ── Per-window paint ──────────────────────────────────────────────────
 

@@ -20,7 +20,7 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 | `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `make_safe_mode_projection`, `is_passthrough_exception` |
 | `source/kernel/cell/CellFaultScope.jl` | `run_in_fault_scope`, `record_computation_fault!`, `RecordedFaultException`, `find_fault_scope` |
 | `source/kernel/projection/ProjectionInterface.jl` | the seams of a barrier: `show_barrier_mark!`, `retry_barrier_print!`, `get_content_iomap` |
-| `source/kernel/editor/FaultBarriers.jl` | the barriers of the editor, the drain that draws the marks, and the retry after an operation |
+| `source/kernel/editor/FaultBarriers.jl` | the barriers of the editor, the drain that draws the marks, the retry after an operation, and `record_paint_fault!` for a renderer |
 | `source/platform/projection/higherorder/FaultCatching.jl` | `FaultCatchingProjection`, the barrier inside a pipeline, and `RetryBarrierPrintOperation` |
 | `source/platform/projection/ProjectionDocument.jl` | `FaultReport`, the report that a barrier leaves |
 | `source/platform/syntax/FaultToSyntax.jl`, `text/FaultToText.jl`, `widget/FaultToWidget.jl`, `graphics/FaultToGraphics.jl` | one mark for each output domain |
@@ -81,7 +81,7 @@ So the relation is kept from the moment a cell is built:
 1. Each call of `print_document` of a barrier makes the IoMap of one part, and prints the part inside `run_in_fault_scope`, with that IoMap as the scope.
 2. A `Computation` made in the scope keeps it, and so does a computation that `set_cell_computation!` gives a cell. A computation made inside another computation takes the scope of that computation.
 3. The innermost computation in a scope that throws calls `record_computation_fault!` with its scope. The barrier records the fault in the store and puts itself on the list of the editor. The computation then throws a `RecordedFaultException`, which no barrier above records again. A `MethodError` in an older world passes, so the cell runs the computation again in the newest world.
-4. The frame that read the cell loses that read. The device barrier skips the paint for a `RecordedFaultException` and counts no device fault, so the screen keeps the frame before it.
+4. The SDL renderer reads each element of the output inside a catch, and calls `record_paint_fault!` when the read throws. While an editor with its barriers on paints, the call records a fault that no barrier took, and the renderer skips that element and draws the rest. So the first frame shows the window with a hole where the part failed. A read outside an element, such as the read of the root output, loses the frame: the device barrier skips the paint for a `RecordedFaultException` and counts no device fault, so the screen keeps the frame before it.
 5. Between two frames, `report_frame_faults!` calls `show_barrier_mark!` for each barrier on the list. The barrier writes its output cell with the mark, outside every computation, so the parent reads the mark and nothing reads the cells that failed.
 
 A barrier that can not draw its mark, because its substitute throws, records that fault, and its later faults go to the barrier that held the scope when it printed: `find_fault_scope()` answers that one. So the fault follows the nesting of the barriers, and the mark stands in a larger place.
@@ -175,7 +175,7 @@ run_fault_tool_example()             # a tool throws; the same panel reports it
 
 ## Limits
 
-- The frame that meets a fault first is lost: the screen keeps the frame before it. One frame finds one fault, because the read stops at the first.
+- The first frame of a fault draws the rest of the window, with a hole where an element failed, only with the SDL renderer, which catches around each element. Another renderer, and a fault outside an element, lose that frame, and there one frame finds one fault, because the read stops at the first.
 - The mark takes the place of the whole part, and it has its own size, so the siblings can move.
 - A stage with no recursion point, such as `TextToGraphics`, is one part. A barrier around it costs that stage of the pane.
 - A parent that reads the inner fields of a child, as a table reads the grid of its pane, fails with the child, so its own barrier draws the mark.
