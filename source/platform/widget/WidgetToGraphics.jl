@@ -2215,13 +2215,22 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
         # to it, so a menu opened near an edge does not run past it.
         width = _resolve_overlay(ctx, :x, 0, iw + inset_width)
         height = _resolve_overlay(ctx, :y, 0, ih + inset_height)
+        # The menu stands where its child stands, as a `LayoutConstraint` does: its
+        # canvas takes the origin of the child's canvas, and the child draws inside
+        # the box at the content offset, so the box covers the child wherever the
+        # child is placed.
+        x, y = Int(inner.x), Int(inner.y)
         elements = Any[]
         _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w),
                          max(0, width - inset_width), max(0, height - inset_height))
-        push!(elements, _make_canvas(content_x, content_y, Any[inner]))
-        (width = width, height = height, elements = elements)
+        push!(elements, _make_canvas(content_x - x, content_y - y, Any[inner]))
+        (x = x, y = y, width = width, height = height, elements = elements)
     end)
-    canvas = _reactive_canvas_cell(0, 0, build)
+    canvas = GraphicsCanvas(Cell(@computation Int32(build[].x)), Cell(@computation Int32(build[].y)),
+                            Cell(@computation Int32(build[].width)),
+                            Cell(@computation Int32(build[].height)),
+                            CellVector(@computation build[].elements),
+                            layout_none, true, Cell(nothing))
     WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap)
 end
 
@@ -2261,8 +2270,7 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     child_iomap = iomap.child_iomap
     child_iomap === nothing && return nothing
     is_outward_gesture(evt) &&
-        return _read_children_outward(w, Any[(_content_offset(p, w)..., child_iomap)],
-                                      evt)
+        return _read_children_outward(w, Any[_get_context_menu_child_entry(p, iomap)], evt)
     dx, dy = _get_context_menu_child_offset(p, iomap)
     op = @gesture_case evt begin
         MouseClick => shift_operation_position(
@@ -2285,13 +2293,19 @@ function _read_context_menu_move(p::WidgetContextMenuToGraphicsCanvas,
                  _read_single_child_move(iomap.input, "child", child_iomap, evt, dx, dy, on_child))
 end
 
-# Where the child of a context menu stands in the menu's frame: the content offset
-# and the place of the child's own canvas.
-function _get_context_menu_child_offset(p, iomap::WidgetContextMenuToGraphicsCanvasIoMap)
+# Where the frame of the child of a context menu stands in the menu's frame: at the
+# content offset, because the menu stands where its child stands.
+_get_context_menu_child_offset(p, iomap::WidgetContextMenuToGraphicsCanvasIoMap) =
+    _content_offset(p, iomap.input)
+
+# The child as an entry of the routing helpers, which take the place of the child's
+# own canvas off a point: the offset of the wrapper canvas, the content offset less
+# the origin of the child's canvas.
+function _get_context_menu_child_entry(p, iomap::WidgetContextMenuToGraphicsCanvasIoMap)
     cox, coy = _content_offset(p, iomap.input)
     canvas = iomap.child_iomap.output
-    canvas isa GraphicsCanvas || return (cox, coy)
-    (cox + Int(canvas.x), coy + Int(canvas.y))
+    canvas isa GraphicsCanvas || return (cox, coy, iomap.child_iomap)
+    (cox - Int(canvas.x), coy - Int(canvas.y), iomap.child_iomap)
 end
 
 # ── WidgetDialog ──────────────────────────────────────────────────────────────
@@ -2969,9 +2983,11 @@ function _make_composite_child_context(p, w::WidgetComposite, child, ctx)
     make_cross_axis_context(cctx, child, :y, w.child_height)
 end
 
-# The position of a child placed by hand, `(x, y)`, through a `LayoutConstraint`;
-# `(0, 0)` for a child with none.
+# The position of a child placed by hand, `(x, y)`, through a `LayoutConstraint` or
+# a `WidgetContextMenu`, which stand where their child stands; `(0, 0)` for a child
+# with none.
 _get_placed_position(child::LayoutConstraint) = _get_placed_position(child.child)
+_get_placed_position(child::WidgetContextMenu) = _get_placed_position(child.child)
 function _get_placed_position(child)
     hasproperty(child, :position) || return (0, 0)
     position = child.position

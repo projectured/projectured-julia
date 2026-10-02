@@ -98,6 +98,25 @@ function test_context_menu_window()
     @test [title for (title, _) in state.layers] == ["WidgetContextMenu"]
 end
 
+# A menu has no position of its own, so a composite places it by the position of
+# its part, and the menu stands where the part stands.
+@testset "a part that has its own position lights, and a right click on it opens its menu" begin
+    menu = WidgetContextMenu(WidgetLabel("placed"; position = Point2D(40, 60)), _cm_menu("Cut", "Copy"))
+    editor, backend, scene = _cm_editor(WidgetComposite(Any[menu]))
+    (x, y) = _cm_place_of(_cm_drawn_window(editor, scene, :W), "placed")
+    @test (x, y) == (40, 60)
+    _cm_send!(editor, backend, MouseMove(x + 2, y + 2; time = 0.9))
+    @test get_mouse_target(menu) !== nothing
+    _cm_click!(editor, backend, :right, x + 2, y + 2, 1.0)
+    @test _cm_labels(only(_cm_menus(scene)).content) == ["Cut", "Copy"]
+    # Before the part, where nothing is drawn, the menu is not under the pointer.
+    _cm_send!(editor, backend, KeyDown(:escape, ModifierKeys(); time = 1.5))
+    _cm_send!(editor, backend, MouseMove(5, 5; time = 2.0))
+    @test get_mouse_target(menu) === nothing
+    _cm_click!(editor, backend, :right, 5, 5, 2.1)
+    @test isempty(_cm_menus(scene))
+end
+
 @testset "a right click on a part with no menu opens none" begin
     editor, backend, scene = _cm_editor()
     _cm_click!(editor, backend, :right, 20, 50, 1.0)

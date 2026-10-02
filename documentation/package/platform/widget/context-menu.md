@@ -78,7 +78,7 @@ editor = build_editor(document, projection; backend = backend,
     window = (; title = "Title"))          # the tooltip and the context menu windows are on
 ```
 
-A `WidgetContextMenu(child, menu)` gives a part of a widget tree a menu. A domain type gives itself a menu with `make_context_menu_binding` in its gesture table.
+A `WidgetContextMenu(child, menu)` gives a part of a widget tree a menu. The menu has no position of its own: it stands where its child stands, as a `LayoutConstraint` does, so a composite places it by the position of the child, and the box of the menu covers the child there. A domain type gives itself a menu with `make_context_menu_binding` in its gesture table.
 
 - Tests: `test_context_menu_window()` for the window, through a real editor; `test_widget_context_menu()` and `test_widget_popup_example()` for the binding of `WidgetContextMenu`; `test_data_frame_columns()` for the menus of a data frame.
 
