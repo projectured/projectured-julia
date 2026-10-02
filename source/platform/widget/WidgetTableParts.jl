@@ -434,13 +434,27 @@ end
 const _COLUMN_EDGE_REACH = 3
 const _MIN_COLUMN_WIDTH = 24
 
+# The band of the edge whose rule starts at `edge`, where a press starts the drag
+# of the width of a column, as `(start, extent)`: `_COLUMN_EDGE_REACH` on each side
+# of the middle of the rule. The reader and the region of the pointer shape both
+# read it.
+_get_column_edge_band(edge::Int, bw::Int) =
+    (edge + bw ÷ 2 - _COLUMN_EDGE_REACH, 2 * _COLUMN_EDGE_REACH + 1)
+
+# The region of the pointer shape over the band of the edge whose rule starts at
+# `edge`, `height` tall.
+function _make_column_edge_region(edge::Int, bw::Int, height::Int)
+    start, extent = _get_column_edge_band(edge, bw)
+    GraphicsPointerShape(start, 0, extent, height, :double_arrow_horizontal)
+end
+
 # The column whose right edge is within `_COLUMN_EDGE_REACH` of `x`, in the
 # coordinates of the rules, and the width of its cells, as `(c, width)`;
 # `nothing` when `x` is near no edge. The edge of a column is the rule of the
 # column after it.
 function _find_table_column_edge_at(st::WidgetTablePartsState, x::Int)
     hgap = 2 * st.pad_x + st.bw
-    near(edge) = abs(x - (edge + st.bw ÷ 2)) <= _COLUMN_EDGE_REACH
+    near(edge) = (band = _get_column_edge_band(edge, st.bw); band[1] <= x < band[1] + band[2])
     if !st.column_list
         edges = st.edges[]
         for c in 1:(length(edges) - 1)
@@ -707,6 +721,10 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
             for edge in edges[]
                 push!(out, GraphicsRect(edge, 0, bw, h; color = divider))
             end
+            # Where a press starts the drag of the width of a column.
+            for edge in edges[][2:end]
+                push!(out, _make_column_edge_region(edge, bw, h))
+            end
             push!(out, edge_light)
             out
         end)
@@ -808,15 +826,23 @@ end
 # The rule to the left of the column of `column_node`, from `top` down `height`
 # in the coordinates of the rules, and the rule after it when it is the last
 # column: a list that mirrors the columns that a grid placed, so only the
-# columns that a viewport shows have rules.
+# columns that a viewport shows have rules. With `edge_regions`, each canvas also
+# holds the regions of the pointer shape over the bands of the edge at its left,
+# after a column, and of the edge at its right: a list walks only the column at a
+# point, so each half of a band is in the canvas of its own column.
 function _make_column_rules_node(st::WidgetTablePartsState, column_node::ListNode, top::Cell,
-                                 height::Cell, color)
+                                 height::Cell, color; edge_regions::Bool = false)
     column = column_node.value
     hgap = 2 * st.pad_x + st.bw
     elements = CellVector(@computation begin
         out = Any[GraphicsRect(0, Int(top[]), st.bw, Int(height[]); color)]
         column_node.next === nothing &&
             push!(out, GraphicsRect(Int(column.w) + hgap, Int(top[]), st.bw, Int(height[]); color))
+        if edge_regions
+            column_node.prev === nothing ||
+                push!(out, _make_column_edge_region(0, st.bw, Int(height[])))
+            push!(out, _make_column_edge_region(Int(column.w) + hgap, st.bw, Int(height[])))
+        end
         out
     end)
     canvas = GraphicsCanvas(getfield(column, :x), Cell(Int32(0)),
@@ -826,26 +852,30 @@ function _make_column_rules_node(st::WidgetTablePartsState, column_node::ListNod
     set_cell_computation!(getfield(node, :next), () -> begin
         following = column_node.next
         following === nothing && return nothing
-        next_node = _make_column_rules_node(st, following, top, height, color)
+        next_node = _make_column_rules_node(st, following, top, height, color; edge_regions)
         set_cell_value!(getfield(next_node, :prev), node)
         next_node
     end)
     set_cell_computation!(getfield(node, :prev), () -> begin
         preceding = column_node.prev
         preceding === nothing && return nothing
-        prev_node = _make_column_rules_node(st, preceding, top, height, color)
+        prev_node = _make_column_rules_node(st, preceding, top, height, color; edge_regions)
         set_cell_value!(getfield(prev_node, :next), node)
         prev_node
     end)
     node
 end
 
-# A canvas whose elements are the rules of the columns that `grid` placed.
-_make_column_rules(st::WidgetTablePartsState, grid, top::Cell, height::Cell, color) =
+# A canvas whose elements are the rules of the columns that `grid` placed, and with
+# `edge_regions` the regions of the pointer shape over the edges of the columns.
+_make_column_rules(st::WidgetTablePartsState, grid, top::Cell, height::Cell, color;
+                   edge_regions::Bool = false) =
     GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                    Cell(@computation (head = get_grid_list_column_head(grid);
-                                      head isa ListNode ? _make_column_rules_node(st, head, top, height, color) :
-                                                          CellVector())),
+                                      head isa ListNode ?
+                                          _make_column_rules_node(st, head, top, height, color;
+                                                                  edge_regions) :
+                                          CellVector())),
                    layout_horizontal, false, Cell(nothing))
 
 # The printer of a table whose rows are a list and whose `column_headers` are a
@@ -926,7 +956,8 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     bands = Any[_make_row_band(p, w, st, nothing, band_height, :light),
                 _make_row_band(p, w, st, nothing, band_height, :selection)]
     span = Cell(@computation _get_table_row_span(st))
-    header_rules = _make_column_rules(st, column_header_pane.content_iomap, Cell(0), header_height, divider)
+    header_rules = _make_column_rules(st, column_header_pane.content_iomap, Cell(0), header_height, divider;
+                                      edge_regions = true)
     edge_light = _make_column_edge_light(p, w, st, Cell(@computation Int(header_height[])))
     header_graphics = CellVector(@computation begin
         left, row_width = span[]

@@ -1775,7 +1775,11 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
             push!(elems, GraphicsText(String(placeholder), content_x, content_y; font = style.font,
                                       color = style.color))
         end
+        # A press anywhere in the box of a field that takes edits puts the caret,
+        # and a press on a disabled field does nothing, also over its text.
+        state === :disabled || push!(elems, GraphicsPointerShape(0, 0, outer_w, outer_h, :ibeam))
         push!(elems, _make_canvas(content_x, content_y, Any[inner]))
+        state === :disabled && push!(elems, GraphicsPointerShape(0, 0, outer_w, outer_h, :arrow))
         _push_focus_ring!(elems, w, outer_w, outer_h, p.focus_ring_stroke, radius;
                           whole = p.selection_ring_stroke)
         (width=outer_w, height=outer_h, elements=elems)
@@ -2024,6 +2028,8 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width,
                        content_height; placeholder_color = p.placeholder_color)
         _push_focus_ring!(elements, w, button_width, button_height, p.focus_ring_stroke, corner_radius)
+        # A press on a button that acts runs its action.
+        enabled && push!(elements, GraphicsPointerShape(0, 0, button_width, button_height, :pointing_hand))
         (width=button_width, height=button_height, elements=elements)
     end))
 end
@@ -3846,6 +3852,19 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                 cursor += splitter_thickness
             end
         end
+        # Where a press grabs a splitter, the pointer is a double arrow along the
+        # main axis, over the band of the reader (`_get_splitter_band`).
+        for i in 2:n
+            if main_axis === :x
+                start, extent = _get_splitter_band(Int(child_x[i][]), splitter_thickness)
+                push!(result, GraphicsPointerShape(start, coy, extent, cross_extent,
+                                                   :double_arrow_horizontal))
+            else
+                start, extent = _get_splitter_band(Int(child_y[i][]), splitter_thickness)
+                push!(result, GraphicsPointerShape(cox, start, cross_extent, extent,
+                                                   :double_arrow_vertical))
+            end
+        end
         result
     end))
 
@@ -3886,19 +3905,25 @@ const _SPLITTER_GRAB_TOL = 3
 _split_child_main_pos(entry, orientation::Symbol) =
     (entry::Tuple{Cell,Cell,Any}; orientation === :horizontal ? Int(entry[1][]) : Int(entry[2][]))
 
+# The band of the splitter before the child at `next_position` on the main axis,
+# where a press grabs it, as `(start, extent)`: the `thickness`-wide gap before
+# that child, widened by `_SPLITTER_GRAB_TOL` on each side, both ends included.
+# The reader and the region of the pointer shape both read it.
+_get_splitter_band(next_position::Int, thickness::Int) =
+    (next_position - thickness - _SPLITTER_GRAB_TOL, thickness + 2 * _SPLITTER_GRAB_TOL + 1)
+
 # Index `k` (1-based) of the splitter band under `(x, y)`, or 0 if none.
 # Splitter `k` occupies the `thickness`-wide gap immediately before child `k+1`
-# (see the print cursor), widened by `tol` on each side along the main axis.
+# (see the print cursor), widened on each side along the main axis.
 function _splitter_band_hit(orientation::Symbol, child_iomaps::Vector,
-                            thickness::Int, x::Int, y::Int, tol::Int)
+                            thickness::Int, x::Int, y::Int)
     n = length(child_iomaps)
     coord = orientation === :horizontal ? x : y
     for k in 1:(n - 1)
         nxt = child_iomaps[k + 1]
         nxt === nothing && continue
-        gap_end   = _split_child_main_pos(nxt, orientation)
-        gap_start = gap_end - thickness
-        (gap_start - tol <= coord <= gap_end + tol) && return k
+        start, extent = _get_splitter_band(_split_child_main_pos(nxt, orientation), thickness)
+        (start <= coord < start + extent) && return k
     end
     0
 end
@@ -3944,7 +3969,7 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
     active      = w.active_splitter::Int
 
     if evt isa MouseDown && evt.button === :left && active == 0
-        k = _splitter_band_hit(orientation, child_iomaps, thickness, evt.x, evt.y, _SPLITTER_GRAB_TOL)
+        k = _splitter_band_hit(orientation, child_iomaps, thickness, evt.x, evt.y)
         k == 0 && return nothing
         outer = iomap.output
         outer_main = outer isa GraphicsCanvas ?
@@ -4342,6 +4367,10 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                 # Active tab: a raised background pill.
                 _push_panel!(header, tx, coy, rw, sel_h; fill=tab_color, radius=tab_radius)
             end
+            # A press on a tab opens it, and on a tab of a pane that drags tabs it
+            # grabs it too.
+            push!(header, GraphicsPointerShape(tx, coy, rw, sel_h,
+                                               w.draggable === true ? :open_hand : :pointing_hand))
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
             iw > 0 && _push_icon!(header, icon, tx + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - iw) ÷ 2,
@@ -4355,6 +4384,10 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             end
             # The button column sits at the tab's right edge, tinted like its label.
             _push_tab_buttons!(header, g, tabs[i], fg)
+            button_box = _get_tab_button_box(tabs[i], g.pad)
+            button_box === nothing ||
+                push!(header, GraphicsPointerShape(button_box[1], coy, button_box[2], sel_h,
+                                                   :pointing_hand))
             push!(result, GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
                                          CellVector(Cell[Cell(e) for e in header]),
                                          layout_none, true, Cell(nothing)))
@@ -4363,6 +4396,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         new_side = g.new_w - 2 * sel_pad
         g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - new_side) ÷ 2,
                                    new_side, _get_part_text(w, :tab_text, p.tab_text).color)
+        g.new_w > 0 && push!(result, GraphicsPointerShape(g.new_x, coy, g.new_w, sel_h, :pointing_hand))
         result
     end)
 
@@ -8383,7 +8417,11 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         elements = Any[]
         _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height;
                          radius)
+        # A press anywhere in the box of an area that takes edits puts the caret,
+        # and a press on a disabled area does nothing, also over its text.
+        enabled && push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :ibeam))
         push!(elements, _make_canvas(content_x, content_y, Any[inner]))
+        enabled || push!(elements, GraphicsPointerShape(0, 0, outer_width, outer_height, :arrow))
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
     end)

@@ -272,6 +272,7 @@ function test_platform()
         test_document_composition()
         test_tabs_wrapper()
         test_split_pane_drag()
+        test_part_pointer_shape()
         test_routed_gesture()
         test_layout_point()
         test_widget_point()
@@ -343,7 +344,7 @@ export test_object_to_widget, test_projection_configuring,
        test_widget_toolbar, test_widget_table, test_widget_table_cell_policy, test_widget_table_cell_editing, test_widget_table_column_align, test_widget_table_fills_offer, test_widget_table_content_floor, test_shell_offers_only_its_size, test_widget_shell_layout, test_widget_shell_pointer, test_scroll_pane_axis_size, test_widget_table_list, test_widget_table_list_header_floor, test_layout_list, test_frozen_table_headers, test_widget_text_wrap, test_widget_tab_strip, test_widget_split_pane, test_widget_transform_pane,
        test_layout_closeout, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard, test_tooltip, test_window_fit, test_window_wrapper, test_document_composition,
-       test_tabs_wrapper, test_split_pane_drag, test_routed_gesture,
+       test_tabs_wrapper, test_split_pane_drag, test_part_pointer_shape, test_routed_gesture,
        test_layout_point, test_widget_point, test_widget_forward, test_widget_round_trip,
        test_scroll_pane_hover,
        test_widget_popup_example, test_collapse_roundtrip

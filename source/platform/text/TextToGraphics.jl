@@ -567,12 +567,6 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     lines_stack = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                                  lines_stack_elements, layout_vertical, false, Cell(nothing))
 
-    # Top canvas: the line stack with the selection-driven caret/highlight overlays
-    # floating above it in absolute coordinates. A fixed three-slot vector, so its
-    # membership never regenerates — the highlight's per-selection churn is confined
-    # to the highlight sub-canvas's own element vector.
-    top_elements = CellVector(Cell[Cell(highlight_canvas), Cell(lines_stack), Cell(cursor_rect)])
-
     # coord_map (reader-only — not in the rendered tree) assembled from the per-line
     # layouts, shifted into absolute coordinates by each line's y-offset so clicks
     # and key-navigation see exactly the same SegCoords as before.
@@ -609,6 +603,15 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         n = length(lines_cell[])
         n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
     end))
+    # Top canvas: the line stack with the selection-driven caret/highlight overlays
+    # floating above it in absolute coordinates. A fixed vector, so its membership
+    # never regenerates — the highlight's per-selection churn is confined to the
+    # highlight sub-canvas's own element vector. A left click on the text puts the
+    # caret at the point, so the last element is an I-beam over the box of the
+    # lines.
+    ibeam = GraphicsPointerShape(0, 0, () -> canvas_w[], () -> canvas_h[], :ibeam)
+    top_elements = CellVector(Cell[Cell(highlight_canvas), Cell(lines_stack), Cell(cursor_rect),
+                                   Cell(ibeam)])
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
                             top_elements, layout_none, true, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)

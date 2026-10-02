@@ -60,6 +60,12 @@ function test_data_frame_column_width()
         # The right edge of the column `id` is the rule before the header of `name`.
         edge = name_x - state.pad_x - state.bw
 
+        @testset "the pointer is a double arrow over the edge" begin
+            window = last(backend.rendered).windows[1].content
+            @test find_pointer_shape(window, edge, name_y + 2) === :double_arrow_horizontal
+            @test find_pointer_shape(window, name_x + 20, name_y + 2) !== :double_arrow_horizontal
+        end
+
         @testset "the edge lights under the pointer" begin
             send!(MouseMove(edge, name_y + 2; time = 0.5))
             target = table_iomap.input.mouse_target

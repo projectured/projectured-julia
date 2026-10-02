@@ -1,7 +1,7 @@
 # The pointer shows what a press does there
 
 Status: in progress on the branch `pointer-shape` (worktree
-`.claude/worktrees/pointer-shape`). Steps 1 to 4 are done (§6). The owner decided
+`.claude/worktrees/pointer-shape`). Steps 1 to 5 are done (§6). The owner decided
 P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
 many other places, needs a plan"), after G3 of step 5.7 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) chose a lit edge
@@ -223,11 +223,49 @@ arrow.
    `test_video_pointer_shape()` checks the picture that the backend chooses, and
    renders each of the nine to a BMP and counts its black and white pixels around
    the hot spot.
-5. **The parts.** The edge of a column (a region of 7 pixels around each edge of
+5. ✅ **The parts.** The edge of a column (a region of 7 pixels around each edge of
    the header row), the divider of a split pane, the text of a text field, a text
    area and a text document that a person edits, a button, a link and a tab, and
    a tab that can drag. Each with a test of its region, which presses in the
    region and checks the answer of the reader.
+
+   Done. What each part draws:
+   - **The edge of a column**: `_get_column_edge_band(edge, bw)` is the band that
+     the reader (`_find_table_column_edge_at`) and the region both read. With
+     columns in a vector, the header row draws one region for each right edge,
+     before the light of the edge, which a test reads as the last element. With
+     columns in a list, the rules canvas of each column draws the band of the edge
+     at its left (when a column is before it) and of the edge at its right: the
+     list walks only the column at a point, so each half of a band is in the
+     canvas of its own column. Only the header row draws them.
+   - **The divider of a split pane**: `_get_splitter_band(next_position, thickness)`
+     is the band that the reader (`_splitter_band_hit`) and the region both read,
+     over the cross extent of the pane, a horizontal or a vertical double arrow.
+   - **A text field and a text area**: an I-beam over the box when it takes edits.
+     A disabled one draws the arrow over the box, after its content, because the
+     text view inside draws its own I-beam.
+   - **A text document**: `TextToGraphics` draws an I-beam over the box of its
+     lines, as the last element of its top canvas, so no path of its first three
+     elements changes. Its reader puts the caret at any point it gets, and a
+     container gives it only the points in its box. **Decision: every text view
+     draws the I-beam, and a container that does not give a press to its text
+     covers it with the arrow**, as the disabled field does; the alternative, a
+     field of `TextToGraphics` that turns the I-beam on, needed a change at each of
+     its 21 places of use. The list path of `TextToGraphics` puts no caret at a
+     point, so it draws no region.
+   - **A button**: a pointing hand over the box when it acts.
+   - **A tab**: a pointing hand over each tab, and an open hand over a tab of a
+     pane that drags its tabs (`draggable`, the pane tree). The column of the close
+     and the duplicate button and the new-tab button are a pointing hand.
+   - **A link**: no part of the editor follows a link at a press today, so none
+     draws one. The Markdown link is text.
+
+   Tests: `test_part_pointer_shape()` in
+   `test/platform/projection/PartPointerShapeTest.jl` sweeps the points of each
+   part and checks, at each point, that the shape is the part's shape exactly
+   where the reader answers the press of the part. `test_data_frame_column_width()`
+   checks the double arrow on the window that a real editor drew. `test_platform()`
+   passes, 86393 with the 8 broken of before; `test_application_video()` passes.
 6. **The drag** (§4.1). The drag tracking keeps the shape of the press and draws
    the region of a drag in every window; the keeper of a drag that carries a
    thing draws the closed hand and the crossed circle over its zones; the web
