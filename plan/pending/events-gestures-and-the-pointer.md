@@ -1493,7 +1493,10 @@ it holds the example.
     the outward walk reads the tables of documents only, and the data frame view
     maps a header back to its column; a host with no menu window (the gallery,
     the screen examples) opens no menu on a right click, because only the
-    wrapper opens it. On main as `63de70c7e`, with omnet `69e7e65c` (the IDE
+    wrapper opens it. Decided (owner 2026-10-02, "Agreed" to both): the first
+    stays, and a part that a path names and that has a gesture table of its own
+    is a `Document`, even when it holds no cells and is made on demand, which
+    `document.md` records; the second is step 9f. On main as `63de70c7e`, with omnet `69e7e65c` (the IDE
     window keeps the menu window); the context menu, tooltip, platform (only
     the file system test under `unshare -r` fails) and omnet pointer, IDE and
     campaign tests pass.
