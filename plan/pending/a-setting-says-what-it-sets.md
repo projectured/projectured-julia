@@ -31,8 +31,9 @@ chose:
   docstring, and the control. Every field of the 29 themes has a docstring.
 - **Wrapping.** A `WidgetCard` breaks its title and its description at word
   boundaries to the width that it is offered (`_push_text_block!` and
-  `_text_lines` in `WidgetToGraphics.jl`). A `WidgetLabel` draws one line. A
-  `GridLayout` has no cell that spans two columns.
+  `_text_lines` in `WidgetToGraphics.jl`), and so does a `WidgetLabel`, at the
+  edge of the range that its parent gives (finding 1). A `GridLayout` has no
+  cell that spans two columns.
 - **The summary of a type.** `compute_docstring_summary(T)` in the help slice
   answers the first paragraph of the docstring of `T`; the help list uses it. The
   first paragraph of a theme docstring is written for a programmer today, for
@@ -81,14 +82,13 @@ the rest of the row.
 - A grid whose children are a list (`GridColumnList.jl`) takes no span; the
   constraint is ignored there.
 
-### 4.2 A label can wrap
+### 4.2 A label breaks its text already
 
-`WidgetLabel(content; wrap = true)` breaks its text at word boundaries to the
-width that its container offers (`ctx.maximum_width`), with the same
-`_text_lines` that the card uses. With no offered width it draws one line, as
-now. The default stays `false`, so every label that exists draws as before.
-
-This is a new field of a widget, which the owner approved (D7).
+A `WidgetLabel` breaks its text at the edge of the range that its parent gives,
+exact or bounded (`print_document` of `WidgetLabelToGraphicsCanvas`). So a
+description that a grid offers the width of the columns it spans breaks there,
+and no new field is needed. The owner approved a `wrap` field (D7) when the plan
+said that a label draws one line, which was wrong; finding 1.
 
 ### 4.3 A card says what it holds
 
@@ -133,7 +133,8 @@ It goes (D5).
   them, whose controls do not line up.
 - **D5. The tooltip of a name goes.**
 - **D6. The note of a settings card follows the summary** on a line of its own.
-- **D7. `WidgetLabel` takes `wrap`** (4.2).
+- **D7. `WidgetLabel` takes `wrap`** (4.2). Not needed: a label breaks its
+  text already; finding 1.
 - **D8. `compute_docstring_summary` moves to the kernel** (`tool/Documentation.jl`,
   not sealed). Rejected: an edge from the appearance and the settings-managing
   slices to the help slice, which pulls the syntax and the text slices into the
@@ -149,10 +150,7 @@ All the work is in a worktree, and each step is a commit.
   row when its row is short, adds nothing to a `Content` column, is offered the
   width of its columns and the gaps, and a grid with no span draws as before
   (the images of all examples equal, and the table tests pass).
-- [ ] **S1. A label wraps** (D7). `WidgetLabel(…; wrap)`, its print with
-  `_text_lines`, and its measure in a layout. Tests: a long text breaks at word
-  boundaries inside the offered width, keeps one line with no offered width, and
-  a label with no `wrap` draws as before (the images of all examples equal).
+- [x] **S1. A label wraps** (D7). Not needed; finding 1.
 - [ ] **S2. The summary reader moves to the kernel** (D8), with its test; the
   help list calls it there.
 - [ ] **S3. The first paragraphs.** The docstrings of the 29 themes and of every
@@ -189,4 +187,9 @@ All the work is in a worktree, and each step is a commit.
 
 ## 9. Findings during the work
 
-None yet.
+1. **A label breaks its text already** (2026-10-02). `WidgetLabelToGraphicsCanvas`
+   breaks its text at the edge of the range that its parent gives, exact or
+   bounded; a test of `LayoutCloseoutTest` shows it for a `Fixed` column. The
+   plan said that a label draws one line, from a reading of the card printer
+   only, so it asked for a `wrap` field. The span of a grid offers the spanning
+   child the width of its columns as a bound, and the label breaks there.
