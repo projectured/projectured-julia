@@ -64,7 +64,7 @@ and a backend paints them.
 
 # Example
 
-    GraphicsText("delay", 10, 20; font = font_ubuntu_monospace_regular_20, color = color_black)
+    GraphicsText("delay", 10, 20; font = StyleFont("Ubuntu Mono", 20), color = color_black)
 
 See also `GraphicsCanvas`, which holds what is drawn, and `GraphicsRect`.
 
@@ -442,7 +442,7 @@ elements are drawn in order, and a canvas may hold other canvases.
 
 # Example
 
-    canvas = GraphicsCanvas([GraphicsText("hello", 4, 4; font = font_ubuntu_monospace_regular_20,
+    canvas = GraphicsCanvas([GraphicsText("hello", 4, 4; font = StyleFont("Ubuntu Mono", 20),
                                           color = color_black)];
                             w = 200, h = 50)
 

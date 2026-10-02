@@ -13,7 +13,7 @@ _proj() = make_widget_projection_example(measure = _stub)
 # own IoMap rather than the chain's.
 _direct() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(font_ubuntu_regular_20; measure = _stub).dispatch)))
+    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _stub).dispatch)))
 _label(text) = WidgetLabel(text)
 
 # The whole drawn tree as a string, viewports included.

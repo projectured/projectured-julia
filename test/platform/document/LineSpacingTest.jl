@@ -25,13 +25,13 @@ function test_line_spacing()
     measure = FixedMeasure(8, 12, 4, 0)
 
     @testset "the box of a line with fixed numbers" begin
-        @test compute_text_extent(measure, "abc", font_ubuntu_regular_20) == (24, 12, 4)
-        @test compute_line_box(measure, "abc", font_ubuntu_regular_20) == LineBox(24, 16, 12, 0)
+        @test compute_text_extent(measure, "abc", StyleFont("Ubuntu", 20)) == (24, 12, 4)
+        @test compute_line_box(measure, "abc", StyleFont("Ubuntu", 20)) == LineBox(24, 16, 12, 0)
         # Double spacing puts half of the leading of 16 above the text.
-        @test compute_line_box(measure, "abc", font_ubuntu_regular_20;
+        @test compute_line_box(measure, "abc", StyleFont("Ubuntu", 20);
                                spacing = MultipleSpacing(2)) == LineBox(24, 32, 20, 8)
         # A line box holds the ink of its text at any spacing.
-        @test compute_line_box(measure, "abc", font_ubuntu_regular_20;
+        @test compute_line_box(measure, "abc", StyleFont("Ubuntu", 20);
                                spacing = ExactSpacing(10)) == LineBox(24, 16, 12, 0)
     end
 
@@ -39,14 +39,14 @@ function test_line_spacing()
         file = FontFileMeasure()
         # Ubuntu 20: ascent 18.64, descent 3.78, line gap 0.56, so the line
         # distance is 22.98 and the baseline 0.28 + 18.64 below the top.
-        @test compute_line_box(file, "Type", font_ubuntu_regular_20) ==
-              LineBox(compute_text_extent("Type", font_ubuntu_regular_20)[1], 23, 19, 0)
+        @test compute_line_box(file, "Type", StyleFont("Ubuntu", 20)) ==
+              LineBox(compute_text_extent("Type", StyleFont("Ubuntu", 20))[1], 23, 19, 0)
         # Ubuntu Mono 20: ascent 16.60 and descent 3.40, no line gap. The line
         # distance is 20, and the box of the line reaches the bottom of the box
         # of the text, 17 + 4.
-        @test compute_line_box(file, "abc", font_ubuntu_monospace_regular_20) == LineBox(30, 21, 17, 0)
+        @test compute_line_box(file, "abc", StyleFont("Ubuntu Mono", 20)) == LineBox(30, 21, 17, 0)
         # An empty text is a line of its font.
-        @test compute_line_box(file, "", font_ubuntu_regular_20) == LineBox(0, 23, 19, 0)
+        @test compute_line_box(file, "", StyleFont("Ubuntu", 20)) == LineBox(0, 23, 19, 0)
     end
 
 end

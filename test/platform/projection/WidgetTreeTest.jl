@@ -15,7 +15,7 @@ function test_widget_tree()
 
 # Deterministic measure ⇒ row_height = 16 + 2*4 = 24, indent 22, chevron column 18.
 _det = FixedMeasure(8, 12, 4, 0)
-_w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
+_w2g = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det)
 _treeproj = nothing
 for (T, pr) in _w2g.dispatch
     T === WidgetTree && (_treeproj = pr)

@@ -19,17 +19,17 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct XmlTheme
     "The text of a text node."
-    content_text::StyleText         = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    content_text::StyleText         = StyleText(StyleFont("Ubuntu Mono", 20), color_black)
     "The name of an element's opening and closing tag."
-    tag_text::StyleText             = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    tag_text::StyleText             = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_blue)
     "The angle brackets of a tag."
-    delimiter_text::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    delimiter_text::StyleText       = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
     "The name of an attribute."
-    attribute_name_text::StyleText  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    attribute_name_text::StyleText  = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
     "The quotes around an attribute value."
-    quote_text::StyleText           = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    quote_text::StyleText           = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_yellow)
     "The value of an attribute."
-    attribute_value_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    attribute_value_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
 end
 
 # The style field of an XML projection that holds the text `name` of the theme

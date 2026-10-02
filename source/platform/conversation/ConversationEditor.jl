@@ -498,7 +498,7 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
 """
 struct ConversationComposerToWidget <: Projection end
 
-const _FONT        = font_ubuntu_monospace_regular_20
+const _FONT        = StyleFont("Ubuntu Mono", 20)
 const _PLACEHOLDER = "type here…"
 
 # A range at offsets `s..e` inside span `span` (1-based) of a body `TextBlock`, in

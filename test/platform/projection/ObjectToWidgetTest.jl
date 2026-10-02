@@ -95,7 +95,7 @@ end # @testset
 @testset "WidgetCheckbox click emits the toggle convention operation" begin
 
     stub = FixedMeasure(10, 18, 6, 0)
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     w2g  = WidgetToGraphics(font; measure=stub)
     cb_proj = first(pr for (T, pr) in w2g.dispatch if T === WidgetCheckbox)
 
@@ -213,7 +213,7 @@ end # @testset
     # The card's own IO map, not the example chain's: the fold is asserted on the
     # card's child entries.
     proj = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20;
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
                          measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     button = WidgetButton("Go"; size = Point2D(120, 40))
     card = WidgetCard(; title="t", content=button, width=240)

@@ -19,7 +19,7 @@ using ProjecturedPlatform.WidgetModule: WidgetToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, layout_none
 using ProjecturedPlatform.StyleModule: color_black
 using ProjecturedPlatform.CollectionModule: CellVector
-using ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+using ProjecturedPlatform.StyleModule: StyleFont
 import ProjecturedKernel.ProjectionModule: print_document, map_reference_forward
 using ProjecturedKernel.ProjectionModule: Projection
 using ProjecturedKernel.IoMapModule: SimpleIoMap
@@ -32,7 +32,7 @@ _al_measure = FixedMeasure(10, 15, 5, 0)
 
 _al_renderer() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = _al_measure).dispatch)))
+    WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = _al_measure).dispatch)))
 
 _al_label(text) = VerticalLayout(Any[WidgetLabel(text)]; gap = 0)
 
@@ -163,7 +163,7 @@ function test_anchored_layout()
         renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
             Pair{Type,Any}[VerticalLayout => _AlBoxes()],
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(font_ubuntu_monospace_regular_20;
+            WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
                              measure = _al_measure).dispatch)))
         output = print_document(renderer, AnchoredLayout(content, Any[note])).output
 

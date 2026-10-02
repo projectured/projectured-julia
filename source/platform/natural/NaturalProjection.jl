@@ -114,7 +114,7 @@ layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
               First match wins, so `extra` beats the defaults.
 """
 function NaturalToGraphics(; measure::TextMeasure,
-                           font = font_ubuntu_monospace_regular_20,
+                           font = StyleFont("Ubuntu Mono", 20),
                            wrap::Bool = true,
                            extra = Pair{Type,Any}[],
                            appearance::Appearance = Appearance())

@@ -289,7 +289,7 @@ A projection reads a scaled theme, not a theme.
 
     @theme struct JsonTheme
         "The text of a key."
-        key_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+        key_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
         "The indent of a nested value."
         indent::Spacing     = Spacing(16)
     end

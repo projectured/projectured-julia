@@ -13,7 +13,7 @@
     font::ImmutableCell{StyleFont}
 end
 
-TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20) =
+TextLineNumbering(; width::Int = 0, separator::String = " | ", font=StyleFont("Ubuntu Mono", 20)) =
     TextLineNumbering(width, separator, font)
 
 # Projection print: wraps input.elements in a reactive Cell that rebuilds
@@ -163,6 +163,6 @@ end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-function LineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_monospace_regular_20)
+function LineNumbering(; width::Int = 0, separator::String = " | ", font=StyleFont("Ubuntu Mono", 20))
     TextLineNumbering(width=width, separator=separator, font=font)
 end

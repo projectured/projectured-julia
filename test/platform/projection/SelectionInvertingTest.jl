@@ -1,6 +1,6 @@
 function test_selection_inverting()
 
-_font = font_ubuntu_monospace_regular_20
+_font = StyleFont("Ubuntu Mono", 20)
 
 # `elements[span].content{char}` cursor path (span 1-based, char 0-based).
 _ref(span, char) = ConcreteReference(FieldReferenceStep("elements"),

@@ -2,22 +2,22 @@
 function test_text()
 @testset "ReactiveText" begin
 
-s1 = TextString("hello", font_ubuntu_monospace_bold_20, color_red)
+s1 = TextString("hello", StyleFont("Ubuntu Mono", 20; weight = 700), color_red)
 @test s1.content == "hello"
-@test s1.font == font_ubuntu_monospace_bold_20
+@test s1.font == StyleFont("Ubuntu Mono", 20; weight = 700)
 @test s1.font_color == color_red
 
 s1.content = "hi"
 @test s1.content == "hi"
 
 st = TextBlock(
-    TextString("aaa", font_ubuntu_monospace_bold_20, color_red),
-    TextString("bbb", font_ubuntu_monospace_regular_20, color_blue),
+    TextString("aaa", StyleFont("Ubuntu Mono", 20; weight = 700), color_red),
+    TextString("bbb", StyleFont("Ubuntu Mono", 20), color_blue),
 )
 @test length(st.elements) == 2
 @test st.elements[1].content == "aaa"
 
-push!(st.elements, TextString("ccc", font_ubuntu_monospace_regular_20, color_default))
+push!(st.elements, TextString("ccc", StyleFont("Ubuntu Mono", 20), color_default))
 @test length(st.elements) == 3
 
 deleteat!(st.elements, 2)
@@ -26,7 +26,7 @@ deleteat!(st.elements, 2)
 
 # computed text
 counter = Cell(0)
-dyn_span = TextString(() -> "n=$(counter[])", font_ubuntu_monospace_regular_20, color_white)
+dyn_span = TextString(() -> "n=$(counter[])", StyleFont("Ubuntu Mono", 20), color_white)
 @test dyn_span.content == "n=0"
 counter[] = 5
 @test dyn_span.content == "n=5"
@@ -43,9 +43,9 @@ g = TextGraphics(img, 64, 48)
 
 # Mixes cleanly with TextStrings inside a TextBlock; length / getindex hold.
 st = TextBlock(
-    TextString("ab", font_ubuntu_monospace_regular_20, color_red),
+    TextString("ab", StyleFont("Ubuntu Mono", 20), color_red),
     TextGraphics(ImageMemory(nothing), 24, 24),
-    TextString("cd", font_ubuntu_monospace_regular_20, color_blue),
+    TextString("cd", StyleFont("Ubuntu Mono", 20), color_blue),
 )
 @test length(st.elements) == 3
 @test st.elements[1].content == "ab"
@@ -131,7 +131,7 @@ evaluate_operation((document = bb,), bop)
 
 # A flat block: single-index spans, the newline counted as one flat char.
 flat = with_selection(TextBlock(TextString("ab"),
-                                TextNewline(font = font_ubuntu_monospace_regular_20),
+                                TextNewline(font = StyleFont("Ubuntu Mono", 20)),
                                 TextString("cd")),
                       TextModule.make_flat_caret_reference(4))   # char 1 of "cd" → flat 4
 @test get_flat_offsets(flat) == [0, 2, 3]

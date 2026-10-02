@@ -21,23 +21,23 @@ style fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct GestureHelpTheme
     "The heading of a domain's group of rows in the gesture map."
-    map_header_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    map_header_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_blue)
     "A gesture that can fire."
-    map_gesture_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    map_gesture_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_green)
     "What a gesture does."
-    map_description_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    map_description_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_default)
     "A row that cannot fire for the current selection."
-    map_muted_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    map_muted_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
     "The line the person types into."
-    palette_query_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_blue)
+    palette_query_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 20; weight = 700), color_solarized_blue)
     "The heading of a domain's group of rows in the palette."
-    palette_header_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_violet)
+    palette_header_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 20; weight = 700), color_solarized_violet)
     "The chosen row."
-    palette_selected_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_green)
+    palette_selected_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 20; weight = 700), color_solarized_green)
     "A row that can run."
-    palette_command_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_default)
+    palette_command_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 20), color_default)
     "A row that cannot run right now."
-    palette_muted_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    palette_muted_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 20), color_solarized_gray)
     "The fill of the panel the palette draws itself on."
     palette_background::StyleColor = color_solarized_background_lighter
     "The border of the panel the palette draws itself on."

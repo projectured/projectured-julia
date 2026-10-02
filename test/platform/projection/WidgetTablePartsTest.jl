@@ -18,7 +18,7 @@ function test_widget_table_list_header_floor()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     head = ListNode(make_widget_table_row(Any["a", "b"]))
     table = WidgetTable(; column_headers = Any["id", "a much longer header"],
@@ -46,7 +46,7 @@ function test_widget_table_list()
 det = FixedMeasure(8, 12, 4, 0)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
 context() = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
 mods = ModifierKeys()
 alt = ModifierKeys(alt = true)

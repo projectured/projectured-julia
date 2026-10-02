@@ -386,8 +386,8 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
             proj = ChainingProjection(
                 RecursiveProjection(DbCatalogToSyntax()),
                 RecursiveProjection(SyntaxToText(
-                    expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
-                    collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
+                    expanded_marker  = TextString("▾", StyleFont("DejaVu Sans Mono", 20), color_default),
+                    collapsed_marker = TextString("▸", StyleFont("DejaVu Sans Mono", 20), color_default),
                     marker_eligible  = is_dbcatalog_marker_eligible)),
                 TextToGraphics())
 

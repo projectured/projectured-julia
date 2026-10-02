@@ -137,7 +137,7 @@ TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::AbstractString) =
-    TextString(Cell(content), font_ubuntu_monospace_regular_20, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(content), StyleFont("Ubuntu Mono", 20), color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(Computation(content)), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))

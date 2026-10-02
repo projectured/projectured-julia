@@ -183,8 +183,8 @@ written, and it generates the reference mapping and the reader for you:
 # are the entry nodes.
 
 @projection struct BookmarkEntryToSyntaxNode
-    title_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
-    url_style::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    title_style::ImmutableCell{StyleText} = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
+    url_style::ImmutableCell{StyleText}   = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
 end
 
 @projection_template BookmarkEntryToSyntaxNode BookmarkEntry (p, entry) ->
@@ -194,7 +194,7 @@ end
         0, false, nothing)
 
 @projection struct BookmarkListToSyntaxNode
-    sep_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    sep_style::ImmutableCell{StyleText} = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
 end
 
 @projection_template BookmarkListToSyntaxNode BookmarkList (p, list) ->
@@ -463,9 +463,9 @@ BookmarkList
   """
   @theme struct BookmarkTheme
       "The title of a bookmark."
-      title_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+      title_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
       "The address of a bookmark."
-      url_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+      url_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
   end
 
   _get_bookmark_style(theme, name::Symbol) =

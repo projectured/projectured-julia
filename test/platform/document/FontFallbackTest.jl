@@ -4,7 +4,7 @@
 function test_font_fallback()
 @testset "FontFallback" begin
 
-    regular = font_ubuntu_monospace_regular_20
+    regular = StyleFont("Ubuntu Mono", 20)
     arrow = UInt32('→')
 
     @testset "the font that draws a character" begin
@@ -13,10 +13,10 @@ function test_font_fallback()
         # DejaVu Sans Mono draws an arrow that Ubuntu Mono lacks, in the weight of
         # the text.
         @test basename(find_glyph_font_file(regular, arrow)) == "DejaVuSansMono.ttf"
-        @test basename(find_glyph_font_file(font_ubuntu_monospace_bold_16, arrow)) ==
+        @test basename(find_glyph_font_file(StyleFont("Ubuntu Mono", 16; weight = 700), arrow)) ==
               "DejaVuSansMono-Bold.ttf"
         # Noto Emoji draws a pictograph, even for a font that carries its own.
-        @test basename(find_glyph_font_file(font_dejavu_sans_regular_20, UInt32('😀'))) ==
+        @test basename(find_glyph_font_file(StyleFont("DejaVu Sans", 20), UInt32('😀'))) ==
               "NotoEmoji-Regular.ttf"
         # No font carries a private-use character.
         @test find_glyph_font_file(regular, UInt32(0xE000)) === nothing
@@ -26,16 +26,16 @@ function test_font_fallback()
         files(font) = basename.(get_fallback_font_files(font))
         regular_chain = ["DejaVuSansMono.ttf", "NotoEmoji-Regular.ttf"]
         bold_chain = ["DejaVuSansMono-Bold.ttf", "DejaVuSansMono.ttf", "NotoEmoji-Regular.ttf"]
-        @test files(font_ubuntu_monospace_regular_20) == regular_chain
-        @test files(font_ubuntu_italic_20) == regular_chain
-        @test files(font_inconsolata_regular_18) == regular_chain
-        @test files(font_ubuntu_bold_20) == bold_chain
+        @test files(StyleFont("Ubuntu Mono", 20)) == regular_chain
+        @test files(StyleFont("Ubuntu", 20; italic = true)) == regular_chain
+        @test files(StyleFont("Inconsolata", 18)) == regular_chain
+        @test files(StyleFont("Ubuntu", 20; weight = 700)) == bold_chain
         @test files(StyleFont("Liberation Sans", 20; weight = 700, italic = true)) == bold_chain
     end
 
     @testset "a fallback glyph is measured in its own font" begin
         plain = first(compute_text_extent("ab", regular))
-        dejavu_arrow = first(compute_text_extent("→", font_dejavu_monospace_regular_20))
+        dejavu_arrow = first(compute_text_extent("→", StyleFont("DejaVu Sans Mono", 20)))
         # Ubuntu Mono's box is as wide as a letter; DejaVu's arrow is wider.
         @test dejavu_arrow > plain ÷ 2
         @test first(compute_text_extent("a→b", regular)) == plain + dejavu_arrow

@@ -115,13 +115,11 @@ using ProjecturedConsoleTest
 using ProjecturedPDFTest
 using ProjecturedWebTest
 using ProjecturedMCPTest
-using ProjecturedAll: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
-                   TextSpanReferenceStep,
-                   ConcreteReference, EmptyReference, Reference,
-                   map_reference_forward, map_reference_backward,
-                   color_red, color_blue, color_green, color_white, color_default,
-                   color_solarized_background_dark,
-                   font_ubuntu_monospace_regular_20
+using ProjecturedAll: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep,
+       FieldReferenceStep, PointReferenceStep, TextSpanReferenceStep, ConcreteReference,
+       EmptyReference, Reference, map_reference_forward, map_reference_backward, color_red,
+       color_blue, color_green, color_white, color_default, color_solarized_background_dark,
+       StyleFont
 
 # Built lazily in __init__ (runtime, after the SDL extension has loaded) rather
 # than as a precompile-time const, so precompilation doesn't depend on the extension.

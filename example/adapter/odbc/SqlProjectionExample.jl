@@ -8,7 +8,7 @@ function make_sql_table_projection_example(; measure=FontFileMeasure(),
                                              instance=make_database_instance_document_example())
     # The query result cells are base Primitive documents; render them through the
     # primitive → syntax → text → graphics chain.
-    w2g       = WidgetToGraphics(font_ubuntu_regular_20; measure=measure)
+    w2g       = WidgetToGraphics(StyleFont("Ubuntu", 20); measure=measure)
     primitive = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             PrimitiveString => PrimitiveStringToSyntaxLeaf(),

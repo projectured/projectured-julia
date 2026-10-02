@@ -38,7 +38,7 @@ end
 @testset "a chart's own legend font reaches the legend text" begin
     styled = Chart("Signal",
         [ChartLineSeries("sin", collect(0.0:0.05:10.0), sin.(0.0:0.05:10.0))];
-        style = ChartStyle(; legend_font = with_font_size(font_ubuntu_bold_16, 30)))
+        style = ChartStyle(; legend_font = with_font_size(StyleFont("Ubuntu", 16; weight = 700), 30)))
     projection = ChainingProjection(ChartToChartPlot(),
         ChartPlotToGraphicsCanvas(; measure = FixedMeasure(8, 12, 4, 0)))
     canvas = print_document(projection, projection, styled, PrinterContext()).output

@@ -9,8 +9,8 @@ using ProjecturedPlatform.StyleModule
 using ProjecturedKernel.CellModule
 
 @theme struct ThSample
-    body::StyleText       = StyleText(font_ubuntu_regular_20, color_black)
-    caption::StyleFont    = font_ubuntu_regular_14
+    body::StyleText       = StyleText(StyleFont("Ubuntu", 20), color_black)
+    caption::StyleFont    = StyleFont("Ubuntu", 14)
     rule::StyleStroke     = StyleStroke(color_black, 2)
     padding::Spacing      = Spacing(Inset(9, 9, 14, 14))
     gap::Spacing          = Spacing(4)

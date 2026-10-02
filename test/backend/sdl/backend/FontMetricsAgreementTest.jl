@@ -14,7 +14,7 @@ function test_sdl_font_metrics_agree()
 @testset "the font tables and FreeType agree" begin
 
     ProjecturedSDL.SdlModule.TTF_Init()
-    directory = dirname(compute_font_path(font_ubuntu_regular_20))
+    directory = dirname(compute_font_path(StyleFont("Ubuntu", 20)))
     files = sort(filter(name -> endswith(name, ".ttf"), readdir(directory)))
     @test length(files) > 30
 

@@ -16,7 +16,7 @@ function test_tree_render()
         folder = make_filesystem_pathname(dir)
         pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
         pane.size = Point2D(300, 240)
-        widgets = RecursiveProjection(WidgetToGraphics(font_ubuntu_regular_20;
+        widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20);
                                                        measure = FixedMeasure(8, 12, 4, 0)))
         canvas = print_document(widgets, pane).output
         entries = getfield(folder.elements, :elements)[]

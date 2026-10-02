@@ -10,7 +10,7 @@ _scale_test_measure = FixedMeasure(8, 12, 4, 0)
 # `appearance`.
 _make_scaled_widget_projection(appearance::Appearance) =
     RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = _scale_test_measure,
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _scale_test_measure,
                          theme = make_scaled_theme(WidgetTheme(), appearance)).dispatch)))
 
 # The lengths that a canvas tree draws: the size of the canvas, the corner radii

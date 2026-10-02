@@ -12,7 +12,7 @@ function test_widget_text_wrap()
 _measure = FixedMeasure(8, 12, 4, 0)
 _projection() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(font_ubuntu_regular_20; measure = _measure).dispatch)))
+    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _measure).dispatch)))
 
 SENTENCE = "one two three four five six seven eight nine ten eleven twelve"
 

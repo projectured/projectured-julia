@@ -6,7 +6,7 @@ function test_text_measure()
 @testset "the text measure" begin
 
     measure = FontFileMeasure()
-    ubuntu = font_ubuntu_regular_20
+    ubuntu = StyleFont("Ubuntu", 20)
 
     @testset "the metrics of a font are its tables at its size" begin
         metrics = get_font_metrics(measure, ubuntu)
@@ -38,7 +38,7 @@ function test_text_measure()
     @testset "a fallback glyph brings the metrics of its own font" begin
         # Ubuntu Mono has no arrow; DejaVu Sans Mono draws it, and DejaVu reaches
         # higher and lower than Ubuntu Mono.
-        mono = font_ubuntu_monospace_regular_20
+        mono = StyleFont("Ubuntu Mono", 20)
         plain = measure_string(measure, "ab", mono)
         mixed = measure_string(measure, "a→b", mono)
         @test plain.ascent ≈ 16.6
@@ -63,7 +63,7 @@ function test_text_measure()
     end
 
     @testset "a fixed measure answers fixed numbers, per font where it is told" begin
-        mono = font_ubuntu_monospace_regular_20
+        mono = StyleFont("Ubuntu Mono", 20)
         fixed = FixedMeasure(8, 12, 4, 1; fonts = Dict(mono => FontMetrics(10, 3, 0)))
         box = measure_string(fixed, "abc", ubuntu)
         @test (box.width, box.ascent, box.descent, box.line_gap) == (24.0, 12.0, 4.0, 1.0)

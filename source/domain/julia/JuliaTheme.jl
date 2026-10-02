@@ -21,25 +21,25 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct JuliaTheme
     "A variable, and the label of an object that stands in the code, such as a widget pasted into a form."
-    identifier_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+    identifier_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_violet)
     "A number, a string, a character, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
-    literal_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    literal_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
     "A quote, a delimiter, a separator, a brace and a fence."
-    punctuation_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    punctuation_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
     "A keyword, `true`, `false` and `nothing`."
-    keyword_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    keyword_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_magenta)
     "A symbol, `<:`, `->`, and the dollar sign of a string interpolation."
-    symbol_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    symbol_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_magenta)
     "An operator, the dot of a field access, a range, `::`, `=` and `?:`."
-    operator_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    operator_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
     "The called function, and the name of a macro."
-    callee_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    callee_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
     "The name of a module."
-    name_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    name_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_blue)
     "The path of a `using`, and the typed text of the insertion."
-    plain_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    plain_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_default)
     "The completion that the insertion offers."
-    hint_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_completion_hint)
+    hint_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_completion_hint)
     "The color of the typed text of the insertion while it names nothing."
     wrong_color::StyleColor = color_solarized_red
     "The color of the typed text of the insertion while it names one thing."

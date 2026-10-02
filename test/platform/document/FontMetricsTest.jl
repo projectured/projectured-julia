@@ -4,7 +4,7 @@
 function test_font_metrics()
 @testset "FontMetrics" begin
 
-    font = font_dejavu_sans_regular_20
+    font = StyleFont("DejaVu Sans", 20)
 
     @testset "the metrics are ordered and inside the em box" begin
         @test font_ascent(font) > 0
@@ -29,14 +29,14 @@ function test_font_metrics()
     @testset "the ascent and the descent are the box of a text in the font" begin
         # Ubuntu at 14: the ascender 932 is 13.05 pixels and the descender 189 is
         # 2.65. A backend draws the baseline at the ascent rounded up, 14.
-        ubuntu = with_font_size(font_ubuntu_regular_20, 14)
+        ubuntu = with_font_size(StyleFont("Ubuntu", 20), 14)
         @test font_ascent(ubuntu) == compute_text_extent("x", ubuntu)[2] == 14
         @test font_descent(ubuntu) == compute_text_extent("x", ubuntu)[3] == 3
     end
 
     @testset "the metrics scale with the size" begin
-        small = font_dejavu_sans_regular_14
-        large = font_dejavu_sans_regular_24
+        small = StyleFont("DejaVu Sans", 14)
+        large = StyleFont("DejaVu Sans", 24)
         @test font_ascent(small) < font_ascent(font) < font_ascent(large)
         @test font_x_height(small) < font_x_height(large)
     end
@@ -44,14 +44,14 @@ function test_font_metrics()
     @testset "an oblique face keeps the metrics of its upright one" begin
         # A variable is set oblique beside upright numbers; they must share a
         # baseline, so the two faces must report the same ascent.
-        @test font_ascent(font_dejavu_sans_italic_20) == font_ascent(font)
-        @test font_descent(font_dejavu_sans_italic_20) == font_descent(font)
+        @test font_ascent(StyleFont("DejaVu Sans", 20; italic = true)) == font_ascent(font)
+        @test font_descent(StyleFont("DejaVu Sans", 20; italic = true)) == font_descent(font)
     end
 
     @testset "the parser reads every vertical metric of the tables" begin
         # Ubuntu: hhea 932 / -189 / 28, OS/2 typo 776 / -185 / 56, win 932 / 189,
         # unitsPerEm 1000, USE_TYPO_METRICS clear.
-        ubuntu = load_truetype_font(compute_font_path(font_ubuntu_regular_20))
+        ubuntu = load_truetype_font(compute_font_path(StyleFont("Ubuntu", 20)))
         @test (ubuntu.ascent, ubuntu.descent, ubuntu.line_gap) == (932, -189, 28)
         @test (ubuntu.typo_ascent, ubuntu.typo_descent, ubuntu.typo_line_gap) == (776, -185, 56)
         @test (ubuntu.win_ascent, ubuntu.win_descent) == (932, 189)
@@ -61,13 +61,13 @@ function test_font_metrics()
         @test get_vertical_metrics(ubuntu) == (932, -189, 28)
         # Lucide sets USE_TYPO_METRICS, and FreeType takes its typographic
         # metrics: 1000 / 0 / 90, where hhea says 1000 / 0 / 0.
-        lucide = load_truetype_font(compute_font_path(font_lucide_icons_20))
+        lucide = load_truetype_font(compute_font_path(StyleFont("Lucide", 20)))
         @test lucide.use_typo_metrics
         @test get_vertical_metrics(lucide) == (1000, 0, 90)
     end
 
     @testset "the parser reads the kerning pairs of the kern table" begin
-        ubuntu = load_truetype_font(compute_font_path(font_ubuntu_regular_20))
+        ubuntu = load_truetype_font(compute_font_path(StyleFont("Ubuntu", 20)))
         pair(font, left, right) =
             get_kerning(font, get_glyph_id(font, left), get_glyph_id(font, right))
         # The pairs as the kern table of Ubuntu holds them, in font units.
@@ -78,7 +78,7 @@ function test_font_metrics()
         @test pair(ubuntu, 'f', 'i') == 0
         @test length(ubuntu.kern_pairs) == 5264
         # A monospaced font has no kern table, so no pair moves.
-        mono = load_truetype_font(compute_font_path(font_ubuntu_monospace_regular_20))
+        mono = load_truetype_font(compute_font_path(StyleFont("Ubuntu Mono", 20)))
         @test isempty(mono.kern_pairs)
         @test pair(mono, 'A', 'V') == 0
     end

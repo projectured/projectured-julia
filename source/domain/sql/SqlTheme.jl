@@ -19,11 +19,11 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct SqlTheme
     "A reserved word, such as `SELECT`, `FROM`, `WHERE` or `AND`."
-    keyword_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    keyword_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_blue)
     "A column, a value, a raw expression, a data type, or any other identifier that is not a keyword or a table name."
-    plain_text::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    plain_text::StyleText   = StyleText(StyleFont("Ubuntu Mono", 20), color_default)
     "A table name."
-    name_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    name_text::StyleText    = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
 end
 
 # The style field of a SQL projection that holds the text `name` of the theme

@@ -391,7 +391,7 @@ const _POINTER_GLYPH_SIZE = 22
 function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int)
     if haskey(_POINTER_GLYPHS, shape)
         glyph, across, down = _POINTER_GLYPHS[shape]
-        font = with_font_size(font_lucide_icons_20, _POINTER_GLYPH_SIZE)
+        font = with_font_size(StyleFont("Lucide", 20), _POINTER_GLYPH_SIZE)
         left = x - round(Int, across * _POINTER_GLYPH_SIZE)
         top = y - round(Int, down * _POINTER_GLYPH_SIZE)
         outline = Any[GraphicsText(string(glyph), left + dx, top + dy; font, color = color_white)
@@ -572,7 +572,7 @@ function _make_fault_line_graphics(backend::VideoBackend)
     top = backend.height - _FAULT_BAND_HEIGHT
     GraphicsCanvas(Any[GraphicsRect(0, top, backend.width, _FAULT_BAND_HEIGHT; color = color_solarized_red),
                        GraphicsText("The window can not paint: " * backend.fault_line, 8, top + 5;
-                                    font = font_dejavu_monospace_bold_16, color = color_white)];
+                                    font = StyleFont("DejaVu Sans Mono", 16; weight = 700), color = color_white)];
                    w = backend.width, h = backend.height)
 end
 

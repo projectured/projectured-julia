@@ -36,7 +36,7 @@ function test_text_ink_inside_viewports()
 
     widgets = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = measure).dispatch)))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = measure).dispatch)))
     print_widget(widget; width = 600) =
         print_document(widgets, nothing, widget,
                        with_exact_size(PrinterContext(); width = Cell(Int32(width)))).output
@@ -44,7 +44,7 @@ function test_text_ink_inside_viewports()
     @testset "the walk finds a text that a viewport cuts" begin
         # A viewport as high as the em size of Ubuntu 20 cuts its descenders: the
         # box of a text in it is 19 + 4 high.
-        text = GraphicsText("gypsy", 0, 0; font = font_ubuntu_regular_20, color = color_black)
+        text = GraphicsText("gypsy", 0, 0; font = StyleFont("Ubuntu", 20), color = color_black)
         viewport = GraphicsViewport(0, 10, 200, 20, GraphicsCanvas(Any[text]))
         found = find_cut_texts(GraphicsCanvas(Any[viewport]))
         @test found.seen == ["gypsy"]

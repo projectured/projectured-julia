@@ -67,7 +67,7 @@ struct ObjectToWidget <: Projection
 end
 
 ObjectToWidget(; fields=nothing,
-               style::StyleText=StyleText(font_ubuntu_monospace_regular_20, color_default)) = ObjectToWidget(fields, style)
+               style::StyleText=StyleText(StyleFont("Ubuntu Mono", 20), color_default)) = ObjectToWidget(fields, style)
 
 # Inter-column / inter-row gaps for the parameter form. The label column width
 # and row heights are content-driven by GridLayout; only these spacing tokens are

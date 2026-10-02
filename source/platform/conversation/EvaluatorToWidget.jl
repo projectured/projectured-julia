@@ -28,8 +28,8 @@ const _ELEMENT_GAP = 8    # between the forms of a toplevel
 const _ROW_GAP     = 4    # between the code of a form and its result
 const _PROMPT_GAP  = 8    # between a prompt and what follows it
 
-const _PROMPT_STYLE       = StyleText(font_ubuntu_monospace_regular_20, color_slate_500)
-const _PROMPT_ERROR_STYLE = StyleText(font_ubuntu_monospace_regular_20, color_destructive)
+const _PROMPT_STYLE       = StyleText(StyleFont("Ubuntu Mono", 20), color_slate_500)
+const _PROMPT_ERROR_STYLE = StyleText(StyleFont("Ubuntu Mono", 20), color_destructive)
 
 # ── print_document: a bare form → a prompt column beside its code and result ──
 #

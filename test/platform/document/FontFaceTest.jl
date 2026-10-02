@@ -67,12 +67,12 @@ function test_font_face()
 
     @testset "a font finds the file of its face" begin
         @test basename(compute_font_path(StyleFont("Ubuntu Mono", 20; weight = 700))) == "UbuntuMono-B.ttf"
-        @test basename(compute_font_path(font_ubuntu_italic_20)) == "Ubuntu-RI.ttf"
-        @test basename(compute_font_path(font_inconsolata_regular_18)) == "Inconsolata.otf"
-        @test basename(compute_font_path(font_lucide_icons_20)) == "lucide.ttf"
+        @test basename(compute_font_path(StyleFont("Ubuntu", 20; italic = true))) == "Ubuntu-RI.ttf"
+        @test basename(compute_font_path(StyleFont("Inconsolata", 18))) == "Inconsolata.otf"
+        @test basename(compute_font_path(StyleFont("Lucide", 20))) == "lucide.ttf"
         # A family with no bundled face draws in DejaVu Sans, at the weight asked.
         @test basename(compute_font_path(StyleFont("Helvetica", 20; weight = 700))) == "DejaVuSans-Bold.ttf"
-        read_path() = compute_font_path(font_ubuntu_monospace_bold_20)
+        read_path() = compute_font_path(StyleFont("Ubuntu Mono", 20; weight = 700))
         read_path()
         @test (@allocated read_path()) == 0
     end

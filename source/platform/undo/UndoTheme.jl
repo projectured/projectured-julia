@@ -20,17 +20,17 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct UndoTheme
     "The label and the number of a step."
-    index_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    index_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
     "A step that can be taken back."
-    step_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    step_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_700)
     "A step that can be put back."
-    ahead_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    ahead_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
     "The line the history shows while it holds no step."
-    empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
     "The line for where the document stands now."
-    marker_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    marker_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_cyan)
     "A step the history stops at, because it can not be undone."
-    barrier_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_orange)
+    barrier_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_orange)
 end
 
 # The style field of an undo projection that holds the text `name` of the theme

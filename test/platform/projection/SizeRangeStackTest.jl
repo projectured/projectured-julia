@@ -2,7 +2,7 @@
 # draws, in order.
 function _range_column_child_widths(children, width)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     ctx = PrinterContext(EmptyReference(), Cell(width), nothing, Dict{Symbol,Any}())
     iomap = print_document(projection, nothing, VerticalLayout(children; gap = 4), ctx)
     [Int(last(entry).output.w[]) for entry in getfield(iomap, :child_iomaps)[]]
@@ -50,7 +50,7 @@ end # test_size_range_cross_axis
 # `width` is `nothing`, and the size that each of its children draws, in order.
 function _range_composite_child_sizes(composite, width, height)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     ctx = width === nothing ? PrinterContext() :
           PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}())
     iomap = print_document(projection, nothing, composite, ctx)
@@ -100,7 +100,7 @@ _range_force(value) = value isa Cell ? value[] : value
 # the place and the size of its child.
 function _range_one_child_sizes(widget, width, height; exact = true,
                                 projection = RecursiveProjection(TypeDispatchingProjection(
-                                    WidgetToGraphics(font_ubuntu_monospace_regular_20;
+                                    WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
                                                      measure = FixedMeasure(10, 18, 6, 0)).dispatch)))
     ctx = width === nothing ? PrinterContext() :
           exact ? PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}()) :
@@ -172,7 +172,7 @@ end
 
 @testset "a dialog gives its content and its buttons the edge of the window, less its card" begin
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     dialog = WidgetDialog("Title", WidgetLabel(_RANGE_PROSE), Any[WidgetButton("OK")])
     ctx = PrinterContext(EmptyReference(), Cell(400), Cell(300), Dict{Symbol,Any}())
     iomap = print_document(projection, nothing, dialog, ctx)

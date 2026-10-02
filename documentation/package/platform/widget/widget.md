@@ -34,7 +34,7 @@ Most widgets have `visible`, a `tooltip`, the box insets `margin`, `border` and 
 `WidgetToGraphics(font; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage` and `WidgetAccordionItem` have no rule, because the printer of the parent draws them, so the table has 42 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
 
 ```julia
-widgets    = WidgetToGraphics(font_ubuntu_regular_20; measure = FontFileMeasure())
+widgets    = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FontFileMeasure())
 projection = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch, widgets.dispatch)))
 ```
@@ -63,7 +63,7 @@ A projection holds one style field for each part that it draws, in each variant 
 
 `nothing` has one meaning: the layer gives no value, and the next one applies. A theme token and a style field of a projection are never `nothing`. `color_transparent` is the one color that draws nothing: the printer adds no element for a transparent part, and a container routes a press only over an element that a widget drew, so a transparent surface takes no press. The colors of another domain belong to the projection that makes widgets from it, in the way that `JsonToSyntax` owns the colors of JSON; such a projection gives its colors to the widgets as overrides.
 
-An icon is a `Symbol`, not an image. `register_icon!(:name, renderer)` stores a renderer `(elements, x, y, size, color) -> nothing`, so an icon takes the color of its label and scales with the font. Every built-in icon is a glyph of the Lucide icon font (`asset/font/lucide.ttf`, ISC licence in `Lucide-ISC.txt`), drawn through the text renderer, so it has smooth edges on every backend; `LUCIDE_ICON_GLYPHS` maps each name to its code point, and a name says what the picture shows. `find_icon_character(name)` answers the character for a label that writes an icon as text, in `font_lucide_icons_20` given as its `text_style`. A renderer can also draw a glyph of another icon font with `make_glyph_icon`, which draws at the size of the icon box, or an image with `make_image_icon`. An image does not take the color. An unknown name draws nothing.
+An icon is a `Symbol`, not an image. `register_icon!(:name, renderer)` stores a renderer `(elements, x, y, size, color) -> nothing`, so an icon takes the color of its label and scales with the font. Every built-in icon is a glyph of the Lucide icon font (`asset/font/lucide.ttf`, ISC licence in `Lucide-ISC.txt`), drawn through the text renderer, so it has smooth edges on every backend; `LUCIDE_ICON_GLYPHS` maps each name to its code point, and a name says what the picture shows. `find_icon_character(name)` answers the character for a label that writes an icon as text, in `StyleFont("Lucide", 20)` given as its `text_style`. A renderer can also draw a glyph of another icon font with `make_glyph_icon`, which draws at the size of the icon box, or an image with `make_image_icon`. An image does not take the color. An unknown name draws nothing.
 
 ### A press goes by coordinate
 

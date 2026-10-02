@@ -20,9 +20,9 @@ The widget tree of the file system follows the widget theme instead.
 """
 @theme struct FileSystemTheme
     "The basename of a file."
-    file_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    file_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
     "The name of a directory."
-    directory_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+    directory_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_red)
 end
 
 # The style field of a file-system projection that holds the text `name` of

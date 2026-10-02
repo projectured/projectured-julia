@@ -197,7 +197,7 @@ end
 # newline takes the one a run typed beside the image takes (`_find_style_span`).
 function _make_image_newline(text::TextBlock, in_span::Int)
     span = _find_style_span(text, Int[in_span])
-    span === nothing && return TextNewline(font = font_ubuntu_monospace_regular_20)
+    span === nothing && return TextNewline(font = StyleFont("Ubuntu Mono", 20))
     TextNewline(font=span.font,
                 font_color=span.font_color,
                 fill_color=span.fill_color,

@@ -30,7 +30,7 @@ make_sequencechart_large_projection_example(; measure=FontFileMeasure()) =
 function make_sequencechart_composite_projection_example(; measure=FontFileMeasure(),
                                                          width::Integer=880,
                                                          height::Integer=330)
-    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,
+    NaturalToGraphics(measure=measure, font=StyleFont("Ubuntu", 20),
         extra=Pair{Type,Any}[
             SequenceChart => make_sequencechart_pipeline_example(; measure=measure,
                                                                 width=width, height=height)])
@@ -44,7 +44,7 @@ make_sequencechart_pair_projection_example(; measure=FontFileMeasure()) =
 # lane's own cells. Two projections over one document, which is what makes a
 # chart's properties editable without a bespoke property editor.
 function make_sequencechart_inspector_projection_example(; measure=FontFileMeasure())
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     w2g = WidgetToGraphics(font; measure=measure)
     form = ChainingProjection(
         ObjectToWidget(fields=[:label, :visible],
@@ -53,7 +53,7 @@ function make_sequencechart_inspector_projection_example(; measure=FontFileMeasu
             LayoutToGraphics().dispatch,
             w2g.dispatch,
             Pair{Type,Any}[TextBlock => TextToGraphics(measure=measure)]))))
-    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,
+    NaturalToGraphics(measure=measure, font=StyleFont("Ubuntu", 20),
         extra=Pair{Type,Any}[
             SequenceChart => make_sequencechart_pipeline_example(; measure=measure,
                                                                 width=600, height=420),

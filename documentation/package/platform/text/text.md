@@ -162,9 +162,9 @@ It registers no file type and no natural row. `@domain Text` makes the placehold
 
 ```julia
 span  = TextString("Hello")                                        # default font and colour
-span  = TextString("Hello", font_ubuntu_monospace_regular_24, color_default)
-live  = TextString(() -> uppercase(document.name), font_ubuntu_monospace_regular_24, color_default)
-block = TextBlock(TextString("Hello"), TextNewline(font = font_ubuntu_monospace_regular_24),
+span  = TextString("Hello", StyleFont("Ubuntu Mono", 24), color_default)
+live  = TextString(() -> uppercase(document.name), StyleFont("Ubuntu Mono", 24), color_default)
+block = TextBlock(TextString("Hello"), TextNewline(font = StyleFont("Ubuntu Mono", 24)),
                   TextString("world"))
 lines = TextBlock(TextLine(TextString("a = 1")), TextLine(TextString("b = 2"); indentation = 2))
 span.content = "New content"          # writes through the cell

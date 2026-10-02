@@ -417,8 +417,17 @@ inet-julia uses, the same step changes them, so that they always load.
   `get_font_weights(family)`, and stops at the lightest and the heaviest. The
   checkbox goes through the `writes` of the tab, as a spin box does. A select
   does not: it answers from its popup window, so it is not used.
-- [ ] **F5.** Each use of a font constant becomes a description, in all three
-  repositories. The 143 constants and their exports go.
+- [x] **F5.** Each use of a font constant becomes a description, in all three
+  repositories. The 143 constants and their exports go. *Done:* a script
+  (`/var/tmp/default-look/convert_font_uses.py`) replaced 721 uses in 198
+  files: 156 in projectured-julia, 37 in omnet-julia and 5 in inet-julia. It
+  took each description from `Font.jl`, removed the names from the `import`,
+  `using` and `export` lists, and added `StyleFont` to an explicit import list
+  that needed it. Plan files keep the old names, because they record history.
+  Checks in projectured-julia: every changed file parses; `Pkg.precompile` of
+  `environment/all` builds every package; each module of a changed file
+  resolves `StyleFont` (a precompile does not prove that for a function body);
+  the image check finds 315 of 315 outputs equal; `test_printers()` passes.
 
 ### Part R: base fonts and text roles
 
@@ -532,3 +541,10 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
   `write_example_pdf`, for each of the 105 examples of `ProjecturedExample`. The
   PDF files are the same byte for byte from one run to the next, so a hash
   compares them too.
+
+### Step F5
+
+- The recorded precompile statements of `ProjecturedREPL`
+  (`asset/precompile/PrecompileStatements.jl`) skip 7,272 of 10,857
+  statements. Only 287 statements name `StyleFont`, so at least 6,985 were
+  stale before this work. The recording needs a new run, best after Part V.

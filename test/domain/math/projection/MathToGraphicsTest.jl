@@ -8,8 +8,8 @@ _projection() = RecursiveProjection(MathToGraphics(measure = FontFileMeasure()))
 _print(doc) = print_document(_projection(), doc)
 
 # The metrics the rules are derived from, at the default face and size.
-_config() = MathConfig(font = font_dejavu_sans_regular_20,
-                       slanted = font_dejavu_sans_italic_20,
+_config() = MathConfig(font = StyleFont("DejaVu Sans", 20),
+                       slanted = StyleFont("DejaVu Sans", 20; italic = true),
                        measure = FontFileMeasure())
 _metrics(style = :display) = compute_math_metrics(_config(), style)
 

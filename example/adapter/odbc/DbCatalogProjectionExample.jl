@@ -6,8 +6,8 @@ function make_dbcatalog_projection_example(; measure=FontFileMeasure(),
         DatabaseInstanceToDbCatalog(pool),
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToText(
-            expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
-            collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
+            expanded_marker  = TextString("▾", StyleFont("DejaVu Sans Mono", 20), color_default),
+            collapsed_marker = TextString("▸", StyleFont("DejaVu Sans Mono", 20), color_default),
             marker_eligible  = is_dbcatalog_marker_eligible)),
         TextToGraphics(measure=measure),
     )
@@ -17,8 +17,8 @@ function make_dvdrental_dbcatalog_projection_example(; measure=FontFileMeasure()
     ChainingProjection(
         RecursiveProjection(DbCatalogToSyntax()),
         RecursiveProjection(SyntaxToText(
-            expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
-            collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
+            expanded_marker  = TextString("▾", StyleFont("DejaVu Sans Mono", 20), color_default),
+            collapsed_marker = TextString("▸", StyleFont("DejaVu Sans Mono", 20), color_default),
             marker_eligible  = is_dbcatalog_marker_eligible)),
         TextToGraphics(measure=measure),
     )

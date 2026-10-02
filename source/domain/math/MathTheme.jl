@@ -20,23 +20,23 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct MathTheme
     "A variable."
-    variable_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    variable_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
     "An operator, and the `/` of a fraction."
-    operator_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    operator_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
     "A parenthesis, a brace, a bracket and the insertion leaf."
-    chrome_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    chrome_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
     "A symbol."
-    symbol_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+    symbol_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_violet)
     "The name of a function, a radical, a big operator, a differential, a derivative, an accent, a matrix or a case list."
-    name_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    name_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
     "A run of plain text."
-    word_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    word_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_default)
     "The `=` of an assignment."
-    equals_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    equals_text::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_yellow)
     "The upright face: a number, an operator, a function name, a symbol."
-    font::StyleFont = font_dejavu_sans_regular_20
+    font::StyleFont = StyleFont("DejaVu Sans", 20)
     "The oblique face: a variable."
-    slanted_font::StyleFont = font_dejavu_sans_italic_20
+    slanted_font::StyleFont = StyleFont("DejaVu Sans", 20; italic = true)
     "The color of every part."
     ink::StyleColor = color_default
     "The color of an empty slot."

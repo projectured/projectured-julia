@@ -20,11 +20,11 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FrameStatisticsTheme
     "The head line and the column header."
-    header_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    header_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_cyan)
     "One measurement."
-    row_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    row_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_700)
     "The line the table shows while it holds no frame."
-    empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
 end
 
 # The style field of a statistics projection that holds the text `name` of the

@@ -79,7 +79,7 @@ struct ObjectFieldToWidget <: Projection
     controls::Vector{Pair{Type,Any}}
 end
 
-ObjectFieldToWidget(; style::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default),
+ObjectFieldToWidget(; style::StyleText = StyleText(StyleFont("Ubuntu Mono", 20), color_default),
                       controls::Vector{Pair{Type,Any}} = Pair{Type,Any}[]) =
     ObjectFieldToWidget(style, controls)
 

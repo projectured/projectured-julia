@@ -1,5 +1,5 @@
 function make_text_document_example()
-    regular = font_ubuntu_monospace_regular_20
+    regular = StyleFont("Ubuntu Mono", 20)
     nl() = TextNewline(font=regular)
     TextBlock(
         TextString("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras eu nunc nibh. Cras imperdiet faucibus tortor ac dictum. Aliquam sit amet justo nec ligula lobortis ornare. Aenean a odio id dolor adipiscing interdum. Maecenas nec nisl neque. Suspendisse interdum rutrum neque, in volutpat orci varius in. Praesent a ipsum ac erat pulvinar adipiscing quis sit amet magna. Etiam semper vulputate mi ac interdum. Nunc a tortor non purus fringilla aliquam.", regular, color_default),
@@ -12,7 +12,7 @@ end
 # minimal pipeline for watching the renderer's dirty rectangle: moving the caret
 # should repaint only the caret slivers, not the whole block.
 function make_plain_text_document_example()
-    regular = font_ubuntu_monospace_regular_20
+    regular = StyleFont("Ubuntu Mono", 20)
     nl() = TextNewline(font=regular)
     TextBlock(
         TextString("The quick brown fox", regular, color_default), nl(),
@@ -30,7 +30,7 @@ end
 # sit on the same baseline as the surrounding words; the line grows to the
 # tallest glyph and the cursor can land before or after each image.
 function make_text_with_image_example()
-    regular = font_ubuntu_monospace_regular_20
+    regular = StyleFont("Ubuntu Mono", 20)
     photo = _load_inline_image("projectured.png")
     icon  = _load_inline_image("file.png")
     TextBlock(
@@ -69,7 +69,7 @@ end
 # an inline `TextGraphics` image, and a `TextLine`-structured (indented) block.
 # `make_document` is a thunk, so each derived example gets a fresh instance.
 
-_atom_font() = font_ubuntu_monospace_regular_20
+_atom_font() = StyleFont("Ubuntu Mono", 20)
 
 make_text_string_document_example() =
     TextBlock(TextString("Hello", _atom_font(), color_default))

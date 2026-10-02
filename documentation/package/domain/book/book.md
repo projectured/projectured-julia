@@ -58,7 +58,7 @@ Its `__init__` makes one call: `register_natural_syntax!(:book, …)`, with the 
 book = BookBook("Projectured User Guide", "The Projectured Authors", [
     BookChapter("Introduction", "1", [
         BookParagraph(TextBlock(TextString("Reactive cells propagate changes.",
-                                           font_ubuntu_monospace_regular_20, color_default))),
+                                           StyleFont("Ubuntu Mono", 20), color_default))),
     ]),
 ])
 run_example(book, make_book_projection_example(); name = "book")

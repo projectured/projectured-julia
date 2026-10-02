@@ -6,8 +6,8 @@
 function test_text_line_model()
 @testset "a line of text sits on one baseline" begin
 
-    small = font_ubuntu_regular_20
-    large = font_ubuntu_monospace_regular_20
+    small = StyleFont("Ubuntu", 20)
+    large = StyleFont("Ubuntu Mono", 20)
     measure = FixedMeasure(10, 12, 4, 0; fonts = Dict(large => FontMetrics(16, 6, 2)))
 
     # Every element of a canvas with its absolute position.
@@ -107,9 +107,9 @@ function test_text_line_model()
     end
 
     @testset "body text, code and an emoji share one baseline by the font files" begin
-        block = TextBlock(TextString("Type ", font_ubuntu_regular_20, color_black),
-                          TextString("code", font_ubuntu_monospace_regular_20, color_black),
-                          TextString(" 😀", font_ubuntu_regular_20, color_black))
+        block = TextBlock(TextString("Type ", StyleFont("Ubuntu", 20), color_black),
+                          TextString("code", StyleFont("Ubuntu Mono", 20), color_black),
+                          TextString(" 😀", StyleFont("Ubuntu", 20), color_black))
         canvas = print_document(TextToGraphics(measure = FontFileMeasure()), block).output
         # A backend draws the baseline of a text the ascent of its box below its `y`.
         baselines = [y + compute_text_extent(String(e.text), e.font)[2]

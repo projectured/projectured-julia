@@ -4,7 +4,7 @@
 # card draws its header and nothing else. A card that names its own padding
 # draws with it. A WidgetAccordion opens and closes an item from its header.
 
-_fold_font = font_ubuntu_monospace_regular_20
+_fold_font = StyleFont("Ubuntu Mono", 20)
 _fold_stub = FixedMeasure(10, 18, 6, 0)
 _fold_proj() = RecursiveProjection(TypeDispatchingProjection(
     WidgetToGraphics(_fold_font; measure=_fold_stub).dispatch))

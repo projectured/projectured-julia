@@ -15,7 +15,7 @@ The style slice of `ProjecturedPlatform` holds the values that everything drawn 
 | `Inset`, `Point2D`, `AffineTransform` | a box of margins, a point, a 2D transform with `∘` |
 | `ImageFile`, `ImageMemory` | an image from a file or from memory |
 
-The package also defines about a thousand colour constants (`color_black`, `color_solarized_blue`, the `color_slate_*` and `color_indigo_*` ramps) and a font constant for each bundled face and size, for example `font_ubuntu_monospace_regular_20`, which is `StyleFont("Ubuntu Mono", 20)`.
+The package also defines about a thousand colour constants (`color_black`, `color_solarized_blue`, the `color_slate_*` and `color_indigo_*` ramps). A font has no constants: a font is a description, and a theme or a document writes it where it is used.
 
 ### Value documents
 
@@ -56,7 +56,7 @@ A [`LineSpacing`](../../../../source/platform/style/LineSpacing.jl) sets the dis
 
 `compute_line_box(measure, text, font; spacing = SingleSpacing())` gives the box of a line that holds one text alone, as a label or a title does: a [`LineBox`](../../../../source/platform/style/LineSpacing.jl) with the width, the height, the baseline and the `y` of the text in the box. The baseline sits half of the leading below the top of the box, then the ascent, and never higher than the rounded ascent of the text, so the ink never rises above the box.
 
-**Example.** Ubuntu 20 has an ascent of 18.64, a descent of 3.78 and a line gap of 0.56 logical pixels, so its natural distance is 22.98. `compute_line_box(FontFileMeasure(), "delay", font_ubuntu_regular_20)` at `SingleSpacing()` gives a line box 23 pixels high, with the baseline 19 pixels below its top: half of the line gap, 0.28, and the ascent, rounded.
+**Example.** Ubuntu 20 has an ascent of 18.64, a descent of 3.78 and a line gap of 0.56 logical pixels, so its natural distance is 22.98. `compute_line_box(FontFileMeasure(), "delay", StyleFont("Ubuntu", 20))` at `SingleSpacing()` gives a line box 23 pixels high, with the baseline 19 pixels below its top: half of the line gap, 0.28, and the ascent, rounded.
 
 ### Themes and the appearance
 
@@ -159,10 +159,10 @@ The style slice depends on the kernel and on the serialization slice, whose seam
 ## Usage
 
 ```julia
-style = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
 faint = StyleColor(0.0, 0.0, 0.0, 0.25)
-width, ascent, descent = compute_text_extent("hello", font_ubuntu_monospace_regular_20)
-font_logical_size(font_ubuntu_monospace_regular_20)   # 20, the font's own size
+width, ascent, descent = compute_text_extent("hello", StyleFont("Ubuntu Mono", 20))
+font_logical_size(StyleFont("Ubuntu Mono", 20))   # 20, the font's own size
 ```
 
 - Test: no package suite exists. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/platform/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.

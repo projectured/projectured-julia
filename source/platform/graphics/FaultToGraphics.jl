@@ -15,7 +15,7 @@ Give it to the last barrier of a chain, the one whose step answers the backend:
                             substitute = FaultToGraphics())
 """
 @projection struct FaultToGraphics
-    font::ImmutableCell{StyleFont} = font_dejavu_monospace_bold_16
+    font::ImmutableCell{StyleFont} = StyleFont("DejaVu Sans Mono", 16; weight = 700)
     color::ImmutableCell{StyleColor} = color_solarized_red
 end
 

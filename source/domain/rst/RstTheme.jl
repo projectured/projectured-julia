@@ -23,45 +23,45 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct RstTheme
     "A marker: an insertion placeholder, a tick, an emphasis or strong mark, a bullet, a transition, a comment, a directive's chrome, or any other marker."
-    marker_text::StyleText          = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    marker_text::StyleText          = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
     "The text, the root, a value and an argument, in the source form."
-    source_text::StyleText          = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    source_text::StyleText          = StyleText(StyleFont("Ubuntu Mono", 20), color_black)
     "A literal, a literal block, and a code block's code."
-    literal_text::StyleText         = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    literal_text::StyleText         = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_green)
     "A role name, a target, a path, and a role definition."
-    target_text::StyleText          = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+    target_text::StyleText          = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_violet)
     "A role's value and a math block."
-    value_text::StyleText           = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    value_text::StyleText           = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
     "A reference, a footnote label, a field name, a toctree entry, and a section's adornment."
-    reference_text::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    reference_text::StyleText       = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
     "A substitution reference and the name of a substitution definition."
-    substitution_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_orange)
+    substitution_text::StyleText    = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_orange)
     "The name of a directive and the language of a code block."
-    directive_text::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    directive_text::StyleText       = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_magenta)
     "The `.. kind::` marker of an admonition."
-    admonition_text::StyleText      = StyleText(font_ubuntu_monospace_bold_20, color_solarized_yellow)
+    admonition_text::StyleText      = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_yellow)
     "The title of a section, in the source form."
-    title_text::StyleText           = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    title_text::StyleText           = StyleText(StyleFont("Ubuntu Mono", 20; weight = 700), color_solarized_blue)
     "The plain prose of the rendered form."
-    body_text::StyleText            = StyleText(font_ubuntu_regular_20, color_black)
+    body_text::StyleText            = StyleText(StyleFont("Ubuntu", 20), color_black)
     "The font a bold run takes in the rendered form."
-    bold_font::StyleFont            = font_ubuntu_bold_20
+    bold_font::StyleFont            = StyleFont("Ubuntu", 20; weight = 700)
     "The font an italic run takes in the rendered form."
-    italic_font::StyleFont          = font_ubuntu_italic_20
+    italic_font::StyleFont          = StyleFont("Ubuntu", 20; italic = true)
     "The font of a level 1 section title in the rendered form."
-    title_1_font::StyleFont         = font_ubuntu_bold_36
+    title_1_font::StyleFont         = StyleFont("Ubuntu", 36; weight = 700)
     "The font of a level 2 section title in the rendered form."
-    title_2_font::StyleFont         = font_ubuntu_bold_24
+    title_2_font::StyleFont         = StyleFont("Ubuntu", 24; weight = 700)
     "The font of a level 3 section title in the rendered form."
-    title_3_font::StyleFont         = font_ubuntu_bold_22
+    title_3_font::StyleFont         = StyleFont("Ubuntu", 22; weight = 700)
     "The font of a section title past the third level, in the rendered form."
-    title_font::StyleFont           = font_ubuntu_bold_18
+    title_font::StyleFont           = StyleFont("Ubuntu", 18; weight = 700)
     "The color of a section title in the rendered form."
     title_color::StyleColor         = color_solarized_blue
     "The caption under a rendered figure."
-    caption_text::StyleText         = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    caption_text::StyleText         = StyleText(StyleFont("Ubuntu", 20; italic = true), color_solarized_gray)
     "A marker of the rendered form: a transition rule, and the arrow of a literal include."
-    rendered_marker_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    rendered_marker_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 20), color_solarized_gray)
     "The gap between the blocks of an RST page."
     block_gap::Spacing              = Spacing(8)
 end

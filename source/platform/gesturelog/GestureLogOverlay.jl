@@ -34,10 +34,10 @@ A `GestureLogToSyntax` with light text, for the dark background of the panel.
 `operation_width` is the most characters of an operation that a line shows.
 """
 make_gesture_log_panel_syntax_projection(; operation_width::Integer = typemax(Int)) =
-    GestureLogToSyntax(index_text = StyleText(font_dejavu_monospace_regular_16, color_gray159),
-                       operation_text = StyleText(font_dejavu_monospace_regular_16, color_gray223),
-                       muted_text = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray),
-                       empty_text = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray),
+    GestureLogToSyntax(index_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_gray159),
+                       operation_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_gray223),
+                       muted_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_solarized_gray),
+                       empty_text = StyleText(StyleFont("DejaVu Sans Mono", 16), color_solarized_gray),
                        operation_width = Int(operation_width))
 
 """

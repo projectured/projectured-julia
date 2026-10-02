@@ -383,7 +383,7 @@ A minimal worked example, the null-and-bool leaves of the JSON domain
 
 ```julia
 @projection struct JsonBoolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    style::ImmutableCell{StyleText} = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_yellow)
 end
 
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
@@ -444,7 +444,7 @@ only job is to fill in defaults:
 ```julia
 @projection struct ReferenceToHumanReadableText          # <: Projection is defaulted in
     document::Any
-    font::StyleFont = font_ubuntu_monospace_regular_20   # default
+    font::StyleFont = StyleFont("Ubuntu Mono", 20)   # default
 end
 ```
 
@@ -452,8 +452,8 @@ When **at least one** field carries a default, the macro additionally emits a
 **keyword** constructor:
 
 ```julia
-ReferenceToHumanReadableText(; document)                 # font=font_ubuntu_monospace_regular_20
-ReferenceToHumanReadableText(; document, font = font_ubuntu_regular_20)
+ReferenceToHumanReadableText(; document)                 # font=StyleFont("Ubuntu Mono", 20)
+ReferenceToHumanReadableText(; document, font = StyleFont("Ubuntu", 20))
 ```
 
 Semantics deliberately match `Base.@kwdef`:

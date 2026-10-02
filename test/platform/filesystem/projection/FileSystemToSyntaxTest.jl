@@ -19,8 +19,8 @@ empty_syntax = print_document(fs2s, FileSystemDirectory("/root/empty", FileSyste
 
 # ── Integrated render: one marker per non-empty directory, none on files ──
 s2t = RecursiveProjection(SyntaxToText(
-    expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),
-    collapsed_marker = TextString("▸", font_dejavu_monospace_regular_20, color_default),
+    expanded_marker  = TextString("▾", StyleFont("DejaVu Sans Mono", 20), color_default),
+    collapsed_marker = TextString("▸", StyleFont("DejaVu Sans Mono", 20), color_default),
     marker_eligible  = is_filesystem_marker_eligible))
 rendered = join(s.content for s in print_document(s2t, syntax).output.elements)
 

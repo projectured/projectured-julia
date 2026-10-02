@@ -99,7 +99,7 @@ end
     @test is_color_equal(scaled.header_color, plain.header_color)
     # A value given for a keyword stays fixed regardless of the theme.
     fixed = ReferenceInspectorToText(theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme),
-                                     font = font_ubuntu_monospace_regular_20)
+                                     font = StyleFont("Ubuntu Mono", 20))
     @test fixed.font.size == 20
 end
 

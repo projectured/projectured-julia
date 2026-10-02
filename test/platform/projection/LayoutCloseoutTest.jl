@@ -157,7 +157,7 @@ end
     # A recursive projection, so a print answers the IO map of the grid.
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
     cells() = Any[WidgetLabel("a"), WidgetLabel("b")]
     # A column that is its content and has a minimum is at least that wide,
     # in a grid with no weight as in one with a weight.

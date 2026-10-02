@@ -55,7 +55,7 @@ end
 end
 
 @testset "write_pdf renders every primitive + embedded font" begin
-    fnt = StyleModule.font_dejavu_sans_regular_18
+    fnt = StyleModule.StyleFont("DejaVu Sans", 18)
     canvas = GraphicsCanvas([
         GraphicsRect(10, 10, 120, 40; color = StyleColor(220 / 255, 60 / 255, 60 / 255, 1.0), radius = 8,
                      border_width=2, border_color=color_black),
@@ -93,7 +93,7 @@ end
 
 # A tall stack of text lines used by the pagination tests.
 function _tall_canvas(nlines)
-    fnt = StyleModule.font_dejavu_sans_regular_18
+    fnt = StyleModule.StyleFont("DejaVu Sans", 18)
     GraphicsCanvas(Any[GraphicsText("paginated line $(i+1)", 10, 10 + 20i; font = fnt, color = StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0))
                        for i in 0:(nlines - 1)])
 end
@@ -156,7 +156,7 @@ function _first_content_stream(filename)
 end
 
 @testset "a text is written at the size that the layout measured" begin
-    font = StyleModule.font_ubuntu_monospace_regular_20
+    font = StyleModule.StyleFont("Ubuntu Mono", 20)
     # A font's size already holds the font scale of the appearance by the time a
     # printer sees it, so a larger font here is a font scaled by an `Appearance`.
     appearance = Appearance(font_scale = 1.5)
@@ -182,7 +182,7 @@ end
 @testset "a kerned pair is written with its kerning" begin
     # A–V is −62 font units in Ubuntu, so the V moves 62 thousandths of the size
     # to the left: a positive adjustment in the `TJ` array.
-    font = StyleModule.font_ubuntu_regular_20
+    font = StyleModule.StyleFont("Ubuntu", 20)
     ttf = load_truetype_font(compute_font_path(font))
     canvas = GraphicsCanvas([GraphicsText("AV", 10, 10; font, color = color_black)])
     filename = tempname() * ".pdf"
@@ -197,7 +197,7 @@ end
     # Two texts placed by the contract of `GraphicsText`: each `y` is the common
     # baseline minus that text's ascent. The file then has one baseline for both.
     baseline = 50
-    texts = map((StyleModule.font_ubuntu_regular_20, StyleModule.font_ubuntu_monospace_regular_20)) do font
+    texts = map((StyleModule.StyleFont("Ubuntu", 20), StyleModule.StyleFont("Ubuntu Mono", 20))) do font
         _, ascent, _ = compute_text_extent("x", font)
         GraphicsText("x", 10, baseline - ascent; font, color = color_black)
     end
@@ -211,7 +211,7 @@ end
 end
 
 @testset "a character that the font lacks is drawn in the font that has it" begin
-    font = StyleModule.font_ubuntu_monospace_regular_20
+    font = StyleModule.StyleFont("Ubuntu Mono", 20)
     primary = load_truetype_font(compute_font_path(font))
     check = '✓'
     @test !has_font_glyph(primary, UInt32(check))
@@ -241,7 +241,7 @@ end
     # The writer embeds a font as `/FontFile2`, which holds TrueType outlines. A
     # CFF font has none, so a fallback font in that form is skipped.
     @test PdfModule._is_embeddable_font(fallback)
-    @test !PdfModule._is_embeddable_font(load_truetype_font(compute_font_path(StyleModule.font_inconsolata_regular_18)))
+    @test !PdfModule._is_embeddable_font(load_truetype_font(compute_font_path(StyleModule.StyleFont("Inconsolata", 18))))
 end
 
 end # test_write_pdf

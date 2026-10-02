@@ -7578,7 +7578,7 @@ const LUCIDE_ICON_GLYPHS = (
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS
-    register_icon!(name, make_glyph_icon(font_lucide_icons_20, codepoint))
+    register_icon!(name, make_glyph_icon(StyleFont("Lucide", 20), codepoint))
 end
 
 """
@@ -7586,7 +7586,7 @@ end
 
 The character of the built-in icon `name` in the Lucide font, or `nothing` for a
 name the table does not hold. It is for a place that writes an icon as text in
-`font_lucide_icons_20`, as a label does, rather than drawing it in a box.
+`StyleFont("Lucide", 20)`, as a label does, rather than drawing it in a box.
 """
 function find_icon_character(name::Symbol)
     for (known, codepoint) in LUCIDE_ICON_GLYPHS

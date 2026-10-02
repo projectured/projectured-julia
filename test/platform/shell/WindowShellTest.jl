@@ -275,7 +275,7 @@ end
     # Every text is a glyph of the icon font, one for each tool, in the order of
     # the band.
     value(v) = v isa Cell ? v[] : v
-    @test all(t -> compute_font_path(value(t.font)) == compute_font_path(font_lucide_icons_20), texts)
+    @test all(t -> compute_font_path(value(t.font)) == compute_font_path(StyleFont("Lucide", 20)), texts)
     @test [string(value(t.text)) for t in texts] ==
           [string(find_icon_character(item.action.icon)) for item in bar.elements]
     # A host's own buttons come after the tools.
@@ -392,7 +392,7 @@ end
 @testset "the status line keeps its text off the edges" begin
     measure = FontFileMeasure()
     recursion = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_regular_20; measure = measure).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = measure).dispatch))
     bar = make_window_status_bar(PrimitiveString("x"); extra = ["ready"])
     output = print_document(recursion, nothing, bar, PrinterContext()).output
     value(v) = v isa Cell ? v[] : v

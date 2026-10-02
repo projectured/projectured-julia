@@ -6,7 +6,7 @@
 # field by field through `print_child`, so the dispatch meets each `ObjectField`
 # wherever the author put it, and the labels pass through untouched.
 function make_object_field_form_projection_example(; measure=FontFileMeasure())
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     w2g  = WidgetToGraphics(font; measure=measure)
     ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(

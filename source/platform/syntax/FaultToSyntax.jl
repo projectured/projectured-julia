@@ -22,7 +22,7 @@ See also `FaultCatchingProjection`, which says why a substitute is not optional.
 """
 @projection struct FaultToSyntax
     style::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
+        StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_red)
 end
 
 function print_document(p::FaultToSyntax, recursion, report::FaultReport,

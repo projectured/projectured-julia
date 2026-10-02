@@ -19,15 +19,15 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct FaultTheme
     "The count of the occurrences of a fault."
-    count_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    count_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
     "The barrier that catches a fault, such as `print`, `device` or `tool`."
-    site_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    site_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
     "The name of the type or the function whose code fails."
-    origin_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
+    origin_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_red)
     "The message of the first occurrence of a fault."
-    message_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    message_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_700)
     "The line the log shows while it holds no fault."
-    empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty_text::StyleText = StyleText(StyleFont("DejaVu Sans Mono", 16), color_slate_500)
 end
 
 # The style field of a fault log projection that holds the text `name` of the

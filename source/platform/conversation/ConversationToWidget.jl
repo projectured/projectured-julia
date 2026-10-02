@@ -59,7 +59,7 @@ const _SECTION_INDENT = 12
 # made a transcript read as a stack of headings; 14 answered that and went too
 # far the other way. The role keeps its color, because color is what tells a
 # person who spoke.
-const _ROLE_FONT = font_ubuntu_bold_18
+const _ROLE_FONT = StyleFont("Ubuntu", 18; weight = 700)
 _role_color(role::Symbol) = role === :user      ? color_indigo_600 :
                             role === :assistant ? color_solarized_cyan : color_slate_600
 _role_style(role::Symbol) = StyleText(_ROLE_FONT, _role_color(role))
@@ -67,12 +67,12 @@ _role_style(role::Symbol) = StyleText(_ROLE_FONT, _role_color(role))
 # A part's tag names a kind, which is a smaller thing to say than who spoke, so
 # it stays smaller and stays neutral. It is 16 and not 14: at 14 the word sat
 # below the middle of the chevron beside it, and the two read as two rows.
-const _KIND_STYLE = StyleText(font_ubuntu_bold_16, color_slate_600)
+const _KIND_STYLE = StyleText(StyleFont("Ubuntu", 16; weight = 700), color_slate_600)
 # A section of an evaluation is a smaller thing again, so its title is the same
 # size and not bold. An error is the one section title that carries a color,
 # because it is the one a reader must not miss.
-const _SECTION_STYLE = StyleText(font_ubuntu_regular_16, color_slate_500)
-const _ERROR_STYLE   = StyleText(font_ubuntu_bold_16, color_destructive)
+const _SECTION_STYLE = StyleText(StyleFont("Ubuntu", 16), color_slate_500)
+const _ERROR_STYLE   = StyleText(StyleFont("Ubuntu", 16; weight = 700), color_destructive)
 
 # The mark beside a role. It is drawn as text and not as a `WidgetAvatar`,
 # because an avatar is a disc with initials: at this size the disc is a pale ring
@@ -83,7 +83,7 @@ const _ERROR_STYLE   = StyleText(font_ubuntu_bold_16, color_destructive)
 # from, so the mark beside a turn looks like the pictures of the toolbar. A mark
 # must not read as a smudge beside the bold word: Lucide draws a stroke of a
 # twelfth of its size, which at this size is as heavy as the stem of a letter.
-const _ICON_FONT = font_lucide_icons_20
+const _ICON_FONT = StyleFont("Lucide", 20)
 _icon_style(role::Symbol) = StyleText(_ICON_FONT, _role_color(role))
 
 # A person, a bot, and a dot for any other role. None is a letter, and none needs

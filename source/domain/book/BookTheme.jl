@@ -20,23 +20,23 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct BookTheme
     "The title of a book."
-    title_text::StyleText          = StyleText(font_ubuntu_bold_36, color_solarized_blue)
+    title_text::StyleText          = StyleText(StyleFont("Ubuntu", 36; weight = 700), color_solarized_blue)
     "The \"Written by \" that introduces the author."
-    author_prefix_text::StyleText  = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    author_prefix_text::StyleText  = StyleText(StyleFont("Ubuntu", 20; italic = true), color_solarized_gray)
     "The author of a book."
-    author_text::StyleText         = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
+    author_text::StyleText         = StyleText(StyleFont("Ubuntu", 20; italic = true), color_solarized_cyan)
     "The title of a chapter."
-    chapter_title_text::StyleText  = StyleText(font_ubuntu_bold_24, color_solarized_blue)
+    chapter_title_text::StyleText  = StyleText(StyleFont("Ubuntu", 24; weight = 700), color_solarized_blue)
     "The numbering of a chapter."
-    numbering_text::StyleText      = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
+    numbering_text::StyleText      = StyleText(StyleFont("Ubuntu", 24; weight = 700), color_solarized_magenta)
     "A paragraph, and the blank line between the elements of a book or a chapter."
-    paragraph_text::StyleText      = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    paragraph_text::StyleText      = StyleText(StyleFont("Ubuntu Mono", 20), color_black)
     "The insertion leaf, and a picture with no path yet."
-    placeholder_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    placeholder_text::StyleText    = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_gray)
     "The bullet of a list item."
-    bullet_text::StyleText         = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    bullet_text::StyleText         = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_yellow)
     "The caption of a picture."
-    picture_text::StyleText        = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    picture_text::StyleText        = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_magenta)
 end
 
 # The style field of a Book projection that holds the text `name` of the

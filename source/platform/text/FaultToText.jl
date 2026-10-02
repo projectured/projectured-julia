@@ -14,7 +14,7 @@ Give it to a text-domain barrier as its substitute:
 """
 @projection struct FaultToText
     style::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
+        StyleText(StyleFont("DejaVu Sans Mono", 16; weight = 700), color_solarized_red)
 end
 
 function print_document(p::FaultToText, recursion, report::FaultReport,

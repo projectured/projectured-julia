@@ -74,11 +74,11 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     knob::StyleColor = color_white
     # ── Fonts ──
     "The font of the text of a widget."
-    font::StyleFont = font_ubuntu_regular_20
+    font::StyleFont = StyleFont("Ubuntu", 20)
     "The font of a title and of a header."
-    font_bold::StyleFont = font_ubuntu_bold_20
+    font_bold::StyleFont = StyleFont("Ubuntu", 20; weight = 700)
     "The font of a caption and of a badge."
-    font_small::StyleFont = font_ubuntu_regular_18
+    font_small::StyleFont = StyleFont("Ubuntu", 18)
     # ── Spacing ──
     "The space inside a button, a text box and the other controls."
     control_padding::Spacing = Spacing(Inset(9, 9, 14, 14))
@@ -143,12 +143,12 @@ end
 # ── Presets ─────────────────────────────────────────────────────────────────
 
 """
-    make_light_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_light_theme(; font = StyleFont("Ubuntu", 20)) -> WidgetTheme
 
 The neutral zinc light theme: a zinc palette on a white background. The slate
 theme is the default, see [`make_slate_light_theme`](@ref).
 """
-make_light_theme(; font::StyleFont = font_ubuntu_regular_20) =
+make_light_theme(; font::StyleFont = StyleFont("Ubuntu", 20)) =
     WidgetTheme(; background = color_white,       foreground = color_zinc_950,
                   card = color_white,             card_foreground = color_zinc_950,
                   popover = color_white,          popover_foreground = color_zinc_950,
@@ -161,12 +161,12 @@ make_light_theme(; font::StyleFont = font_ubuntu_regular_20) =
                   font)
 
 """
-    make_dark_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_dark_theme(; font = StyleFont("Ubuntu", 20)) -> WidgetTheme
 
 The neutral zinc dark theme, on zinc-950 surfaces. For the slate dark theme see
 [`make_slate_dark_theme`](@ref).
 """
-make_dark_theme(; font::StyleFont = font_ubuntu_regular_20) =
+make_dark_theme(; font::StyleFont = StyleFont("Ubuntu", 20)) =
     WidgetTheme(; background = color_zinc_950,    foreground = color_zinc_50,
                   card = color_zinc_900,          card_foreground = color_zinc_50,
                   popover = color_zinc_900,       popover_foreground = color_zinc_50,
@@ -179,19 +179,19 @@ make_dark_theme(; font::StyleFont = font_ubuntu_regular_20) =
                   font)
 
 """
-    make_slate_light_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_slate_light_theme(; font = StyleFont("Ubuntu", 20)) -> WidgetTheme
 
 The default light theme: a cool slate palette with an indigo accent, on tinted
 surfaces, so the colors read as chosen and not washed out.
 """
-make_slate_light_theme(; font::StyleFont = font_ubuntu_regular_20) = WidgetTheme(; font)
+make_slate_light_theme(; font::StyleFont = StyleFont("Ubuntu", 20)) = WidgetTheme(; font)
 
 """
-    make_slate_dark_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_slate_dark_theme(; font = StyleFont("Ubuntu", 20)) -> WidgetTheme
 
 The dark slate theme: deep slate surfaces with a bright indigo accent.
 """
-make_slate_dark_theme(; font::StyleFont = font_ubuntu_regular_20) =
+make_slate_dark_theme(; font::StyleFont = StyleFont("Ubuntu", 20)) =
     WidgetTheme(; background = color_slate_950,   foreground = color_slate_50,
                   card = color_slate_900,         card_foreground = color_slate_50,
                   popover = color_slate_900,      popover_foreground = color_slate_50,

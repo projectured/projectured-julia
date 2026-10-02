@@ -212,7 +212,7 @@ mixed fonts gives two fonts different metrics.
 # Example
 
     measure = FixedMeasure(8, 12, 4, 0;
-                           fonts = Dict(font_ubuntu_monospace_regular_20 => FontMetrics(10, 3, 0)))
+                           fonts = Dict(StyleFont("Ubuntu Mono", 20) => FontMetrics(10, 3, 0)))
 """
 struct FixedMeasure <: TextMeasure
     advance::Float64

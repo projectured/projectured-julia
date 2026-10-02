@@ -3,7 +3,7 @@ function make_graphics_caching(projection; render=render_canvas)
 end
 
 function make_scrolling_projection(projection; measure=FontFileMeasure(),
-                                    font=font_ubuntu_monospace_regular_20)
+                                    font=StyleFont("Ubuntu Mono", 20))
     theme = make_slate_light_theme(font = font)
     NestingProjection(
         WidgetScrollPaneToGraphicsCanvas(theme; measure = measure, font = font, content_color = color_transparent);
@@ -25,7 +25,7 @@ end
 # introspection dispatch, with a shell in place of the tabbed pane. Pairs with
 # `make_shell_document`.
 function make_shell_projection(projection; measure=FontFileMeasure(),
-                               font=font_ubuntu_regular_20)
+                               font=StyleFont("Ubuntu", 20))
     w2g = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
         w2g.dispatch,
@@ -46,7 +46,7 @@ make_command_palette_decorator_projection(projection; measure=FontFileMeasure())
     CommandPaletteDecoratorProjection(inner = projection, measure = measure)
 
 function make_introspection_projection(projection; measure=FontFileMeasure())
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
     object_chain = ChainingProjection(
@@ -77,7 +77,7 @@ end
 # Expects a TextBlock document (the text examples).
 function make_text_configuring_projection(inner_text_projection;
                                           measure=FontFileMeasure(),
-                                          font=font_ubuntu_monospace_regular_20)
+                                          font=StyleFont("Ubuntu Mono", 20))
     fg  = (0x22, 0x22, 0x22, 0xff)   # dark text for the light example background
     w2g = WidgetToGraphics(font; measure=measure)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(

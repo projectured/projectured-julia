@@ -8,7 +8,7 @@ ProjecturedPlatform.WidgetModule.compute_code_pieces(::Val{:widget_text_test_cod
 
 function test_widget_text_editing()
 
-_font = font_ubuntu_monospace_regular_20
+_font = StyleFont("Ubuntu Mono", 20)
 _stub = FixedMeasure(10, 18, 6, 0)
 
 # An editable WidgetText: content is a TextBlock recursed through the Text domain.

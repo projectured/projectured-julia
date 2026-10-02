@@ -47,11 +47,11 @@ plain values of the default theme.
     "The ring and the highlight of what the pointer is over."
     hover::StyleColor = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.45)
     "The font of the chart's title."
-    title_font::StyleFont = font_ubuntu_bold_16
+    title_font::StyleFont = StyleFont("Ubuntu", 16; weight = 700)
     "The font of a tick, a lane name, a readout and the empty-chart placeholder."
-    axis_font::StyleFont = font_ubuntu_regular_14
+    axis_font::StyleFont = StyleFont("Ubuntu", 14)
     "The font of the label of an event, an arrow or a band."
-    label_font::StyleFont = font_ubuntu_regular_14
+    label_font::StyleFont = StyleFont("Ubuntu", 14)
     "The space around the whole chart."
     padding::Spacing = Spacing(8)
     "The space inside a gutter, above and below its text."
