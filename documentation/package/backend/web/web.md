@@ -31,6 +31,22 @@ Each drawn text sends the ascent of its box (`b`), the pen offset of each charac
 - **`patches`** holds, for every other window, one clip rectangle and the primitives that cross it. `_collect_window_dirty` finds the rectangle from the cells that are not up to date, as the SDL backend does. `prev_bounds` keeps the last bounds of each unit, so a moved unit also clears its old place.
 - **`close`** holds the ids of the windows that left the screen document.
 
+After the `update` message, the backend sends `{"type": "pointer", "window": id, "cursor": css}` when the shape that [`find_pointer_shape`](../../platform/graphics/graphics.md#the-shape-of-the-pointer) finds changes, at the point and in the window of the last pointer event that the editor read. `cursor` is the CSS cursor of the shape:
+
+| Shape | CSS cursor |
+| --- | --- |
+| `arrow` | `default` |
+| `ibeam` | `text` |
+| `double_arrow_horizontal` | `col-resize` |
+| `double_arrow_vertical` | `row-resize` |
+| `pointing_hand` | `pointer` |
+| `open_hand` | `grab` |
+| `closed_hand` | `grabbing` |
+| `crossed_circle` | `not-allowed` |
+| `hourglass` | `wait` |
+
+A shape that the table does not name sends `default`. The client sets `canvas.style.cursor` of the window to `cursor` (`setPointerCursor` in `asset/web/client.js`).
+
 The first `WindowDocument` is the primary one, and the client draws it in the page itself; every other window opens as a browser window. A browser opens a window only inside a user action, and a window that the editor opens by itself comes with none. So the client opens one spare browser window at a user action and gives it to the next window that arrives with no action. The serializer mirrors the painters of the SDL backend: `text`, `rect`, `line`, `circle`, `polyline`, `polygon`, `clip` for a viewport, `group` for a nested canvas, and `image`. A spline is cut into a polyline on the server. An image goes as base64 RGBA, and a `GraphicsFence` or an image held as an SDL texture is skipped. Any output other than a `ScreenDocument` raises an error.
 
 The messages go through an ordered queue to a send task. A patch depends on the patches before it, so the queue never merges or drops one. A full frame makes the older messages useless, so it empties the queue first. A queue that is almost full is emptied too, and the next frame goes in full.
@@ -85,7 +101,7 @@ run_example(["json", "xml"]; backend = WebBackend())       # the first in the pa
 ```
 
 - Example: the gallery with `backend = WebBackend()`. The package has no example of its own.
-- Test: `test_web_backend()` in `test/projectured/backend/WebTest.jl` decodes client messages into the queue, reads them, and checks the wait and the wake. One of its tests starts the server on a free port of 127.0.0.1, connects a WebSocket client and reads a static file. `test/tool/builder/BuilderTest.jl` checks that a build names the backend, and `test/projectured/editor/ApplicationTest.jl` checks the parse of `--backend=web`.
+- Test: `test_web_backend()` in `test/projectured/backend/WebTest.jl` decodes client messages into the queue, reads them, and checks the wait and the wake. One of its tests starts the server on a free port of 127.0.0.1, connects a WebSocket client and reads a static file. Another checks the `pointer` message: the CSS cursor it sends for the shape at the point of the last pointer event, and that an unchanged shape sends nothing. `test/tool/builder/BuilderTest.jl` checks that a build names the backend, and `test/projectured/editor/ApplicationTest.jl` checks the parse of `--backend=web`.
 
 ## Limits
 

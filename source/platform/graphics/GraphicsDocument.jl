@@ -596,9 +596,7 @@ the shape at the pointer with [`find_pointer_shape`](@ref), and every backend
 paints nothing for it.
 
 With `drag = true` the box is a region of a drag: it wins over every region that
-is not one, wherever it is in the drawing. The drag tracking puts one over each
-window while a drag is on, so the pointer keeps the shape of the press wherever
-it goes.
+is not one, wherever it is in the drawing.
 
 `shape` is a `Symbol`, a cell that holds one, or a function of no arguments,
 which becomes a computed cell.

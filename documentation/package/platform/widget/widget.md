@@ -221,6 +221,22 @@ The `rows` of a `WidgetTable` can be a `ListNode`, and `WidgetTableParts.jl` pri
 
 A left press within 3 pixels of the right edge of a header of a table that scrolls its parts starts the drag of the width of its column, as the divider of a split pane starts its drag: a write of `column_drag`, the column, the point and the width at the press, as view state, and a `StartDragOperation`. Each `DragMove` answers `SetTableColumnWidthOperation(table, column, width)`, the width at the press plus the move along x, and at least 24 pixels; `DragEnd` ends the drag, and `DragCancel` puts back the width of the press. A table whose columns are a vector keeps the width as `Fixed` in its `column_policies`. A table whose columns are a list takes its `column_policies` as a list beside its headers: a `Fixed` value gives that column its width, and `nothing` leaves it at the `column_policy` and at least as wide as its header. Its owner reads the width operation and keeps the width, as the data frame view keeps it by the name of the column. An owner that made the table, and that the parts of the drag reach by its own path, gives them on with `read_table_column_drag`. A column narrower than its header clips the end of the header, because a cell wider than its column starts at the left edge of the column. A person finds the edge under the pointer: a point within 3 pixels of it maps back to `column_policies[c]`, the width of the column, so the edge is the part under the pointer and lights as a bar of the ring color of the theme over its rule, and a rest there shows the tooltip "Drag to set the width".
 
+### The shape of the pointer
+
+A widget puts a `GraphicsPointerShape` where a press on it does something, so the pointer takes the shape of that press before it lands ([graphics.md](../graphics/graphics.md#the-shape-of-the-pointer)):
+
+| Widget | Region | Shape |
+| --- | --- | --- |
+| `WidgetSplitPane` | the band of each divider | `double_arrow_horizontal` or `double_arrow_vertical`, along the main axis of the pane |
+| `WidgetTable` | the band of each column edge of the header row | `double_arrow_horizontal` |
+| `WidgetText`, `WidgetTextarea` | the box, while it takes edits | `ibeam` |
+| `WidgetButton` | the box, while it acts | `pointing_hand` |
+| A tab of `WidgetTabbedPane`, and its close, duplicate and new-tab buttons | the header of the tab, or the button | `pointing_hand`, or `open_hand` on a tab of a pane that drags its tabs (`draggable`) |
+
+**A region and the reader of the same part read one band function.** `_get_splitter_band(next_position, thickness)` is the band of a divider that the region and `_splitter_band_hit` both read, and `_get_column_edge_band(edge, bw)` is the band of a column edge that the region and `_find_table_column_edge_at` both read, so the band that shows the shape and the band that answers the press can not drift apart.
+
+A text field and a text area draw the I-beam region over their whole box, before their content, while they take edits; a disabled one draws the arrow over its box instead, after the content, so the arrow wins over the I-beam that the text view inside still draws for itself.
+
 ### The transform pane
 
 `WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content. Each pointer event, that is a press, a button down, a button up, a move and a dwell, gets its point mapped through the inverse transform. So a button down gives the focus to the control that is drawn under the pointer, and a move of a drag reaches the content at the point that is drawn under the pointer.
@@ -261,7 +277,7 @@ write_example_image(widget_tree_example, "tree.png")
 `save_all!` and `server` stand for your own function and object.
 
 - Examples: one for each widget in `example/platform/PlatformExamples.jl`, such as `widget_example`, `widget_table_example`, `widget_popup_example` and `object_to_widget_example`. The screenshots are `asset/image/example/widget-*.png`.
-- Tests: the `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/platform/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_platform()` runs them all; the package has no suite of its own.
+- Tests: the `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/platform/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_part_pointer_shape()` in `PartPointerShapeTest.jl` sweeps the points of each part and checks, at every point, that the shape is the part's shape exactly where the reader answers the press of that part. `test_platform()` runs them all; the package has no suite of its own.
 
 ## Limits
 

@@ -55,6 +55,8 @@ The code is the slice `VideoModule`, in `source/backend/video/`: `VideoModule.jl
 
 `record_assistant_conversation_video()` in `example/projectured/Gallery.jl` records a turn of the assistant with a `FakeLlm` and `wait_for`. `record_live_example` in `example/backend/sdl/LiveExamples.jl` records the timeline of a `LiveExample`, which `play_live_example` plays in a real window.
 
+With `pointer = true`, `VideoBackend` draws the picture of the shape at the pointer on top of its ring, from [`find_pointer_shape`](../../platform/graphics/graphics.md#the-shape-of-the-pointer) at the point, in the window of the frame. Six shapes are a polygon in the style of the arrow, white with a black border; the crossed circle adds a ring of two circles around it. The three hands are glyphs of the Lucide font, black with a white outline, and the hot spot of the pointing hand is at the tip of its finger. A shape this backend does not draw is the arrow.
+
 ## Design decisions
 
 - **A package for one dependency.** `ProjecturedVideo` is the only package that loads FFMPEG, so a user of the editor and of `write_image` does not load it. See [plan/done/extract-video-package.md](../../../../plan/done/extract-video-package.md).
@@ -77,7 +79,7 @@ record_assistant_conversation_video("assistant.mp4")
 ```
 
 - Examples: `record_assistant_conversation_video` and `record_live_example`.
-- Test: `test_video()` in `ProjecturedVideoTest` runs the layering guard and `test_record_video()`: it encodes an `.mp4`, types with an initial selection, seeds the caret with an operation entry, and records the assistant demo with `wait_for`.
+- Test: `test_video()` in `ProjecturedVideoTest` runs the layering guard and `test_record_video()`: it encodes an `.mp4`, types with an initial selection, seeds the caret with an operation entry, and records the assistant demo with `wait_for`. `test_video_pointer_shape()` checks the picture that `VideoBackend` chooses for the shape at the pointer, and renders each of the nine shapes to a bitmap to check that it draws both black and white pixels around its hot spot.
 
 ## Limits
 

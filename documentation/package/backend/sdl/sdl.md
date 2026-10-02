@@ -50,6 +50,12 @@ The walk runs in both modes, because it also tells whether a frame differs from 
 
 A frame that changed a window can put another part under a pointer that does not move: a list scrolls, a popup opens or closes. So after a write in which a window showed a changed frame or closed, `write_to_devices` also queues a `MouseMove` at the point where the pointer is now (`SDL_GetMouseState`), in the window that SDL reports under the pointer (`SDL_GetMouseFocus`), with the buttons that are held now. The move waits in `pending_motion`, after the `DisplayUpdate`, so a newer motion from SDL replaces it, and the rate limit of idle motion applies to it. Every reader reads it as it reads a move: the part under the pointer is found in the new frame, a cursor readout follows, and a part that the pointer left gets its leave. The next frame shows no new pixel when the move finds the same part, so the moves stop by themselves. A pointer on no window of the backend gives no move.
 
+### The shape of the pointer
+
+The backend keeps the canvas that each window drew last in `drawn_canvases`, and sets the cursor of the system to the shape that [`find_pointer_shape`](../../platform/graphics/graphics.md#the-shape-of-the-pointer) finds there at the pointer. It sets the cursor at two times: at each motion in `read_from_devices`, before the rate limit of idle motion holds the sample back, so the shape does not wait for a frame, and again after each frame in `write_to_devices`, so a frame that moves a part under a pointer that does not move still gets the right shape. It sets the cursor of the system only when the shape changes, and keeps the shape it set in `pointer_shape`.
+
+Each shape of `POINTER_SHAPES` but the open hand and the closed hand has a cursor of the system, made once and kept in `cursors`. SDL2 has no system cursor for the open hand and the closed hand, so the backend makes each one from a glyph of the Lucide font that shows it, `hand` and `grab`, 22 logical pixels, black with a white outline and the hot spot in the middle (`_make_glyph_cursor`). `quit_backend!` frees every cursor it made.
+
 ### Events in
 
 `read_from_devices` polls SDL and returns one `WindowInput`:
@@ -126,7 +132,7 @@ projection = TextToGraphics(measure = FontFileMeasure())
 ```
 
 - Examples: every gallery example runs on it by default. `example/backend/sdl/LiveExamples.jl` plays a timeline in a window or records it with `record_video`. The screenshots under `asset/image/example/` come from `write_image`.
-- Test: `test_sdl()` in `ProjecturedSDLTest` runs the layering guard, the dirty rectangle, the key symbols, the device configuration, the agreement of the font metrics with SDL_ttf (`test_sdl_font_metrics_agree`), the baseline of the drawn ink and the pen positions of each glyph (`test_sdl_text_baseline_ink`, `test_sdl_text_pen_positions`), the coalescing of input, the wait and the wake, the native windows, and `write_image`.
+- Test: `test_sdl()` in `ProjecturedSDLTest` runs the layering guard, the dirty rectangle, the key symbols, the device configuration, the agreement of the font metrics with SDL_ttf (`test_sdl_font_metrics_agree`), the baseline of the drawn ink and the pen positions of each glyph (`test_sdl_text_baseline_ink`, `test_sdl_text_pen_positions`), the coalescing of input, the wait and the wake, the native windows, `write_image`, and `test_sdl_pointer_shape()`, which reads the shape that the backend chooses for a motion pushed onto the real SDL queue.
 
 ## Limits
 

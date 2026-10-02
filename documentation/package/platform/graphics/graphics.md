@@ -21,6 +21,7 @@ The graphics slice of `ProjecturedPlatform` holds the drawing primitives that ev
 | `GraphicsViewport` | one canvas clipped to a box, with an `AffineTransform` |
 | `GraphicsImage` | pixel `data` in a box |
 | `GraphicsFence` | nothing; a mark in the element list, described below |
+| `GraphicsPointerShape` | nothing; a region where the pointer takes a shape, described below |
 
 Every field is a reactive cell, so a change of one coordinate repaints only what reads it. A colour is a `StyleColor` and a font is a `StyleFont`, both from [style.md](../style/style.md). Each backend converts a `StyleColor` to its own device encoding when it draws. Coordinates are `Int32` pixels, and a box names its size `w` and `h`. Elements draw in order, so a later element is on top.
 
@@ -44,6 +45,22 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 **The producer declares that elements do not overlap, and nothing checks it.** With `overlapping_elements = false` and a `layout`, the renderer and the hit test stop at the first element past the visible edge or past the point. A `GraphicsFence` in the element list states that the elements before it and after it do not overlap on the layout axis. It draws nothing, and both the renderer and the hit test skip it. A canvas that declares no overlap and has overlapping elements misses hits.
 
 `has_declared_extent(canvas)` is true for a canvas with a layout, elements that do not overlap, and `w > 0` and `h > 0`. Such a canvas declares its extent: `get_graphics_size` and the dirty bounds take its box and do not walk its elements, so a size query reads no element of a long list.
+
+### The shape of the pointer
+
+`GraphicsPointerShape(x, y, w, h, shape; drag = false)` is a region where the pointer takes `shape`. It draws nothing. A part puts one into what it draws where a press does something: the edge of a column, the divider of a split pane, a text that a person edits. `shape` is one of nine symbols, named by the picture and kept in `POINTER_SHAPES`: `arrow`, `ibeam`, `double_arrow_horizontal`, `double_arrow_vertical`, `pointing_hand`, `open_hand`, `closed_hand`, `crossed_circle` and `hourglass`. A backend maps each one to a cursor of its own, and shows the arrow for a shape it does not know.
+
+`find_pointer_shape(canvas, x, y)` finds the shape at a point of `canvas`, the root canvas of a window: the `shape` of the last region that holds the point, in the order of the drawing, or `default` where no region holds it. The walk follows the drawing of a backend:
+
+- The root canvas is at the origin of the window.
+- A nested canvas moves its elements by its place and clips nothing.
+- A viewport clips the regions inside it to its box, and moves them by its content and its transform.
+- A canvas that lays out its elements without overlap walks only the elements at the point, from the first one that reaches it, as `hit_element_at` does: a list of rows that the viewport does not show is not walked.
+- A canvas that declares its extent and does not hold the point is not walked either.
+
+With `drag = true`, a region is a region of a drag: it wins over every plain region, wherever each is in the drawing. Among the regions of one kind, plain or of a drag, the last one in the order of the drawing wins.
+
+**A region in a laid-out canvas is an element of the order.** A canvas that lays out its elements without overlap reads a region the same way it reads any other element: put a region there only where its place keeps the order of the elements, or put it in a canvas with no layout.
 
 ### Selection and clicks
 
@@ -153,7 +170,7 @@ hit_element_at(canvas, 60, 25)        # the offset of the element, or nothing
 ```
 
 - Example: `graphics_image_example` draws a JSON document through the text chain; `make_json_projection_example()` of `ProjecturedJSONExample` builds the chain.
-- Tests: `test_graphics()` in `test/platform/document/GraphicsDocumentTest.jl`. `GraphicsLayoutTest.jl` beside it covers the layout projections.
+- Tests: `test_graphics()` in `test/platform/document/GraphicsDocumentTest.jl`. `GraphicsLayoutTest.jl` beside it covers the layout projections, and `test_pointer_shape()` in `PointerShapeTest.jl` covers `find_pointer_shape`.
 
 ## Limits
 

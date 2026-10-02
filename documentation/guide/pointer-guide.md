@@ -2,9 +2,19 @@
 
 > **Kind:** procedure · **Status:** current · **Stands on:** [keyboard-and-mouse-guide.md](keyboard-and-mouse-guide.md)
 
-What the program shows where the pointer sits: the part that lights, the brackets of a tree that light around it, and the tooltip that a rest brings.
+What the program shows where the pointer sits: the shape it takes, the part that lights, the brackets of a tree that light around it, and the tooltip that a rest brings.
 
 This holds in every window the program opens, not only the main one. A popup, a menu and a dialog light their own parts the same way.
+
+## The pointer takes the shape of what a press does
+
+Move the pointer over a part of the program. Its shape says what a press there does:
+
+- A double arrow over the edge of a column of a table, and over the divider of a split pane. A press there drags the width or the size.
+- An I-beam over text you edit: a text field, a text area or a text document. A press there puts the caret.
+- A pointing hand over a button and over a tab. A press there runs the action, or opens the tab.
+- An open hand over a tab of a pane that lets you drag its tabs.
+- The arrow everywhere else.
 
 ## The part under the pointer lights
 
