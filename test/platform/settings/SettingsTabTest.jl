@@ -278,6 +278,18 @@ end
           MouseUp(:left, ux + 4, uy + 4, ModifierKeys(); time = 5.05))
     @test get_settings_group!(settings, HistorySettings).undo_capacity == 101
     @test place("Reset all") == scrolled
+    # A press on the switch of "Log faults", found along its row, changes the log
+    # flag, which a report reads from the editor: the view does not print again.
+    fault = get_settings_group!(settings, FaultSettings)
+    row = place("Log faults")
+    for (i, px) in enumerate(100:4:400)
+        fault.is_console_enabled || break
+        send!(MouseDown(:left, px, row + 6, ModifierKeys(); time = 10.0 + i),
+              MouseUp(:left, px, row + 6, ModifierKeys(); time = 10.05 + i))
+    end
+    @test !fault.is_console_enabled
+    @test !editor.fault_policy.is_console_enabled
+    @test place("Reset all") == scrolled
 end
 
 @testset "the settings of an editor are found under its root" begin

@@ -214,7 +214,11 @@ end
     evaluate_operation(editor, ApplySettingOperation(group, :is_console_enabled, false))
     @test editor.fault_policy ==
           FaultPolicy(is_barrier_enabled = false, is_console_enabled = false)
-    # The barriers read the policy while they print, so the view prints again.
+    # A report reads the log flag from the editor, so the view does not print again.
+    @test editor.iomap !== nothing
+    # A barrier decides while it prints whether it catches, so the view prints again.
+    evaluate_operation(editor, ApplySettingOperation(group, :is_barrier_enabled, true))
+    @test editor.fault_policy.is_barrier_enabled
     @test editor.iomap === nothing
     run_frame!(editor)
     # The same policy again prints nothing again.

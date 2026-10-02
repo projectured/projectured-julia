@@ -158,9 +158,11 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
     server = nothing
     has_quit = false
     try
-        # A barrier in the projection reads the policy from the printer context,
-        # so a projection printed under another policy prints again.
-        editor.fault_policy == fault_policy || invalidate_projection!(editor)
+        # A barrier in the projection reads from the printer context whether it
+        # catches, so a projection printed under another `is_barrier_enabled`
+        # prints again. A report reads the log and the sound flags from the editor.
+        editor.fault_policy.is_barrier_enabled == fault_policy.is_barrier_enabled ||
+            invalidate_projection!(editor)
         editor.fault_policy = fault_policy
         # From here on, a call that another task makes through
         # `run_on_editor_task!` runs in a frame of this task.

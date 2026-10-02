@@ -5,8 +5,9 @@
                     is_sound_enabled = true)
 
 What an editor does with a fault: the three flags of its `FaultPolicy`. The
-settings reach the policy of the editor through `apply_settings!`, and a change
-prints the view again, because the barriers read the policy while they print.
+settings reach the policy of the editor through `apply_settings!`. A change of
+`is_barrier_enabled` prints the view again, because each barrier reads it while
+it prints. The log and the sound act from the next fault, with no new print.
 """
 @settings struct FaultSettings
     "Catch faults: a barrier catches a fault and shows it, and the editor goes on."
@@ -18,8 +19,9 @@ prints the view again, because the barriers read the policy while they print.
 end
 
 # The settings become the fault policy of the editor. `print!` puts the policy
-# into the printer context, so a new policy needs a new print, as
-# `run_editor!` does.
+# into the printer context, and a barrier decides while it prints whether it
+# catches, so a change of `is_barrier_enabled` needs a new print, as in
+# `run_editor!`. A report reads the log and the sound flags from the editor.
 is_settings_group_applied(::Type{FaultSettings}) = true
 
 function read_settings!(settings::FaultSettings, editor::Editor)
@@ -34,7 +36,8 @@ function apply_settings!(editor::Editor, settings::FaultSettings)
     policy = FaultPolicy(is_barrier_enabled = settings.is_barrier_enabled,
                          is_console_enabled = settings.is_console_enabled,
                          is_sound_enabled = settings.is_sound_enabled)
-    editor.fault_policy == policy || invalidate_projection!(editor)
+    editor.fault_policy.is_barrier_enabled == policy.is_barrier_enabled ||
+        invalidate_projection!(editor)
     editor.fault_policy = policy
     nothing
 end

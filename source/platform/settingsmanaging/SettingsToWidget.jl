@@ -22,7 +22,7 @@ with no file.
   names and a text draws its caret.
 - The pane keeps its own place. A change of a setting does not print the tab
   again, because each control follows its setting, so the place stays. A change
-  of the fault policy prints the whole view again, and the new pane starts at the
+  of "Catch faults" prints the whole view again, and the new pane starts at the
   top.
 
 The view holds no effect of a setting. A control edit and a reset become the
