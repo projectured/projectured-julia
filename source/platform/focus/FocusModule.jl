@@ -35,10 +35,12 @@ using ..IoMapModule
 using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..EditorModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..ReferenceModule: get_reference_step_kind, evaluate_reference_step
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 
 export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
        is_focusable_document, is_focusing_press, convert_to_focus_selection

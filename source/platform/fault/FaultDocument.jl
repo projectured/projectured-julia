@@ -188,3 +188,21 @@ get_session_fault_log() = _SESSION_FAULT_LOG
 # fresh empty one. A fresh one would never fill: what fills a log is the drain
 # of the store it is attached to.
 make_insertion_document(::Type{FaultLog}) = get_session_fault_log()
+
+# ── The fault log of a window, as a wrapper of `build_editor` ────────────────
+
+"""
+    fault_log = true
+
+The wrapper of `build_editor` that attaches the fault log of the session
+([`get_session_fault_log`](@ref)) to the fault store of the editor in a start
+step, so the log holds every fault that the editor catches. It is off by default.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:fault_log}, layer::Symbol, argument, parts::EditorParts)
+    push!(parts.start_steps, editor -> (attach_fault_target!(editor.faults, get_session_fault_log());
+                                        nothing))
+    parts
+end
+
+get_wrapper_layers(::Val{:fault_log}) = (:screen => 30,)

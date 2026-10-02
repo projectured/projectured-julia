@@ -1,12 +1,12 @@
-# Fragment of `GraphicsModule` — the answer of a child to a move of the pointer with
-# no button held: the child under the pointer names the part under it, and each
-# part on the path that the pointer leaves answers that leave.
+# Fragment of `GraphicsModule` — the answer of a child to a move of the pointer, with
+# or without a button held: the child under the pointer names the part under it,
+# and each part on the path that the pointer leaves answers that leave.
 
 """
     compute_part_at_point(iomap, x, y) -> Reference
 
 The path of the part of the input of `iomap` at the point `(x, y)` of its output,
-by the backward map of the point, as a move with no button held names the part
+by the backward map of the point, as a move of the pointer names the part
 under the pointer, with the types that the map gives it. The empty path, the input
 itself, when the map names no part. A point step at the end of the mapped path,
 which a part that reads a point further keeps, is dropped.
@@ -78,8 +78,8 @@ read_container_gesture(answer, gesture, document; steps = ()) =
 """
     read_child_move(child_iomap, move::MouseMove) -> operation
 
-The answer of the child under the pointer to `move`, a move with no button held
-whose point is in the child's frame, with the part under the pointer: the child's
+The answer of the child under the pointer to `move`, a move of the pointer, with or
+without a button held, whose point is in the child's frame, with the part under the pointer: the child's
 own answer when it names that part, else the part at the point by the child's
 backward map (`compute_part_at_point`), or the child itself.
 """
@@ -93,8 +93,8 @@ end
 """
     read_child_leave(child_iomap, event::MouseMove, dx, dy) -> operation or nothing
 
-The answer of a child that the pointer leaves to `event`, a move with no button
-held, when the frame of the child lies at `(dx, dy)` of the container's frame. The
+The answer of a child that the pointer leaves to `event`, a move of the pointer,
+when the frame of the child lies at `(dx, dy)` of the container's frame. The
 child gets the move at `(-1, -1)` of its own frame, a point off it and off each
 part in it, whatever the point of `event` is: a part that a pane clips, or a child
 that lies under another, can be at the point of `event`. So the child names no part

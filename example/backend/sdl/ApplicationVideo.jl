@@ -21,10 +21,11 @@ Record the application window of [`run_application`](@ref) — built the same
 way, over `paths` and `root`, with the same `assistant`/`model`/`context` — and
 encode the session to `filename` (`.mp4`).
 
-[`make_application_window`](@ref) builds the document and the projection,
-[`run_with_window_tools`](@ref) fills in the toolbar's tools (the message log,
-the frame statistics, the fault log), `make_editor` builds the editor over a
-[`VideoBackend`](@ref) standing in for the native window,
+[`make_application_document`](@ref) and [`make_application_projection`](@ref)
+make the content, `build_editor` builds the editor over a
+[`VideoBackend`](@ref) standing in for the native window, with the wrappers of
+[`make_application_wrappers`](@ref), which also fill the toolbar's tools (the
+message log, the frame statistics, the fault log),
 [`start_application!`](@ref) gives it the assistant of the application, and the
 real `run_editor!` loop runs. `timeline` is that backend's scripted input. An `(event = …, hold = …)` entry
 is a key or a pointer event, and an `(await = editor -> Bool, hold = …)` entry
@@ -50,11 +51,12 @@ frames are slow to make. A take that waits for a model keeps the wall clock.
 as a live window with `partial_render` does, and `debug_dirty = true` outlines
 that in red on the frames, and `debug_dirty_hold` keeps each outline that many
 seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
-of the window (see [`make_application_window`](@ref)).
+of the window (see [`make_application_wrappers`](@ref)).
 
-`prepare` is called with the document of the window before the editor is made,
-so a take starts from the layout it wants, such as a pane with the session's
-gesture log below a file.
+`prepare` is called with the document of the application, its pane tree,
+before the editor is made, so a take starts from the layout it wants, such as a
+pane with the session's gesture log below a file. The wrappers carry the
+selection that it sets.
 
 `llm` is the model of the assistant when it is given, as
 [`make_application_assistant`](@ref) takes it: a scripted model, or an
@@ -83,10 +85,8 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
     # names its render values on its backend, so the settings read them there.
     settings = make_settings()
     settings.is_read_from_targets = true
-    document, projection = make_application_window(collect(String, paths);
-                                                    root = root, assistant = chat,
-                                                    status_bar = status_bar,
-                                                    measure = measure, settings = settings)
+    document = make_application_document(collect(String, paths); root, assistant = chat,
+                                         settings)
     prepare(document)
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,
@@ -95,19 +95,17 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                            pointer = pointer, partial_render = partial_render,
                            debug_dirty = debug_dirty, debug_dirty_hold = debug_dirty_hold)
     try
-        run_with_window_tools() do feeds, start
-            editor = build_editor(document, projection; backend = backend, feeds = feeds,
-                                  tabs = false, settings = settings,
-                                  window = (; title, width, height,
-                                            opened_window_projections =
-                                                make_opened_window_projections(;
-                                                    content = make_application_content_projections(; measure, settings),
-                                                    measure = measure)))
-            backend.editor = editor
-            start(editor)
-            start_application!(editor; assistant, model)
-            run_editor!(editor)
-        end
+        editor = build_editor(document, make_application_projection(; measure, settings);
+                              backend, settings,
+                              window = (; title, width, height,
+                                        opened_window_projections =
+                                            make_application_content_projections(; measure,
+                                                                                 settings)),
+                              make_application_wrappers(; root, assistant = chat, status_bar,
+                                                          measure)...)
+        backend.editor = editor
+        start_application!(editor; assistant, model)
+        run_editor!(editor)
         encode_frames_to_video!(backend.frames_dir, filename, fps)
     finally
         rm(backend.frames_dir; force = true, recursive = true)

@@ -52,7 +52,7 @@ Nothing but declare its gestures with `@gestures`. The description of a rule is 
 
 The gesturehelp slice depends on the kernel and on the collection, graphics, projection, screen, style, syntax and text slices. It takes the collection of intents from the gesture bindings of the kernel, and the window operations from the screen slice.
 
-The shell slice adds both decorators to every window unless `gesture_help` or `command_palette` of `make_window_wrap` is `false`. The palette is over the help, and both are over the tooltip probe; [shell.md](../shell/shell.md#the-fold) says why. `make_opened_window_projections` of the shell gives the row for `GestureMap`. The gallery adds them with `gesture_help = true` and `command_palette = true`.
+A window built with `build_editor` adds both decorators only when `gesture_help` or `command_palette` is given as a wrapper. `command_palette` is around the help; [shell.md](../shell/shell.md#the-wrappers-of-a-window) says why. `make_opened_window_projections` of the shell gives the row for `GestureMap`. The gallery adds them with `gesture_help = true` and `command_palette = true`.
 
 It registers nothing: no natural row and no insertion alias. No tab holds either document.
 

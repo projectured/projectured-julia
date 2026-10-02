@@ -47,6 +47,8 @@ using ..ReferenceModule
 using ..SelectionModule
 using ..SettingsModule
 using ..ToolModule
+using ..EditorModule
+using ..ProjectionAlgebraModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_wrapped_document, replace_wrapped_document!, get_edited_field
@@ -54,6 +56,7 @@ import ..OperationModule: evaluate_operation, make_inverse_operation,
                           get_wrapped_operation, rewrap_operation,
                           operation_travels_unchanged
 import ..ProjectionModule: get_projection_gesture_bindings
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
 

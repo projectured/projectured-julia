@@ -42,7 +42,8 @@ using ..WidgetModule
 export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,
        make_application_document, make_application_content_projections,
-       make_application_projection, make_application_window, make_application_api,
+       make_application_projection, make_application_wrappers, make_application_window,
+       make_application_api,
        APPLICATION_SYSTEM, run_application, parse_application_arguments,
        run_application_command, evaluate_reachable_cells!, warm_application,
        start_application!, make_application_settings, make_history_wrap

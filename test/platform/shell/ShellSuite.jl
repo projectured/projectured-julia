@@ -43,7 +43,8 @@ end
 """
     test_shell()
 
-Run this package's whole suite: the layering guard and the window wrap.
+Run this package's whole suite: the layering guard, the window wrap, and the
+features of a window as wrappers of `build_editor`.
 """
 function test_shell()
     @testset "ProjecturedPlatform" begin
@@ -52,6 +53,7 @@ function test_shell()
         test_widget_tooltip()
         test_context_menu_window()
         test_window_shell()
+        test_window_wrappers()
         test_file_dialog()
         test_tracking_screen()
         test_drag_tracking()
@@ -61,5 +63,5 @@ end
 
 export test_shell, test_shell_completeness, test_window_wrap,
        test_widget_tooltip,
-       test_context_menu_window, test_window_shell, test_file_dialog,
+       test_context_menu_window, test_window_shell, test_window_wrappers, test_file_dialog,
        test_tracking_screen, test_drag_tracking, test_pointer_light

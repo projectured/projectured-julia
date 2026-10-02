@@ -15,10 +15,13 @@ What a wrapper can change before the editor exists:
 
 - `document` and `projection` — what the editor edits, and how it shows it;
 - `backend` — the backend the editor runs on, which a wrapper reads and does not
-  replace;
+  replace, or `nothing` for parts that [`make_editor_parts`](@ref) makes with no
+  backend;
 - `feeds` — the feeds of the editor;
 - `start_steps` — the functions `editor -> nothing` that run once the editor
   exists, such as the attachment of a log to the fault store of the editor;
+- `stop_steps` — the functions `editor -> nothing` that run when the loop of the
+  editor ends, such as the removal of a log capture that a start step installed;
 - `opened_window_projections` — the rows `type => projection` for the documents that a
   wrapper opens later in a window of their own;
 - `arguments` — the argument of each wrapper that is on, by its keyword, as
@@ -30,9 +33,10 @@ What a wrapper can change before the editor exists:
 mutable struct EditorParts
     document::Document
     projection::Projection
-    backend::Backend
+    backend::Union{Backend,Nothing}
     feeds::Vector{Feed}
     start_steps::Vector{Any}
+    stop_steps::Vector{Any}
     opened_window_projections::Vector{Pair{Type,Any}}
     arguments::Dict{Symbol,Any}
 end
@@ -120,7 +124,8 @@ Make an editor on `document` with its wrappers:
    error. Each argument is made with [`make_wrapper_argument`](@ref).
 3. Apply them with [`wrap_editor!`](@ref), layer by layer from the inside out,
    and in the order of their numbers inside a layer.
-4. Make the editor with [`make_editor`](@ref), and run the start steps of the
+4. Make the editor with [`make_editor`](@ref), give it the stop steps of the
+   wrappers, which its loop runs when it ends, and run the start steps of the
    wrappers.
 
 With no `projection`, the projection is
@@ -134,16 +139,11 @@ function build_editor(document::Document, projection;
                       fault_policy::FaultPolicy = FaultPolicy(),
                       wrappers...)
     backend === nothing && (backend = make_default_backend(:windows))
-    arguments = _make_wrapper_arguments(_collect_wrapper_arguments(wrappers))
-    _check_excluded_wrappers(arguments)
-    parts = EditorParts(document, projection, backend, copy(feeds), Any[], Pair{Type,Any}[],
-                        arguments)
-    for (keyword, layer) in _order_wrapper_steps(arguments)
-        wrap_editor!(Val(keyword), layer, arguments[keyword], parts)
-    end
-    editor = make_editor(parts.document, parts.projection; backend = parts.backend,
+    parts = make_editor_parts(document, projection; backend, feeds, wrappers...)
+    editor = make_editor(parts.document, parts.projection; backend,
                          devices = devices, feeds = parts.feeds,
                          fault_policy = fault_policy)
+    append!(editor.stop_steps, parts.stop_steps)
     for step in parts.start_steps
         step(editor)
     end
@@ -159,6 +159,30 @@ function build_editor(document::Document; keywords...)
     arguments = _make_wrapper_arguments(_collect_wrapper_arguments(wrappers))
     projection = make_document_projection(document; arguments...)
     build_editor(document, projection; keywords..., arguments...)
+end
+
+"""
+    make_editor_parts(document, projection; backend = nothing, feeds = Feed[],
+                      wrappers...) -> EditorParts
+
+The parts of an editor on `document` with its wrappers, and no editor: steps 2
+and 3 of [`build_editor`](@ref). A caller that draws the parts itself, such as a
+test or a warm-up that prints a window scene of its own, takes the document and
+the projection that the wrappers made. With no `backend`, a wrapper that needs
+one, such as the window, does nothing. Nothing runs the start steps and the stop
+steps of the parts.
+"""
+function make_editor_parts(document::Document, projection;
+                           backend::Union{Backend,Nothing} = nothing,
+                           feeds::Vector{Feed} = Feed[], wrappers...)
+    arguments = _make_wrapper_arguments(_collect_wrapper_arguments(wrappers))
+    _check_excluded_wrappers(arguments)
+    parts = EditorParts(document, projection, backend, copy(feeds), Any[], Any[], Pair{Type,Any}[],
+                        arguments)
+    for (keyword, layer) in _order_wrapper_steps(arguments)
+        wrap_editor!(Val(keyword), layer, arguments[keyword], parts)
+    end
+    parts
 end
 
 # The keywords of `build_editor` that name no wrapper.

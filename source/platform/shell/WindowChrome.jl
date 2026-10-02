@@ -48,7 +48,7 @@ make_window_file_menu() =
     ]))
 
 """
-    make_window_view_menu(; recorded = true) -> WidgetMenuItem
+    make_window_view_menu(; recorded = RECORDED_TOOLS) -> WidgetMenuItem
 
 The View menu: the name on the bar, and the menu that opens below it. Its
 commands split the focused group, open the gesture log, and open the appearance
@@ -57,16 +57,16 @@ and the settings.
 **Settings** opens the settings of the editor in a tab: the settings tab of
 `SettingsToWidget`, the same that the toolbar opens.
 
-**Gesture log** opens the session's log in a tab. The recorder of
-[`make_window_wrap`](@ref) is always on, so the tab holds what happened before it
-opened, and a person opens it after a fault rather than before one. A window
-that has no recorder passes `recorded = false`, and the menu has no item for a
-log that stays empty.
+**Gesture log** opens the session's log in a tab. The wrapper `gesture_log`
+records it from the start of the window, so the tab holds what happened before
+it opened, and a person opens it after a fault rather than before one. The item
+is there only when `recorded` holds `:gesture_log`, so a window that does not
+record has no item for a log that stays empty.
 
 **Appearance** (Ctrl+,) opens the `Appearance` of the window in a tab: the zoom
 and the scales, each with its buttons.
 """
-make_window_view_menu(; recorded::Bool = true) =
+make_window_view_menu(; recorded = RECORDED_TOOLS) =
     WidgetMenuItem("View"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
         make_window_command("Split vertically",
                             editor -> _split!(editor, :vertical);
@@ -74,7 +74,7 @@ make_window_view_menu(; recorded::Bool = true) =
         make_window_command("Split horizontally",
                             editor -> _split!(editor, :horizontal);
                             shortcut = Shortcut(:backslash; ctrl = true, shift = true)),
-        (recorded ? (make_window_command("Gesture log",
+        (:gesture_log in recorded ? (make_window_command("Gesture log",
                                          editor -> _reach_tool!(editor, GestureLog,
                                                                 _make_default_tool(GestureLog));
                                          tooltip = "Every gesture of this session, and what each one did"),) :
@@ -115,7 +115,7 @@ make_window_help_menu(; about = _ -> AboutPage()) =
     ]))
 
 """
-    make_window_menu_bar(; recorded = true, extra = [], about = _ -> AboutPage()) -> WidgetMenu
+    make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> AboutPage()) -> WidgetMenu
 
 The menu bar both binaries share: [`make_window_file_menu`](@ref), then
 [`make_window_view_menu`](@ref), which takes `recorded`, then the menus of
@@ -140,13 +140,13 @@ A host adds its own menus with `extra`, and this package names none of them.
 They go after File and View and before Help, so the bar reads the same way in
 every binary until the host's own menus begin.
 """
-make_window_menu_bar(; recorded::Bool = true, extra = [], about = _ -> AboutPage()) =
+make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> AboutPage()) =
     WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(; recorded), extra...,
                    make_window_help_menu(; about = about)];
                orientation = :horizontal, padding = Inset(2, 2, 2, 2))
 
 """
-    make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = true,
+    make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS,
                         extra = []) -> WidgetToolbar
 
 The tools of the window, one button each: the explorer, the assistant, the
@@ -171,16 +171,16 @@ functions of the editor:
   `nothing` the button opens what `Ctrl+T` and `explorer` open: the working
   directory.
 
-Five tools show what the window records: the message log, the gesture log, the
-fault log, the statistics and the frame times. They fill only in a window that
-[`run_with_window_tools`](@ref) opens and the recorder of
-[`make_window_wrap`](@ref) wraps. A window that has neither passes
-`recorded = false`, and the toolbar has no button for a tool that stays empty.
+Five tools show what the window records, and each fills only when a wrapper of
+`build_editor` fills it: the message log with `message_log`, the gesture log with
+`gesture_log`, the fault log with `fault_log`, and the statistics and the frame
+times with `frame_statistics`. `recorded` holds the keywords of the wrappers that
+are on, and the toolbar has no button for a tool that stays empty.
 
 A host appends its own buttons with `extra`, which is where a command that only
 one binary has belongs.
 """
-make_window_toolbar(; assistant = nothing, explorer = nothing, recorded::Bool = true, extra = []) =
+make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS, extra = []) =
     WidgetToolbar(Any[
         make_window_tool_command("Explorer", Workspace; icon = :folder,
                                  tooltip = "Explorer: the files of this window's folder",
@@ -191,7 +191,7 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, recorded::Bool = 
                                       make = assistant),))...,
         make_window_tool_command("Evaluator", EvaluatorToplevel; icon = :terminal,
                                  tooltip = "Evaluator: type Julia, and Enter evaluates it"),
-        (recorded ? _make_recorded_tool_commands() : ())...,
+        _make_recorded_tool_commands(recorded)...,
         make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
                                  tooltip = "Selection: what the selection of this window names"),
         make_window_tool_command("Appearance", Appearance; icon = :palette,
@@ -203,64 +203,34 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, recorded::Bool = 
         extra...,
     ]; padding = Inset(4, 4, 4, 4))
 
-# The buttons of the tools that show what the window records.
-_make_recorded_tool_commands() = (
-    make_window_tool_command("Message log", MessageLog; icon = :list,
-                             tooltip = "Message log: what the program said in this session"),
-    make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
-                             tooltip = "Gesture log: every gesture of this session, and what each one did"),
-    make_window_tool_command("Fault log", FaultLog; icon = :warning,
-                             tooltip = "Fault log: what failed in this session, and how often"),
-    make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
-                             tooltip = "Statistics: how long the frames of this window take"),
-    make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
-                             tooltip = "Frame times: the time of each recent frame"))
-
 """
-    run_with_window_tools(run) -> the answer of `run`
+    RECORDED_TOOLS
 
-Open a window with what the tools of [`make_window_toolbar`](@ref) need, and
-answer what `run` answers.
-
-`run(feeds, start)` opens the window: it gives `feeds` to `make_editor`, it
-calls `start(editor)` with the editor that `make_editor` answers, and then it
-runs the loop with `run_editor!(editor)`. Then:
-
-- the message log holds what the program logs while the window is open. The
-  capture is installed before `run` and removed after it, also when it throws,
-  so the logger the window replaced comes back.
-- the message log and the frame statistics follow the window, one feed each.
-- the fault log holds every fault the editor catches, because `start` attaches
-  the session's log to the store of the editor.
-
-Every binary with the toolbar opens its window through this, so a button on it
-never opens a tool that stays empty in one of them.
-
-# Example
-
-    run_with_window_tools() do feeds, start
-        editor = build_editor(document, projection; backend = backend, feeds = feeds,
-                              tabs = false, window = (; title = "Title"))
-        start(editor)
-        run_editor!(editor)
-    end
+The keywords of the wrappers of `build_editor` that fill the tools that show what
+a window records: `message_log`, `gesture_log`, `fault_log` and
+`frame_statistics`. The default of `recorded` of the bands, for a window that has
+all of them.
 """
-function run_with_window_tools(run)
-    previous = install_message_log_capture!()
-    try
-        run(Feed[MessageLogFeed(), FrameStatisticsFeed()], _start_window_tools!)
-    finally
-        remove_message_log_capture!(previous)
-    end
-end
+const RECORDED_TOOLS = (:message_log, :gesture_log, :fault_log, :frame_statistics)
 
-# A fault reaches a log only when the log is attached to the store of the
-# editor, and only an editor has a store.
-function _start_window_tools!(editor)
-    hasproperty(editor, :faults) || return nothing
-    attach_fault_target!(editor.faults, get_session_fault_log())
-    nothing
-end
+# The buttons of the tools that show what the window records, each when the
+# wrapper that fills it is in `recorded`.
+_make_recorded_tool_commands(recorded) = (
+    (:message_log in recorded ?
+        (make_window_tool_command("Message log", MessageLog; icon = :list,
+                                  tooltip = "Message log: what the program said in this session"),) : ())...,
+    (:gesture_log in recorded ?
+        (make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
+                                  tooltip = "Gesture log: every gesture of this session, and what each one did"),) :
+        ())...,
+    (:fault_log in recorded ?
+        (make_window_tool_command("Fault log", FaultLog; icon = :warning,
+                                  tooltip = "Fault log: what failed in this session, and how often"),) : ())...,
+    (:frame_statistics in recorded ?
+        (make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
+                                  tooltip = "Statistics: how long the frames of this window take"),
+         make_window_tool_command("Frame times", FrameTimeSeries; icon = :chart_line,
+                                  tooltip = "Frame times: the time of each recent frame")) : ())...)
 
 """
     make_window_tool_command(label, type; icon = nothing, tooltip = nothing,

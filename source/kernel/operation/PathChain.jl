@@ -57,7 +57,7 @@ end
 
 `answer`, joined with `ReplaceMouseTargetOperation(path)` when it names no part
 under the pointer. `path` is the part of the document that gave `answer` to a move
-with no button held; the empty path is that document itself.
+of the pointer; the empty path is that document itself.
 """
 add_mouse_target(answer, path::Reference = EmptyReference()) =
     has_mouse_target(answer) ? answer : join_move_answers(answer, ReplaceMouseTargetOperation(path))

@@ -16,7 +16,8 @@ function _stab_editor(content, settings; extra = Pair{Type,Any}[])
     backend = HeadlessBackend()
     editor = build_editor(content, _stab_natural(; extra); backend,
                           devices = Device[Keyboard(), Mouse(), Display()],
-                          window = false, tabs = false, appearance = false, settings)
+                          window = false, tabs = false, appearance = false, settings,
+                          focus_cycling = false)
     run_frame!(editor)
     (editor, backend)
 end

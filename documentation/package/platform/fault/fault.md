@@ -113,11 +113,15 @@ A chain limits how far a fault spreads downward. Nothing limits how far it sprea
 
 The editor layer holds one limit for each counter, and `get_consecutive_fault_limit(counter)` reads it: `:print`, `:device_read` and `:device_write`. `FaultPolicy` holds only the switches that the fault layer reads. In the safe mode the editor puts its projection aside and prints `make_safe_mode_projection(store)`, which this package answers with a `FaultSafeModeProjection`. It ignores its input, draws a new log filled from the store, and returns no operation for any gesture. Escape leaves the safe mode and puts the projection back. A substitute that itself throws is not caught a second time. Its exception reaches the frame barrier of the editor, and the print-failure count climbs until the safe mode starts.
 
+### The `fault_log` wrapper of `build_editor`
+
+`fault_log = true` is the wrapper of `build_editor` that attaches the fault log of the session (`get_session_fault_log()`) to the fault store of the editor in a start step, so the log holds every fault that the editor catches. It is off by default. It acts in the layer `:screen` with the number 30, which acts once, on the root, rather than nesting around the content.
+
 ## How it fits
 
 The kernel layer `fault` is the lowest layer of the kernel and imports nothing. The fault slice depends on the kernel and on the collection, domain, graphics, natural, projection, serialization, style, syntax, text and widget slices. It needs the four output domains for the four marks.
 
-The shell slice attaches `get_session_fault_log()` to the store of the editor when a window starts, and its toolbar has a Fault log button; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
+The `fault_log` wrapper attaches the session's fault log when a window starts, and the shell slice's toolbar has a Fault log button that opens it only when the wrapper is on; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
 
 The fault slice registers the natural row `:fault` for `FaultLog`, the title `Faults` and the insertion alias `faults`. `make_insertion_document` returns the session log, because a new log would never fill: only the drain of a store fills a log. `pred_arguments` of a `FaultLog` holds only `capacity`, so a loaded log starts empty.
 

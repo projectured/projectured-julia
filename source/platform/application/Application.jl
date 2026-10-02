@@ -86,21 +86,11 @@ function make_application_document(paths::AbstractVector;
     history = make_history_wrap(settings)
     tabs = [make_file_tab_content(path, history) for path in paths]
     navigator = _make_application_navigator(root)
-    content = _make_application_pane_tree(tabs, navigator, assistant)
-    # Two levels of history, and the four rules of the undo slice make them one
-    # story. Each file tab holds its own, so `Ctrl+Z` takes back an edit in the
-    # file the person is looking at. The window holds one around all of them, so
-    # a splitter that moves, a tab that opens and a chat draft can be taken back
-    # too — none of those is inside a file.
-    buffer = history(content)
-    # The focus was seated on the content before the buffer held it, and a
-    # selection is a chain every node on the path holds a piece of. Seat it again
-    # from the buffer, so the first key goes where it was meant to go.
-    inner = get_selection(content)
-    inner === nothing || replace_selection!(buffer,
-        concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
-                          strip_reference_types(inner)))
-    buffer
+    # Each file tab holds a history of its own, so `Ctrl+Z` takes back an edit in
+    # the file the person is looking at. The wrapper `undo` puts one around the
+    # whole tree, so a splitter that moves, a tab that opens and a chat draft can
+    # be taken back too.
+    _make_application_pane_tree(tabs, navigator, assistant)
 end
 
 # The folder the window lists. The toolbar's explorer opens the same one, so a
@@ -197,10 +187,8 @@ end
 How the content of the application window is drawn: the pane tree or the
 workbench, and the domains inside it.
 
-It is the **content** alone. The wrappers over it — the gesture help, the
-command palette, the walk and the clipboard — come from
-[`make_window_wrap`](@ref), which needs the document as well as the projection.
-[`make_application_window`](@ref) is where the two meet.
+It is the **content** alone. The wrappers of `build_editor` that
+[`make_application_wrappers`](@ref) names go over it.
 """
 function make_application_projection(; measure = FontFileMeasure(),
                                      appearance::Appearance = Appearance(),
@@ -210,33 +198,50 @@ function make_application_projection(; measure = FontFileMeasure(),
 end
 
 """
+    make_application_wrappers(; root = pwd(), assistant = nothing, status_bar = true,
+                              measure = FontFileMeasure(),
+                              appearance::Appearance = Appearance()) -> NamedTuple
+
+The wrappers of `build_editor` that the application window has, as keywords:
+its undo, its chrome, the clipboard and the walk, F1 help, the command palette,
+and the gesture log, the message log, the statistics and the fault log, which
+fill the tools of the toolbar. **One place says which wrappers this binary has.**
+[`run_application`](@ref), [`make_application_window`](@ref) and the warm-up of
+a build come here, so none of them holds a list of its own.
+
+The toolbar has the assistant when `assistant` is not `nothing`, a fresh one
+with its backend, its model and its greeting, and its explorer lists `root`.
+`status_bar = false` leaves out the status bar, which a video that shows what
+the window paints again uses, because the status bar changes with every move of
+the caret. The clipboard offers all of its gestures: a person who edits a file
+expects `Ctrl+X` to cut.
+"""
+make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
+                          status_bar::Bool = true, measure = FontFileMeasure(),
+                          appearance::Appearance = Appearance()) =
+    (; undo = true,
+       shell = (; assistant = _make_assistant_factory(assistant),
+                  explorer = _ -> _make_application_navigator(root),
+                  status_bar, measure, appearance),
+       clipboard = true,
+       gesture_help = (; measure),
+       command_palette = (; measure),
+       gesture_log = true, message_log = true, frame_statistics = true, fault_log = true)
+
+"""
     make_application_window(paths; root = pwd(), assistant = nothing,
                             status_bar = true,
                             measure = FontFileMeasure(),
                             appearance::Appearance = Appearance())
         -> (document, projection)
 
-The application window, wrappers and all: the document of
-[`make_application_document`](@ref) and the projection of
-[`make_application_projection`](@ref), folded through
-[`make_window_wrap`](@ref).
-
-**One place says which wrappers this binary has.** `run_application`, the
-warm-up of a build and the suite all come here, so none of them can hold a list
-of its own that drifts from the others.
-
-`status_bar = false` leaves out the status bar at the bottom of the window. A
-video that shows what the window paints again uses it, because the status bar
-changes with every move of the caret.
-
-**The clipboard offers all six of its gestures here**, cut and the view toggle
-included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
-what is stored. An interface over a record of a run leaves those two out, because
-a cut would write into the record.
-
-`appearance` is the one `Appearance` of this window: it is passed to the content
-projection and to the wrappers, so every widget of the window draws with the
-same scaled widget theme.
+The content of the application window with its wrappers, for a caller that
+draws it in a window scene of its own, such as a test, a rehearsal or the
+warm-up of a build: the document of [`make_application_document`](@ref) and the
+projection of [`make_application_projection`](@ref), wrapped by
+`make_editor_parts` with the keywords of [`make_application_wrappers`](@ref),
+with no backend and so no window. Nothing runs the start steps of the parts, so
+no log capture is installed.
 """
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
@@ -244,47 +249,19 @@ function make_application_window(paths::AbstractVector;
                                  measure = FontFileMeasure(),
                                  appearance::Appearance = Appearance(),
                                  settings::Settings = make_settings())
-    document = make_application_document(paths; root = root, assistant = assistant,
-                                         settings = settings)
-    projection = make_application_projection(; measure, appearance, settings)
-    make_window_wrap(; gesture_help = true, command_palette = true,
-                       selection = true,
-                       history = _with_window_history,
-                       shell = document -> _make_application_shell(document, assistant, root,
-                                                                     status_bar),
-                       measure = measure, appearance = appearance)(document, projection)
+    # The caller's `build_editor` adds the appearance and the settings wrappers.
+    parts = make_editor_parts(make_application_document(paths; root, assistant, settings),
+                              make_application_projection(; measure, appearance, settings);
+                              appearance = false, settings = false,
+                              make_application_wrappers(; root, assistant, status_bar, measure,
+                                                          appearance)...)
+    (parts.document, parts.projection)
 end
-
-# The chrome of the application's window. The status bar is given the window's
-# own document, so it says which tab has the focus and where the selection is,
-# and it follows both. The shell has no size of its own: it takes the space the
-# window offers, so it fills the window and follows it when it resizes.
-#
-# The toolbar's assistant is a fresh one with the backend, the model and the
-# greeting of the one the window opened with, and its explorer lists `root`. A
-# window opened with no assistant has no assistant button.
-_make_application_shell(document, assistant, root, status_bar::Bool) =
-    (make_window_menu_bar(),
-     make_window_toolbar(; assistant = _make_assistant_factory(assistant),
-                           explorer = _ -> _make_application_navigator(root)),
-     status_bar ? make_window_status_bar(document) : nothing, nothing, nothing)
 
 _make_assistant_factory(::Nothing) = nothing
 _make_assistant_factory(assistant::Assistant) =
     _ -> make_application_assistant(assistant.backend; model = assistant.model,
                                     context = assistant.context)
-
-# The window content sits inside a history of its own, so a change that belongs
-# to no file — a splitter that moves, a tab that opens — can be taken back too.
-# The buffer is transparent, so everything below it is drawn exactly as before:
-# the dispatcher answers the buffer, and hands every other document to the window
-# projection unchanged.
-#
-# It is the OUTERMOST projection, because the document it is handed is the buffer,
-# and because the operation it records must be the one the whole chain settled on.
-_with_window_history(base) = RecursiveProjection(TypeDispatchingProjection(
-    UndoBuffer => UndoBufferToAnyProjection(),
-    Any        => base))
 
 # The pane stage leaves what a tab holds as it is, and the renderer draws it. A
 # file tab, the navigator and the assistant each register their own natural
@@ -468,36 +445,26 @@ function run_application(paths::AbstractString...;
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
     settings = make_application_settings(settings_file; fault_policy)
-    document, projection = make_application_window(collect(String, paths);
-                                                   root = root, assistant = chat,
-                                                   measure = measure, appearance = appearance,
-                                                   settings = settings)
-    # The tools of the toolbar are filled by the window: the message log by a
-    # capture of the Julia logger and a feed, the statistics by a feed, and the
-    # fault log by the store of the editor. The shell gives all of them.
-    run_with_window_tools() do feeds, start
-        # The window is the application's own pane tree inside its shell, so
-        # it has no tabs around it.
-        editor = build_editor(document, projection;
-                              backend = backend, tabs = false, appearance = appearance,
-                              settings = settings, feeds = feeds,
-                              # The tooltip window and the context menu window
-                              # are kept at the screen, so they open in every
-                              # window, and the natural projection draws what a
-                              # tooltip holds. The other windows that a wrapper
-                              # opens draw with the rows a pane draws with.
-                              window = (; title = "ProjecturEd", width, height,
-                                        inner_wrappers = [wrap_tooltip_window,
-                                                          wrap_context_menu_window],
-                                        opened_window_projections =
-                                            make_opened_window_projections(;
-                                                content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure, appearance = appearance)],
-                                                               make_application_content_projections(; measure, appearance, settings)),
-                                                measure = measure, appearance = appearance)))
-        start(editor)
-        start_application!(editor; mcp, assistant, model)
-        run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
-    end
+    # The root is the application's own pane tree, so the tabs leave it as it is.
+    # The settings carry the fault policy of the command line.
+    editor = build_editor(make_application_document(collect(String, paths); root,
+                                                    assistant = chat, settings),
+                          make_application_projection(; measure, appearance, settings);
+                          backend, appearance, settings,
+                          # The tooltip window and the context menu window are
+                          # kept at the screen, so they open in every window, and
+                          # the natural projection draws what a tooltip holds. The
+                          # other windows that a wrapper opens draw with the rows a
+                          # pane draws with.
+                          window = (; title = "ProjecturEd", width, height,
+                                    inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window],
+                                    opened_window_projections = vcat(
+                                        Pair{Type,Any}[make_natural_tooltip_row(; measure, appearance)],
+                                        make_application_content_projections(; measure, appearance,
+                                                                             settings))),
+                          make_application_wrappers(; root, assistant = chat, measure, appearance)...)
+    start_application!(editor; mcp, assistant, model)
+    run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
 end
 
 # ── The command line ─────────────────────────────────────────────────────────

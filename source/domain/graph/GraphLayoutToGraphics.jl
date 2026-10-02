@@ -277,7 +277,7 @@ map_reference_backward(::GraphLayoutToGraphicsCanvas, iomap, reference) = nothin
 # Route a left click into the node whose content box contains it. Coordinates are
 # translated into the content canvas's local frame (mirrors TableToGraphics).
 function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
-    is_move_without_button(event) && return _read_graph_move(iomap, event)
+    event isa MouseMove && return _read_graph_move(iomap, event)
     is_outward_gesture(event) && return _route_outward(iomap, event)
     if event isa MouseClick && event.button === :left
         op = _route_click(iomap, event)
@@ -310,7 +310,7 @@ function _find_vertex_at(iomap::GraphLayoutToGraphicsCanvasIoMap, px, py)
     nothing
 end
 
-# A move with no button held. The content of the vertex that the graph's own mouse
+# A move of the pointer. The content of the vertex that the graph's own mouse
 # target is in gets it first, when the point is not on that content: for that
 # content the move is the leave of the pointer. Then the part at the point answers:
 # the content of a vertex reads the move itself, and a point in the box of a vertex

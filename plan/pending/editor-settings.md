@@ -885,6 +885,25 @@ the pixels and the test counts of the baseline of S0.
   (`RoutedChangeTest.jl:199`): `main` alone at `8d1edf0ce` has it too (4088
   pass, 1 failure), so it is not from this branch. The drag work has no
   threshold, so `drag_threshold` still has no reader.
+- [x] **M3. `main` merged a third time** (2026-10-02, `main` at `fdc919a04`: the
+  features of a window became wrappers of `build_editor`). `test_kernel()` 4101
+  and 2 broken with the one failure of `main` (`RoutedChangeTest.jl:199`);
+  `test_platform()` 84733 and 8 broken with no failure after the fixes below;
+  `test_shell()` 337; `test_sdl()` 826, `test_video()` 45, `test_web()` 116,
+  `test_pdf()` 50, `test_mcp()` 434, `test_application()` 341 and 2 broken,
+  `test_referenced_document_editor()` 101. What the merge decided:
+  - The nine new wrappers of `main` take `argument`, and `make_editor_parts`
+    uses the names of D12.
+  - The history of the window is now the `undo` wrapper: it takes the cell of
+    `undo_capacity` from the `Settings` of the `settings` wrapper.
+    `make_application_document` gives the histories of the file tabs the cell.
+  - `run_application` passes its `Settings` to `build_editor`, and the settings
+    carry the fault policy of the command line. `make_application_window` turns
+    the settings wrapper off, as it turns off the appearance wrapper, so the
+    caller's `build_editor` adds it.
+  - The tests that check the root, or press a key straight at a projection,
+    turn off the `settings` wrapper and the new `focus_cycling` wrapper; the
+    lists of the toolbar hold Settings.
 - [ ] **S10. The start settings**, a later part after S0 to S9 (D1).
   `StartSettings` in `application`, read by `run_application`.
   - Tests: the file, the environment and the command line in their order.

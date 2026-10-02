@@ -41,6 +41,8 @@ using ..ReferenceModule
 using ..SerializationModule
 using ..SelectionModule
 using ..TextModule
+using ..EditorModule
+using ..FocusModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: is_descendable_for_copy, make_copy_placeholder, get_copy_memo,
@@ -48,6 +50,7 @@ import ..DocumentModule: is_descendable_for_copy, make_copy_placeholder, get_cop
 import ..OperationModule: evaluate_operation, make_inverse_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..SerializationModule: pred_arguments
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export read_os_clipboard, write_os_clipboard!, set_os_clipboard_backend!, reset_os_clipboard_backend!

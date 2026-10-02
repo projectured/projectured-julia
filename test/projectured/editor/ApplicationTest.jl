@@ -507,11 +507,12 @@ function test_application()
                 strict_fault = get_settings_group!(strict, FaultSettings)
                 @test !strict_fault.is_barrier_enabled && strict_fault.is_sound_enabled
                 @test make_application_settings(nothing).file == ""
-                # The histories of the window keep the steps of the setting.
+                # The history of a file tab keeps the steps of the setting.
                 document = make_application_document(paths[1:1]; root = dir, settings)
-                @test document isa UndoBuffer && document.capacity == 100
+                buffer = first(search_documents(document, node -> node isa UndoBuffer))
+                @test buffer.capacity == 100
                 get_settings_group!(settings, HistorySettings).undo_capacity = 20
-                @test document.capacity == 20
+                @test buffer.capacity == 20
                 rm(folder; recursive = true)
             end
 

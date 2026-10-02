@@ -29,6 +29,7 @@ mutable struct Editor
     frame_measurements::FrameMeasurementStore
     loop_task::Union{Task, Nothing}
     timers::Dict{Symbol, Float64}
+    stop_steps::Vector{Any}
 end
 ```
 
@@ -69,6 +70,12 @@ end
   runs; see [A call on the editor task](#a-call-on-the-editor-task)
 - `timers` — the timers that readers set with `SetTimerOperation`: the time of
   each, by its name; see [The Read-Eval-Print loop](#the-read-eval-print-loop)
+- `stop_steps` — the functions `editor -> nothing` that run when the loop of
+  `run_editor!` ends, each in its own try, after the loop answers the calls
+  still waiting in the inbox; see [Running an editor](#running-an-editor). A
+  wrapper of `build_editor` that installs a start step, such as the capture of
+  the logger, appends its matching stop step here, so the step that undoes it
+  runs when the loop ends
 
 ## The Read-Eval-Print loop
 
@@ -390,16 +397,25 @@ a window is always followed by one more read before the loop sleeps.
 
 ## Running an editor
 
-Three functions make an editor, and they differ in what they decide for the
+Four functions make an editor, and they differ in what they decide for the
 caller:
 
 - `make_editor(document, projection; backend, devices, feeds, fault_policy)`
   decides nothing. The caller names the backend, and no wrapper is applied. A
   test and a program that wants exact control call it.
+- `make_editor_parts(document, projection; backend = nothing, feeds = Feed[],
+  wrappers...)` applies the wrappers and makes no editor: it is steps 2 and 3
+  of `build_editor` alone. A caller that draws the parts itself, such as a
+  test or a warm-up that prints a window scene of its own, takes the document
+  and the projection that the wrappers made from the answered `EditorParts`.
+  With no `backend`, a wrapper that needs one, such as the window, does
+  nothing. Nothing runs the start steps or the stop steps of the parts.
 - `build_editor(document, projection; backend = nothing, devices, feeds,
-  fault_policy, wrappers...)` chooses the backend when none is given, applies
-  the wrappers, and then calls `make_editor`. `build_editor(document; ...)`
-  takes the projection from `make_document_projection(document; arguments...)`.
+  fault_policy, wrappers...)` chooses the backend when none is given, makes
+  the parts with `make_editor_parts`, calls `make_editor`, appends the stop
+  steps of the parts to `editor.stop_steps`, and runs the start steps.
+  `build_editor(document; ...)` takes the projection from
+  `make_document_projection(document; arguments...)`.
 - `run_editor!(document, projection; wait = true, mcp = false, keywords...)` and
   `run_editor!(document; ...)` are `build_editor` and then the loop. With
   `wait = false` the call returns the editor at once, and the editor is built
@@ -440,7 +456,7 @@ when one more package is loaded. A backend with no method of
 
 | Seam | What it answers |
 |---|---|
-| `wrap_editor!(::Val{k}, layer, argument, parts::EditorParts)` | changes the document, the projection, the feeds and the start steps of the editor that is made |
+| `wrap_editor!(::Val{k}, layer, argument, parts::EditorParts)` | changes the document, the projection, the feeds, the start steps and the stop steps of the editor that is made |
 | `get_wrapper_layers(::Val{k})` | the layers it acts in, each with a number that orders it in the layer, as `(:document => 70,)` |
 | `get_excluded_wrappers(::Val{k})` | the keywords that can not be on with it; none by default |
 | `is_wrapper_default(::Val{k})` | whether it is on when the caller does not name it; off by default |
@@ -468,9 +484,12 @@ is projected at a size the window never has and computes a second time when the
 answer arrives. A window a projection opens later — a tooltip, a popup — is
 still opened on demand, by `write_to_devices` against the `ScreenDocument`
 output (the pipeline is expected to end in one).
-`run_editor!(editor)` runs the loop, and calls `quit_backend!(editor.backend)` in
-a `finally` block when the loop ends. `make_editor` quits the backend too when the
-build or the print throws. Pass `mcp = true` to `run_editor!(editor)` to start
+`run_editor!(editor)` runs the loop, and in a `finally` block when the loop ends
+answers every call still waiting in the inbox, runs the stop steps of
+`editor.stop_steps`, each in its own try so one that throws does not stop the
+steps after it, and calls `quit_backend!(editor.backend)`. The first exception
+among the loop and these steps goes on to the caller. `make_editor` quits the
+backend too when the build or the print throws. Pass `mcp = true` to `run_editor!(editor)` to start
 an MCP server alongside the loop. The value can also be a `NamedTuple`:
 `instructions` overrides the text the MCP server's `initialize` response sends a
 connecting client (see [MCP server](#mcp-server)), and `host` and `port` say

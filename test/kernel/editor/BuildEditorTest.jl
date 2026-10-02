@@ -15,7 +15,8 @@ import ProjecturedKernel.EditorModule: Editor, post_operation!, run_editor!,
                                        collect_backend_types, make_default_backend,
                                        EditorParts, wrap_editor!, get_wrapper_layers,
                                        get_excluded_wrappers, is_wrapper_default,
-                                       make_document_projection, build_editor, make_editor
+                                       make_document_projection, build_editor, make_editor,
+                                       make_editor_parts
 
 @document struct BuildProbe
     value::Int = 0
@@ -77,7 +78,16 @@ make_document_projection(::BuildProjectedProbe; _...) = BuildProbeProjection()
 # loads the platform has them, and this test checks the root and the steps of the
 # probes alone. A keyword that is off and that no loaded package declares is
 # ignored, so the kernel alone runs the same test.
-const _BUILD_PROBE_PLATFORM_OFF = (; tabs = false, appearance = false, settings = false)
+const _BUILD_PROBE_PLATFORM_OFF = (; tabs = false, appearance = false, settings = false,
+                                    focus_cycling = false)
+
+# A wrapper that adds a stop step, which writes the editor it is given.
+const _BUILD_PROBE_STOPPED = Any[]
+get_wrapper_layers(::Val{:build_probe_stop}) = (:screen => 9,)
+function wrap_editor!(::Val{:build_probe_stop}, layer::Symbol, argument, parts::EditorParts)
+    push!(parts.stop_steps, editor -> push!(_BUILD_PROBE_STOPPED, editor))
+    parts
+end
 
 function _build_probe_steps()
     [(keyword, layer) for (keyword, layer, _) in _BUILD_PROBE_STEPS if keyword !== :started]
@@ -124,6 +134,16 @@ function test_build_editor()
         started = [(keyword, argument) for (tag, keyword, argument) in _BUILD_PROBE_STEPS
                    if tag === :started]
         @test length(started) == 4 && all(argument === editor for (_, argument) in started)
+    end
+
+    @testset "make_editor_parts applies the wrappers, and makes and starts no editor" begin
+        empty!(_BUILD_PROBE_STEPS)
+        parts = make_editor_parts(BuildProbe(), BuildProbeProjection();
+                                  _BUILD_PROBE_PLATFORM_OFF..., build_probe_first = true)
+        @test parts isa EditorParts && parts.backend === nothing
+        @test _build_probe_steps() == [(:build_probe_first, :document)]
+        @test length(parts.start_steps) == 1
+        @test !any(tag === :started for (tag, _, _) in _BUILD_PROBE_STEPS)
     end
 
     @testset "a wrapper on by default joins unless its keyword is false" begin
@@ -183,6 +203,19 @@ function test_build_editor()
         post_operation!(editor, QuitEditorOperation())
         wait(task)
         @test istaskdone(task) && editor.loop_task === nothing
+    end
+
+    @testset "the stop steps of a wrapper run when the loop ends, and not before" begin
+        empty!(_BUILD_PROBE_STOPPED)
+        editor = run_editor!(BuildProbe(), BuildProbeProjection(); wait = false,
+                             backend = BuildProbeBackend(), devices = Device[],
+                             _BUILD_PROBE_PLATFORM_OFF..., build_probe_stop = true)
+        @test length(editor.stop_steps) == 1
+        @test isempty(_BUILD_PROBE_STOPPED)
+        task = editor.loop_task
+        post_operation!(editor, QuitEditorOperation())
+        wait(task)
+        @test length(_BUILD_PROBE_STOPPED) == 1 && only(_BUILD_PROBE_STOPPED) === editor
     end
 
     @testset "with no projection, the document's default projection is used" begin

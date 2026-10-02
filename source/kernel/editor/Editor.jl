@@ -57,6 +57,10 @@ Holds the state for a read-eval-print loop:
                    time of each, by its name. The loop wakes at the earliest,
                    and [`read!`](@ref) reads a `TimerExpire` for each one whose
                    time has come (internal).
+  - `stop_steps` — the functions `editor -> nothing` that run when the loop of
+                   [`run_editor!`](@ref) ends, such as the removal of a log
+                   capture that a wrapper of [`build_editor`](@ref) installed.
+                   An editor whose loop never runs never runs them.
 """
 mutable struct Editor
     backend::Backend
@@ -76,6 +80,7 @@ mutable struct Editor
     frame_measurements::FrameMeasurementStore
     loop_task::Union{Task, Nothing}
     timers::Dict{Symbol, Float64}
+    stop_steps::Vector{Any}
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -102,7 +107,7 @@ function Editor(document, projection; backend::Backend,
                     # first wait, so the editor paints once before anything
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
-                    FrameMeasurementStore(), nothing, Dict{Symbol, Float64}())
+                    FrameMeasurementStore(), nothing, Dict{Symbol, Float64}(), Any[])
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.

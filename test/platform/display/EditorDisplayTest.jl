@@ -50,6 +50,7 @@ function test_editor_display()
 
         @testset "with tabs, each value is a tab of one window" begin
             close_display_editor!()
+            process_logger = Base.CoreLogging.global_logger()
             backend = _DisplayProbeBackend()
             first_value = DisplayProbeValue("a")
             try
@@ -65,11 +66,19 @@ function test_editor_display()
                 logger = run_on_editor_task!(() -> Base.CoreLogging.current_logger(), editor)
                 @test Base.CoreLogging.min_enabled_level(logger) == Base.CoreLogging.Warn
                 @test _count_tabs(editor) == 1
-                # The tabs are in the chrome of a window.
-                shell = run_on_editor_task!(() -> get_wrapped_document(editor.document).windows[1].content,
-                                            editor)
-                @test shell isa WidgetShell && shell.content isa PaneTree
-                @test shell.toolbar isa WidgetToolbar && shell.status_bar isa WidgetStatusBar
+                # The tabs have the features of a window: the clipboard around the
+                # chrome, around the undo, around the tabs, and the full toolbar
+                # but the assistant.
+                content = run_on_editor_task!(() -> get_wrapped_document(editor.document).windows[1].content,
+                                              editor)
+                @test content isa ProjecturedPlatform.ClipboardModule.ClipboardSlice
+                shell = content.content
+                @test shell isa WidgetShell && shell.status_bar isa WidgetStatusBar
+                @test shell.content isa ProjecturedPlatform.UndoModule.UndoBuffer
+                @test shell.content.content isa PaneTree
+                @test [string(item.action.label) for item in shell.toolbar.elements] ==
+                      ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log", "Statistics",
+                       "Frame times", "Selection", "Appearance", "Settings"]
 
                 # The same value again: the same document, and no new tab.
                 @test display_in_editor(first_value; backend) === document
@@ -91,6 +100,8 @@ function test_editor_display()
                 close_display_editor!()
             end
             @test _display_session() === nothing
+            # The window put back the logger that its message log replaced.
+            @test Base.CoreLogging.global_logger() === process_logger
         end
 
         @testset "without tabs, each value has a window of its own" begin

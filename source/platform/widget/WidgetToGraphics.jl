@@ -1252,7 +1252,7 @@ function _map_child_point(iomap, reference)
     _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
 end
 
-# ── The move with no button held ────────────────────────────────────────────
+# ── The move of the pointer ────────────────────────────────────────────
 #
 # A container gives such a move first to the child that its own mouse target
 # names, when the point is not on that child: for that child the move is the leave
@@ -1288,7 +1288,7 @@ function _find_target_entry(input, entries::Vector, target)
 end
 
 
-# A move with no button held in a container whose children are the
+# A move of the pointer in a container whose children are the
 # `(x, y, child_iomap)` entries `entries`. The child at the point is the topmost
 # one, as a point maps back (`_map_point_to_child`). Each answer is re-rooted by the
 # steps from the container to its child. A point on the container and on no child
@@ -1322,7 +1322,7 @@ _read_children_move(iomap::ChildrenIoMap, evt::MouseMove) =
     _read_children_move(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, evt,
                         !_outside_widget(iomap, evt))
 
-# A move with no button held in a container with one child, in its field `field`,
+# A move of the pointer in a container with one child, in its field `field`,
 # whose frame lies at `(dx, dy)` of the container's frame. A point on the child
 # goes to the child. A point off it goes to the child only when the container's
 # own mouse target is in the child. The answer is in the domain of the child.
@@ -1389,12 +1389,6 @@ _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
 _route_click_to_children(child_entries::Vector, evt::MouseClick) =
     _route_to_children(child_entries, evt,
         (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
-
-# Route pointer motion to the hit child (coordinate-translated), so a widget
-# nested in a band container still sees the move.
-_route_move_to_children(child_entries::Vector, evt::MouseMove) =
-    _route_to_children(child_entries, evt,
-        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
 
 # Route a raw press-down / release to the hit child (coordinate-translated), so a
 # button nested in a container flips its `pressed` cell (the depress feedback). The
@@ -2031,14 +2025,14 @@ function map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference
 end
 
 # The button owns the transitions of its `pressed` state. A click invokes the
-# action; press/release drive the held-down look. A move with no button held also reaches the button when the
+# action; press/release drive the held-down look. A move of the pointer also reaches the button when the
 # pointer leaves it; every other pointer event reaches it only when the parent
 # hit-tested the pointer onto it.
 function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     # A move off the button reaches it only while it is the part under the pointer,
     # so the pointer left it: a press that was released off the button ends here.
-    if is_move_without_button(evt) && _outside_widget(iomap, evt)
+    if evt isa MouseMove && _outside_widget(iomap, evt)
         return w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
     end
     _outside_widget(iomap, evt) && return nothing
@@ -2131,7 +2125,7 @@ map_reference_backward(::WidgetTooltipToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
 function read_intent(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    is_move_without_button(evt) && return _read_children_move(iomap, evt)
+    evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MouseDwell && return _read_children_outward(iomap.input, child_iomaps, evt)
@@ -2226,7 +2220,7 @@ read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = noth
 # reads its own stretch, so its gesture table adds its menu to a right click
 # (`make_context_menu_binding`), after the menu of a nearer part.
 function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt)
-    is_move_without_button(evt) && return _read_context_menu_move(p, iomap, evt)
+    evt isa MouseMove && return _read_context_menu_move(p, iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     child_iomap = iomap.child_iomap
@@ -2427,7 +2421,7 @@ read_intent(::WidgetDialogToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 # the content routes to it (re-rooted through `.content`). A dwell goes to the
 # button or the content at its point, where it runs no action and closes nothing.
 function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, evt)
-    is_move_without_button(evt) &&
+    evt isa MouseMove &&
         return _read_children_move(iomap.input, _get_dialog_entries(iomap), evt,
                                    !_outside_widget(iomap, evt))
     _outside_widget(iomap, evt) && return nothing
@@ -2833,7 +2827,7 @@ map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
 function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    is_move_without_button(evt) && return _read_children_move(iomap, evt)
+    evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MouseClick && return _route_click_to_children(child_iomaps, evt)
@@ -2944,9 +2938,9 @@ map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference) =
 # unchanged. For a dwell and a right click the composite then reads its own stretch.
 function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     # A move that is off the composite still goes to the child the pointer leaves.
-    _outside_widget(iomap, evt) && !is_move_without_button(evt) && return nothing
+    _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    is_move_without_button(evt) && return _read_composite_move(iomap.input, child_iomaps, evt)
+    evt isa MouseMove && return _read_composite_move(iomap.input, child_iomaps, evt)
     # Tab traversal (Stage 2): distributed focus advance. Handle before the generic
     # selection-only routing so a Tab the selected child declines can advance my
     # own selection to the next focusable sibling.
@@ -2965,8 +2959,6 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
         MouseUp => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time))
-        MouseMove => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
         _ => begin
             # Coordless (keyboard) events route to the child the selection points
             # at, or to nothing when the selection is not inside this composite.
@@ -3051,7 +3043,7 @@ _get_composite_slot_steps(slot::Int) =
 _reroot_composite(operation, slot::Int) =
     reroot_operation(operation, _get_composite_slot_steps(slot))
 
-# A move with no button held: the child that the composite's own mouse target names
+# A move of the pointer: the child that the composite's own mouse target names
 # (the pointer leaves it), then the child under the point, the topmost first.
 function _read_composite_move(document, child_iomaps::Vector, evt::MouseMove)
     new = _route_composite_event(child_iomaps, evt.x, evt.y,
@@ -3328,7 +3320,7 @@ end
 
 function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     # A band answers in its own field, and the content in `content`.
-    is_move_without_button(evt) && return _read_children_move(iomap, evt)
+    evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     # Stage 4 shortcuts: a `KeyDown` matching an (enabled) menu/toolbar command's
     # shortcut fires it globally — before the focused child sees the key — so e.g.
@@ -3351,12 +3343,11 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     op = @gesture_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
         MouseClick  => _route_click_to_children(child_iomaps, evt)
-        # A down, an up and a move carry coordinates like a press, so they go to
-        # the band under the pointer, in that band's frame. The parts of a drag
-        # come by the path of the part whose drag is on, wherever the pointer is.
+        # A down and an up carry coordinates like a press, so they go to the band
+        # under the pointer, in that band's frame. The parts of a drag come by the
+        # path of the part whose drag is on, wherever the pointer is.
         MouseDown   => _route_shell_down(child_iomaps, evt)
         MouseUp     => _route_downup_to_children(child_iomaps, evt)
-        MouseMove   => _route_move_to_children(child_iomaps, evt)
         # Forward keyboard (and other coordless) events to the wrapped
         # child. The reader at the focused leaf returns an op; others
         # return nothing.
@@ -3492,7 +3483,7 @@ map_reference_backward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
 function read_intent(::WidgetTitlePaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    is_move_without_button(evt) && return _read_children_move(iomap, evt)
+    evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     evt isa MouseDwell && return _read_children_outward(iomap.input, child_iomaps, evt)
@@ -3950,7 +3941,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
     # the pointer is, so a divider does not stop where the pane ends.
     w isa WidgetSplitPane && evt isa Union{DragMove, DragEnd, DragCancel} &&
         return _split_drag_read(p, iomap, w, evt)
-    w isa WidgetSplitPane && is_move_without_button(evt) && return _read_split_move(iomap, w, evt)
+    w isa WidgetSplitPane && evt isa MouseMove && return _read_split_move(iomap, w, evt)
     _outside_widget(iomap, evt) && return nothing
     if w isa WidgetSplitPane
         drag = _split_drag_read(p, iomap, w, evt)
@@ -3972,18 +3963,14 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
         # splitter is on the pane itself.
         MouseDwell => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-        # Coordinate-bearing pointer events (a non-drag press/release and plain
-        # motion) route to the slot *under the pointer*, exactly as the composite
-        # does — a move must reach whatever the pointer is over, not the selected
-        # slot, so the navigator and any other unselected pane light. A press on a
-        # divider was already taken above by `_split_drag_read`, so a `MouseDown`/
-        # `MouseMove`/`MouseUp` reaching here belongs to a child.
+        # A press and a release route to the slot *under the pointer*, exactly as
+        # the composite does. A press on a divider was already taken above by
+        # `_split_drag_read`, so a `MouseDown`/`MouseUp` reaching here belongs to a
+        # child.
         MouseDown => _route_split_press(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
         MouseUp => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time))
-        MouseMove => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
         _ => begin
             # Forward keyboard (and other coordless) events to the child the
             # forward-projected selection points at, so the keystroke reaches the
@@ -4010,7 +3997,7 @@ function _get_split_slot_steps(w, slot::Int)
     w.elements[slot] isa LayoutConstraint ? (steps..., FieldReferenceStep("child")) : steps
 end
 
-# A move with no button held: the slot that the pane's own mouse target names (the
+# A move of the pointer: the slot that the pane's own mouse target names (the
 # pointer leaves it), then the slot under the point, each re-rooted into its slot.
 # A point on a splitter is on the pane itself.
 function _read_split_move(iomap::ChildrenIoMap, w::WidgetSplitPane, evt::MouseMove)
@@ -4626,7 +4613,7 @@ end
 
 function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    is_move_without_button(evt) && return _read_tabbed_pane_move(p, iomap, child_iomaps, evt)
+    evt isa MouseMove && return _read_tabbed_pane_move(p, iomap, child_iomaps, evt)
     _outside_widget(iomap, evt) && return nothing
     # A dwell and a right click open, close and select no tab.
     is_outward_gesture(evt) && return _read_tabbed_pane_outward(p, iomap, evt)
@@ -4740,7 +4727,7 @@ function _get_tab_page_steps(widget::WidgetTabbedPane, idx::Int)
         (steps..., FieldReferenceStep("element")) : steps
 end
 
-# A move with no button held. The open page gets a move off it first when the
+# A move of the pointer. The open page gets a move off it first when the
 # pane's own mouse target is in that page and the point is not. Then the part at
 # the point answers: a tab header is its `selector`, and the open page reads the
 # move itself.
@@ -5401,7 +5388,7 @@ function _read_pane_dwell(p, iomap, dwell::MouseDwell; point, move_out)
     read_container_gesture(reroot_operation(answer, steps), dwell, iomap.input; steps)
 end
 
-# A move with no button held. A point on the content, in the view, goes to the
+# A move of the pointer. A point on the content, in the view, goes to the
 # content, which is the target unless it names a part. Any other point goes to the
 # content only when the pane's own mouse target is in the content: for the content
 # the move is the leave of the pointer.
@@ -5418,7 +5405,7 @@ function _read_scroll_pane_move(p::WidgetScrollPaneToGraphicsCanvas,
 end
 
 function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
-    is_move_without_button(evt) && return _read_scroll_pane_move(p, iomap, evt)
+    evt isa MouseMove && return _read_scroll_pane_move(p, iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     canvas = iomap.output
     # Forward other events (MouseClick, KeyDown, KeyPress) to the wrapped
@@ -5580,7 +5567,7 @@ function map_reference_backward(p::WidgetTransformPaneToGraphicsCanvas, iomap::W
                             _find_transform_pane_local_point(p, iomap, point.x, point.y))
 end
 
-# A move with no button held reaches the content through the inverse transform, as
+# A move of the pointer reaches the content through the inverse transform, as
 # every pointer event does, and a position in the answer goes back through the
 # transform itself. A point off the content reaches it only when the pane's own
 # mouse target is in it.
@@ -5640,7 +5627,7 @@ function _zoom_op(w, M::AffineTransform, dir, ax, ay)
 end
 
 function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, evt)
-    is_move_without_button(evt) && return _read_transform_pane_move(p, iomap, evt)
+    evt isa MouseMove && return _read_transform_pane_move(p, iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     canvas = iomap.output
     w = iomap.input
@@ -5765,7 +5752,7 @@ map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
 function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    is_move_without_button(evt) && return _read_children_move(iomap, evt)
+    evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     entries = getfield(iomap, :child_iomaps)[]::Vector
     (evt isa MouseClick || evt isa MouseDwell) &&
@@ -6499,7 +6486,7 @@ function _read_card_hit(w::WidgetCard, gesture, hit)
     read_container_gesture(_card_reroot(w, cim, answer), gesture, w; steps)
 end
 
-# A move with no button held: the slot that the card's own mouse target names (the
+# A move of the pointer: the slot that the card's own mouse target names (the
 # pointer leaves it), then the slot under the point.
 function _read_card_move(w::WidgetCard, entries::Vector, evt::MouseMove)
     hit = _find_child_hit(entries, evt,
@@ -6551,10 +6538,10 @@ end
 # a plain display, where `selection === nothing`) behaves exactly as it did before.
 function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     # A move that is off the card still goes to the slot the pointer leaves.
-    _outside_widget(iomap, evt) && !is_move_without_button(evt) && return nothing
+    _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
     w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
-    is_move_without_button(evt) && return _read_card_move(w, entries, evt)
+    evt isa MouseMove && return _read_card_move(w, entries, evt)
     evt isa MouseDwell &&
         return _read_card_hit(w, evt, _find_child_hit(entries, evt,
             (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y)))
@@ -8615,7 +8602,7 @@ read_intent(::WidgetAccordionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 # reads its own stretch (`read_container_gesture`).
 function read_intent(::WidgetAccordionToGraphicsCanvas,
                      iomap::WidgetAccordionToGraphicsCanvasIoMap, evt)
-    is_move_without_button(evt) && return _read_accordion_move(iomap, evt)
+    evt isa MouseMove && return _read_accordion_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     # A click on a header opens or closes a section of the view. It is view state,
@@ -8660,7 +8647,7 @@ end
 _get_accordion_body_steps(index::Int) =
     (FieldReferenceStep("items"), RangeReferenceStep(index - 1, index), FieldReferenceStep("body"))
 
-# A move with no button held. The open body gets it first when the accordion's own
+# A move of the pointer. The open body gets it first when the accordion's own
 # mouse target is inside the body and the point is not. Then the part at the point
 # answers: a header is the item `items[i]`, and the open body reads the move itself.
 function _read_accordion_move(iomap::WidgetAccordionToGraphicsCanvasIoMap, evt::MouseMove)

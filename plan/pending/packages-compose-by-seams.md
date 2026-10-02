@@ -368,12 +368,16 @@ that pair.
 | `clipboard`, `clipboard_collection` | Clipboard | `:document` | excludes `tooltip` |
 | `hover` | Widget | `:document` | |
 | `caching` | Graphics | `:document` | takes `render_canvas` of the backend |
-| `gesture_help`, `command_palette` | GestureHelp | `:document` | the shared help state is set up in a start step |
-| `gesture_log` | GestureLog | `:document` and `:screen` | overlay and recording |
+| `undo` | Undo | `:container => 5` | step 9 |
+| `shell` | Shell | `:container => 10` | step 9a; the gallery's `shell` becomes it (D6) |
+| `focus_cycling` | Focus | `:container => 20` | on by default (step 9, D3) |
+| `clipboard` | Clipboard | `:container => 30` | step 9, with the walk; the gallery's `clipboard` and `clipboard_collection` become it (D6) |
+| `gesture_help`, `command_palette` | GestureHelp | `:container => 40`, `=> 50` | step 9 |
+| `gesture_log` | GestureLog | `:container => 90` | step 9: the recording of the content of a window (D4); the overlay of the gallery is step 8 |
+| `message_log`, `frame_statistics`, `fault_log` | Log, Statistics, Fault | `:screen => 10, 20, 30` | step 9: a capture, feeds, start and stop steps |
 | `fault_tolerant` | Fault | `:document` | a start step attaches the log |
 | `tooltip` | Tooltip | `:document` | opens sibling windows |
-| `scrolling`, `introspection`, `shell`, `text_highlighting`, `text_filtering` | ProjecturedExample | `:document` | the five exclusive keywords of the gallery become exclusions |
-| the layers of `make_window_wrap` | Shell and the packages above | | step 9 |
+| `scrolling`, `introspection`, `text_highlighting`, `text_filtering` | ProjecturedExample | `:document` | the exclusive keywords of the gallery become exclusions |
 
 ## 5. Points that wait for the owner
 
@@ -820,8 +824,8 @@ Each step ends with its narrowest test and a commit.
     the inspector. My recommendation: while it exists, `inspector = true`
     makes the gallery build its scene itself with `make_editor`, as now, and
     every other keyword goes through `build_editor`.
-- [ ] **9. The shell.** `make_window_wrap` and `run_with_window_tools` become
-  wrappers. Move `make_application_window`.
+- [x] **9. The shell.** `make_window_wrap` and `run_with_window_tools` become
+  wrappers. Move `make_application_window`. Done 2026-10-02 (9a to 9h below).
   - [x] **9a. The chrome, as the wrapper `shell`**, taken first for the
     window of `display_in_editor`. The owner, 2026-10-01: "I think we should
     have a shell around the pane tree, no?", then "I want this part but I also
@@ -866,9 +870,134 @@ Each step ends with its narrowest test and a commit.
       default), the display (the chrome around the tabs, none without tabs);
       266 tests of the shell, display, tabs and pane suites pass. A picture
       shows the chrome around a data frame tab.
-    - The rest of step 9 stays open: F1 help, the command palette, the walk
-      and the clipboard, the history and the recorder as wrappers, and
-      `run_with_window_tools`.
+  - **The rest of step 9**, designed 2026-10-01 after 9a. The owner: "All of
+    step 9. What does it need to change?", then "Yes to all" to the design
+    and to D1–D6 below. Each layer of `make_window_wrap` and each part of
+    `run_with_window_tools` becomes a wrapper of `build_editor`, named by what
+    a person sees, in the slice that owns the feature. From the inside out:
+
+    | What a person sees | Keyword | Slice | Layer |
+    |---|---|---|---|
+    | Ctrl+Z takes back a tab, a splitter, a draft | `undo` | undo | `:container => 5` |
+    | the menu bar, the toolbar, the status bar | `shell` | shell | `:container => 10` |
+    | Tab starts over at the ends of the window | `focus_cycling` | focus | `:container => 20`, on by default |
+    | copy, cut, paste, Alt+click, the Alt+arrow walk | `clipboard` | clipboard | `:container => 30` |
+    | F1 help | `gesture_help` | gesturehelp | `:container => 40` |
+    | Ctrl+Shift+P, the command palette | `command_palette` | gesturehelp | `:container => 50` |
+    | the gesture log | `gesture_log` | gesturelog | `:container => 90` |
+    | the message log | `message_log` | log | a capture, a feed, a stop step |
+    | the statistics and the frame times | `frame_statistics` | statistics | a feed |
+    | the fault log | `fault_log` | fault | a start step |
+
+    - The toolbar shows a tool that shows what the window records only when
+      the wrapper that fills it is on: the shell reads the settings of the
+      other wrappers. This replaces the flag `recorded` of 9a. The setting
+      of `shell` takes the choices of a host: its assistant, its explorer,
+      its About page and whether it has a status bar.
+    - **D1** (yes): `EditorParts` and `Editor` get `stop_steps`, which the end
+      of the loop runs, so the message log capture comes off when the window
+      closes, as `run_with_window_tools` does in its `finally`.
+    - **D2** (yes): the keywords of the table.
+    - **D3** (yes): `focus_cycling` is on by default, in every window.
+    - **D4** (yes): the gesture log records the content of the window, as the
+      fold does, and not at the screen as §4.5 says.
+    - **D5** (yes): the display turns every one of them on, so its toolbar is
+      the full one but the assistant. While the window is open, the message
+      log also collects the log lines of the REPL, which the REPL still
+      prints.
+    - **D6** (yes): in step 8 the keywords `shell` and `clipboard` of the
+      gallery become these wrappers, so a keyword has one meaning.
+    - Steps:
+      - [x] 9b. The kernel: `stop_steps`. `EditorParts.stop_steps` become
+        `Editor.stop_steps` in `build_editor`, and `_end_editor_loop!` runs
+        each after it answers the waiting calls, each in its own `try`. An
+        editor whose loop never runs never runs them.
+      - [x] 9c. The wrappers, one commit each, with their tests
+        (`test_window_wrappers()`, which builds an editor with the headless
+        backend, pushes real keys and runs real frames). Found while
+        implementing:
+        - Each wrapper is in the fragment of the feature that it wraps, not in
+          a new fragment, so the export blocks keep one statement for each
+          fragment.
+        - The clipboard slice uses the walk of the focus slice: a new edge
+          `clipboard => focus` in `PLATFORM_SLICE_EDGES`.
+        - `focus_cycling` on by default changes the projection of every editor
+          that `build_editor` makes. The tests that build a bare editor turn it
+          off as they turn off `tabs` and `appearance`. The appearance wrapper
+          test turns it off too: its `AwKeyProjection` makes no IO map of its
+          own, and the cycle reads a key through the projection of the inner IO
+          map, so it passes over that test projection; a real projection owns
+          its IO map.
+        - `recorded` of the bands is the tuple of the keywords of the wrappers
+          that fill a tool, `RECORDED_TOOLS` by default, and the `shell`
+          wrapper reads it from the settings of the editor.
+        - The setting of `shell` is `(; assistant, explorer, about, status_bar,
+          measure)`.
+        - Tests: the kernel build 26, and 295 of the wrappers, the shell, the
+          fold, the display, the tabs, the window, the appearance and the
+          slice edges.
+      - [x] 9d. The application builds its window with the keywords.
+        `make_application_wrappers(; root, assistant, status_bar, measure,
+        appearance)` names them once; `run_application` and the application
+        video call `build_editor` with them and need no
+        `run_with_window_tools`. `make_application_document` gives the pane
+        tree, and `undo` puts the history around it. Changed while
+        implementing (mine):
+        - `make_application_window` stays, for the callers that draw the
+          wrapped content in a window scene of their own: the application
+          test, the warm-up of a build, the two rehearsal tools and
+          `ReferencedDocumentEditorTest`. It wraps the content with the same
+          keywords through `make_editor_parts`, a new function of the kernel:
+          the first half of `build_editor`, which applies the wrappers and
+          makes no editor. With no backend the window wrapper does nothing,
+          and nothing runs the start and stop steps, so no log capture is
+          installed.
+        - The `prepare` hook of the application video gets the pane tree
+          before `build_editor`, and the wrappers carry the selection that it
+          sets.
+        - The setting of `shell` takes `appearance`, as the setting of `tabs`
+          does, for the parts that `make_editor_parts` makes with
+          `appearance = false`.
+        - Tests: the application 431 (2 broken, as on main), the warm-up, the
+          referenced document editor, the kernel build 30.
+      - [x] 9e. omnet-julia (branch `seams-step-9`, worktree
+        `omnet-julia-seams-9`): `make_ide_wrappers` names the wrappers of the
+        IDE window, and `run_omnet_ide` passes them through the keywords of
+        `run_campaign_window` to `build_editor`, with no
+        `run_with_window_tools`. `make_ide_opened_window_projections` gives only
+        the rows of the IDE. The campaign window draws no cycle of the focus of
+        its own. The precompile workload and the IDE test build the wrapped
+        window with `make_editor_parts`. The `wrap` of `run_campaign_window`
+        and of the Qtenv window, and `WINDOW_WRAPPERS` of the builder of the
+        binaries, stay for step 12. Found while implementing: the window
+        wrapper of `build_editor` appended the rows of its host after the rows
+        of the other wrappers, and a row matches by the first type, so a host
+        could not decide first as it did in the fold. It puts them in front
+        now. Tests: 370 of the omnet window, study, campaign loop, IDE and
+        workbench suites, and the wrapper part of the IDE workload run without
+        its `try`.
+      - [x] 9f. `make_window_wrap` and `run_with_window_tools` go.
+        `make_opened_window_projections` stays, in the fragment of the `shell`
+        wrapper. The fold test is a test of the wrappers in their order,
+        through `make_editor_parts`. Tests: 267 of the shell, the display, the
+        tabs, the window and the guards; the application 329 (2 broken, as on
+        main; main moved 11 assertions to the builder test package).
+      - [x] 9g. The display turns on every feature with the tabs, by keyword
+        only; a window of one value has none. Found while implementing:
+        `show_document!` of the screen looked at the content of the first
+        window, which is the clipboard now, so a second value opened a window
+        of its own. It looks through every document that wraps the content,
+        with `get_wrapped_document`, and the method of the shell slice for its
+        chrome goes. The catch-all row `Document => later` of the display goes
+        while the window has the features, because the rows of the host come
+        first and it would hide the rows of the help and of the menus. Tests:
+        the display 29 (the logger of the process comes back when the window
+        closes), the data frames 256.
+      - [x] 9h. The documents of the kernel editor, the shell, the
+        application, the screen, the display, and of the slices of each
+        wrapper, the own-project guide, and §4.5. The documentation guard
+        passes; one new line of its report ("decides" in screen.md) repeats a
+        sentence of shell.md.
 - [ ] **10. The builder.** The generated `main` loads the backend packages
   and calls `run_application_command(ARGS)`. `--backend=NAME` matches
   `get_backend_name`. Remove `PROJECTURED_BACKENDS` and `default_backend()`.

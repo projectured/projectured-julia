@@ -143,8 +143,8 @@ the editor; off by default. Its value is `true` for the server's own defaults,
 or a `NamedTuple` of `instructions`, `host` and `port`, and a field that is left
 out takes the server's default.
 
-When the loop ends, it answers the calls that wait in the inbox, stops the server
-and quits the backend it ran on. Each of these steps runs also when the loop or a
+When the loop ends, it answers the calls that wait in the inbox, runs the stop
+steps of the editor, stops the server and quits the backend it ran on. Each of these steps runs also when the loop or a
 step before it throws. The first exception goes on to the caller: the exception of
 the loop, or else the first exception of a step.
 `fault_policy` defaults to the editor's own: an editor that [`make_editor`](@ref)
@@ -241,6 +241,7 @@ end
 function _end_editor_loop!(editor::Editor, server)
     first_exception = nothing
     for step in (() -> _answer_waiting_calls!(editor),
+                 (() -> stop_step(editor) for stop_step in editor.stop_steps)...,
                  () -> server === nothing || stop_agent_server!(server),
                  () -> quit_backend!(editor.backend))
         try

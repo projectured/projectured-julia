@@ -3,7 +3,8 @@
 # `show_document!` asks the content of the first window where a new document
 # goes. A package that gives a container, such as the tabs of the pane package,
 # adds a method for the type of its container. With no such method, the
-# document opens in a window of its own.
+# document opens in a window of its own. A document that wraps the content,
+# such as the chrome or the clipboard of a window, is looked through.
 
 """
     show_document!(editor, document; title) -> nothing
@@ -17,7 +18,7 @@ function show_document!(editor::Editor, document; title::AbstractString)
     screen = get_wrapped_document(editor.document)
     content = screen isa ScreenDocument && length(screen.windows) > 0 ?
         screen.windows[1].content : screen
-    show_document!(editor, content, document; title = title)
+    show_document!(editor, get_wrapped_document(content), document; title = title)
 end
 
 """

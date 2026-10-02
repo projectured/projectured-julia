@@ -31,6 +31,7 @@ using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..EditorModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
@@ -38,6 +39,7 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
+import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export FrameStatisticsRow, FrameStatistics, get_session_frame_statistics,
        flush_frame_statistics!

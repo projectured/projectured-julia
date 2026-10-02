@@ -104,6 +104,10 @@ A tool, a driver or a script that must record its change wraps it with `make_und
 
 `register_undo_tools!(set)` adds an `undo` and a `redo` tool. Each one finds the buffer with `find_undo_buffer` on the document of the editor, runs the step and returns a sentence about what it did. `find_undo_buffer` returns the **outermost** buffer: an outer buffer records every step of the buffers below it, so one step back there takes back the last change anywhere below. The kernel tool set does not hold these tools; the application adds them in `start_application!`.
 
+### The `undo` wrapper of `build_editor`
+
+`undo = true` is the wrapper of `build_editor` that gives a window an undo of its own. It puts the root document, such as the pane tree that the `tabs` wrapper makes, in an `UndoBuffer`, drawn with `UndoBufferToAnyProjection`, so Ctrl+Z takes back a change that belongs to no file: a splitter that moves, a tab that opens or closes, a draft. It is off by default. It acts in the layer `:container` with the number 5, next to the tabs and inside the chrome of the `shell` wrapper. A root that is a buffer already keeps it, and the buffer holds the selection that the root held, rooted at the buffer.
+
 ## How it fits
 
 The undo slice depends on the kernel, the collection slice for the two lists, the projection slice, and the syntax, text, graphics and style slices for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. No other slice depends on it; an application puts a buffer into its document and a `UndoBuffer => UndoBufferToAnyProjection()` row into its dispatch table.

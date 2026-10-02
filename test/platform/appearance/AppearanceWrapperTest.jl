@@ -30,11 +30,13 @@ _aw_key(key; alt = false) = KeyDown(key, ModifierKeys(ctrl = true, alt = alt); t
 
 # An editor on `document` with the appearance wrapper and no window and no tabs,
 # after its first frame. With no `projection`, the editor makes the projection
-# itself, through the seam of the build.
+# itself, through the seam of the build. The cycle of the focus is off, so the
+# content is right inside the appearance: it reads a key through the projection
+# of an IO map, and `AwKeyProjection` makes none of its own.
 function _aw_editor(document; projection = nothing, appearance = true, tabs = false)
     backend = HeadlessBackend()
     keywords = (; backend, devices = Device[Keyboard(), Mouse(), Display()],
-                window = false, tabs, appearance, settings = false)
+                window = false, tabs, appearance, settings = false, focus_cycling = false)
     editor = projection === nothing ? build_editor(document; keywords...) :
                                       build_editor(document, projection; keywords...)
     run_frame!(editor)

@@ -31,11 +31,12 @@ _sw_field(name) = ConcreteReference(FieldReferenceStep(String(name)), EmptyRefer
 
 # An editor on `document` with the settings wrapper and no window, no tabs and no
 # appearance, after its first frame.
-function _sw_editor(document; projection = _sw_natural(), settings = true)
+function _sw_editor(document; projection = _sw_natural(), settings = true, undo = false)
     backend = HeadlessBackend()
     editor = build_editor(document, projection; backend,
                           devices = Device[Keyboard(), Mouse(), Display()],
-                          window = false, tabs = false, appearance = false, settings)
+                          window = false, tabs = false, appearance = false, settings, undo,
+                          focus_cycling = false)
     run_frame!(editor)
     (editor, backend)
 end
@@ -162,11 +163,21 @@ end
     @test !get_settings_group!(other.document.settings, RenderSettings).partial_render
 end
 
+@testset "the undo of a window keeps the steps of the history settings" begin
+    settings = make_settings()
+    history = get_settings_group!(settings, HistorySettings)
+    editor, _ = _sw_editor(WidgetLabel("Name"); settings, undo = true)
+    buffer = only(search_documents(editor.document, node -> node isa UndoBuffer))
+    @test buffer.capacity == 100
+    history.undo_capacity = 30
+    @test buffer.capacity == 30
+end
+
 @testset "the window takes the pointer settings of the settings wrapper" begin
     settings = make_settings()
     pointer = get_settings_group!(settings, PointerSettings)
     parts = EditorParts(WidgetLabel("Name"), _sw_natural(), HeadlessBackend(), Feed[], Any[],
-                        Pair{Type,Any}[], Dict{Symbol,Any}(:settings => settings))
+                        Any[], Pair{Type,Any}[], Dict{Symbol,Any}(:settings => settings))
     recognitions = ScreenModule._make_window_recognitions(parts)
     click = only(r for r in recognitions if r isa ClickRecognition)
     @test click.multi_click_max_interval === get_setting_cell(pointer, :multi_click_max_interval)
