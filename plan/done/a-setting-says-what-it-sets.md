@@ -1,6 +1,6 @@
 # A setting says what it sets
 
-> **Status:** pending, implemented on the branch `field-descriptions`, not landed. Written on 2026-10-02 at the owner's
+> **Status:** done on 2026-10-02, landed on `main` by fast-forward. Written on 2026-10-02 at the owner's
 > request, after a discussion of the appearance tab and the settings tab. The
 > owner decided D1 to D8 on 2026-10-02 and asked for the work.
 
