@@ -1663,3 +1663,21 @@ field documentation? It could help the theme UI".
     - `OmnetPresentation` does not depend on `ProjecturedJulia`, so the labels of
       an FSM diagram take no `JuliaTheme`; a label of a state or of a transition
       holds no Julia code.
+37. **The sweep of the landing of Part P** (2026-10-02). `test_all()` on `main`
+    at `639eed7c2`, in `unshare -rn`, gave 1228402 pass, 34 fail, 9 error and
+    1597 broken. One failure is new: the arguments guard (code-quality-rules §4)
+    found the two methods of `make_style_field(K, theme, T, name)` with four
+    positional arguments and no marker, and no exception of the rule fits. The
+    name of the field is a keyword now, `make_style_field(K, theme, T; name)`,
+    at all 41 calls. Every other failure is the same on `a89a39f26`, the commit
+    before the landing, or is a test that needs the loopback network, which
+    `unshare -rn` closes:
+    - the 4 export failures of the settings and the application slices;
+    - `RoutedChangeTest.jl:199`, `FileSystemDocumentTest.jl:42`, the 7 types
+      that no catalog entry covers, the hover steps that the history records in
+      the two chart inspectors, a JSON string in a table cell
+      (`TableCellEditingTest.jl:50`), and the newest model of the Anthropic test;
+    - 3 unexpected passes of "right ↔ left" of the formula, whose
+      `@test_broken` markers are stale on `a89a39f26` too;
+    - the Anthropic stream, Ollama, the web backend and the MCP server, which
+      fail with `ENETUNREACH` on 127.0.0.1.
