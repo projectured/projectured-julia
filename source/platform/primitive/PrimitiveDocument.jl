@@ -1,25 +1,11 @@
 # Fragment of `PrimitiveModule` — the primitive document types: the abstract
-# `PrimitiveDocument`, its insertion placeholder, and the leaf documents that
-# carry a single value.
+# `PrimitiveDocument`, the leaf documents that carry a single value, and the
+# type-in that a person types a value into.
 
 abstract type PrimitiveDocument <: Document end
 
 # A primitive holds one value a person types, so its duplicate is a copy of it.
 has_document_duplicate(::PrimitiveDocument) = true
-
-# ── PrimitiveInsertion ──────────────────────────────────────────────────────
-
-"""
-    PrimitiveInsertion(; value=nothing, selection=nothing)
-
-An empty primitive-domain slot — a "hole" awaiting a value, the primitive
-counterpart of a domain's insertion placeholder. `value` holds whatever pending
-content has been typed into it (or `nothing` while still empty); editing it is how
-a concrete primitive value comes to replace the insertion.
-"""
-@document struct PrimitiveInsertion <: PrimitiveDocument
-    value::Any = nothing
-end
 
 # ── PrimitiveBool ─────────────────────────────────────────────────────────────
 
@@ -55,6 +41,24 @@ A primitive domain-independent string document with selection and identity.
 """
 @document struct PrimitiveString <: PrimitiveDocument
     value::Union{String, Nothing}
+end
+
+# ── PrimitiveInsertion ──────────────────────────────────────────────────────
+
+"""
+    PrimitiveInsertion(; value = nothing,
+                       allowed_types = (PrimitiveNumber, PrimitiveBool, PrimitiveString),
+                       selection = nothing)
+
+The type-in of the primitive domain: the text that a person types before it is
+a value, in `value`, which is `nothing` while nothing is typed. `allowed_types`
+limits what the text can become, in the order of a try: a number that can not
+show a key becomes a type-in limited to `PrimitiveNumber`, so its text can not
+become a string where a number belongs.
+"""
+@document struct PrimitiveInsertion <: PrimitiveDocument
+    value::Any = nothing
+    allowed_types::Tuple = (PrimitiveNumber, PrimitiveBool, PrimitiveString)
 end
 
 
@@ -316,3 +320,101 @@ function _make_range_inverse(document, op)
     ReplaceReferencedValueOperation(target, field_name,
                                     getproperty(target, Symbol(field_name)))
 end
+
+# ── The type-in ──────────────────────────────────────────────────────────────
+#
+# A number holds only a parsed number. A key whose text the number can not show,
+# such as `-`, `1e` or `12.`, replaces the number with a `PrimitiveInsertion` of
+# that text, limited to a number; the type-in becomes a number again at the key
+# whose text a number shows exactly, and at its commit.
+
+"""
+    parse_primitive_document(type, text) -> Union{PrimitiveDocument, Nothing}
+
+The document of `type` whose value `text` is the text of, or `nothing` when it
+is none. A number is an `Int` when `text` is one and a `Float64` when it is one,
+as a key in a number parses it, and an empty text is no number. A `Bool` is
+`true` or `false`. A string is any text.
+"""
+function parse_primitive_document(::Type{PrimitiveNumber}, text::AbstractString)
+    isempty(text) && return nothing
+    value = something(tryparse(Int, text), tryparse(Float64, text), Some(nothing))
+    value === nothing ? nothing : PrimitiveNumber(value)
+end
+
+parse_primitive_document(::Type{PrimitiveBool}, text::AbstractString) =
+    text == "true" ? PrimitiveBool(true) : text == "false" ? PrimitiveBool(false) : nothing
+
+parse_primitive_document(::Type{PrimitiveString}, text::AbstractString) = PrimitiveString(String(text))
+
+"""
+    get_primitive_text(document) -> String
+
+The text that a primitive document shows: the print of its value, and the empty
+text when it has no value.
+"""
+get_primitive_text(document::PrimitiveDocument) =
+    document.value === nothing ? "" : string(document.value)
+
+"""
+    find_primitive_document(types, text) -> Union{PrimitiveDocument, Nothing}
+
+The document of the first of `types` that `text` parses as, or `nothing`. The
+commit of a type-in makes it: `1.50` becomes the number `1.5`.
+"""
+function find_primitive_document(types, text::AbstractString)
+    for type in types
+        document = parse_primitive_document(type, text)
+        document === nothing || return document
+    end
+    nothing
+end
+
+"""
+    find_exact_primitive_document(types, text) -> Union{PrimitiveDocument, Nothing}
+
+The document of the first of `types` that shows `text` exactly, or `nothing`. A
+type-in becomes it at the key that makes `text`, so the caret stays where the key
+left it: `-5` is a number, and `12.` is none, because `12.0` shows another text.
+"""
+function find_exact_primitive_document(types, text::AbstractString)
+    for type in types
+        document = parse_primitive_document(type, text)
+        document !== nothing && get_primitive_text(document) == text && return document
+    end
+    nothing
+end
+
+"""
+    make_number_edit_operation(number, operation) -> Operation
+
+The edit that `operation`, a range replace at `value{s:e}` of `number` itself,
+makes of the number. When the number shows the new text exactly, it is
+`operation`. When it can not, it replaces the number with a `PrimitiveInsertion`
+of the new text, limited to a number, with the caret after the replacement. A
+replacement with a character that no number has stays `operation`, which changes
+nothing. A reader that turns a key into an edit of a number calls it.
+"""
+function make_number_edit_operation(number::PrimitiveNumber, operation::ReplaceRangeOperation)
+    has_only_number_characters(operation.replacement) || return operation
+    split = _split_replace_reference(operation.reference)
+    split === nothing && return operation
+    target_path, field_name, range_step = split
+    (target_path isa EmptyReference && field_name == "value") || return operation
+    text = splice_string(get_primitive_text(number), range_step.start, range_step.stop,
+                         operation.replacement)
+    find_exact_primitive_document((PrimitiveNumber,), text) === nothing || return operation
+    insertion = PrimitiveInsertion(; value = text, allowed_types = (PrimitiveNumber,))
+    replace_document(EmptyReference(),
+                     with_value_caret(insertion, range_step.start + length(operation.replacement)))
+end
+
+"""
+    with_value_caret(document, k) -> document
+
+`document`, a primitive document, with its caret at `k` in its value.
+"""
+with_value_caret(document::PrimitiveDocument, k::Integer) =
+    with_selection(document, annotate_reference_types(document,
+        ConcreteReference(FieldReferenceStep("value"),
+                          ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))))

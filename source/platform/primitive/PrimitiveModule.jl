@@ -19,6 +19,8 @@ import ..OperationModule: evaluate_operation, reroot_operation, operation_refere
 
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 export has_only_number_characters
+export parse_primitive_document, get_primitive_text, find_primitive_document,
+       find_exact_primitive_document, make_number_edit_operation, with_value_caret
 export ObjectField, get_object_field_value, get_object_field_name
 
 

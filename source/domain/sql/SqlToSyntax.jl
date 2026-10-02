@@ -1960,7 +1960,7 @@ A SQL source insertion, committing `value` via `parse_sql_text`; the buffer is
 green when it parses as a complete statement, red otherwise.
 """
 SqlInsertionToSyntaxLeaf(; theme = nothing) =
-    InsertionToSyntaxLeaf(_sql_commit; completion = parse_completion(parse_sql_text), theme)
+    InsertionToSyntaxLeaf((ins, text) -> _sql_commit(text); completion = parse_completion(parse_sql_text), theme)
 
 # ── Natural-format registration ─────────────────────────────────────────────
 # SQL's seams for import_document / export_document / read+write_document_file.

@@ -66,7 +66,7 @@ export NothingToSyntaxLeaf, BoolToSyntaxLeaf, NumberToSyntaxLeaf,
        ObjectNodeToSyntaxNode, ObjectToSyntax, print_object, CellToSyntax
 export ObjectFieldToSyntax
 export CollectionCellVectorToSyntax, CollectionListNodeToSyntax, CollectionToSyntax
-export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf,
+export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringToSyntaxLeaf, PrimitiveInsertionToSyntaxLeaf,
        PrimitiveToSyntax
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
        InsertionNothingToSyntaxLeaf,

@@ -13,7 +13,7 @@ The primitive slice of `ProjecturedPlatform` holds the editable scalar documents
 | `PrimitiveBool` | `value::Bool` |
 | `PrimitiveNumber` | `value`, a `Number` or `nothing` |
 | `PrimitiveString` | `value`, a `String` or `nothing` |
-| `PrimitiveInsertion` | `value`, what is typed so far, or `nothing` |
+| `PrimitiveInsertion` | `value`, what is typed so far, or `nothing`; `allowed_types`, the types that it can become, in the order of a try |
 | `ObjectField` | `object`, the root, and `path`, a `Reference` into it |
 
 Each is an `@document` struct, so the value is in a reactive cell and the document has a `selection`. `PrimitiveDocument` is the abstract root of the first four. A `PrimitiveString` indexes by character, not by byte: `length`, `getindex` and `setindex!` go through `collect` and `splice_string`, so a multibyte character is one position.
@@ -30,6 +30,12 @@ A typed key reaches the domain as one of two operations. Each holds a `reference
 **The path ends in `.<field>[s:e]`, and the field can be on any document.** `_split_replace_reference` splits the path into the target, the field name and the range. `evaluate_operation` then calls `splice_value!` of the kernel with the current value of the field. The kind of that value selects the method: a string, `nothing`, a number, a `TextString` or a `TextBlock`. So one operation edits a `JsonString`, a syntax delimiter and a text span. The number operation does not use this dispatch. It always parses, so an empty field becomes a number when you type a digit. After the edit, the selection is a caret after the inserted text.
 
 **A number ignores a character that can not be part of a number.** `has_only_number_characters(text)` is true for a text of digits, signs, decimal points and exponent marks. A number edit whose replacement fails it changes nothing: the value, its text and the caret stay. A string edit of a field that holds a number does the same, because a text layer edits a number with a string edit. A cleared number holds `nothing`, so the string edit reads the declared type of the field from the native layout of the schema: a field that is declared to hold a number and not a text is a number field, and a digit typed into it makes a number. A `Bool` is not filtered. A replacement that passes the test is an edit even when the result does not parse yet, such as `1e` or `-`: the value is then `nothing` until the text parses. The template reader that makes a `ReplaceNumberRangeOperation` from a text edit declines such a key, so the key makes no edit and no undo step; see [projection.md](../projection/projection.md).
+
+### The type-in of a number
+
+A number holds only a parsed number. A key whose text the number can not show exactly, such as `-`, `1e`, `12.` or `1.50`, replaces the number with a `PrimitiveInsertion` of that text, limited to a number (`allowed_types = (PrimitiveNumber,)`), with the caret where the key left it. The type-in becomes a number again at the key whose text a number shows exactly, `-5` after `-`, and at Enter, when the text parses: `1.50` becomes `1.5`. Both documents keep their characters in `value`, so the path of the caret does not change when one replaces the other. The replace is an ordinary `replace_document`, so undo takes it back.
+
+`make_number_edit_operation(number, operation)` makes this rule for a reader of a key in a number: it answers the range edit itself when the number shows the new text exactly, or else the replace of the number with the type-in. A replacement with a character that no number has stays the edit, which changes nothing. `parse_primitive_document(type, text)` parses a text as a primitive of `type` or answers `nothing`, `get_primitive_text(document)` is the text that a primitive shows, `find_exact_primitive_document(types, text)` finds the first of `types` that shows `text` exactly, and `find_primitive_document(types, text)` the first that `text` parses as. `with_value_caret(document, k)` puts the caret at `k` in the value. The printer of the type-in and the reader that calls the rule are in [syntax.md](../syntax/syntax.md).
 
 A path with no `.<field>[range]` at its end, for example a caret on a span that a projection added, splits to `nothing`. The operation then does nothing, and its inverse is `DoNothingOperation()`.
 
@@ -82,10 +88,10 @@ get_object_field_name(path)   # "address"
 ```
 
 - Examples: the atomic catalog has `primitive/string`, `primitive/number` and `primitive/bool`, from `example/platform/PrimitiveDocumentExample.jl`. `collection_example` shows a vector of `PrimitiveString`.
-- Tests: `test_primitive()` in `test/platform/document/PrimitiveDocumentTest.jl`, `test_primitive_to_text()` and `test_object_field_to_widget()` in `test/platform/projection/`. A fault in a range edit often shows first in `test/platform/editor/TypeinTest.jl` or in the reader test of a domain.
+- Tests: `test_primitive()` in `test/platform/document/PrimitiveDocumentTest.jl`, `test_primitive_type_in()` in `test/platform/document/PrimitiveTypeInTest.jl`, `test_primitive_to_text()` and `test_object_field_to_widget()` in `test/platform/projection/`. A fault in a range edit often shows first in `test/platform/editor/TypeinTest.jl` or in the reader test of a domain.
 
 ## Limits
 
-- A number edit whose text does not parse yet, such as `1e`, sets the value to `nothing`, and the text that was typed is gone.
+- Where no reader makes a type-in, a number edit whose text does not parse yet, such as `1e`, sets the value to `nothing`, and the text that was typed is gone: in `PrimitiveToText`, in the math domain and in an operation that no reader made. JSON and YAML have the same limit for their own numbers.
+- A type-in takes any character, also a letter, which shows red, while a number ignores a letter.
 - The docstring of `ReplaceStringRangeOperation` leaves the result undefined when the caret is on the boundary between two adjacent strings.
-- No projection prints a `PrimitiveInsertion`, and no code outside this package makes one.

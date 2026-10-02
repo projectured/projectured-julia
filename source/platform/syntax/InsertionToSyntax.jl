@@ -16,11 +16,14 @@
 # - **red** — no completion is possible;
 # - **Tab** accepts the continuation (the longest-common-prefix *partial*
 #   completion when ambiguous);
-# - **Enter** calls `commit(value)` — for name insertions that is
+# - **Enter** calls `commit(insertion, text)` — for name insertions that is
 #   `resolve_insertion` + `make_insertion_document` over the insertion's domain
 #   root, so an unambiguous prefix commits too;
 # - **Escape** aborts to the domain's own placeholder (`get_nothing_document`), the
-#   inverse of the placeholder's Insert gesture.
+#   inverse of the placeholder's Insert gesture, or to what the option `cancel`
+#   gives;
+# - with the option `commit_at_key`, a key whose text names a document replaces
+#   the insertion with it at once, with the caret where the key left it.
 #
 # The candidates, names (`JsonString` / `json string`, prefix-free inside a
 # domain scope), and constructors all come from `DomainModule`'s
@@ -40,8 +43,15 @@
 struct InsertionToSyntaxLeaf <: Projection
     prefix::String
     suffix::String
-    commit::Any            # (value::String) -> Union{Document,Nothing}
+    commit::Any            # (ins, text::String) -> Union{Document,Nothing}
     completion::Any        # (ins) -> (state::Symbol, continuation::String)
+    # `nothing`, or (ins, text::String, caret::Int) -> Union{Document,Nothing}:
+    # the document that replaces the insertion at the key that makes `text`, with
+    # its caret at `caret`, or `nothing` to keep the insertion.
+    commit_at_key::Any
+    # `nothing`, or (ins) -> Document: what Escape puts in place of the insertion;
+    # `nothing` puts the empty document of its domain.
+    cancel::Any
     # The label (prefix/suffix), the editable value, and the completion hint
     # share a font but are coloured distinctly, so each is its own StyleText.
     # The value's colour is only the *neutral* (`:empty`) colour — a non-empty
@@ -60,11 +70,12 @@ struct InsertionToSyntaxLeaf <: Projection
 end
 
 function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
-                               completion = name_completion, theme = nothing,
+                               completion = name_completion, commit_at_key = nothing,
+                               cancel = nothing, theme = nothing,
                                label = nothing, value = nothing, hint = nothing,
                                placeholder::Union{Nothing,AbstractString} = nothing)
     theme = scale_theme(theme)
-    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion,
+    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, commit_at_key, cancel,
                           something(label, _get_syntax_style(theme, StyleText, :label_text)),
                           something(value, _get_syntax_style(theme, StyleText, :typed_text)),
                           something(hint, _get_syntax_style(theme, StyleText, :hint_text)),
@@ -243,7 +254,7 @@ end
 function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     mapped = map_reference_backward(p, iomap, op.reference)
     mapped === nothing && return nothing
-    ReplaceStringRangeOperation(mapped, op.replacement)
+    _make_insertion_key_operation(p, iomap.input, ReplaceStringRangeOperation(mapped, op.replacement))
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table fired through
@@ -264,7 +275,7 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         # `@domain` trait) — `JsonInsertion` → `JsonNothing`, … — closing the
         # Insert ⇄ Escape loop within each domain.
         GestureBinding(KeyDownPattern(:escape),
-                       (doc, event) -> replace_document(EmptyReference(), get_nothing_document(typeof(ins))());
+                       (doc, event) -> _make_insertion_cancel_operation(p, ins);
                        description = "Cancel insertion", domain = "insertion"),
         # Tab accepts the completion: the full remainder when unambiguous, the
         # longest-common-prefix *partial* completion when ambiguous; declines
@@ -273,13 +284,16 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
                        (doc, event) -> _insertion_tab(p, ins);
                        description = "Accept completion", domain = "insertion"),
         GestureBinding(KeyDownPattern(:backspace),
-                       (doc, event) -> delete_insertion_text_operation(ins, :backspace);
+                       (doc, event) -> _make_insertion_key_operation(p, ins,
+                                           delete_insertion_text_operation(ins, :backspace));
                        description = "Delete backward", domain = "insertion"),
         GestureBinding(KeyDownPattern(:delete),
-                       (doc, event) -> delete_insertion_text_operation(ins, :delete);
+                       (doc, event) -> _make_insertion_key_operation(p, ins,
+                                           delete_insertion_text_operation(ins, :delete));
                        description = "Delete forward", domain = "insertion"),
         GestureBinding(KeyPressPattern(nothing),
-                       (doc, event) -> insert_insertion_text_operation(ins, event.text);
+                       (doc, event) -> _make_insertion_key_operation(p, ins,
+                                           insert_insertion_text_operation(ins, event.text));
                        description = "Insert character", domain = "insertion"),
     ]
 end
@@ -293,8 +307,35 @@ end
 # Commit the typed value through the projection's `commit` callback; nothing when
 # the callback refuses (unknown/incomplete value).
 function _insertion_commit(p::InsertionToSyntaxLeaf, ins)
-    doc = p.commit(something(ins.value, ""))
+    doc = p.commit(ins, something(ins.value, ""))
     doc === nothing ? nothing : replace_document(EmptyReference(), doc)
+end
+
+# Escape: the document of the option `cancel`, or the empty document of the
+# domain of the insertion.
+_make_insertion_cancel_operation(p::InsertionToSyntaxLeaf, ins) =
+    replace_document(EmptyReference(),
+                     p.cancel === nothing ? get_nothing_document(typeof(ins))() : p.cancel(ins))
+
+# A key that edits the text of `ins`: `operation`, a range replace at `value{s:e}`,
+# or a replace of the insertion with the document that the option `commit_at_key`
+# gives for the text after the key.
+function _make_insertion_key_operation(p::InsertionToSyntaxLeaf, ins, operation)
+    (p.commit_at_key === nothing || operation === nothing) && return operation
+    range = _find_value_range(operation.reference)
+    range === nothing && return operation
+    text = splice_string(something(ins.value, ""), range.start, range.stop, operation.replacement)
+    document = p.commit_at_key(ins, text, range.start + length(operation.replacement))
+    document === nothing ? operation : replace_document(EmptyReference(), document)
+end
+
+# The range of `value{s:e}`, the path of a range of the text of an insertion, or
+# `nothing`.
+function _find_value_range(reference)
+    path = strip_reference_types(reference)
+    (path isa ConcreteReference && path.head == FieldReferenceStep("value")) || return nothing
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) ? tail.head : nothing
 end
 
 # Append the completion policy's Tab extension at the end of the buffer, caret
@@ -376,7 +417,8 @@ The domain-independent insertion: `"Insert a new <name> here"`, committing via
 scaled one, or `nothing` for the default styles.
 """
 DocumentInsertionToSyntaxLeaf(; theme = nothing) =
-    InsertionToSyntaxLeaf(default_factory; prefix = "Insert a new ", suffix = " here", theme)
+    InsertionToSyntaxLeaf((ins, text) -> default_factory(text); prefix = "Insert a new ", suffix = " here",
+                          theme)
 
 """
     DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here", placeholder = nothing,
@@ -394,7 +436,7 @@ DomainInsertionToSyntaxLeaf(root::Type;
                             suffix::AbstractString = " here",
                             placeholder::Union{Nothing,AbstractString} = nothing,
                             theme = nothing) =
-    InsertionToSyntaxLeaf(value -> begin
+    InsertionToSyntaxLeaf((ins, value) -> begin
             T = resolve_insertion(root, value)
             T === nothing ? nothing : make_insertion_document(T)
         end; prefix, suffix, placeholder, theme)

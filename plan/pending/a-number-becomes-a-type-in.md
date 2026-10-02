@@ -1,6 +1,6 @@
 # A number that can not show a key becomes a type-in
 
-Status: a plan, not started. Written 2026-10-02 at the owner's word, in the
+Status: steps 1 to 4 done 2026-10-02, on the branch `data-frame`. Written 2026-10-02 at the owner's word, in the
 review of phase 4 of [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md).
 The design of §3 is the owner's. The points of §4 are the writer's, and the
 owner accepted all seven on 2026-10-02 ("Yes, agreed").
@@ -117,30 +117,88 @@ Escape. Both default to what the leaf does now.
 
 ## 5. Steps
 
-1. **The type-in of a primitive.** `PrimitiveInsertion` gets `allowed_types`,
+1. [x] **The type-in of a primitive.** `PrimitiveInsertion` gets `allowed_types`,
    and a printer: a source insertion leaf whose commit parses the text into the
    first allowed type that takes it, registered beside `PrimitiveNumber` in the
    natural renderer. The two options of `InsertionToSyntaxLeaf` (§4). Tests: the
    text shows green and red; Enter commits `1.50` to `1.5`; Enter does nothing on
    `1e`; Escape gives an empty number; a key that makes `-5` gives the number.
-2. **The number becomes a type-in.** The helper of point 3, and each reader of
+   Done 2026-10-02:
+   - `PrimitiveInsertion` moved after the three value types, so its default
+     `allowed_types` can name them: `(PrimitiveNumber, PrimitiveBool,
+     PrimitiveString)`, tried in that order, because any text is a string.
+   - `PrimitiveInsertionToSyntaxLeaf()` in `PrimitiveToSyntax.jl` is an
+     `InsertionToSyntaxLeaf` with `commit_at_key` and `cancel`, and the
+     placeholder `enter a value`; `PrimitiveToSyntax` has its row.
+   - The commit of `InsertionToSyntaxLeaf` takes the insertion too, `commit(ins,
+     text)`, as its completion already takes it, because the commit of a
+     type-in reads its `allowed_types`. Its three callers follow: the document
+     and the domain insertions, and SQL. The options are `commit_at_key(ins,
+     text, caret)`, which gives the document with its caret, and `cancel(ins)`.
+     A key takes the option both ways that it reaches a buffer: as a gesture of
+     the projection, and as a text edit from a later stage.
+   - The functions of the rule are in the primitive slice:
+     `parse_primitive_document`, `get_primitive_text`, `find_primitive_document`,
+     `find_exact_primitive_document`, `make_number_edit_operation` and
+     `with_value_caret`.
+2. [x] **The number becomes a type-in.** The helper of point 3, and each reader of
    a key in a number calls it. Find out which they are: the leaf of the natural
    renderer (`PrimitiveNumberToSyntaxLeaf`), `PrimitiveNumberToText`, and the
    math domain, which prints its numbers with the same leaf. Tests: `-5`, `1e5`,
    `12.5` and `1.50` typed key by key show each key, and give the number at the
    end; Backspace in an insertion; undo takes back one key, also the key that
    replaced the number; a caret path stays the same over each replace.
-3. **The math domain.** A `-` in a number of a formula can mean a minus of the
+   Done 2026-10-02, with these facts:
+   - A key in a number reaches the leaf as a range edit from the syntax stage,
+     and a range edit is no `ReplacePathOperation`: the default reader of the
+     kernel moves it with `operation_reference` and `retarget_operation`. So the
+     leaf has a `read_intent` for `ReplaceRangeOperation` that calls the
+     default and then `make_number_edit_operation`. (The first try put the rule
+     in the method for a path operation, and no key reached it.)
+   - The math domain prints its numbers with the same leaf, and its table has
+     no row for a `PrimitiveInsertion`, so a type-in there would not print. The
+     rule is the keyword `allows_type_in` of the leaf, off by default, and only
+     `PrimitiveToSyntax` turns it on. So step 3 changes nothing in math.
+   - `PrimitiveNumberToText`, the printer of a primitive that a tab of the
+     application shows alone, has no printer of a type-in in its table, and
+     keeps the behaviour it had.
+   - The leaf printed `nothing` for a number with no value, `string(nothing)`.
+     It prints the empty text now, as `PrimitiveNumberToText` does, because
+     Escape gives a number with no value.
+   - A type-in takes a letter, which shows red; a number ignores a letter.
+   - Tests: `test_primitive_type_in()`, in a real editor on the natural
+     renderer: the keys of `-5.2e3` one by one, with the type and the value of
+     the document and the path of the caret after each; the limit to a number;
+     a letter; green and red; Escape and a digit after it; undo of the key that
+     made a type-in. 59 pass; `test_primitive()` 60 pass.
+3. [x] **The math domain.** A `-` in a number of a formula can mean a minus of the
    formula, not of the number. Find out what its tests expect, and ask the owner
-   before the math domain changes.
-4. **The documents** of the primitive slice and of the syntax slice (the source
+   before the math domain changes. Nothing in math changes (step 2): its leaf
+   has the type-in off. Whether math wants a type-in is a question for the
+   owner, for later.
+4. [x] **The documents** of the primitive slice and of the syntax slice (the source
    insertion and its two options).
 
 ## 6. Risks
 
 - **A field that holds types.** `allowed_types` is a tuple of types. A save of a
   document that holds an insertion, a duplicate and the copy to the clipboard
-  must carry it; check each in step 1.
+  must carry it; check each in step 1. Checked 2026-10-02: a duplicate, the copy
+  of the clipboard and the binary snapshot (`save_document`) carry it. The
+  `.pred` text does not: `print_pred_text` refuses a type ("cannot write a
+  UnionAll at allowed_types"), because the notation holds no type as a value.
+  The session of the user interface is saved as `session.pred`, so a session
+  that holds a type-in when it is saved can not be written. **Open, for the
+  owner:**
+  - (a) `.pred` writes a document type as a value, by its bare name, and reads
+    it through the lookup of names that a constructor call already uses. A
+    small change of the serialization slice, and a type is then a value of the
+    notation.
+  - (b) `allowed_types` holds the names of the types, `(:PrimitiveNumber,)`,
+    which `.pred` writes now, and the primitive slice maps a name to its type.
+    No change of the notation; the field holds names, not types.
+  - (c) No change: a type-in is not written to `.pred`, as a value of a type
+    that a file may not build is not, and the save says so.
 - **The cost of a replace.** Each key that crosses between a number and a
   type-in replaces a document, and the printer prints the new one. A person types
   a few keys, so it is not a cost of a loop; it is a cost of a print per key.
