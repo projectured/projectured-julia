@@ -10,11 +10,15 @@ tooltip says what it does, its control, and a button that resets it. Under the
 cards, a button resets all of them, and two buttons save the settings to their
 file and load them from it; these two are off for settings with no file.
 
-- A `Bool` is a switch, and a number is a spin box with the step of its values.
-  Another type shows its value as text.
+- A `Bool` is a switch, a number is a spin box with the step of its values, a
+  `Symbol` is a choice of its values, and a `String` is a text.
 - A group that no target of the editor applies, such as the render settings of a
   backend that draws no windows, says so on its card, and its controls are off.
 - Each control shows the value of its setting and follows a change of it.
+- A group that the application reads when it starts says so on its card.
+- The selection of the settings holds a path in the widgets of the tab, as a path
+  that this projection introduces, so a key reaches the control that the path
+  names and a text draws its caret.
 
 The view holds no effect of a setting. A control edit and a reset become the
 normal edit of a group, a `ReplaceReferencedValueOperation` of one setting, and
@@ -22,13 +26,14 @@ the `settings` wrapper turns it into an applied setting.
 """
 struct SettingsToWidget <: Projection end
 
-# `controls` holds `(control, group, name)` for each control of a setting, so the
-# reader turns the write of a control into the write of its setting.
+# `controls` holds `(control, group, name, convert)` for each control of a setting,
+# so the reader turns the write of a control into the write of its setting:
+# `convert` makes the value of the setting from the value that the control writes.
 @iomap struct SettingsToWidgetIoMap
     projection::Any
     input::Any
     output::Any
-    controls::Vector{Tuple{Any,Any,Symbol}}
+    controls::Vector{Tuple{Any,Any,Symbol,Any}}
 end
 
 const _GROUP_GAP = 12
@@ -38,7 +43,7 @@ const _COLUMN_GAP = 12
 # ── Printer ───────────────────────────────────────────────────────────────
 
 function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
-    controls = Tuple{Any,Any,Symbol}[]
+    controls = Tuple{Any,Any,Symbol,Any}[]
     groups = get_settings_groups(settings)
     cards = Any[_make_group_card(settings, group, controls) for group in groups]
     reset = _make_command_button("Reset all", "Give every setting its default.",
@@ -52,6 +57,10 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     end
     buttons = HorizontalLayout(Any[reset, save, load]; gap = _COLUMN_GAP)
     output = VerticalLayout(Any[cards..., buttons]; gap = _GROUP_GAP)
+    # Each kind of path of the settings names a part of the tab: the output holds
+    # its image, and each document below it the part of its parent's path.
+    set_output_path_computations!(output, settings, path -> find_introduced_path(p, path))
+    set_output_tree_path_computations!(output)
     SettingsToWidgetIoMap(p, settings, output, controls)
 end
 
@@ -63,8 +72,8 @@ function _make_group_card(settings::Settings, group, controls)
     is_used = () -> !(T in settings.unused_types)
     cells = Any[]
     for description in get_setting_descriptions(T)
-        control = _make_setting_control(group, description, is_used)
-        control isa WidgetLabel || push!(controls, (control, group, description.name))
+        control, convert = _make_setting_control(group, description, is_used)
+        push!(controls, (control, group, description.name, convert))
         push!(cells, WidgetLabel(description.label; tooltip = description.text))
         push!(cells, control)
         reset = _make_command_button("Reset", "Give \"$(description.label)\" its default.",
@@ -76,35 +85,47 @@ function _make_group_card(settings::Settings, group, controls)
                       vertical_align = :center)
     card = WidgetCard(; title = WidgetLabel(_make_group_title(T)),
                       content = WidgetComposite(Any[grid]))
-    note = WidgetLabel("This editor does not use these settings.")
-    set_cell_computation!(getfield(card, :description), () -> is_used() ? nothing : note)
+    note = is_settings_group_read_at_start(T) ?
+        WidgetLabel("These settings take effect at the next start.") :
+        WidgetLabel("This editor does not use these settings.")
+    set_cell_computation!(getfield(card, :description),
+                          () -> (is_used() && !is_settings_group_read_at_start(T)) ? nothing : note)
     card
 end
 
 _make_group_title(T::Type) = uppercasefirst(replace(get_settings_name(T), "_" => " "))
 
-# The control of one setting. Its value is a computed cell over the setting, so it
+# The control of one setting, and the function from the value that it writes to
+# the value of the setting. Its value is a computed cell over the setting, so it
 # follows a change from any path: the tab, a command, an undo, a load. It is on
 # while `is_used()` answers true.
 function _make_setting_control(group, description::SettingDescription, is_used)
     name = description.name
-    if description.type === Bool
-        control = WidgetSwitch(; checked = getproperty(group, name))
-        set_cell_computation!(getfield(control, :checked), () -> getproperty(group, name))
-        set_cell_computation!(getfield(control, :enabled), is_used)
-        return control
-    end
     values = description.values
-    if description.type in (Int, Float64) && values isa AbstractRange
-        control = WidgetSpinBox(getproperty(group, name); min = first(values),
-                                max = last(values), step = step(values))
-        set_cell_computation!(getfield(control, :value), () -> getproperty(group, name))
-        set_cell_computation!(getfield(control, :enabled), is_used)
-        return control
+    current = () -> getproperty(group, name)
+    if description.type === Bool
+        control = WidgetSwitch(; checked = current())
+        set_cell_computation!(getfield(control, :checked), current)
+        convert = identity
+    elseif description.type in (Int, Float64) && values isa AbstractRange
+        control = WidgetSpinBox(current(); min = first(values), max = last(values),
+                                step = step(values))
+        set_cell_computation!(getfield(control, :value), current)
+        convert = identity
+    elseif description.type === Symbol && values isa Tuple
+        choices = collect(values)
+        control = WidgetRadioGroup(String.(choices);
+                                   selected = something(findfirst(==(current()), choices), 0))
+        set_cell_computation!(getfield(control, :selected),
+                              () -> something(findfirst(==(current()), choices), 0))
+        convert = index -> choices[index]
+    else
+        control = WidgetText(string(current()))
+        set_cell_computation!(getfield(control, :content), () -> string(current()))
+        convert = identity
     end
-    label = WidgetLabel(string(getproperty(group, name)))
-    set_cell_computation!(getfield(label, :content), () -> string(getproperty(group, name)))
-    label
+    set_cell_computation!(getfield(control, :enabled), is_used)
+    control, convert
 end
 
 # A button whose click makes the operation of `make`, and says `tooltip`.
@@ -128,25 +149,82 @@ _make_reset_operation(groups::AbstractVector) =
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
-# The write of a control becomes the write of its setting. A selection inside the
-# controls has no place in the settings, so it ends here, as in `ObjectToWidget`.
+_make_setting_write(group, name::Symbol, value) =
+    ReplaceReferencedValueOperation(group,
+        ConcreteReference(FieldReferenceStep(String(name)), EmptyReference()), value)
+
+# The write of a control becomes the write of its setting. Every other operation
+# takes the default way back of the kernel: a path in the widgets becomes a path
+# that this projection introduces into the settings.
 function read_intent(::SettingsToWidget, iomap::SettingsToWidgetIoMap,
                      operation::ReplaceReferencedValueOperation)
-    for (control, group, name) in iomap.controls
+    for (control, group, name, convert) in iomap.controls
         operation.document === control || continue
-        return ReplaceReferencedValueOperation(group,
-            ConcreteReference(FieldReferenceStep(String(name)), EmptyReference()),
-            operation.value)
+        return _make_setting_write(group, name, convert(operation.value))
     end
     operation
 end
 
-read_intent(::SettingsToWidget, ::SettingsToWidgetIoMap, ::ReplacePathOperation) = nothing
-read_intent(::SettingsToWidget, ::SettingsToWidgetIoMap, operation) = operation
+# An edit of the text of a setting becomes the write of the whole text, and the
+# caret after the characters that it put in.
+function read_intent(p::SettingsToWidget, iomap::SettingsToWidgetIoMap,
+                     operation::ReplaceStringRangeOperation)
+    found = _find_text_edit(iomap, strip_reference_types(operation.reference))
+    found === nothing && return invoke(read_intent, Tuple{Projection, Any, Any},
+                                       p, iomap, operation)
+    (group, name, range) = found
+    text = string(getproperty(group, name))
+    write = _make_setting_write(group, name,
+                                splice_string(text, range.start, range.stop,
+                                              operation.replacement))
+    caret = _place_caret(strip_reference_types(operation.reference),
+                         range.start + length(operation.replacement))
+    selection = map_reference_backward(p, iomap, caret)
+    selection === nothing && return write
+    CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
+end
+
+# The setting whose text `reference`, a path from the output, goes through, and the
+# last range of the path, which holds the characters that the edit replaces; or
+# `nothing` for a path through no text of a setting.
+function _find_text_edit(iomap::SettingsToWidgetIoMap, reference)
+    texts = IdDict{Any,Any}(control => (group, name)
+                            for (control, group, name, _) in iomap.controls
+                            if control isa WidgetText)
+    node = iomap.output
+    rest = reference
+    while rest isa ConcreteReference
+        found = get(texts, node, nothing)
+        if found !== nothing
+            range = _find_last_range_step(rest)
+            return range === nothing ? nothing : (found..., range)
+        end
+        node = unwrap_cell(evaluate_reference_step(rest.head, node))
+        rest = rest.tail
+    end
+    nothing
+end
+
+function _find_last_range_step(reference)
+    found = nothing
+    while reference isa ConcreteReference
+        reference.head isa ARangeReferenceStep && (found = reference.head)
+        reference = reference.tail
+    end
+    found
+end
+
+# `reference` with its last step, the range of the text, made a caret at `offset`.
+function _place_caret(reference, offset::Integer)
+    reference isa ConcreteReference || return reference
+    reference.tail isa ConcreteReference ||
+        return ConcreteReference(PositionReferenceStep(offset), EmptyReference())
+    ConcreteReference(reference.head, _place_caret(reference.tail, offset))
+end
 
 # ── Reference mapping ─────────────────────────────────────────────────────
-# No caret goes into the settings. A point names the control under it by an
-# introduced reference, and only such a reference maps forward again.
+# A path of the settings through this projection names a path in the widgets of
+# the tab, and a widget of the tab maps back to such a path.
 
 map_reference_forward(p::SettingsToWidget, ::SettingsToWidgetIoMap, reference) =
     find_introduced_path(p, reference)

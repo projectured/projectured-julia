@@ -44,15 +44,17 @@ Each vocabulary is declared where its verbs are, so a second host that offers th
 | --- | --- |
 | `[files...]` | the paths `run_application` opens, one tab each |
 | `--backend=NAME` | which backend draws the window, when the binary holds more than one |
-| `--assistant=ollama\|anthropic\|none` | the model backend of the assistant (`ollama` by default), or no assistant |
-| `--model=NAME` | the model of that backend (default: the backend's own default) |
+| `--assistant=ollama\|anthropic\|none` | the model backend of the assistant (default: the start settings, `ollama` at first), or no assistant |
+| `--model=NAME` | the model of that backend (default: the start settings, else the backend's own default) |
 | `--root=DIRECTORY` | the directory the navigator lists (default: the current directory) |
 | `--mcp` | start an MCP server at `http://127.0.0.1:9876/mcp` |
 | `--mcp=[HOST:]PORT` | start an MCP server there instead |
-| `--context=TOKENS` | how many tokens of the conversation the model may see (default: the backend's own default) |
+| `--context=TOKENS` | how many tokens of the conversation the model may see (default: the start settings, else the backend's own default) |
 | `--strict-fault-policy` | stop at the first fault and print its stack, instead of surviving it |
 
 A path with no leading `-` is a file; an unknown option, or a value a keyword refuses, raises an error that `run_application_command` prints to `stderr` and turns into exit code 1.
+
+`--assistant`, `--model`, `--context` and `--mcp` are `nothing` when the command line does not give them, and then the `StartSettings` of the settings file decide them: the assistant, the model, the context and whether the MCP server starts. A person sets these in the settings tab, and they take effect at the next start. `make_application_settings(file; fault_policy, assistant, model, context, mcp)` fills the settings from the defaults, the file, the environment and these values, in that order, and `run_application` reads the start settings from it. See [settings.md](../settings/settings.md).
 
 `run_application(paths...; backend, assistant, model, mcp, mcp_host, mcp_port, root, context, width, height, fault_policy, measure)` is the function the command line calls, and a host can call it directly: it makes the assistant, builds the editor with `build_editor` and the wrappers of `make_application_wrappers`, so the message log, the frame statistics and the fault log fill themselves with no feed of the caller's own; calls `start_application!`; and runs `run_editor!`. The editor keeps the tooltip window and the context menu window at the screen: its `window` argument gives `inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window]`. `backend = nothing` takes `default_backend()`.
 

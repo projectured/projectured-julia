@@ -12,12 +12,12 @@ _stab_natural(; extra = Pair{Type,Any}[]) =
 
 # An editor whose content is `content`, a tab that shows `settings`, with the
 # settings wrapper over the same `settings`, after its first frame.
-function _stab_editor(content, settings; extra = Pair{Type,Any}[])
+function _stab_editor(content, settings; extra = Pair{Type,Any}[], focus_cycling = false)
     backend = HeadlessBackend()
     editor = build_editor(content, _stab_natural(; extra); backend,
                           devices = Device[Keyboard(), Mouse(), Display()],
                           window = false, tabs = false, appearance = false, settings,
-                          focus_cycling = false)
+                          focus_cycling)
     run_frame!(editor)
     (editor, backend)
 end
@@ -61,6 +61,25 @@ function _stab_find_click(editor, backend, label, name)
     end
     nothing
 end
+
+# The click on the row of `label`, right of the label, whose answer `is_wanted`
+# takes; `nothing` when no point of the row answers so.
+function _stab_find_click_answer(editor, backend, label, is_wanted)
+    (_, lx, ly) = only(text for text in _stab_texts(backend) if text[1] == label)
+    for x in lx:2:(lx + 800)
+        answer = read_intent(editor.projection, nothing, Intent(_stab_click(x, ly + 6)),
+                             editor.iomap)
+        is_wanted(answer isa Intent ? answer.operation : answer) && return _stab_click(x, ly + 6)
+    end
+    nothing
+end
+
+_stab_has_selection(operation::ReplaceSelectionOperation) = true
+_stab_has_selection(operation::CompoundOperation) = any(_stab_has_selection, operation.operations)
+_stab_has_selection(operation::WrappingOperation) = _stab_has_selection(get_wrapped_operation(operation))
+_stab_has_selection(_) = false
+
+_stab_type(character::Char) = KeyPress(character, string(character), ModifierKeys(); time = 0.0)
 
 # The click on the text `text` drawn in the row of `label`.
 function _stab_click_in_row(backend, label, text)
@@ -180,6 +199,45 @@ end
     _stab_press!(editor, backend, _stab_click(lx + 2, ly + 6))
     @test fault.is_sound_enabled && editor.fault_policy.is_sound_enabled
     rm(folder; recursive = true)
+end
+
+@testset "Tab reaches a control of the tab, and Space changes its setting" begin
+    settings = make_settings()
+    editor, backend = _stab_editor(settings, settings; focus_cycling = true)
+    fault = get_settings_group!(settings, FaultSettings)
+    @test fault.is_barrier_enabled
+    _stab_press!(editor, backend, KeyDown(:tab, ModifierKeys(); time = 0.0))
+    # The selection of the settings is a path that the tab introduces.
+    @test get_selection(settings) isa ConcreteReference
+    _stab_press!(editor, backend, KeyDown(:space, ModifierKeys(); time = 0.0))
+    @test !fault.is_barrier_enabled && !editor.fault_policy.is_barrier_enabled
+end
+
+@testset "a click puts the caret in a text of a setting, and a key types into it" begin
+    settings = make_settings()
+    editor, backend = _stab_editor(settings, settings)
+    start = get_settings_group!(settings, StartSettings)
+    click = _stab_find_click_answer(editor, backend, "Model", _stab_has_selection)
+    @test click !== nothing
+    _stab_press!(editor, backend, click)
+    for character in "big"
+        _stab_press!(editor, backend, _stab_type(character))
+    end
+    @test start.model == "big"
+    @test any(text -> text[1] == "big", _stab_texts(backend))
+end
+
+@testset "a choice writes its value, and the start group says when it acts" begin
+    settings = make_settings()
+    editor, backend = _stab_editor(settings, settings)
+    start = get_settings_group!(settings, StartSettings)
+    @test start.assistant === :ollama
+    (_, _, ly) = only(text for text in _stab_texts(backend) if text[1] == "Assistant")
+    (_, x, y) = only(text for text in _stab_texts(backend)
+                     if text[1] == "anthropic" && abs(text[3] - ly) <= 40)
+    _stab_press!(editor, backend, _stab_click(x + 2, y + 6))
+    @test start.assistant === :anthropic
+    @test any(text -> occursin("next start", text[1]), _stab_texts(backend))
 end
 
 @testset "the settings of an editor are found under its root" begin

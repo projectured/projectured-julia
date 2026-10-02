@@ -39,6 +39,8 @@ using ..TooltipModule
 using ..UndoModule
 using ..WidgetModule
 
+import ..SettingsModule: is_settings_group_read_at_start
+
 export default_backend
 export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_assistant,
        make_application_document, make_application_content_projections,
@@ -47,8 +49,10 @@ export APPLICATION_ASSISTANTS, get_application_greeting_text, make_application_a
        APPLICATION_SYSTEM, run_application, parse_application_arguments,
        run_application_command, evaluate_reachable_cells!, warm_application,
        start_application!, make_application_settings, make_history_wrap
+export StartSettings
 
 include("DefaultBackend.jl")
 include("Application.jl")
+include("StartSettings.jl")
 
 end # module ApplicationModule

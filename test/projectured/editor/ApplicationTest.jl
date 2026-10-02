@@ -320,11 +320,13 @@ function test_application()
         end
 
         @testset "the command line" begin
+            # An option that the command line does not give is `nothing`, so the
+            # start settings decide it.
             command = parse_application_arguments(String[])
             @test command.files == String[]
-            @test command.backend === nothing && command.assistant === :ollama
-            @test command.model == "" && !command.mcp
-            @test command.context == 0 && !command.strict_fault_policy
+            @test command.backend === nothing && command.assistant === nothing
+            @test command.model === nothing && command.mcp === nothing
+            @test command.context === nothing && !command.strict_fault_policy
             command = parse_application_arguments(
                 ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "--context=8192",
@@ -341,7 +343,7 @@ function test_application()
             @test command.mcp && command.mcp_host === nothing && command.mcp_port == 9000
             command = parse_application_arguments(["--mcp=0.0.0.0:9001"])
             @test command.mcp && command.mcp_host == "0.0.0.0" && command.mcp_port == 9001
-            @test !parse_application_arguments(String[]).mcp
+            @test parse_application_arguments(String[]).mcp === nothing
             for wrong in ("--mcp=", "--mcp=port", "--mcp=:9000", "--mcp=host:",
                           "--mcp=70000", "--mcp=0")
                 @test_throws ErrorException parse_application_arguments([wrong])
@@ -507,6 +509,14 @@ function test_application()
                 strict_fault = get_settings_group!(strict, FaultSettings)
                 @test !strict_fault.is_barrier_enabled && strict_fault.is_sound_enabled
                 @test make_application_settings(nothing).file == ""
+                # The start settings: the file, then the command line.
+                write(path, "[start]\nassistant = \"none\"\nmodel = \"small\"\ncontext = 4096\n")
+                start = get_settings_group!(make_application_settings(path), StartSettings)
+                @test (start.assistant, start.model, start.context, start.mcp) ==
+                      (:none, "small", 4096, false)
+                given = make_application_settings(path; assistant = :anthropic, mcp = true)
+                start = get_settings_group!(given, StartSettings)
+                @test (start.assistant, start.model, start.mcp) == (:anthropic, "small", true)
                 # The history of a file tab keeps the steps of the setting.
                 document = make_application_document(paths[1:1]; root = dir, settings)
                 buffer = first(search_documents(document, node -> node isa UndoBuffer))

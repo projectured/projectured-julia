@@ -359,15 +359,22 @@ make_application_system() =
     read_guide_section("guide/orientation", "Reach what a tab holds")
 
 """
-    make_application_settings(file; fault_policy = nothing) -> Settings
+    make_application_settings(file; fault_policy = nothing, assistant = nothing,
+                              model = nothing, context = nothing, mcp = nothing)
+        -> Settings
 
 The settings of the application window, from the weakest source: the defaults,
-the file `file`, the environment variables, and `fault_policy` from the command
-line. `file` is also where Save and Load of the settings tab write and read;
-`nothing` reads and names no file.
+the file `file`, the environment variables, and the command line: `fault_policy`
+and the values of the `StartSettings` that the keywords give. A keyword that is
+`nothing` gives nothing. `file` is also where Save and Load of the settings tab
+write and read; `nothing` reads and names no file.
 """
 function make_application_settings(file::Union{AbstractString,Nothing};
-                                   fault_policy::Union{FaultPolicy,Nothing} = nothing)
+                                   fault_policy::Union{FaultPolicy,Nothing} = nothing,
+                                   assistant::Union{Symbol,Nothing} = nothing,
+                                   model::Union{AbstractString,Nothing} = nothing,
+                                   context::Union{Integer,Nothing} = nothing,
+                                   mcp::Union{Bool,Nothing} = nothing)
     settings = make_settings()
     if file !== nothing
         settings.file = String(file)
@@ -380,6 +387,11 @@ function make_application_settings(file::Union{AbstractString,Nothing};
         fault.is_console_enabled = fault_policy.is_console_enabled
         fault.is_sound_enabled = fault_policy.is_sound_enabled
     end
+    start = get_settings_group!(settings, StartSettings)
+    assistant === nothing || (start.assistant = assistant)
+    model === nothing || (start.model = String(model))
+    context === nothing || (start.context = Int(context))
+    mcp === nothing || (start.mcp = mcp)
     settings
 end
 
@@ -396,8 +408,9 @@ make_history_wrap(settings::Settings) =
 
 """
     run_application(paths...; backend = nothing,
-                    assistant = :ollama, model = "", mcp = false,
+                    assistant = nothing, model = nothing, mcp = nothing,
                     mcp_host = nothing, mcp_port = nothing, root = pwd(),
+                    context = nothing,
                     width = nothing, height = nothing, fault_policy = nothing,
                     appearance = load_appearance!(Appearance()),
                     settings_file = get_settings_file())
@@ -416,6 +429,9 @@ window closes.
 - `context` is how many tokens of the conversation the model may see; `0` leaves
   the backend's own answer. It matters for a local model, whose window costs
   memory on this machine.
+- `assistant`, `model`, `mcp` and `context` that are `nothing` take the
+  `StartSettings` of the settings file, so a person sets them in the settings
+  tab for the next start; a value given here wins for this run.
 - `fault_policy` is what the editor does with a fault, for this run. `nothing`
   leaves it to the settings; `make_strict_fault_policy()` stops at the first one.
 - `settings_file` is the settings file of the window, `settings.toml` in the
@@ -432,19 +448,24 @@ window closes.
     run_application("data.json", "notes.md"; assistant = :none)
 """
 function run_application(paths::AbstractString...;
-                         backend = nothing, assistant::Symbol = :ollama,
-                         model::AbstractString = "", mcp::Bool = false,
+                         backend = nothing, assistant::Union{Symbol,Nothing} = nothing,
+                         model::Union{AbstractString,Nothing} = nothing,
+                         mcp::Union{Bool,Nothing} = nothing,
                          mcp_host::Union{AbstractString,Nothing} = nothing,
                          mcp_port::Union{Integer,Nothing} = nothing,
-                         root::AbstractString = pwd(), context::Integer = 0,
+                         root::AbstractString = pwd(),
+                         context::Union{Integer,Nothing} = nothing,
                          width = nothing, height = nothing,
                          fault_policy::Union{FaultPolicy,Nothing} = nothing,
                          measure = FontFileMeasure(),
                          appearance::Appearance = load_appearance!(Appearance()),
                          settings_file::Union{AbstractString,Nothing} = get_settings_file())
-    chat = make_application_assistant(assistant; model = model, context = context)
+    settings = make_application_settings(settings_file; fault_policy, assistant, model,
+                                         context, mcp)
+    start = get_settings_group!(settings, StartSettings)
+    assistant, model, mcp = start.assistant, start.model, start.mcp
+    chat = make_application_assistant(assistant; model, context = start.context)
     backend === nothing && (backend = default_backend())
-    settings = make_application_settings(settings_file; fault_policy)
     # The root is the application's own pane tree, so the tabs leave it as it is.
     # The settings carry the fault policy of the command line.
     editor = build_editor(make_application_document(collect(String, paths); root,
@@ -474,8 +495,10 @@ end
 
 The files and the options of a `projectured` command line, as the keywords of
 [`run_application`](@ref) take them, plus `files` and the backend name. The
-backend name is `nothing` when the command line gives none. An unknown option
-or a wrong value raises an error that names it.
+backend name is `nothing` when the command line gives none, and so are the
+assistant, the model, the context and `mcp`, so the `StartSettings` of the
+settings file decide them. An unknown option or a wrong value raises an error
+that names it.
 
 `--mcp` starts the MCP server at its default address. `--mcp=PORT` and
 `--mcp=HOST:PORT` start it too, and say where it listens: `mcp_host` and
@@ -486,10 +509,8 @@ The `--help` text of a binary lists the same options: the builder writes it
 from `PROJECTURED_OPTIONS`, and a test compares the two.
 """
 function parse_application_arguments(arguments::AbstractVector{<:AbstractString})
-    values = Dict{String,String}("backend" => "",
-                                 "assistant" => "ollama", "model" => "",
-                                 "root" => pwd(), "context" => "0")
-    mcp = false
+    values = Dict{String,String}("root" => pwd())
+    mcp = nothing
     mcp_host, mcp_port = nothing, nothing
     strict_fault_policy = false
     files = String[]
@@ -503,7 +524,8 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
             strict_fault_policy = true
         elseif startswith(argument, "--") && occursin('=', argument)
             key, value = split(argument[3:end], '='; limit = 2)
-            haskey(values, key) || error("unknown option $(repr(argument))")
+            key in ("backend", "assistant", "model", "root", "context") ||
+                error("unknown option $(repr(argument))")
             values[key] = String(value)
         elseif startswith(argument, "-")
             error("unknown option $(repr(argument))")
@@ -511,17 +533,16 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
             push!(files, String(argument))
         end
     end
-    assistant = Symbol(values["assistant"])
-    assistant in APPLICATION_ASSISTANTS ||
+    assistant = haskey(values, "assistant") ? Symbol(values["assistant"]) : nothing
+    assistant === nothing || assistant in APPLICATION_ASSISTANTS ||
         error("--assistant is one of ", join(APPLICATION_ASSISTANTS, ", "), ", not ",
               repr(values["assistant"]))
-    backend = isempty(values["backend"]) ? nothing : Symbol(values["backend"])
-    context = tryparse(Int, values["context"])
-    (context === nothing || context < 0) &&
+    backend = isempty(get(values, "backend", "")) ? nothing : Symbol(values["backend"])
+    context = haskey(values, "context") ? tryparse(Int, values["context"]) : nothing
+    haskey(values, "context") && (context === nothing || context < 0) &&
         error("--context is a count of tokens, not ", repr(values["context"]))
-    (; files, backend, assistant,
-       model = values["model"], root = values["root"], mcp, mcp_host, mcp_port,
-       context, strict_fault_policy)
+    (; files, backend, assistant, model = get(values, "model", nothing),
+       root = values["root"], mcp, mcp_host, mcp_port, context, strict_fault_policy)
 end
 
 # The value of `--mcp=`: `PORT`, or `HOST:PORT`. The port follows the last colon.

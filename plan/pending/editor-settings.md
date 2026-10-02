@@ -1,11 +1,12 @@
 # A person sets how an editor works, in a settings document
 
-> **Status:** pending, not started. Written on 2026-10-01 at the owner's
+> **Status:** done on 2026-10-02. Written on 2026-10-01 at the owner's
 > request. The owner decided the design on 2026-10-01; section 5 logs each
 > decision. Step W1 of the appearance plan landed on `main` on 2026-10-01
 > (`03e83ba36`), so the work can start (D10). Section 9 of the appearance plan
 > and 3.8 here give what W1 changed. The kernel word "setting" of a wrapper
-> becomes "argument" first (D12, step R1).
+> becomes "argument" first (D12, step R1). Left open: the command "Open
+> settings" in the palette (S8), which the appearance tab lacks too.
 
 ## 1. The request
 
@@ -584,6 +585,20 @@ recommendations, and chose two separate tabs for O8.
   appearance plan takes the same answer. Rejected: a write into a group that the
   undo slice treats as no edit; a write that the tab marks as view state; a tab
   outside the history.
+- **D15. `drag_threshold` and `message_log_capacity` stay out** (2026-10-02,
+  the owner confirms the findings of S5 and S6): nothing in the application reads
+  a drag threshold, and the message log is one log for the process.
+- **D16. The settings tab holds its selection the normal way** (2026-10-02). The
+  owner: "The selection should just work the normal way, it's not a special case
+  then. If needs to go into projection introduced document, then it should do
+  that." The tab wires the paths of its output with
+  `set_output_path_computations!`, carries them down its widgets with
+  `set_output_tree_path_computations!`, and leaves a path operation to the
+  default reader of the kernel, which introduces the path into the `Settings`.
+  Rejected: sharing the private code of the appearance tab as a special
+  mechanism; a read-only model text. The reason I gave first, that every change
+  of a setting prints the view again, was wrong: only a change of the fault
+  policy prints again.
 - **D12. The kernel word "setting" of a wrapper becomes "argument"** (O11).
   The value of a keyword of `build_editor` is an argument of its wrapper:
   `make_wrapper_setting` becomes `make_wrapper_argument`, `EditorParts.settings`
@@ -904,13 +919,30 @@ the pixels and the test counts of the baseline of S0.
   - The tests that check the root, or press a key straight at a projection,
     turn off the `settings` wrapper and the new `focus_cycling` wrapper; the
     lists of the toolbar hold Settings.
-- [ ] **S10. The start settings**, a later part after S0 to S9 (D1).
+- [x] **S10. The start settings**, a later part after S0 to S9 (D1). Done on
+  2026-10-02: the settings tests, the tab tests, `test_appearance_tab()`, the
+  guards and `test_application()` 575 and 2 broken; `test_kernel()` with only the
+  failure of `main`, `test_platform()` 84746 and 8 broken. What the work did:
+  - **The selection of the tab works the normal way (D16)**, which also closes a
+    gap of S8: Tab and the arrows reach each control, Space and Return change a
+    switch, and a text draws its caret. `set_output_tree_path_computations!`
+    joined the kernel beside `set_output_path_computations!`, and the appearance
+    tab uses it in place of its private walk.
+  - A `Symbol` with its choices is a `WidgetRadioGroup`, which writes its index in
+    place; a `String` is a `WidgetText`, whose edit becomes the write of the whole
+    text and a caret after the new characters.
+  - `StartSettings` of the application slice: `assistant`, `model`, `context` and
+    `mcp`, with `is_settings_group_read_at_start`, so its card says that its
+    settings take effect at the next start.
+  - The command line leaves an option that it does not give as `nothing`, so the
+    start settings decide it; `make_application_settings` writes the given values
+    last. The help text of the binary says so.
   `StartSettings` in `application`, read by `run_application`.
   - Tests: the file, the environment and the command line in their order.
-- [ ] **S11. The guides.** For S0 to S9, done on 2026-10-01: `settings.md` and
-  `settingsmanaging.md` (new), and the passages in `sdl.md`, `video.md`,
+- [x] **S11. The guides.** Done: `settings.md` and `settingsmanaging.md` (new),
+  and the passages in `sdl.md`, `video.md`, `application.md`, `mouse-target.md`,
   `debugging-guide.md`, `keyboard-and-mouse-guide.md` and `testing-guide.md`.
-  The start settings of S10 add theirs. The plan asked: A new design document
+  The plan asked: A new design document
   `documentation/package/platform/settings/`. The changes in the guides of the
   SDL backend, the video backend, the screen, the fault slice and the undo
   slice. The environment variables in `debugging-guide.md`. The settings

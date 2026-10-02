@@ -39,7 +39,7 @@ export Settings, compute_loaded_settings_types, make_settings, get_settings_grou
        set_settings_group!, get_settings_groups, is_settings_group, get_setting_cell
 export ApplySettingOperation, apply_settings!, is_settings_target,
        apply_settings_to_editor!, is_setting_write, read_settings!, is_settings_group_used,
-       is_settings_group_applied,
+       is_settings_group_applied, is_settings_group_read_at_start,
        read_settings_from_editor!
 export get_setting_environment_names, read_settings_environment!
 export get_configuration_folder, get_settings_file, write_settings_file!, read_settings_file!,

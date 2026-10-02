@@ -14,6 +14,7 @@ The settings slice of `ProjecturedPlatform` holds what a person chooses about ho
 - `read_settings!(group, target)` is the reverse: it copies the values that act in a target into a group. The owner of a target adds it beside its `apply_settings!`. `read_settings_from_editor!` reads a group from an editor and from its backend.
 - `get_setting_environment_names(T)` names the environment variables that set settings of a group for one run, and `read_settings_environment!(settings)` reads them, the one place that reads them.
 - `is_settings_group_applied(T)` says that a group acts through `apply_settings!`. The slice that declares the group says so, so the answer does not depend on which packages with targets are loaded. `is_settings_group_used(editor, group)` is false for an applied group that no target of the editor applies.
+- `is_settings_group_read_at_start(T)` says that the application reads a group only when it starts, as it reads `StartSettings` of the application slice: the assistant, the model, the context and the MCP server. The card of such a group in the settings tab says that its settings take effect at the next start.
 - `get_setting_cell(group, name)` gives the cell of a setting to a part that reads it where it acts, such as a recognition of the pointer or an undo history.
 
 ## The file

@@ -35,6 +35,15 @@ does not depend on which packages with targets are loaded.
 is_settings_group_applied(::Type) = false
 
 """
+    is_settings_group_read_at_start(T) -> Bool
+
+Whether the application reads the settings of the group type `T` only when it
+starts, so a change takes effect at the next start. False by default; the slice
+that declares such a group adds the method.
+"""
+is_settings_group_read_at_start(::Type) = false
+
+"""
     is_settings_group_used(editor, group) -> Bool
 
 Whether `editor` uses `group`. An applied group ([`is_settings_group_applied`](@ref))

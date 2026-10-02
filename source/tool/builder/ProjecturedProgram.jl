@@ -127,12 +127,12 @@ more than one backend. The builder writes its own four options after these.
 """
 const PROJECTURED_OPTIONS = [
     "--assistant=ollama|anthropic|none" =>
-        "the model backend of the assistant (ollama by\ndefault), or no assistant",
-    "--model=NAME" => "the model of that backend (default: the default\nmodel of the backend)",
+        "the model backend of the assistant (default: the\nsettings, ollama at first), or no assistant",
+    "--model=NAME" => "the model of that backend (default: the settings,\nelse the default model of the backend)",
     "--root=DIRECTORY" => "the directory that the navigator lists (default:\nthe current directory)",
     "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
     "--mcp=[HOST:]PORT" => "start an MCP server at http://HOST:PORT/mcp\n(HOST is 127.0.0.1 when it is not given)",
-    "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the default of the backend)",
+    "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the settings, else the default of the\nbackend)",
     "--strict-fault-policy" => "stop at the first fault and print its stack,\ninstead of surviving it",
 ]
 
