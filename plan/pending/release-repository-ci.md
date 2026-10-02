@@ -20,7 +20,8 @@ repository." The owner started it on 2026-10-02 ("yes").
   would not resolve.
 - So a job develops the folders of the siblings into one environment and runs
   `Pkg.test` there, as repositories with many packages do (Makie, for one).
-  `Pkg.test` keeps the developed folders of the environment in its sandbox.
+  The sandbox of `Pkg.test` keeps a developed folder only when the manifest of
+  the environment reaches it (see 6.1).
 - `Pkg.test(name)` needs every released package that `name`, its
   `test/Project.toml` and its support packages in `test/support/` depend on,
   and theirs in turn. A support package names a released sibling without
@@ -59,7 +60,7 @@ repository." The owner started it on 2026-10-02 ("yes").
 
 | # | Question | Recommendation (mine, not decided) |
 | --- | --- | --- |
-| D1 | The Julia versions of the matrix. | `1.11` and `1`: the packages promise 1.11, and only a test on it keeps that promise true. It doubles the jobs, 64 for a push; while the repository is private, that costs minutes of the owner's account. With `1` alone, 32 jobs. |
+| D1 | The Julia versions of the matrix. | `1.11` and `1`: the packages promise 1.11, and only a test on it keeps that promise true. It doubles the jobs, 64 for a push; while the repository is private, that costs minutes of the owner's account. With `1` alone, 32 jobs. On 1.11 the kernel suite fails 2 more assertions today, the garbage-collector test of `CellTest.jl:97-98` (a fault of `main` on 1.11), so the 1.11 jobs that run it are red until it is fixed or marked. |
 
 ## 5. Steps
 
@@ -90,4 +91,20 @@ repository." The owner started it on 2026-10-02 ("yes").
 
 ## 6. Decisions made during the work
 
-(filled in as the work goes)
+### 6.1 A job develops the support packages too
+
+The first check failed for `ProjecturedJSON` and the umbrella before any test
+ran: "Could not use exact versions of packages in manifest, re-resolving", then
+"ProjecturedPDF has no known versions". The sandbox of `Pkg.test` keeps the
+versions of the environment only for the packages that it reaches through the
+environment's manifest. Only `test/Project.toml` names a support package, by
+`[sources]`, so a released sibling that only a support package needs
+(`ProjecturedPDF` for `ProjecturedJSONExample`) was dropped and resolved again
+from the registry. A job now also develops the folders of its support packages,
+and the JSON job passed by hand, 225 of 225.
+
+### 6.2 What the coverage of a job holds
+
+`Pkg.test(name; coverage = true)` writes coverage for every file under the
+folder of `name`, its `test/support/` included. The job sends only `src`,
+`source` and `ext` to Codecov, so the coverage is of the code of the package.
