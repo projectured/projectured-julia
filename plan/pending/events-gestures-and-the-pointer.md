@@ -1468,7 +1468,7 @@ it holds the example.
     route, the walk in `read_routed_child` of 9a has no use, unless Q35 keeps
     the crossings routed.
   - [ ] 9b′. **Replaced before it started** by
-    [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md)
+    [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)
     (owner 2026-09-28): every document stores the path of the part under the
     pointer like its selection, a move becomes that path as a click becomes the
     selection, and the dwell and the click travel by position. That plan
@@ -1505,8 +1505,8 @@ it holds the example.
     stay. The repls, the application, the gallery wrappers and the platform
     pass as before.
   - [ ] 9f. The hosts, the checks and the documents.
-- [ ] 10. **Replaced by step 5b of
-  [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md)**
+- [x] 10. **Replaced by step 5b of
+  [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)**
   (Q13 there, settled 2026-10-01: the drag wrapper keeps the path of the part
   whose drag is on, local drags keep their own state, the part under the
   pointer lights during a drag, which replaces D29). The first plan of the step:
@@ -1571,9 +1571,10 @@ it holds the example.
   through the node of a slot in "The place of a part" of `reference.md`, which
   had that section already. The design documents of the tooltip and the
   context menu were written with steps 9c and 9d. The four steps of the context
-  menu moved from `keyboard-and-mouse-guide.md` into its own guide. Open: the
-  rules (`PAR-NO-NEW-SYNTHETIC-EVENT`, D40, D44) and the documents of the drag,
-  which come with step 5b of the pointer plan.
+  menu moved from `keyboard-and-mouse-guide.md` into its own guide. The
+  documents of the drag came with step 5b of the pointer plan (2026-10-02):
+  `package/platform/dragtracking/dragtracking.md` and `guide/dragging-guide.md`.
+  Open: the rules (`PAR-NO-NEW-SYNTHETIC-EVENT`, D40, D44).
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
 

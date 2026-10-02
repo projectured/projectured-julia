@@ -3,7 +3,7 @@
 > **Kind:** idea · **Status:** tentative. Nothing is planned or built. The owner
 > asked on 2026-09-29 to write the feature and the idea down, and to build only
 > the mouse target now
-> ([a-document-knows-the-part-under-the-pointer.md](../pending/a-document-knows-the-part-under-the-pointer.md)).
+> ([a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)).
 
 ## The feature
 

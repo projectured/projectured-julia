@@ -3,7 +3,7 @@
 > **Status:** done (2026-09-29), on the branch `gesture-type`. The owner chose
 > this way on 2026-09-28 (way (c) of the question about where a tooltip that a
 > command opens goes). It comes before the mouse target of
-> [a-document-knows-the-part-under-the-pointer.md](../pending/a-document-knows-the-part-under-the-pointer.md).
+> [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md).
 > The work that it found and did not do is in
 > [the-work-that-the-forward-image-found.md](../pending/the-work-that-the-forward-image-found.md).
 
@@ -514,5 +514,5 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   recommendation; owner 2026-09-29: "Option a, I agree".)
 - ~~**Q5. Where it is built.**~~ **Settled** (owner 2026-09-29): on the branch
   `gesture-type`, before the mouse target of
-  [a-document-knows-the-part-under-the-pointer.md](../pending/a-document-knows-the-part-under-the-pointer.md),
+  [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md),
   because a widget that a view makes gets its mouse target by the forward map.

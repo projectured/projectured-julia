@@ -69,6 +69,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [own-project-guide.md](guide/own-project-guide.md) | procedure | How do I use ProjecturEd from my own project? |
 | [keyboard-and-mouse-guide.md](guide/keyboard-and-mouse-guide.md) | procedure | Which keys and clicks work, and how do I see the rest? |
 | [pointer-guide.md](guide/pointer-guide.md) | procedure | What does the program show where the pointer sits? |
+| [dragging-guide.md](guide/dragging-guide.md) | procedure | How do I drag a slider, a divider, a tab or a list element, and how do I stop a drag with no change? |
 | [gestures-guide.md](guide/gestures-guide.md) | procedure | What do a double click, a chord, a rest of the pointer and a right click do? |
 | [tooltip-guide.md](guide/tooltip-guide.md) | procedure | How do I see and close the small window that says what a part is? |
 | [popup-window-guide.md](guide/popup-window-guide.md) | procedure | Where does a menu, a dropdown list, a dialog or a tooltip stand, and how does it close? |

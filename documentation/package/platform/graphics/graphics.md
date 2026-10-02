@@ -57,7 +57,7 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 ### The part under the pointer
 
-A move of the pointer with no button held names the part under the pointer, and every container gives it to two children: first to the child that the pointer leaves, then to the child that it is on. Three functions serve every container, in the layout, the widget, the graph and the screen packages:
+Every move of the pointer, with a button held or not, names the part under the pointer, and every container gives it to two children: first to the child that the pointer leaves, then to the child that it is on. Three functions serve every container, in the layout, the widget, the graph and the screen packages:
 
 - `read_child_move(child_iomap, move)` is the answer of the child under the pointer. When the child names no part under the pointer, its own backward map of the point names it, and a child that maps the point to no part is the part itself. So a list names its row, and a text names the place of the point, with no code of their own.
 - `compute_part_at_point(iomap, x, y)` is that backward map: the path of the part at the point, with the types that the map gives it. A point step at the end of the path is dropped.
@@ -65,6 +65,16 @@ A move of the pointer with no button held names the part under the pointer, and 
 - `get_child_frame_offset(entry)` is the place of the frame of a child, from the `(x, y, child_iomap)` entry that a container keeps.
 
 The container finds the child that the pointer leaves from its own mouse target (`get_mouse_target` of the kernel), and joins the two answers with `join_move_answers`, the answer of the child that the pointer leaves first.
+
+### A route moves the point
+
+A change with a route ([projection-system.md](../../kernel/projection-system.md#the-intent-the-reader-threads)) that reaches a container whose children sit in frames of their own gets the point of a pointer gesture moved into the frame of the child the route names, the same move the container gives a gesture it hands to that child at a point. `read_child_by_route(projection, recursion, change, iomap, child)` is the hook: the kernel's default reads `child` with `change` unchanged, and a container that draws its children in frames of their own adds a method for its own projection.
+
+- `map_event_position(event, move)` returns `event`, a pointer event or gesture, with its position replaced by `move(x, y) -> (x, y)`; an event with no position comes back unchanged. A container whose placement scales a child, such as a zoom, uses it.
+- `read_routed_child_in_frame(recursion, change, child; move_in, move_out)` moves the point of a pointer gesture into the frame of `child` with `move_in`, reads `child`, and moves every position of the answer back with `move_out`. A change that already carries an operation, or a gesture with no point, goes to `child` unchanged.
+- `read_routed_entry_child(recursion, change, child; entries)` is the same, for a container that keeps each child as an `(x, y, child_iomap)` entry: it finds the offset of `child` with `get_child_frame_offset` and builds `move_in` and `move_out` from it.
+
+So a part that a route reaches, such as the part whose drag is on, gets the point of its `DragMove` and its `DragEnd` in its own frame, wherever the container has placed it; see [dragtracking.md](../dragtracking/dragtracking.md).
 
 ### A dwell and a right click
 

@@ -18,8 +18,11 @@ a motion. A gesture is a pattern that a recognition finds in a sequence of
 events, and the pattern can leave out events: a `MouseClick` is a `MouseDown`
 and a `MouseUp` of the same button, near in place and in time; a `MouseDwell` is
 a motion followed by no motion for a while; a `KeyChord` is a sequence of
-`KeyDown`s that a chord table names. `Gesture` is the supertype of the three, in
-`source/kernel/gesture/`, beside `Event` in the event layer below it.
+`KeyDown`s that a chord table names. `Gesture` is the supertype of six concrete
+types, in `source/kernel/gesture/`, beside `Event` in the event layer below it:
+these three, which a recognition finds, and `DragMove`, `DragEnd` and
+`DragCancel`, which the platform's drag tracker makes from a drag in progress
+(see [The drag gestures](#the-drag-gestures) below).
 
 A gesture carries no intent, as an event does not: the code that reads it, a
 document's own gesture table, gives it a meaning. Every concrete gesture holds
@@ -67,6 +70,20 @@ recognition alone; see [editor.md](editor.md#the-timer-and-the-display-event).
 The platform's gesturetracking slice runs the list of recognitions as a
 projection wrapper around a document; see
 [gesturetracking.md](../platform/gesturetracking/gesturetracking.md).
+
+### The drag gestures
+
+`DragMove(x, y, modifiers; time)`, `DragEnd(x, y, modifiers; time)` and
+`DragCancel(; time)` are `Gesture` subtypes of this layer, beside `MouseClick`,
+`MouseDwell` and `KeyChord`, but no recognition makes them. The platform's drag
+tracking slice makes them instead: it keeps the path of the part whose drag is
+on, and sends that part `DragMove` for each held move, `DragEnd` for the
+release, and `DragCancel` for a bare Escape, the loss of the focus of the
+window, or a move with no button held while the drag is on. `DragMove` and
+`DragEnd` carry a position, in the frame of the part whose drag is on;
+`DragCancel` carries only a time, because the part puts back what it kept at
+the start of the drag and needs no position for that. See
+[dragtracking.md](../platform/dragtracking/dragtracking.md).
 
 ### The gesture pattern and the table
 
@@ -167,9 +184,12 @@ every container shares: `is_outward_gesture`, `compute_part_at_point`,
 [graphics.md](../platform/graphics/graphics.md). The gesturetracking slice runs
 the recognitions as a wrapper around the document a host shows; see
 [gesturetracking.md](../platform/gesturetracking/gesturetracking.md), which also
-describes why an input waits for a timer. The tooltip slice and the widget
-slice's context menu are the two readers of an outward gesture today; see
-[tooltip.md](../platform/tooltip/tooltip.md) and
+describes why an input waits for a timer. The dragtracking slice makes the
+three drag gestures from the path it keeps, and sends them to the part whose
+drag is on; see
+[dragtracking.md](../platform/dragtracking/dragtracking.md). The tooltip slice
+and the widget slice's context menu are the two readers of an outward gesture
+today; see [tooltip.md](../platform/tooltip/tooltip.md) and
 [context-menu.md](../platform/widget/context-menu.md).
 
 ## Design decisions

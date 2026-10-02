@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending; steps 1 to 10 are done and on main (2026-10-01). Step 5b, the drag, is open: it waits for two names from the owner. It replaces the mouse target tracker of
+> **Status:** done (2026-10-02): every step is built and on main. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -855,7 +855,7 @@ already; the sealed selection files do not change (Q4).
   forward, so each needs a small design of its own; they follow with step 6,
   when it is known which of their widgets light (owner 2026-09-30: "Yes, I
   agree").
-- [ ] 5. **The move** (M6, M7; 5a now, 5b the drag, Q13). A container hands a `MouseMove` first to the
+- [x] 5. **The move** (M6, M7; 5a now, 5b the drag, Q13). A container hands a `MouseMove` first to the
   child that its own mouse target names, along the old path, with the point in
   that child's frame, and then to the child at the point; when both are the
   same child, once. `read_child_event` makes a move that the child answered
@@ -1185,9 +1185,16 @@ already; the sealed selection files do not change (Q4).
         `DragEnd` and the release; `test_dragging` (23) was written again for
         the mouse target; `PaneConstructTest` and the tab part of the
         application test send `DragEnd` and `DragMove`.
-    - [ ] 5b.7 **The documents and the rules**: `package/platform/dragging/`
+    - [x] 5b.7 **The documents and the rules**: `package/platform/dragging/`
       and `guide/dragging-guide.md`, as the table of step 11 of the events plan
       lists them.
+      Built (2026-10-02): `documentation/package/platform/dragtracking/dragtracking.md`
+      and `documentation/guide/dragging-guide.md` are new; `dragging.md`,
+      `higher-order-projections.md`, `mouse-target.md`, `gesture.md`,
+      `graphics.md` (a section on a route that moves the point), `widget.md`,
+      `pane.md`, `gesturetracking.md`, `system-anatomy.md`, the two indexes and
+      the keyboard guide follow the drag. The rules of step 11 of the events
+      plan stay there.
 - [x] 6. **The light** (M9). The button, the menu item and the toolbar item
   light while their mouse target is set; the list, the table, the table list and
   the tree light the row that their mouse target names; the chart and the
