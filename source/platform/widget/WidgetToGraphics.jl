@@ -9029,7 +9029,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
         grid = GridLayout(CellVector(Cell[Cell(_wt_get_header(w.column_headers, c)) for c in 1:n]),
                           Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
                           Cell(master ? w.column_policy : Fixed(0)), Cell(Content), policies,
-                          Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
+                          Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(Any[]), Cell(nothing))
         pane = _make_part_pane(grid, Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0)),
                                Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
         column_header_pane = print_child(recursion, pane,
@@ -9043,7 +9043,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
                           Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(Symbol[]),
                           Cell(Content), Cell(Fixed(0)), Cell(Any[]),
                           Cell(@computation Any[Fixed(Int(heights[r][])) for r in 1:m]),
-                          Cell(Bool[]), Cell(fill(false, m)), Cell(nothing))
+                          Cell(Bool[]), Cell(fill(false, m)), Cell(Any[]), Cell(nothing))
         pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                                Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
         row_header_pane = print_child(recursion, pane,
@@ -9060,7 +9060,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
     grid = GridLayout(CellVector(Cell[Cell(_wt_get_cell(rows, r, c)) for r in 1:m for c in 1:n]),
                       Cell(max(1, n)), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
                       Cell(w.column_policy), Cell(w.row_policy), column_policies, row_policies,
-                      Cell(wraps), Cell(Bool[]), Cell(nothing))
+                      Cell(wraps), Cell(Bool[]), Cell(Any[]), Cell(nothing))
     cells_pane = print_child(recursion,
                              _make_part_pane(grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_inner_size(ctx; width = header_width, height = header_height))

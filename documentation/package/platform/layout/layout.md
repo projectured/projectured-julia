@@ -40,6 +40,8 @@ A grid column that is offered a size must not read its cells to find its own wid
 
 A child of a grid takes more than one column with `LayoutConstraint(child; column_span = n)` (`get_column_span`). The grid fills its rows in order; a spanning child starts a new row when its row has fewer columns left, and a span past the number of columns takes the whole row. A spanning child widens no column. When every column it spans hands out its extent, it gets their width with the gaps; otherwise it may reach from its first column to the edge that the grid was offered, so a text in it breaks there, and the grid is as wide as such a child. A grid that was offered no width gives it no edge, and it draws as wide as it measures. The settings tab and the appearance tab use it for the description of a field, under the row of its name and its control. A grid of a list takes no span.
 
+`row_gaps` holds the gap above each row, by the index of the row; an entry past its end, or `nothing`, is `vertical_gap`. A weighted row shares what the gaps leave. The two tabs put no gap above the description of a field and a larger one above the next field, so a description reads as a part of the field above it.
+
 The grid reads the kind of a policy, `Fixed`, a weight or `Content`, when it prints, with no dependency, because the kind decides what each cell is offered. It reads the numbers of a policy inside its extent cells. So a policy can be a computed cell: the header row of a table takes the widths of the grid of its cells as `Fixed`, and a new width does not print the header row again.
 
 ### Children in a list

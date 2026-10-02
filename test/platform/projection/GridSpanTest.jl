@@ -67,5 +67,18 @@ end
     @test Int(note.h[]) > 2 * Int(one_line.h[])
 end
 
+@testset "a row takes its own gap above it" begin
+    grid = GridLayout(Any[WidgetLabel("a"), WidgetLabel("b"), WidgetLabel("c"), WidgetLabel("d")], 1;
+                      vertical_gap = 10, row_gaps = Any[nothing, 0, nothing, 3])
+    g = _gs_grid(print_document(proj, nothing, grid, offer()))
+    h = [Int(x[]) for x in g.row_h[1:4]]
+    @test [Int(y[]) for y in g.row_y[1:4]] == [0, h[1], h[1] + h[2] + 10, h[1] + h[2] + 10 + h[3] + 3]
+    @test Int(g.output.h[]) == sum(h) + 10 + 3
+    # With no gaps named, every row is `vertical_gap` from the row above.
+    plain = _gs_grid(print_document(proj, nothing,
+        GridLayout(Any[WidgetLabel("a"), WidgetLabel("b")], 1; vertical_gap = 10), offer()))
+    @test Int(plain.row_y[2][]) == Int(plain.row_h[1][]) + 10
+end
+
 end
 end

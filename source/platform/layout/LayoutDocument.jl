@@ -254,6 +254,11 @@ Every column and row is at least the `min` and at most the `max` of its policy.
 `false` keeps the extent of a sized column or row from its cells, which it then
 clips. A caller uses it to measure a cell at its own size in a column or a row
 that another grid sizes.
+
+`row_gaps` holds the gap above each row, by the index of the row: an entry past
+its end, or `nothing`, is `vertical_gap`, and the entry of the first row is not
+used. A form uses it to keep the description of a field close to the row of the
+field, and the next field further away.
 """
 @document struct GridLayout <: LayoutDocument
     children::CellVector
@@ -278,6 +283,8 @@ that another grid sizes.
     column_offers::Any
     # Vector{Bool}, one per row; the same for the height of a row.
     row_offers::Any
+    # Vector, one per row: the gap above it, or `nothing` for `vertical_gap`.
+    row_gaps::Any
 end
 
 function GridLayout(children::Vector, columns::Integer;
@@ -291,7 +298,8 @@ function GridLayout(children::Vector, columns::Integer;
                     column_policies=Any[],
                     row_policies=Any[],
                     column_offers=Bool[],
-                    row_offers=Bool[])
+                    row_offers=Bool[],
+                    row_gaps=Any[])
     columns >= 1 || error("GridLayout: columns must be >= 1")
     GridLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
                Cell(Int(columns)),
@@ -301,7 +309,7 @@ function GridLayout(children::Vector, columns::Integer;
                Cell(column_policy), Cell(row_policy),
                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                Cell(collect(Bool, column_offers)), Cell(collect(Bool, row_offers)),
-               Cell(nothing))
+               Cell(collect(Any, row_gaps)), Cell(nothing))
 end
 
 # A grid of the rows of a list, which it draws lazily: the rows that a viewport
@@ -327,7 +335,7 @@ function GridLayout(rows::ListNode, columns::Integer;
                Cell(column_policy), Cell(row_policy),
                Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),
                Cell(Any[]), Cell(collect(Bool, column_offers)), Cell(Bool[]),
-               Cell(nothing))
+               Cell(Any[]), Cell(nothing))
 end
 
 """

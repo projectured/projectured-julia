@@ -1266,8 +1266,16 @@ function _gl_col_x_cell(col::Int, col_w::Vector{Cell}, hgap::Cell)
     Cell(@computation last(compute_axis_offsets(Int[Int(col_w[cc][]) for cc in 1:(col-1)], Int(hgap[]))))
 end
 
-function _gl_row_y_cell(row::Int, row_h::Vector{Cell}, vgap::Cell)
-    Cell(@computation last(compute_axis_offsets(Int[Int(row_h[rr][]) for rr in 1:(row-1)], Int(vgap[]))))
+# The top of row `row`: the rows above it, and the gap above each row after the
+# first (`gap_above`).
+function _gl_row_y_cell(row::Int, row_h::Vector{Cell}, gap_above)
+    Cell(Computation(function ()
+        y = 0
+        for rr in 1:(row - 1)
+            y += Int(row_h[rr][]) + gap_above(rr + 1)
+        end
+        y
+    end))
 end
 
 # Per-column alignment. An empty vector falls back to the single
@@ -1320,7 +1328,8 @@ _gl_offers(p::SizePolicy) =
 #
 # `allocate_axis` is the same allocator the stacks and the split use.
 function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
-                          gap::Cell, avail; reads = k -> !_gl_offers(policy_of(k)))
+                          gap::Cell, avail; reads = k -> !_gl_offers(policy_of(k)),
+                          extra_gap = c -> 0)
     Cell(Computation(function ()
         c = count_cell[]
         c <= 0 && return Int[]
@@ -1336,7 +1345,10 @@ function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
                 _gl_axis_inputs(policy, reads(k) ? content[k][] : 0)
         end
         (avail === nothing || !weighted) && return Int[clamp(prefs[k], mins[k], maxs[k]) for k in 1:c]
-        allocate_axis(Int(avail[]); mins, maxs, prefs, weights = wts, gap = gap[], n = c)
+        # `extra_gap(c)` is what the gaps of the items differ from `c - 1` gaps of
+        # `gap`, so a weighted item shares what the gaps leave.
+        allocate_axis(Int(avail[]) - extra_gap(c); mins, maxs, prefs, weights = wts,
+                      gap = gap[], n = c)
     end))
 end
 
@@ -1450,8 +1462,15 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end
     col_extents = _gl_extents_cell(cols_cell, policy_of_column, content_col_w, hgap, avail_w;
                                    reads = k -> !offers_to_cells(k))
+    # The gap above row `r`: its entry of `row_gaps`, or `vertical_gap`.
+    function gap_above(r::Int)
+        gaps = doc.row_gaps
+        gap = gaps isa AbstractVector && 2 <= r <= length(gaps) ? gaps[r] : nothing
+        gap === nothing ? Int(vgap[]) : Int(gap)
+    end
     row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h;
-                                   reads = k -> !offers_to_row_cells(k))
+                                   reads = k -> !offers_to_row_cells(k),
+                                   extra_gap = c -> sum((gap_above(r) - Int(vgap[]) for r in 2:c); init = 0))
     col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
     row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
 
@@ -1520,7 +1539,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
 
     row_y = Cell[]
     for k in 1:n
-        push!(row_y, _gl_row_y_cell(k, row_h, vgap))
+        push!(row_y, _gl_row_y_cell(k, row_h, gap_above))
     end
 
     child_x = Cell[]
@@ -1551,8 +1570,9 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         total = 0
         for rr in 1:nrows
             total += row_h[rr][]
+            rr > 1 && (total += gap_above(rr))
         end
-        total + max(0, nrows - 1) * vgap[]
+        total
     end))
 
     # A child in a column or a row whose extent was given is drawn inside that
