@@ -47,6 +47,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: make_pred_document
 
 export FileSystemDocument, make_filesystem_pathname, OpenFileOperation
+export FileSystemTheme, ScaledFileSystemTheme
 export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemToSyntax,
        is_filesystem_marker_eligible
 export FileSystemToWidgetTree, FileSystemToWidget
@@ -60,6 +61,7 @@ export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 include("FileSystemDocument.jl")
 include("Workspace.jl")
 include("WorkspaceToFileSystem.jl")
+include("FileSystemTheme.jl")
 include("FileSystemToSyntax.jl")
 include("FileSystemToWidget.jl")
 include("FileSystemChooserToWidget.jl")

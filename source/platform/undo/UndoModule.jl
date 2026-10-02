@@ -22,6 +22,7 @@ The module lives in four fragments that share this namespace:
   operations and the default filter.
 - [`UndoBufferToAny.jl`](UndoBufferToAny.jl) — the transparent projection: the
   printer, the two reference maps, the reader and the gesture table.
+- [`UndoTheme.jl`](UndoTheme.jl) — the theme of the history.
 - [`UndoBufferToSyntax.jl`](UndoBufferToSyntax.jl) — the history itself, drawn
   for a person to read.
 - [`HistorySettings.jl`](HistorySettings.jl) — `HistorySettings`, how many steps
@@ -65,11 +66,13 @@ export UndoDocument, UndoBuffer, UndoEntry, is_undo_barrier,
        RecordUndoOperation, UndoOperation, RedoOperation, make_undoable_operation,
        TYPING_PAUSE, get_typing_caret,
        find_undo_buffer, register_undo_tools!,
-       UndoBufferToAnyProjection, UndoBufferToAnyIoMap, UndoBufferToSyntax,
+       UndoBufferToAnyProjection, UndoBufferToAnyIoMap,
+       UndoTheme, ScaledUndoTheme, UndoBufferToSyntax,
        HistorySettings
 
 include("UndoDocument.jl")
 include("UndoBufferToAny.jl")
+include("UndoTheme.jl")
 include("UndoBufferToSyntax.jl")
 include("HistorySettings.jl")
 

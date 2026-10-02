@@ -41,10 +41,10 @@ const _FAULT_WIDTH_SLACK = 8
 A `FaultLogToSyntax` with light text, for the dark background of the panel.
 """
 make_fault_log_panel_syntax_projection() =
-    FaultLogToSyntax(count = StyleText(font_dejavu_monospace_regular_16, color_gray159),
-                     site = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray),
-                     message = StyleText(font_dejavu_monospace_regular_16, color_gray223),
-                     empty = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray))
+    FaultLogToSyntax(count_text = StyleText(font_dejavu_monospace_regular_16, color_gray159),
+                     site_text = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray),
+                     message_text = StyleText(font_dejavu_monospace_regular_16, color_gray223),
+                     empty_text = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray))
 
 """
     make_fault_log_content_projection(; syntax = FaultLogToSyntax(),

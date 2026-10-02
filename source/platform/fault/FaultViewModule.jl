@@ -81,6 +81,7 @@ export FaultReport, FaultLog, FaultLogEntry, get_session_fault_log,
        format_fault_label, format_fault_report_message, clear_fault_log!,
        FaultCatchingProjection, FaultCatchingIoMap,
        FaultToSyntax, FaultToText, FaultToWidget, FaultToGraphics,
+       FaultTheme, ScaledFaultTheme,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
        make_fault_log_content_projection, make_fault_tolerant_projection,
        FAULT_LOG_BACKGROUND,
@@ -93,6 +94,7 @@ include("FaultToSyntax.jl")    # a mark in the syntax domain
 include("FaultToText.jl")      # a mark in the text domain
 include("FaultToWidget.jl")    # a mark in the widget domain
 include("FaultToGraphics.jl")  # a mark in the graphics domain
+include("FaultTheme.jl")       # the theme of the log
 include("FaultLogToSyntax.jl") # the log as a document
 include("FaultLogOverlay.jl")  # the log as a panel
 include("FaultSafeMode.jl")    # what the editor shows when nothing else can be

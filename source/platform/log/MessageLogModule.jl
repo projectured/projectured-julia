@@ -44,12 +44,14 @@ export MessageLogStore, get_session_message_log_store, take_message_lines!,
 export MessageLogEntry, MessageLog, get_session_message_log,
        record_message!, clear_message_log!
 export MessageLogLogger, install_message_log_capture!, remove_message_log_capture!
+export MessageLogTheme, ScaledMessageLogTheme
 export MessageLogToSyntax
 
 include("MessageLogDocument.jl")
 include("MessageLogStore.jl")
 include("MessageLogCapture.jl")
 include("MessageLogFeed.jl")
+include("MessageLogTheme.jl")
 include("MessageLogToSyntax.jl")
 
 end # module

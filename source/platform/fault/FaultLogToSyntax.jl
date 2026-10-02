@@ -21,23 +21,20 @@
 # with no reader and no reference mappers.
 
 """
-    FaultLogToSyntax(; count, site, origin, message, empty)
+    FaultLogToSyntax(; theme)
 
-One `FaultLog` as a `SyntaxNode`, one line per fault.
+One `FaultLog` as a `SyntaxNode`, one line per fault. `theme` is a `FaultTheme`,
+a scaled one, or `nothing` for the default styles.
 
 See also `FaultLogOverlayProjection`, which puts it on the screen.
 """
-@projection struct FaultLogToSyntax
-    count::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
-    site::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
-    origin::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
-    message::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_slate_700)
-    empty::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+@projection UntrackedCell struct FaultLogToSyntax
+    theme::Any = nothing
+    count_text::StyleText = _get_fault_style(theme, :count_text)
+    site_text::StyleText = _get_fault_style(theme, :site_text)
+    origin_text::StyleText = _get_fault_style(theme, :origin_text)
+    message_text::StyleText = _get_fault_style(theme, :message_text)
+    empty_text::StyleText = _get_fault_style(theme, :empty_text)
 end
 
 # The width of the two fixed columns, in characters. The font is monospaced, so
@@ -50,7 +47,7 @@ function print_document(p::FaultLogToSyntax, recursion, log::FaultLog,
     children = CellVector(Computation(function ()
         entries = log.entries
         isempty(entries) &&
-            return SyntaxDocument[SyntaxLeaf(TextString("no fault", p.empty))]
+            return SyntaxDocument[SyntaxLeaf(TextString("no fault", p.empty_text))]
         lines = SyntaxDocument[]
         for index in length(entries):-1:1
             push!(lines, _fault_line(p, entries[index]))
@@ -63,10 +60,10 @@ end
 # One line: "  3000  print    SyntaxToText  BoundsError: …".
 function _fault_line(p::FaultLogToSyntax, entry::FaultLogEntry)
     SyntaxNode(SyntaxDocument[
-        SyntaxLeaf(TextString(lpad(string(entry.count), _COUNT_WIDTH) * "  ", p.count)),
-        SyntaxLeaf(TextString(rpad(String(entry.site), _SITE_WIDTH), p.site)),
-        SyntaxLeaf(TextString(String(entry.origin) * "  ", p.origin)),
-        SyntaxLeaf(TextString(entry.message, p.message)),
+        SyntaxLeaf(TextString(lpad(string(entry.count), _COUNT_WIDTH) * "  ", p.count_text)),
+        SyntaxLeaf(TextString(rpad(String(entry.site), _SITE_WIDTH), p.site_text)),
+        SyntaxLeaf(TextString(String(entry.origin) * "  ", p.origin_text)),
+        SyntaxLeaf(TextString(entry.message, p.message_text)),
     ])
 end
 
@@ -77,5 +74,6 @@ end
 # A fault log is not saved to a file, so it registers no `.pred` schema. It is
 # runtime state that a person reads and then fixes what it points at.
 function __init__()
-    register_natural_syntax!(:fault, (; appearance) -> Pair{Type,Any}[FaultLog => FaultLogToSyntax()])
+    register_natural_syntax!(:fault, (; appearance) -> Pair{Type,Any}[
+        FaultLog => FaultLogToSyntax(; theme = get_scaled_theme!(appearance, FaultTheme))])
 end

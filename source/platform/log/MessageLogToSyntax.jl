@@ -15,10 +15,11 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
-@projection struct MessageLogToSyntax
-    level::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    message::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
-    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+@projection UntrackedCell struct MessageLogToSyntax
+    theme::Any = nothing
+    level_text::StyleText = _get_messagelog_style(theme, :level_text)
+    message_text::StyleText = _get_messagelog_style(theme, :message_text)
+    empty_text::StyleText = _get_messagelog_style(theme, :empty_text)
 end
 
 # The width of the level column, in characters. The font is monospaced, so a
@@ -35,7 +36,7 @@ append rebuilds the lines and the panel that shows them.
 function print_document(p::MessageLogToSyntax, recursion, log::MessageLog, ctx::PrinterContext)
     children = CellVector(Computation(function ()
         entries = log.entries
-        isempty(entries) && return SyntaxDocument[SyntaxLeaf(TextString("no message yet", p.empty))]
+        isempty(entries) && return SyntaxDocument[SyntaxLeaf(TextString("no message yet", p.empty_text))]
         lines = SyntaxDocument[]
         for index in length(entries):-1:1
             push!(lines, _line(p, entries[index]))
@@ -48,8 +49,8 @@ end
 # One line: "Info     hello from the log view".
 function _line(p::MessageLogToSyntax, entry::MessageLogEntry)
     SyntaxNode(SyntaxDocument[
-        SyntaxLeaf(TextString(rpad(entry.level, _LEVEL_WIDTH) * "  ", p.level)),
-        SyntaxLeaf(TextString(entry.message, p.message)),
+        SyntaxLeaf(TextString(rpad(entry.level, _LEVEL_WIDTH) * "  ", p.level_text)),
+        SyntaxLeaf(TextString(entry.message, p.message_text)),
     ])
 end
 
@@ -58,5 +59,6 @@ end
 # renderer builds its own projection instance.
 
 function __init__()
-    register_natural_syntax!(:messagelog, (; appearance) -> Pair{Type,Any}[MessageLog => MessageLogToSyntax()])
+    register_natural_syntax!(:messagelog, (; appearance) -> Pair{Type,Any}[
+        MessageLog => MessageLogToSyntax(; theme = get_scaled_theme!(appearance, MessageLogTheme))])
 end

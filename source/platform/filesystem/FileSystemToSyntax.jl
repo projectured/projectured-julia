@@ -15,8 +15,9 @@
 # the directory header node (the name line) and not on the indented body wrapper.
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
-@projection struct FileSystemFileToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+@projection UntrackedCell struct FileSystemFileToSyntaxLeaf
+    theme::Any = nothing
+    file_text::StyleText = _get_filesystem_style(theme, :file_text)
 end
 
 function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
@@ -33,7 +34,7 @@ function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemF
         im = iomap_cell[]
         im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
-    leaf = SyntaxLeaf(TextString(() -> " " * basename(f.pathname), p.style); paths...)
+    leaf = SyntaxLeaf(TextString(() -> " " * basename(f.pathname), p.file_text); paths...)
     iomap = SimpleIoMap(p, f, leaf)
     iomap_cell[] = iomap
     return iomap
@@ -85,8 +86,9 @@ read_intent(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringR
 # Selection mapping (filesystem domain → syntax domain):
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
-@projection struct FileSystemDirectoryToSyntaxNode
-    name::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+@projection UntrackedCell struct FileSystemDirectoryToSyntaxNode
+    theme::Any = nothing
+    directory_text::StyleText = _get_filesystem_style(theme, :directory_text)
 end
 
 
@@ -96,7 +98,7 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
                                for (i, elem) in enumerate(d.elements)]))
 
     name_leaf = SyntaxLeaf(
-        TextString(() -> " " * _dir_name(d.pathname), p.name);
+        TextString(() -> " " * _dir_name(d.pathname), p.directory_text);
         selection=d.selection)
 
     body_node = SyntaxNode(
@@ -203,10 +205,18 @@ end
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 
-function FileSystemToSyntax()
+"""
+    FileSystemToSyntax(; theme = nothing)
+
+The projection of the whole file-system tree: a file as a leaf, a directory as
+a node. `theme` is a `FileSystemTheme`, a scaled one, or `nothing` for the
+default styles.
+"""
+function FileSystemToSyntax(; theme = nothing)
+    theme = scale_theme(theme)
     TypeDispatchingProjection(
-        FileSystemFile      => FileSystemFileToSyntaxLeaf(),
-        FileSystemDirectory => FileSystemDirectoryToSyntaxNode(),
+        FileSystemFile      => FileSystemFileToSyntaxLeaf(; theme),
+        FileSystemDirectory => FileSystemDirectoryToSyntaxNode(; theme),
     )
 end
 
@@ -217,7 +227,8 @@ end
 # projection instances.
 
 function __init__()
-    register_natural_syntax!(:filesystem, (; appearance) -> Pair{Type,Any}[FileSystemDocument => FileSystemToSyntax()])
+    register_natural_syntax!(:filesystem, (; appearance) -> Pair{Type,Any}[
+        FileSystemDocument => FileSystemToSyntax(; theme = get_scaled_theme!(appearance, FileSystemTheme))])
     register_natural_graphics!(:workspace, (; measure, appearance) -> Pair{Type,Any}[
         WorkspaceDocument => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
                                                 RecursiveProjection(FileSystemToWidget()),

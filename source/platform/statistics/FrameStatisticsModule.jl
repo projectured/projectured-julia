@@ -45,10 +45,12 @@ export FrameStatisticsRow, FrameStatistics, get_session_frame_statistics,
        flush_frame_statistics!
 export FrameTimeSeries, get_session_frame_time_series, flush_frame_time_series!
 export FrameStatisticsFeed
+export FrameStatisticsTheme, ScaledFrameStatisticsTheme
 export FrameStatisticsToSyntax
 
 include("FrameStatisticsDocument.jl")
 include("FrameStatisticsFeed.jl")
+include("FrameStatisticsTheme.jl")
 include("FrameStatisticsToSyntax.jl")
 
 # The row that lets a tab draw the table; the chart domain registers the row of
@@ -56,7 +58,8 @@ include("FrameStatisticsToSyntax.jl")
 # projection instance.
 function __init__()
     register_natural_syntax!(:statistics,
-        (; appearance) -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax()])
+        (; appearance) -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax(;
+            theme = get_scaled_theme!(appearance, FrameStatisticsTheme))])
 end
 
 end # module

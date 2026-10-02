@@ -16,13 +16,14 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
-@projection struct UndoBufferToSyntax
-    index::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
-    step::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
-    ahead::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
-    marker::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    barrier::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_orange)
-    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+@projection UntrackedCell struct UndoBufferToSyntax
+    theme::Any = nothing
+    index_text::StyleText = _get_undo_style(theme, :index_text)
+    step_text::StyleText = _get_undo_style(theme, :step_text)
+    ahead_text::StyleText = _get_undo_style(theme, :ahead_text)
+    marker_text::StyleText = _get_undo_style(theme, :marker_text)
+    barrier_text::StyleText = _get_undo_style(theme, :barrier_text)
+    empty_text::StyleText = _get_undo_style(theme, :empty_text)
 end
 
 # The width of the column that says what a line is, in characters. The font is
@@ -47,16 +48,16 @@ function print_document(p::UndoBufferToSyntax, recursion, buffer::UndoBuffer, ct
         # Oldest first down to the one nearest the marker, so the next step to be
         # put back sits directly above where the document stands now.
         for index in 1:length(redone)
-            push!(lines, _undo_line(p, redone[index], index, p.ahead, "redo"))
+            push!(lines, _undo_line(p, redone[index], index, p.ahead_text, "redo"))
         end
         push!(lines, SyntaxLeaf(TextString(rpad("here", _UNDO_KIND_WIDTH) * "  " *
-                                           "── the document stands here ──", p.marker)))
+                                           "── the document stands here ──", p.marker_text)))
         # Newest first, so the next step to be taken back sits directly below.
         for index in length(undone):-1:1
-            push!(lines, _undo_line(p, undone[index], index, p.step, "undo"))
+            push!(lines, _undo_line(p, undone[index], index, p.step_text, "undo"))
         end
         isempty(undone) && isempty(redone) &&
-            push!(lines, SyntaxLeaf(TextString("nothing to take back yet", p.empty)))
+            push!(lines, SyntaxLeaf(TextString("nothing to take back yet", p.empty_text)))
         lines
     end))
     SimpleIoMap(p, buffer, SyntaxNode(children; sep = TextString("\n")))
@@ -66,10 +67,10 @@ end
 # it in its own colour, because the history stops there.
 function _undo_line(p::UndoBufferToSyntax, entry::UndoEntry, index::Integer, style, kind)
     label = is_undo_barrier(entry) ? "stop" : kind
-    text_style = is_undo_barrier(entry) ? p.barrier : style
+    text_style = is_undo_barrier(entry) ? p.barrier_text : style
     SyntaxNode(SyntaxDocument[
-        SyntaxLeaf(TextString(rpad(label, _UNDO_KIND_WIDTH) * "  ", p.index)),
-        SyntaxLeaf(TextString(lpad(string(index), 3) * "  ", p.index)),
+        SyntaxLeaf(TextString(rpad(label, _UNDO_KIND_WIDTH) * "  ", p.index_text)),
+        SyntaxLeaf(TextString(lpad(string(index), 3) * "  ", p.index_text)),
         SyntaxLeaf(TextString(entry.label, text_style)),
     ])
 end

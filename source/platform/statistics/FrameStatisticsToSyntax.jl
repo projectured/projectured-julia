@@ -7,13 +7,11 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
-@projection struct FrameStatisticsToSyntax
-    header::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    row::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_slate_700)
-    empty::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+@projection UntrackedCell struct FrameStatisticsToSyntax
+    theme::Any = nothing
+    header_text::StyleText = _get_frame_statistics_style(theme, :header_text)
+    row_text::StyleText = _get_frame_statistics_style(theme, :row_text)
+    empty_text::StyleText = _get_frame_statistics_style(theme, :empty_text)
 end
 
 # Column widths in characters: the name, the unit, then six number columns.
@@ -34,9 +32,9 @@ function print_document(p::FrameStatisticsToSyntax, recursion,
     children = CellVector(Computation(function ()
         rows = statistics.rows
         lines = SyntaxDocument[]
-        push!(lines, SyntaxLeaf(TextString(_format_head_line(statistics), p.header)))
+        push!(lines, SyntaxLeaf(TextString(_format_head_line(statistics), p.header_text)))
         if isempty(rows)
-            push!(lines, SyntaxLeaf(TextString("no frame yet", p.empty)))
+            push!(lines, SyntaxLeaf(TextString("no frame yet", p.empty_text)))
             return lines
         end
         push!(lines, _header_line(p))
@@ -63,7 +61,7 @@ function _header_line(p::FrameStatisticsToSyntax)
               join(lpad(label, _NUMBER_WIDTH)
                    for label in ("frames", "minimum", "maximum", "mean", "deviation",
                                  "total"))
-    SyntaxLeaf(TextString(columns, p.header))
+    SyntaxLeaf(TextString(columns, p.header_text))
 end
 
 # One line: "frame_time      ms          1000        2.13       45.02 …".
@@ -72,7 +70,7 @@ function _measurement_line(p::FrameStatisticsToSyntax, row::FrameStatisticsRow)
     columns = rpad(row.name, _NAME_WIDTH) * rpad(unit, _UNIT_WIDTH) *
               lpad(string(row.count), _NUMBER_WIDTH) *
               join(lpad(text, _NUMBER_WIDTH) for text in _format_measurement_values(row))
-    SyntaxLeaf(TextString(columns, p.row))
+    SyntaxLeaf(TextString(columns, p.row_text))
 end
 
 # The minimum, the maximum, the mean, the deviation and the total of a row, as

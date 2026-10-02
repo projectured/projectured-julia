@@ -50,6 +50,7 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers
 export GestureLogEntry, GestureLog, get_session_gesture_log,
        record_gesture!, clear_gesture_log!,
        describe_gesture, describe_operation, default_gesture_log_filter
+export GestureLogTheme, ScaledGestureLogTheme
 export GestureLogToSyntax
 export GestureLogRecordingProjection, GestureLogRecordingIoMap
 export GestureLogOverlayProjection, GestureLogOverlayIoMap,
@@ -57,6 +58,7 @@ export GestureLogOverlayProjection, GestureLogOverlayIoMap,
 
 
 include("GestureLogDocument.jl")
+include("GestureLogTheme.jl")
 include("GestureLogToSyntax.jl")
 include("GestureLogRecording.jl")
 include("GestureLogOverlay.jl")
