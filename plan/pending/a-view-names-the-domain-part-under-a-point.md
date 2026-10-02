@@ -5,6 +5,9 @@
 > [events-gestures-and-the-pointer.md](../done/events-gestures-and-the-pointer.md)) and
 > to plan this, option 2, as its own work. Every decision below waits for the
 > owner.
+>
+> The owner kept it separate when the pointer work finished (2026-10-02, "keep it
+> separate").
 
 ## 1. The purpose
 
