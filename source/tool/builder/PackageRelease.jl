@@ -16,7 +16,8 @@
 
 """
     build_package_release!(context; packages, output, assets, licences, readme,
-                           tests, manifest, julia_compat, registry) -> Vector
+                           tests, workflow, manifest, julia_compat,
+                           registry) -> Vector
 
 Write the release copy of `packages` into `output`, one folder per package, and
 answer one `(name, status, version)` for each package, dependencies first. That
@@ -30,7 +31,8 @@ is the order in which a registry must take them. `status` is `:new`,
   that is already there, `<output>/<Name>/`, is the last release of that
   package. When `output` is a git repository, it must have no uncommitted
   change: the last release is what its last commit holds. The build changes
-  only the folders of the changed packages and the licence files at the root.
+  only the folders of the changed packages, and the licence files and the
+  workflow at the root.
 - `assets` —
   `"<package>" => ["<folder of the repository>" => "<folder in the package>", …]`,
   the folders that a package reads while it runs, a package of `tests` too.
@@ -44,6 +46,14 @@ is the order in which a registry must take them. `status` is `:new`,
   package and every package it needs that `packages` leaves out in
   `test/support/<Name>/`, and a `test/Project.toml` that names them by
   `[sources]`, so `Pkg.test` runs the suite in the installed folder.
+- `workflow` — `nothing`, or a function `workflow(jobs)` whose text goes into
+  `.github/workflows/CI.yml` at the root of `output`. `jobs` holds one
+  `(name, develop, coverage)` for each package with a `test/runtests.jl`,
+  dependencies first: `develop`, the folders of the packages that
+  `Pkg.test(name)` needs in its environment, `name` included and dependencies
+  first, and `coverage`, the folders of its code. A released package reaches
+  its siblings through a registry, which holds a version only after its commit,
+  so a test of the commit develops their folders instead.
 - `manifest` — the manifest whose versions give the `[compat]` bounds of the
   packages from other registries.
 - `julia_compat` — the `[compat]` bound of Julia, for a package that names none.
@@ -80,6 +90,7 @@ function build_package_release!(context::BuildContext; packages,
                                   licences = String[],
                                   readme = nothing,
                                   tests = nothing,
+                                  workflow = nothing,
                                   manifest::AbstractString = joinpath(context.root,
                                       "environment", "all", "Manifest.toml"),
                                   julia_compat::AbstractString = "1.11",
@@ -147,6 +158,7 @@ function build_package_release!(context::BuildContext; packages,
     for licence in licences
         cp(joinpath(context.root, licence), joinpath(output, basename(licence)); force = true)
     end
+    workflow === nothing || _write_release_workflow(output, workflow, order)
     counts = Dict(status => count(result -> result.status === status, results)
                   for status in (:new, :changed, :unchanged))
     @info("build_package_release!: wrote $output", packages = length(results),
@@ -290,6 +302,44 @@ function _check_release_is_committed(output)
               "release:\n" *
               changes)
     nothing
+end
+
+# The workflow of the release repository: one job for each package of `order`
+# that has tests, with the folders that its test develops and the folders of its
+# code. It reads the folders as the release leaves them, so a package that keeps
+# its released folder gets the jobs of its released tests.
+function _write_release_workflow(output, workflow, order)
+    jobs = [(name = name, develop = _collect_release_test_closure(output, name, order),
+             coverage = [joinpath(name, folder) for folder in ("src", "source", "ext")
+                         if isdir(joinpath(output, name, folder))])
+            for name in order if isfile(joinpath(output, name, "test", "runtests.jl"))]
+    path = joinpath(output, ".github", "workflows", "CI.yml")
+    mkpath(dirname(path))
+    write(path, workflow(jobs))
+    nothing
+end
+
+# The released packages that `Pkg.test(name)` needs in its environment, `name`
+# included, in the order of `order`: what `name`, its test project and its
+# support packages depend on, and what those depend on in turn. A support
+# package names a released sibling without `[sources]`, so that sibling counts.
+function _collect_release_test_closure(output, name, order)
+    test = joinpath(output, name, "test")
+    projects = [joinpath(output, name, "Project.toml"), joinpath(test, "Project.toml")]
+    support = joinpath(test, "support")
+    isdir(support) && append!(projects, joinpath(support, entry, "Project.toml")
+                                        for entry in readdir(support)
+                                        if isfile(joinpath(support, entry, "Project.toml")))
+    found = Set([name])
+    while !isempty(projects)
+        project = TOML.parsefile(pop!(projects))
+        for dependency in keys(get(project, "deps", Dict{String,Any}()))
+            (dependency in order && !(dependency in found)) || continue
+            push!(found, dependency)
+            push!(projects, joinpath(output, dependency, "Project.toml"))
+        end
+    end
+    filter(in(found), order)
 end
 
 # Every package that the last release holds has its version in `registry`.

@@ -125,6 +125,12 @@ end
 _find_release_fixture_test(name) =
     name == "FakeTop" ? ("FakeTopTest" => "using FakeTopTest\ntest_faketop()\n") : nothing
 
+# The workflow of the made repository: one line for each job, its package, the
+# folders it develops and the folders of its coverage.
+_format_release_fixture_workflow(jobs) =
+    join(["$(job.name): $(join(job.develop, ' ')) | $(join(job.coverage, ' '))\n"
+          for job in jobs])
+
 # A registry folder that holds `versions`, `"<name>" => ["<version>", …]`, of the
 # two packages of the made repository, in the layout that Pkg reads.
 function _write_release_fixture_registry(folder, versions)
@@ -179,7 +185,8 @@ function test_package_release()
                 packages = ["FakeTop", "FakeBase"], output = into,
                 assets = Dict("FakeBase" => ["asset/thing" => "asset/thing"]),
                 licences = ["LICENSE"], readme = name -> "# $name\n",
-                tests = _find_release_fixture_test, manifest)
+                tests = _find_release_fixture_test,
+                workflow = _format_release_fixture_workflow, manifest)
         read_project(name) =
             ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(output, name,
                                                        "Project.toml"))
@@ -200,8 +207,9 @@ function test_package_release()
                                         "WeakTrigger" => "2.0.0", "julia" => "1.11")
             @test top["extensions"] == Dict("FakeTopWeakTriggerExt" => "WeakTrigger")
             @test isfile(joinpath(output, "FakeTop", "ext", "FakeTopWeakTriggerExt.jl"))
-            # One folder for each package, and the licence files at the root.
-            @test sort(readdir(output)) == ["FakeBase", "FakeTop", "LICENSE"]
+            # One folder for each package, and the licence files and the
+            # workflow at the root.
+            @test sort(readdir(output)) == [".github", "FakeBase", "FakeTop", "LICENSE"]
             @test occursin("include(\"../source/faketop/FakeTopCode.jl\")",
                            read(joinpath(output, "FakeTop", "src", "FakeTop.jl"), String))
             @test isfile(joinpath(output, "FakeTop", "source", "faketop", "FakeTopCode.jl"))
@@ -240,6 +248,32 @@ function test_package_release()
             @test isfile(joinpath(test, "support", "FakeTopExample", "example", "faketop",
                                   "FakeTopExamples.jl"))
             @test !isdir(joinpath(output, "FakeBase", "test"))
+        end
+
+        @testset "the workflow tests each package that has tests, with the folders its test needs" begin
+            # `FakeBase` has no tests, so no job; `FakeTop` develops the sibling it
+            # depends on, and its code is in three folders.
+            @test read(joinpath(output, ".github", "workflows", "CI.yml"), String) ==
+                  "FakeTop: FakeBase FakeTop | FakeTop/src FakeTop/source FakeTop/ext\n"
+
+            # A released package that only a support package names is developed
+            # too, and one that nothing names is not.
+            folder = mktempdir()
+            write_project(path, dependencies) =
+                (mkpath(dirname(path));
+                 open(io -> ProjecturedBuilder.BuilderModule.TOML.print(io,
+                           Dict("deps" => Dict(name => "" for name in dependencies))),
+                      path, "w"))
+            write_project(joinpath(folder, "Low", "Project.toml"), String[])
+            write_project(joinpath(folder, "Middle", "Project.toml"), ["Low"])
+            write_project(joinpath(folder, "Other", "Project.toml"), String[])
+            write_project(joinpath(folder, "Top", "Project.toml"), String[])
+            write_project(joinpath(folder, "Top", "test", "Project.toml"), ["TopTest"])
+            write_project(joinpath(folder, "Top", "test", "support", "TopTest",
+                                   "Project.toml"), ["Top", "Middle", "Test"])
+            @test ProjecturedBuilder.BuilderModule._collect_release_test_closure(
+                      folder, "Top", ["Low", "Middle", "Other", "Top"]) ==
+                  ["Low", "Middle", "Top"]
         end
 
         @testset "a release with no change keeps every folder and every version" begin

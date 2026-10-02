@@ -63,10 +63,14 @@ repository." The owner started it on 2026-10-02 ("yes").
 
 ## 5. Steps
 
-- [ ] **Step 1, the generator.** The keyword `workflow`, the closure and the
+- [x] **Step 1, the generator.** The keyword `workflow`, the closure and the
       coverage folders of each job, the file at the root, the docstring. A
       test with the made packages: the jobs, their order, a package without
-      tests, a release that keeps an unchanged folder.
+      tests, a release that keeps an unchanged folder. Done: the jobs come from
+      the folders after the copy (`_write_release_workflow`), and
+      `_collect_release_test_closure` reads the package, its test project and
+      each support package. The fixture also checks a sibling that only a
+      support package names. `test_package_release()` 60 of 60.
 - [ ] **Step 2, the workflow of this repository.** Its text, the constant of
       D1, and a test: the YAML parses, it has one job for each released
       package, and each job's `develop` holds the packages that its test
