@@ -46,6 +46,14 @@ function _x11_primary_monitor_size(; require_multi::Bool=false)
     end
 end
 
+# Start the video subsystem of SDL when it does not run, and answer whether it
+# runs. SDL counts the starts of a subsystem in one byte. The 256th start while
+# video runs brings the count back to zero, and the start after it quits video
+# first, which destroys every window and sends no event. So code that can run
+# more than once in the life of a backend starts video here, never with a bare
+# `SDL_Init`.
+_start_sdl_video!() = SDL_WasInit(SDL_INIT_VIDEO) != 0 || SDL_Init(SDL_INIT_VIDEO) == 0
+
 """
     get_sdl_display_size(; display::Integer=0) -> (width, height)
 
@@ -66,7 +74,7 @@ but xrandr sees several, the primary monitor's size from xrandr is used
 instead so the default fills one monitor, not the span.
 """
 function get_sdl_display_size(; display::Integer=0)
-    SDL_Init(SDL_INIT_VIDEO) == 0 || return (1280, 720)
+    _start_sdl_video!() || return (1280, 720)
     # Ensure the density is known before converting device → logical, since this
     # may run before `initialize_backend!` (early detection is window-free: env
     # + Xft.dpi). The probe latches itself, so repeated calls cost nothing.
@@ -3092,7 +3100,7 @@ Pass the handle to [`close_offscreen_renderer`](@ref) at the end.
 """
 function open_offscreen_renderer(width::Integer, height::Integer;
                                   supersample::Integer = 2, density::Real = 1)
-    SDL_Init(SDL_INIT_VIDEO)
+    _start_sdl_video!()
     TTF_Init()
     S  = max(1, Int(supersample))
     sc = Float64(density)
@@ -3249,7 +3257,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
                      density::Real = 1)
     # Initialize before printing: the projection measures text (opening fonts),
     # which requires SDL_ttf to be up.
-    SDL_Init(SDL_INIT_VIDEO)
+    _start_sdl_video!()
     TTF_Init()
 
     print_canvas = (aw, ah) -> begin
@@ -3511,7 +3519,7 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 function BackendModule.initialize_backend!(backend::SdlBackend)
-    @assert SDL_Init(SDL_INIT_VIDEO) == 0 "SDL init failed: $(unsafe_string(SDL_GetError()))"
+    @assert _start_sdl_video!() "SDL init failed: $(unsafe_string(SDL_GetError()))"
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
     _detect_display_density!()
@@ -4299,7 +4307,7 @@ the image dimensions. The returned `data` is suitable for passing to
 Throws on failure (file not found, unsupported format, etc.).
 """
 function decode_sdl_image(filename::AbstractString)
-    SDL_Init(SDL_INIT_VIDEO)
+    _start_sdl_video!()
     surface = IMG_Load(filename)
     surface == C_NULL && error("decode_sdl_image: failed to load '$filename': $(unsafe_string(SDL_GetError()))")
 

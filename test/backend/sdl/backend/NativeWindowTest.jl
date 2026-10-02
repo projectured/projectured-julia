@@ -338,4 +338,20 @@ end
     @test placed()[1] == window.x
     quit_backend!(backend)
 end
+
+@testset "a start of SDL video that repeats leaves every window open" begin
+    # SDL counts the starts of video in one byte, and the start after 256 of them
+    # quits video, which destroys every window and sends no event.
+    SDL = ProjecturedSDL.SdlModule
+    LibSDL2 = SDL.SimpleDirectMediaLayer.LibSDL2
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    held = WindowDocument(; id = :start_test, title = "start_test", x = 100, y = 100,
+                            width = 200, height = 100, content = "content")
+    resource = SDL._open_native_window!(backend, held; hidden = true)
+    @test all(_ -> SDL._start_sdl_video!(), 1:300)
+    @test LibSDL2.SDL_GetWindowFlags(resource.win) != 0
+    SDL._close_native_window!(resource)
+    quit_backend!(backend)
+end
 end # test_native_window
