@@ -93,7 +93,9 @@ _mark_appearance_change(document::AppearanceDocument, operation) =
 
 Whether `operation` changes `appearance`: a step of its zoom or of one of its
 scales, a load of a saved appearance, or a write into the appearance or into one
-of its themes, alone or inside a compound or a wrapping operation.
+of its themes, alone or inside a compound or a wrapping operation. A write of the
+place of the appearance tab or of its open sections changes no look: the tab
+follows it, and no view prints again.
 """
 is_appearance_change(appearance::Appearance, operation) = false
 is_appearance_change(appearance::Appearance,
@@ -104,7 +106,20 @@ is_appearance_change(appearance::Appearance, operation::CompoundOperation) =
 is_appearance_change(appearance::Appearance, operation::WrappingOperation) =
     is_appearance_change(appearance, get_wrapped_operation(operation))
 is_appearance_change(appearance::Appearance, operation::ReplaceReferencedValueOperation) =
-    _is_appearance_part(appearance, operation.document)
+    _is_appearance_part(appearance, operation.document) && !_is_tab_state_write(appearance, operation)
+
+# The fields of an `Appearance` that hold the state of the appearance tab.
+const _TAB_STATE_FIELDS = ("scroll_position", "open_sections")
+
+# Whether `write` writes one field of `appearance` that holds the state of the tab.
+function _is_tab_state_write(appearance::Appearance, write::ReplaceReferencedValueOperation)
+    write.document === appearance || return false
+    reference = strip_reference_types(write.reference)
+    reference isa ConcreteReference && get_reference_tail(reference) isa EmptyReference ||
+        return false
+    head = get_reference_head(reference)
+    head isa AFieldReferenceStep && head.name in _TAB_STATE_FIELDS
+end
 
 # Whether `object` is `appearance`, or the theme or the scaled theme of one of
 # its domains.

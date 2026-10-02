@@ -17,6 +17,8 @@ the tab is printed again at each change of the appearance: the `appearance`
 wrapper prints the whole view again, and a new pane would start at its top. The
 tab gives its pane this cell, so a step of a size or a typed digit of a colour far
 down the tab leaves the tab where it is. Every view of the tab shows this place.
+`open_sections` holds the names of the theme types whose sections the tab shows
+open, for the same reason; it is view state too.
 
 The main builder of an editor makes one, builds its projection with it, and gives
 it to the `appearance` wrapper of `build_editor`. A projection takes the scaled
@@ -35,6 +37,7 @@ wrapper then makes the view print again.
     themes::Dict{Type,Any} = Dict{Type,Any}()
     saved_themes::Dict{String,Any} = Dict{String,Any}()
     scroll_position::Point2D = Point2D(0, 0)
+    open_sections::Vector{String} = String[]
 end
 
 """

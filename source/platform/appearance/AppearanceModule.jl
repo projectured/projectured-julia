@@ -43,6 +43,8 @@ using ..ReferenceModule
 using ..ScreenModule
 using ..SelectionModule
 using ..StyleModule
+using ..SyntaxModule
+using ..TextModule
 using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document

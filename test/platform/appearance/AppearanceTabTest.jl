@@ -24,9 +24,11 @@ function _at_collect_texts(canvas)
 end
 
 # The place of the text `button` in the row whose name is `row`: the button whose
-# baseline is nearest to that of the name.
+# baseline is nearest to that of the name. The rows of the scales are at the top
+# of the tab, so the topmost text is the name of a row when a card has the same
+# title.
 function _at_find_row_button(texts, row, button)
-    _, _, row_y = only(t for t in texts if t[1] == row)
+    _, _, row_y = argmin(t -> t[3], [t for t in texts if t[1] == row])
     _, x, y = argmin(t -> abs(t[3] - row_y), [t for t in texts if t[1] == button])
     (x + 2, y + 2)
 end
@@ -122,6 +124,57 @@ end
     @test next_font.size == theme.font.size && next_font.filename != theme.font.filename
 end
 
+@testset "the sections are in three groups, the editor themes first, and each folds" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, SyntaxTheme)
+    get_scaled_theme!(appearance, FaultTheme)
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    texts = first.(_at_collect_texts(iomap.output))
+    order = [findfirst(==(t), texts) for t in ("Editor", "Widget", "Syntax", "Tools", "Fault")]
+    @test all(!isnothing, order) && issorted(order)
+    # Every section is closed: a card draws its title and no field.
+    @test !("primary" in texts) && !("item gap" in texts)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    card = only(c for (c, name) in tab.folds if name == "WidgetTheme")
+    @test card.collapsed
+    translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
+    fold = translate(ToggleCollapseOperation(card))
+    @test fold isa ReplaceViewStateOperation
+    # The fold is the state of the tab: the card follows it, and no view prints again.
+    @test !is_appearance_change(appearance, fold)
+    evaluate_operation(nothing, fold)
+    @test appearance.open_sections == ["WidgetTheme"]
+    @test !card.collapsed
+    evaluate_operation(nothing, translate(ToggleCollapseOperation(card)))
+    @test isempty(appearance.open_sections) && card.collapsed
+    # An open section shows its fields, and the name of a field has its docstring
+    # as its tooltip.
+    appearance.open_sections = ["WidgetTheme"]
+    iomap = print_document(projection, nothing, appearance, offer)
+    @test "item gap" in first.(_at_collect_texts(iomap.output))
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    pane = tab.child_iomap.input
+    labels = WidgetLabel[]
+    function walk(node, depth = 0)
+        depth > 30 && return
+        node isa WidgetLabel && push!(labels, node)
+        node isa Document || return
+        for name in fieldnames(typeof(node))
+            value = getfield(node, name)
+            value isa Cell && (value = value[])
+            for child in (value isa AbstractVector ? value : (value,))
+                child isa Cell && (child = child[])
+                child isa Document && walk(child, depth + 1)
+            end
+        end
+    end
+    walk(pane)
+    label = only(l for l in labels if l.content == "item gap")
+    @test label.tooltip == find_theme_field_text(WidgetTheme, :item_gap)
+    @test label.tooltip isa String && !isempty(label.tooltip)
+end
+
 @testset "in an editor, Ctrl+, opens the tab, and a press prints the new value" begin
     backend = HeadlessBackend()
     editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
@@ -162,6 +215,7 @@ end
         run_frame!(editor)
     end
     drawn() = _at_collect_texts(only(last(rendered_output(backend)).windows).content)
+    appearance.open_sections = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = 1.0))
     _, x, y = only(t for t in drawn() if t[1] == "Spacing")
     send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 2.0))
@@ -197,6 +251,7 @@ end
         run_frame!(editor)
         time[] += 1.0
     end
+    appearance.open_sections = ["WidgetTheme"]
     send!(KeyDown(:comma, ModifierKeys(ctrl = true); time = time[]))
     # The widget theme is one section of many, one for each loaded domain, so the
     # place of the tab, which the appearance holds, brings its row into the window.

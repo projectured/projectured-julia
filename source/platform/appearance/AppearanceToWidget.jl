@@ -10,15 +10,24 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   − button, its value in percent, a + button and a reset button, and under the
   rows the buttons "Reset all", "Save" and "Load", which save the appearance in
   the file of `get_appearance_file` and read it back;
-- a section for each theme of the appearance: its presets, as a choice that
-  writes every field of the preset into the theme, and a row for each field. A
-  size has a spin box for each of its parts, a font has buttons that step through
+- the themes of the appearance in three groups: "Editor", the widget, the text,
+  the syntax and the reference themes, which every view draws with; "Tools", the
+  other themes of `ProjecturedPlatform`; and "Documents", the themes of the other
+  packages, in the order of their names;
+- a card for each theme, which folds to its title, and which the tab shows open
+  when the `open_sections` of the appearance name it. The card holds the presets
+  of the theme, as a choice that writes every field of the preset into the theme,
+  and a row for each field. The
+  name of a field has the docstring of the field as its tooltip. A size has a
+  spin box for each of its parts, a font has buttons that step through
   the font files and a spin box for its size, and a colour has its swatch and its
   value as a text, `#rrggbbaa`, that a person edits.
 
 A press of a button answers the operation of the button, and a step of a spin box,
 a choice of a preset or an edit of a colour answers a write of the theme, so the
-`appearance` wrapper of the editor prints the view again, with this tab. Every
+`appearance` wrapper of the editor prints the view again, with this tab. A press
+on the chevron of a card answers a write of `open_sections`, as view state, and
+the card follows it with no new print. Every
 write is view state: a change of the appearance is no edit of a document, and the
 history does not take it back. The gaps of the tab are those of the widget theme
 of the appearance, so they follow its spacing scale. `scroll_pane` is the printer
@@ -42,7 +51,8 @@ AppearanceToWidget(; scroll_pane) = AppearanceToWidget(scroll_pane)
 # writes to the operation that the tab answers. `edits` holds, for each colour
 # text, the function from an edit of the text (its start, its stop and the new
 # characters) to the write of the colour and the place of the caret after it, or
-# to `nothing` when the edit names no colour.
+# to `nothing` when the edit names no colour. `folds` holds, for each card of a
+# theme, the name of the theme type.
 @iomap struct AppearanceToWidgetIoMap
     projection::Any
     input::Any
@@ -51,6 +61,7 @@ AppearanceToWidget(; scroll_pane) = AppearanceToWidget(scroll_pane)
     commands::Any
     writes::Any
     edits::Any
+    folds::Any
 end
 
 get_child_iomaps(iomap::AppearanceToWidgetIoMap) = Any[iomap.child_iomap]
@@ -108,6 +119,7 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     commands = IdDict{Any,Any}()
     writes = IdDict{Any,Any}()
     edits = IdDict{Any,Any}()
+    folds = IdDict{Any,Any}()
     theme = _get_widget_theme(appearance)
     # A button whose press answers `operation`. Its callback evaluates the same
     # operation, for a view that shows the tab with no reader of this projection.
@@ -135,7 +147,7 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
             _compute_color_edit(target, field, start, stop, replacement)
         text
     end
-    controls = (; button, spin_box, choice, color_text, theme)
+    controls = (; button, spin_box, choice, color_text, theme, appearance, folds)
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
         push!(cells, WidgetLabel(name),
@@ -152,8 +164,12 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
                                      button("Save", SaveAppearanceOperation(appearance)),
                                      button("Load", LoadAppearanceOperation(appearance))];
                                  gap = theme.label_gap)]
-    for entry in sort!(collect(values(appearance.themes)); by = e -> string(get_theme_type(e.theme)))
-        push!(parts, _make_theme_section(controls, entry.theme))
+    for (title, themes) in _get_theme_groups(appearance)
+        isempty(themes) && continue
+        push!(parts, WidgetLabel(title; text_style = StyleText(theme.font_bold, theme.muted_foreground)))
+        for section_theme in themes
+            push!(parts, _make_theme_section(controls, section_theme))
+        end
     end
     content = VerticalLayout(parts; gap = theme.section_gap)
     margin = theme.container_padding
@@ -163,15 +179,40 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
                             scroll_position = getfield(appearance, :scroll_position))
     _follow_tab_paths!(p, appearance, pane)
     child = print_document(p.scroll_pane, recursion, pane, ctx)
-    AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes, edits)
+    AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes, edits, folds)
 end
 
-# The section of `theme`: its name, its presets, and a row for each field.
+# The themes that every view of the editor draws with, in the order of the group
+# "Editor" of the tab.
+const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme)
+
+# The groups of the tab: each a title and the themes of `appearance` that it shows.
+# A theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,
+# and a theme of another package is the theme of a document.
+function _get_theme_groups(appearance::Appearance)
+    themes = sort!([entry.theme for entry in values(appearance.themes)];
+                   by = theme -> string(nameof(get_theme_type(theme))))
+    editor = Any[theme for T in _EDITOR_THEME_TYPES for theme in themes if get_theme_type(theme) === T]
+    others = filter(theme -> !(get_theme_type(theme) in _EDITOR_THEME_TYPES), themes)
+    is_tool = theme -> Base.moduleroot(parentmodule(get_theme_type(theme))) ===
+                       Base.moduleroot(@__MODULE__)
+    (("Editor", editor), ("Tools", filter(is_tool, others)), ("Documents", filter(!is_tool, others)))
+end
+
+# The title of the card of the theme type `T`: the words of its name without
+# `Theme`, so `GestureHelpTheme` is "Gesture help".
+function _get_section_title(T::Type)
+    words = [m.match for m in eachmatch(r"[A-Z][a-z0-9]*|[a-z0-9]+", replace(string(nameof(T)), r"Theme$" => ""))]
+    uppercasefirst(lowercase(join(words, " ")))
+end
+
+# The card of `theme`: its title, and its presets and a row for each field, which
+# show while the `open_sections` of the appearance name the type of the theme.
 # `controls` makes the controls of the tab and holds its widget theme.
 function _make_theme_section(controls, theme)
     T = get_theme_type(theme)
-    parts = Any[WidgetLabel(string(nameof(T));
-                            text_style = StyleText(controls.theme.font_bold, controls.theme.foreground))]
+    name = string(nameof(T))
+    parts = Any[]
     presets = get_theme_presets(T)
     isempty(presets) || push!(parts, controls.choice(first.(presets), index -> begin
         preset = last(presets[index])()
@@ -180,12 +221,27 @@ function _make_theme_section(controls, theme)
     end))
     cells = Any[]
     for field in get_theme_field_names(T)
-        push!(cells, WidgetLabel(replace(String(field), "_" => " ")),
+        push!(cells, WidgetLabel(replace(String(field), "_" => " ");
+                                 tooltip = find_theme_field_text(T, field)),
               _make_field_control(controls, theme, field, getproperty(theme, field)))
     end
     push!(parts, GridLayout(cells, 2; horizontal_gap = controls.theme.label_gap,
                             vertical_gap = controls.theme.item_gap, vertical_align = :center))
-    VerticalLayout(parts; gap = controls.theme.item_gap)
+    appearance = controls.appearance
+    card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
+                      content = VerticalLayout(parts; gap = controls.theme.item_gap),
+                      collapsible = true, collapsed = !(name in appearance.open_sections))
+    set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
+    controls.folds[card] = name
+    card
+end
+
+# The write that opens the section of the theme type named `name` in the tab, or
+# closes it when it is open. It is view state, so the history does not record it.
+function _make_fold_operation(appearance::Appearance, name::String)
+    open = appearance.open_sections
+    toggled = name in open ? filter(!=(name), open) : vcat(open, name)
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(appearance, "open_sections", toggled))
 end
 
 # The control of the field `field` of `theme`, which holds `value`.
@@ -312,6 +368,10 @@ function _translate_tab_operation(iomap, operation::ReplaceStringRangeOperation)
     write, caret = answer
     path = _place_caret(strip_reference_types(operation.reference), caret)
     CompoundOperation(Any[write, ReplaceSelectionOperation(_introduce_tab_path(iomap, path))])
+end
+function _translate_tab_operation(iomap, operation::ToggleCollapseOperation)
+    name = get(iomap.folds, operation.target, nothing)
+    name === nothing ? operation : _make_fold_operation(iomap.input, name)
 end
 _translate_tab_operation(iomap, operation::ReplacePathOperation) =
     make_path_operation(operation, _introduce_tab_path(iomap, get_operation_path(operation)))
