@@ -1,6 +1,8 @@
 # The pointer shows what a press does there
 
-Status: a plan, not started. The owner decided P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
+Status: in progress on the branch `pointer-shape` (worktree
+`.claude/worktrees/pointer-shape`). Steps 1 and 2 are done (§6). The owner decided
+P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
 many other places, needs a plan"), after G3 of step 5.7 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) chose a lit edge
 for the edge of a column, and the shape of the pointer for later.
@@ -151,18 +153,50 @@ arrow.
 
 ## 6. Steps
 
-1. **The graphics slice.** `GraphicsPointerShape` and
+1. ✅ **The graphics slice.** `GraphicsPointerShape` and
    `find_pointer_shape(graphics, x, y) -> Symbol`, which walks the graphics in
    the order of the drawing, through canvases, viewports and the lists of a
    table, and answers `:default` where no region is. Tests: the last region
    wins, a viewport clips, a list of rows that the viewport does not show is not
    walked.
-2. **SDL.** The backend keeps the graphics of each window from its last frame
+
+   Done. What the code does:
+   - `GraphicsPointerShape(x, y, w, h, shape; drag = false)` is in
+     `GraphicsDocument.jl`; `shape` is a `Symbol`, a cell or a function, so a
+     region of the drag tracking can follow its state. `POINTER_SHAPES` names the
+     nine shapes of §5. `find_pointer_shape` is in `PointerShape.jl`.
+   - The walk follows the drawing of SDL exactly: the root canvas is at the
+     origin of the window (SDL ignores its own `x` and `y`), a nested canvas moves
+     its elements and clips nothing, a viewport clips and moves by its content and
+     the scale and translation of its transform.
+   - **Decision: a region of a drag that holds the point wins over a plain region
+     that holds it, wherever each is in the order; among the regions of a drag,
+     the last one wins.** §4.1 says the drag tracking draws "last" and that the
+     keeper of a drag draws "after" it, which can not both hold. With this rule the
+     drag tracking can draw its region first, and the keeper's regions win over
+     their own extent (§4.1).
+   - A laid-out list walks only the element that can hold the point: for a
+     `CellVector` the one that `compute_first_visible_index` finds, for a
+     `ListNode` the last one that starts at or before the point. A canvas that
+     declares its extent and does not hold the point is not walked.
+   - Tests: `test_pointer_shape()` in `test/platform/document/PointerShapeTest.jl`,
+     30 assertions.
+2. ✅ **SDL.** The backend keeps the graphics of each window from its last frame
    and the shape it set. At each move, and after each frame, it finds the shape at
    the pointer, and sets the cursor of the system when it changes, with one
    cursor of the system for each shape, made once. Tests: the shape that the
    backend chose for a pushed move (the cursor of the system itself can not be
    read in a test).
+
+   Done. `SdlBackend` holds `drawn_canvases` (the canvas of each window at its
+   last frame), `pointer_shape` and `cursors`. `read_from_devices` sets the shape
+   for the newest motion of a read, before the rate limit of idle motion, so the
+   shape does not wait for the frame. `write_to_devices` sets it at the pointer
+   after each frame. The open and the closed hand are made from the Lucide glyphs
+   `hand` (U+E1D7) and `grab` (U+E1E6), 22 logical pixels, black with a white
+   outline, with the hot spot in the middle; `quit_backend!` frees every cursor.
+   Tests: `test_sdl_pointer_shape()` in
+   `test/backend/sdl/backend/PointerShapeTest.jl`; `test_sdl()` passes, 844 of 844.
 3. **The web backend.** It sends `{"type": "pointer", "window", "shape"}` when
    the shape changes, and the client sets `cursor` of the canvas.
 4. **The video backend.** It draws the pointer of each shape: an image for each

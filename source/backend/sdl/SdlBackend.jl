@@ -237,6 +237,13 @@ mutable struct SdlBackend <: Backend
     # The zoom of the display at the last drawn frame, 0 before the first one. A
     # frame at another zoom keeps the device size of each window.
     drawn_zoom::Float64
+    # The canvas that each window drew last, by the id of the window, where the
+    # backend finds the shape of the pointer (see `find_pointer_shape`).
+    drawn_canvases::Dict{Symbol, GraphicsCanvas}
+    # The shape of the pointer that the backend set last, `:default` before the
+    # first one, and the cursor that it made for each shape, once.
+    pointer_shape::Symbol
+    cursors::Dict{Symbol, Ptr{SDL_Cursor}}
 end
 
 # The keywords are the defaults of the `RenderSettings` of an editor. An editor
@@ -248,7 +255,8 @@ SdlBackend(; partial_render::Bool = false, debug_dirty::Bool = false,
                Dict{UInt32, Symbol}(),
                partial_render, debug_dirty, Float64(debug_dirty_hold), Int(supersample),
                Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}(),
-               nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0)
+               nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0,
+               Dict{Symbol, GraphicsCanvas}(), :default, Dict{Symbol, Ptr{SDL_Cursor}}())
 
 # SDL draws a screen of windows, and `--backend=sdl` names it.
 get_backend_name(::Type{SdlBackend}) = :sdl
@@ -3545,6 +3553,8 @@ function BackendModule.quit_backend!(backend::SdlBackend)
     SDL_StopTextInput()
     # Free cached textures while their renderers are still alive (before SDL_Quit).
     _clear_text_texture_cache!()
+    _free_shape_cursors!(backend)
+    empty!(backend.drawn_canvases)
     for font in values(_font_cache)
         # `_get_fallback_font` caches C_NULL when a fallback font is absent; skip
         # those (TTF_CloseFont(NULL) dereferences a null pointer).
@@ -3743,6 +3753,9 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
         return motion
     end
     motion === nothing && return nothing
+    # The shape of the pointer follows the motion at once, before the rate limit.
+    motion.event isa MouseMove &&
+        _update_pointer_shape!(backend, motion.window_id, motion.event.x, motion.event.y)
     # A drag (a button held) is never rate-limited: it must track the pointer.
     if motion.event isa MouseMove && motion.event.buttons == MouseButtons()
         now = time()
@@ -4026,6 +4039,11 @@ under a pointer that does not move. So after such a write the backend queues a
 the buttons that are held now. The readers read it as any move, and find the part
 under the pointer in the new frame. A move to the same point changes no part and
 no pixel, so the next frame queues no more.
+
+The backend keeps the canvas of each window, and sets the cursor of the system to
+the shape that `find_pointer_shape` finds at the pointer in it: after each frame
+here, and at each motion in `read_from_devices`. It makes the cursor of each shape
+once, and sets it only when the shape changes.
 """
 function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
     _keep_device_size_at_new_zoom!(backend, screen)
@@ -4046,6 +4064,7 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             _close_native_window!(res)
             delete!(backend.windows, id)
             delete!(backend.recent_repaints, id)
+            delete!(backend.drawn_canvases, id)
             changed = true
         end
     end
@@ -4074,8 +4093,10 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             _queue_display_update!(backend, w.id)
             changed = true
         end
+        backend.drawn_canvases[w.id] = canvas
     end
     changed && _queue_pointer_move!(backend)
+    _update_pointer_shape_at_pointer!(backend)
     nothing
 end
 
@@ -4111,6 +4132,112 @@ function _find_pointer_window(backend::SdlBackend)
     focus = SDL_GetMouseFocus()
     focus == C_NULL && return nothing
     get(backend.window_ids, UInt32(SDL_GetWindowID(focus)), nothing)
+end
+
+# ── The shape of the pointer ───────────────────────────────────────────
+
+# The cursor of the system for each shape that SDL has one for.
+const _SYSTEM_CURSOR_OF_SHAPE = Dict{Symbol,SDL_SystemCursor}(
+    :arrow                   => SDL_SYSTEM_CURSOR_ARROW,
+    :ibeam                   => SDL_SYSTEM_CURSOR_IBEAM,
+    :double_arrow_horizontal => SDL_SYSTEM_CURSOR_SIZEWE,
+    :double_arrow_vertical   => SDL_SYSTEM_CURSOR_SIZENS,
+    :pointing_hand           => SDL_SYSTEM_CURSOR_HAND,
+    :crossed_circle          => SDL_SYSTEM_CURSOR_NO,
+    :hourglass               => SDL_SYSTEM_CURSOR_WAIT)
+
+# SDL has no open and no closed hand of the system, so the backend makes each from
+# the glyph of the Lucide font that shows it: `hand` and `grab`.
+const _GLYPH_OF_SHAPE = Dict{Symbol,Char}(:open_hand => Char(0xe1d7), :closed_hand => Char(0xe1e6))
+
+# The size of the glyph of a cursor, in logical pixels.
+const _GLYPH_CURSOR_SIZE = 22
+
+# Set the cursor of the system to the shape at the point `(x, y)` of the window
+# `id`, in the canvas that the window drew last. A window that drew nothing yet
+# changes nothing.
+function _update_pointer_shape!(backend::SdlBackend, id::Symbol, x::Int, y::Int)
+    canvas = get(backend.drawn_canvases, id, nothing)
+    canvas === nothing && return nothing
+    _set_pointer_shape!(backend, find_pointer_shape(canvas, x, y))
+end
+
+# Set the cursor of the system to the shape at the pointer, in the window under it.
+function _update_pointer_shape_at_pointer!(backend::SdlBackend)
+    id = _find_pointer_window(backend)
+    id === nothing && return nothing
+    ratio = get_device_pixel_ratio(backend.display)
+    x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
+    SDL_GetMouseState(x_ref, y_ref)
+    _update_pointer_shape!(backend, id, _to_logical(Int(x_ref[]), ratio),
+                           _to_logical(Int(y_ref[]), ratio))
+end
+
+# Set the cursor of the system to `shape` when it is another shape than the one
+# set last. `:default` and a shape that SDL does not know are the arrow.
+function _set_pointer_shape!(backend::SdlBackend, shape::Symbol)
+    shape === backend.pointer_shape && return nothing
+    cursor = _get_shape_cursor!(backend, shape)
+    cursor == C_NULL || SDL_SetCursor(cursor)
+    backend.pointer_shape = shape
+    nothing
+end
+
+# The cursor of `shape`, made the first time that the backend shows it.
+_get_shape_cursor!(backend::SdlBackend, shape::Symbol) =
+    get!(backend.cursors, shape) do
+        glyph = get(_GLYPH_OF_SHAPE, shape, nothing)
+        glyph === nothing ?
+            SDL_CreateSystemCursor(get(_SYSTEM_CURSOR_OF_SHAPE, shape, SDL_SYSTEM_CURSOR_ARROW)) :
+            _make_glyph_cursor(glyph, get_device_pixel_ratio(backend.display))
+    end
+
+# A cursor that shows `glyph` of the Lucide font in black with a white outline, so
+# that it shows on any background, with its hot spot in the middle. The arrow of
+# the system when the glyph does not draw.
+function _make_glyph_cursor(glyph::Char, ratio::Float64)
+    handle = _get_font(StyleFont(font_lucide_icons_20.filename, _GLYPH_CURSOR_SIZE), ratio)
+    black = _render_glyph(handle, glyph, SDL_Color(0x00, 0x00, 0x00, 0xff))
+    white = _render_glyph(handle, glyph, SDL_Color(0xff, 0xff, 0xff, 0xff))
+    if black === nothing || white === nothing
+        black === nothing || SDL_FreeSurface(black[1])
+        white === nothing || SDL_FreeSurface(white[1])
+        return SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW)
+    end
+    info = unsafe_load(black[1])
+    outline = max(1, round(Int, ratio))
+    width, height = Int(info.w) + 2 * outline, Int(info.h) + 2 * outline
+    image = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(width), Cint(height),
+                                           Cint(32), UInt32(SDL_PIXELFORMAT_ARGB8888))
+    cursor = Ptr{SDL_Cursor}(C_NULL)
+    if image != C_NULL
+        SDL_FillRect(image, C_NULL, SDL_MapRGBA(unsafe_load(image).format, 0x00, 0x00, 0x00, 0x00))
+        for surface in (white[1], black[1])
+            SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND)
+        end
+        for dx in -outline:outline, dy in -outline:outline
+            (dx == 0 && dy == 0) && continue
+            SDL_BlitSurface(white[1], C_NULL, image,
+                            Ref(SDL_Rect(Cint(outline + dx), Cint(outline + dy), info.w, info.h)))
+        end
+        SDL_BlitSurface(black[1], C_NULL, image,
+                        Ref(SDL_Rect(Cint(outline), Cint(outline), info.w, info.h)))
+        cursor = SDL_CreateColorCursor(image, Cint(width ÷ 2), Cint(height ÷ 2))
+        SDL_FreeSurface(image)
+    end
+    SDL_FreeSurface(black[1])
+    SDL_FreeSurface(white[1])
+    cursor == C_NULL ? SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW) : cursor
+end
+
+# Free every cursor that the backend made, and show the arrow of the system again.
+function _free_shape_cursors!(backend::SdlBackend)
+    for cursor in values(backend.cursors)
+        cursor == C_NULL || SDL_FreeCursor(cursor)
+    end
+    empty!(backend.cursors)
+    backend.pointer_shape = :default
+    nothing
 end
 
 """
