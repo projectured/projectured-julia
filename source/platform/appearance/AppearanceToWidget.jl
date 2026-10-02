@@ -20,8 +20,9 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   and a row for each field. The
   name of a field has the docstring of the field as its tooltip. A size has a
   spin box for each of its parts, a font has buttons that step through
-  the font files and a spin box for its size, and a colour has its swatch and its
-  value as a text, `#rrggbbaa`, that a person edits.
+  the font files and a spin box for its size, a colour has its swatch and its
+  value as a text, `#rrggbbaa`, that a person edits, and a text style has the
+  controls of its colour over those of its font.
 
 A press of a button answers the operation of the button, and a step of a spin box,
 a choice of a preset or an edit of a colour answers a write of the theme, so the
@@ -36,8 +37,8 @@ a choice of a preset or an edit of a colour answers a write of the theme, so the
   history does not record them, and no view prints again; the card and the pane
   follow their cells.
 
-The gaps of the tab are those of the widget theme
-of the appearance, so they follow its spacing scale. `scroll_pane` is the printer
+The gaps of the tab are those of the widget theme of the appearance, so they
+follow its spacing scale. `scroll_pane` is the printer
 of a `WidgetScrollPane` with the widget theme of the editor, which draws the pane
 and, through the recursion, the widgets in it.
 
@@ -147,11 +148,12 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         writes[group] = write
         group
     end
-    # The text of the colour in the field `field` of `target`.
-    function color_text(target, field)
-        text = WidgetText(format_style_color(getproperty(target, field)); validator = _is_color_input)
+    # The text of the colour that `read()` answers; `write(color)` is the
+    # operation that sets a new colour.
+    function color_text(read, write)
+        text = WidgetText(format_style_color(read()); validator = _is_color_input)
         edits[text] = (start, stop, replacement) ->
-            _compute_color_edit(target, field, start, stop, replacement)
+            _compute_color_edit(read, write, start, stop, replacement)
         text
     end
     controls = (; button, spin_box, choice, color_text, theme, appearance, folds)
@@ -264,45 +266,70 @@ function _make_field_control(controls, theme, field::Symbol, value::ThemeLength)
     HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
 end
 
-function _make_field_control(controls, theme, field::Symbol, value::StyleFont)
-    HorizontalLayout(Any[
-        controls.button("‹", _write_theme_field(theme, field, _step_font_file(value, -1))),
-        WidgetLabel(splitext(basename(value.filename))[1]),
-        controls.button("›", _write_theme_field(theme, field, _step_font_file(value, 1))),
-        controls.spin_box(value.size, v -> _write_theme_field(theme, field,
-                                                              StyleFont(getproperty(theme, field).filename, v));
-                          min = 6, max = 96),
-    ]; gap = controls.theme.label_gap, vertical_align = :center)
-end
+_make_field_control(controls, theme, field::Symbol, value::StyleFont) =
+    _make_font_control(controls, () -> getproperty(theme, field),
+                       font -> _write_theme_field(theme, field, font))
 
-# A colour has a swatch with a border, so a colour near the background shows too.
-function _make_field_control(controls, theme, field::Symbol, value::StyleColor)
-    swatch = WidgetLabel(" "; border = Inset(1, 1, 1, 1), padding = Inset(0, 0, 8, 8),
-                         style = WidgetStyle(border_color = controls.theme.border,
-                                             padding_color = value, content_color = value))
-    HorizontalLayout(Any[swatch, controls.color_text(theme, field)];
-                     gap = controls.theme.label_gap, vertical_align = :center)
+_make_field_control(controls, theme, field::Symbol, value::StyleColor) =
+    _make_color_control(controls, () -> getproperty(theme, field),
+                        color -> _write_theme_field(theme, field, color))
+
+# A text style has the controls of its colour over those of its font. Each writes
+# a new style with the other part as it is.
+function _make_field_control(controls, theme, field::Symbol, value::StyleText)
+    read = () -> getproperty(theme, field)
+    VerticalLayout(Any[
+        _make_color_control(controls, () -> read().color,
+                            color -> _write_theme_field(theme, field, StyleText(read().font, color))),
+        _make_font_control(controls, () -> read().font,
+                           font -> _write_theme_field(theme, field, StyleText(font, read().color))),
+    ]; gap = controls.theme.item_gap)
 end
 
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
+# The controls of the font that `read()` answers: buttons that step through the font
+# files, its name, and a spin box for its size. `write(font)` is the operation that
+# sets a new font.
+function _make_font_control(controls, read, write)
+    font = read()
+    HorizontalLayout(Any[
+        controls.button("‹", write(_step_font_file(font, -1))),
+        WidgetLabel(splitext(basename(font.filename))[1]),
+        controls.button("›", write(_step_font_file(font, 1))),
+        controls.spin_box(font.size, v -> write(StyleFont(read().filename, v)); min = 6, max = 96),
+    ]; gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The controls of the colour that `read()` answers: its swatch, with a border so a
+# colour near the background shows too, and its text. `write(color)` is the
+# operation that sets a new colour.
+function _make_color_control(controls, read, write)
+    color = read()
+    swatch = WidgetLabel(" "; border = Inset(1, 1, 1, 1), padding = Inset(0, 0, 8, 8),
+                         style = WidgetStyle(border_color = controls.theme.border,
+                                             padding_color = color, content_color = color))
+    HorizontalLayout(Any[swatch, controls.color_text(read, write)];
+                     gap = controls.theme.label_gap, vertical_align = :center)
+end
+
 # A text that a colour text takes as typed: hex digits and `#`.
 _is_color_input(text::AbstractString) = all(c -> isxdigit(c) || c == '#', text)
 
-# The write of the colour that the text of the field `field` of `theme` names after
-# the edit that puts `replacement` between `start` and `stop`, and the place of the
-# caret after the edit; or `nothing` when that text names no colour. One character
-# typed with no range replaces the digit after the caret, so the text keeps its
-# nine characters.
-function _compute_color_edit(theme, field::Symbol, start::Integer, stop::Integer,
-                           replacement::AbstractString)
-    text = format_style_color(getproperty(theme, field))
+# The write of the colour that the text of the colour that `read()` answers names
+# after the edit that puts `replacement` between `start` and `stop`, and the place
+# of the caret after the edit; or `nothing` when that text names no colour.
+# `write(color)` is the write. One character typed with no range replaces the digit
+# after the caret, so the text keeps its nine characters.
+function _compute_color_edit(read, write, start::Integer, stop::Integer,
+                             replacement::AbstractString)
+    text = format_style_color(read())
     color = convert_text_to_style_color(splice_string(text, start, stop, replacement))
     color === nothing ||
-        return (_write_theme_field(theme, field, color), min(start + length(replacement), length(text)))
+        return (write(color), min(start + length(replacement), length(text)))
     (start == stop && 1 <= start < length(text) && length(replacement) == 1) || return nothing
     color = convert_text_to_style_color(splice_string(text, start, start + 1, replacement))
-    color === nothing ? nothing : (_write_theme_field(theme, field, color), start + 1)
+    color === nothing ? nothing : (write(color), start + 1)
 end
 
 # ── The paths of the tab ──────────────────────────────────────────────────────

@@ -175,6 +175,35 @@ end
     @test label.tooltip isa String && !isempty(label.tooltip)
 end
 
+@testset "a text style has the controls of its colour and of its font" begin
+    appearance = Appearance()
+    get_scaled_theme!(appearance, SyntaxTheme)
+    syntax = get_theme(appearance, SyntaxTheme)
+    appearance.open_sections = ["SyntaxTheme"]
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    texts = first.(_at_collect_texts(iomap.output))
+    @test "bool text" in texts
+    @test !any(t -> startswith(t, "StyleText"), texts)
+    @test format_style_color(syntax.bool_text.color) in texts
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    before = syntax.bool_text
+    # The colour text of `bool_text`: a typed digit writes a style with the new
+    # colour and the same font.
+    writes = [first(edit(1, 1, "f")) for edit in values(tab.edits) if edit(1, 1, "f") !== nothing]
+    write = only(w for w in writes
+                 if w.document === syntax && w.reference.head == FieldReferenceStep("bool_text"))
+    @test write.value isa StyleText
+    @test (write.value.font.filename, write.value.font.size) == (before.font.filename, before.font.size)
+    @test format_style_color(write.value.color)[2] == 'f'
+    # The next font keeps the colour.
+    step = only(op for (action, op) in tab.commands if action.label == "›" &&
+                op.document === syntax && op.reference.head == FieldReferenceStep("bool_text"))
+    @test step.value.font.filename != before.font.filename
+    @test step.value.font.size == before.font.size
+    @test is_color_equal(step.value.color, before.color)
+end
+
 @testset "in an editor, Ctrl+, opens the tab, and a press prints the new value" begin
     backend = HeadlessBackend()
     editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
@@ -276,7 +305,6 @@ end
     send!(KeyDown(:backspace, ModifierKeys(); time = time[]))
     @test format_style_color(theme.primary) == "#f0" * before[4:end]
 end
-
 
 @testset "the wrapper makes a write of a theme a step that prints the view again, and so is its inverse" begin
     appearance = Appearance()
