@@ -453,14 +453,15 @@ function test_application()
                                                     make_opened_window_projections()))
                 @test editor.iomap !== nothing
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
-                # The screen is inside the state of the drag tracker, inside the state
-                # of the gesture tracker, inside the settings document, inside the
-                # appearance document, and each holds the same path under its
-                # `content` step.
+                # The screen is inside the state of the tooltip window, inside the
+                # state of the context menu window, inside the state of the drag
+                # tracker, inside the state of the gesture tracker, inside the
+                # settings document, inside the appearance document, and each holds
+                # the same path under its `content` step.
                 screen = get_wrapped_document(editor.document)
                 @test _app_is_one_path(screen)
                 @test repr(strip_reference_types(get_selection(editor.document))) ==
-                      ".content.content.content.content" *
+                      ".content.content.content.content.content.content" *
                       repr(strip_reference_types(get_selection(screen)))
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end

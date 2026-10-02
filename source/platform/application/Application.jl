@@ -472,13 +472,10 @@ function run_application(paths::AbstractString...;
                                                     assistant = chat, settings),
                           make_application_projection(; measure, appearance, settings);
                           backend, appearance, settings,
-                          # The tooltip window and the context menu window are
-                          # kept at the screen, so they open in every window, and
-                          # the natural projection draws what a tooltip holds. The
+                          # The natural projection draws what a tooltip holds. The
                           # other windows that a wrapper opens draw with the rows a
                           # pane draws with.
                           window = (; title = "ProjecturEd", width, height,
-                                    inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window],
                                     opened_window_projections = vcat(
                                         Pair{Type,Any}[make_natural_tooltip_row(; measure, appearance)],
                                         make_application_content_projections(; measure, appearance,

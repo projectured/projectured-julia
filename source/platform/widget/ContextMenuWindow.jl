@@ -291,3 +291,21 @@ See also `wrap_tooltip_window`, the wrapper of the tooltip window.
 wrap_context_menu_window(document, projection) =
     (make_context_menu_window_document(document),
      make_context_menu_window_projection(projection))
+
+"""
+    context_menu = true
+
+The wrapper of `build_editor` that keeps the context menu window of the screen.
+It gives [`wrap_context_menu_window`](@ref) to the wrapper of the window, which
+puts it around the screen, inside the trackers and outside the tooltip window.
+It is on by default, and `context_menu = false` leaves an editor with no context
+menu window.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:context_menu}, layer::Symbol, argument, parts::EditorParts)
+    push!(parts.window_wrappers, wrap_context_menu_window)
+    parts
+end
+
+get_wrapper_layers(::Val{:context_menu}) = (:window => -10,)
+is_wrapper_default(::Val{:context_menu}) = true

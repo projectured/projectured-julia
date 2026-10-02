@@ -34,7 +34,7 @@ The gesture tracker recognizes the dwell when the pointer rests. The dwell then 
 
 ### The window
 
-`TooltipWindowProjection` keeps the tooltip window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`. The `window` wrapper of `build_editor` gives its option `inner_wrappers` to `make_tracking_screen`.
+`TooltipWindowProjection` keeps the tooltip window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`. The `tooltip` wrapper of `build_editor`, on by default in the layer `:window => -20`, gives `wrap_tooltip_window` to the `window` wrapper through `EditorParts.window_wrappers`, so every editor with a window has the tooltip window, and `tooltip = false` leaves it out. A host that calls `make_tracking_screen` itself, as the gallery does, passes `wrap_tooltip_window` in `inner_wrappers`.
 
 - **Opening.** The wrapper takes the `OpenTooltipOperation` out of the answer of its content and opens a window with `style = :tooltip`, `offset` from the point, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens below the part, with the left edges aligned (`find_part_place` of the screen slice).
 - **What it shows.** The window holds a `TooltipContent`: all the layers, and how many of them show. The natural projection draws it: the content of each shown layer, and a separator and the title before each layer when more than one shows. The row is `make_natural_tooltip_row(; measure)`, and a host gives it in `make_opened_window_projections(; content)`.
@@ -68,7 +68,7 @@ The tooltip slice depends on the kernel and on the graphics and screen slices. I
 
 ```julia
 editor = build_editor(document, projection; backend = backend,
-    window = (; title = "Title", inner_wrappers = [wrap_tooltip_window],
+    window = (; title = "Title",
               opened_window_projections = make_opened_window_projections(;
                   content = Pair{Type,Any}[make_natural_tooltip_row(measure = measure)])))
 ```

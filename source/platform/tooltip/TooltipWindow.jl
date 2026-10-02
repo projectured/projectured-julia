@@ -287,3 +287,20 @@ Both halves at once, the shape that `make_tracking_screen` takes in its list of
 """
 wrap_tooltip_window(document, projection) =
     (make_tooltip_window_document(document), make_tooltip_window_projection(projection))
+
+"""
+    tooltip = true
+
+The wrapper of `build_editor` that keeps the tooltip window of the screen. It
+gives [`wrap_tooltip_window`](@ref) to the wrapper of the window, which puts it
+around the screen, inside the trackers. It is on by default, and
+`tooltip = false` leaves an editor with no tooltip window.
+"""
+# @positional: the arity of the wrapper seam of the kernel.
+function wrap_editor!(::Val{:tooltip}, layer::Symbol, argument, parts::EditorParts)
+    push!(parts.window_wrappers, wrap_tooltip_window)
+    parts
+end
+
+get_wrapper_layers(::Val{:tooltip}) = (:window => -20,)
+is_wrapper_default(::Val{:tooltip}) = true

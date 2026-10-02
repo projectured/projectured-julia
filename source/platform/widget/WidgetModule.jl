@@ -11,6 +11,7 @@ module WidgetModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..EditorModule
 using ..EventModule
 using ..EventModule
 using ..FocusModule
@@ -35,6 +36,7 @@ using ..TooltipModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
+import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edited_field,
                          get_document_title
 import ..DomainModule: compute_context_menu

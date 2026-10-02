@@ -199,7 +199,7 @@ end
     settings = make_settings()
     pointer = get_settings_group!(settings, PointerSettings)
     parts = EditorParts(WidgetLabel("Name"), _sw_natural(), HeadlessBackend(), Feed[], Any[],
-                        Any[], Pair{Type,Any}[], Dict{Symbol,Any}(:settings => settings))
+                        Any[], Pair{Type,Any}[], Any[], Dict{Symbol,Any}(:settings => settings))
     recognitions = ScreenModule._make_window_recognitions(parts)
     click = only(r for r in recognitions if r isa ClickRecognition)
     @test click.multi_click_max_interval === get_setting_cell(pointer, :multi_click_max_interval)

@@ -153,6 +153,7 @@ x, y = below === nothing ? (0, 0) : (below[1], below[2] + 4)
 - A `WidgetDialog` opens at a fixed box, `x = 80, y = 60, width = 480, height =
   320`; it is not placed in the middle of the real window, only the card
   inside it is centered in that box.
-- A host that gives no wrapper for the tooltip window or the context menu
-  window gets no such window: the operation that would open one reaches the
-  editor, which does nothing with it.
+- An editor with `tooltip = false` or `context_menu = false`, or a host that
+  calls `make_tracking_screen` with no wrapper for that window, gets no such
+  window: the operation that would open one reaches the editor, which does
+  nothing with it.

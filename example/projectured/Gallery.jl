@@ -434,7 +434,8 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
                                    feeds::Vector{Feed}=Feed[])
     screen, composed = make_tracking_screen(
         _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap),
-        compose(projs, backend))
+        compose(projs, backend);
+        inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window])
     make_editor(screen, composed; backend = backend, feeds = feeds)
 end
 

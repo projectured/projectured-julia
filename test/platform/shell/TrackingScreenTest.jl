@@ -47,4 +47,32 @@ function test_tracking_screen()
         @test count[] == 0
     end
 end
+
+@testset "build_editor keeps the tooltip window and the context menu window inside the trackers" begin
+    # The types of the documents from the root of the editor down to the screen.
+    function levels(editor)
+        found = Symbol[]
+        document = editor.document
+        while true
+            push!(found, nameof(typeof(document)))
+            document isa ScreenDocument && break
+            hasproperty(document, :content) || break
+            document = document.content
+        end
+        found
+    end
+    make(; keywords...) = build_editor(WidgetLabel("Name"),
+        NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+        backend = HeadlessBackend(), devices = Device[Keyboard(), Mouse()],
+        tabs = false, keywords...)
+    # Only the order matters: the wrappers of the screen layer go around it.
+    order = [:GestureTrackingState, :DragTrackingState, :ContextMenuWindowState,
+             :TooltipWindowState, :ScreenDocument]
+    found = levels(make())
+    @test filter(in(order), found) == order
+    @test !(:TooltipWindowState in levels(make(; tooltip = false)))
+    @test :ContextMenuWindowState in levels(make(; tooltip = false))
+    @test !(:ContextMenuWindowState in levels(make(; context_menu = false)))
+    @test :TooltipWindowState in levels(make(; context_menu = false))
+end
 end # test_tracking_screen

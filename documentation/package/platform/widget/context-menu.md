@@ -47,7 +47,7 @@ Only a left click moves the selection. A row of a list, of a table or of a tree,
 
 ### The window
 
-`ContextMenuWindowProjection` keeps the context menu window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_context_menu_window`. The `window` wrapper of `build_editor` gives its option `inner_wrappers` to `make_tracking_screen`.
+`ContextMenuWindowProjection` keeps the context menu window. It sits around the screen, inside the gesture tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_context_menu_window`. The `context_menu` wrapper of `build_editor`, on by default in the layer `:window => -10`, gives `wrap_context_menu_window` to the `window` wrapper through `EditorParts.window_wrappers`, outside the tooltip window, so every editor with a window has the context menu window, and `context_menu = false` leaves it out. A host that calls `make_tracking_screen` itself, as the gallery does, passes `wrap_context_menu_window` in `inner_wrappers`.
 
 - **Opening.** The wrapper takes the `OpenContextMenuOperation` out of the answer of its content and opens a window with `style = :popup` and `auto_dismiss = true` at the point of the click, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens below the part, with the left edges aligned and 4 pixels between them (`find_part_place` of the screen slice). The window takes the extent of the menu, up to `maximum_size`, `(640, 800)` by default.
 - **What it shows.** The window shows the menu of the nearest part, the first layer, as it is.
@@ -75,8 +75,7 @@ The operation, the binding and the wrapper are in the widget slice, because a me
 
 ```julia
 editor = build_editor(document, projection; backend = backend,
-    window = (; title = "Title",
-              inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window]))
+    window = (; title = "Title"))          # the tooltip and the context menu windows are on
 ```
 
 A `WidgetContextMenu(child, menu)` gives a part of a widget tree a menu. A domain type gives itself a menu with `make_context_menu_binding` in its gesture table.
@@ -86,4 +85,4 @@ A `WidgetContextMenu(child, menu)` gives a part of a widget tree a menu. A domai
 ## Limits
 
 - A menu, a menu item, a dialog, a tooltip widget and a title pane do not read their own tables for a right click. None of them has a binding for one.
-- A host that gives no `wrap_context_menu_window`, such as the gallery of the examples, opens no context menu: the operation reaches the editor, which does nothing with it.
+- An editor with `context_menu = false`, or a host that calls `make_tracking_screen` with no `wrap_context_menu_window`, opens no context menu: the operation reaches the editor, which does nothing with it.

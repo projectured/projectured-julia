@@ -159,8 +159,10 @@ documents of the inner wrappers around the screen.
 - `opened_window_projections` puts rows in front of those of the other
   wrappers, for the windows that open later. A row matches by the first type
   that the document is, so the rows of the host decide first.
-- `inner_wrappers` goes to `make_tracking_screen`, for example the wrappers that
-  keep the tooltip window and the context menu window.
+- `inner_wrappers` goes to `make_tracking_screen`, after the `window_wrappers`
+  that the other wrappers of the editor give in the editor parts, such as the
+  `tooltip` and `context_menu` wrappers, which keep the tooltip window and the
+  context menu window.
 
 The gesture tracker reads the limits of its recognitions from the
 `PointerSettings` of the `settings` wrapper of the same editor, when that wrapper
@@ -187,7 +189,7 @@ function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorPart
         make_window_scene(parts.document, string(title); width = width, height = height),
         make_window_scene_projection(parts.projection;
             opened_window_projections = parts.opened_window_projections);
-        inner_wrappers = get(options, :inner_wrappers, []),
+        inner_wrappers = vcat(parts.window_wrappers, get(options, :inner_wrappers, [])),
         recognitions = _make_window_recognitions(parts))
     parts
 end

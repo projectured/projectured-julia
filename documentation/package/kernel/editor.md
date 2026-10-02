@@ -456,7 +456,7 @@ when one more package is loaded. A backend with no method of
 
 | Seam | What it answers |
 |---|---|
-| `wrap_editor!(::Val{k}, layer, argument, parts::EditorParts)` | changes the document, the projection, the feeds, the start steps and the stop steps of the editor that is made |
+| `wrap_editor!(::Val{k}, layer, argument, parts::EditorParts)` | changes the document, the projection, the feeds, the start steps and the stop steps of the editor that is made, and can give the `window` wrapper a function for `EditorParts.window_wrappers`, which it puts around the screen inside the trackers, as the `tooltip` and `context_menu` wrappers do |
 | `get_wrapper_layers(::Val{k})` | the layers it acts in, each with a number that orders it in the layer, as `(:document => 70,)` |
 | `get_excluded_wrappers(::Val{k})` | the keywords that can not be on with it; none by default |
 | `is_wrapper_default(::Val{k})` | whether it is on when the caller does not name it; off by default |

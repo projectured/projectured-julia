@@ -24,6 +24,10 @@ What a wrapper can change before the editor exists:
   editor ends, such as the removal of a log capture that a start step installed;
 - `opened_window_projections` — the rows `type => projection` for the documents that a
   wrapper opens later in a window of their own;
+- `window_wrappers` — the functions `(document, projection) -> (document,
+  projection)` that a wrapper gives the wrapper of the window, which puts them
+  around the screen, inside the trackers, the first innermost, such as the
+  wrapper that keeps the window of a tooltip;
 - `arguments` — the argument of each wrapper that is on, by its keyword, as
   [`make_wrapper_argument`](@ref) made it. A wrapper gets its own argument in
   [`wrap_editor!`](@ref), and can read the argument of another wrapper here, such
@@ -38,6 +42,7 @@ mutable struct EditorParts
     start_steps::Vector{Any}
     stop_steps::Vector{Any}
     opened_window_projections::Vector{Pair{Type,Any}}
+    window_wrappers::Vector{Any}
     arguments::Dict{Symbol,Any}
 end
 
@@ -178,7 +183,7 @@ function make_editor_parts(document::Document, projection;
     arguments = _make_wrapper_arguments(_collect_wrapper_arguments(wrappers))
     _check_excluded_wrappers(arguments)
     parts = EditorParts(document, projection, backend, copy(feeds), Any[], Any[], Pair{Type,Any}[],
-                        arguments)
+                        Any[], arguments)
     for (keyword, layer) in _order_wrapper_steps(arguments)
         wrap_editor!(Val(keyword), layer, arguments[keyword], parts)
     end
