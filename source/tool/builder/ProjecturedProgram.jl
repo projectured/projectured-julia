@@ -554,9 +554,11 @@ function _format_projectured_package_readme(name)
 
     ## Install
 
-    The packages of ProjecturEd are in the registry `ProjecturedRegistry`:
+    The packages of ProjecturEd are in the registry `ProjecturedRegistry`. Add General
+    too, for the packages that they depend on; where it is there, the line does nothing:
 
     ```
+    pkg> registry add General
     pkg> registry add $PROJECTURED_REGISTRY_URL
     $install
     ```
@@ -620,9 +622,11 @@ function _format_projectured_release_overview(names)
 
     ## Install
 
-    The packages are in the registry `ProjecturedRegistry`:
+    The packages are in the registry `ProjecturedRegistry`. Add General too, for the
+    packages that they depend on; where it is there, the line does nothing:
 
     ```
+    pkg> registry add General
     pkg> registry add $PROJECTURED_REGISTRY_URL
     pkg> add Projectured ProjecturedJSON ProjecturedSDL
     ```

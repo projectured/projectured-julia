@@ -511,10 +511,10 @@ function test_package_release()
         # The front page has a row for each released package, and the install lines.
         front = read(joinpath(output, "README.md"), String)
         @test all(name -> occursin("| [$name]($name) | ", front), names)
-        @test occursin("pkg> registry add $PROJECTURED_REGISTRY_URL\n", front)
+        @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n", front)
         readme = read(joinpath(output, "ProjecturedJSON", "README.md"), String)
         @test occursin(PROJECTURED_PACKAGE_READMES["ProjecturedJSON"].summary, readme)
-        @test occursin("pkg> registry add $PROJECTURED_REGISTRY_URL\n" *
+        @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n" *
                        "pkg> add Projectured ProjecturedJSON\n", readme)
         rm(dirname(output); recursive = true)
     end
