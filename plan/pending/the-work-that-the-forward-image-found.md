@@ -94,6 +94,12 @@ give their one child the whole range that they were given:
     the exact range of a window, both took the whole window before (400 by 300
     for a label of 40 by 24). Test: `test_size_range_one_child()`; the context
     menu, popup, tooltip, tracking screen and shell tests pass (88 and 209).
+  - [x] `WidgetText` and `WidgetTextarea` (2026-10-02). Each gives its content,
+    a document or the plain text view, `_get_inner_content_context`: the range
+    less the insets. The text domain draws its own extent at any range (no wrap,
+    no stretch), so the test holds a label, which wraps at its edge: before, it
+    wrapped at 290 in a field of 300 with 26 of insets, and in a slot the field
+    grew to 326.
 
 ## 3. The file chooser draws its parts at one place
 

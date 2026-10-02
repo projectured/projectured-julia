@@ -1721,6 +1721,15 @@ function _map_plain_text_reference(w, reference)
     nothing
 end
 
+# The range of the content of a widget that draws its box around it: the range of
+# the widget less its insets, in the same state, so a slot stays a slot and an edge
+# stays an edge (§3 of layout-rules.md).
+function _get_inner_content_context(p, w::WidgetDocument, ctx)
+    ctx === nothing && return nothing
+    with_inner_size(ctx; width = Cell(@computation _inset_total(p, w)[1]),
+                    height = Cell(@computation _inset_total(p, w)[2]))
+end
+
 function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
@@ -1732,9 +1741,10 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     # projection chain (which routes it to TextToGraphics); a plain value is
     # drawn through a text view of its string. Mirrors WidgetScrollPane's
     # content recursion.
+    content_ctx = _get_inner_content_context(p, w, ctx)
     content_iomap = w.content isa Document ?
-        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx)) :
-        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), ctx)
+        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
+        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx)
     build = Cell(@computation begin
         radius = p.corner_radius
         inner = content_iomap[].output::GraphicsCanvas
@@ -2085,8 +2095,7 @@ end
 # whole window, and the overlay with it.
 function _get_overlay_content_context(p, w::WidgetDocument, ctx)
     ctx === nothing && return nothing
-    inner = with_inner_size(ctx; width = Cell(@computation _inset_total(p, w)[1]),
-                            height = Cell(@computation _inset_total(p, w)[2]))
+    inner = _get_inner_content_context(p, w, ctx)
     with_bounded_size(inner; width = inner.maximum_width, height = inner.maximum_height)
 end
 
@@ -8336,10 +8345,11 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
     # gives it to TextToGraphics; a plain value is drawn through a text view of
     # its string, in the muted color while the area is disabled. The box grows
     # with the text.
+    content_ctx = _get_inner_content_context(p, w, ctx)
     content_iomap = if w.content isa Document
-        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
     else
-        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), ctx)
+        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx)
     end
     build = Cell(@computation begin
         enabled = !(w.enabled === false)

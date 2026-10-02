@@ -93,17 +93,21 @@ end
 end
 end # test_size_range_composite
 
+_range_force(value) = value isa Cell ? value[] : value
+
 # A widget with one child printed in a range of `width` by `height`: exact when
 # `exact`, bounded when not, free with no `width`. The size of the widget, and
 # the place and the size of its child.
-function _range_one_child_sizes(widget, width, height; exact = true)
-    projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+function _range_one_child_sizes(widget, width, height; exact = true,
+                                projection = RecursiveProjection(TypeDispatchingProjection(
+                                    WidgetToGraphics(font_ubuntu_monospace_regular_20;
+                                                     measure = FixedMeasure(10, 18, 6, 0)).dispatch)))
     ctx = width === nothing ? PrinterContext() :
           exact ? PrinterContext(EmptyReference(), Cell(width), Cell(height), Dict{Symbol,Any}()) :
           with_bounded_size(PrinterContext(); width = Cell(width), height = Cell(height))
     iomap = print_document(projection, nothing, widget, ctx)
     x, y, child = hasfield(typeof(iomap), :child_iomaps) ? only(getfield(iomap, :child_iomaps)[]) :
+                  hasfield(typeof(iomap), :content_iomap) ? (0, 0, _range_force(iomap.content_iomap)) :
                   (0, 0, iomap.child_iomap)
     ((Int(iomap.output.w[]), Int(iomap.output.h[])), (x, y),
      (Int(child.output.w[]), Int(child.output.h[])))
@@ -143,6 +147,26 @@ end
         size, _, content = _range_one_child_sizes(make(_RANGE_PROSE), 400, 300)
         @test 300 < content[1] <= 400 - frame[1]
         @test size[1] <= 400
+    end
+end
+
+# The text domain draws its own extent at any range, so the content here is a
+# label, which wraps at its edge: the content of a text field is any document.
+@testset "a text field and a text area give their content the range less their insets" begin
+    box = (; border = Inset(1, 1, 1, 1), padding = Inset(8, 8, 12, 12))
+    for make in (text -> WidgetText(WidgetLabel(text); box...),
+                 text -> WidgetTextarea(WidgetLabel(text); box...))
+        free, _, content = _range_one_child_sizes(make("Name"), nothing, nothing)
+        frame = free[1] - content[1]
+        @test frame > 0
+        # At an edge, a long label wraps inside the box.
+        size, _, content = _range_one_child_sizes(make(_RANGE_PROSE), 300, 100; exact = false)
+        @test 200 < content[1] <= 300 - frame
+        @test size[1] <= 300
+        # In a slot, the content fills the slot less the insets.
+        size, _, content = _range_one_child_sizes(make("Name"), 300, 100)
+        @test size[1] == 300
+        @test content[1] == 300 - frame
     end
 end
 end # test_size_range_one_child
