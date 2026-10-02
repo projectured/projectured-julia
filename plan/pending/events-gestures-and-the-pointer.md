@@ -1623,6 +1623,15 @@ it holds the example.
     sentences in `mouse-target.md` and `widget.md` and their test only.
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
+  Decided (owner 2026-10-02, "Agreed", on Claude's option a): after 9f, the
+  rules and the moves of the browser are built, the check runs the suites of
+  each change, the guards, `test_repls`, the omnet sets, and a live check in a
+  real SDL window with pushed SDL events (no XTest): the light, a tooltip, a
+  context menu with F2, the drag of a slider, a divider and a tab, Escape
+  during a drag, and a list that scrolls under a still pointer. Then this plan,
+  the plan of `WindowLeave` and the study `pointer-hover-and-windows-today.md`
+  move to `plan/done/`, and Q15 moves into a small pending plan of its own.
+  Rejected: option b, the check without the live check.
 
 Not in the steps: the web client sends no motion while no button is held (study
 §4), so the browser has no hover. That needs a decision of its own. Decided (owner
