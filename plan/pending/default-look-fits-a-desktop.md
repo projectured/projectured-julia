@@ -177,14 +177,15 @@ use this model.
 
 - The weight is a CSS number from 100 to 900: 400 is regular, 700 is bold. The
   OpenType `usWeightClass` uses the same scale.
-- The slant is upright or italic. An oblique face counts as italic when the
-  family has no italic face.
+- The slant is the `Bool` field `italic`, so a call reads
+  `StyleFont("Ubuntu", 13; italic = true)`. An oblique face counts as italic.
 - The size stays an `Int` in logical pixels.
 - Two equal descriptions are equal values, as two equal fonts are now. There is
   no cache of instances (D5). A cache gives back a copy of the same value, and
   the copy uses the same memory (section 2.3).
-- The description stays small (D13). The weight is a `UInt16` and the slant is
-  one byte. With the family `String` and the `Int` size, a font is 24 bytes
+- The description stays small (D13). The weight is an `Int16` and the slant is
+  one byte. The weight is signed because Julia prints an unsigned integer in
+  hexadecimal: a `UInt16` weight of 700 shows as `0x02bc`. With the family `String` and the `Int` size, a font is 24 bytes
   inline, and a new font allocates nothing. A cache could save memory only if a
   field held a small number for the font in place of the value. That saves
   about 40 bytes of the 349 of a `TextString`, about 11%. It costs a global table
@@ -379,8 +380,13 @@ inet-julia uses, the same step changes them, so that they always load.
 
 ### Part F: the font description and the registry
 
-- [ ] **F1.** The registry of the bundled faces and its lookup, with tests. No
-  caller yet.
+- [x] **F1.** The registry of the bundled faces and its lookup, with tests. No
+  caller yet. *Done:* `FontFace(family, weight::Int16, italic::Bool, file)` and
+  the table `_FONT_FACES` of 34 faces in `source/platform/style/FontFace.jl`;
+  `find_font_face(family, weight, italic)` and `get_font_face_path(face)`.
+  `TrueTypeFont` reads `weight_class` and `is_italic` from the OS/2 table, and
+  `test_font_face` checks each face against its file and each file against
+  the table. See section 10 for what the step found.
 - [ ] **F2.** `StyleFont` becomes the description. The twelve readers of
   `font.filename` ask the registry. The 143 constants stay, now defined as
   descriptions, so their callers do not change. `save_appearance!` and
@@ -472,4 +478,20 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
 
 ## 10. Findings during the work
 
-None yet.
+### Step F1
+
+- `Inconsolata.otf` is weight 500, not 400. A font that asks for Inconsolata at
+  400 gets it by the CSS rule, so the constant `font_inconsolata_regular_18`
+  keeps its file.
+- `lucide.ttf` names its family `lucide` in lower case. The table names it
+  `Lucide`, and a family matches with no regard to case, as in CSS.
+- `Ubuntu-C.ttf` declares the family `Ubuntu Condensed`, so it is a family of
+  its own.
+- The DejaVu oblique faces set the ITALIC bit of `fsSelection`, not the OBLIQUE
+  bit.
+- A local that holds a face or `nothing` boxes the face at each assignment: the
+  first lookup allocated 96 bytes. The lookup keeps the index of the best face.
+  Its result is still `FontFace` or `nothing`, so a caller that keeps the whole
+  face boxes it (32 bytes). A caller that reads a field allocates nothing. So
+  step F2 keys its caches by `face.file` and reads the path only when a cache
+  misses: `font_file` calls `isfile`, a system call.

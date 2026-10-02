@@ -40,6 +40,8 @@ mutable struct TrueTypeFont
     x_height::Int                 # OS/2 sxHeight if present, else half the cap height
     italic_angle::Float64
     is_fixed_pitch::Bool
+    weight_class::Int             # OS/2 usWeightClass, 100 to 900; 400 without an OS/2 table
+    is_italic::Bool               # OS/2 fsSelection bit 0 or 9; else a nonzero italic angle
     cmap_off::Int                 # byte offset of chosen cmap subtable, 0 if none
     cmap_kind::Int                # 4, 12, or 0
     loca_off::Int                 # byte offset of the loca table, 0 if none (CFF)
@@ -162,6 +164,10 @@ function _parse_ttf(b::Vector{UInt8})
     use_typo      = has_os2 && (_u16(b, os2_off + 62) & 0x0080) != 0
     italic_angle = (post_off != 0 && post_len >= 8) ? _s32(b, post_off + 4) / 65536 : 0.0
     is_fixed = (post_off != 0 && post_len >= 16) ? _u32(b, post_off + 12) != 0 : false
+    # `usWeightClass` and `fsSelection` are in every version of the OS/2 table.
+    # A face declares its slant with the ITALIC bit or the OBLIQUE bit.
+    weight_class = os2_off != 0 ? Int(_u16(b, os2_off + 4)) : 400
+    is_italic = os2_off != 0 ? (_u16(b, os2_off + 62) & 0x0201) != 0 : italic_angle != 0
 
     loca_off, _ = _find_table(b, "loca")
     glyf_off, _ = _find_table(b, "glyf")
@@ -170,7 +176,8 @@ function _parse_ttf(b::Vector{UInt8})
     font = TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, line_gap,
                         typo_ascent, typo_descent, typo_line_gap, win_ascent, win_descent,
                         use_typo, bbox,
-                        cap_height, x_height, italic_angle, is_fixed, cmap_sub, cmap_kind,
+                        cap_height, x_height, italic_angle, is_fixed, weight_class, is_italic,
+                        cmap_sub, cmap_kind,
                         loca_off, glyf_off, long_loca,
                         Dict{UInt32,UInt16}(), _parse_kern(b))
 
