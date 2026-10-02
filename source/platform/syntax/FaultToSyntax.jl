@@ -1,4 +1,4 @@
-# Fragment of `FaultViewModule`.
+# Fragment of `SyntaxModule` — the mark that a fault barrier of the syntax domain draws.
 #
 # A `FaultReport` as one syntax leaf: a warning sign, what failed, and what it
 # said. This is the substitute a syntax-domain step of a pipeline hands to its

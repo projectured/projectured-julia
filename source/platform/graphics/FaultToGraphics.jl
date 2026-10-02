@@ -1,4 +1,4 @@
-# Fragment of `FaultViewModule`.
+# Fragment of `GraphicsModule` — the mark that a fault barrier of the graphics domain draws.
 #
 # A `FaultReport` as drawn words. This is the last substitute of a chain, and it
 # is the one that must not be left out: the step it belongs to answers the

@@ -1,4 +1,4 @@
-# Fragment of `FaultViewModule`.
+# Fragment of `TextModule` — the mark that a fault barrier of the text domain draws.
 #
 # A `FaultReport` as one text block, for a barrier whose step answers the text
 # domain. Same job as `FaultToSyntax` one domain further on.

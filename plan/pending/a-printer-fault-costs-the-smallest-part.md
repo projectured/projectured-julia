@@ -188,6 +188,18 @@ On 2026-10-01:
 7. **D3, D4 and D6 of `a-fault-is-easy-to-see-and-stays-small.md` moved to this
    plan** on 2026-10-02: point 6 decides D3, point 5 decides D4, and the
    interaction test of §8 holds D6. The owner: "Agreed".
+8. **The pipeline is built with its barriers before it prints** (2026-10-02). The
+   owner: "I would like to build the pipeline properly before print, what needs
+   to change?", and then "Agreed" to moving the barrier and the marks down. The
+   barrier is a higher-order projection of the projection algebra, beside
+   `ChainingProjection` and `RecursiveProjection`, and `FaultReport` moves with
+   it. Each mark moves to its own domain: `FaultToSyntax` to syntax,
+   `FaultToText` to text, `FaultToWidget` to widget, `FaultToGraphics` to
+   graphics. Every place that builds a recursion point names the barrier and the
+   mark of its output domain. The fault slice keeps the log, the overlay, the
+   safe mode and the gesture bindings of a mark. The other ways were a seam that
+   builds the barrier, declared low and answered by the fault slice, and a
+   barrier maker passed through every factory of the natural renderer.
 
 ## 6. The design
 
@@ -506,6 +518,24 @@ runs2[]               # 3: each pull runs the computation again
         do not.
 - [ ] **Step 6: the barriers of the application** (§6.7), with the count of cells
       and the frame time. If it costs too much, the fallback of §6.7.
+  - [x] 6a. Move the barrier and `FaultReport` to the projection algebra
+        (`higherorder/FaultCatching.jl`, `ProjectionDocument.jl`), and each mark
+        to its domain. The projection slice gets an edge to focus, for
+        `is_whole_selection_press`. The menu of a mark is a binding of
+        `FaultReport` in the fault slice, because it needs the widget slice; a
+        report that a barrier made carries the operation that tries its part
+        again. Behaviour stays the same.
+        Done: `test_fault()` 98 pass, the layering guards of the kernel and the
+        platform, the slice edges, and the guards of `test/suite` for exports,
+        names and the tree pass. A mark answers Alt+press and a plain click in
+        the barrier, and every other gesture through `read_gesture` on its
+        report, which holds the tooltip and the menu. `record_computation_fault!`
+        takes `traceback` as a keyword, as `record_fault!` does, because the
+        argument guard takes four positional arguments as advice.
+  - [ ] 6b. A barrier at each recursion point of §6.7, and
+        `get_content_iomap` where a reader or a printer checks the type of the
+        IoMap of a child.
+  - [ ] 6c. The count of cells and objects for each node, before and after.
 - [ ] **Step 7: the renderer catch** around each element, with the frame time.
 - [ ] **Step 8: the documentation**: `fault.md` (the pull stack, the scope, the
       heal that does not happen, the test), `cell.md` (a computation keeps its

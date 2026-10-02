@@ -1,4 +1,4 @@
-# Fragment of `FaultViewModule`.
+# Fragment of `WidgetModule` — the mark that a fault barrier of the widget domain draws.
 #
 # A `FaultReport` as a small alert widget, for a barrier whose step answers the
 # widget domain. Same job as `FaultToSyntax` one domain across.

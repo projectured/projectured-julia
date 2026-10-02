@@ -1,4 +1,4 @@
-# Fragment of `FaultViewModule` — the barrier inside the pipeline.
+# Fragment of `ProjectionAlgebraModule` — the fault barrier inside the pipeline.
 #
 # **The point the whole design turns on.** A printer does not throw when
 # `print_document` runs. It builds a graph of cells and returns. It throws later,
@@ -255,7 +255,8 @@ end
 function _show_mark!(barrier::FaultCatchingIoMap)
     state, p = barrier.state, barrier.projection
     state.report === nothing || return nothing
-    report = FaultReport(state.fault)
+    report = FaultReport(state.fault;
+                         retry = ReplaceViewStateOperation(RetryBarrierPrintOperation(barrier)))
     mark = p.substitute === nothing ? report :
            print_document(p.substitute, p.substitute, report, barrier.context).output
     state.report = report
@@ -271,13 +272,13 @@ end
 # this one. The cells of a part travel by reference through the stages after it,
 # so the stack of the read that fails can hold no other barrier. With no list,
 # nothing would show the mark, so the barrier lets the fault go on.
-function record_computation_fault!(barrier::FaultCatchingIoMap, computation, exception,
+function record_computation_fault!(barrier::FaultCatchingIoMap, computation, exception;
                                    traceback)
     state = barrier.state
     state.is_retrying && return true
     barrier.noted === nothing && return false
     (state.report === nothing && state.can_show_mark) ||
-        return _record_in_enclosing_scope!(barrier, computation, exception, traceback)
+        return _record_in_enclosing_scope!(barrier, computation, exception; traceback)
     state.is_noted && return true
     state.fault = _take_fault(barrier.store, _get_fault_origin(barrier),
                               barrier.context.reference, exception, traceback)
@@ -286,11 +287,11 @@ function record_computation_fault!(barrier::FaultCatchingIoMap, computation, exc
     true
 end
 
-function _record_in_enclosing_scope!(barrier::FaultCatchingIoMap, computation, exception,
+function _record_in_enclosing_scope!(barrier::FaultCatchingIoMap, computation, exception;
                                      traceback)
     enclosing = barrier.state.enclosing
     enclosing === nothing && return false
-    record_computation_fault!(enclosing, computation, exception, traceback)
+    record_computation_fault!(enclosing, computation, exception; traceback)
 end
 
 # The substitute that draws the mark can throw too. Its fault is recorded, and the
@@ -361,32 +362,21 @@ evaluate_operation(editor, operation::RetryBarrierPrintOperation) =
 
 # ── Reader ───────────────────────────────────────────────────────────────────
 
-# The menu of a mark: one command that tries the part again.
-_make_mark_menu(barrier::FaultCatchingIoMap) =
-    WidgetMenu(Any[WidgetMenuItem("Try again";
-                                  action = Action("Try again"; callback = editor ->
-                                      evaluate_operation(editor,
-                                                         RetryBarrierPrintOperation(barrier))))])
-
 _is_plain_left_click(gesture) =
     gesture isa MouseClick && gesture.button === :left && gesture.modifiers == ModifierKeys()
 
-_is_right_click(gesture) = gesture isa MouseClick && gesture.button === :right
-
-# A mark answers three gestures. An Alt+press names it, as it names anything else
-# on the screen: the report is not a child of the part that failed, and no field
-# or index reaches it, so the path is a drawn-object step from that part. A plain
-# click tries the part again, and a right click opens a menu that does the same.
-# Every other gesture is declined, so the layer above gets its turn.
+# An Alt+press names a mark, as it names anything else on the screen: the report
+# is not a child of the part that failed, and no field or index reaches it, so
+# the path is a drawn-object step from that part. A plain click tries the part
+# again. Every other gesture goes to the bindings of the report, which answer the
+# rest of a pointer, the window that says the whole fault and the menu, and
+# decline the rest, so the layer above gets its turn.
 function _read_mark_gesture(barrier::FaultCatchingIoMap, report, gesture)
     is_whole_selection_press(gesture) &&
         return ReplaceSelectionOperation(make_output_reference(barrier.input, report,
                                                                EmptyReference()))
-    _is_plain_left_click(gesture) &&
-        return ReplaceViewStateOperation(RetryBarrierPrintOperation(barrier))
-    _is_right_click(gesture) &&
-        return make_context_menu_operation(report, _make_mark_menu(barrier), gesture)
-    nothing
+    _is_plain_left_click(gesture) && return report.retry
+    read_gesture(report, gesture)
 end
 
 # A fault that a barrier recorded already is not recorded again where a reader or

@@ -103,12 +103,14 @@ export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle
        WidgetAlertStyle, WidgetHighlightStyle, WidgetSwitchStyle, WidgetProgressStyle, WidgetSliderStyle,
        WidgetRadioGroupStyle, WidgetToggleStyle, WidgetToggleGroupStyle, WidgetSelectStyle, WidgetSpinBoxStyle,
        WidgetListStyle, WidgetAccordionStyle, WidgetTableStyle, WidgetTreeStyle
+export FaultToWidget
 
 
 include("WidgetDocument.jl")
 include("WidgetStyle.jl")
 include("WidgetTheme.jl")
 include("WidgetToGraphics.jl")
+include("FaultToWidget.jl")
 include("WidgetTableParts.jl")
 include("WidgetEmbedCard.jl")
 include("ObjectToWidget.jl")

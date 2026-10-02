@@ -70,6 +70,7 @@ export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText
 export TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument
+export FaultToText
 
 
 include("TextSpanReferenceStep.jl")
@@ -79,6 +80,7 @@ include("TextDocument.jl")
 include("TextTheme.jl")
 include("TextToGraphics.jl")
 include("TextToString.jl")
+include("FaultToText.jl")
 include("TextLineNumbering.jl")
 include("WordWrapping.jl")
 include("TextFiltering.jl")

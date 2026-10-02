@@ -1,36 +1,33 @@
 """
     FaultViewModule
 
-What a fault looks like: the report that stands where a projection failed, the
-log that collects them, the barrier that catches, and the projections that draw
-both.
+What a fault looks like to a person: the log that collects the faults, the panel
+and the tab that show it, the safe mode, and the gestures of a mark.
 
 The kernel's `FaultModule` holds what a fault **is** — the record, the store,
 the barrier helper and the report cascade — and names no document and no
-projection. This package holds what a fault **is shown as**. The two are the
-same split as `ProjectionModule` in the kernel against
-`ProjectionAlgebraModule` here: the kernel declares, the platform shows.
+projection. The barrier that catches inside a pipeline is a projection of the
+algebra, `FaultCatchingProjection`, with the report it leaves, `FaultReport`,
+and each domain draws that report with a mark of its own: `FaultToSyntax`,
+`FaultToText`, `FaultToWidget`, `FaultToGraphics`. So every slice that builds a
+pipeline can name its barriers. This package holds the rest of what a fault **is
+shown as**.
 
 The module is `FaultViewModule` rather than `FaultModule` because both slices
 are named `fault` and a module name means one thing.
 
 Start here:
 
-- `FaultCatchingProjection` wraps one step of a pipeline. A fault inside it
-  costs one node rather than the editor.
-- `FaultReport` is the mark it leaves in the output.
 - `FaultLog` is the message log. Attach one to an editor and the frame fills it:
   `attach_fault_target!(editor.faults, log)`.
+- `make_fault_tolerant_projection` puts one barrier around a whole window and
+  the log over it.
 
 The module lives in these fragments, which share this namespace:
 
-- [`FaultDocument.jl`](FaultDocument.jl) — `FaultReport`, `FaultLog`,
-  `FaultLogEntry` and the `append_fault!` the kernel seam asks for.
-- [`Catching.jl`](Catching.jl) — `FaultCatchingProjection` and its IoMap.
-- [`FaultToSyntax.jl`](FaultToSyntax.jl), [`FaultToText.jl`](FaultToText.jl),
-  [`FaultToWidget.jl`](FaultToWidget.jl) and
-  [`FaultToGraphics.jl`](FaultToGraphics.jl) — one renderer per output domain, so
-  a barrier can substitute a mark the next step already understands.
+- [`FaultDocument.jl`](FaultDocument.jl) — `FaultLog`, `FaultLogEntry`, the
+  `append_fault!` the kernel seam asks for, and the gestures of a `FaultReport`:
+  the window that says the whole fault, and the menu that tries the part again.
 - [`FaultLogToSyntax.jl`](FaultLogToSyntax.jl) — the log as a document.
 - [`FaultLogOverlay.jl`](FaultLogOverlay.jl) — the log as a panel over a window.
 - [`FaultSafeMode.jl`](FaultSafeMode.jl) — the projection the editor falls back
@@ -61,8 +58,6 @@ using ..WidgetModule
 using ..FocusModule
 using ..EditorModule
 using ..SettingsModule
-using ..EventModule
-using ..GestureModule
 
 # The names this module EXTENDS are imported, never merely used: a bare
 # `using` binds the name for reading and a definition beside it makes a NEW
@@ -74,18 +69,12 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FaultModule: append_fault!
 import ..SettingsModule: apply_settings!, read_settings!, is_settings_group_applied
-import ..CellModule: record_computation_fault!
-import ..OperationModule: evaluate_operation
 import ..SerializationModule: pred_arguments
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent,
-                           map_reference_forward, map_reference_backward,
-                           get_content_iomap, show_barrier_mark!, retry_barrier_print!
+                           map_reference_forward, map_reference_backward
 
-export FaultReport, FaultLog, FaultLogEntry, get_session_fault_log,
-       format_fault_label, format_fault_report_message, clear_fault_log!,
-       FaultCatchingProjection, FaultCatchingIoMap, RetryBarrierPrintOperation,
-       FaultToSyntax, FaultToText, FaultToWidget, FaultToGraphics,
+export FaultLog, FaultLogEntry, get_session_fault_log, clear_fault_log!,
        FaultTheme, ScaledFaultTheme,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
        make_fault_log_content_projection, make_fault_tolerant_projection,
@@ -93,12 +82,7 @@ export FaultReport, FaultLog, FaultLogEntry, get_session_fault_log,
        FaultSafeModeProjection, FaultSafeModeIoMap,
        FaultSettings
 
-include("FaultDocument.jl")    # the report, the log, and the seam answer
-include("Catching.jl")         # the barrier inside the pipeline
-include("FaultToSyntax.jl")    # a mark in the syntax domain
-include("FaultToText.jl")      # a mark in the text domain
-include("FaultToWidget.jl")    # a mark in the widget domain
-include("FaultToGraphics.jl")  # a mark in the graphics domain
+include("FaultDocument.jl")    # the log, the seam answer, and the gestures of a mark
 include("FaultTheme.jl")       # the theme of the log
 include("FaultLogToSyntax.jl") # the log as a document
 include("FaultLogOverlay.jl")  # the log as a panel

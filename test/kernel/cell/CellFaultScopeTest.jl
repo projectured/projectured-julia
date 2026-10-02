@@ -16,7 +16,7 @@ end
 FaultScopeProbe(name::Symbol; takes::Bool = true) = FaultScopeProbe(name, takes, Any[])
 
 function CellModule.record_computation_fault!(scope::FaultScopeProbe, computation,
-                                              exception, traceback)
+                                              exception; traceback)
     push!(scope.faults, (computation, exception))
     scope.takes
 end

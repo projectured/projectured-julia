@@ -1,64 +1,26 @@
-# Fragment of `FaultViewModule` — what a fault looks like as data: the report
-# that stands where a projection failed, and the log that collects them.
-
-"""
-    FaultReport(; site, origin, message)
-    FaultReport(record)
-
-One fault, as a document.
-
-It is what `FaultCatchingProjection` puts in the output where a node failed. A
-report keeps the slot the node had, so the parent's layout still places it and
-every other node still draws.
-
-A report is inert. Its projection declines every gesture and maps no reference,
-so a person can not edit a mark and the selection does not walk into one.
-
-The kernel's `FaultRecord` is the same fault as a value. This is the same fault
-as a document: the kernel records, and this package shows.
-
-# Example
-
-    FaultReport(record)
-
-See also `FaultCatchingProjection`, which is what makes one, and `FaultLog`.
-"""
-@document struct FaultReport
-    site::String = "print"
-    origin::String = "unknown"
-    message::String = ""
-end
-
-# The keyword form, not the positional one: every field of this document
-# declares a default, and `@document` emits no positional constructor for a
-# struct whose required-field count is zero.
-FaultReport(record::FaultRecord) =
-    FaultReport(site = String(record.site), origin = String(record.origin),
-                message = record.message)
-
-"""
-    format_fault_label(report) -> String
-
-The one line a mark shows: what failed, and what it said.
-"""
-format_fault_label(report::FaultReport) = "⚠ $(report.origin): $(report.message)"
-
-"""
-    format_fault_report_message(report) -> String
-
-The whole fault, over three lines: what failed, where it was caught, and what it
-said. A mark shows one line, which a long message does not fit in; this is what a
-window shows.
-"""
-format_fault_report_message(report::FaultReport) =
-    "⚠ $(report.origin)\ncaught in the $(report.site)\n\n$(report.message)"
+# Fragment of `FaultViewModule` — what a fault looks like as data: the log that
+# collects the faults, and the gestures of the report that stands where a
+# projection failed.
 
 # What a mark says about itself when the pointer rests on it: the whole fault,
 # as text, which is a document every host draws. The one line a mark draws is cut
-# where the mark ends, and a message is the part worth reading.
+# where the mark ends, and a message is the part worth reading. A right click
+# opens its menu, which tries the part again, when the report came from a barrier.
 get_document_gesture_bindings_own(::Type{FaultReport}) = GestureBinding[
     make_tooltip_binding(report -> TextString(format_fault_report_message(report));
-                         description = "Show the fault")]
+                         description = "Show the fault"),
+    make_context_menu_binding(_make_fault_report_menu;
+                              description = "Show the menu of the fault")]
+
+# The menu of a mark: one command that tries the part again, or no menu for a
+# report that no barrier made.
+function _make_fault_report_menu(report::FaultReport)
+    retry = report.retry
+    retry === nothing && return nothing
+    WidgetMenu(Any[WidgetMenuItem("Try again";
+                                  action = Action("Try again";
+                                                  callback = editor -> evaluate_operation(editor, retry)))])
+end
 
 # ── The log ──────────────────────────────────────────────────────────────────
 

@@ -41,7 +41,7 @@ function run_in_fault_scope(body, scope)
 end
 
 """
-    record_computation_fault!(scope, computation, exception, traceback) -> Bool
+    record_computation_fault!(scope, computation, exception; traceback) -> Bool
 
 Hand the fault of a computation to the scope that the computation belongs to, and
 answer whether the scope took it.
@@ -58,7 +58,7 @@ A barrier adds a method for its own scope. The fallback takes nothing.
 """
 function record_computation_fault! end
 
-record_computation_fault!(scope, computation, exception, traceback) = false
+record_computation_fault!(scope, computation, exception; traceback) = false
 
 """
     RecordedFaultException(exception, scope)
@@ -101,8 +101,8 @@ function (scoped::_FaultScopedComputation)()
             rethrow()
         exception isa MethodError && Base.tls_world_age() < Base.get_world_counter() &&
             rethrow()
-        record_computation_fault!(scoped.scope, scoped.computation, exception,
-                                  catch_backtrace()) || rethrow()
+        record_computation_fault!(scoped.scope, scoped.computation, exception;
+                                  traceback = catch_backtrace()) || rethrow()
         throw(RecordedFaultException(exception, scoped.scope))
     end
 end
