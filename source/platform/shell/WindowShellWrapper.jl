@@ -43,9 +43,13 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts
     recorded = Tuple(keyword for keyword in RECORDED_TOOLS if haskey(parts.arguments, keyword))
     about = get(options, :about, nothing)
     document = parts.document
+    # The Help menu offers a tool of a wrapper only when that wrapper is on.
+    gesture_help = haskey(parts.arguments, :gesture_help)
+    command_palette = haskey(parts.arguments, :command_palette)
     parts.document = make_window_shell_document(document;
-        menu_bar = about === nothing ? make_window_menu_bar(; recorded) :
-                                       make_window_menu_bar(; recorded, about),
+        menu_bar = about === nothing ?
+            make_window_menu_bar(; recorded, gesture_help, command_palette) :
+            make_window_menu_bar(; recorded, about, gesture_help, command_palette),
         toolbar = make_window_toolbar(; assistant = get(options, :assistant, nothing),
                                         explorer = get(options, :explorer, nothing), recorded),
         status_bar = get(options, :status_bar, true) ? make_window_status_bar(document) : nothing)

@@ -4,8 +4,8 @@
 > Written on 2026-10-02 at the owner's request. The owner decided the route (D1)
 > and the place (D2) on 2026-10-02. D3 and D4 are my choices, because the owner
 > said to start without a change to them; the owner can still change either. D3
-> changed during S2, when I found that a menu item draws no key (3.5). S1 is
-> done.
+> changed during S2, when I found that a menu item draws no key (3.5). S1, S2
+> and S3 are done.
 
 ## 1. The request
 
@@ -223,19 +223,25 @@ Do the work in a worktree. Commit each step.
   the rows of the key. A probe showed that the route `.elements`, which no reader
   holds as a child, carries nothing up. That is the reason of D2. The shell is
   tested in S3, not here.
-- [ ] **S2. The items.** Add `_find_shell_content_reference`, the two keywords
-  and the two items (3.3, 3.4). Test in `test_window_shell()`: an item is there
-  only when its wrapper is on, in the order of 3.4. Test in `test_window_wrap()`:
-  the shell wrapper gives the keywords.
-- [ ] **S3. The whole window.** Test in `test_window_wrappers()`, with `shell`,
-  `gesture_help` and `command_palette`:
-  - The Gestures item opens the help window, and a second use closes it. Test
-    this in a window with panes and in a window without panes.
-  - The Command palette item opens the palette.
-  - F1 and Ctrl+Shift+P still open and close each tool when the shell is on.
-  - The help that the item opens lists a row that only the content has.
-  - A real click on the item in the menu window does not move the selection of
-    the main window. Push the pointer events, as `ContextMenuWindowTest.jl` does.
+- [x] **S2. The items.** Done on 2026-10-02. `_post_shell_content_operation!`,
+  `_find_shell_content_reference` and `_find_shell_reference` are in
+  `WindowChrome.jl`, beside `_post_tree_operation!`. `test_window_shell()` tests
+  the items, their order, that they carry no key, and that the tooltip names the
+  key. The test that the shell wrapper gives the keywords is in
+  `test_window_wrappers()`, not in `test_window_wrap()`, because it needs a whole
+  editor with its arguments.
+- [x] **S3. The whole window.** Done on 2026-10-02, in `test_window_wrappers()`:
+  - A real click on "Help" and then on "Gestures", with pushed pointer events,
+    opens the help window, and a second click closes it. This holds with panes
+    and without panes (`tabs = false`).
+  - The rows of the help from the menu are the rows of F1: 21 rows with the focus
+    in a tab, and 5 rows without panes. The click leaves the selection where it
+    was. So the context is the content, not the menu.
+  - F1 still opens and closes the help when the shell is on.
+  - The Command palette item draws what Ctrl+Shift+P draws, and a second use
+    draws the closed window again.
+  - With panes, the selection finds the shell. Without panes, the selection is
+    `nothing`, and the search finds the only shell.
 - [ ] **S4. The documents.** Update:
   - The docstrings of `make_window_help_menu` and `make_window_menu_bar` in
     `WindowChrome.jl`: remove Command palette and Gesture help from "What is not
@@ -250,7 +256,8 @@ Do the work in a worktree. Commit each step.
 ## 6. Risks
 
 - A press on a menu item can move the selection into the menu window. Then the
-  rows are the rows of the menu. S3 tests a real click.
+  rows are the rows of the menu. S3 tests a real click, and the selection does
+  not move.
 - The help window opens during a read that runs inside the evaluation of the menu
   command. The split commands also read inside that evaluation, and F1 opens the
   window during a read. The callback posts what remains, so no evaluation runs

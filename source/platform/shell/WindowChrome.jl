@@ -89,7 +89,8 @@ make_window_view_menu(; recorded = RECORDED_TOOLS) =
     ]))
 
 """
-    make_window_help_menu(; about = _ -> AboutPage()) -> WidgetMenuItem
+    make_window_help_menu(; about = _ -> AboutPage(), gesture_help = false,
+                          command_palette = false) -> WidgetMenuItem
 
 The Help menu: the name on the bar, and the menu that opens below it. Its
 commands open a tab with every document type that an empty tab can make, a tab
@@ -99,9 +100,30 @@ that already shows one, and opens one only when there is none.
 `about` makes the page of the program that the window runs, from the editor.
 The default page describes ProjecturEd; a window of another program gives its
 own.
+
+**Gestures** and **Command palette** come first, each only when the wrapper of
+its name is on: `gesture_help` and `command_palette` say which are. Each does
+what its key does, F1 or Ctrl+Shift+P: it opens the tool, or closes it when it
+is open. The wrapper keeps its tool, so the command sends
+`ToggleGestureHelpOperation` or `ToggleCommandPaletteOperation` with a route into
+the content of the shell. The wrapper is around the shell, so it finds the
+operation on its way up and answers what its key answers. The item carries no
+shortcut, because the key reaches the wrapper itself, and its tooltip names the
+key.
 """
-make_window_help_menu(; about = _ -> AboutPage()) =
+make_window_help_menu(; about = _ -> AboutPage(), gesture_help = false, command_palette = false) =
     WidgetMenuItem("Help"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
+        (gesture_help ? (make_window_command("Gestures",
+                             editor -> _post_shell_content_operation!(
+                                 editor, ToggleGestureHelpOperation(), "Open or close the gesture help");
+                             tooltip = "The gestures that work where the selection is (F1)"),) :
+                        ())...,
+        (command_palette ? (make_window_command("Command palette",
+                                editor -> _post_shell_content_operation!(
+                                    editor, ToggleCommandPaletteOperation(),
+                                    "Open or close the command palette");
+                                tooltip = "Find a command that works here, and run it (Ctrl+Shift+P)"),) :
+                           ())...,
         make_window_command("Documents",
                             editor -> _reach_tool!(editor, DocumentTypeList,
                                                    _make_scrolling_tool(DocumentTypeList));
@@ -115,13 +137,14 @@ make_window_help_menu(; about = _ -> AboutPage()) =
     ]))
 
 """
-    make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> AboutPage()) -> WidgetMenu
+    make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> AboutPage(),
+                         gesture_help = false, command_palette = false) -> WidgetMenu
 
 The menu bar both binaries share: [`make_window_file_menu`](@ref), then
 [`make_window_view_menu`](@ref), which takes `recorded`, then the menus of
-`extra`, then [`make_window_help_menu`](@ref), which takes `about`. Help is the
-last menu, as on a desktop. A host that wants another bar builds a `WidgetMenu`
-from the menus it wants.
+`extra`, then [`make_window_help_menu`](@ref), which takes `about`,
+`gesture_help` and `command_palette`. Help is the last menu, as on a desktop. A
+host that wants another bar builds a `WidgetMenu` from the menus it wants.
 
 **A menu item here performs its command.** `WidgetShell` fires a menu shortcut
 **before the focused widget sees the key**, so an item that carries a shortcut it
@@ -131,18 +154,18 @@ callback that does the work, and the callback is the pane slice's own verb, so
 the menu is a second way to reach one implementation and never a copy of it.
 
 What is not here yet, and why: **Save** and **Reload** belong to the file tab's
-own gesture table, **Command palette** and **Gesture help** to the wrappers that
-draw them, and the clipboard's five to the clipboard wrapper. Each needs a verb
-that reaches its owner through the editor. Until one has that, the key answers
-and the menu says nothing about it, which is the honest half of the two.
+own gesture table, and the clipboard's five to the clipboard wrapper. Each needs a
+verb that reaches its owner through the editor. Until one has that, the key
+answers and the menu says nothing about it, which is the honest half of the two.
 
 A host adds its own menus with `extra`, and this package names none of them.
 They go after File and View and before Help, so the bar reads the same way in
 every binary until the host's own menus begin.
 """
-make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> AboutPage()) =
+make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> AboutPage(),
+                     gesture_help = false, command_palette = false) =
     WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(; recorded), extra...,
-                   make_window_help_menu(; about = about)];
+                   make_window_help_menu(; about, gesture_help, command_palette)];
                orientation = :horizontal, padding = Inset(2, 2, 2, 2))
 
 """
@@ -294,6 +317,41 @@ function _post_tree_operation!(editor, tree_reference, operation, description)
     rooted = read_rooted_operation(editor, tree_reference, operation; description)
     rooted === nothing || post_pane_operation!(editor, rooted)
     nothing
+end
+
+# A command for a wrapper around the shell. The operation goes to the content of
+# the shell, so every reader around the shell reads it on its way up, and the
+# wrapper that owns it answers in its place. What reaches the root is posted. An
+# operation that comes back as it went found no wrapper, and nothing evaluates it.
+function _post_shell_content_operation!(editor, operation, description)
+    place = _find_shell_content_reference(editor)
+    place === nothing && return nothing
+    rooted = read_rooted_operation(editor, place, operation; description)
+    (rooted === nothing || rooted isa typeof(operation)) || post_operation!(editor, rooted)
+    nothing
+end
+
+# The content of the shell of the window, as a reference from the root. It is
+# there with and without panes. `nothing` when no shell is found.
+function _find_shell_content_reference(editor)
+    shell = _find_shell_reference(editor.document)
+    shell === nothing ? nothing : extend_reference(shell, FieldReferenceStep("content"))
+end
+
+# The first shell on the path of the selection, else the only shell of the
+# document. The search does not go into a shell, because the documents are there.
+function _find_shell_reference(root)
+    selection = get_selection(root)
+    if selection !== nothing
+        steps = collect(get_reference_steps(strip_reference_types(selection)))
+        for n in 0:length(steps)
+            prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
+            try_evaluate_reference(root, prefix, nothing) isa WidgetShell && return prefix
+        end
+    end
+    found = search_references(root, node -> node isa WidgetShell;
+                              descend = (parent, child) -> !(parent isa WidgetShell))
+    length(found) == 1 ? only(found) : nothing
 end
 
 function _open_tab!(editor)

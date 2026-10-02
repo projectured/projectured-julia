@@ -29,6 +29,27 @@ function _ww_focus_first_tab!(editor)
     focus_pane!(editor, find_pane_reference(editor, get_pane_tab_title_string(group.tabs[1])))
 end
 
+# The labels of the Help menu of `shell`.
+_ww_help_labels(shell) =
+    [String(string(item.action.label))
+     for item in only(item for item in shell.menu_bar.elements
+                      if string(item.action.label) == "Help").submenu.elements]
+
+# A click on "Help" in the bar of the window `id`, and a click on `label` in the
+# menu that opens, both with the pointer, as a person does it.
+function _ww_click_help_item!(editor, backend, screen, id, label, time)
+    help = _cm_place_of(_cm_drawn_window(editor, screen, id), "Help")
+    _cm_click!(editor, backend, :left, help[1] + 2, help[2] + 2, time; window = id)
+    menu = only(window for window in screen.windows if window.style === :popup)
+    item = _cm_place_of(_cm_drawn_window(editor, screen, menu.id), label)
+    _cm_click!(editor, backend, :left, item[1] + 2, item[2] + 2, time + 1; window = menu.id)
+end
+
+# The descriptions of the rows of the help window of `screen`.
+_ww_help_rows(screen) =
+    [row.description for row in only(window.content for window in screen.windows
+                                     if window.content isa GestureMap).rows]
+
 function test_window_wrappers()
 @testset "the features of a window as wrappers of build_editor" begin
 
@@ -135,6 +156,56 @@ end
     editor, _ = _ww_editor(PrimitiveString("x"); shell = true, gesture_log = true)
     @test labels(editor.document.toolbar) ==
           ["Explorer", "Evaluator", "Gesture log", "Selection", "Appearance", "Settings"]
+end
+
+@testset "shell: the Help menu offers the gesture help and the palette when their wrappers are on" begin
+    editor, _ = _ww_editor(PrimitiveString("x"); shell = true)
+    @test _ww_help_labels(editor.document) == ["Documents", "Projections", "About"]
+    editor, _ = _ww_editor(PrimitiveString("x"); shell = true, gesture_help = true, command_palette = true)
+    @test _ww_help_labels(editor.document) ==
+          ["Gestures", "Command palette", "Documents", "Projections", "About"]
+end
+
+@testset "shell: Gestures in the Help menu does what F1 does, with panes and without" begin
+    for tabs in (true, false)
+        editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                     shell = true, gesture_help = true, tabs)
+        screen = get_wrapped_document(editor.document)
+        id = screen.windows[1].id
+        tabs && (_ww_focus_first_tab!(editor); run_frame!(editor))
+        selection = _ww_selection(editor)
+        # F1 still reaches the wrapper through the shell.
+        f1 = WindowInput(id, KeyDown(:f1, ModifierKeys(); time = 0.0))
+        _ww_press!(editor, backend, f1)
+        by_key = _ww_help_rows(screen)
+        _ww_press!(editor, backend, f1)
+        @test length(screen.windows) == 1
+        # The menu opens the same help: the click leaves the selection where it
+        # was, so the rows are the rows of the content.
+        _ww_click_help_item!(editor, backend, screen, id, "Gestures", 1.0)
+        @test length(screen.windows) == 2
+        @test _ww_help_rows(screen) == by_key
+        @test _ww_selection(editor) == selection
+        _ww_click_help_item!(editor, backend, screen, id, "Gestures", 5.0)
+        @test length(screen.windows) == 1
+    end
+end
+
+@testset "shell: Command palette in the Help menu does what Ctrl+Shift+P does" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); shell = true, command_palette = true)
+    closed = Set(_shell_texts(last(rendered_output(backend))))
+    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
+    by_key = Set(_shell_texts(last(rendered_output(backend))))
+    @test !issubset(by_key, closed)
+    _ww_press!(editor, backend, _ww_ctrl(:p; shift = true))
+    help = only(item for item in editor.document.menu_bar.elements if string(item.action.label) == "Help")
+    item = only(item for item in help.submenu.elements if string(item.action.label) == "Command palette")
+    evaluate_operation(editor, InvokeActionOperation(item.action))
+    run_frame!(editor)
+    @test Set(_shell_texts(last(rendered_output(backend)))) == by_key
+    evaluate_operation(editor, InvokeActionOperation(item.action))
+    run_frame!(editor)
+    @test Set(_shell_texts(last(rendered_output(backend)))) == closed
 end
 
 end # @testset

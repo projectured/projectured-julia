@@ -82,6 +82,23 @@ end
     @test bar.elements[3] === extra
 end
 
+@testset "the Help menu offers the tool of a wrapper only when the wrapper is on" begin
+    @test _labels(make_window_help_menu(; gesture_help = true).submenu) ==
+          ["Gestures", "Documents", "Projections", "About"]
+    @test _labels(make_window_help_menu(; command_palette = true).submenu) ==
+          ["Command palette", "Documents", "Projections", "About"]
+    help = make_window_help_menu(; gesture_help = true, command_palette = true)
+    @test _labels(help.submenu) == ["Gestures", "Command palette", "Documents", "Projections", "About"]
+    # The key reaches the wrapper itself, so the item carries none, and its
+    # tooltip names the key.
+    for (item, key) in zip(collect(help.submenu.elements)[1:2], ("(F1)", "(Ctrl+Shift+P)"))
+        @test item.action.shortcut === nothing
+        @test endswith(item.tooltip, key)
+    end
+    bar = make_window_menu_bar(; gesture_help = true, command_palette = true)
+    @test _labels(_submenu(bar, "Help"))[1:2] == ["Gestures", "Command palette"]
+end
+
 @testset "each Help item opens its tab, and a second use opens no other" begin
     tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
     group = first(get_pane_groups(tree))
