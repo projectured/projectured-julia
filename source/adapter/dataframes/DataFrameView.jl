@@ -13,8 +13,12 @@ says what the view keeps of the frame: the columns that it shows, and the rows
 that pass its filters. `expression_result` holds the rows that the expression of
 the query passes, or the reason why it does not run, and `kept_rows` the rows
 that pass every filter, by their number in the frame and in its order; both
-follow the frame and the query. A column of the view
-is named by its name, with a `DataFrameColumnReferenceStep`.
+follow the frame and the query. A path in the view names a row and a
+column of the frame by their numbers, with the steps of a table: `rows[r]` is a
+row, `columns[c]` a column and `rows[r][c]` a cell, through the fields `rows`
+and `columns`, which hold a [`DataFrameViewRows`](@ref) and a
+[`DataFrameViewColumns`](@ref) of the view. So a sort, a filter, a hidden column
+and a scroll do not change what a path names.
 
 `anchor` is the place, among the kept rows, of the row at the head of the list
 of rows, and `scroll_position` is the offset of the table from that row, in
@@ -46,13 +50,78 @@ the data of the frame reads `frame_version` too.
     column_widths::Dict{String,Int}
     frame_version::Int
     frame_snapshot::Any
+    rows::Any
+    columns::Any
 end
 
 function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1)
     view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
                          Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
-                         Cell(Dict{String,Int}()), Cell(0), Cell(nothing), Cell(nothing))
-    _set_kept_row_computations!(view)
+                         Cell(Dict{String,Int}()), Cell(0), Cell(nothing), Cell(nothing), Cell(nothing),
+                         Cell(nothing))
+    _set_path_fields!(_set_kept_row_computations!(view))
+end
+
+"""
+    DataFrameViewRows(view)
+
+The value of the field `rows` of a [`DataFrameView`](@ref): what the path
+`rows[r]` of a row of the frame steps through. `[r]` gives row `r` of the frame,
+a [`DataFrameViewRow`](@ref), and a number past the frame is out of bounds. It
+holds the view, and reads the frame only when it is indexed.
+"""
+struct DataFrameViewRows
+    view::DataFrameView
+end
+
+"""
+    DataFrameViewRow(view, row)
+
+Row `row` of the frame of `view`, what the path `rows[r]` names. `[c]` gives the
+value in column `c` of the frame.
+"""
+struct DataFrameViewRow
+    view::DataFrameView
+    row::Int
+end
+
+"""
+    DataFrameViewColumns(view)
+
+The value of the field `columns` of a [`DataFrameView`](@ref): what the path
+`columns[c]` of a column of the frame steps through. `[c]` gives column `c` of
+the frame, a [`DataFrameColumn`](@ref).
+"""
+struct DataFrameViewColumns
+    view::DataFrameView
+end
+
+function Base.getindex(rows::DataFrameViewRows, r::Integer)
+    1 <= r <= nrow(rows.view.frame) || throw(BoundsError(rows, r))
+    DataFrameViewRow(rows.view, Int(r))
+end
+
+function Base.getindex(row::DataFrameViewRow, c::Integer)
+    1 <= c <= ncol(row.view.frame) || throw(BoundsError(row, c))
+    row.view.frame[row.row, c]
+end
+
+function Base.getindex(columns::DataFrameViewColumns, c::Integer)
+    frame_names = names(columns.view.frame)
+    1 <= c <= length(frame_names) || throw(BoundsError(columns, c))
+    DataFrameColumn(columns.view, frame_names[c])
+end
+
+# Each holds the view, which holds it, so each prints by its kind alone.
+Base.show(io::IO, ::DataFrameViewRows) = print(io, "DataFrameViewRows(…)")
+Base.show(io::IO, row::DataFrameViewRow) = print(io, "DataFrameViewRow(…, ", row.row, ")")
+Base.show(io::IO, ::DataFrameViewColumns) = print(io, "DataFrameViewColumns(…)")
+
+# The fields that the paths of `view` step through.
+function _set_path_fields!(view::DataFrameView)
+    getfield(view, :rows)[] = DataFrameViewRows(view)
+    getfield(view, :columns)[] = DataFrameViewColumns(view)
+    view
 end
 
 # The result of the expression of `view`, computed again when the frame or the
@@ -79,10 +148,10 @@ end
 has_document_duplicate(::Union{DataFrameView,DataFrameQuery,DataFrameColumnFilter,DataFrameSortKey}) = true
 
 copy_document(policy::DuplicatePolicy, view::DataFrameView) =
-    _set_kept_row_computations!(copy_document_fields(policy, view; frame = view.frame,
-                                                     expression_result = (nothing, nothing),
-                                                     kept_rows = Int[], frame_version = 0,
-                                                     frame_snapshot = nothing))
+    _set_path_fields!(_set_kept_row_computations!(
+        copy_document_fields(policy, view; frame = view.frame, expression_result = (nothing, nothing),
+                             kept_rows = Int[], frame_version = 0, frame_snapshot = nothing,
+                             rows = nothing, columns = nothing)))
 
 """
     jump_to_row(view::DataFrameView, row::Integer) -> Operation or nothing

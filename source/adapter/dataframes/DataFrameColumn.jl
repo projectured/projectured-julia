@@ -1,32 +1,16 @@
 # Fragment of `DataFramesModule`.
 #
 # A column of a view as a place in it, and the context menus of the header of a
-# column and of the whole view. A column is named by its name, so a path to it
-# outlives a hide or a move of another column.
-
-"""
-    DataFrameColumnReferenceStep(name)
-
-The step of a reference that names the column `name` of a `DataFrameView`. It
-evaluates to a [`DataFrameColumn`](@ref), and to `nothing` when the frame has no
-such column.
-"""
-@cell_struct struct DataFrameColumnReferenceStep <: ReferenceStep
-    name::String
-end
-
-get_reference_step_kind(::DataFrameColumnReferenceStep) = :structural
-
-Base.:(==)(a::DataFrameColumnReferenceStep, b::DataFrameColumnReferenceStep) = a.name == b.name
-Base.hash(s::DataFrameColumnReferenceStep, h::UInt) = hash(s.name, hash(:DataFrameColumnReferenceStep, h))
-Base.show(io::IO, s::DataFrameColumnReferenceStep) = print(io, "column(", repr(s.name), ")")
+# column and of the whole view. A column is `columns[c]` of the view, by its
+# number in the frame, so a path to it outlives a hide or a move of another
+# column in the view.
 
 """
     DataFrameColumn(view, name)
 
-The column `name` of `view`: what a [`DataFrameColumnReferenceStep`](@ref)
-names. It is a document with a gesture table and no selection of its own, so a
-right click on the header of the column opens its menu, which hides it.
+The column `name` of `view`: what the path `columns[c]` of the view names. It is
+a document with a gesture table and no selection of its own, so a right click
+on the header of the column opens its menu, which hides it.
 """
 struct DataFrameColumn <: Document
     view::DataFrameView
@@ -37,12 +21,16 @@ get_selection(::DataFrameColumn) = nothing
 
 get_document_title(column::DataFrameColumn) = column.name
 
-evaluate_reference_step(step::DataFrameColumnReferenceStep, view::DataFrameView) =
-    step.name in names(view.frame) ? DataFrameColumn(view, step.name) : nothing
+# The path of column `name` of the frame of `view`, `columns[c]`, or `nothing`
+# when the frame has no such column.
+function _make_column_reference(view::DataFrameView, name::String)
+    c = findfirst(==(name), names(view.frame))
+    c === nothing ? nothing : _make_element_reference("columns", c, EmptyReference())
+end
 
-# The path of column `name` in a view.
-_make_column_reference(name::String) =
-    ConcreteReference(DataFrameColumnReferenceStep(name), EmptyReference())
+# The path `field[i]`, followed by `tail`.
+_make_element_reference(field::String, i::Int, tail) =
+    ConcreteReference(FieldReferenceStep(field), ConcreteReference(RangeReferenceStep(i - 1, i), tail))
 
 # ── The menus ────────────────────────────────────────────────────────────────
 

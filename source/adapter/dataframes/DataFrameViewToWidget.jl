@@ -36,13 +36,15 @@ the table shows, which the projection counts from the height it is offered and
 `row_step`, the height of a row with its padding and its rule. A press on the
 bar, or a move with the left button held, is a jump to the row at that place.
 
-The table shows the columns that the query of the view does not hide. A press
-on a header selects its column, as a `DataFrameColumnReferenceStep`, and the
-header shows the selection; a press on the corner selects the view. A
-selection of a row or of a cell has no place in the view yet, and goes nowhere.
-The backward map names the column of a point on a header and the view of a
-point on the corner, so a right click there opens the menu of the column or of
-the view.
+The table shows the columns that the query of the view does not hide. A path
+of the view names a row and a column of the frame by their numbers, and the
+view maps it to the table and back: `columns[c]` is the column that the table
+shows, `rows[r]` the row among the kept rows counted from the head of the list,
+and `rows[r][c]` their cell; a header maps to its column or its row. So a press
+on a header selects its column, a press on a row header its row, and the table
+shows the selection; a press on the corner selects the view. The backward map
+names the column of a point on a header and the view of a point on the corner,
+so a right click there opens the menu of the column or of the view.
 The reader gives the view a key that the table does not take, so the gestures
 of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
 on.
@@ -215,10 +217,10 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     table
 end
 
-# The selection of the table that shows the selection of `view`: the header of
-# the selected column, counted from the head column when the columns are a
-# list; the field of a filter or of the pattern, with its caret; and the whole
-# table for the whole view.
+# The selection of the table that shows the selection of `view`: the column,
+# the row or the cell of the frame that it names, where the table shows it; the
+# field of a filter or of the pattern, with its caret; and the whole table for
+# the whole view.
 function _get_table_selection(view::DataFrameView, column_list::Bool)
     selection = view.selection
     selection === nothing && return nothing
@@ -231,20 +233,78 @@ function _get_table_selection(view::DataFrameView, column_list::Bool)
         found[1] === :pattern && return ConcreteReference(FieldReferenceStep("corner"), field)
         return _make_header_reference(view, view.query.column_filters[found[1]].column, field, column_list)
     end
-    (selection isa ConcreteReference && selection.head isa DataFrameColumnReferenceStep) || return nothing
-    _make_header_reference(view, selection.head.name, EmptyReference(), column_list; field = "columns")
+    (selection isa ConcreteReference && selection.head isa FieldReferenceStep) || return nothing
+    _find_table_part_path(view, selection, column_list)
 end
 
-# The path in the table of the header of column `name`, followed by `tail`, or,
-# with `field = "columns"`, of the whole column; `nothing` when the view does
-# not show the column.
-function _make_header_reference(view::DataFrameView, name::String, tail, column_list::Bool;
-                                field::String = "column_headers")
+# The path in the table of the header of column `name`, followed by `tail`;
+# `nothing` when the view does not show the column.
+function _make_header_reference(view::DataFrameView, name::String, tail, column_list::Bool)
     c = findfirst(==(name), _get_shown_columns(view))
     c === nothing && return nothing
     column_list && (c -= view.column_anchor - 1)
-    ConcreteReference(FieldReferenceStep(field),
-                      ConcreteReference(RangeReferenceStep(c - 1, c), tail))
+    _make_element_reference("column_headers", c, tail)
+end
+
+# The path in the table of `path`, a path of the view to a column, a row or a
+# cell of the frame, with the rest of the path as it is: `columns[c]…` is the
+# column that the table shows, `rows[r]…` the row among the kept rows counted
+# from the head of the list, and `rows[r][c]…` the cell where they meet.
+# `nothing` for a column that the view hides, and for a row that a filter drops
+# or that is too far from the head for the table to show it.
+function _find_table_part_path(view::DataFrameView, path::ConcreteReference, column_list::Bool)
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
+    if path.head.name == "columns"
+        j = _find_table_column(view, tail.head.stop, column_list)
+        return j === nothing ? nothing : _make_element_reference("columns", j, tail.tail)
+    end
+    path.head.name == "rows" || return nothing
+    k = _find_table_row(view, tail.head.stop)
+    k === nothing && return nothing
+    rest = tail.tail
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep) ||
+        return _make_element_reference("rows", k, rest)
+    j = _find_table_column(view, rest.head.stop, column_list)
+    j === nothing && return nothing
+    _make_element_reference("rows", k, ConcreteReference(RangeReferenceStep(j - 1, j), rest.tail))
+end
+
+# The place in the table of column `c` of the frame, counted from the head column
+# when the columns are a list, or `nothing` when the view hides it.
+function _find_table_column(view::DataFrameView, c::Int, column_list::Bool)
+    frame_names = names(view.frame)
+    1 <= c <= length(frame_names) || return nothing
+    j = findfirst(==(frame_names[c]), _get_shown_columns(view))
+    j === nothing && return nothing
+    column_list ? j - (view.column_anchor - 1) : j
+end
+
+# How far from the head of the list of rows the view looks for a row of the frame.
+# The table shows the rows near its head, because it moves the head to the row at
+# the top as it scrolls, and a sort can put a row anywhere among the kept rows.
+const _ROW_SEARCH_REACH = 10_000
+
+# The place of the kept row at the head of the list of rows.
+_get_head_place(view::DataFrameView) = clamp(view.anchor, 1, max(1, length(view.kept_rows)))
+
+# The place in the table of row `r` of the frame, counted from the head of the
+# list, or `nothing` when no kept row near the head is `r`.
+function _find_table_row(view::DataFrameView, r::Int)
+    kept = view.kept_rows
+    isempty(kept) && return nothing
+    head = _get_head_place(view)
+    for p in max(1, head - _ROW_SEARCH_REACH):min(length(kept), head + _ROW_SEARCH_REACH)
+        kept[p] == r && return p - head + 1
+    end
+    nothing
+end
+
+# The row of the frame of row `k` of the table, counted from the head of the
+# list, or `nothing` past the kept rows.
+function _find_frame_row(view::DataFrameView, k::Int)
+    p = _get_head_place(view) + k - 1
+    1 <= p <= length(view.kept_rows) ? view.kept_rows[p] : nothing
 end
 
 """
@@ -332,8 +392,9 @@ end
 
 # The path in the view of `path`, a path in the table: the text of the query and
 # its range for a field of the filter row, the view for the table and for the
-# rest of its corner, a column for the column and for its header, which holds no
-# state of its own in the view, and `nothing` for any other place.
+# rest of its corner, `columns[c]` of the frame for a column and for its header,
+# `rows[r]` for a row and for its header, which hold no state of their own in the
+# view, `rows[r][c]` for a whole cell, and `nothing` for any other place.
 function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     path isa EmptyReference && return EmptyReference()
     (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
@@ -341,12 +402,33 @@ function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     text = _find_query_text_path(view, path, c -> _find_shown_column(iomap, c))
     text === nothing || return text
     path.head.name == "corner" && return EmptyReference()
-    path.head.name in ("columns", "column_headers") || return nothing
     tail = path.tail
-    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.tail isa EmptyReference) ||
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
+    name = path.head.name
+    if name in ("columns", "column_headers")
+        tail.tail isa EmptyReference || return nothing
+        return _find_frame_column_path(iomap, tail.head.stop, EmptyReference())
+    end
+    name in ("rows", "row_headers") || return nothing
+    r = _find_frame_row(view, tail.head.stop)
+    r === nothing && return nothing
+    rest = tail.tail
+    rest isa EmptyReference && return _make_element_reference("rows", r, rest)
+    name == "rows" || return nothing
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep && rest.tail isa EmptyReference) ||
         return nothing
-    name = _find_shown_column(iomap, tail.head.stop)
-    name === nothing ? nothing : _make_column_reference(name)
+    column = _find_frame_column_path(iomap, rest.head.stop, EmptyReference())
+    column === nothing && return nothing
+    _make_element_reference("rows", r, column.tail)
+end
+
+# `columns[c]` of the view, followed by `tail`, for column `j` of the table,
+# counted from the head column when the columns are a list; `nothing` past them.
+function _find_frame_column_path(iomap::DataFrameViewToWidgetIoMap, j::Int, tail)
+    name = _find_shown_column(iomap, j)
+    name === nothing && return nothing
+    path = _make_column_reference(iomap.input, name)
+    path === nothing ? nothing : ConcreteReference(path.head, ConcreteReference(path.tail.head, tail))
 end
 
 # The name of the column of header `c` of the table, counted from the head

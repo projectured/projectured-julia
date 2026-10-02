@@ -44,6 +44,7 @@ import ProjecturedKernelTest: check_layering, get_package_source_root
 include("../../../test/adapter/dataframes/DataFrameExampleTest.jl")
 include("../../../test/adapter/dataframes/DataFrameViewTest.jl")
 include("../../../test/adapter/dataframes/DataFrameColumnTest.jl")
+include("../../../test/adapter/dataframes/DataFramePathTest.jl")
 include("../../../test/adapter/dataframes/DataFrameFilterTest.jl")
 include("../../../test/adapter/dataframes/DataFrameSortTest.jl")
 include("../../../test/adapter/dataframes/DataFrameRefreshTest.jl")

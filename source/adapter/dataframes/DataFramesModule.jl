@@ -22,7 +22,6 @@ using ..PlatformModule
 import ..DocumentModule: get_document_title, copy_document, has_document_duplicate
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..ProjectionModule: print_document, read_intent, map_reference_backward
-import ..ReferenceModule: evaluate_reference_step, get_reference_step_kind
 import ..SelectionModule: get_selection
 import ..OperationModule: evaluate_operation
 import ..DomainModule: compute_context_menu
@@ -30,7 +29,7 @@ import ..WidgetModule: make_value_document, make_graphics_projection, refresh_do
 
 export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery
 export DataFrameView, jump_to_row, make_data_frame_cell
-export DataFrameColumnReferenceStep, DataFrameColumn
+export DataFrameViewRows, DataFrameViewRow, DataFrameViewColumns, DataFrameColumn
 export RefreshDataFrameViewOperation
 export DataFrameViewToWidget, make_data_frame_view_projection
 

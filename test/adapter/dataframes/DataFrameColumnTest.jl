@@ -2,7 +2,8 @@
     test_data_frame_columns()
 
 A column of a view is a place in it: a press on a header selects the column, a
-path names the column by its name, the menu of its header hides it, and the menu
+path names the column by its number in the frame, `columns[c]`, the menu of its
+header hides it, and the menu
 of the view, which the corner reaches, shows it again.
 """
 function test_data_frame_columns()
@@ -22,6 +23,8 @@ function test_data_frame_columns()
             change isa Intent ? change.operation : change
         end
         table_of(io) = _data_frame_table_iomap(io).input
+        # `columns[c]` of the table, and of the view, whose numbers are those of
+        # the frame.
         column_reference(c) = ConcreteReference(FieldReferenceStep("columns"),
             ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
         module_ = ProjecturedDataFrames.DataFramesModule
@@ -34,7 +37,7 @@ function test_data_frame_columns()
             (x, y) = place_of(io, "name :: String")
             op = press(io, x + 2, y + 2)
             @test op isa ReplaceSelectionOperation
-            @test strip_reference_types(op.path).head == DataFrameColumnReferenceStep("name")
+            @test strip_reference_types(op.path) == column_reference(2)
             column = try_evaluate_reference(view, op.path)
             @test column isa DataFrameColumn && column.view === view && column.name == "name"
             # The table shows the selection of the view on the column.
@@ -93,9 +96,7 @@ function test_data_frame_columns()
             @test titles_of(opened) == ["name"]
             @test menu_labels(opened) == ["Filter by values…", "Hide column"]
             @test opened.point == (x + 2, y + 2)
-            column = ConcreteReference(DataFrameColumnReferenceStep("name"),
-                                       EmptyReference())
-            @test strip_reference_types(opened.source) == column
+            @test strip_reference_types(opened.source) == column_reference(2)
             # The corner opens the menu of the view once a column is hidden, and a
             # header then gives its own menu first and the menu of the view after it.
             hide = module_._make_hide_column_operation(view, "price")
@@ -127,8 +128,7 @@ function test_data_frame_columns()
 
         @testset "a path to a column that the frame does not have names nothing" begin
             view = DataFrameView(make_frame())
-            missing_column = ConcreteReference(DataFrameColumnReferenceStep("none"), EmptyReference())
-            @test try_evaluate_reference(view, missing_column) === nothing
+            @test try_evaluate_reference(view, column_reference(4)) === nothing
         end
 
         @testset "in a frame of many columns, a press on a header names its column" begin
@@ -137,7 +137,7 @@ function test_data_frame_columns()
             io = print_document(projection, nothing, view, context())
             (x, y) = place_of(io, "c51 :: Int64")
             op = press(io, x + 2, y + 2)
-            @test strip_reference_types(op.path).head == DataFrameColumnReferenceStep("c51")
+            @test strip_reference_types(op.path) == column_reference(51)
             getfield(view, :selection)[] = op.path
             @test strip_reference_types(table_of(io).selection) == column_reference(2)
         end

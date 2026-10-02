@@ -1201,10 +1201,34 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       the cell table, the light, the forward and the backward maps of a widget.
       The cell editing test of the umbrella fails in "a JSON string" with 3
       failures and 1 error, a known failure of main.
-  - [ ] **4.2** The paths of the view: the computed fields `rows` and
+  - [x] **4.2** The paths of the view: the computed fields `rows` and
     `columns`; `DataFrameColumnReferenceStep` goes and `DataFrameColumn` is
     `columns[c]`; the view maps its paths, in numbers of the frame, to the
-    paths of the table and back.
+    paths of the table and back. Done 2026-10-02:
+    - The fields `rows` and `columns` of the view hold a `DataFrameViewRows`
+      and a `DataFrameViewColumns`, which hold the view, so the view sets them
+      after it is built, as it sets its kept rows. `rows[r]` gives a
+      `DataFrameViewRow`, whose `[c]` is the value in the frame; `columns[c]`
+      gives the `DataFrameColumn`, which keeps its menu; a number past the
+      frame is out of bounds, so the path evaluates to nothing. The duplicate
+      replaces the two fields and sets them for the copy, because a copy of a
+      field that refers back to the view fails on the back-link.
+    - `DataFrameColumnReferenceStep` and its methods are gone.
+    - The view maps `columns[c]` to the column that the table shows,
+      `rows[r]` to the place of the row among the kept rows, counted from the
+      head of the list, and `rows[r][c]` to their cell; back, a column and its
+      header give `columns[c]`, a row and its header `rows[r]`, and a whole
+      cell `rows[r][c]`. A caret inside a cell maps in 4.3 and 4.4.
+    - A sort can put a row anywhere among the kept rows, so the view looks for a
+      row of the frame within 10,000 places of the head (mine): the table shows
+      only rows near its head, because it moves the head to the row at the top
+      as it scrolls. A row further away has no place in the table until a
+      scroll brings the head near it.
+    - Tests: `test_data_frame_paths()` (a row, a column and a cell evaluate; a
+      press on a row header selects the row of the frame, which a sort keeps;
+      an Alt+press on a cell; a hidden column keeps its path; a duplicate steps
+      through its own fields) and the column tests on `columns[c]`; 289 data
+      frame tests pass.
   - [ ] **4.3** The cells are primitive documents, and a `Date` stays a label
     (R4); a click opens an entry; the cost of a scroll.
   - [ ] **4.4** The entries of `edits`: keys, a type-in in an entry, and the
