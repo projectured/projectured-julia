@@ -354,4 +354,51 @@ end
     SDL._close_native_window!(resource)
     quit_backend!(backend)
 end
+
+@testset "the frames of an open popup leave the window under it open" begin
+    # The pointer over an open menu makes a frame at each move, and each frame
+    # places the popup in the work area.
+    SDL = ProjecturedSDL.SdlModule
+    LibSDL2 = SDL.SimpleDirectMediaLayer.LibSDL2
+    backend = SdlBackend(partial_render = true, debug_dirty = false)
+    initialize_backend!(backend)
+    main = WindowDocument(; id = :main_test, title = "main_test", x = 100, y = 100,
+                            width = 300, height = 200,
+                            content = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]),
+                                                     layout_none))
+    popup = WindowDocument(; id = :popup_test, title = "popup_test", x = 120, y = 130,
+                             width = 200, height = 100, maximum_size = (200, 100),
+                             style = :popup, auto_dismiss = true,
+                             content = GraphicsCanvas(CellVector(Any[GraphicsRect(5, 5, 40, 10)]),
+                                                      layout_none))
+    screen = ScreenDocument([main, popup])
+    for _ in 1:300
+        write_to_devices(backend, Device[Display()], screen)
+    end
+    @test LibSDL2.SDL_GetWindowFlags(backend.windows[:main_test].win) != 0
+    quit_backend!(backend)
+end
+
+@testset "a frame places a window in the size that the display holds" begin
+    # A frame asks SDL and `xrandr` nothing. The backend reads the size when it
+    # starts and again at a display event.
+    SDL = ProjecturedSDL.SdlModule
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    @test (backend.display.width, backend.display.height) == SDL.get_sdl_display_size()
+    backend.display.width, backend.display.height = 400, 300
+    popup = WindowDocument(; id = :area_test, title = "area_test", x = 380, y = 280,
+                             width = 200, height = 100, maximum_size = (200, 100),
+                             style = :popup, content = "content")
+    SDL._place_fitted_window!(backend, popup)
+    @test (popup.x, popup.y) == (200, 200)
+    _push_sdl_event!(_SDL.SDL_DisplayEvent(UInt32(_SDL.SDL_DISPLAYEVENT), UInt32(0), UInt32(0),
+                                           UInt8(_SDL.SDL_DISPLAYEVENT_CONNECTED),
+                                           0x00, 0x00, 0x00, Int32(0)))
+    for _ in 1:100
+        read_from_devices(backend, Device[Display()]) === nothing && break
+    end
+    @test (backend.display.width, backend.display.height) == SDL.get_sdl_display_size()
+    quit_backend!(backend)
+end
 end # test_native_window

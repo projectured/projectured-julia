@@ -47,11 +47,10 @@ function _x11_primary_monitor_size(; require_multi::Bool=false)
 end
 
 # Start the video subsystem of SDL when it does not run, and answer whether it
-# runs. SDL counts the starts of a subsystem in one byte. The 256th start while
-# video runs brings the count back to zero, and the start after it quits video
-# first, which destroys every window and sends no event. So code that can run
-# more than once in the life of a backend starts video here, never with a bare
-# `SDL_Init`.
+# runs. SDL counts the starts of a subsystem in one byte. After 256 starts the
+# count is zero again, and the next start quits video first, which destroys
+# every window and sends no event. So code that can run more than once in the
+# life of a backend starts video here, never with a bare `SDL_Init`.
 _start_sdl_video!() = SDL_WasInit(SDL_INIT_VIDEO) != 0 || SDL_Init(SDL_INIT_VIDEO) == 0
 
 """
@@ -3524,6 +3523,9 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
     _detect_display_density!()
     backend.display.density = _PROBED_DISPLAY_DENSITY[]
+    # The work area that keeps a popup and a tooltip on the screen. A frame reads
+    # it here, and not from SDL and `xrandr`.
+    backend.display.width, backend.display.height = get_sdl_display_size()
     # Start with no input owed: a backend that is opened again must not answer
     # with an event left over from its last life.
     backend.pending_input = nothing
@@ -3775,6 +3777,12 @@ function _poll_window_input(backend::SdlBackend)
 
         if t == SDL_QUIT
             return (WindowInput(:none, WindowQuit(; time = event_time)), nothing)
+
+        elseif t == SDL_DISPLAYEVENT
+            # A monitor came or went: the work area is read again. The editor
+            # gets no input for it.
+            backend.display.width, backend.display.height = get_sdl_display_size()
+            continue
 
         elseif t == 0x00000200  # SDL_WINDOWEVENT
             # event byte 1 = SDL_WindowEventID
@@ -4142,12 +4150,15 @@ choose.
 
 A window of a fixed size is left alone, and so is one that asks the backend to
 place it (`x` or `y` below zero).
+
+The work area is the size that `backend.display` holds. This function runs at
+each frame, so it asks SDL and `xrandr` nothing.
 """
 function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
     maximum_size = w.maximum_size
     (maximum_size[1] <= 0 && maximum_size[2] <= 0) && return w
     (w.x < 0 || w.y < 0) && return w
-    area = get_display_size(backend)
+    area = (backend.display.width, backend.display.height)
     (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height);
                                   area_width = Int(area[1]),
                                   area_height = Int(area[2]),
