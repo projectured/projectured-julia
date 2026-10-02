@@ -12,7 +12,7 @@ holds each value times its scale, and `YamlTheme()` is the default theme.
 
 The fields are the text styles of a value of each kind, a mapping's key, a
 delimiter and a separator. Each field has a docstring that says what it
-draws, which the appearance tab shows as its tooltip.
+draws, which the appearance tab shows under its name.
 
 A YAML projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.

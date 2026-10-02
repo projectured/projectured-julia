@@ -14,7 +14,7 @@ The theme of the DbCatalog projections. `@theme` declares it, so
 
 The fields are the text styles of a column, a table, a schema, a database and
 the keyword that opens a group of children. Each field has a docstring that
-says what it draws, which the appearance tab shows as its tooltip.
+says what it draws, which the appearance tab shows under its name.
 
 A DbCatalog projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.

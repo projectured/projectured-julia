@@ -13,7 +13,7 @@ The theme of the statistics table. `@theme` declares it, so
 
 The fields are the text styles of the table's header, its rows and its empty
 line. Each field has a docstring that says what it draws, which the
-appearance tab shows as its tooltip.
+appearance tab shows under its name.
 
 The statistics table reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.

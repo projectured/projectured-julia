@@ -12,7 +12,7 @@ holds each value times its scale, and `TextTheme()` is the default theme.
 
 The fields are the font of unstyled text, the caret, the highlight, and the
 text styles of a boolean, a number and a string. Each field has a docstring
-that says what it draws, which the appearance tab shows as its tooltip.
+that says what it draws, which the appearance tab shows under its name.
 
 A text projection reads the scaled theme through its `UntrackedCell` style
 fields. The fonts and the colors of a text document stay as its author set them.

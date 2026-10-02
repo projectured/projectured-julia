@@ -16,7 +16,7 @@ scale, and `ReferenceTheme()` is the default theme.
 
 The fields are the fonts of the body and the connector, and the colors of
 each kind of token. Each field has a docstring that says what it draws,
-which the appearance tab shows as its tooltip.
+which the appearance tab shows under its name.
 
 Both projections hold the scaled theme as one `UntrackedCell` style field, read
 once at each print with `unwrap_cell`; with no theme they hold the plain values

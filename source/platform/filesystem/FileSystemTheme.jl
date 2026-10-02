@@ -11,8 +11,8 @@ The theme of the file-system tree, as syntax. `@theme` declares it, so
 `FileSystemTheme()` is the default theme.
 
 The fields are the text styles of a file and a directory. Each field has a
-docstring that says what it draws, which the appearance tab shows as its
-tooltip.
+docstring that says what it draws, which the appearance tab shows under its
+name.
 
 A file-system projection reads the scaled theme through its `UntrackedCell`
 style fields; with no theme it holds the plain values of the default theme.

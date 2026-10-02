@@ -12,7 +12,7 @@ holds each value times its scale, and `ChartTheme()` is the default theme.
 
 The fields are in groups: the colors, the three fonts and the lengths of the
 layout. Each field has a docstring that says what it draws, which the
-appearance tab shows as its tooltip.
+appearance tab shows under its name.
 
 A chart projection reads the scaled theme through `ChartPlotToGraphicsCanvas`'s
 `style` field, which holds every value as one `NamedTuple`; with no theme it

@@ -15,7 +15,7 @@ preset.
 
 The fields are in groups: the palette, the decorations, the fonts, the spacing,
 the radii, the lines, the parts of controls and the icons. Each field has a
-docstring that says what it draws, which the appearance tab shows as its tooltip.
+docstring that says what it draws, which the appearance tab shows under its name.
 
 The text styles, the hover layer and the pressed layer are no fields: a widget
 derives them from the fonts and the palette, so they follow a change of either.

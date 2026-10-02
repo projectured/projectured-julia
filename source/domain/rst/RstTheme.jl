@@ -16,7 +16,7 @@ holds each value times its scale, and `RstTheme()` is the default theme.
 The fields are in two groups: the text and the fonts of the source form, and
 the fonts and the colors of the rendered form, plus the gap between the
 blocks of a page. Each field has a docstring that says what it draws, which
-the appearance tab shows as its tooltip.
+the appearance tab shows under its name.
 
 An RST projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.

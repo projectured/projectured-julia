@@ -13,7 +13,7 @@ each value times its scale, and `UndoTheme()` is the default theme.
 The fields are the text styles of a step's index, a step that can be taken
 back or put back, the empty line, the current marker and a barrier step. Each
 field has a docstring that says what it draws, which the appearance tab shows
-as its tooltip.
+under its name.
 
 The history reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.

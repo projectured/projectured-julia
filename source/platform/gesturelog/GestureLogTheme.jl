@@ -12,7 +12,7 @@ holds each value times its scale, and `GestureLogTheme()` is the default theme.
 
 The fields are the text styles of a gesture log entry's index, gesture,
 operation, muted line and empty line. Each field has a docstring that says
-what it draws, which the appearance tab shows as its tooltip.
+what it draws, which the appearance tab shows under its name.
 
 A gesture log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.

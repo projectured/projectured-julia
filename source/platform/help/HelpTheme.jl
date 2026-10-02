@@ -13,7 +13,7 @@ The theme of [`HelpListToSyntax`](@ref) and [`AboutPageToSyntax`](@ref).
 
 The fields are the text styles of a list's heading, name, detail, description
 and muted line, and of the about page's title. Each field has a docstring
-that says what it draws, which the appearance tab shows as its tooltip.
+that says what it draws, which the appearance tab shows under its name.
 
 A help projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.

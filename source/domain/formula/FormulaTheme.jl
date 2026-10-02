@@ -15,7 +15,7 @@ the default theme.
 The fields are the text styles of the insertion placeholder, a reference, a
 name, an operator and a result, and the plain font of an environment's lines.
 Each field has a docstring that says what it draws, which the appearance tab
-shows as its tooltip.
+shows under its name.
 
 A Formula projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.

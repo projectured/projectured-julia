@@ -13,7 +13,7 @@ holds each value times its scale, and `MathTheme()` is the default theme.
 The fields are in two groups: the text styles of the linear form
 (`MathToSyntax`), and the fonts and the colors of the typeset form
 (`MathConfig`). Each field has a docstring that says what it draws, which the
-appearance tab shows as its tooltip.
+appearance tab shows under its name.
 
 A Math projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.

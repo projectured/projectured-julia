@@ -15,7 +15,7 @@ The theme of the SequenceChart projections. `@theme` declares it, so
 The fields are in groups: the colors of the frame, the lanes, the arrows and
 the events; the fonts of the title and the labels; and the lengths of the
 padding, the gaps and the lane spacing. Each field has a docstring that says
-what it draws, which the appearance tab shows as its tooltip.
+what it draws, which the appearance tab shows under its name.
 
 A SequenceChart projection reads the scaled theme through its `style` field,
 one `NamedTuple` built by `make_theme_values_field`; with no theme it holds the

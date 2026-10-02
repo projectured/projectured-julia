@@ -12,7 +12,7 @@ each value times its scale, and `FaultTheme()` is the default theme.
 
 The fields are the text styles of a fault's count, site, origin, message and
 the line the log shows when empty. Each field has a docstring that says what
-it draws, which the appearance tab shows as its tooltip.
+it draws, which the appearance tab shows under its name.
 
 A fault log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.

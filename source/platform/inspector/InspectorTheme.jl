@@ -15,7 +15,7 @@ The theme of [`ReferenceInspectorToText`](@ref) and
 
 The fields are the font of the body, and the font and the color of a section
 header. Each field has a docstring that says what it draws, which the
-appearance tab shows as its tooltip.
+appearance tab shows under its name.
 
 An inspector reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
