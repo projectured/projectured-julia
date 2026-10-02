@@ -44,6 +44,7 @@ export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 export ContentBounds, get_content_box, extend_content_bounds!, extend_canvas_bounds!,
        extend_element_bounds!, get_canvas_content_bounds
 export make_selection_ring, SELECTION_RING_COLOR
+export POINTER_SHAPES, find_pointer_shape
 export map_operation_position, shift_operation_position, shift_event_position, map_event_position
 export FaultToGraphics
 
@@ -51,6 +52,7 @@ export FaultToGraphics
 include("PointReferenceStep.jl")
 include("RegionReferenceStep.jl")
 include("GraphicsDocument.jl")
+include("PointerShape.jl")
 include("GraphicsCaching.jl")
 include("GraphicsToGraphics.jl")
 include("FaultToGraphics.jl")

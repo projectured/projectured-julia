@@ -567,6 +567,69 @@ and is skipped during rendering and hit-testing.
 @document struct GraphicsFence <: GraphicsDocument
 end
 
+# ── Pointer shape ──────────────────────────────────────────────────────────
+
+"""
+    POINTER_SHAPES
+
+The shapes that a pointer can take, named by the picture: `:arrow`, `:ibeam`,
+`:double_arrow_horizontal`, `:double_arrow_vertical`, `:pointing_hand`,
+`:open_hand`, `:closed_hand`, `:crossed_circle` and `:hourglass`. A backend maps
+each one to a shape of its own, and shows the arrow for a shape it does not know.
+"""
+const POINTER_SHAPES = (:arrow, :ibeam, :double_arrow_horizontal, :double_arrow_vertical,
+                        :pointing_hand, :open_hand, :closed_hand, :crossed_circle, :hourglass)
+
+_make_shape_cell(shape::Symbol) = Cell(shape)
+_make_shape_cell(shape::Cell) = shape
+_make_shape_cell(shape::Function) = Cell(@computation Symbol(shape()))
+
+"""
+    GraphicsPointerShape(x, y, w, h, shape; drag = false)
+
+A box where the pointer takes `shape`, one of [`POINTER_SHAPES`](@ref). It draws
+nothing.
+
+A part puts one into what it draws where a press does something: the edge of a
+column, the divider of a split pane, a text that a person edits. A backend finds
+the shape at the pointer with [`find_pointer_shape`](@ref), and every backend
+paints nothing for it.
+
+With `drag = true` the box is a region of a drag: it wins over every region that
+is not one, wherever it is in the drawing. The drag tracking puts one over each
+window while a drag is on, so the pointer keeps the shape of the press wherever
+it goes.
+
+`shape` is a `Symbol`, a cell that holds one, or a function of no arguments,
+which becomes a computed cell.
+
+# Example
+
+    GraphicsPointerShape(97, 0, 7, 24, :double_arrow_horizontal)
+
+**A laid-out canvas.** The box has a place on both axes, so a canvas that lays
+out its elements without overlap reads it as an element of the order: put a
+region in such a canvas only where its place keeps the order, or in a canvas
+without a layout.
+"""
+@document struct GraphicsPointerShape <: GraphicsDocument
+    x::Int32
+    y::Int32
+    w::Int32
+    h::Int32
+    shape::Symbol
+    drag::Bool
+end
+
+# @positional: the geometry of a region, in one order everywhere: x, y, width and height, then the shape.
+function GraphicsPointerShape(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber,
+                              shape::Union{Symbol,Cell,Function}; drag::Bool = false)
+    GraphicsPointerShape(_make_pixel_cell(x), _make_pixel_cell(y),
+                         _make_pixel_cell(w), _make_pixel_cell(h),
+                         _make_shape_cell(shape), Cell(drag),
+                         Cell(nothing))
+end
+
 # ── Hit testing ─────────────────────────────────────────────────────────────
 
 function _rect_hit(elem::GraphicsRect, cx::Int, cy::Int)

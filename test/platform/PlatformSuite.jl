@@ -154,6 +154,7 @@ function test_platform()
         test_syntax()
         test_text()
         test_graphics()
+        test_pointer_shape()
         test_affine_transform()
         test_font_metrics()
         test_text_measure()
@@ -319,7 +320,7 @@ export test_versioning_to_any
 export test_text_file, test_marker_language
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 export test_point_reference
-export test_syntax, test_text, test_graphics, test_affine_transform, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback,
+export test_syntax, test_text, test_graphics, test_pointer_shape, test_affine_transform, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
        test_primitive, test_pane_surgery, test_pane_geometry, test_pane_to_widget,
        test_pane_reader, test_pane_gestures, test_pane_drag,
