@@ -56,13 +56,20 @@ mutable struct WebBackend <: Backend
     last_ids::Vector{Symbol}              # window ids sent last frame (for close detection)
     force_full::Bool                      # send every window in full on the next frame
     zoom::Float64                         # the zoom of the display at the last frame sent
+    # Where the last pointer event that the editor read put the pointer: the id
+    # of its window and the point. `:none` before the first one.
+    pointer_window::Symbol
+    pointer_x::Int
+    pointer_y::Int
+    pointer_shapes::Dict{Symbol,Symbol}   # the shape of the pointer sent for each window
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
     WebBackend(String(host), Int(port), get_web_asset_directory("web"),
                get_web_asset_directory("font"),
                nothing, Channel{Any}(256), Base.Event(true), nothing,
-               Dict{Symbol,WebWindowState}(), Symbol[], false, 1.0)
+               Dict{Symbol,WebWindowState}(), Symbol[], false, 1.0,
+               :none, -1, -1, Dict{Symbol,Symbol}())
 end
 
 # The browser draws a screen of windows, and `--backend=web` names it.
@@ -730,6 +737,7 @@ end
 # without clearing this per-window state.
 function _reset_for_full!(backend::WebBackend)
     empty!(backend.windows)
+    empty!(backend.pointer_shapes)
     backend.last_ids = Symbol[]
     backend.force_full = true
     BackendModule.wake_backend!(backend)
@@ -799,9 +807,24 @@ function BackendModule.quit_backend!(backend::WebBackend)
     return nothing
 end
 
-# Non-blocking poll: hand back the next decoded event, or nothing.
-BackendModule.read_from_devices(backend::WebBackend, devices) =
-    isready(backend.inbound) ? take!(backend.inbound) : nothing
+# Non-blocking poll: hand back the next decoded event, or nothing. A pointer event
+# puts the pointer where the next frame finds the shape of the pointer.
+function BackendModule.read_from_devices(backend::WebBackend, devices)
+    isready(backend.inbound) || return nothing
+    input = take!(backend.inbound)
+    _track_pointer!(backend, input)
+    input
+end
+
+function _track_pointer!(backend::WebBackend, input)
+    input isa WindowInput || return nothing
+    event = input.event
+    event isa Union{MouseMove,MouseDown,MouseUp,MouseScroll} || return nothing
+    backend.pointer_window = input.window_id
+    backend.pointer_x = event.x
+    backend.pointer_y = event.y
+    nothing
+end
 
 """
     wait_for_input(backend::WebBackend, devices, timeout_seconds) -> Nothing
@@ -865,6 +888,12 @@ are closed. The message is
 `{type:"update", zoom:…, full:[…], patches:[…], close:[…]}`; nothing is sent when
 no client is connected or no window changed.
 
+After it, the frame sends `{type:"pointer", window:…, cursor:…}` when the shape
+that `find_pointer_shape` finds at the pointer, in the window of the last pointer
+event that the editor read, is another one than the shape sent for that window.
+`cursor` is the CSS cursor of the shape, which the client sets on the canvas of
+the window.
+
 `zoom` is the zoom of the `Display` in `devices`, or 1 with none. The client draws
 each logical pixel as `devicePixelRatio × zoom` pixels of the page, reports the
 size of each window divided by the zoom, and divides each pointer position by it,
@@ -891,6 +920,8 @@ function BackendModule.write_to_devices(backend::WebBackend, devices, screen::Sc
     force = backend.force_full || zoom != backend.zoom
     backend.force_full = false
     backend.zoom = zoom
+    force && empty!(backend.pointer_shapes)
+    foreach(id -> delete!(backend.pointer_shapes, Symbol(id)), closed)
 
     # The first window in list order is the primary (in-tab) one; the client
     # renders it in the page it was opened from rather than a popup.
@@ -916,13 +947,39 @@ function BackendModule.write_to_devices(backend::WebBackend, devices, screen::Sc
         end
     end
 
-    (isempty(full) && isempty(patches) && isempty(closed)) && return nothing
-    msg = JSON3.write(Dict("type" => "update", "zoom" => zoom, "full" => full, "patches" => patches,
-                           "close" => closed))
-    # `force` ⇒ a complete snapshot (all windows full, no patches), safe to drain
-    # the backlog against; otherwise append in order.
-    _enqueue!(backend, conn, msg, force)
+    pointer = _make_pointer_message(backend, wins)
+    if !(isempty(full) && isempty(patches) && isempty(closed))
+        msg = JSON3.write(Dict("type" => "update", "zoom" => zoom, "full" => full,
+                               "patches" => patches, "close" => closed))
+        # `force` ⇒ a complete snapshot (all windows full, no patches), safe to
+        # drain the backlog against; otherwise append in order.
+        _enqueue!(backend, conn, msg, force)
+    end
+    pointer === nothing || _enqueue!(backend, conn, pointer, false)
     return nothing
+end
+
+# The CSS cursor of each shape of the pointer. `:default` and a shape that this
+# table does not name are the arrow.
+const _CSS_CURSOR_OF_SHAPE = Dict{Symbol,String}(
+    :arrow => "default", :ibeam => "text",
+    :double_arrow_horizontal => "col-resize", :double_arrow_vertical => "row-resize",
+    :pointing_hand => "pointer", :open_hand => "grab", :closed_hand => "grabbing",
+    :crossed_circle => "not-allowed", :hourglass => "wait")
+
+# The message that gives the canvas of the window under the pointer the cursor of
+# the shape at the pointer, or `nothing` when that window shows it already.
+function _make_pointer_message(backend::WebBackend, windows::Vector{WindowDocument})
+    id = backend.pointer_window
+    index = findfirst(w -> w.id === id, windows)
+    index === nothing && return nothing
+    content = windows[index].content
+    content isa GraphicsCanvas || return nothing
+    shape = find_pointer_shape(content, backend.pointer_x, backend.pointer_y)
+    get(backend.pointer_shapes, id, nothing) === shape && return nothing
+    backend.pointer_shapes[id] = shape
+    JSON3.write(Dict("type" => "pointer", "window" => String(id),
+                     "cursor" => get(_CSS_CURSOR_OF_SHAPE, shape, "default")))
 end
 
 # The zoom of the first `Display` in `devices`, or 1 with none.

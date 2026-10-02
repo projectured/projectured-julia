@@ -1,7 +1,7 @@
 # The pointer shows what a press does there
 
 Status: in progress on the branch `pointer-shape` (worktree
-`.claude/worktrees/pointer-shape`). Steps 1 and 2 are done (§6). The owner decided
+`.claude/worktrees/pointer-shape`). Steps 1 to 3 are done (§6). The owner decided
 P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
 many other places, needs a plan"), after G3 of step 5.7 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) chose a lit edge
@@ -197,8 +197,19 @@ arrow.
    outline, with the hot spot in the middle; `quit_backend!` frees every cursor.
    Tests: `test_sdl_pointer_shape()` in
    `test/backend/sdl/backend/PointerShapeTest.jl`; `test_sdl()` passes, 844 of 844.
-3. **The web backend.** It sends `{"type": "pointer", "window", "shape"}` when
+3. ✅ **The web backend.** It sends `{"type": "pointer", "window", "shape"}` when
    the shape changes, and the client sets `cursor` of the canvas.
+
+   Done. **Decision: the message carries the CSS cursor, as
+   `{"type": "pointer", "window": id, "cursor": css}`**, so the table of §5 is in
+   Julia (`_CSS_CURSOR_OF_SHAPE`), where a test reads it, and the client only sets
+   `canvas.style.cursor`. The receive task of the WebSocket reads no cell: the
+   backend keeps the window and the point of the last pointer event that the
+   editor reads (`read_from_devices`), and `write_to_devices` finds the shape
+   there after each frame. It keeps the shape sent for each window, forgets it at
+   a full resend and at a close, and sends the message after the `update` of the
+   same frame. Tests: a set in `test_web_backend()`; `test_web()` passes, 127 of
+   127.
 4. **The video backend.** It draws the pointer of each shape: an image for each
    of the nine, in the style of the arrow it draws now (P4).
 5. **The parts.** The edge of a column (a region of 7 pixels around each edge of

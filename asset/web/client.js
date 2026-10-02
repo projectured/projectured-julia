@@ -120,6 +120,7 @@
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       if (msg.type === "update") handleUpdate(msg);
+      else if (msg.type === "pointer") setPointerCursor(msg);
       else if (msg.type === "busy") setOverlay("Another client is already connected to this editor.");
     };
   }
@@ -171,6 +172,13 @@
       }
       windowsMeta.delete(id);
     }
+  }
+
+  // The shape of the pointer over a window: the server sends the CSS cursor of the
+  // shape at the pointer when it changes, and the canvas of the window shows it.
+  function setPointerCursor(msg) {
+    const surface = surfaceFor(msg.window);
+    if (surface && surface.canvas) surface.canvas.style.cursor = msg.cursor;
   }
 
   // ── Page (in-tab) main window ──────────────────────────────────────────────

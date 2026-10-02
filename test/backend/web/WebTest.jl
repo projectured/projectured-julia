@@ -139,6 +139,43 @@ function test_web_backend()
         @test take_message()[:zoom] == 1.0
     end
 
+    @testset "the canvas under the pointer takes the cursor of the shape there" begin
+        backend = WebBackend(port = 0)
+        backend.conn = _WEB.WebConnection(nothing)
+        canvas = GraphicsCanvas([GraphicsPointerShape(0, 0, 50, 50, :ibeam),
+                                 GraphicsPointerShape(50, 0, 10, 50, :double_arrow_horizontal)];
+                                w = 100, h = 50)
+        screen = ScreenDocument([WindowDocument(; id = :main, content = canvas)])
+        take_message() = _WEB.JSON3.read(take!(backend.conn.outbox))
+        function move_to!(x)
+            _WEB._decode_and_enqueue!(backend,
+                """{"type":"mousemove","window":"main","x":$x,"y":10,"buttons":0}""")
+            read_from_devices(backend, Device[])
+            write_to_devices(backend, Device[], screen)
+        end
+        write_to_devices(backend, Device[], screen)
+        @test take_message()[:type] == "update"
+        # No pointer event was read yet, so no cursor goes.
+        @test !isready(backend.conn.outbox)
+        move_to!(10)
+        message = take_message()
+        @test (message[:type], message[:window], message[:cursor]) == ("pointer", "main", "text")
+        # The same shape sends nothing.
+        move_to!(20)
+        @test !isready(backend.conn.outbox)
+        move_to!(55)
+        @test take_message()[:cursor] == "col-resize"
+        move_to!(80)
+        @test take_message()[:cursor] == "default"
+        # A new client gets every window in full, and the cursor again.
+        _WEB._reset_for_full!(backend)
+        write_to_devices(backend, Device[], screen)
+        @test take_message()[:type] == "update"
+        @test take_message()[:cursor] == "default"
+        # Every shape has a CSS cursor.
+        @test all(shape -> haskey(_WEB._CSS_CURSOR_OF_SHAPE, shape), POINTER_SHAPES)
+    end
+
     @testset "a motion holds every button that the mask of the browser holds" begin
         backend = WebBackend(port = 0)
         # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.
