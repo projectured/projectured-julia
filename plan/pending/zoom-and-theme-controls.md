@@ -973,7 +973,7 @@ W1 lands on `main`, so W1 lands as soon as it is done (my reading of that plan,
     - [x] The data frame view follows a change of the spacing scale and of the
       font scale of its appearance.
   - [ ] The images of the examples whose widgets change font (D30), for the
-    owner's review: `/var/tmp/appearance-b2/compare/` holds the tabs, a data
+    owner's review: `/var/tmp/appearance-d30-review/` holds the tabs, a data
     frame table and the workspace explorer, before on the left and after on the
     right. The owner had them when the branch landed, and has not answered yet.
 - **The landing after B2** (2026-10-01, at the owner's word): projectured-julia
