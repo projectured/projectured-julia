@@ -148,31 +148,20 @@ end
     @test !card.collapsed
     evaluate_operation(nothing, translate(ToggleCollapseOperation(card)))
     @test isempty(appearance.open_sections) && card.collapsed
-    # An open section shows its fields, and the name of a field has its docstring
-    # as its tooltip.
+    # An open section shows its fields, the docstring of a field on a row under
+    # the row of its name, at the start of the row, and the summary of its theme.
     appearance.open_sections = ["WidgetTheme"]
     iomap = print_document(projection, nothing, appearance, offer)
-    @test "item gap" in first.(_at_collect_texts(iomap.output))
-    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
-    pane = tab.child_iomap.input
-    labels = WidgetLabel[]
-    function walk(node, depth = 0)
-        depth > 30 && return
-        node isa WidgetLabel && push!(labels, node)
-        node isa Document || return
-        for name in fieldnames(typeof(node))
-            value = getfield(node, name)
-            value isa Cell && (value = value[])
-            for child in (value isa AbstractVector ? value : (value,))
-                child isa Cell && (child = child[])
-                child isa Document && walk(child, depth + 1)
-            end
-        end
-    end
-    walk(pane)
-    label = only(l for l in labels if l.content == "item gap")
-    @test label.tooltip == find_theme_field_text(WidgetTheme, :item_gap)
-    @test label.tooltip isa String && !isempty(label.tooltip)
+    texts = _at_collect_texts(iomap.output)
+    name = only(t for t in texts if t[1] == "item gap")
+    text = find_theme_field_text(WidgetTheme, :item_gap)
+    description = only(t for t in texts if startswith(text, t[1]) && length(t[1]) > 10)
+    @test description[3] > name[3]
+    @test description[2] == name[2]
+    summary = compute_docstring_summary(WidgetTheme)
+    @test !isempty(summary)
+    @test any(t -> length(t[1]) > 10 && startswith(summary, t[1]), texts)
+    @test !any(t -> occursin('`', t[1]), texts)
 end
 
 @testset "a text style has the controls of its colour and of its font" begin

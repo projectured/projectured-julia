@@ -45,6 +45,7 @@ using ..SelectionModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..ToolModule
 using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document

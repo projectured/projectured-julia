@@ -15,11 +15,12 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   other themes of `ProjecturedPlatform`; and "Documents", the themes of the other
   packages, in the order of their names;
 - a card for each theme, which folds to its title, and which the tab shows open
-  when the `open_sections` of the appearance name it. The card holds the presets
-  of the theme, as a choice that writes every field of the preset into the theme,
-  and a row for each field. The
-  name of a field has the docstring of the field as its tooltip. A size has a
-  spin box for each of its parts, a font has buttons that step through
+  when the `open_sections` of the appearance name it. The card starts with the
+  summary of its theme type, the first paragraph of its docstring. It holds the
+  presets of the theme, as a choice that writes every field of the preset into
+  the theme, and a row for each field, its name and its control; under that row,
+  across the card, the docstring of the field, in the small font and the muted
+  color of the widget theme. A size has a spin box for each of its parts, a font has buttons that step through
   the font files and a spin box for its size, a colour has its swatch and its
   value as a text, `#rrggbbaa`, that a person edits, and a text style has the
   controls of its colour over those of its font.
@@ -215,8 +216,9 @@ function _get_section_title(T::Type)
     uppercasefirst(lowercase(join(words, " ")))
 end
 
-# The card of `theme`: its title, and its presets and a row for each field, which
-# show while the `open_sections` of the appearance name the type of the theme.
+# The card of `theme`: its title and the summary of its type, and its presets and
+# for each field a row and the docstring of the field under it, which show while
+# the `open_sections` of the appearance name the type of the theme.
 # `controls` makes the controls of the tab and holds its widget theme.
 function _make_theme_section(controls, theme)
     T = get_theme_type(theme)
@@ -228,16 +230,22 @@ function _make_theme_section(controls, theme)
         CompoundOperation(Any[_write_theme_field(theme, field, getproperty(preset, field))
                               for field in get_theme_field_names(T)])
     end))
+    caption = StyleText(controls.theme.font_small, controls.theme.muted_foreground)
     cells = Any[]
     for field in get_theme_field_names(T)
-        push!(cells, WidgetLabel(replace(String(field), "_" => " ");
-                                 tooltip = find_theme_field_text(T, field)),
+        push!(cells, WidgetLabel(replace(String(field), "_" => " ")),
               _make_field_control(controls, theme, field, getproperty(theme, field)))
+        text = something(find_theme_field_text(T, field), "")
+        isempty(text) ||
+            push!(cells, LayoutConstraint(WidgetLabel(strip_code_marks(text); text_style = caption);
+                                          column_span = 2))
     end
     push!(parts, GridLayout(cells, 2; horizontal_gap = controls.theme.label_gap,
                             vertical_gap = controls.theme.item_gap, vertical_align = :center))
     appearance = controls.appearance
+    summary = strip_code_marks(compute_docstring_summary(T))
     card = WidgetCard(; title = WidgetLabel(_get_section_title(T)),
+                      description = isempty(summary) ? nothing : summary,
                       content = VerticalLayout(parts; gap = controls.theme.item_gap),
                       collapsible = true, collapsed = !(name in appearance.open_sections))
     set_cell_computation!(getfield(card, :collapsed), () -> !(name in appearance.open_sections))
