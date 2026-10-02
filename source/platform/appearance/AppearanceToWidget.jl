@@ -93,18 +93,18 @@ _get_percent_text(factor::Real) = string(round(Int, factor * 100), "%")
 _write_theme_field(theme, field::Symbol, value) =
     ReplaceReferencedValueOperation(theme, String(field), value)
 
-# The font files that a font of a theme can take, in the order of their names:
-# the files of the font folder, without the icon font and the emoji font.
-_get_theme_font_files() =
-    sort!([f for f in readdir(_FONT_DIR) if endswith(f, ".ttf") &&
-           !(f in ("lucide.ttf", "NotoEmoji-Regular.ttf"))])
+# The families that a font of a theme can take, in the order of their names: the
+# bundled families, without the icon font and the emoji font.
+_get_theme_font_families() =
+    filter(family -> !(family in ("Lucide", "Noto Emoji")), get_font_families())
 
-# The font `delta` files away from `font` in the list of the font files, at the
-# size of `font`.
-function _step_font_file(font::StyleFont, delta::Integer)
-    files = _get_theme_font_files()
-    i = something(findfirst(==(basename(font.filename)), files), 1)
-    StyleFont(joinpath(_FONT_DIR, files[mod1(i + delta, length(files))]), font.size)
+# The font `delta` families away from `font` in the list of the families, at the
+# size, the weight and the slant of `font`.
+function _step_font_family(font::StyleFont, delta::Integer)
+    families = _get_theme_font_families()
+    i = something(findfirst(==(font.family), families), 1)
+    StyleFont(families[mod1(i + delta, length(families))], font.size;
+              weight = font.weight, italic = font.italic)
 end
 
 # A size of a theme with `part` replaced by `value`: a part of an inset, of a
@@ -304,15 +304,15 @@ end
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
 # The controls of the font that `read()` answers: buttons that step through the font
-# files, its name, and a spin box for its size. `write(font)` is the operation that
+# families, its family, and a spin box for its size. `write(font)` is the operation that
 # sets a new font.
 function _make_font_control(controls, read, write)
     font = read()
     HorizontalLayout(Any[
-        controls.button("‹", write(_step_font_file(font, -1))),
-        WidgetLabel(splitext(basename(font.filename))[1]),
-        controls.button("›", write(_step_font_file(font, 1))),
-        controls.spin_box(font.size, v -> write(StyleFont(read().filename, v)); min = 6, max = 96),
+        controls.button("‹", write(_step_font_family(font, -1))),
+        WidgetLabel(font.family),
+        controls.button("›", write(_step_font_family(font, 1))),
+        controls.spin_box(font.size, v -> write(with_font_size(read(), v)); min = 6, max = 96),
     ]; gap = controls.theme.label_gap, vertical_align = :center)
 end
 

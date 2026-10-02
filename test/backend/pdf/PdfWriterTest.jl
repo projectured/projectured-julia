@@ -183,7 +183,7 @@ end
     # A–V is −62 font units in Ubuntu, so the V moves 62 thousandths of the size
     # to the left: a positive adjustment in the `TJ` array.
     font = StyleModule.font_ubuntu_regular_20
-    ttf = load_truetype_font(font.filename)
+    ttf = load_truetype_font(compute_font_path(font))
     canvas = GraphicsCanvas([GraphicsText("AV", 10, 10; font, color = color_black)])
     filename = tempname() * ".pdf"
     write_pdf(canvas, filename; width=200, height=80)
@@ -212,11 +212,11 @@ end
 
 @testset "a character that the font lacks is drawn in the font that has it" begin
     font = StyleModule.font_ubuntu_monospace_regular_20
-    primary = load_truetype_font(font.filename)
+    primary = load_truetype_font(compute_font_path(font))
     check = '✓'
     @test !has_font_glyph(primary, UInt32(check))
-    fallback_file = find_glyph_font_file(font.filename, UInt32(check))
-    @test fallback_file isa String && fallback_file != font.filename
+    fallback_file = find_glyph_font_file(compute_font_path(font), UInt32(check))
+    @test fallback_file isa String && fallback_file != compute_font_path(font)
     fallback = load_truetype_font(fallback_file)
     # U+FE0F asks for emoji presentation; it has no width, and the writer drops it.
     canvas = GraphicsCanvas([GraphicsText("ok $(check)️", 10, 10; font, color = color_black)])
@@ -241,7 +241,7 @@ end
     # The writer embeds a font as `/FontFile2`, which holds TrueType outlines. A
     # CFF font has none, so a fallback font in that form is skipped.
     @test PdfModule._is_embeddable_font(fallback)
-    @test !PdfModule._is_embeddable_font(load_truetype_font(StyleModule.font_inconsolata_regular_18.filename))
+    @test !PdfModule._is_embeddable_font(load_truetype_font(compute_font_path(StyleModule.font_inconsolata_regular_18)))
 end
 
 end # test_write_pdf

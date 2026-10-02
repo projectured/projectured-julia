@@ -413,7 +413,7 @@ function paint_text!(ctx, t, ox, oy)
     size = font_logical_size(t.font)
     _, ascent, descent = compute_text_extent(t.text, t.font)
     _on_page(ctx, gy, gy + ascent + descent) || return
-    runs = _split_font_runs!(ctx, t.text, t.font.filename)
+    runs = _split_font_runs!(ctx, t.text, compute_font_path(t.font))
     isempty(runs) && return
     baseline = _flip(ctx, gy + ascent)
     print(ctx.buf, "/", gs_for!(ctx, ta), " gs ",

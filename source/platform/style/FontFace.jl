@@ -77,24 +77,31 @@ The family name matches with no regard to case. `nothing` when no bundled face
 has the family.
 """
 function find_font_face(family::AbstractString, weight::Integer, italic::Bool)
-    # The index and not the face: a local that holds a face or `nothing` boxes
-    # the face at each assignment.
+    index = _find_font_face_index(family, weight, italic)
+    index == 0 ? nothing : _FONT_FACES[index]
+end
+
+# The index in `_FONT_FACES` of the face that `find_font_face` finds, or 0. The
+# index and not the face: a local that holds a face or `nothing` boxes the face
+# at each assignment.
+function _find_font_face_index(family::AbstractString, weight::Integer, italic::Bool)
     found = 0
     found_rank = (0, 0, 0)
     for (index, face) in pairs(_FONT_FACES)
         _is_same_family(face.family, family) || continue
-        rank = (face.italic == italic ? 0 : 1, _rank_font_weight(weight, face.weight)...)
+        rank = (face.italic == italic ? 0 : 1, _rank_font_weight(Int(weight), Int(face.weight))...)
         if found == 0 || rank < found_rank
             found, found_rank = index, rank
         end
     end
-    found == 0 ? nothing : _FONT_FACES[found]
+    found
 end
 
 # The order of `candidate` for the weight `wanted`, by the rule of CSS: a smaller
 # tuple wins. The first part is the group of the rule, the second the distance
-# inside the group.
-function _rank_font_weight(wanted::Integer, candidate::Integer)
+# inside the group. Both are `Int`, so the rank has one type: a rank of two
+# integer types is a union, and the loop of the lookup boxes it.
+function _rank_font_weight(wanted::Int, candidate::Int)
     if 400 <= wanted <= 500
         wanted <= candidate <= 500 && return (0, candidate - wanted)
         candidate < wanted && return (1, wanted - candidate)
@@ -119,9 +126,41 @@ function _is_same_family(a::AbstractString, b::AbstractString)
 end
 
 """
+    get_font_families() -> Vector{String}
+
+The families of the bundled faces, each one time, in the order of their names.
+"""
+get_font_families() = sort!(unique!([face.family for face in _FONT_FACES]))
+
+"""
     get_font_face_path(face) -> String
 
 The path of the file of `face`: its file under `asset/font/`, or under the font
 search path when the bundle is on another machine (see [`font_file`](@ref)).
 """
 get_font_face_path(face::FontFace) = font_file(joinpath(_FONT_DIR, face.file))
+
+# The family that draws a font whose family has no bundled face.
+const _DEFAULT_FONT_FAMILY = "DejaVu Sans"
+
+# The path of the file of each face, in the order of `_FONT_FACES`, as the
+# package was built. `font_file` resolves it where the file is opened.
+const _FONT_FACE_PATHS = [joinpath(_FONT_DIR, face.file) for face in _FONT_FACES]
+
+"""
+    compute_font_path(font) -> String
+
+The path of the file that draws `font`: the file of the bundled face that
+[`find_font_face`](@ref) finds for its family, its weight and its slant. A font
+whose family has no bundled face draws in DejaVu Sans.
+
+The path is the one of the checkout that built the package;
+[`font_file`](@ref) resolves it where a file is opened, so a bundle on another
+machine finds its fonts. The measure, the backends and the caches of
+fonts key on this path. It allocates nothing.
+"""
+function compute_font_path(font::StyleFont)
+    index = _find_font_face_index(font.family, font.weight, font.italic)
+    index == 0 && (index = _find_font_face_index(_DEFAULT_FONT_FAMILY, font.weight, font.italic))
+    _FONT_FACE_PATHS[index]
+end

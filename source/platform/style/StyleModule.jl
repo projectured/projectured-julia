@@ -110,7 +110,8 @@ export font_ascent, font_descent, font_line_height,
        font_x_height, font_cap_height, font_glyph_bounds, font_file,
        get_fallback_font_files, find_glyph_font_file, has_font_glyph,
        is_presentation_selector
-export FontFace, find_font_face, get_font_face_path
+export FontFace, find_font_face, get_font_families, get_font_face_path, compute_font_path,
+       with_font_size
 export Inset, Point2D, inset_default,
        inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,

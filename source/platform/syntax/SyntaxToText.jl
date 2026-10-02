@@ -688,7 +688,7 @@ function _push_ellipsis!(buf::SpliceBuffer, ellipsis::TextString)
     size = buf.deco_font.size
     _push_span!(buf, _deco_span(buf.deco, (buf.nid, 0, :ellipsis),
         () -> TextString(ellipsis.content,
-                         StyleFont(ellipsis.font.filename, size), ellipsis.font_color)))
+                         with_font_size(ellipsis.font, size), ellipsis.font_color)))
 end
 
 # One child's line chrome: a newline then an indent of width `depth * indent_size`.

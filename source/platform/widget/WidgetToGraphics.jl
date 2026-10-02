@@ -7437,7 +7437,7 @@ function _push_open_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, color::Sty
     _push_chevron!(down, cx, cy, s, :down, color)
     _push_chevron!(right, cx, cy, s, :right, color)
     if length(down) == 1 && length(right) == 1 && only(down) isa GraphicsText &&
-       only(right) isa GraphicsText && only(down).font.filename == only(right).font.filename
+       only(right) isa GraphicsText && compute_font_path(only(down).font) == compute_font_path(only(right).font)
         # The two glyphs are read and dropped: the caller's computation must not
         # read the cell that reads `is_open`.
         down_text, right_text = only(down).text, only(right).text
@@ -7497,7 +7497,7 @@ font whose ascent is its em, as Lucide's is, fills the box.
 """
 make_glyph_icon(font::StyleFont, codepoint) =
     (elems, x, y, size, color) -> begin
-        push!(elems, GraphicsText(string(Char(codepoint)), x, y; font = StyleFont(font.filename, size), color))
+        push!(elems, GraphicsText(string(Char(codepoint)), x, y; font = with_font_size(font, size), color))
     end
 
 # A raster icon: blit an `ImageDocument`'s decoded pixels (NOT tinted — for art).

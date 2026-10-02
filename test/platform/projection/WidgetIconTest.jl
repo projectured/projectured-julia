@@ -22,7 +22,7 @@ end
 _icon_value(v) = v isa CellModule.Cell ? v[] : v
 
 # The texts a canvas draws in the icon font, and the character of an icon name.
-_is_icon_glyph(t) = endswith(_icon_value(t.font).filename, "lucide.ttf")
+_is_icon_glyph(t) = endswith(compute_font_path(_icon_value(t.font)), "lucide.ttf")
 _glyphs_of(canvas) = [String(string(_icon_value(t.text)))
                       for t in _prims_of(canvas, GraphicsText) if _is_icon_glyph(t)]
 _glyph(name) = string(find_icon_character(name))
@@ -71,7 +71,7 @@ end
     t = only(elements)
     @test (Int(_icon_value(t.x)), Int(_icon_value(t.y))) == (3, 4)
     @test _icon_value(t.font).size == 37
-    @test _icon_value(t.font).filename == font_ubuntu_regular_20.filename
+    @test compute_font_path(_icon_value(t.font)) == compute_font_path(font_ubuntu_regular_20)
 end
 
 @testset "a menu item shows a leading icon" begin
@@ -111,7 +111,7 @@ end
 
 @testset "every built-in icon is a glyph the icon font has, drawn in its box" begin
     registry = ProjecturedPlatform.WidgetModule.ICON_REGISTRY
-    font = load_truetype_font(font_lucide_icons_20.filename)
+    font = load_truetype_font(compute_font_path(font_lucide_icons_20))
     color = StyleColor(0.1, 0.2, 0.3, 1.0)
     for (name, codepoint) in ProjecturedPlatform.WidgetModule.LUCIDE_ICON_GLYPHS
         # A code point the font does not have draws nothing, or a box.

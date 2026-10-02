@@ -9,19 +9,27 @@ The style slice of `ProjecturedPlatform` holds the values that everything drawn 
 | Type | What it is |
 | --- | --- |
 | `StyleColor` | `red`, `green`, `blue`, `alpha`, each a `Float64` from 0 to 1 |
-| `StyleFont` | a font file name and a size |
+| `StyleFont` | a family, a size in logical pixels, a weight and a slant |
 | `StyleText` | a `StyleFont` and a `StyleColor`, the pair that every text needs |
 | `StyleStroke` | a colour, a width and a `dash` |
 | `Inset`, `Point2D`, `AffineTransform` | a box of margins, a point, a 2D transform with `∘` |
 | `ImageFile`, `ImageMemory` | an image from a file or from memory |
 
-The package also defines about a thousand colour constants (`color_black`, `color_solarized_blue`, the `color_slate_*` and `color_indigo_*` ramps) and a font constant for each font file and size under `asset/font/`, for example `font_ubuntu_monospace_regular_20`.
+The package also defines about a thousand colour constants (`color_black`, `color_solarized_blue`, the `color_slate_*` and `color_indigo_*` ramps) and a font constant for each bundled face and size, for example `font_ubuntu_monospace_regular_20`, which is `StyleFont("Ubuntu Mono", 20)`.
 
 ### Value documents
 
 `StyleColor`, `StyleFont` and `StyleText` are declared with `@document ImmutableCell [DC] struct`. `ImmutableCell` makes every field immutable, and `[DC]` gives the plain type name to that form. So `StyleText` is a value with no reactive cell and no selection, and a projection stores it in an `ImmutableCell{StyleText}` field. The reactive forms exist under prefixed names, such as `RCStyleFont`, for the rare case that needs one. [The layout list](../../kernel/macros.md#the-layout-list) in macros.md describes the prefixes.
 
 `StyleStroke`, `Inset`, `Point2D` and `AffineTransform` are plain structs. They have no identity in a reference path. A `.pred` file can hold an `Inset` and a `Point2D`, because the slice adds `is_pred_constructible` for them: a saved window keeps its size, its scroll position and its margins.
+
+### Fonts and their faces
+
+A font is a description, as in CSS: `StyleFont("Ubuntu Mono", 14; weight = 700, italic = true)`. The weight is on the scale of CSS and OpenType, from 100 to 900, where 400 is regular and 700 is bold. A font is 24 bytes and is stored inline, so a new font allocates nothing and two equal fonts are one value. `with_font_size(font, size)` gives the font at another size.
+
+A [`FontFace`](../../../../source/platform/style/FontFace.jl) is one face of a bundled family: its family, its weight, its slant and its file under `asset/font/`. The table of the faces is a constant, and `test_font_face` checks each face against the OS/2 table of its file. `find_font_face(family, weight, italic)` finds a face by the font matching of CSS: the slant first, then the nearest weight, with the family matched with no regard to case. `get_font_families()` names the bundled families.
+
+`compute_font_path(font)` is the file that draws a font: the file of the face that `find_font_face` finds, or of DejaVu Sans when no bundled face has the family. The measure, the backends and the caches of fonts key on this path, and `font_file` resolves it where a file is opened. It allocates nothing.
 
 ### Measurement without a display
 

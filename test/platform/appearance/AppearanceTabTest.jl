@@ -121,7 +121,7 @@ end
                      unwrap(op).document === theme &&
                      unwrap(op).reference.head == FieldReferenceStep("font"))
     next_font = unwrap(font_step).value
-    @test next_font.size == theme.font.size && next_font.filename != theme.font.filename
+    @test next_font.size == theme.font.size && next_font.family != theme.font.family
 end
 
 @testset "the sections are in three groups, the editor themes first, and each folds" begin
@@ -186,12 +186,12 @@ end
     write = only(w for w in writes
                  if w.document === syntax && w.reference.head == FieldReferenceStep("bool_text"))
     @test write.value isa StyleText
-    @test (write.value.font.filename, write.value.font.size) == (before.font.filename, before.font.size)
+    @test (write.value.font.family, write.value.font.size) == (before.font.family, before.font.size)
     @test format_style_color(write.value.color)[2] == 'f'
     # The next font keeps the colour.
     step = only(op for (action, op) in tab.commands if action.label == "›" &&
                 op.document === syntax && op.reference.head == FieldReferenceStep("bool_text"))
-    @test step.value.font.filename != before.font.filename
+    @test step.value.font.family != before.font.family
     @test step.value.font.size == before.font.size
     @test is_color_equal(step.value.color, before.color)
 end

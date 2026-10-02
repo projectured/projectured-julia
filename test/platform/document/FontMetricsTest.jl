@@ -29,7 +29,7 @@ function test_font_metrics()
     @testset "the ascent and the descent are the box of a text in the font" begin
         # Ubuntu at 14: the ascender 932 is 13.05 pixels and the descender 189 is
         # 2.65. A backend draws the baseline at the ascent rounded up, 14.
-        ubuntu = StyleFont(font_ubuntu_regular_20.filename, 14)
+        ubuntu = with_font_size(font_ubuntu_regular_20, 14)
         @test font_ascent(ubuntu) == compute_text_extent("x", ubuntu)[2] == 14
         @test font_descent(ubuntu) == compute_text_extent("x", ubuntu)[3] == 3
     end
@@ -51,7 +51,7 @@ function test_font_metrics()
     @testset "the parser reads every vertical metric of the tables" begin
         # Ubuntu: hhea 932 / -189 / 28, OS/2 typo 776 / -185 / 56, win 932 / 189,
         # unitsPerEm 1000, USE_TYPO_METRICS clear.
-        ubuntu = load_truetype_font(font_ubuntu_regular_20.filename)
+        ubuntu = load_truetype_font(compute_font_path(font_ubuntu_regular_20))
         @test (ubuntu.ascent, ubuntu.descent, ubuntu.line_gap) == (932, -189, 28)
         @test (ubuntu.typo_ascent, ubuntu.typo_descent, ubuntu.typo_line_gap) == (776, -185, 56)
         @test (ubuntu.win_ascent, ubuntu.win_descent) == (932, 189)
@@ -61,13 +61,13 @@ function test_font_metrics()
         @test get_vertical_metrics(ubuntu) == (932, -189, 28)
         # Lucide sets USE_TYPO_METRICS, and FreeType takes its typographic
         # metrics: 1000 / 0 / 90, where hhea says 1000 / 0 / 0.
-        lucide = load_truetype_font(font_lucide_icons_20.filename)
+        lucide = load_truetype_font(compute_font_path(font_lucide_icons_20))
         @test lucide.use_typo_metrics
         @test get_vertical_metrics(lucide) == (1000, 0, 90)
     end
 
     @testset "the parser reads the kerning pairs of the kern table" begin
-        ubuntu = load_truetype_font(font_ubuntu_regular_20.filename)
+        ubuntu = load_truetype_font(compute_font_path(font_ubuntu_regular_20))
         pair(font, left, right) =
             get_kerning(font, get_glyph_id(font, left), get_glyph_id(font, right))
         # The pairs as the kern table of Ubuntu holds them, in font units.
@@ -78,7 +78,7 @@ function test_font_metrics()
         @test pair(ubuntu, 'f', 'i') == 0
         @test length(ubuntu.kern_pairs) == 5264
         # A monospaced font has no kern table, so no pair moves.
-        mono = load_truetype_font(font_ubuntu_monospace_regular_20.filename)
+        mono = load_truetype_font(compute_font_path(font_ubuntu_monospace_regular_20))
         @test isempty(mono.kern_pairs)
         @test pair(mono, 'A', 'V') == 0
     end

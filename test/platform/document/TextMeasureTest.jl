@@ -70,8 +70,8 @@ function test_text_measure()
         other = measure_string(fixed, "abc", mono)
         @test (other.ascent, other.descent, other.line_gap) == (10.0, 3.0, 0.0)
         @test compute_caret_offsets(fixed, "abc", ubuntu) == [0.0, 8.0, 16.0, 24.0]
-        # A font built again with the same file and size is the same font.
-        @test get_font_metrics(fixed, StyleFont(mono.filename, mono.size)).ascent == 10.0
+        # A font built again with the same face and size is the same font.
+        @test get_font_metrics(fixed, StyleFont(mono.family, mono.size)).ascent == 10.0
     end
 
 end

@@ -833,13 +833,13 @@ end
 # The handle of `font` at the device size for `ratio`.
 function _get_font(font::StyleFont, ratio::Float64)
     size = font_device_size(font, ratio)
-    key = (font.filename, size)
+    key = (compute_font_path(font), size)
     get!(_font_cache, key) do
-        # `font_file` and not `font.filename`: the name a `StyleFont` carries is
-        # where the font was when the style package was compiled, and a bundle
+        # `font_file` and not the path that `compute_font_path` gives: that path
+        # is where the font was when the style package was compiled, and a bundle
         # copied to another machine has it somewhere else. The metrics reader
         # resolves the same way, so SDL and it always open one file.
-        path = font_file(font.filename)
+        path = font_file(first(key))
         f = TTF_OpenFont(path, size)
         @assert f != C_NULL "Font load failed: $path@$(size)"
         _set_layout_rendering!(f)
@@ -916,7 +916,7 @@ end
 # The font handle that draws `placed` in a text set in `font`, at the device size
 # `size`: the font itself, or the fallback font of the glyph when it opens.
 function _get_placed_font(placed::PlacedGlyph, font::StyleFont, primary::Ptr{TTF_Font}, size::Int)
-    placed.file == font.filename && return primary
+    placed.file == compute_font_path(font) && return primary
     handle = _get_fallback_font(placed.file, size)
     handle == C_NULL ? primary : handle
 end
@@ -1010,7 +1010,7 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
 
     font_style = elem.font::StyleFont
     color = _rgba8(elem.color)
-    key = _TextTextureKey(renderer, String(text), font_style.filename,
+    key = _TextTextureKey(renderer, String(text), compute_font_path(font_style),
                           font_logical_size(font_style), font_device_size(font_style, ratio),
                           color)
 
@@ -4233,7 +4233,7 @@ _get_shape_cursor!(backend::SdlBackend, shape::Symbol) =
 # that it shows on any background, with its hot spot in the middle. The arrow of
 # the system when the glyph does not draw.
 function _make_glyph_cursor(glyph::Char, ratio::Float64)
-    handle = _get_font(StyleFont(font_lucide_icons_20.filename, _GLYPH_CURSOR_SIZE), ratio)
+    handle = _get_font(with_font_size(font_lucide_icons_20, _GLYPH_CURSOR_SIZE), ratio)
     black = _render_glyph(handle, glyph, SDL_Color(0x00, 0x00, 0x00, 0xff))
     white = _render_glyph(handle, glyph, SDL_Color(0xff, 0xff, 0xff, 0xff))
     if black === nothing || white === nothing

@@ -391,7 +391,7 @@ const _POINTER_GLYPH_SIZE = 22
 function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int)
     if haskey(_POINTER_GLYPHS, shape)
         glyph, across, down = _POINTER_GLYPHS[shape]
-        font = StyleFont(font_lucide_icons_20.filename, _POINTER_GLYPH_SIZE)
+        font = with_font_size(font_lucide_icons_20, _POINTER_GLYPH_SIZE)
         left = x - round(Int, across * _POINTER_GLYPH_SIZE)
         top = y - round(Int, down * _POINTER_GLYPH_SIZE)
         outline = Any[GraphicsText(string(glyph), left + dx, top + dy; font, color = color_white)

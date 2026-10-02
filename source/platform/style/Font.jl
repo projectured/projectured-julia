@@ -1,36 +1,54 @@
 # Fragment of `StyleModule`.
 #
-# Font style value type and named font constants. Fonts are identified by a
-# file path and a point size.
+# The font value type and the named font constants. A font names a family, a
+# size, a weight and a slant; the registry of `FontFace.jl` finds the file.
 # ── Document ──────────────────────────────────────────────────────────────────
 
-# A value-document: `filename`/`size` are immutable by default; the selection is
+# A value-document: the fields are immutable by default; the selection is
 # typed `Nothing` (non-selectable, so `StyleFont` — the bare form — inlines in a
 # config cell). `RCStyleFont` gives a reactive, selectable, editable font.
 """
-    StyleFont(filename, size)
+    StyleFont(family, size; weight = 400, italic = false)
 
-A font: the file it is drawn from, and how large.
+A font: the family of its typeface, how large, how heavy, and whether it leans.
 
 Use it to say how words look: which typeface a label, a heading or a block of
-code is drawn in, and at what size. A backend loads the file and measures the
-words with it.
+code is drawn in, and at what size. The `size` is in logical pixels. The
+`weight` is on the scale of CSS from 100 to 900: 400 is regular and 700 is bold.
+A backend draws the font with the file of the bundled face that
+[`compute_font_path`](@ref) finds, and the measure reads the same file.
+
+Two equal fonts are one value: a font is 24 bytes, stored inline, with no cache.
 
 # Example
 
-    StyleFont("DejaVuSans.ttf", 14)
+    StyleFont("Ubuntu Mono", 14; weight = 700)
 
 See also `StyleText`, which pairs a font with a colour, and `GraphicsText`.
 """
 @document ImmutableCell [DC] struct StyleFont
-    filename::String
+    family::String
     size::Int
+    weight::Int16
+    italic::Bool
     selection::Nothing
 end
 
+StyleFont(family::AbstractString, size::Integer; weight::Integer = 400, italic::Bool = false) =
+    StyleFont(String(family), Int(size), Int16(weight), italic)
+
 # ── Construction ──────────────────────────────────────────────────────────────
 
-make_style_font(filename::AbstractString, size::Integer) = StyleFont(filename, size)
+make_style_font(family::AbstractString, size::Integer; weight::Integer = 400, italic::Bool = false) =
+    StyleFont(family, size; weight, italic)
+
+"""
+    with_font_size(font, size) -> StyleFont
+
+`font` at `size` logical pixels, with its family, its weight and its slant.
+"""
+with_font_size(font::StyleFont, size::Integer) =
+    StyleFont(font.family, Int(size), font.weight, font.italic)
 
 # ── Font size ────────────────────────────────────────────────────────────────
 
@@ -77,143 +95,143 @@ const _FONT_DIR = joinpath(@__DIR__, "../../../asset/font")
 
 # ── Inconsolata ───────────────────────────────────────────────────────────────
 
-const font_inconsolata_regular_18 = StyleFont(joinpath(_FONT_DIR, "Inconsolata.otf"), 18)
+const font_inconsolata_regular_18 = StyleFont("Inconsolata", 18)
 
 # ── Ubuntu monospace ──────────────────────────────────────────────────────────
 
-const font_ubuntu_monospace_regular_14 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 14)
-const font_ubuntu_monospace_italic_14  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 14)
-const font_ubuntu_monospace_bold_14    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 14)
+const font_ubuntu_monospace_regular_14 = StyleFont("Ubuntu Mono", 14)
+const font_ubuntu_monospace_italic_14  = StyleFont("Ubuntu Mono", 14; italic = true)
+const font_ubuntu_monospace_bold_14    = StyleFont("Ubuntu Mono", 14; weight = 700)
 
-const font_ubuntu_monospace_regular_16 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 16)
-const font_ubuntu_monospace_italic_16  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 16)
-const font_ubuntu_monospace_bold_16    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 16)
+const font_ubuntu_monospace_regular_16 = StyleFont("Ubuntu Mono", 16)
+const font_ubuntu_monospace_italic_16  = StyleFont("Ubuntu Mono", 16; italic = true)
+const font_ubuntu_monospace_bold_16    = StyleFont("Ubuntu Mono", 16; weight = 700)
 
-const font_ubuntu_monospace_regular_18 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 18)
-const font_ubuntu_monospace_italic_18  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 18)
-const font_ubuntu_monospace_bold_18    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 18)
+const font_ubuntu_monospace_regular_18 = StyleFont("Ubuntu Mono", 18)
+const font_ubuntu_monospace_italic_18  = StyleFont("Ubuntu Mono", 18; italic = true)
+const font_ubuntu_monospace_bold_18    = StyleFont("Ubuntu Mono", 18; weight = 700)
 
-const font_ubuntu_monospace_regular_20 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 20)
-const font_ubuntu_monospace_italic_20  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 20)
-const font_ubuntu_monospace_bold_20    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 20)
+const font_ubuntu_monospace_regular_20 = StyleFont("Ubuntu Mono", 20)
+const font_ubuntu_monospace_italic_20  = StyleFont("Ubuntu Mono", 20; italic = true)
+const font_ubuntu_monospace_bold_20    = StyleFont("Ubuntu Mono", 20; weight = 700)
 
-const font_ubuntu_monospace_regular_22 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 22)
-const font_ubuntu_monospace_italic_22  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 22)
-const font_ubuntu_monospace_bold_22    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 22)
+const font_ubuntu_monospace_regular_22 = StyleFont("Ubuntu Mono", 22)
+const font_ubuntu_monospace_italic_22  = StyleFont("Ubuntu Mono", 22; italic = true)
+const font_ubuntu_monospace_bold_22    = StyleFont("Ubuntu Mono", 22; weight = 700)
 
-const font_ubuntu_monospace_regular_24 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 24)
-const font_ubuntu_monospace_italic_24  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 24)
-const font_ubuntu_monospace_bold_24    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 24)
+const font_ubuntu_monospace_regular_24 = StyleFont("Ubuntu Mono", 24)
+const font_ubuntu_monospace_italic_24  = StyleFont("Ubuntu Mono", 24; italic = true)
+const font_ubuntu_monospace_bold_24    = StyleFont("Ubuntu Mono", 24; weight = 700)
 
-const font_ubuntu_monospace_regular_36 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 36)
-const font_ubuntu_monospace_italic_36  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 36)
-const font_ubuntu_monospace_bold_36    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 36)
+const font_ubuntu_monospace_regular_36 = StyleFont("Ubuntu Mono", 36)
+const font_ubuntu_monospace_italic_36  = StyleFont("Ubuntu Mono", 36; italic = true)
+const font_ubuntu_monospace_bold_36    = StyleFont("Ubuntu Mono", 36; weight = 700)
 
-const font_ubuntu_monospace_regular_48 = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-R.ttf"), 48)
-const font_ubuntu_monospace_italic_48  = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-RI.ttf"), 48)
-const font_ubuntu_monospace_bold_48    = StyleFont(joinpath(_FONT_DIR, "UbuntuMono-B.ttf"), 48)
+const font_ubuntu_monospace_regular_48 = StyleFont("Ubuntu Mono", 48)
+const font_ubuntu_monospace_italic_48  = StyleFont("Ubuntu Mono", 48; italic = true)
+const font_ubuntu_monospace_bold_48    = StyleFont("Ubuntu Mono", 48; weight = 700)
 
 # ── Ubuntu ────────────────────────────────────────────────────────────────────
 
-const font_ubuntu_regular_14 = StyleFont(joinpath(_FONT_DIR, "Ubuntu-R.ttf"), 14)
-const font_ubuntu_italic_14  = StyleFont(joinpath(_FONT_DIR, "Ubuntu-RI.ttf"), 14)
-const font_ubuntu_bold_14    = StyleFont(joinpath(_FONT_DIR, "Ubuntu-B.ttf"), 14)
+const font_ubuntu_regular_14 = StyleFont("Ubuntu", 14)
+const font_ubuntu_italic_14  = StyleFont("Ubuntu", 14; italic = true)
+const font_ubuntu_bold_14    = StyleFont("Ubuntu", 14; weight = 700)
 
-const font_ubuntu_regular_16 = StyleFont(joinpath(_FONT_DIR, "Ubuntu-R.ttf"), 16)
-const font_ubuntu_italic_16  = StyleFont(joinpath(_FONT_DIR, "Ubuntu-RI.ttf"), 16)
-const font_ubuntu_bold_16    = StyleFont(joinpath(_FONT_DIR, "Ubuntu-B.ttf"), 16)
+const font_ubuntu_regular_16 = StyleFont("Ubuntu", 16)
+const font_ubuntu_italic_16  = StyleFont("Ubuntu", 16; italic = true)
+const font_ubuntu_bold_16    = StyleFont("Ubuntu", 16; weight = 700)
 
-const font_ubuntu_regular_18 = StyleFont(joinpath(_FONT_DIR, "Ubuntu-R.ttf"), 18)
-const font_ubuntu_italic_18  = StyleFont(joinpath(_FONT_DIR, "Ubuntu-RI.ttf"), 18)
-const font_ubuntu_bold_18    = StyleFont(joinpath(_FONT_DIR, "Ubuntu-B.ttf"), 18)
+const font_ubuntu_regular_18 = StyleFont("Ubuntu", 18)
+const font_ubuntu_italic_18  = StyleFont("Ubuntu", 18; italic = true)
+const font_ubuntu_bold_18    = StyleFont("Ubuntu", 18; weight = 700)
 
-const font_ubuntu_regular_20 = StyleFont(joinpath(_FONT_DIR, "Ubuntu-R.ttf"), 20)
-const font_ubuntu_italic_20  = StyleFont(joinpath(_FONT_DIR, "Ubuntu-RI.ttf"), 20)
-const font_ubuntu_bold_20    = StyleFont(joinpath(_FONT_DIR, "Ubuntu-B.ttf"), 20)
+const font_ubuntu_regular_20 = StyleFont("Ubuntu", 20)
+const font_ubuntu_italic_20  = StyleFont("Ubuntu", 20; italic = true)
+const font_ubuntu_bold_20    = StyleFont("Ubuntu", 20; weight = 700)
 
-const font_ubuntu_regular_22 = StyleFont(joinpath(_FONT_DIR, "Ubuntu-R.ttf"), 22)
-const font_ubuntu_italic_22  = StyleFont(joinpath(_FONT_DIR, "Ubuntu-RI.ttf"), 22)
-const font_ubuntu_bold_22    = StyleFont(joinpath(_FONT_DIR, "Ubuntu-B.ttf"), 22)
+const font_ubuntu_regular_22 = StyleFont("Ubuntu", 22)
+const font_ubuntu_italic_22  = StyleFont("Ubuntu", 22; italic = true)
+const font_ubuntu_bold_22    = StyleFont("Ubuntu", 22; weight = 700)
 
-const font_ubuntu_regular_24 = StyleFont(joinpath(_FONT_DIR, "Ubuntu-R.ttf"), 24)
-const font_ubuntu_italic_24  = StyleFont(joinpath(_FONT_DIR, "Ubuntu-RI.ttf"), 24)
-const font_ubuntu_bold_24    = StyleFont(joinpath(_FONT_DIR, "Ubuntu-B.ttf"), 24)
+const font_ubuntu_regular_24 = StyleFont("Ubuntu", 24)
+const font_ubuntu_italic_24  = StyleFont("Ubuntu", 24; italic = true)
+const font_ubuntu_bold_24    = StyleFont("Ubuntu", 24; weight = 700)
 
-const font_ubuntu_regular_36 = StyleFont(joinpath(_FONT_DIR, "Ubuntu-R.ttf"), 36)
-const font_ubuntu_italic_36  = StyleFont(joinpath(_FONT_DIR, "Ubuntu-RI.ttf"), 36)
-const font_ubuntu_bold_36    = StyleFont(joinpath(_FONT_DIR, "Ubuntu-B.ttf"), 36)
+const font_ubuntu_regular_36 = StyleFont("Ubuntu", 36)
+const font_ubuntu_italic_36  = StyleFont("Ubuntu", 36; italic = true)
+const font_ubuntu_bold_36    = StyleFont("Ubuntu", 36; weight = 700)
 
 # ── Liberation sans ───────────────────────────────────────────────────────────
 
-const font_liberation_sans_regular_14 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 14)
-const font_liberation_sans_italic_14  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 14)
-const font_liberation_sans_bold_14    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 14)
+const font_liberation_sans_regular_14 = StyleFont("Liberation Sans", 14)
+const font_liberation_sans_italic_14  = StyleFont("Liberation Sans", 14; italic = true)
+const font_liberation_sans_bold_14    = StyleFont("Liberation Sans", 14; weight = 700)
 
-const font_liberation_sans_regular_16 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 16)
-const font_liberation_sans_italic_16  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 16)
-const font_liberation_sans_bold_16    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 16)
+const font_liberation_sans_regular_16 = StyleFont("Liberation Sans", 16)
+const font_liberation_sans_italic_16  = StyleFont("Liberation Sans", 16; italic = true)
+const font_liberation_sans_bold_16    = StyleFont("Liberation Sans", 16; weight = 700)
 
-const font_liberation_sans_regular_18 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 18)
-const font_liberation_sans_italic_18  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 18)
-const font_liberation_sans_bold_18    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 18)
+const font_liberation_sans_regular_18 = StyleFont("Liberation Sans", 18)
+const font_liberation_sans_italic_18  = StyleFont("Liberation Sans", 18; italic = true)
+const font_liberation_sans_bold_18    = StyleFont("Liberation Sans", 18; weight = 700)
 
-const font_liberation_sans_regular_20 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 20)
-const font_liberation_sans_italic_20  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 20)
-const font_liberation_sans_bold_20    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 20)
+const font_liberation_sans_regular_20 = StyleFont("Liberation Sans", 20)
+const font_liberation_sans_italic_20  = StyleFont("Liberation Sans", 20; italic = true)
+const font_liberation_sans_bold_20    = StyleFont("Liberation Sans", 20; weight = 700)
 
-const font_liberation_sans_regular_22 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 22)
-const font_liberation_sans_italic_22  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 22)
-const font_liberation_sans_bold_22    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 22)
+const font_liberation_sans_regular_22 = StyleFont("Liberation Sans", 22)
+const font_liberation_sans_italic_22  = StyleFont("Liberation Sans", 22; italic = true)
+const font_liberation_sans_bold_22    = StyleFont("Liberation Sans", 22; weight = 700)
 
-const font_liberation_sans_regular_24 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 24)
-const font_liberation_sans_italic_24  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 24)
-const font_liberation_sans_bold_24    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 24)
+const font_liberation_sans_regular_24 = StyleFont("Liberation Sans", 24)
+const font_liberation_sans_italic_24  = StyleFont("Liberation Sans", 24; italic = true)
+const font_liberation_sans_bold_24    = StyleFont("Liberation Sans", 24; weight = 700)
 
-const font_liberation_sans_regular_30 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 30)
-const font_liberation_sans_italic_30  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 30)
-const font_liberation_sans_bold_30    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 30)
+const font_liberation_sans_regular_30 = StyleFont("Liberation Sans", 30)
+const font_liberation_sans_italic_30  = StyleFont("Liberation Sans", 30; italic = true)
+const font_liberation_sans_bold_30    = StyleFont("Liberation Sans", 30; weight = 700)
 
-const font_liberation_sans_regular_36 = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Regular.ttf"), 36)
-const font_liberation_sans_italic_36  = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Italic.ttf"), 36)
-const font_liberation_sans_bold_36    = StyleFont(joinpath(_FONT_DIR, "LiberationSans-Bold.ttf"), 36)
+const font_liberation_sans_regular_36 = StyleFont("Liberation Sans", 36)
+const font_liberation_sans_italic_36  = StyleFont("Liberation Sans", 36; italic = true)
+const font_liberation_sans_bold_36    = StyleFont("Liberation Sans", 36; weight = 700)
 
 # ── Liberation serif ──────────────────────────────────────────────────────────
 
-const font_liberation_serif_regular_14 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 14)
-const font_liberation_serif_italic_14  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 14)
-const font_liberation_serif_bold_14    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 14)
+const font_liberation_serif_regular_14 = StyleFont("Liberation Serif", 14)
+const font_liberation_serif_italic_14  = StyleFont("Liberation Serif", 14; italic = true)
+const font_liberation_serif_bold_14    = StyleFont("Liberation Serif", 14; weight = 700)
 
-const font_liberation_serif_regular_16 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 16)
-const font_liberation_serif_italic_16  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 16)
-const font_liberation_serif_bold_16    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 16)
+const font_liberation_serif_regular_16 = StyleFont("Liberation Serif", 16)
+const font_liberation_serif_italic_16  = StyleFont("Liberation Serif", 16; italic = true)
+const font_liberation_serif_bold_16    = StyleFont("Liberation Serif", 16; weight = 700)
 
-const font_liberation_serif_regular_18 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 18)
-const font_liberation_serif_italic_18  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 18)
-const font_liberation_serif_bold_18    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 18)
+const font_liberation_serif_regular_18 = StyleFont("Liberation Serif", 18)
+const font_liberation_serif_italic_18  = StyleFont("Liberation Serif", 18; italic = true)
+const font_liberation_serif_bold_18    = StyleFont("Liberation Serif", 18; weight = 700)
 
-const font_liberation_serif_regular_20 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 20)
-const font_liberation_serif_italic_20  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 20)
-const font_liberation_serif_bold_20    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 20)
+const font_liberation_serif_regular_20 = StyleFont("Liberation Serif", 20)
+const font_liberation_serif_italic_20  = StyleFont("Liberation Serif", 20; italic = true)
+const font_liberation_serif_bold_20    = StyleFont("Liberation Serif", 20; weight = 700)
 
-const font_liberation_serif_regular_22 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 22)
-const font_liberation_serif_italic_22  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 22)
-const font_liberation_serif_bold_22    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 22)
+const font_liberation_serif_regular_22 = StyleFont("Liberation Serif", 22)
+const font_liberation_serif_italic_22  = StyleFont("Liberation Serif", 22; italic = true)
+const font_liberation_serif_bold_22    = StyleFont("Liberation Serif", 22; weight = 700)
 
-const font_liberation_serif_regular_24 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 24)
-const font_liberation_serif_italic_24  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 24)
-const font_liberation_serif_bold_24    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 24)
+const font_liberation_serif_regular_24 = StyleFont("Liberation Serif", 24)
+const font_liberation_serif_italic_24  = StyleFont("Liberation Serif", 24; italic = true)
+const font_liberation_serif_bold_24    = StyleFont("Liberation Serif", 24; weight = 700)
 
-const font_liberation_serif_regular_30 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 30)
-const font_liberation_serif_italic_30  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 30)
-const font_liberation_serif_bold_30    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 30)
+const font_liberation_serif_regular_30 = StyleFont("Liberation Serif", 30)
+const font_liberation_serif_italic_30  = StyleFont("Liberation Serif", 30; italic = true)
+const font_liberation_serif_bold_30    = StyleFont("Liberation Serif", 30; weight = 700)
 
-const font_liberation_serif_regular_36 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 36)
-const font_liberation_serif_italic_36  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 36)
-const font_liberation_serif_bold_36    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 36)
+const font_liberation_serif_regular_36 = StyleFont("Liberation Serif", 36)
+const font_liberation_serif_italic_36  = StyleFont("Liberation Serif", 36; italic = true)
+const font_liberation_serif_bold_36    = StyleFont("Liberation Serif", 36; weight = 700)
 
-const font_liberation_serif_regular_42 = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Regular.ttf"), 42)
-const font_liberation_serif_italic_42  = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Italic.ttf"), 42)
-const font_liberation_serif_bold_42    = StyleFont(joinpath(_FONT_DIR, "LiberationSerif-Bold.ttf"), 42)
+const font_liberation_serif_regular_42 = StyleFont("Liberation Serif", 42)
+const font_liberation_serif_italic_42  = StyleFont("Liberation Serif", 42; italic = true)
+const font_liberation_serif_bold_42    = StyleFont("Liberation Serif", 42; weight = 700)
 
 # ── DejaVu monospace ────────────────────────────────────────────────────────────
 # Broad Unicode coverage (geometric shapes ▾▸▼►, arrows, emoticons ☺♥) absent
@@ -221,73 +239,73 @@ const font_liberation_serif_bold_42    = StyleFont(joinpath(_FONT_DIR, "Liberati
 # glyph its own font lacks (`get_fallback_font_files`). A text whose glyphs must
 # all share one face, such as a column of monospaced marks, uses it directly.
 
-const font_dejavu_monospace_regular_14 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 14)
-const font_dejavu_monospace_italic_14  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 14)
-const font_dejavu_monospace_bold_14    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 14)
+const font_dejavu_monospace_regular_14 = StyleFont("DejaVu Sans Mono", 14)
+const font_dejavu_monospace_italic_14  = StyleFont("DejaVu Sans Mono", 14; italic = true)
+const font_dejavu_monospace_bold_14    = StyleFont("DejaVu Sans Mono", 14; weight = 700)
 
-const font_dejavu_monospace_regular_16 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 16)
-const font_dejavu_monospace_italic_16  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 16)
-const font_dejavu_monospace_bold_16    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 16)
+const font_dejavu_monospace_regular_16 = StyleFont("DejaVu Sans Mono", 16)
+const font_dejavu_monospace_italic_16  = StyleFont("DejaVu Sans Mono", 16; italic = true)
+const font_dejavu_monospace_bold_16    = StyleFont("DejaVu Sans Mono", 16; weight = 700)
 
-const font_dejavu_monospace_regular_18 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 18)
-const font_dejavu_monospace_italic_18  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 18)
-const font_dejavu_monospace_bold_18    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 18)
+const font_dejavu_monospace_regular_18 = StyleFont("DejaVu Sans Mono", 18)
+const font_dejavu_monospace_italic_18  = StyleFont("DejaVu Sans Mono", 18; italic = true)
+const font_dejavu_monospace_bold_18    = StyleFont("DejaVu Sans Mono", 18; weight = 700)
 
-const font_dejavu_monospace_regular_20 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 20)
-const font_dejavu_monospace_italic_20  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 20)
-const font_dejavu_monospace_bold_20    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 20)
+const font_dejavu_monospace_regular_20 = StyleFont("DejaVu Sans Mono", 20)
+const font_dejavu_monospace_italic_20  = StyleFont("DejaVu Sans Mono", 20; italic = true)
+const font_dejavu_monospace_bold_20    = StyleFont("DejaVu Sans Mono", 20; weight = 700)
 
-const font_dejavu_monospace_regular_22 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 22)
-const font_dejavu_monospace_italic_22  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 22)
-const font_dejavu_monospace_bold_22    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 22)
+const font_dejavu_monospace_regular_22 = StyleFont("DejaVu Sans Mono", 22)
+const font_dejavu_monospace_italic_22  = StyleFont("DejaVu Sans Mono", 22; italic = true)
+const font_dejavu_monospace_bold_22    = StyleFont("DejaVu Sans Mono", 22; weight = 700)
 
-const font_dejavu_monospace_regular_24 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 24)
-const font_dejavu_monospace_italic_24  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 24)
-const font_dejavu_monospace_bold_24    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 24)
+const font_dejavu_monospace_regular_24 = StyleFont("DejaVu Sans Mono", 24)
+const font_dejavu_monospace_italic_24  = StyleFont("DejaVu Sans Mono", 24; italic = true)
+const font_dejavu_monospace_bold_24    = StyleFont("DejaVu Sans Mono", 24; weight = 700)
 
-const font_dejavu_monospace_regular_36 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 36)
-const font_dejavu_monospace_italic_36  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 36)
-const font_dejavu_monospace_bold_36    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 36)
+const font_dejavu_monospace_regular_36 = StyleFont("DejaVu Sans Mono", 36)
+const font_dejavu_monospace_italic_36  = StyleFont("DejaVu Sans Mono", 36; italic = true)
+const font_dejavu_monospace_bold_36    = StyleFont("DejaVu Sans Mono", 36; weight = 700)
 
-const font_dejavu_monospace_regular_48 = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono.ttf"), 48)
-const font_dejavu_monospace_italic_48  = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Oblique.ttf"), 48)
-const font_dejavu_monospace_bold_48    = StyleFont(joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf"), 48)
+const font_dejavu_monospace_regular_48 = StyleFont("DejaVu Sans Mono", 48)
+const font_dejavu_monospace_italic_48  = StyleFont("DejaVu Sans Mono", 48; italic = true)
+const font_dejavu_monospace_bold_48    = StyleFont("DejaVu Sans Mono", 48; weight = 700)
 
 # ── DejaVu sans ─────────────────────────────────────────────────────────────────
 # Proportional companion. Adds the modern Emoticons block (😀…) as monochrome
 # outlines on top of the symbol coverage above — for assistant/LLM text.
 
-const font_dejavu_sans_regular_14 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 14)
-const font_dejavu_sans_italic_14  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 14)
-const font_dejavu_sans_bold_14    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 14)
+const font_dejavu_sans_regular_14 = StyleFont("DejaVu Sans", 14)
+const font_dejavu_sans_italic_14  = StyleFont("DejaVu Sans", 14; italic = true)
+const font_dejavu_sans_bold_14    = StyleFont("DejaVu Sans", 14; weight = 700)
 
-const font_dejavu_sans_regular_16 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 16)
-const font_dejavu_sans_italic_16  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 16)
-const font_dejavu_sans_bold_16    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 16)
+const font_dejavu_sans_regular_16 = StyleFont("DejaVu Sans", 16)
+const font_dejavu_sans_italic_16  = StyleFont("DejaVu Sans", 16; italic = true)
+const font_dejavu_sans_bold_16    = StyleFont("DejaVu Sans", 16; weight = 700)
 
-const font_dejavu_sans_regular_18 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 18)
-const font_dejavu_sans_italic_18  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 18)
-const font_dejavu_sans_bold_18    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 18)
+const font_dejavu_sans_regular_18 = StyleFont("DejaVu Sans", 18)
+const font_dejavu_sans_italic_18  = StyleFont("DejaVu Sans", 18; italic = true)
+const font_dejavu_sans_bold_18    = StyleFont("DejaVu Sans", 18; weight = 700)
 
-const font_dejavu_sans_regular_20 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 20)
-const font_dejavu_sans_italic_20  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 20)
-const font_dejavu_sans_bold_20    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 20)
+const font_dejavu_sans_regular_20 = StyleFont("DejaVu Sans", 20)
+const font_dejavu_sans_italic_20  = StyleFont("DejaVu Sans", 20; italic = true)
+const font_dejavu_sans_bold_20    = StyleFont("DejaVu Sans", 20; weight = 700)
 
-const font_dejavu_sans_regular_22 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 22)
-const font_dejavu_sans_italic_22  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 22)
-const font_dejavu_sans_bold_22    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 22)
+const font_dejavu_sans_regular_22 = StyleFont("DejaVu Sans", 22)
+const font_dejavu_sans_italic_22  = StyleFont("DejaVu Sans", 22; italic = true)
+const font_dejavu_sans_bold_22    = StyleFont("DejaVu Sans", 22; weight = 700)
 
-const font_dejavu_sans_regular_24 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 24)
-const font_dejavu_sans_italic_24  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 24)
-const font_dejavu_sans_bold_24    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 24)
+const font_dejavu_sans_regular_24 = StyleFont("DejaVu Sans", 24)
+const font_dejavu_sans_italic_24  = StyleFont("DejaVu Sans", 24; italic = true)
+const font_dejavu_sans_bold_24    = StyleFont("DejaVu Sans", 24; weight = 700)
 
-const font_dejavu_sans_regular_36 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 36)
-const font_dejavu_sans_italic_36  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 36)
-const font_dejavu_sans_bold_36    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 36)
+const font_dejavu_sans_regular_36 = StyleFont("DejaVu Sans", 36)
+const font_dejavu_sans_italic_36  = StyleFont("DejaVu Sans", 36; italic = true)
+const font_dejavu_sans_bold_36    = StyleFont("DejaVu Sans", 36; weight = 700)
 
 # ── Lucide icons ────────────────────────────────────────────────────────────────
 
 # The icon font of the widget layer: every glyph is a picture, at a code point of
 # the private use area. An icon draws its glyph at the size of its box, so this
 # size is only the size of a label written in this font.
-const font_lucide_icons_20 = StyleFont(joinpath(_FONT_DIR, "lucide.ttf"), 20)
+const font_lucide_icons_20 = StyleFont("Lucide", 20)

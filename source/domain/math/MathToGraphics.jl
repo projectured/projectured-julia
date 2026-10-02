@@ -194,7 +194,7 @@ _fraction_style(style::Symbol) =
     style === :display ? :text : _script_style(style)
 
 _scaled(font::StyleFont, size::Integer) =
-    size == font.size ? font : make_style_font(font.filename, size)
+    size == font.size ? font : with_font_size(font, size)
 
 """
     compute_math_metrics(config, style) -> MathMetrics

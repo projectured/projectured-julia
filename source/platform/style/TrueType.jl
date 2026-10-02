@@ -451,7 +451,7 @@ is_presentation_selector(character::UInt32) = character == 0xFE0E || character =
 # own to follow a change of the font scale.
 
 _font_metric(font::StyleFont, units::Integer) =
-    round(Int, units * font_logical_size(font) / load_truetype_font(font.filename).units_per_em)
+    round(Int, units * font_logical_size(font) / load_truetype_font(compute_font_path(font)).units_per_em)
 
 """
     font_ascent(font::StyleFont) -> Int
@@ -485,14 +485,14 @@ font_line_height(font::StyleFont) = font_ascent(font) + font_descent(font)
 The height of a lowercase `x`, in logical pixels. Math sets the axis — the
 height a fraction bar and a large operator center on — at half of it.
 """
-font_x_height(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).x_height)
+font_x_height(font::StyleFont) = _font_metric(font, load_truetype_font(compute_font_path(font)).x_height)
 
 """
     font_cap_height(font::StyleFont) -> Int
 
 The height of a capital letter, in logical pixels.
 """
-font_cap_height(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).cap_height)
+font_cap_height(font::StyleFont) = _font_metric(font, load_truetype_font(compute_font_path(font)).cap_height)
 
 """
     font_glyph_bounds(font::StyleFont, ch) -> (Int, Int)
@@ -504,7 +504,7 @@ A caller that tiles a tall delimiter out of the Unicode extension pieces needs
 this: the pieces stack by their ink, not by their text boxes.
 """
 function font_glyph_bounds(font::StyleFont, ch::AbstractChar)
-    f = load_truetype_font(font.filename)
+    f = load_truetype_font(compute_font_path(font))
     ymin, ymax = _glyph_bounds(f, ch)
     scale = font_logical_size(font) / f.units_per_em
     (round(Int, ymin * scale), round(Int, ymax * scale))

@@ -8,14 +8,13 @@ function test_appearance_file()
 @testset "save and load of an appearance" begin
 mktempdir() do folder
     path = joinpath(folder, "appearance.toml")
-    font_folder = ProjecturedPlatform.StyleModule._FONT_DIR
 
     @testset "a round trip keeps every value" begin
         appearance = Appearance(zoom = 1.25, font_scale = 1.5, line_scale = 2.0)
         get_scaled_theme!(appearance, WidgetTheme)
         theme = get_theme(appearance, WidgetTheme)
         theme.primary = StyleColor(0.2, 0.4, 0.6, 1.0)
-        theme.font = StyleFont(joinpath(font_folder, "DejaVuSans.ttf"), 22)
+        theme.font = StyleFont("DejaVu Sans", 22)
         theme.item_gap = Spacing(7)
         theme.control_padding = Spacing(Inset(1, 2, 3, 4))
         theme.switch_track = ControlSize(Point2D(50, 20))
@@ -26,7 +25,7 @@ mktempdir() do folder
         @test (loaded.zoom, loaded.font_scale, loaded.line_scale, loaded.icon_scale) == (1.25, 1.5, 2.0, 1.0)
         saved = get_theme(loaded, WidgetTheme)
         @test is_color_equal(saved.primary, StyleColor(0.2, 0.4, 0.6, 1.0))
-        @test saved.font.size == 22 && basename(saved.font.filename) == "DejaVuSans.ttf"
+        @test saved.font.size == 22 && saved.font.family == "DejaVu Sans"
         @test saved.item_gap == Spacing(7)
         inset = saved.control_padding.value
         @test (inset.top[], inset.bottom[], inset.left[], inset.right[]) == (1, 2, 3, 4)

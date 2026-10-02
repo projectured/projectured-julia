@@ -95,7 +95,7 @@ names. Every other value, such as a color, stays as it is.
 """
 scale_theme_value(value, ::Appearance) = value
 scale_theme_value(font::StyleFont, appearance::Appearance) =
-    StyleFont(font.filename, scale_length(font.size, appearance.font_scale))
+    with_font_size(font, scale_length(font.size, appearance.font_scale))
 scale_theme_value(text::StyleText, appearance::Appearance) =
     StyleText(scale_theme_value(text.font, appearance), text.color)
 scale_theme_value(stroke::StyleStroke, appearance::Appearance) =
@@ -207,10 +207,9 @@ end
 # A value of a theme as the TOML file says it, or `nothing` for a kind that the
 # file can not say.
 _encode_appearance_value(color::StyleColor) = format_style_color(color)
-function _encode_appearance_value(font::StyleFont)
-    file = normpath(dirname(font.filename)) == normpath(_FONT_DIR) ? basename(font.filename) : font.filename
-    Dict{String,Any}("file" => file, "size" => font.size)
-end
+_encode_appearance_value(font::StyleFont) =
+    Dict{String,Any}("family" => font.family, "size" => font.size,
+                     "weight" => Int(font.weight), "italic" => font.italic)
 _encode_appearance_value(text::StyleText) =
     Dict{String,Any}("font" => _encode_appearance_value(text.font),
                      "color" => _encode_appearance_value(text.color))
@@ -228,10 +227,13 @@ _decode_appearance_value(current::StyleColor, saved) =
     saved isa AbstractString ? convert_text_to_style_color(saved) : nothing
 function _decode_appearance_value(current::StyleFont, saved)
     saved isa AbstractDict || return nothing
-    file = get(saved, "file", nothing)
+    family = get(saved, "family", nothing)
     size = get(saved, "size", current.size)
-    (file isa AbstractString && size isa Integer && size > 0) || return nothing
-    StyleFont(isabspath(file) ? file : joinpath(_FONT_DIR, file), size)
+    weight = get(saved, "weight", Int(current.weight))
+    italic = get(saved, "italic", current.italic)
+    (family isa AbstractString && size isa Integer && size > 0 &&
+     weight isa Integer && 1 <= weight <= 1000 && italic isa Bool) || return nothing
+    StyleFont(family, size; weight, italic)
 end
 function _decode_appearance_value(current::StyleText, saved)
     saved isa AbstractDict || return nothing

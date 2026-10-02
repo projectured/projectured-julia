@@ -58,6 +58,27 @@ function test_font_face()
         @test find_font_face("Ubuntu Condensed", 700, false).file == "Ubuntu-C.ttf"
     end
 
+    @testset "a font finds the file of its face" begin
+        @test basename(compute_font_path(StyleFont("Ubuntu Mono", 20; weight = 700))) == "UbuntuMono-B.ttf"
+        @test basename(compute_font_path(font_ubuntu_italic_20)) == "Ubuntu-RI.ttf"
+        @test basename(compute_font_path(font_inconsolata_regular_18)) == "Inconsolata.otf"
+        @test basename(compute_font_path(font_lucide_icons_20)) == "lucide.ttf"
+        # A family with no bundled face draws in DejaVu Sans, at the weight asked.
+        @test basename(compute_font_path(StyleFont("Helvetica", 20; weight = 700))) == "DejaVuSans-Bold.ttf"
+        read_path() = compute_font_path(font_ubuntu_monospace_bold_20)
+        read_path()
+        @test (@allocated read_path()) == 0
+    end
+
+    @testset "a font is small and inline" begin
+        @test sizeof(StyleFont) <= 24
+        @test Base.allocatedinline(StyleFont)
+        make_font() = StyleFont("Ubuntu Mono", 14; weight = 700, italic = true)
+        make_font()
+        @test (@allocated make_font()) == 0
+        @test with_font_size(make_font(), 20) == StyleFont("Ubuntu Mono", 20; weight = 700, italic = true)
+    end
+
     @testset "a lookup that reads the file allocates nothing" begin
         # A caller that keeps the whole face boxes it, because the result can be
         # `nothing`; a caller that reads a field does not.

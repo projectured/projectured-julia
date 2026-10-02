@@ -387,12 +387,22 @@ inet-julia uses, the same step changes them, so that they always load.
   `TrueTypeFont` reads `weight_class` and `is_italic` from the OS/2 table, and
   `test_font_face` checks each face against its file and each file against
   the table. See section 10 for what the step found.
-- [ ] **F2.** `StyleFont` becomes the description. The twelve readers of
+- [x] **F2.** `StyleFont` becomes the description. The twelve readers of
   `font.filename` ask the registry. The 143 constants stay, now defined as
   descriptions, so their callers do not change. `save_appearance!` and
   `load_appearance!` write and read the family, the weight, the slant and the
   size. A test checks that `StyleFont` is stored inline, is 24 bytes or less,
-  and that a new font allocates nothing (D13).
+  and that a new font allocates nothing (D13). *Done:*
+  `StyleFont(family, size; weight = 400, italic = false)` with the fields
+  `family::String`, `size::Int`, `weight::Int16` and `italic::Bool`.
+  `compute_font_path(font)` gives the path of the face, or of DejaVu Sans for a
+  family with no bundled face; every reader of the file and every font cache
+  keys on it. `with_font_size(font, size)` replaces each
+  `StyleFont(font.filename, size)`. `get_font_families()` names the families,
+  and the appearance tab steps through them until step F4. Each of the 143
+  constants finds the file that it named before. The image check of section
+  7.1 found 315 of 315 outputs equal (105 examples, a PNG at the density 1 and
+  2, and a PDF). omnet-julia changes one test that read `font.filename`.
 - [ ] **F3.** The fallback chain comes from the registry.
 - [ ] **F4.** The appearance tab chooses a family, a weight, a slant and a size,
   in place of the steps through the files.
@@ -495,3 +505,19 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
   face boxes it (32 bytes). A caller that reads a field allocates nothing. So
   step F2 keys its caches by `face.file` and reads the path only when a cache
   misses: `font_file` calls `isfile`, a system call.
+
+### Step F2
+
+- A `@document` struct gets only a positional constructor that takes every
+  field, unless a field has a default. So `StyleFont` has one outer
+  constructor with the keywords `weight` and `italic`, which converts the
+  weight to `Int16`.
+- `_rank_font_weight` returned `Int16` in some branches and `Int` in others
+  when the weight was an `Int16`, so the rank was a union and the lookup
+  allocated 384 bytes. It now takes two `Int`.
+- An `Int16` weight prints as a number. A `UInt16` prints in hexadecimal.
+- The image check is `/var/tmp/default-look/image_check.jl`, outside the
+  repository: `write_example_image` at the density 1 and 2, and
+  `write_example_pdf`, for each of the 105 examples of `ProjecturedExample`. The
+  PDF files are the same byte for byte from one run to the next, so a hash
+  compares them too.

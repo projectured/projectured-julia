@@ -99,13 +99,13 @@ function _get_file_metrics(path::AbstractString, size::Real)
 end
 
 get_font_metrics(::FontFileMeasure, font::StyleFont) =
-    _get_file_metrics(font.filename, font_logical_size(font))
+    _get_file_metrics(compute_font_path(font), font_logical_size(font))
 
 # Each character of `text` with the file of the font that draws it: the font
 # itself, or the fallback font `find_glyph_font_file` names. A presentation
 # selector is skipped: it draws nothing.
 function _each_drawn_character(text, font::StyleFont)
-    path = font.filename
+    path = compute_font_path(font)
     primary = load_truetype_font(path)
     drawn = Tuple{Int,String}[]
     for (index, character) in enumerate(String(text))
@@ -156,7 +156,7 @@ end
 
 function measure_string(::FontFileMeasure, text, font::StyleFont)
     offsets, drawn = _compute_pen_positions(text, font)
-    files = isempty(drawn) ? [font.filename] : unique(file for (_, file) in drawn)
+    files = isempty(drawn) ? [compute_font_path(font)] : unique(file for (_, file) in drawn)
     size = font_logical_size(font)
     ascent = descent = line_gap = 0.0
     for file in files
@@ -223,11 +223,11 @@ end
 FixedMeasure(advance::Real, ascent::Real, descent::Real, line_gap::Real;
              fonts::AbstractDict = Dict{StyleFont,FontMetrics}()) =
     FixedMeasure(Float64(advance), FontMetrics(ascent, descent, line_gap),
-                 Dict{Tuple{String,Int},FontMetrics}((font.filename, font.size) => metrics
+                 Dict{Tuple{String,Int},FontMetrics}((compute_font_path(font), font.size) => metrics
                                                       for (font, metrics) in fonts))
 
 get_font_metrics(measure::FixedMeasure, font::StyleFont) =
-    get(measure.fonts, (font.filename, font.size), measure.metrics)
+    get(measure.fonts, (compute_font_path(font), font.size), measure.metrics)
 
 function measure_string(measure::FixedMeasure, text, font::StyleFont)
     metrics = get_font_metrics(measure, font)

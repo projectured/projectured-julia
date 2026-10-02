@@ -9,17 +9,17 @@ function test_font_fallback()
 
     @testset "the font that draws a character" begin
         # The font draws what it carries.
-        @test find_glyph_font_file(regular.filename, UInt32('a')) == regular.filename
+        @test find_glyph_font_file(compute_font_path(regular), UInt32('a')) == compute_font_path(regular)
         # DejaVu Sans Mono draws an arrow that Ubuntu Mono lacks, in the weight of
         # the text.
-        @test basename(find_glyph_font_file(regular.filename, arrow)) == "DejaVuSansMono.ttf"
-        @test basename(find_glyph_font_file(font_ubuntu_monospace_bold_16.filename, arrow)) ==
+        @test basename(find_glyph_font_file(compute_font_path(regular), arrow)) == "DejaVuSansMono.ttf"
+        @test basename(find_glyph_font_file(compute_font_path(font_ubuntu_monospace_bold_16), arrow)) ==
               "DejaVuSansMono-Bold.ttf"
         # Noto Emoji draws a pictograph, even for a font that carries its own.
-        @test basename(find_glyph_font_file(font_dejavu_sans_regular_20.filename, UInt32('😀'))) ==
+        @test basename(find_glyph_font_file(compute_font_path(font_dejavu_sans_regular_20), UInt32('😀'))) ==
               "NotoEmoji-Regular.ttf"
         # No font carries a private-use character.
-        @test find_glyph_font_file(regular.filename, UInt32(0xE000)) === nothing
+        @test find_glyph_font_file(compute_font_path(regular), UInt32(0xE000)) === nothing
     end
 
     @testset "a fallback glyph is measured in its own font" begin
