@@ -61,6 +61,28 @@ function test_gesture_help()
         @test !state.open
     end
 
+    @testset "a ToggleGestureHelpOperation with a route does what F1 does" begin
+        arr = JsonArray([JsonNumber(1), JsonNumber(2)])
+        set_selection!(arr, EmptyReference())
+        state = GestureHelpState()
+        help = GestureHelpDecoratorProjection(inner = inner, state = state)
+        iomap = print_document(help, arr)
+        rows = length(read_intent(help, iomap, f1).content.rows)
+        read_intent(help, iomap, f1)
+        # A command sends the operation to the first element, and it comes back up
+        # to the decorator as the answer of the inner reader.
+        route = extend_reference(EmptyReference(), FieldReferenceStep("elements"), ElementReferenceStep(1))
+        toggle() = read_intent(help, nothing,
+                               Intent(nothing, ToggleGestureHelpOperation(), "", "", route), iomap).operation
+        op = toggle()
+        @test op isa OpenWindowOperation
+        @test state.open
+        # The rows follow the selection, as for F1, and not the route.
+        @test length(op.content.rows) == rows
+        @test toggle() isa CloseWindowOperation
+        @test !state.open
+    end
+
     @testset "non-help gestures pass through; help is not triggered" begin
         arr = mkarr()
         state = GestureHelpState()

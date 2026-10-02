@@ -169,6 +169,26 @@ function test_command_palette_decorator()
         @test !state.open[]
     end
 
+    @testset "a ToggleCommandPaletteOperation with a route does what the key does" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        read_intent(p, iomap, summon)
+        rows = length(state.palette.rows)
+        read_intent(p, iomap, summon)
+        # A command sends the operation to the first element, and it comes back up
+        # to the decorator as the answer of the inner reader.
+        route = extend_reference(EmptyReference(), FieldReferenceStep("elements"), ElementReferenceStep(1))
+        toggle() = read_intent(p, nothing,
+                               Intent(nothing, ToggleCommandPaletteOperation(), "", "", route), iomap).operation
+        @test toggle() isa DoNothingOperation
+        @test state.open[]
+        @test length(state.palette.rows) == rows
+        # An operation with a route passes the open palette, so the command closes it.
+        @test toggle() isa DoNothingOperation
+        @test !state.open[]
+    end
+
     @testset "the rows are the context, and they carry their operations" begin
         state = CommandPaletteState()
         p = mkpalette(state)

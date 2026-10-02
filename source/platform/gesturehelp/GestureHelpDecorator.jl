@@ -38,6 +38,20 @@ True when `event` is the gesture that summons the help window.
 is_help_gesture(event) = matches_gesture_pattern(HELP_GESTURE, event)
 
 """
+    ToggleGestureHelpOperation()
+
+Open the help window, or close it when it is open: what the help gesture does, for
+a command that has no key. The command sends it with a route into the content of
+the decorator, as `read_rooted_operation` sends an operation, and the decorator
+finds it in the answer of its inner reader. It names no place, so it travels up a
+chain as it is.
+"""
+struct ToggleGestureHelpOperation <: Operation end
+
+OperationModule.operation_travels_unchanged(::ToggleGestureHelpOperation) = true
+OperationModule.describe_operation(::ToggleGestureHelpOperation) = "open or close the gesture help"
+
+"""
     GestureHelpState(open=false)
 
 Mutable open/closed flag for the gesture-help window, shared across the
@@ -113,25 +127,29 @@ function read_intent(p::GestureHelpDecoratorProjection, recursion, change::Inten
     # The wrapped editor has priority: if it produced an operation, that wins and
     # the help gesture (if any) is reconsidered next event.
     child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
+    # A command that asks for the help comes up from the content as an answer.
+    child.operation isa ToggleGestureHelpOperation &&
+        return Intent(change.gesture, _toggle!(p, recursion, iomap))
     child.operation isa Operation && return child
-
-    if is_help_gesture(change.gesture)
-        if p.state.open
-            p.state.open = false
-            return Intent(change.gesture, CloseWindowOperation(p.id))
-        end
-        # Ask the reader what is available, exactly where a keystroke would go.
-        # What comes back is already rooted at this decorator's input, so the rows
-        # carry runnable operations rather than rules someone still has to resolve.
-        answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
-        gm = make_gesture_map(answer isa Intent ? answer.operation : answer)
-        p.state.open = true
-        return Intent(change.gesture, OpenWindowOperation(
-            id = p.id, title = p.title,
-            x = p.x, y = p.y, width = p.width, height = p.height,
-            style = :normal, content = gm))
-    end
+    is_help_gesture(change.gesture) && return Intent(change.gesture, _toggle!(p, recursion, iomap))
     return child
+end
+
+# Open the help window, or close it when it is open.
+function _toggle!(p::GestureHelpDecoratorProjection, recursion, iomap::GestureHelpDecoratorIoMap)
+    if p.state.open
+        p.state.open = false
+        return CloseWindowOperation(p.id)
+    end
+    # Ask the reader what is available, exactly where a keystroke would go.
+    # What comes back is already rooted at this decorator's input, so the rows
+    # carry runnable operations rather than rules someone still has to resolve.
+    answer = read_intent(p.inner, recursion, Intent(CollectIntents()), iomap.inner_iomap)
+    gm = make_gesture_map(answer isa Intent ? answer.operation : answer)
+    p.state.open = true
+    OpenWindowOperation(id = p.id, title = p.title,
+                        x = p.x, y = p.y, width = p.width, height = p.height,
+                        style = :normal, content = gm)
 end
 
 read_intent(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, payload) =

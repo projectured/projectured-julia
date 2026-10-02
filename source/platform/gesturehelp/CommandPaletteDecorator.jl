@@ -51,6 +51,20 @@ True when `event` is the gesture that summons the palette.
 is_command_palette_gesture(event) = matches_gesture_pattern(COMMAND_PALETTE_GESTURE, event)
 
 """
+    ToggleCommandPaletteOperation()
+
+Open the palette, or close it when it is open: what the palette gesture does, for a
+command that has no key. The command sends it with a route into the content of
+the decorator, as `read_rooted_operation` sends an operation, and the decorator
+finds it in the answer of its inner reader. It names no place, so it travels up a
+chain as it is.
+"""
+struct ToggleCommandPaletteOperation <: Operation end
+
+OperationModule.operation_travels_unchanged(::ToggleCommandPaletteOperation) = true
+OperationModule.describe_operation(::ToggleCommandPaletteOperation) = "open or close the command palette"
+
+"""
     CommandPaletteState()
 
 The palette's own state: one `CommandPalette` document, reused for the life of the
@@ -175,12 +189,21 @@ function read_intent(p::CommandPaletteDecoratorProjection, recursion, change::In
         return Intent(change.gesture, _read_open(p, iomap, change.gesture))
     end
     child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
+    # A command that asks for the palette comes up from the content as an answer.
+    child.operation isa ToggleCommandPaletteOperation &&
+        return Intent(change.gesture, _toggle!(p, recursion, iomap))
     child.operation isa Operation && return child
-    if is_command_palette_gesture(change.gesture)
-        _open!(p, recursion, iomap)
-        return Intent(change.gesture, DoNothingOperation())
-    end
+    is_command_palette_gesture(change.gesture) &&
+        return Intent(change.gesture, _toggle!(p, recursion, iomap))
     return child
+end
+
+# Open the palette, or close it when it is open. While it is open, the palette
+# takes its own gesture in `_read_open`, so only a routed command reaches it here
+# open.
+function _toggle!(p::CommandPaletteDecoratorProjection, recursion, iomap::CommandPaletteDecoratorIoMap)
+    p.state.open[] ? _close!(p) : _open!(p, recursion, iomap)
+    DoNothingOperation()
 end
 
 read_intent(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecoratorIoMap, payload) =

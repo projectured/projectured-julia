@@ -2,9 +2,10 @@
 
 > **Status:** in progress since 2026-10-02, on the branch `help-menu-tools`.
 > Written on 2026-10-02 at the owner's request. The owner decided the route (D1)
-> and the place (D2) on 2026-10-02. D3 and D4 follow my recommendation, because
-> the owner said to start without a change to them; the owner can still change
-> either.
+> and the place (D2) on 2026-10-02. D3 and D4 are my choices, because the owner
+> said to start without a change to them; the owner can still change either. D3
+> changed during S2, when I found that a menu item draws no key (3.5). S1 is
+> done.
 
 ## 1. The request
 
@@ -150,10 +151,10 @@ on.
 The two items come first in the Help menu, before Documents, Projections and
 About:
 
-| Item | Key | Tooltip |
-| --- | --- | --- |
-| Gestures | F1 | The gestures that work where the selection is |
-| Command palette | Ctrl+Shift+P | Find a command that works here, and run it |
+| Item | Tooltip |
+| --- | --- |
+| Gestures | The gestures that work where the selection is (F1) |
+| Command palette | Find a command that works here, and run it (Ctrl+Shift+P) |
 
 The callback of each item:
 
@@ -170,18 +171,16 @@ In a window, the help window opens during the read, because
 
 ### 3.5 The key on the item (D3)
 
-**My recommendation: the item carries the key.** The shell then takes F1 and
-Ctrl+Shift+P first, and the key runs the item. The key and the item have one
-path. The decorator still checks its key itself, for a window with no shell.
+**The item carries no key, and its tooltip names the key.** The key goes to the
+decorator, as it does without the item.
 
-Effects to check in S3:
-
-- The gesture log records the key as the menu command.
-- The gesture help can list F1 twice: as a shortcut of the shell, and as the row
-  of the decorator. I did not check if the shell lists its menu shortcuts.
-
-The alternative: the item carries no key, and the key goes to the decorator as
-it does now. Then the menu does not show the key, and the tooltip must name it.
+The first recommendation was the other way: the item carries the key, so that
+the menu shows it. During S2 I found that a menu item draws only its label. No
+code in the widget package draws `action.shortcut`, and no item of the bar shows
+a key. So a key on the item shows nothing. It only moves F1 and Ctrl+Shift+P
+onto a new path: the shell would take the key first and run the item, the
+gesture log would record the key as a menu command, and the help could list F1
+twice. Without a key on the item, the path of each key does not change.
 
 ### 3.6 The labels (D4)
 
@@ -206,7 +205,9 @@ title "Gestures", and "Command palette".
     `read_routed_child` gives `nothing` back (`ProjectionDefaults.jl:411-412`).
     An empty selection makes no route at all.
   - The focused pane tree. A window can have no pane tree.
-- **D3 (2026-10-02, my recommendation).** The item carries the key; see 3.5.
+- **D3 (2026-10-02, my choice).** The item carries no key, and its tooltip names
+  the key; see 3.5. This changed from my first recommendation, because a menu
+  item draws no key.
 - **D4 (2026-10-02, my recommendation).** The labels are "Gestures" and "Command
   palette"; see 3.6.
 
@@ -214,11 +215,14 @@ title "Gestures", and "Command palette".
 
 Do the work in a worktree. Commit each step.
 
-- [ ] **S1. The operations and the decorators.** Add the two operations and the
-  check in each decorator (3.1, 3.2). Test in `test_gesture_help()` and
-  `test_command_palette_decorator()`: a routed toggle operation through a chain
-  with a `WidgetShell` opens and closes each. The rows are the rows of the
-  content.
+- [x] **S1. The operations and the decorators.** Done on 2026-10-02. The two
+  operations, and `_toggle!` in each decorator: the key and the operation call
+  it. The tests are in `test_gesture_help()` and
+  `test_command_palette_decorator()`. A toggle operation with the route
+  `.elements[1]` into a JSON array opens and closes each tool, and the rows are
+  the rows of the key. A probe showed that the route `.elements`, which no reader
+  holds as a child, carries nothing up. That is the reason of D2. The shell is
+  tested in S3, not here.
 - [ ] **S2. The items.** Add `_find_shell_content_reference`, the two keywords
   and the two items (3.3, 3.4). Test in `test_window_shell()`: an item is there
   only when its wrapper is on, in the order of 3.4. Test in `test_window_wrap()`:
@@ -232,8 +236,6 @@ Do the work in a worktree. Commit each step.
   - The help that the item opens lists a row that only the content has.
   - A real click on the item in the menu window does not move the selection of
     the main window. Push the pointer events, as `ContextMenuWindowTest.jl` does.
-  - The effects of 3.5: the gesture log entry, and how many F1 rows the help
-    shows.
 - [ ] **S4. The documents.** Update:
   - The docstrings of `make_window_help_menu` and `make_window_menu_bar` in
     `WindowChrome.jl`: remove Command palette and Gesture help from "What is not
