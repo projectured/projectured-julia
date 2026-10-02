@@ -84,7 +84,10 @@ make_opened_window_projections(; gesture_help::Bool = true,
                                  measure::TextMeasure = FontFileMeasure(),
                                  appearance::Appearance = Appearance()) =
     vcat(gesture_help ?
-             Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure)] :
+             Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure;
+                 theme = get_scaled_theme!(appearance, GestureHelpTheme),
+                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme),
+                 text_theme = get_scaled_theme!(appearance, TextTheme))] :
              Pair{Type,Any}[],
          Pair{Type,Any}[content...],
          Pair{Type,Any}[WidgetToGraphics(; measure = measure,

@@ -11,12 +11,13 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
-@projection struct HelpListToSyntax
-    heading::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_regular_16, color_slate_600)
-    name::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_bold_18, color_slate_900)
-    detail::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_regular_16, color_slate_500)
-    description::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_regular_16, color_slate_700)
-    muted::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_italic_16, color_slate_400)
+@projection UntrackedCell struct HelpListToSyntax
+    theme::Any = nothing
+    heading::StyleText = _get_help_style(theme, :heading_text)
+    name::StyleText = _get_help_style(theme, :name_text)
+    detail::StyleText = _get_help_style(theme, :detail_text)
+    description::StyleText = _get_help_style(theme, :description_text)
+    muted::StyleText = _get_help_style(theme, :muted_text)
 end
 
 """

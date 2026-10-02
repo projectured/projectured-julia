@@ -14,15 +14,16 @@
 # DejaVu, not Ubuntu: the palette writes the caret and the row marker as chevron
 # glyphs, and SDL draws a tofu box for a glyph the font lacks — it does no
 # fallback. Ubuntu Mono lacks both.
-@projection struct CommandPaletteToSyntax
-    query::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_blue)
+@projection UntrackedCell struct CommandPaletteToSyntax
+    theme::Any = nothing
+    query::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_query_text)
     # A group heading is not the text the user typed, so it must not look like it.
     # Violet reads as structure beside the blue query, and stays clear of the green
     # of the chosen row and the gray of a row that cannot run.
-    header::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_violet)
-    selected::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_20, color_solarized_green)
-    command::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_default)
-    muted::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    header::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_header_text)
+    selected::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_selected_text)
+    command::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_command_text)
+    muted::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_muted_text)
 end
 
 # The caret sits at the end of the query: the palette has one selection and it names

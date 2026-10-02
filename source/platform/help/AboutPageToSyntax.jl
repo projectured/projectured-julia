@@ -7,10 +7,11 @@
 # The lines are made in a thunk, so a change of a field of the page draws again.
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
-@projection struct AboutPageToSyntax
-    name::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_bold_24, color_slate_900)
-    summary::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_regular_16, color_slate_700)
-    detail::ImmutableCell{StyleText} = StyleText(font_dejavu_sans_regular_16, color_slate_500)
+@projection UntrackedCell struct AboutPageToSyntax
+    theme::Any = nothing
+    name::StyleText = _get_help_style(theme, :title_text)
+    summary::StyleText = _get_help_style(theme, :description_text)
+    detail::StyleText = _get_help_style(theme, :detail_text)
 end
 
 function print_document(p::AboutPageToSyntax, recursion, page::AboutPage, ctx::PrinterContext)

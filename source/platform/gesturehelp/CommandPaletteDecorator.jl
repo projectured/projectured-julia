@@ -70,12 +70,17 @@ end
 CommandPaletteState() = CommandPaletteState(CommandPalette(), Cell(false))
 
 """
-    CommandPaletteDecoratorProjection(; inner, measure, state=CommandPaletteState(), x=60, y=60)
+    CommandPaletteDecoratorProjection(; inner, measure, state=CommandPaletteState(),
+                              theme=nothing, syntax_theme=nothing, text_theme=nothing,
+                              x=60, y=60)
 
 Decorator over `inner`, a content pipeline that prints down to graphics. The
 palette gesture opens a type-in field at `(x, y)` listing the commands available
 where the user is. `measure` is the `TextMeasure` the palette's own rendering
-chain needs, the same one the content pipeline uses.
+chain needs, the same one the content pipeline uses. `theme` is a
+[`GestureHelpTheme`](@ref), a scaled one, or `nothing` for the default styles of
+the palette's rows and its panel; `syntax_theme` and `text_theme` reach the
+syntax-to-text and the text-to-graphics stages of the palette's own chain.
 
 Pass a shared `state` to keep one palette across the rebuilt decorators an example
 pipeline creates per dispatch.
@@ -84,27 +89,36 @@ struct CommandPaletteDecoratorProjection <: Projection
     inner::Any
     state::CommandPaletteState
     projection::Any
+    style::Any
     x::Int
     y::Int
 end
 
 """
-    make_command_palette_projection(measure) -> Projection
+    make_command_palette_projection(measure; theme=nothing, syntax_theme=nothing, text_theme=nothing)
+        -> Projection
 
 The palette's own rendering chain: the type-in lines down to graphics, through the
-same stages the help window uses.
+same stages the help window uses. `theme` is a [`GestureHelpTheme`](@ref), a
+scaled one, or `nothing` for the default styles; `syntax_theme` and `text_theme`
+style the syntax-to-text and the text-to-graphics stages.
 """
-make_command_palette_projection(measure::TextMeasure) =
-    ChainingProjection(CommandPaletteToSyntax(),
-                       RecursiveProjection(SyntaxToText()),
+make_command_palette_projection(measure::TextMeasure; theme = nothing, syntax_theme = nothing,
+                                text_theme = nothing) =
+    ChainingProjection(CommandPaletteToSyntax(; theme),
+                       RecursiveProjection(SyntaxToText(; theme = syntax_theme)),
                        WordWrapping(measure=measure),
-                       TextToGraphics(measure=measure))
+                       TextToGraphics(; measure, theme = text_theme))
 
 CommandPaletteDecoratorProjection(; inner, measure::TextMeasure,
                            state::CommandPaletteState = CommandPaletteState(),
-                           projection = make_command_palette_projection(measure),
+                           theme = nothing, syntax_theme = nothing, text_theme = nothing,
+                           projection = make_command_palette_projection(measure; theme, syntax_theme,
+                                                                       text_theme),
                            x::Integer = 60, y::Integer = 60) =
-    CommandPaletteDecoratorProjection(inner, state, projection, Int(x), Int(y))
+    CommandPaletteDecoratorProjection(inner, state, projection,
+                                      make_theme_values_field(GestureHelpTheme, scale_theme(theme)),
+                                      Int(x), Int(y))
 
 @iomap struct CommandPaletteDecoratorIoMap
     projection::Any
@@ -141,10 +155,11 @@ end
 # used to be.
 function _placed_palette(p::CommandPaletteDecoratorProjection, palette_iomap)
     content = palette_iomap.output
-    pad = PALETTE_PADDING
+    t = unwrap_cell(p.style)
+    pad = t.palette_padding
     panel = GraphicsRect(0, 0, content.w + 2 * pad, content.h + 2 * pad;
-                         color = color_solarized_background_lighter, radius = 6,
-                         border_width = 2, border_color = color_solarized_blue)
+                         color = t.palette_background, radius = t.palette_radius,
+                         border_width = t.palette_border_width, border_color = t.palette_border)
     GraphicsCanvas(Any[panel, GraphicsCanvas(Any[content]; x = pad, y = pad)];
                    x = p.x, y = p.y)
 end
@@ -285,13 +300,16 @@ end
 The wrapper of `build_editor` that makes Ctrl+Shift+P open a field over the
 window: typing narrows the commands that work here, Enter runs the selected one
 and Escape closes it. `measure` measures its text, `FontFileMeasure()` by
-default. It is off by default. It acts around the help of F1.
+default. The palette takes its theme and the syntax and the text themes from the
+`Appearance` of the `appearance` wrapper. It is off by default. It acts around the
+help of F1.
 """
 # @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:command_palette}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
-    parts.projection = CommandPaletteDecoratorProjection(inner = parts.projection,
-                                                         measure = get(options, :measure, FontFileMeasure()))
+    parts.projection = CommandPaletteDecoratorProjection(; inner = parts.projection,
+                                                         measure = get(options, :measure, FontFileMeasure()),
+                                                         _get_gesture_help_themes(parts)...)
     parts
 end
 

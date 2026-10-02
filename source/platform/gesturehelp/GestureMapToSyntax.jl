@@ -9,11 +9,12 @@
 # Greyed (not-applicable) rows are styled muted and tagged, the v1 of the Lisp
 # `accessible` colouring: a row that cannot fire for the current selection is shown
 # but dimmed.
-@projection struct GestureMapToSyntax
-    header::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
-    gesture::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
-    description::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_default)
-    muted::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+@projection UntrackedCell struct GestureMapToSyntax
+    theme::Any = nothing
+    header::StyleText = _get_gesturehelp_style(theme, StyleText, :map_header_text)
+    gesture::StyleText = _get_gesturehelp_style(theme, StyleText, :map_gesture_text)
+    description::StyleText = _get_gesturehelp_style(theme, StyleText, :map_description_text)
+    muted::StyleText = _get_gesturehelp_style(theme, StyleText, :map_muted_text)
 end
 
 # One leaf per row ("<gesture> — <description>"), preceded by a domain heading

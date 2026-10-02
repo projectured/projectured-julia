@@ -26,6 +26,7 @@ import ..DomainModule: get_insertion_aliases
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments
 
+export InspectorTheme, ScaledInspectorTheme
 export ReferenceInspectorToText
 export ReferenceInspector
 export SelectionInspector, SelectionInspectorToText,
@@ -34,6 +35,7 @@ export SelectionInspector, SelectionInspectorToText,
 
 include("ReferenceInspector.jl")
 include("SelectionInspector.jl")
+include("InspectorTheme.jl")
 include("ReferenceInspectorToText.jl")
 include("SelectionInspectorToText.jl")
 
@@ -46,14 +48,19 @@ include("SelectionInspectorToText.jl")
 # The factory form, so every renderer builds its own projection instances.
 
 function __init__()
-    register_natural_graphics!(:inspector, (; measure, appearance) -> Pair{Type,Any}[
-        ReferenceInspector => ChainingProjection(ReferenceInspectorToText(),
-                                                 WordWrapping(measure = measure),
-                                                 TextToGraphics(measure = measure)),
-        SelectionInspector => ChainingProjection(SelectionInspectorToText(),
-                                                 WordWrapping(measure = measure),
-                                                 TextToGraphics(measure = measure)),
-    ])
+    register_natural_graphics!(:inspector, (; measure, appearance) -> begin
+        theme = get_scaled_theme!(appearance, InspectorTheme)
+        reference_theme = get_scaled_theme!(appearance, ReferenceTheme)
+        text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))
+        Pair{Type,Any}[
+            ReferenceInspector => ChainingProjection(ReferenceInspectorToText(; theme, reference_theme),
+                                                     WordWrapping(measure = measure),
+                                                     text),
+            SelectionInspector => ChainingProjection(SelectionInspectorToText(; theme, reference_theme),
+                                                     WordWrapping(measure = measure),
+                                                     text),
+        ]
+    end)
 end
 
 end # module

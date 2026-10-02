@@ -75,17 +75,21 @@ GestureHelpDecoratorProjection(; inner, state::GestureHelpState = GestureHelpSta
     GestureHelpDecoratorProjection(inner, state, id, String(title), Int(x), Int(y), Int(width), Int(height))
 
 """
-    make_gesture_map_projection(measure) -> Projection
+    make_gesture_map_projection(measure; theme=nothing, syntax_theme=nothing, text_theme=nothing)
+        -> Projection
 
 What draws the help window's content: the gesture rows down to graphics, through
 the same stages the command palette uses. A screen that lets the decorator open
-its window names it for `GestureMap`.
+its window names it for `GestureMap`. `theme` is a [`GestureHelpTheme`](@ref), a
+scaled one, or `nothing` for the default styles; `syntax_theme` and `text_theme`
+style the syntax-to-text and the text-to-graphics stages.
 """
-make_gesture_map_projection(measure::TextMeasure) =
-    ChainingProjection(GestureMapToSyntax(),
-                       RecursiveProjection(SyntaxToText()),
+make_gesture_map_projection(measure::TextMeasure; theme = nothing, syntax_theme = nothing,
+                            text_theme = nothing) =
+    ChainingProjection(GestureMapToSyntax(; theme),
+                       RecursiveProjection(SyntaxToText(; theme = syntax_theme)),
                        WordWrapping(measure=measure),
-                       TextToGraphics(measure=measure))
+                       TextToGraphics(; measure, theme = text_theme))
 
 # Transparent: `output` forwards the inner output through a cell so the IoMap
 # keeps its identity while the inner projection re-derives (PAR-STABLE-IOMAP-IDENTITY).
@@ -147,7 +151,8 @@ map_reference_backward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDeco
 The wrapper of `build_editor` that makes F1 open a window that lists the
 gestures that work where the person is, and F1 again close it. It adds the row
 that draws that window to the windows that open later, measured with `measure`,
-`FontFileMeasure()` by default. It is off by default. It acts around the
+`FontFileMeasure()` by default, in the themes of the `Appearance` of the
+`appearance` wrapper. It is off by default. It acts around the
 clipboard, so the list names the gestures of the walk and of the clipboard too.
 """
 # @positional: the arity of the wrapper seam of the kernel.
@@ -155,7 +160,8 @@ function wrap_editor!(::Val{:gesture_help}, layer::Symbol, argument, parts::Edit
     options = argument === true ? (;) : argument
     parts.projection = GestureHelpDecoratorProjection(inner = parts.projection, state = GestureHelpState())
     push!(parts.opened_window_projections,
-          GestureMap => make_gesture_map_projection(get(options, :measure, FontFileMeasure())))
+          GestureMap => make_gesture_map_projection(get(options, :measure, FontFileMeasure());
+                                                    _get_gesture_help_themes(parts)...))
     parts
 end
 

@@ -21,23 +21,26 @@
 # Display-only: `map_reference_forward`/`map_reference_backward` return `nothing`,
 # so a click landing inside the rendered panel produces no operation.
 """
-    ReferenceInspectorToText(; font=font_ubuntu_monospace_regular_20,
-                               header_font=font_liberation_sans_bold_30,
-                               header_color=color_solarized_blue)
+    ReferenceInspectorToText(; theme=nothing, reference_theme=nothing,
+                               font=…, header_font=…, header_color=…)
 
 Projection over `ReferenceInspector`. Output is a `TextBlock` stacking the
 compact and human-readable renderings of `inspector.reference` under bold
 section headers.
+
+`theme` is an [`InspectorTheme`](@ref), a scaled one, or `nothing` for the
+default styles of `font`, `header_font` and `header_color`; a value given for
+one of them stays fixed regardless of `theme`. `reference_theme` is the
+[`ReferenceTheme`](@ref) the delegate `ReferenceToText` and
+`ReferenceToHumanReadableText` take.
 """
-@projection struct ReferenceInspectorToText <: Projection
-    font::ImmutableCell{StyleFont}
-    header_font::ImmutableCell{StyleFont}
-    header_color::ImmutableCell{StyleColor}
+@projection UntrackedCell struct ReferenceInspectorToText <: Projection
+    theme::Any = nothing
+    reference_theme::Any = nothing
+    font::StyleFont = _get_inspector_style(theme, StyleFont, :font)
+    header_font::StyleFont = _get_inspector_style(theme, StyleFont, :header_font)
+    header_color::StyleColor = _get_inspector_style(theme, StyleColor, :header_color)
 end
-ReferenceInspectorToText(; font = font_ubuntu_monospace_regular_20,
-                           header_font = font_liberation_sans_bold_30,
-                           header_color = color_solarized_blue) =
-    ReferenceInspectorToText(font, header_font, header_color)
 
 _header(text::AbstractString, p::ReferenceInspectorToText) =
     TextString(text, p.header_font, p.header_color)
@@ -51,7 +54,7 @@ function _append_spans!(spans::Vector{TextDocument}, tt::TextBlock)
 end
 
 function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
-    short_proj = ReferenceToText(font = p.font)
+    short_proj = ReferenceToText(theme = p.reference_theme, font = p.font)
     # The two renderings keep the clock and the properties of the editor, and have a
     # free range on each axis.
     ictx = with_exact_size(make_child_context(ctx, EmptyReference());
@@ -62,7 +65,7 @@ function print_document(p::ReferenceInspectorToText, recursion, input::Reference
         # Annotate the node types, so both forms show them.
         canonical = (ref isa ConcreteReference && target !== nothing) ?
                     annotate_reference_types(target, ref) : ref
-        long_proj = ReferenceToHumanReadableText(document = target, font = p.font)
+        long_proj = ReferenceToHumanReadableText(document = target, theme = p.reference_theme, font = p.font)
         short = print_document(short_proj, nothing, canonical, ictx).output
         long  = print_document(long_proj,  nothing, canonical, ictx).output
 

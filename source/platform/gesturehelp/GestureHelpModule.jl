@@ -47,6 +47,7 @@ export GestureRow, make_gesture_row, make_gesture_map, collect_gesture_rows
 export CommandPalette, build_command_palette_selection, get_command_palette_selected,
        get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
        get_command_palette_settled_selection
+export GestureHelpTheme, ScaledGestureHelpTheme
 export GestureMapToSyntax
 export CommandPaletteToSyntax
 export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
@@ -59,6 +60,7 @@ export GestureMap
 
 include("GestureMap.jl")
 include("CommandPalette.jl")
+include("GestureHelpTheme.jl")
 include("GestureMapToSyntax.jl")
 include("CommandPaletteToSyntax.jl")
 include("CommandPaletteDecorator.jl")

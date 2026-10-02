@@ -38,16 +38,20 @@ export compute_help_entries
 
 include("HelpDocument.jl")
 include("DocstringSummary.jl")
+include("HelpTheme.jl")
 include("HelpListToSyntax.jl")
 include("AboutPageToSyntax.jl")
 
 # The rows that let a tab draw what the Help menu opens.
 function __init__()
-    register_natural_syntax!(:help, (; appearance) -> Pair{Type,Any}[
-        DocumentTypeList => HelpListToSyntax(),
-        ProjectionList   => HelpListToSyntax(),
-        AboutPage        => AboutPageToSyntax(),
-    ])
+    register_natural_syntax!(:help, (; appearance) -> begin
+        theme = get_scaled_theme!(appearance, HelpTheme)
+        Pair{Type,Any}[
+            DocumentTypeList => HelpListToSyntax(; theme),
+            ProjectionList   => HelpListToSyntax(; theme),
+            AboutPage        => AboutPageToSyntax(; theme),
+        ]
+    end)
 end
 
 end # module

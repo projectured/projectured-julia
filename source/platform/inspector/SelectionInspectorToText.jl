@@ -17,20 +17,25 @@
 # A `nothing` source shows that document's selection, which is what a person who
 # opens a selection view by name expects to see.
 """
-    SelectionInspectorToText(; font, header_font, header_color)
+    SelectionInspectorToText(; theme=nothing, reference_theme=nothing,
+                               font=…, header_font=…, header_color=…)
 
 Projection over [`SelectionInspector`](@ref). Output is a `TextBlock` stacking
 the compact and human-readable renderings of the selection its input names.
+
+`theme`, `reference_theme`, `font`, `header_font` and `header_color` are the
+keywords of [`ReferenceInspectorToText`](@ref), which this projection builds
+and delegates to.
 """
 @projection struct SelectionInspectorToText <: Projection
     inner::ImmutableCell{ReferenceInspectorToText}
 end
-SelectionInspectorToText(; font = font_ubuntu_monospace_regular_20,
-                           header_font = font_liberation_sans_bold_30,
-                           header_color = color_solarized_blue) =
-    SelectionInspectorToText(ReferenceInspectorToText(font = font,
-                                                      header_font = header_font,
-                                                      header_color = header_color))
+SelectionInspectorToText(; theme = nothing, reference_theme = nothing,
+                           font = _get_inspector_style(theme, StyleFont, :font),
+                           header_font = _get_inspector_style(theme, StyleFont, :header_font),
+                           header_color = _get_inspector_style(theme, StyleColor, :header_color)) =
+    SelectionInspectorToText(ReferenceInspectorToText(; theme, reference_theme,
+                                                      font, header_font, header_color))
 
 function print_document(p::SelectionInspectorToText, recursion,
                         input::SelectionInspector, ctx)
