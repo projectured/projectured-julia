@@ -91,6 +91,22 @@ Each document starts with three things, in this order:
 The assistant shows that paragraph in its list of guides, so it must read on
 its own.
 
+## The docstrings that the editor shows
+
+The editor shows some docstrings to a person who uses it:
+
+- the first paragraph of the docstring of a theme type and of a settings group
+  type, at the top of its card in the appearance tab and in the settings tab;
+- the docstring of each field of a theme, under the name of the field, and the
+  text of each setting after its label, under the label.
+
+Write these for that person. Say what the value changes on the screen or in the
+behaviour, in the words of the editor: "The colors and the fonts of a JSON
+document: its values, its keys, its brackets and its separators." Name no type,
+field, function or macro, and use no code mark. One or two sentences. The text
+for a programmer, such as how a projection reads the theme, goes in the
+paragraphs after the first one.
+
 ## The name of a guide
 
 The assistant reads the guides by name, and the name comes from the path:

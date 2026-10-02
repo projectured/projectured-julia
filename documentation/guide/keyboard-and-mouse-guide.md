@@ -109,7 +109,8 @@ A view that zooms by itself, such as a diagram, keeps Ctrl + plus and Ctrl + min
 
 The appearance tab opens with Ctrl + comma, with the palette button of the toolbar, or with View > Appearance. At its top are the zoom and six scales: text, icons, spacing, controls, corners and lines. Each has a minus, a plus and a reset button. Under them are the themes, in three groups: Editor, Tools and Documents. Click the chevron of a theme to open it. A theme shows its colors, its fonts and its sizes:
 
-- Rest the pointer on the name of a value to read what it draws.
+- Under each value, a line says what it draws, and the top of each theme says
+  what the theme colors.
 - Type the digits of a color, as `#rrggbbaa`.
 - Step a size or the size of a font with the stepper at the right of its box, or with Up and Down. Step through the fonts with ‹ and ›.
 - Choose a preset, if the theme has some, to change all of its values at once.
@@ -123,4 +124,4 @@ A change shows at once. Ctrl + Z in the window takes back a change of a theme; a
 
 ## The settings
 
-The gear of the toolbar, or View > Settings, opens the settings of the editor in a tab: one switch or number for each setting, a button that resets it, and Reset all, Save and Load under them. A change takes effect at once, and Ctrl+Z in the window takes it back. The palette has "Toggle partial render" and "Toggle repaint outline".
+The gear of the toolbar, or View > Settings, opens the settings of the editor in a tab: one switch or number for each setting, a button that resets it, and a line under it that says what the setting does; Reset all, Save and Load are under them. The top of each group says what the group sets. A change takes effect at once, and Ctrl+Z in the window takes it back. The palette has "Toggle partial render" and "Toggle repaint outline".

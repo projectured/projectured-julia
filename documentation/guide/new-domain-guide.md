@@ -449,9 +449,18 @@ BookmarkList
 - **A theme:** the styles of the projections become values of a theme, so the
   view follows the scales of the appearance, and a person changes its colors and
   fonts in the appearance tab. Declare the theme with a docstring before each
-  field; the tab shows it as the tooltip of the field:
+  field; the tab shows it under the name of the field. The first paragraph of the
+  docstring of the type says, for a person, what the values change; the tab shows
+  it at the top of the card of the theme:
 
   ```julia
+  """
+      BookmarkTheme
+
+  The colors and the fonts of a list of bookmarks: a title and an address.
+
+  `@theme` declares it, so `ScaledBookmarkTheme` holds each value times its scale.
+  """
   @theme struct BookmarkTheme
       "The title of a bookmark."
       title_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)

@@ -78,7 +78,10 @@ A string before a field is the docstring of the field, as in a plain struct, and
 it says what the value draws. `@theme` keeps the docstrings in
 `get_theme_field_texts(JsonTheme)`, so they need no docstring of the type, and
 `find_theme_field_text(JsonTheme, :key_text)` reads one; the appearance tab shows
-it as the tooltip of the name of the field. `get_theme_presets(T)` names the presets
+it under the name of the field. The first paragraph of the docstring of the theme
+type is for a person: it says what the values change, and the appearance tab shows
+it at the top of the card of the theme (`compute_docstring_summary` of the kernel
+tool layer). `get_theme_presets(T)` names the presets
 of a theme type, which the tab offers; a type has none unless it adds a method.
 
 `@theme` also declares the **scaled theme**, `ScaledJsonTheme`: for each field, a

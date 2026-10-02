@@ -63,7 +63,11 @@ the window (`find_editor_appearance`).
   box for the size of a font; the swatch of a color and its text, `#rrggbbaa`,
   which a person edits; and for a text style, the controls of its color over
   those of its font, each of which writes a new style and keeps the other part.
-  The name of each field has the docstring of the field as its tooltip.
+  Under the row of the name and the control of a field, a row of its own holds
+  the docstring of the field, across the card, in the small font and the muted
+  color of the widget theme (`LayoutConstraint(…; column_span = 2)`). The card
+  starts with the summary of its theme type, the first paragraph of its
+  docstring.
 
 A press of a button answers the operation of the button, and the reader of the
 tab turns a step of a spin box or a choice of a preset into a write of the theme
