@@ -1091,9 +1091,9 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     shows the document of the entry in its cell.
   - **A click in a cell opens an entry**, which holds a primitive document of
     the value in the frame, so the caret has a `value` to stand in:
-    `rows[5][3].value{2}`. (Mine. The path of R3 needs it: without an entry,
-    `rows[5][3]` gives the value in the frame, which has no `value`. The owner
-    has not answered this point yet.) The path stays the same through every key,
+    `rows[5][3].value{2}`. (The recommendation of the writer, because the
+    path of R3 needs it: without an entry, `rows[5][3]` gives the value in the
+    frame, which has no `value`. The owner, 2026-10-02: "Yes, agreed".) The path stays the same through every key,
     also when a key turns the number into a type-in, or the type-in into a
     number, because the document of the entry is replaced in place.
   - **A move out of the cell commits the entry.** An entry with no change goes

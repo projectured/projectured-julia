@@ -2,8 +2,8 @@
 
 Status: a plan, not started. Written 2026-10-02 at the owner's word, in the
 review of phase 4 of [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md).
-The design of §3 is the owner's; the points of §4 are mine, for the owner to
-decide.
+The design of §3 is the owner's. The points of §4 are the writer's, and the
+owner accepted all seven on 2026-10-02 ("Yes, agreed").
 
 ## 1. The problem
 
@@ -77,9 +77,10 @@ Example: `-5` typed into a number.
 2. `5` makes `-5`. It parses, and the number prints it as `-5`, so the insertion
    becomes `PrimitiveNumber(-5)` (point 2 of §4).
 
-## 4. Points for the owner
+## 4. The points of the design
 
-Each recommendation is mine.
+Each point was a recommendation of the writer; the owner accepted all seven,
+2026-10-02.
 
 1. **"Can not be represented."** The number does not print the typed text
    exactly: `-`, `1e`, `.`, `12.`, `1.50`, `007`, `+5`, `1e5`. The test uses the
