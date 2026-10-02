@@ -4,11 +4,12 @@
 """
     SettingsToWidget()
 
-The settings tab: the `Settings` of an editor as widgets. One card for each group,
-in the order of their names, with one row for each setting: its label, whose
-tooltip says what it does, its control, and a button that resets it. Under the
-cards, a button resets all of them, and two buttons save the settings to their
-file and load them from it; these two are off for settings with no file.
+The settings tab: the `Settings` of an editor as widgets, in a pane that scrolls.
+One card for each group, in the order of their names, with one row for each
+setting: its label, whose tooltip says what it does, its control, and a button
+that resets it. Under the cards, a button resets all of them, and two buttons save
+the settings to their file and load them from it; these two are off for settings
+with no file.
 
 - A `Bool` is a switch, a number is a spin box with the step of its values, a
   `Symbol` is a choice of its values, and a `String` is a text.
@@ -19,6 +20,10 @@ file and load them from it; these two are off for settings with no file.
 - The selection of the settings holds a path in the widgets of the tab, as a path
   that this projection introduces, so a key reaches the control that the path
   names and a text draws its caret.
+- The pane keeps its own place. A change of a setting does not print the tab
+  again, because each control follows its setting, so the place stays. A change
+  of the fault policy prints the whole view again, and the new pane starts at the
+  top.
 
 The view holds no effect of a setting. A control edit and a reset become the
 normal edit of a group, a `ReplaceReferencedValueOperation` of one setting, and
@@ -56,7 +61,7 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
         set_cell_computation!(getfield(button, :enabled), () -> !isempty(settings.file))
     end
     buttons = HorizontalLayout(Any[reset, save, load]; gap = _COLUMN_GAP)
-    output = VerticalLayout(Any[cards..., buttons]; gap = _GROUP_GAP)
+    output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = _GROUP_GAP))
     # Each kind of path of the settings names a part of the tab: the output holds
     # its image, and each document below it the part of its parent's path.
     set_output_path_computations!(output, settings, path -> find_introduced_path(p, path))
@@ -86,8 +91,8 @@ function _make_group_card(settings::Settings, group, controls)
     card = WidgetCard(; title = WidgetLabel(_make_group_title(T)),
                       content = WidgetComposite(Any[grid]))
     note = is_settings_group_read_at_start(T) ?
-        WidgetLabel("These settings take effect at the next start.") :
-        WidgetLabel("This editor does not use these settings.")
+        "These settings take effect at the next start." :
+        "This editor does not use these settings."
     set_cell_computation!(getfield(card, :description),
                           () -> (is_used() && !is_settings_group_read_at_start(T)) ? nothing : note)
     card

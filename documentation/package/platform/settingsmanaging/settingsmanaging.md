@@ -29,12 +29,13 @@ The `window` wrapper takes the `PointerSettings` of the same editor from `Editor
 
 ## The settings tab
 
-`SettingsToWidget` draws the `Settings` of an editor as widgets, and the slice registers it with the natural renderer, so a tab that holds the `Settings` draws them. The toolbar of the window and its View menu open the tab with the `Settings` of the editor (`find_editor_settings`).
+`SettingsToWidget` draws the `Settings` of an editor as widgets in a `WidgetScrollPane`, and the slice registers it with the natural renderer, so a tab that holds the `Settings` draws them. The slice takes the printer of the pane from the widget printer with the widget theme of the appearance, as the appearance tab does. The toolbar of the window and its View menu open the tab with the `Settings` of the editor (`find_editor_settings`).
 
 - One card for each group, in the order of their names, and one row for each setting: the label, whose tooltip is the text of the setting, the control, and a button that resets it. Under the cards, "Reset all".
 - A `Bool` is a switch, a number with a range is a spin box with the step of the range, a `Symbol` with its choices is a radio group, and a `String` is a text. A text edit becomes the write of the whole text and a caret after the characters that it put in.
 - The selection works the normal way. The tab wires the paths of its output with `set_output_path_computations!` and carries them down its widgets with `set_output_tree_path_computations!`; a path that a press or Tab makes goes back through the default reader of the kernel, which introduces it into the `Settings`. So Tab and the arrows reach each control, Space and Return change a switch, and a text draws its caret.
 - Each control is a computed cell over its setting, so it follows a change from any path: a command, an undo, a load.
+- The pane keeps its own place. A change of a setting does not print the tab again, so the place stays. A change of a fault setting changes the fault policy, which prints the whole view again (`invalidate_projection!`), and the new pane starts at the top. The `Settings` can not keep the place as the `Appearance` does, because the settings slice is below the style slice that holds `Point2D`.
 - The start step keeps the types of the groups that the editor does not use in `Settings.unused_types`: an applied group (`is_settings_group_applied`) that neither the editor nor its backend applies, such as the render group of a backend that draws no windows. The card of such a group says so, and its controls are off.
 - A control edit, a reset and "Reset all" are normal edits of the groups. The wrapper applies them, and a history that holds the tab records them, so Ctrl+Z takes a change back and applies the old value.
 

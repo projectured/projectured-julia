@@ -6,31 +6,37 @@
 import ProjecturedKernelExample: HeadlessBackend, rendered_output, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!
 import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
+import ProjecturedPlatform.ScreenModule: show_document!
 
 _stab_natural(; extra = Pair{Type,Any}[]) =
     NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), extra)
 
 # An editor whose content is `content`, a tab that shows `settings`, with the
 # settings wrapper over the same `settings`, after its first frame.
-function _stab_editor(content, settings; extra = Pair{Type,Any}[], focus_cycling = false)
+function _stab_editor(content, settings; extra = Pair{Type,Any}[], focus_cycling = false,
+                      display = Display())
     backend = HeadlessBackend()
     editor = build_editor(content, _stab_natural(; extra); backend,
-                          devices = Device[Keyboard(), Mouse(), Display()],
+                          devices = Device[Keyboard(), Mouse(), display],
                           window = false, tabs = false, appearance = false, settings,
                           focus_cycling)
     run_frame!(editor)
     (editor, backend)
 end
 
-# Each text of a canvas, at its place.
+# Each text of a canvas, at its place, also inside the viewport of a pane.
 function _stab_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     x = ox + Int(canvas.x)
     y = oy + Int(canvas.y)
     for element in canvas.elements
+        element = element isa Cell ? element[] : element
         if element isa GraphicsText
             push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
         elseif element isa GraphicsCanvas
             _stab_drawn(element, x, y, found)
+        elseif element isa GraphicsViewport
+            _stab_drawn(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                        y + Int(element.y) + round(Int, element.transform.f), found)
         end
     end
     found
@@ -159,8 +165,10 @@ end
     @test !(PointerSettings in settings.unused_types)
     @test is_settings_group_applied(RenderSettings) && is_settings_group_applied(FaultSettings)
     @test !is_settings_group_applied(PointerSettings)
-    # The card can wrap the note, so a piece of it is enough.
+    # The card can wrap the note, so a piece of it is enough. The note is its text,
+    # not the text of a widget.
     @test any(text -> occursin("does not use", text[1]), _stab_texts(backend))
+    @test !any(text -> occursin("WidgetLabel", text[1]), _stab_texts(backend))
     @test _stab_find_click(editor, backend, "Partial render", :partial_render) === nothing
 end
 
@@ -238,6 +246,38 @@ end
     _stab_press!(editor, backend, _stab_click(x + 2, y + 6))
     @test start.assistant === :anthropic
     @test any(text -> occursin("next start", text[1]), _stab_texts(backend))
+end
+
+@testset "the tab scrolls in a window, and a change of a setting keeps its place" begin
+    settings = make_settings()
+    backend = HeadlessBackend()
+    editor = build_editor(WidgetLabel("Name"); backend,
+                          devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 900, height = 400),
+                          tabs = (; title = "Doc"), settings)
+    run_frame!(editor)
+    function send!(events...)
+        foreach(event -> push_event!(backend, WindowInput(:T, event)), events)
+        run_frame!(editor)
+        run_frame!(editor)
+    end
+    show_document!(editor, settings; title = "Settings")
+    send!()
+    drawn() = _stab_drawn(only(last(rendered_output(backend)).windows).content)
+    place(label) = only(text for text in drawn() if text[1] == label)[3]
+    bottom = place("Reset all")
+    @test bottom > 400
+    (_, x, y) = only(text for text in drawn() if text[1] == "Catch faults")
+    send!((MouseScroll(0, -1, x, y, ModifierKeys(); time = Float64(i)) for i in 1:3)...)
+    scrolled = place("Reset all")
+    @test scrolled < bottom
+    # The step up of the undo steps is the upper arrow in the row of its label.
+    row = place("Undo steps")
+    (_, ux, uy) = only(text for text in drawn() if text[1] == "\ue13d" && abs(text[3] - row) <= 12)
+    send!(MouseDown(:left, ux + 4, uy + 4, ModifierKeys(); time = 5.0),
+          MouseUp(:left, ux + 4, uy + 4, ModifierKeys(); time = 5.05))
+    @test get_settings_group!(settings, HistorySettings).undo_capacity == 101
+    @test place("Reset all") == scrolled
 end
 
 @testset "the settings of an editor are found under its root" begin
