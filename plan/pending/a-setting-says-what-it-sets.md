@@ -1,6 +1,6 @@
 # A setting says what it sets
 
-> **Status:** pending, in progress. Written on 2026-10-02 at the owner's
+> **Status:** pending, implemented on the branch `field-descriptions`, not landed. Written on 2026-10-02 at the owner's
 > request, after a discussion of the appearance tab and the settings tab. The
 > owner decided D1 to D8 on 2026-10-02 and asked for the work.
 
@@ -71,10 +71,12 @@ span takes its column and the `n - 1` columns after it, and starts a new row whe
 the row has not that many columns left. A span past the number of columns takes
 the rest of the row.
 
-- A spanning child adds nothing to the width of a `Content` column: it is offered
-  the width of the columns that it spans, with the gaps between them, and a
-  text in it breaks its lines there. So a long description does not widen the
-  column of the names.
+- A spanning child adds nothing to the width of a column, so a long description
+  does not widen the column of the names. When every column that it spans hands
+  out its extent, it gets their width with the gaps; otherwise it may reach from
+  its first column to the edge that the grid was offered, and a text in it
+  breaks there (finding 2). The grid is as wide as such a child. A grid that was
+  offered no width gives it no edge.
 - It adds to the height of its row, as every child does.
 - With no span, every child takes one column, and the grid lays out as before:
   the images of all examples stay equal, and the tables, which build grids, do
@@ -144,29 +146,29 @@ It goes (D5).
 
 All the work is in a worktree, and each step is a commit.
 
-- [ ] **S0. The grid spans a child over columns** (4.1a). `column_span` of
+- [x] **S0. The grid spans a child over columns** (4.1a). `column_span` of
   `LayoutConstraint`, and the placement, the widths, the offers and the row
   count of `GridLayoutToGraphicsCanvas`. Tests: a spanning child starts a new
   row when its row is short, adds nothing to a `Content` column, is offered the
   width of its columns and the gaps, and a grid with no span draws as before
   (the images of all examples equal, and the table tests pass).
 - [x] **S1. A label wraps** (D7). Not needed; finding 1.
-- [ ] **S2. The summary reader moves to the kernel** (D8), with its test; the
+- [x] **S2. The summary reader moves to the kernel** (D8), with its test; the
   help list calls it there.
-- [ ] **S3. The first paragraphs.** The docstrings of the 29 themes and of every
+- [x] **S3. The first paragraphs.** The docstrings of the 29 themes and of every
   settings group start with a text for a person. A Sonnet sub-agent writes them
   from a brief; I review each one. The writing rule goes into
   `documentation/rule/writing-rules.md` and the guide for a new domain.
-- [ ] **S4. The settings tab** shows the block of 4.1 for each setting and the
+- [x] **S4. The settings tab** shows the block of 4.1 for each setting and the
   summary on each card.
-- [ ] **S5. The appearance tab** shows the block of 4.1 for each field and the
+- [x] **S5. The appearance tab** shows the block of 4.1 for each field and the
   summary on each card.
-- [ ] **S6. Tests of what is drawn.** In both tabs: the description of a field is
+- [x] **S6. Tests of what is drawn.** In both tabs: the description of a field is
   drawn under its name, inside the width of its card, on more than one line when
   it is long; a card draws the summary of its type; a field with no description
   has no line for it. A live window of the application, driven by pushed SDL
   events, opens both tabs, and the owner reviews the images.
-- [ ] **S7. The guides**: `appearance.md`, `settingsmanaging.md`, `widget.md`,
+- [x] **S7. The guides**: `appearance.md`, `settingsmanaging.md`, `widget.md`,
   `style.md`, and the user guide.
 
 ## 7. Risks
@@ -193,3 +195,27 @@ All the work is in a worktree, and each step is a commit.
    plan said that a label draws one line, from a reading of the card printer
    only, so it asked for a `wrap` field. The span of a grid offers the spanning
    child the width of its columns as a bound, and the label breaks there.
+2. **A description breaks at the edge of the grid** (2026-10-02). With the width
+   of the columns that it spans, a description broke at about 250 pixels in the
+   settings tab, whose columns are a label, a switch and a button, so a short
+   text took two or three lines. A spanning child reaches from its first column
+   to the edge that the grid was offered; it still widens no column.
+3. **A line break did not always end a line** (2026-10-02). `_text_lines` kept a
+   text that fit its bound on one line, line breaks included, so the note of a
+   settings card could not follow the summary on a line of its own. A line break
+   always ends a line now; the images of all 105 examples stay equal.
+4. **The tests that find a place by scrolling** (2026-10-02). The settings tab is
+   taller with the descriptions, so the test of the scroll scrolls until the row
+   of the undo steps is in the window, and checks that "Log faults" is in the
+   window before it presses there, instead of three steps of the wheel.
+5. **The checks** (2026-10-02). The tests of the span, the layouts, the tables,
+   the two tabs, the wrappers, the help, the theme, the summary, the guards and
+   the application give 591 and 730 pass (2 old broken markers of the navigator);
+   the export and the argument guards show only the failures of `main`. The
+   images of all 105 examples equal those of `fb90cbd04`. The images of the two
+   tabs for the owner are in `/var/tmp/field-descriptions/shots/`.
+6. **The summaries** (2026-10-02). A Sonnet sub-agent wrote the first paragraph of
+   the 29 themes and the 5 settings groups, and kept the text for a programmer
+   in the paragraphs after it; review fixed "markdown" to "Markdown". A helper
+   `strip_code_marks` of the kernel tool layer drops the backticks of a
+   docstring that the tabs show.
