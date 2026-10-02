@@ -29,4 +29,11 @@ end
 
 include("../../../source/domain/sequencechart/SequenceChartModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedSequenceChart`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .SequenceChartModule
+for _n in names(SequenceChartModule)
+    _n === :SequenceChartModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedSequenceChart

@@ -33,4 +33,11 @@ end
 
 include("../../../source/domain/julia/JuliaModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedJulia`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .JuliaModule
+for _n in names(JuliaModule)
+    _n === :JuliaModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedJulia

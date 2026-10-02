@@ -31,4 +31,11 @@ end
 
 include("../../../source/domain/formula/FormulaModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedFormula`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .FormulaModule
+for _n in names(FormulaModule)
+    _n === :FormulaModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedFormula

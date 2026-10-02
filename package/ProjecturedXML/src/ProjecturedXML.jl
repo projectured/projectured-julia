@@ -29,4 +29,11 @@ end
 
 include("../../../source/domain/xml/XmlModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedXML`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .XmlModule
+for _n in names(XmlModule)
+    _n === :XmlModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedXML

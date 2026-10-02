@@ -33,6 +33,13 @@ for _src in (ProjecturedKernel, ProjecturedPlatform)
 end
 
 include("../../../source/domain/graph/GraphModule.jl")
+
+# The names of the domain at the level of the package, so that `using ProjecturedGraph`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .GraphModule
+for _n in names(GraphModule)
+    _n === :GraphModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
 # The two layouters the C++ original draws a network with, ported file for file
 # from its layout folder. Each keeps the C++ file's name and the order of its
 # definitions, so a later fix over there can be read across.

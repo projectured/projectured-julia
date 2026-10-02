@@ -35,4 +35,11 @@ end
 
 include("../../../source/domain/process/ProcessModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedProcess`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .ProcessModule
+for _n in names(ProcessModule)
+    _n === :ProcessModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedProcess

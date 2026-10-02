@@ -31,4 +31,11 @@ end
 
 include("../../../source/domain/dbcatalog/DbCatalogModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedDBCatalog`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .DbCatalogModule
+for _n in names(DbCatalogModule)
+    _n === :DbCatalogModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedDBCatalog

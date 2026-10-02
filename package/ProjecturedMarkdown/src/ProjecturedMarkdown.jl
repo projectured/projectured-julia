@@ -30,4 +30,11 @@ end
 
 include("../../../source/domain/markdown/MarkdownModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedMarkdown`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .MarkdownModule
+for _n in names(MarkdownModule)
+    _n === :MarkdownModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedMarkdown

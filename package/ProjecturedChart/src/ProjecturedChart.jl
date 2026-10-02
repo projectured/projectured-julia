@@ -32,4 +32,11 @@ end
 
 include("../../../source/domain/chart/ChartModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedChart`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .ChartModule
+for _n in names(ChartModule)
+    _n === :ChartModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedChart

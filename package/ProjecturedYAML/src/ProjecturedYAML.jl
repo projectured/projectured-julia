@@ -29,4 +29,11 @@ end
 
 include("../../../source/domain/yaml/YamlModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedYAML`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .YamlModule
+for _n in names(YamlModule)
+    _n === :YamlModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedYAML

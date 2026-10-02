@@ -29,4 +29,11 @@ end
 
 include("../../../source/domain/database/DatabaseModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedDatabase`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .DatabaseModule
+for _n in names(DatabaseModule)
+    _n === :DatabaseModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedDatabase

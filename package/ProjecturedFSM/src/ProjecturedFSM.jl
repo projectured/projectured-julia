@@ -34,4 +34,11 @@ end
 
 include("../../../source/domain/fsm/FsmModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedFSM`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .FsmModule
+for _n in names(FsmModule)
+    _n === :FsmModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedFSM

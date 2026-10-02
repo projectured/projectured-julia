@@ -31,4 +31,11 @@ end
 
 include("../../../source/domain/rst/RstModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedRST`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .RstModule
+for _n in names(RstModule)
+    _n === :RstModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedRST

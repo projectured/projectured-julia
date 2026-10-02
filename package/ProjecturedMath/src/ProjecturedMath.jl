@@ -29,4 +29,11 @@ end
 
 include("../../../source/domain/math/MathModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedMath`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .MathModule
+for _n in names(MathModule)
+    _n === :MathModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedMath

@@ -30,4 +30,11 @@ end
 
 include("../../../source/domain/sql/SqlModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedSQL`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .SqlModule
+for _n in names(SqlModule)
+    _n === :SqlModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedSQL

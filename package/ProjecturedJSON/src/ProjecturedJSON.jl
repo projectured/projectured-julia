@@ -32,4 +32,11 @@ end
 
 include("../../../source/domain/json/JsonModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedJSON`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .JsonModule
+for _n in names(JsonModule)
+    _n === :JsonModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedJSON

@@ -29,4 +29,11 @@ end
 
 include("../../../source/domain/book/BookModule.jl")
 
+# The names of the domain at the level of the package, so that `using ProjecturedBook`
+# gives them, as `using ProjecturedPlatform` gives the names of the platform.
+using .BookModule
+for _n in names(BookModule)
+    _n === :BookModule || Core.eval(@__MODULE__, Expr(:export, _n))
+end
+
 end # module ProjecturedBook
