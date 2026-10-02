@@ -166,8 +166,12 @@ end
     press!(DragTabOperation(widget_of(source), 1))
     @test tree.drag !== nothing
     x, y = point(target, 0.5, 0.5)
+    # A grab that code makes starts at the first move with the button held; the
+    # release comes as `DragEnd`, which the drag wrapper sends the tree, and then
+    # as the release by position.
     press!(MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
     @test tree.drag.target === target
+    press!(DragEnd(x, y; time = 0.0))
     press!(MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
 
     @test tree.drag === nothing

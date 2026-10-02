@@ -7,56 +7,26 @@
 # and returns its output (the `DraggingState` itself contributes nothing visible),
 # modelled on `TooltipDecoratorProjection`.
 #
-# **Reader** — a press → drag → drop state machine. A `MouseDown(:left)` on the
-# currently-selected element arms a *pending* drag; once the cursor moves past
-# `threshold` pixels the drag becomes *active*; the `MouseUp` that ends an active
-# drag resolves a drop target and emits a `MoveRangeOperation` reordering the
-# elements. A press that is released before crossing the threshold falls through
-# unchanged so the normal click-to-select path runs.
-#
-# The drop *target* reference is read out of the operation the inner (downstream)
-# reader produces for the ending `MouseUp` — i.e. the graphics layer's hit-test of
-# that event. Until the graphics layer hit-tests `MouseUp` (see the plan's Phase 1),
-# a live drop produces no target and the drag is a no-op; the reader logic itself
-# is exercised by `DraggingTest` with a synthetic hit-test operation.
-#
-# Transient gesture state (phase, grab coords, source reference) lives on the
-# projection instance — there is only ever one drag in flight — mirroring how
-# `TooltipDecoratorProjection` keeps its state on the projection rather than the
-# document.
-# ── Transient gesture state ───────────────────────────────────────────────
-
-"""
-    _DragState
-
-Mutable per-projection drag state. `phase` is `:idle`, `:pending` (button held,
-not yet past the threshold), or `:dragging` (threshold crossed). `x0`/`y0` are
-the grab coordinates; `source` is the content-domain reference of the element
-being dragged (captured from `content.selection` at grab time).
-"""
-mutable struct _DragState
-    phase::Symbol
-    x0::Int
-    y0::Int
-    source::Union{Reference, Nothing}
-end
-
-_DragState() = _DragState(:idle, 0, 0, nothing)
+# **Reader** — the state is the part whose drag is on. A `MouseDown(:left)` keeps
+# the press in the state, with the element under the pointer as the source: the
+# path that the mouse target of the content names, or the selection. Once a move
+# with the button held travels past `threshold` pixels, the state starts its drag
+# (`StartDragOperation`), and the drag wrapper sends it `DragEnd` or `DragCancel`
+# by its path. `DragEnd` moves the source to the element under the pointer, which
+# the mouse target of the content names at the release (`find_drop_zone`), with a
+# `MoveRangeOperation`. A press that is released before crossing the threshold
+# falls through, so the normal click-to-select path runs. The state of the drag
+# is view state of the document, so the projection holds none.
 
 # ── Projection ────────────────────────────────────────────────────────────
 
 """
-    DraggingProjection(; threshold=5)
+    DraggingProjection()
 
-Projection over `DraggingState`. `threshold` (overridden by the wrapped
-`DraggingState.threshold` at read time) is the pixel distance a held press must
-travel before it becomes a drag.
+Projection over `DraggingState`. The `threshold` of the state is the pixel
+distance a held press must travel before it becomes a drag.
 """
-struct DraggingProjection <: Projection
-    state::_DragState
-end
-
-DraggingProjection(; kw...) = DraggingProjection(_DragState())
+struct DraggingProjection <: Projection end
 
 # `output` forwards the reconciled content child's output reactively, so the
 # IoMap keeps its identity while the inner projection re-derives, and a content
@@ -158,83 +128,73 @@ end
 function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::DraggingIoMap)
     gesture = change.gesture
     state = iomap.input::DraggingState
+    press = state.press
     content = state.content
-    st = p.state
-    threshold = state.threshold
-
-    if gesture isa MouseDown && gesture.button === :left && st.phase === :idle
-        # Resolve the grab target by hit-testing the press point through the inner
-        # chain; fall back to the current selection if the point hits nothing.
-        st.source = _locate_point(p, recursion, iomap, gesture.x, gesture.y, gesture.modifiers)
-        st.source === nothing && (st.source = _selection_path(content))
-        st.phase = :pending
-        st.x0 = gesture.x
-        st.y0 = gesture.y
-        return Intent(change.gesture, nothing)            # absorb the press
-
-    elseif gesture isa MouseMove && st.phase === :pending
-        if hypot(gesture.x - st.x0, gesture.y - st.y0) >= threshold
-            st.phase = :dragging
-        end
-        return Intent(change.gesture, nothing)            # absorb motion
-
-    elseif gesture isa MouseMove && st.phase === :dragging
-        return Intent(change.gesture, nothing)            # absorb motion
-
-    elseif gesture isa MouseUp && st.phase === :pending
-        st.phase = :idle                                  # sub-threshold: a click —
-        return Intent(change.gesture, nothing)            # let the synthesised MouseClick select
-
-    elseif gesture isa MouseUp && st.phase === :dragging
-        st.phase = :idle
-        source = st.source
-        st.source = nothing
-        # Resolve the drop target by hit-testing the release point through the
-        # inner chain (the same path a real click would take).
-        target = _locate_point(p, recursion, iomap, gesture.x, gesture.y, gesture.modifiers)
-        return Intent(change.gesture, _make_move(content, source, target))
-
-    else
-        # Delegate everything else (real clicks, key events, …) to the inner
-        # chain, then re-root the resulting *content-domain* operation up through
-        # the `content` field so its reference is valid against the DraggingState
-        # — the same lift `map_reference_backward` performs. Without this,
-        # `set_selection!` can't descend into `content` and the cursor never
-        # re-renders (and walk-right / repl round-trips stall). nothing /
-        # ToggleCollapseOperation pass through `reroot_operation` unchanged.
-        inner = read_intent(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
-        inner_op = inner isa Intent ? inner.operation : inner
-        return Intent(change.gesture, reroot_operation(inner_op, (FieldReferenceStep("content"),)))
+    # The parts of the drag come by the path of the state. The mouse target of the
+    # content follows the pointer, so a move needs no answer of its own.
+    if press !== nothing && gesture isa Union{DragMove, DragEnd, DragCancel}
+        gesture isa DragMove && return Intent(gesture, nothing)
+        gesture isa DragCancel && return Intent(gesture, _write_press(state, nothing))
+        landing = find_drop_zone(state, press.source, get_mouse_target(content))
+        return Intent(gesture, _join_drag_operations(_make_move(content, press.source, landing),
+                                                     _write_press(state, nothing)))
     end
+    if gesture isa MouseDown && gesture.button === :left && press === nothing
+        source = get_mouse_target(content)
+        source === nothing && (source = _selection_path(content))
+        source === nothing ||
+            return Intent(gesture, _write_press(state, (x = gesture.x, y = gesture.y,
+                                                        source = source, started = false)))
+    end
+    if press !== nothing && !press.started && gesture isa MouseUp
+        # Released before the threshold: a click, which the `MouseClick` selects.
+        return Intent(gesture, _write_press(state, nothing))
+    end
+    # Everything else, the moves too, goes on to the inner chain, and the answer
+    # is re-rooted up through the `content` field so its reference is valid
+    # against the `DraggingState`. So the mouse target of the content follows the
+    # pointer, also during a drag.
+    inner = read_intent(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
+    inner_op = inner isa Intent ? inner.operation : inner
+    answer = reroot_operation(inner_op, (FieldReferenceStep("content"),))
+    if press !== nothing && !press.started && gesture isa MouseMove &&
+       !is_move_without_button(gesture) &&
+       hypot(gesture.x - press.x, gesture.y - press.y) >= state.threshold
+        answer = _join_drag_operations(
+            _write_press(state, merge(press, (started = true,))),
+            StartDragOperation(EmptyReference(), press.source), answer)
+    end
+    Intent(gesture, answer)
 end
 
 # 3-arg payload form (reader entry point).
 read_intent(p::DraggingProjection, iomap::DraggingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
-# Hit-test a window pixel `(x, y)` by synthesising a left `MouseClick` there and
-# delegating it to the inner chain — exactly the path a real click takes through
-# the graphics layer down to the content domain. The resulting operation is only
-# *read* (never applied), so this is a side-effect-free query for the
-# content-domain reference under the point. Returns the reference, or nothing
-# when the point resolves to no selectable element (or to a non-selection op,
-# e.g. a collapse-marker toggle).
-function _locate_point(p::DraggingProjection, recursion, iomap::DraggingIoMap, x::Int, y::Int, mods)
-    probe = Intent(MouseClick(:left, x, y, mods; time = time()), nothing)
-    inner = read_intent(iomap.inner_iomap.projection, recursion, probe, iomap.inner_iomap)
-    op = inner isa Intent ? inner.operation : inner
-    op isa ReplaceSelectionOperation ? op.path : nothing
+# A write of the press of the state, which a history does not record.
+_write_press(state::DraggingState, press) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(state, "press", press))
+
+# The operations in order, without the ones that are `nothing`, as one operation.
+function _join_drag_operations(operations...)
+    kept = Any[operation for operation in operations if operation !== nothing]
+    isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
 end
 
-# Build a MoveRangeOperation from the source/destination references, or nothing
-# when either cannot be resolved to a (collection, element index).
-function _make_move(content, source::Union{Reference,Nothing}, target::Union{Reference,Nothing})
-    (source === nothing || target === nothing) && return nothing
+# A list in the content takes an element at the element under the pointer: the
+# zone is that list and the place of that element in it. The state knows the
+# pointer by the mouse target of its content, the path of the part under it.
+find_drop_zone(state::DraggingState, dragged, point) =
+    point isa Reference ? _locate_collection_index(state.content, point) : nothing
+
+# A `MoveRangeOperation` of the element at `source` to `landing`, a list and a
+# place in it, or nothing when either cannot be resolved.
+function _make_move(content, source, landing)
+    (source === nothing || landing === nothing) && return nothing
     src = _locate_collection_index(content, source)
-    dst = _locate_collection_index(content, target)
-    (src === nothing || dst === nothing) && return nothing
+    src === nothing && return nothing
     (src_cv, src_idx) = src
-    (dst_cv, dst_idx) = dst
+    (dst_cv, dst_idx) = landing
     MoveRangeOperation(src_cv, src_idx, src_idx, dst_cv, dst_idx)
 end
 

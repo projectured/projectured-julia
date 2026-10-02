@@ -36,6 +36,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `versioning` | [versioning.md](platform/versioning/versioning.md) | the versions of a document |
 | `plot` | [plot.md](platform/plot/plot.md) | the axis arithmetic and the colour and marker cycles of the charts |
 | `graphics` | [graphics.md](platform/graphics/graphics.md) | the graphics documents, the hit test and the selection ring |
+| `dragtracking` | [dragtracking.md](platform/dragtracking/dragtracking.md) | keeps the part whose drag is on, and gives it the parts of its drag, wherever the pointer is |
 | `screen` | [screen.md](platform/screen/screen.md), with [popup-window.md](platform/screen/popup-window.md) | the window model, and a menu, a dropdown list, a dialog, a tooltip and a context menu, each in a window of its own |
 | `layout` | [layout.md](platform/layout/layout.md) | rows, columns, grids, flows, stacks, anchored and constraint layouts |
 | `text` | [text.md](platform/text/text.md) | styled text, the flat caret, and text to graphics |

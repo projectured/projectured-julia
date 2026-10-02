@@ -99,7 +99,8 @@ ProjecturedPlatform (platform/) one package, 38 slices, below every domain
         │                      pane;
         │                      the features — clipboard, tooltip, inspector,
         │                      gesturehelp, gesturelog, fault, fileformat,
-        │                      natural, filesystem, display, gesturetracking;
+        │                      natural, filesystem, display, gesturetracking,
+        │                      dragtracking;
         │                      the application — undo, log, statistics, shell,
         │                      help, conversation, assistant, application.
         │                      Each slice declares the exact set it imports; the table
@@ -450,6 +451,8 @@ not slices of the platform.)
    focus           the generic focus walk and the is_focusable_document trait
    gesturetracking the projection that runs the recognitions of the kernel
                    gesture layer over the inputs, and its state document
+   dragtracking    the projection that keeps the part whose drag is on and
+                   gives it the parts of its drag, and its state document
    versioning      VersionedObject and its version-eliminating projection
    plot            the plot arithmetic and the colour and marker vocabulary
    graphics        Graphics, GraphicsCaching, PointReferenceStep

@@ -30,6 +30,24 @@ function _feed!(editor, proj, iomap, event)
     op
 end
 
+# Whether the drag of the tree that `iomap` prints is on.
+_is_drag_on(iomap) = (state = get_iomap_input(iomap).drag; state !== nothing && state.started)
+
+# A move with the button held, as the editor gives it: by position, and, once the
+# drag of the tree is on, as `DragMove`, which the drag wrapper sends the tree.
+function _hold!(editor, proj, iomap, x, y)
+    started = _is_drag_on(iomap)
+    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    started && _feed!(editor, proj, iomap, DragMove(x, y; time = 0.0))
+end
+
+# The release of the button, as the editor gives it: `DragEnd` while the drag of
+# the tree is on, and the release by position.
+function _release!(editor, proj, iomap, x, y)
+    _is_drag_on(iomap) && _feed!(editor, proj, iomap, DragEnd(x, y; time = 0.0))
+    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+end
+
 # Two groups side by side: the left one holds two tabs, the right one holds one.
 function _two_groups()
     left = PaneGroup(PaneTab[_tab("a"), _tab("b")])
@@ -89,21 +107,21 @@ end
     proj, iomap = _grab!(editor, tree, left, 1)
 
     x, y = _point(tree, right, 0.5, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test tree.drag.target === right
     @test tree.drag.zone === :center
 
     x, y = _point(tree, right, 0.95, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test tree.drag.zone === :right
 
     x, y = _point(tree, right, 0.5, 0.95)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test tree.drag.zone === :below
 
     # The strip runs across the top of a group, and a drop there means "into it".
     x, y = _point(tree, right, 0.5, 0.0)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test tree.drag.zone === :strip
 end
 
@@ -134,7 +152,7 @@ _indicator(iomap) = getfield(iomap, :step_iomaps)[][1][].output.elements[2]
 
     # Over the middle of a group: the whole group is the target.
     x, y = _point(tree, right, 0.5, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     r = get_pane_rectangle(tree, right)
     @test _indicator(iomap).visible === true
     @test _indicator(iomap).position.x[] == round(Int, r.x * WIDTH)
@@ -143,34 +161,34 @@ _indicator(iomap) = getfield(iomap, :step_iomaps)[][1][].output.elements[2]
 
     # Over an edge band: the half the new pane would take.
     x, y = _point(tree, right, 0.5, 0.95)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test _indicator(iomap).visible === true
     @test _indicator(iomap).height == round(Int, r.h / 2 * HEIGHT)
     @test _indicator(iomap).position.y[] == round(Int, (r.y + r.h / 2) * HEIGHT)
 
     # A side band takes half the width instead.
     x, y = _point(tree, right, 0.03, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test _indicator(iomap).width == round(Int, r.w / 2 * WIDTH)
     @test _indicator(iomap).height == round(Int, r.h * HEIGHT)
 
     # The pointer leaves every pane: nothing to show.
-    _feed!(editor, proj, iomap, MouseMove(10_000, 10_000, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, 10_000, 10_000)
     @test _indicator(iomap).visible === false
 
     # And it is *drawn*: the widget's own flag says nothing about what reached the
     # canvas — an early return for an invisible widget, or an origin fixed at
     # print time, would leave the flag true and the screen unchanged.
     x, y = _point(tree, right, 0.5, 0.95)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test any(_rectangles(iomap.output)) do (rx, ry, rw, rh)
         rw == _indicator(iomap).width && rh == _indicator(iomap).height
     end
 
     # And the drop puts it away.
     x, y = _point(tree, right, 0.5, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
+    _release!(editor, proj, iomap, x, y)
     @test _indicator(iomap).visible === false
 end
 
@@ -180,8 +198,8 @@ end
     proj, iomap = _grab!(editor, tree, left, 1)
 
     x, y = _point(tree, right, 0.5, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
+    _release!(editor, proj, iomap, x, y)
 
     @test tree.drag === nothing
     @test length(left.tabs) == 1
@@ -196,8 +214,8 @@ end
     proj, iomap = _grab!(editor, tree, left, 1)
 
     x, y = _point(tree, right, 0.5, 0.95)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
+    _release!(editor, proj, iomap, x, y)
 
     @test tree.drag === nothing
     inner = tree.root.elements[2]
@@ -214,8 +232,8 @@ end
     tree, left, right, editor = _two_groups()
     proj, iomap = _grab!(editor, tree, left, 1)
     x, y = _point(tree, right, 0.03, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
+    _release!(editor, proj, iomap, x, y)
     inner = tree.root.elements[2]
     @test inner.orientation === :vertical
     @test inner.elements[2] === right           # dropped on the left, so it is second
@@ -227,10 +245,10 @@ end
     proj, iomap = _grab!(editor, tree, left, 1)
 
     x, y = _point(tree, left, 0.95, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
     @test tree.drag.target === left
     @test tree.drag.zone === :right
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _release!(editor, proj, iomap, x, y)
 
     @test tree.drag === nothing
     inner = tree.root.elements[1]
@@ -252,8 +270,8 @@ end
     proj, iomap = _grab!(editor, tree, left, 1)
 
     x, y = _point(tree, left, 0.95, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
+    _release!(editor, proj, iomap, x, y)
 
     @test tree.drag === nothing
     @test tree.root.elements[1] === left        # nothing was written
@@ -313,8 +331,8 @@ end
     tree, left, right, editor = _two_groups()
     proj, iomap = _grab!(editor, tree, left, 1)
     x, y = _point(tree, left, 0.5, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
+    _release!(editor, proj, iomap, x, y)
     @test tree.drag === nothing
     @test length(left.tabs) == 2
 end
@@ -322,9 +340,9 @@ end
 @testset "a release outside every pane just ends the drag" begin
     tree, left, right, editor = _two_groups()
     proj, iomap = _grab!(editor, tree, left, 1)
-    _feed!(editor, proj, iomap, MouseMove(10_000, 10_000, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, 10_000, 10_000)
     @test tree.drag.target === nothing
-    _feed!(editor, proj, iomap, MouseUp(:left, 10_000, 10_000, ModifierKeys(); time = 0.0))
+    _release!(editor, proj, iomap, 10_000, 10_000)
     @test tree.drag === nothing
     @test length(left.tabs) == 2
 end
@@ -338,8 +356,8 @@ end
     proj, iomap = _grab!(editor, tree, left, 1)
 
     x, y = _point(tree, right, 0.5, 0.5)
-    _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
-    _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
+    _hold!(editor, proj, iomap, x, y)
+    _release!(editor, proj, iomap, x, y)
 
     @test tree.root === right                   # the split collapsed into it
     @test length(right.tabs) == 2

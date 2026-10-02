@@ -183,44 +183,40 @@ stored `IdentityProjection` rather than continuing down the outer pipeline.
 ## DraggingProjection
 
 ```julia
-DraggingProjection()   # dispatched on a DraggingState document
+DraggingProjection()   # dispatched on a DraggingState document, and holds no field of its own
 ```
 
 Adds drag-and-drop reordering to whatever document a `DraggingState` wraps. Like
 `TooltipDecoratorProjection`, it is a **transparent decorator**: `print_document`
 just recurses into `state.content` and returns its output, so the wrapper is
-invisible. All the work is in the reader, a press→drag→drop state machine whose
-transient state (`:idle` / `:pending` / `:dragging` + grab coords + source
-reference) lives on the projection instance — one drag at a time, never
-serialised.
+invisible. The state of the press is a field of the document, not of the
+projection: `DraggingState.press` holds `(x, y, source, started)` or `nothing`,
+written with `ReplaceViewStateOperation`, so a history does not record it and
+the field survives a new print.
 
-**Resolving the grab and drop points.** Mouse events are pixel coordinates; they
-only become document references at the graphics layer, and only for `MouseClick`
-(a real drag fires `MouseDown` → `MouseMove*` → `MouseUp`, with no synthesised
-`MouseClick`). Rather than teach every graphics reader to hit-test `MouseUp`,
-`DraggingProjection` resolves both endpoints itself:
+**Resolving the grab and the drop.** A left `MouseDown` with no press yet keeps
+one: `source` is the path that the mouse target of the content names at the
+press, or the selection when the content names no target. A move past
+`threshold` pixels starts the drag: the state answers
+`StartDragOperation(EmptyReference(), press.source)`, so the code that tracks a
+drag ([dragtracking.md](../dragtracking/dragtracking.md)) sends `DragEnd` and
+`DragCancel` to the state by its own path from then on, wherever the pointer
+is. Every other event, the moves included, still goes on to the content, so
+the mouse target of the content follows the pointer also during a drag;
+`DragEnd` reads the drop at that same mouse target, at the release, with no
+event made for the purpose.
 
-> on the grabbing `MouseDown` and the dropping `MouseUp`, it **synthesises a left
-> `MouseClick` at that pixel and delegates it to the inner chain** — the exact
-> path a real click takes down through the graphics layer to the content domain.
-> The returned `ReplaceSelectionOperation`'s path is the reference under the
-> point.
-
-The synthetic press is only *read*, never applied, so it is a side-effect-free
-query (a drop onto, say, a collapse marker yields a `ToggleCollapseOperation`,
-which the projection ignores → no move, no toggle). This needs **zero changes
-outside `Dragging.jl`** and works for any domain whose graphics reader already
-hit-tests `MouseClick`.
-
-**The move.** A completed drag emits a `MoveRangeOperation` (see
-[operation.md](../../kernel/operation.md)). The reader resolves each reference to a
-`(CellVector, index)` pair (splitting the path at its last element
-`RangeReferenceStep`; the prefix resolves to the owning collection) and stores the
-`CellVector`s **directly** in the operation, the way the split-pane operations
-carry the `WidgetSplitPane` itself. This sidesteps re-rooting the reference up
-through the projections above. `evaluate_operation` then lifts the raw `Cell`s
-out of the source and `insert!`s them at the destination, preserving cell
-identity.
+**The move.** `DragEnd` makes a `MoveRangeOperation` (see
+[operation.md](../../kernel/operation.md)) from
+`find_drop_zone(state::DraggingState, dragged, point)`, which resolves the
+source and the drop point to `(CellVector, index)` pairs (splitting each path
+at its last element `RangeReferenceStep`; the prefix resolves to the owning
+collection) and stores the `CellVector`s **directly** in the operation, the way
+the split-pane operations carry the `WidgetSplitPane` itself. This sidesteps
+re-rooting the reference up through the projections above. `evaluate_operation`
+then lifts the raw `Cell`s out of the source and `insert!`s them at the
+destination, preserving cell identity. `DragCancel` clears the press and moves
+nothing.
 
 ## Compound combinators
 

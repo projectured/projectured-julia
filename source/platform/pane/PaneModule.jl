@@ -62,6 +62,7 @@ import ..DocumentModule: get_document_title, get_edited_field
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ScreenModule: show_document!
+import ..OperationModule: find_drop_zone
 
 export make_tabs_projection
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,

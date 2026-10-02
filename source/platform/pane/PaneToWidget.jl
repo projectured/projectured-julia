@@ -580,14 +580,8 @@ function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
     make_pane_duplicate_tab_operation(iomap.input, group, operation.tab_index)
 end
 
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
-                     operation::DragTabOperation)
-    group = _pane_node_for(iomap, operation.widget)
-    group isa PaneGroup || return nothing
-    (1 <= operation.tab_index <= length(group.tabs)) || return nothing
-    _drag_write(iomap.input, (group = group, index = operation.tab_index,
-                              target = nothing, zone = :none))
-end
+read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation) =
+    _press_tab(iomap, operation, nothing)
 
 read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
             operation::ResizeSplitPaneOperation) =
@@ -614,20 +608,24 @@ read_intent(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
 read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
             operation::EndSplitterDragOperation) = operation
 
-# A drag is a *gesture* state machine, so it needs the raw gesture even when the
-# layers below already turned it into an operation — a `MouseMove` over a button
-# becomes a hover write, and the drag would never see the pointer. The four-arg
-# reader is where both are in hand. Everything outside a drag reads exactly as
-# the generic bridge does.
+# The drag of a tab needs the raw gesture beside the operation that the layers
+# below made of it: the press keeps its point, and a move with a button held
+# starts the drag after the small move. The four-arg reader is where both are in
+# hand. The parts of a drag that has started come by the path of the tree. Every
+# other change reads exactly as the generic bridge does.
 function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
                      iomap::PaneTreeToWidgetIoMap)
     tree = iomap.input
-    if getfield(tree, :drag)[] !== nothing
-        answer = _drag_step(p, iomap, change.gesture)
-        answer === nothing || return Intent(change.gesture, answer)
-    end
-    payload = change.operation === nothing ? change.gesture : change.operation
+    state = getfield(tree, :drag)[]
+    gesture = change.gesture
+    state !== nothing && gesture isa Union{DragMove, DragEnd, DragCancel} &&
+        return Intent(gesture, _read_tab_drag(iomap, state, gesture))
+    payload = change.operation === nothing ? gesture : change.operation
     answer = read_intent(p, iomap, payload)
+    payload isa DragTabOperation && gesture isa MouseDown &&
+        (answer = _press_tab(iomap, payload, (gesture.x, gesture.y)))
+    (state === nothing || state.started) ||
+        (answer = _join_tab_operations(_read_tab_press(iomap, state, gesture), answer))
     is_whole_selection_press(change.gesture) &&
         (answer = _select_page_content(tree, change.operation, answer))
     # A left press that nothing claimed still says which pane the user pointed at.
@@ -651,9 +649,13 @@ end
 
 # ── The drag ───────────────────────────────────────────────────────────────
 #
-# `PaneTree.drag` holds `(group, index, target, zone)` while a tab is held: where
-# it came from, and where it would land. It is transient state on the tree, so
-# each write carries the tree itself and re-roots nowhere.
+# `PaneTree.drag` holds `(group, index, target, zone, origin, started)` while a
+# tab is held: where it came from, where it would land, the point of the press,
+# and whether the drag has started. It is transient state on the tree, so each
+# write carries the tree itself and re-roots nowhere. The tree is the part whose
+# drag is on: it starts the drag after the small move, so a press that does not
+# move is still a click, and the drag wrapper then sends it `DragMove`, `DragEnd`
+# and `DragCancel` by its path.
 #
 # The pointer is resolved against the **layout tree**, not against the printed
 # canvas: the groups divide the available extent in proportion to their weights,
@@ -668,24 +670,68 @@ const _PANE_STRIP_PIXELS = 32
 _drag_write(tree, state) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(tree, "drag", state))
 
-function _drag_step(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, gesture)
+# The pixels that a press on a tab moves before it drags the tab.
+const _TAB_DRAG_START = 5
+
+# A press on a tab of a pane that can be dragged: the tree keeps the tab and the
+# point of the press, and no drag is on yet.
+function _press_tab(iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation, origin)
+    group = _pane_node_for(iomap, operation.widget)
+    group isa PaneGroup || return nothing
+    (1 <= operation.tab_index <= length(group.tabs)) || return nothing
+    _drag_write(iomap.input, (group = group, index = operation.tab_index, target = nothing,
+                              zone = :none, origin = origin, started = false))
+end
+
+# Before the drag of a tab starts: a move with a button held past the small move
+# starts it, and the tree is the part whose drag is on; a release ends the press,
+# which was a click, so the click selects the tab. A grab with no point of a
+# press, which code makes, starts at the first move with a button held.
+function _read_tab_press(iomap::PaneTreeToWidgetIoMap, state, gesture)
     tree = iomap.input
-    state = getfield(tree, :drag)[]
-    if gesture isa MouseMove
-        landing = _drop_target(iomap, gesture.x, gesture.y)
-        target, zone = landing === nothing ? (nothing, :none) : landing
+    gesture isa MouseUp && return _drag_write(tree, nothing)
+    (gesture isa MouseMove && !is_move_without_button(gesture)) || return nothing
+    if state.origin !== nothing
+        ox, oy = state.origin
+        hypot(gesture.x - ox, gesture.y - oy) >= _TAB_DRAG_START || return nothing
+    end
+    target, zone = _find_tab_landing(iomap, state, gesture.x, gesture.y)
+    CompoundOperation(Any[
+        _drag_write(tree, merge(state, (target = target, zone = zone, started = true))),
+        StartDragOperation(EmptyReference(), (group = state.group, index = state.index))])
+end
+
+# The parts of the drag of a tab, which come by the path of the tree: a move sets
+# where the tab would land, the release drops it there, and a cancel drops it
+# nowhere.
+function _read_tab_drag(iomap::PaneTreeToWidgetIoMap, state, gesture)
+    tree = iomap.input
+    if gesture isa DragMove
+        target, zone = _find_tab_landing(iomap, state, gesture.x, gesture.y)
         # Only write when the target moved, so a drag across a pane is not one
         # write per pixel.
         (state.target === target && state.zone === zone) && return nothing
-        return _drag_write(tree, (group = state.group, index = state.index,
-                                  target = target, zone = zone))
-    elseif gesture isa MouseUp
+        return _drag_write(tree, merge(state, (target = target, zone = zone)))
+    elseif gesture isa DragEnd
         drop = _drop_operation(tree, state)
         clear = _drag_write(tree, nothing)
         return drop === nothing ? clear : CompoundOperation(Any[drop, clear])
     end
-    nothing
+    _drag_write(tree, nothing)
 end
+
+# Where the tab of `state` dragged to `(x, y)` of the view would land: the group and
+# the zone, or `(nothing, :none)`.
+function _find_tab_landing(iomap::PaneTreeToWidgetIoMap, state, x::Integer, y::Integer)
+    point = _get_view_point(iomap, x, y)
+    landing = point === nothing ? nothing :
+              find_drop_zone(iomap.input, (group = state.group, index = state.index), point)
+    landing === nothing ? (nothing, :none) : landing
+end
+
+_join_tab_operations(first, second) =
+    first === nothing ? second : second === nothing ? first :
+    CompoundOperation(Any[first, second])
 
 function _drop_operation(tree::PaneTree, state)
     target = state.target
@@ -703,17 +749,32 @@ function _drop_operation(tree::PaneTree, state)
                                    orientation, side = zone)
 end
 
-# The group and zone under a pointer, or `nothing` when the layout has no
-# allocation to resolve against (an unconstrained print divides nothing).
-function _drop_target(iomap::PaneTreeToWidgetIoMap, x::Integer, y::Integer)
+# The point `(x, y)` of the view with the size of the view, or `nothing` when the
+# layout has no allocation to resolve against (an unconstrained print divides
+# nothing).
+function _get_view_point(iomap::PaneTreeToWidgetIoMap, x::Integer, y::Integer)
     available = iomap.available
     available === nothing && return nothing
     width, height = available
     (width === nothing || height === nothing) && return nothing
     w, h = Int(width[]), Int(height[])
     (w <= 0 || h <= 0) && return nothing
-    get_pane_drop_zone(iomap.input, x / w, y / h; strip = _PANE_STRIP_PIXELS / h)
+    (x = x, y = y, width = w, height = h)
 end
+
+# The group and zone under a pointer, or `nothing`.
+function _drop_target(iomap::PaneTreeToWidgetIoMap, x::Integer, y::Integer)
+    point = _get_view_point(iomap, x, y)
+    point === nothing ? nothing : _find_pane_landing(iomap.input, point)
+end
+
+_find_pane_landing(tree::PaneTree, point) =
+    get_pane_drop_zone(tree, point.x / point.width, point.y / point.height;
+                       strip = _PANE_STRIP_PIXELS / point.height)
+
+# A tree takes a tab of its own at the group and the zone under the point, which
+# holds the point and the size of the view of the tree in pixels.
+find_drop_zone(tree::PaneTree, dragged, point) = _find_pane_landing(tree, point)
 
 # A splitter drag is a weight change. The widget computed two new pixel extents;
 # they are put back among the other slots' extents and the lot is normalized, so

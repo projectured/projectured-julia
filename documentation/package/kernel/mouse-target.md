@@ -35,15 +35,17 @@ The selection keeps its own chain, with its dormant state for a tab or a pane th
 
 ### A move becomes a path
 
-A `MouseMove` with no button held goes down by position, as a click does: each container hit-tests its children and moves the point into the frame of the one it gives the move to. `read_child_move` and `read_child_leave` of `source/platform/graphics/ChildMove.jl` carry the mouse-target half of this routing; see [graphics.md](../platform/graphics/graphics.md#the-part-under-the-pointer) for the functions that every container shares.
+Every `MouseMove`, with a button held or not, goes down by position, as a click does: each container hit-tests its children and moves the point into the frame of the one it gives the move to. `read_child_move` and `read_child_leave` of `source/platform/graphics/ChildMove.jl` carry the mouse-target half of this routing; see [graphics.md](../platform/graphics/graphics.md#the-part-under-the-pointer) for the functions that every container shares.
 
 A container compares the child that its own mouse target names, the old part, with the child at the point, the new part. It finds the old child with `get_mouse_target(document)`: the layout package's `_get_target_layout_slot` reads the field and matches its first steps against `children[i]`, so a container needs no state of its own to know which child the pointer was on last.
 
-When the old and the new child differ, the container gives the move first to the old child, with the point moved into that child's frame, so each part on the old path sees that the pointer left it and can act: a button clears `pressed`, and a chart ends a drag with no change. It then gives the move to the new child by position. The deepest part under the point answers `ReplaceMouseTargetOperation(EmptyReference())`, "the pointer is on me." A child that answers no target is the target itself, the same rule that turns an unanswered press into a whole selection. When the old and the new child are the same, the container gives the move once.
+When the old and the new child differ, the container gives the move first to the old child, with the point moved into that child's frame, so each part on the old path sees that the pointer left it and can act: a button clears `pressed`. It then gives the move to the new child by position. The deepest part under the point answers `ReplaceMouseTargetOperation(EmptyReference())`, "the pointer is on me." A child that answers no target is the target itself, the same rule that turns an unanswered press into a whole selection. When the old and the new child are the same, the container gives the move once.
 
 On the way up, each projection maps the path backward into the path of its own input, as it maps a selection. The default `read_intent(projection, iomap, operation)` of [the operation layer](operation.md) already does this for any `ReplacePathOperation`, the shared supertype of `ReplaceSelectionOperation` and `ReplaceMouseTargetOperation`: it reads the path with `get_operation_path`, maps it backward with `map_reference_backward`, and rebuilds the same kind of operation with `make_path_operation`. So a projection whose reference maps keep the structure needs no code for the mouse target. A reader that must do more than map the path writes its own `read_intent` only for that case.
 
 An answer of another kind, such as a write of `pressed`, carries its own document and acts on it directly, also when that document is a widget that a view made. The editor evaluates the operation that reaches it, which writes the path at the root with the chain write above.
+
+A drag changes nothing of this. The code that tracks a drag gives the raw event to the content by position, exactly as when no drag is on, so the comparison above still runs and the part under the pointer still lights while a drag passes over it; it also sends the part whose drag is on the parts of its drag, `DragMove`, `DragEnd` and `DragCancel`, by that part's own path. See [dragtracking.md](../platform/dragtracking/dragtracking.md).
 
 ### A leave
 
@@ -104,7 +106,7 @@ The graphics slice of `ProjecturedPlatform` holds the container routing that eve
 - **A path answer and a value answer go back differently.** `ReplaceMouseTargetOperation` is mapped backward on the way up, as any path is; an answer that carries its own document, such as a write of `pressed`, is not re-targeted and acts directly on the document it names, a widget that a view made included.
 - **A route is decided only to return an operation from one named place.** A move, like a click and a dwell, travels by position and by the chain that each document holds; code fixes a route in advance only for the rare case where an operation must come back from one specific document, such as a command run from the palette.
 
-See [plan/pending/a-document-knows-the-part-under-the-pointer.md](../../../plan/pending/a-document-knows-the-part-under-the-pointer.md) for the design record.
+See [plan/done/a-document-knows-the-part-under-the-pointer.md](../../../plan/done/a-document-knows-the-part-under-the-pointer.md) for the design record.
 
 ## Usage
 
@@ -135,6 +137,5 @@ one.mouse_target[]     ← nothing                     (off the path)
 
 ## Limits
 
-- **A move with a button held does not change the part under the pointer.** It keeps the routing of a drag, and it does not reach the part that the pointer leaves. So a button that is pressed and dragged off stays drawn pressed until the release.
 - **A domain document that a view shows inside a widget, and that a second view also draws, gets no mouse target.** This is an open question.
 - **An edit that is no operation keeps no path right.** A direct write into a cell does not move or clear the mouse target paths that pass through it. An assistant or a script that edits a document must make an operation, also for this reason.

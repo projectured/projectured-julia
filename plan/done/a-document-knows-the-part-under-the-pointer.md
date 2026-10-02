@@ -1,6 +1,6 @@
 # A document knows the part under the pointer
 
-> **Status:** pending; steps 1 to 10 are done and on main (2026-10-01). Step 5b, the drag, is open: it waits for two names from the owner. It replaces the mouse target tracker of
+> **Status:** done (2026-10-02): every step is built and on main. It replaces the mouse target tracker of
 > step 8 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md),
 > so steps 8 to 12 of that plan are planned again from it.
 
@@ -855,7 +855,7 @@ already; the sealed selection files do not change (Q4).
   forward, so each needs a small design of its own; they follow with step 6,
   when it is known which of their widgets light (owner 2026-09-30: "Yes, I
   agree").
-- [ ] 5. **The move** (M6, M7; 5a now, 5b the drag, Q13). A container hands a `MouseMove` first to the
+- [x] 5. **The move** (M6, M7; 5a now, 5b the drag, Q13). A container hands a `MouseMove` first to the
   child that its own mouse target names, along the old path, with the point in
   that child's frame, and then to the child at the point; when both are the
   same child, once. `read_child_event` makes a move that the child answered
@@ -1133,14 +1133,68 @@ already; the sealed selection files do not change (Q4).
       button under a dragged thumb and the button dragged off. omnet: the IDE
       window test turns the drag tracker on where it drags a divider through
       an editor with no gesture tracker (omnet `93a19483`).
-    - [ ] 5b.6 **The global drags**: the tab of a pane and the reorder of the
+    - [x] 5b.6 **The global drags**: the tab of a pane and the reorder of the
       dragging package, with `find_drop_zone`. The drop target goes by
       position, so a gesture by position must carry the dragged thing to the
       parts under the pointer. That gesture is a new mechanism, and its design
       goes to the owner before the code.
-    - [ ] 5b.7 **The documents and the rules**: `package/platform/dragging/`
+      **Settled** (owner 2026-10-02: "Agreed", on Claude's option a): each
+      global drag is a drag of the part that keeps it. For a tab, the pane tree
+      is the dragged part: the tab strip answers `DragTabOperation` at the press
+      as before, and the tree starts the drag (`StartDragOperation`) after the
+      small move of D20 (point 8); `DragMove` sets the target and the zone from
+      its layout, `DragEnd` drops, `DragCancel` clears, and the blue rectangle
+      stays. The dragging package keeps its state in its document, starts after
+      the small move, and takes the source and the target from the mouse target
+      of its content, so the probe goes. `find_drop_zone` has one method for the
+      pane tree and one for the dragging package, each called by its own
+      keeper. Rejected for now: option b, a gesture `DragOver` by position with
+      an outward read of `find_drop_zone` in every container, which no part
+      needs until a drag goes from one keeper to another (for example a file
+      from the explorer into an editor). Facts behind it: the tab drag lived in
+      the pane tree already, the dragging package kept its state on the
+      projection and found its ends with a probe, and no other part takes a
+      drop.
+      Built (2026-10-02):
+      - `find_drop_zone(document, dragged, point) = nothing` is in the operation
+        layer of the kernel, beside `StartDragOperation`.
+      - The pane tree: `drag` holds `(group, index, target, zone, origin,
+        started)`. A press on a tab keeps its point (`_press_tab`); a held move 5
+        pixels from it starts the drag (`_read_tab_press`, which answers
+        `StartDragOperation(EmptyReference(), (group, index))` beside the
+        target and the zone); a release before that ends the press, and the
+        click selects the tab. A grab with no point, which code makes, starts
+        at the first held move. `DragMove`, `DragEnd` and `DragCancel` come by
+        the path of the tree (`_read_tab_drag`). `find_drop_zone(tree, dragged,
+        point)` answers the group and the zone, where `point` holds the point
+        and the size of the view of the tree in pixels (Claude's choice, because
+        the zone needs the strip height in pixels); the press that focuses a
+        pane uses the same layout read.
+      - The dragging package: `DraggingState` has `press` (`(x, y, source,
+        started)`, view state); `DraggingProjection` has no fields. The source is
+        the element that the mouse target of the content names at the press, or
+        the selection; a held move past `threshold` starts the drag; `DragEnd`
+        moves the source to `find_drop_zone(state, source, mouse target)`, the
+        list and the place of the element under the pointer at the release.
+        Moves go on to the content, also during a drag, so the mouse target
+        follows the pointer. The probe `_locate_point` went.
+      - Tests: `test_drag_tracking` (49) adds a tab dragged past the small move
+        into the other group through a real editor, a press on a tab with no
+        move as a click, and Escape during a tab drag. `test_pane_drag` (251)
+        sends the editor's pair of a held move and `DragMove`, and of
+        `DragEnd` and the release; `test_dragging` (23) was written again for
+        the mouse target; `PaneConstructTest` and the tab part of the
+        application test send `DragEnd` and `DragMove`.
+    - [x] 5b.7 **The documents and the rules**: `package/platform/dragging/`
       and `guide/dragging-guide.md`, as the table of step 11 of the events plan
       lists them.
+      Built (2026-10-02): `documentation/package/platform/dragtracking/dragtracking.md`
+      and `documentation/guide/dragging-guide.md` are new; `dragging.md`,
+      `higher-order-projections.md`, `mouse-target.md`, `gesture.md`,
+      `graphics.md` (a section on a route that moves the point), `widget.md`,
+      `pane.md`, `gesturetracking.md`, `system-anatomy.md`, the two indexes and
+      the keyboard guide follow the drag. The rules of step 11 of the events
+      plan stay there.
 - [x] 6. **The light** (M9). The button, the menu item and the toolbar item
   light while their mouse target is set; the list, the table, the table list and
   the tree light the row that their mouse target names; the chart and the
