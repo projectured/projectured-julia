@@ -93,10 +93,13 @@ function _read_content(p::DragTrackingProjection, recursion, change::Intent,
 end
 
 # The answer of the part at `path` of the content to `gesture`, a part of its
-# drag, which goes to the part by the path, as an operation from the state.
+# drag, which goes to the part by the path, as an operation from the state. The
+# route carries the type of each node of the content as it is now, because a view
+# on the way checks them when it maps the route forward.
 function _read_drag_part(p::DragTrackingProjection, recursion, iomap::DragTrackingIoMap,
                          path::Reference, gesture)
-    answer = read_intent(p.inner, recursion, Intent(gesture, nothing, "", "", path),
+    route = annotate_reference_types(iomap.input.content, path)
+    answer = read_intent(p.inner, recursion, Intent(gesture, nothing, "", "", route),
                          iomap.child_iomap)
     operation = answer isa Intent ? answer.operation : answer
     reroot_operation(operation, (FieldReferenceStep("content"),))

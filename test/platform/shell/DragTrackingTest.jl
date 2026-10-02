@@ -186,6 +186,44 @@ end
     @test button.pressed === false
 end
 
+# The drag goes to the part by its path, so the path passes the views of the
+# panes, and each of them checks the type of each node on it.
+@testset "a slider in a tab of a pane tree follows a held move, and the release and Escape end its drag" begin
+    root, slider, _ = _dt_slider_scene()
+    tree = PaneTree(PaneSplit(:vertical, [PaneGroup(PaneTab[PaneTab("a", root)]),
+                                          PaneGroup(PaneTab[PaneTab("c", WidgetLabel("c"))])]))
+    editor, backend = _dt_pane_editor(tree)
+    # The tab draws the composite at an offset: the place of the button label in
+    # the tab, less its place in a window of its own.
+    alone, _ = _dt_editor(_dt_slider_scene()[1])
+    place, alone_place = _dt_place_of(editor, "Other"), _dt_place_of(alone, "Other")
+    @test place !== nothing && alone_place !== nothing
+    if place !== nothing && alone_place !== nothing
+        dx, dy = place[1] - alone_place[1], place[2] - alone_place[2]
+        x, y = 60 + dx, 28 + dy
+        _dt_send!(editor, backend, MouseMove(x, y; time = 0.9))
+        _dt_down!(editor, backend, x, y, 1.0)
+        @test slider.dragging === true
+        @test _dt_drag_path(editor) isa Reference
+        _dt_held!(editor, backend, 390, 280, 1.1)
+        @test slider.value == 1.0
+        _dt_held!(editor, backend, 2, 280, 1.2)
+        @test slider.value == 0.0
+        _dt_up!(editor, backend, 2, 280, 1.3)
+        @test slider.dragging === false
+        @test _dt_drag_path(editor) === nothing
+        # Escape ends a drag with no change.
+        _dt_send!(editor, backend, MouseMove(x, y; time = 1.9))
+        _dt_down!(editor, backend, x, y, 2.0)
+        _dt_held!(editor, backend, x + 60, y, 2.1)
+        @test slider.value != 0.0
+        _dt_send!(editor, backend, KeyDown(:escape, _DT_NONE; time = 2.2))
+        @test slider.value == 0.0
+        @test slider.dragging === false
+        @test _dt_drag_path(editor) === nothing
+    end
+end
+
 @testset "a tab dragged past the small move drops into the group under the pointer" begin
     tree, left, right = _dt_pane_scene()
     editor, backend = _dt_pane_editor(tree)
@@ -202,7 +240,7 @@ end
         @test tree.drag.started
         @test _dt_drag_path(editor) isa Reference
         # Over the middle of the right group: the tab would land there, and the
-        # blue rectangle shows it.
+        # rectangle of the drop zone shows it.
         _dt_held!(editor, backend, 300, 150, 1.2)
         @test tree.drag.target === right
         _dt_up!(editor, backend, 300, 150, 1.3)

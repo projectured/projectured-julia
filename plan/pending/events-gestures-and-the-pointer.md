@@ -1643,6 +1643,26 @@ it holds the example.
   the plan of `WindowLeave` and the study `pointer-hover-and-windows-today.md`
   move to `plan/done/`, and Q15 moves into a small pending plan of its own.
   Rejected: option b, the check without the live check.
+  Found by the live check (2026-10-02):
+  - A slider in a tab of a pane tree did not follow a held move, and its drag
+    never ended. The drag tracker kept the path of the part with no node types,
+    and `PaneGroupToWidgetTabbedPane` refuses an under-typed path when it maps the
+    route forward. Fixed: `_read_drag_part` gives the route the types of the
+    content as it is now (`annotate_reference_types`), as `find_part_place` does.
+    `DragTrackingTest` drags a slider in a tab.
+  - A right click on a part that has its own position inside a
+    `WidgetContextMenu` opens no menu: the box of the menu is the size of the
+    child canvas, without the place of that canvas, so the point is outside it.
+    The size code is older than this plan. Not fixed here; it goes to the owner.
+  - Not faults: Escape puts back the value from before the press, as
+    `DragTrackingTest` specifies; a click on a tab waits for the double-click
+    timer when a part at the point has a double click; a list in a scroll pane
+    lights its row in a tab. The first driver read cells from a second thread and
+    chose a row below the visible pane, and its results varied between runs.
+  - A list that scrolls under a still pointer can not be checked with pushed
+    events: the wheel and the move after a changed frame read the position of the
+    real pointer (`SDL_GetMouseState`, `SDL_GetMouseFocus`), and pushed events do
+    not move it. `ScrollPaneHoverTest` keeps the check without a window.
 
 Not in the steps: the web client sends no motion while no button is held (study
 §4), so the browser has no hover. That needs a decision of its own. Decided (owner
@@ -1664,6 +1684,20 @@ a document that a view shows inside a widget and that a second view draws gets
 no mouse target. Decided (owner 2026-10-02, "Agreed", on Claude's option a):
 find the cause first, with the smallest case in projectured alone, and bring the
 ways to fix it with their costs; no change to the source before that.
+Found (2026-10-02): the omnet inspector view puts its own input, the reflected
+shadow, into a scroll pane of its output, and `ReflectionToWidget` draws it later.
+The answer of the second view, `proj(ReflectionToWidget, .roots[1])`, reaches the
+inspector, which has no backward map of its own, and the default wraps it again
+as a part of the inspector, although the path has a pre-image: the shadow is its
+input (`PAR-CROSS-DOMAIN-LATE`). The chain write stops at the shadow with that
+path, and `ReflectionToWidget` can not read it. A case in projectured alone shows
+it, and a backward map that walks the output path to the node that is the input
+and answers the rest makes the row light. The ways to fix it, for the owner: (a) a
+backward map in each view that puts its input into a slot, with a small helper
+that does the walk; (b) the view prints the shadow itself with `print_child`;
+(c) the walk in the default `map_reference_backward` of the kernel. Also found:
+`SimulationTopologyToWidget` puts a graph that it makes into its output, and its
+outer walk leaves the graph out, a case of its own.
 
 The files of the kernel that the refactor changes are unsealed, and they stay
 unsealed after the work (D34).
