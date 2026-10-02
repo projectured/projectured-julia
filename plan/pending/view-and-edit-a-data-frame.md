@@ -1260,13 +1260,62 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         `var"..."`, the column over the global and `Main.name`, the
         assignments, the example, and the placeholder (drawn, muted, below
         the content, gone with a text, a press at the start).
-    - [ ] **5.7 Column resize** (F6), in the widget substrate: a press within
+    - [x] **5.7 Column resize** (F6), in the widget substrate: a press within
       3 pixels of the right edge of a header starts a drag, as the splitter
       does, and the drag writes the width of the column. The view keeps it
       by name. **Deferred** (the owner, 2026-10-01): "defer the column drag
       until the drag refactor lands in main", the drag tracking of
       [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
       (D14, D20). How a person finds the edge (G3) is decided then.
+      Taken up 2026-10-02 (the owner: "Let's do 5.7 first", after the drag
+      refactor landed). The design (mine):
+      - The widget table: a field `column_drag`, the drag of the edge of a
+        column that is on (its column, the point and the width at the press),
+        or `nothing`. A left press within 3 pixels of the right edge of a
+        header starts it, as the divider of a split pane starts its drag: a
+        write of `column_drag` as view state and a `StartDragOperation`. Each
+        `DragMove` answers `SetTableColumnWidthOperation(table, column,
+        width)` as view state, the width at the press plus the move, and at
+        least a minimum; `DragEnd` ends the drag; `DragCancel` puts back the
+        width of the press. A table whose columns are a vector keeps the width
+        in `column_policies`; a table whose columns are a list takes its
+        policies as a list beside its headers, as it takes its alignments, so
+        the owner of the table keeps the widths. A width that the owner gives
+        wins over "at least as wide as the header".
+      - The view: a field `column_widths`, the width of each column by its
+        name, as view state, so a filter, a sort or a scroll keeps it. Its
+        reader turns the width operation of its table into a write of the
+        field. A duplicate copies it.
+      - G3, how a person finds the edge (asked 2026-10-02; recommendation of
+        the writer: the edge lights under the pointer, and a rest there says
+        "Drag to set the width"; the resize shape of the pointer later, for
+        the edge and the divider together).
+      - Done 2026-10-02 as designed, but G3, which waits for the owner.
+        Found while implementing:
+        - A part that a projection made is reached by the path of its input
+          document: the route of a drag follows the inputs only, as the
+          divider of a split pane is reached through its `PaneSplit`. So the
+          table starts its drag from the view, and the view gives the parts of
+          the drag to its table with `read_table_column_drag`. The table is
+          the first column of the grid of the view, at its left edge, so a
+          point has the same x in the view and in the table.
+        - The general reader of the view passed every other operation of its
+          table on unchanged: the start of the drag kept a path in the output
+          of the view, and the width stayed inside its wrapper of view state.
+          It maps both now.
+        - A column narrower than its header clipped the header from the left
+          when the column aligns at the right, so a column of numbers showed
+          the end of its type. The grid of a vector clamps the offset of an
+          aligned cell at zero, as the grid of a list already did (a separate
+          commit of the layout slice).
+        - A cancel writes the width of the press, so the view keeps an entry
+          for the column even when it had none: the column is then `Fixed` at
+          the width that it had.
+        - Tests: the table 201 (the drag of the edge of a column of a vector
+          and of a list), the grid 49, the data frames 265 (a drag through a
+          real editor and its drag tracking, Escape, a sort and a duplicate
+          keep the width), the platform suite 84,584 (8 broken, as on main),
+          Markdown 222.
     - [x] **5.8 The editor of the Julia domain in the expression bar** (F4 c),
       through a seam that the data frame package declares and the Julia
       domain extends. Changed (the owner, 2026-10-01: "5.8: yes", to the

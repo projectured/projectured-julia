@@ -21,9 +21,10 @@ of rows, and `scroll_position` is the offset of the table from that row, in
 pixels. A frame with many columns draws its columns as a list too, and
 `column_anchor` is the place, among the shown columns, of the column at the head
 of that list. `top_row` is the row at the top of the table, counted from the
-anchor, which the table writes as it scrolls; the scroll bar shows it. They are
-the state of the view: a jump writes them together, and a history does not
-record them.
+anchor, which the table writes as it scrolls; the scroll bar shows it.
+`column_widths` is the width that a person gave a column by the drag of the edge
+of its header, by the name of the column. They are the state of the view: a jump
+writes them together, and a history does not record them.
 
 A frame that a program changes in place stays the same object, so the view
 does not see the change until [`refresh_document!`](@ref) of it, or the key F5,
@@ -42,6 +43,7 @@ the data of the frame reads `frame_version` too.
     column_anchor::Int
     scroll_position::Point2D
     top_row::Int
+    column_widths::Dict{String,Int}
     frame_version::Int
     frame_snapshot::Any
 end
@@ -49,7 +51,7 @@ end
 function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1)
     view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
                          Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
-                         Cell(0), Cell(nothing), Cell(nothing))
+                         Cell(Dict{String,Int}()), Cell(0), Cell(nothing), Cell(nothing))
     _set_kept_row_computations!(view)
 end
 

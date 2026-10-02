@@ -22,6 +22,10 @@ using ProjecturedKernel
 using ProjecturedKernel.AgentModule
 using ProjecturedKernel.BackendModule
 using ProjecturedKernel.CellModule
+using ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
+using ProjecturedKernel.DocumentModule: make_document_duplicate
+using ProjecturedKernel.EditorModule: build_editor, run_frame!
+using ProjecturedKernel.IoMapModule: IoMap
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.GestureModule
 using ProjecturedKernel.IntentModule
@@ -44,6 +48,7 @@ include("../../../test/adapter/dataframes/DataFrameFilterTest.jl")
 include("../../../test/adapter/dataframes/DataFrameSortTest.jl")
 include("../../../test/adapter/dataframes/DataFrameRefreshTest.jl")
 include("../../../test/adapter/dataframes/DataFrameDuplicateTest.jl")
+include("../../../test/adapter/dataframes/DataFrameColumnWidthTest.jl")
 include("../../../test/adapter/dataframes/DataFrameDisplayTest.jl")
 include("../../../test/adapter/dataframes/DataFramesSuite.jl")
 

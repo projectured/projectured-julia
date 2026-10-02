@@ -135,16 +135,26 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
     # column_headers, row_headers, corner, rows, column_count, border_width,
     # column_policy, row_policy, column_policies, row_policies, cell_policy,
     # column_cell_policies, column_align, visible, margin, border, padding,
-    # style, scroll_position, top_row, tooltip. The table scrolls its
-    # own parts, and its offset is the cell of the view.
+    # style, scroll_position, top_row, column_drag, tooltip. The table
+    # scrolls its own parts, and its offset is the cell of the view. A column
+    # that a person gave a width has it, and the others share the rest.
+    policies = Cell(@computation Any[_get_column_width_policy(view, name, _COLUMN_POLICY)
+                                     for name in _get_shown_columns(view)])
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
                         Cell(@computation length(_get_shown_columns(view))), Cell(1),
-                        Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(Any[]), Cell(Any[]),
+                        Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), policies, Cell(Any[]),
                         Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing),
+                        getfield(view, :top_row), Cell(nothing), Cell(nothing),
                         Cell(@computation _get_table_selection(view, false)))
+end
+
+# The policy of the width of column `name`: `Fixed` at the width that a person
+# gave it, else `default`.
+function _get_column_width_policy(view::DataFrameView, name::AbstractString, default)
+    width = get(view.column_widths, name, nothing)
+    width === nothing ? default : Fixed(width)
 end
 
 print_document(p::DataFrameViewToWidget, view::DataFrameView) =
@@ -174,14 +184,19 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
         _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
     rows = Cell(@computation _make_row_list(view.frame, _get_shown_columns(view), view.kept_rows,
                                             view.anchor, view.column_anchor))
+    # The width that a person gave a column, else none, which leaves the
+    # column at the width of the list and at least as wide as its header.
+    policies = Cell(@computation (columns = _get_shown_columns(view);
+        _make_index_list(length(columns), view.column_anchor,
+                         c -> _get_column_width_policy(view, columns[c], nothing))))
     row_headers, corner = _make_row_numbers(view)
     # Positional, as in `_make_view_table` above.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows, Cell(0), Cell(1),
                         Cell(Fixed(_LIST_COLUMN_WIDTH)), Cell(Fixed(p.row_height)),
-                        Cell(Any[]), Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
+                        policies, Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing),
+                        getfield(view, :top_row), Cell(nothing), Cell(nothing),
                         Cell(@computation _get_table_selection(view, true)))
 end
 
@@ -326,6 +341,20 @@ function _find_shown_column(iomap::DataFrameViewToWidgetIoMap, c::Int)
     1 <= c <= length(columns) ? columns[c] : nothing
 end
 
+# The width that the drag of the edge of a header gives a column of the table is
+# the width of that column in the view, by its name, as view state: a filter, a
+# sort and a scroll keep it. A width operation of another table goes on.
+function _convert_column_width(iomap::DataFrameViewToWidgetIoMap, operation::SetTableColumnWidthOperation)
+    operation.table === iomap.table || return operation
+    name = _find_shown_column(iomap, operation.column)
+    name === nothing && return nothing
+    view = iomap.input
+    get(view.column_widths, name, nothing) == operation.width && return nothing
+    widths = copy(view.column_widths)
+    widths[name] = operation.width
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "column_widths", widths))
+end
+
 # An edit of a field of the filter row or of the expression bar is an edit of
 # the text of the query, and the view shows the result of the new query from
 # its start.
@@ -382,8 +411,15 @@ end
 
 # One write of a compound: `rows` to an anchor, `column_headers` to a column
 # anchor, and, when the compound moves the columns, no write of `rows` or of
-# `column_align`, which the view builds again from its anchors.
+# `column_align`, which the view builds again from its anchors. The width of a
+# column goes to the view. The table starts the drag of the edge of a column
+# from the view, which the table is a part of: the parts of the drag come back
+# to the view by its path, and the view gives them to the table.
 function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool)
+    operation isa StartDragOperation && _find_table_path(get_operation_path(operation)) isa EmptyReference &&
+        return StartDragOperation(annotate_reference_types(iomap.input, EmptyReference()), operation.dragged)
+    width = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
+    width isa SetTableColumnWidthOperation && return _convert_column_width(iomap, width)
     written = _find_written_field(iomap.table, operation)
     written === nothing && return operation
     field, value = written
@@ -418,5 +454,13 @@ function _find_row_index(head, node; limit::Int = 10_000)
     end
     nothing
 end
+
+# The parts of the drag of the edge of a column come to the view by its path, and
+# the view gives them to its table, which keeps the drag. The table is the first
+# column of the grid of the view, at its left edge, so a point has the same x in
+# the view and in the table, which is all that the width reads.
+read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+            event::Union{DragMove,DragEnd,DragCancel}) =
+    _convert_table_writes(iomap, read_table_column_drag(iomap.table, event))
 
 read_intent(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, event) = nothing
