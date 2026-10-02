@@ -363,10 +363,9 @@ const PROJECTURED_JULIA_COMPAT = "1.11"
     PROJECTURED_CI_JULIA_VERSIONS
 
 The Julia versions on which the workflow of the release repository tests each
-package: the oldest that the packages name in their `[compat]`, and the newest
-release.
+package: the oldest that the packages name in their `[compat]`.
 """
-const PROJECTURED_CI_JULIA_VERSIONS = [PROJECTURED_JULIA_COMPAT, "1"]
+const PROJECTURED_CI_JULIA_VERSIONS = [PROJECTURED_JULIA_COMPAT]
 
 """
     collect_projectured_release_packages(context) -> Vector{String}
@@ -428,18 +427,23 @@ _format_projectured_package_readme(name) = """
 # its suite that only the umbrella can run.
 function _find_projectured_release_test(context::BuildContext, name)
     name == "Projectured" &&
-        return "ProjecturedTest" => _format_projectured_runtests("ProjecturedTest", "test_integration")
+        return "ProjecturedTest" => _format_projectured_runtests(name, "ProjecturedTest",
+                                                                 "test_integration")
     test_package = name * "Test"
     has_package_directory(context, test_package) || return nothing
     suite = "test_" * lowercase(name[length("Projectured")+1:end])
-    test_package => _format_projectured_runtests(test_package, suite)
+    test_package => _format_projectured_runtests(name, test_package, suite)
 end
 
-_format_projectured_runtests(test_package, suite) = """
+# The package loads first, as a user loads it: a test package can reach the code
+# that it tests through another package, as the suite of the umbrella reaches it
+# through `ProjecturedAll`.
+_format_projectured_runtests(name, test_package, suite) = """
     # The suite of `$test_package`, which the release copies into `support/` with
     # the packages it needs that no registry holds. SDL draws into memory when no
     # display is named.
     haskey(ENV, "SDL_VIDEODRIVER") || (ENV["SDL_VIDEODRIVER"] = "offscreen")
+    using $name
     using $test_package
     $suite()
     """

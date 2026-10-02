@@ -1349,7 +1349,9 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       [release-tests-for-each-package.md](../done/release-tests-for-each-package.md).
       Done on 2026-10-01: the release copy gives each package its test folder,
       and all 32 pass their tests as installed packages.
-- [ ] R31: the release repository has its CI workflow.
+- [x] R31: the release repository has its CI workflow. Done on 2026-10-02:
+      [release-repository-ci.md](../done/release-repository-ci.md). One job for
+      each package on Julia 1.11; a job develops the folders that its test needs.
 - [ ] Each registered package has a short README.
 - [ ] The full test of Step B4 again, with a local registry on this machine.
 - [x] The owner makes the repository of the local registry,

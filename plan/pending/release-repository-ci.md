@@ -56,11 +56,12 @@ repository." The owner started it on 2026-10-02 ("yes").
   of `coverage` to Codecov with the name of the package as its flag. It runs on
   a push to `main`, on a pull request and by hand.
 
-## 4. Open decisions
+## 4. Decisions
 
-| # | Question | Recommendation (mine, not decided) |
+| # | Question | Decision |
 | --- | --- | --- |
-| D1 | The Julia versions of the matrix. | `1.11` and `1`: the packages promise 1.11, and only a test on it keeps that promise true. It doubles the jobs, 64 for a push; while the repository is private, that costs minutes of the owner's account. With `1` alone, 32 jobs. On 1.11 the kernel suite fails 2 more assertions today, the garbage-collector test of `CellTest.jl:97-98` (a fault of `main` on 1.11), so the 1.11 jobs that run it are red until it is fixed or marked. |
+| D1 | The Julia versions of the matrix. | Julia 1.11 alone, the oldest that the packages name: 32 jobs for a push (the owner, 2026-10-02: "Julia 1.11 is enough"). The other choice was 1.11 and the newest release, 64 jobs. On 1.11 the kernel job fails the garbage-collector test of `CellTest.jl:97-98`, a fault of `main` on 1.11, until it is fixed or marked. |
+| 6.3 | The released test of the umbrella does not load the umbrella. | Fix it (the owner, 2026-10-02): each released `runtests.jl` loads its package first, then its test package. |
 
 ## 5. Steps
 
@@ -94,9 +95,10 @@ repository." The owner started it on 2026-10-02 ("yes").
       - The umbrella, Julia 1.13: 86 folders; `test_integration()` gives exactly
         the faults of `main` (6 fail, 4 error), in 60 minutes. No coverage file
         in its folders: see 6.3.
-- [ ] **Step 4, the guides.** The build guide says that the release repository
+- [x] **Step 4, the guides.** The build guide says that the release repository
       tests itself, and what the owner turns on: the Codecov app for
-      `projectured/Projectured.jl`. The release plan marks R31.
+      `projectured/Projectured.jl`. The release plan marks R31. Done, with the
+      builder document (item 7 and a design decision).
 
 ## 6. Decisions made during the work
 
@@ -124,4 +126,9 @@ The released test of `Projectured` is `ProjecturedTest` with
 `test_integration()`, and `ProjecturedTest` loads `ProjecturedAll`, not
 `Projectured`. So its job writes no coverage file in `Projectured/`: the
 release tests the flat namespace and never the umbrella. This came with R30;
-the coverage of this workflow shows it. Open: a fix is a question for the owner.
+the coverage of this workflow shows it. Fixed: `_format_projectured_runtests`
+writes `using <package>` before `using <test package>` for every package, so a
+package loads as a user loads it. For the others it changes nothing, and a
+change in `test/` gives no package a new version. Checked in the sandbox of the
+umbrella job: the umbrella loads from its own folder, and its job writes 7
+coverage files in `Projectured/`.

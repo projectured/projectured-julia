@@ -490,6 +490,9 @@ function test_package_release()
         @test all(version -> occursin("'$version'", versions), PROJECTURED_CI_JULIA_VERSIONS)
         develop = split(match(r"- \{package: ProjecturedJSON, develop: '([^']*)'", workflow)[1])
         @test issubset(["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedJSON"], develop)
+        # The test of the umbrella loads the umbrella, which its test package does not.
+        @test occursin("using Projectured\nusing ProjecturedTest\n",
+                       read(joinpath(output, "Projectured", "test", "runtests.jl"), String))
         rm(dirname(output); recursive = true)
     end
 end
