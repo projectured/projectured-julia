@@ -1,11 +1,11 @@
 # The Help menu opens the gesture help and the command palette
 
-> **Status:** in progress since 2026-10-02, on the branch `help-menu-tools`.
+> **Status:** done on 2026-10-02, on the branch `help-menu-tools`.
 > Written on 2026-10-02 at the owner's request. The owner decided the route (D1)
 > and the place (D2) on 2026-10-02. D3 and D4 are my choices, because the owner
 > said to start without a change to them; the owner can still change either. D3
-> changed during S2, when I found that a menu item draws no key (3.5). S1 to S4
-> are done.
+> changed during S2, when I found that a menu item draws no key (3.5). All
+> steps are done.
 
 ## 1. The request
 
@@ -252,8 +252,13 @@ Do the work in a worktree. Commit each step.
     operations, and the limit about the menu is gone.
   - `documentation/guide/keyboard-and-mouse-guide.md`: Help > Gestures and
     Help > Command palette.
-- [ ] **S5. Close.** Run the narrow tests of S1 to S3 and the layering guard of
-  the shell. Move this plan to `plan/done/`.
+- [x] **S5. Close.** Done on 2026-10-02. A fresh process in `environment/all`
+  ran `test_shell()` (381 passed, with the layering guard), `test_gesture_help()`
+  (47 passed), `test_command_palette()` (39 passed) and
+  `test_command_palette_decorator()` (75 passed). No test failed, and none is
+  marked broken. The naming guard, `julia test/suite/naming.jl`, passes. In
+  omnet-julia, only the `appearance` worktree calls `make_window_menu_bar`, with
+  `about` alone; the new keywords have defaults, so that call still works.
 
 ## 6. Risks
 
