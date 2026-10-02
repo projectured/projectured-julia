@@ -4,8 +4,9 @@
 """
     TextTheme
 
-The font, the caret and the highlight of text in a document, and the colors of
-a boolean, a number and a string.
+The font, the caret and the highlight of text in a document, the colors of a
+boolean, a number and a string, and of a type-in that is no value yet and of its
+placeholder.
 
 The theme of the text projections. `@theme` declares it, so `ScaledTextTheme`
 holds each value times its scale, and `TextTheme()` is the default theme.
@@ -40,6 +41,10 @@ colors and fonts as keywords: no view of the platform builds them.
     number_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
     "A string that a primitive projection prints as text."
     string_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "The text of a type-in that is no value yet, such as `1e` on the way to a number."
+    wrong_color::StyleColor = color_solarized_red
+    "What an empty type-in shows, such as `missing` in a cell of a data frame."
+    placeholder_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_completion_hint)
 end
 
 # The style field of type `T` of a text projection that holds the field `name` of

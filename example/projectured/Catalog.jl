@@ -158,6 +158,9 @@ end
 # base, yielding the default text projection.
 function _text_sequence(@nospecialize(D), doc)
     is_text(D) && return Function[]
+    # A type-in becomes another primitive at a key, which its own printer can not
+    # print, so it goes through the dispatch of every primitive.
+    D <: PrimitiveInsertion && return Function[() -> PrimitiveToText()]
     t = _single_step(D, doc, :text)
     t === nothing || return Function[() -> t()]
     seqs = filter(!isempty, path_sequences(doc, is_text))

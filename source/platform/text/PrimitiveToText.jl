@@ -1,10 +1,11 @@
 # Fragment of `TextModule`.
 #
 # PrimitiveDocument → TextBlock projection. Converts `PrimitiveBool`,
-# `PrimitiveNumber`, and `PrimitiveString` directly into a single-span
-# `TextBlock` without an intervening `SyntaxLeaf`. Used by widget labels,
-# conversation cells, and other contexts that aggregate styled spans and
-# want a primitive value to land in the text domain directly.
+# `PrimitiveNumber`, `PrimitiveString` and the type-in `PrimitiveInsertion`
+# directly into a single-span `TextBlock` without an intervening `SyntaxLeaf`, so
+# a string shows no quotes. The natural renderer draws every primitive that is no
+# part of a syntax tree through it: a cell of a table, an element of a
+# collection, a value in a tab.
 # Forward: .value[k] on the primitive → .elements[1].content[k] on the TextBlock.
 # A range `.value{s:e}` is the flat range `{s:e}`: the block has one span, so a
 # flat offset is a character offset of the value.
@@ -108,15 +109,25 @@ function read_intent(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplacePath
     make_path_operation(op, input_path)
 end
 
+# A key that would edit the text of a Bool does nothing: a Bool switches by the
+# keys of `@gestures PrimitiveBool`, and a range edit of a Bool has no result.
+read_intent(::PrimitiveBoolToText, iomap::SimpleIoMap, ::ReplaceRangeOperation) = nothing
+
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
+# With `allows_type_in`, a key whose text the number can not show, such as `-` or
+# `12.`, replaces the number with a type-in of that text
+# (`make_number_edit_operation`). Only a table that also prints a
+# `PrimitiveInsertion` turns it on, as `PrimitiveToText` does.
 @projection UntrackedCell struct PrimitiveNumberToText
     style::StyleText
+    allows_type_in::Bool
 end
 
 PrimitiveNumberToText(; theme = nothing,
-                      style = _get_text_style(scale_theme(theme), StyleText, :number_text)) =
-    PrimitiveNumberToText(style)
+                      style = _get_text_style(scale_theme(theme), StyleText, :number_text),
+                      allows_type_in::Bool = false) =
+    PrimitiveNumberToText(style, allows_type_in)
 
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
@@ -135,6 +146,97 @@ function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplacePa
     input_path = _backward_number(op.path)
     input_path === nothing && return nothing
     make_path_operation(op, input_path)
+end
+
+# A key in the number is a range replace that the default reader maps back to
+# `value{s:e}`; with `allows_type_in`, a text that the number can not show makes
+# a type-in instead.
+function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+    mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+    p.allows_type_in && mapped isa ReplaceRangeOperation ? make_number_edit_operation(iomap.input, mapped) : mapped
+end
+
+# ── PrimitiveInsertionToText ─────────────────────────────────────────────────
+#
+# The type-in: the typed text in the style of the first allowed type that it
+# parses as, red while it parses as none, and the placeholder of the type-in
+# while it is empty. Its keys are the gestures of `PrimitiveInsertion` below; a
+# text edit that comes from a later stage takes the same rule.
+
+@projection UntrackedCell struct PrimitiveInsertionToText
+    bool_style::StyleText
+    number_style::StyleText
+    string_style::StyleText
+    wrong_color::StyleColor
+    placeholder_style::StyleText
+end
+
+function PrimitiveInsertionToText(; theme = nothing)
+    theme = scale_theme(theme)
+    PrimitiveInsertionToText(_get_text_style(theme, StyleText, :bool_text),
+                             _get_text_style(theme, StyleText, :number_text),
+                             _get_text_style(theme, StyleText, :string_text),
+                             _get_text_style(theme, StyleColor, :wrong_color),
+                             _get_text_style(theme, StyleText, :placeholder_text))
+end
+
+# The style of the text of `ins`: the placeholder while it is empty, the style of
+# the first allowed type that the text parses as, and red while it parses as none.
+function _get_type_in_style(p::PrimitiveInsertionToText, ins::PrimitiveInsertion)
+    text = something(ins.value, "")
+    isempty(text) && return unwrap_cell(p.placeholder_style)
+    document = find_primitive_document(ins.allowed_types, text)
+    document isa PrimitiveNumber && return unwrap_cell(p.number_style)
+    document isa PrimitiveBool && return unwrap_cell(p.bool_style)
+    document isa PrimitiveString && return unwrap_cell(p.string_style)
+    StyleText(unwrap_cell(p.number_style).font, unwrap_cell(p.wrong_color))
+end
+
+# Backward: as for a string, with every place of an empty type-in at its start,
+# because the text that it shows then is its placeholder.
+function _backward_insertion(reference, ins::PrimitiveInsertion)
+    count = length(something(ins.value, ""))
+    pair = _flat_range_pair(reference)
+    pair === nothing || return _value_range_ref(min(pair[1], count), min(pair[2], count))
+    flat = _flat_caret_offset(reference)
+    if flat !== nothing
+        k = min(flat, count)
+        return @reference ::PrimitiveInsertion.value::String{k}::Position
+    end
+    @reference_case reference begin
+        ::TextBlock.elements[1].content{s:e} =>
+            (s == e ? (k = min(s, count); @reference ::PrimitiveInsertion.value::String{k}::Position) :
+                      _value_range_ref(min(s, count), min(e, count)))
+    end
+end
+
+map_reference_forward(::PrimitiveInsertionToText, iomap::SimpleIoMap, reference) =
+    _forward_value(reference)
+map_reference_backward(::PrimitiveInsertionToText, iomap::SimpleIoMap, reference) =
+    _backward_insertion(reference, iomap.input)
+
+function print_document(p::PrimitiveInsertionToText, recursion, ins::PrimitiveInsertion, ctx)
+    style = Cell(@computation _get_type_in_style(p, ins))
+    shown() = (text = something(ins.value, ""); isempty(text) ? get_type_in_placeholder(ins) : text)
+    span = TextString(Cell(@computation shown()), Cell(@computation style[].font),
+                      Cell(@computation style[].color), Cell(nothing), Cell(nothing), Cell(nothing),
+                      Cell(nothing))
+    paths = make_output_path_cells(ins, _forward_value)
+    out = TextBlock(CellVector(@computation TextDocument[span]), paths.selection, paths.mouse_target)
+    SimpleIoMap(p, ins, out)
+end
+
+function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplacePathOperation)
+    input_path = _backward_insertion(op.path, iomap.input)
+    input_path === nothing && return nothing
+    make_path_operation(op, input_path)
+end
+
+function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+    mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+    mapped isa ReplaceRangeOperation || return mapped
+    range = find_value_range(mapped.reference)
+    range === nothing ? mapped : make_type_in_edit_operation(iomap.input, range, mapped.replacement)
 end
 
 # ── PrimitiveStringToTextBlock ────────────────────────────────────────────────────
@@ -216,17 +318,41 @@ end
 function _string_delete(s::PrimitiveString, dir::Symbol)
     range = _string_value_range(s)
     range === nothing && return nothing
-    n = length(something(s.value, ""))
-    new_range = if range.start != range.stop
-        range
-    elseif dir === :backspace
-        range.start > 0 ? RangeReferenceStep(range.start - 1, range.start) : nothing
-    else  # :delete
-        range.stop < n ? RangeReferenceStep(range.stop, range.stop + 1) : nothing
-    end
+    new_range = find_deletion_range(range, length(something(s.value, "")), dir)
     new_range === nothing && return nothing
     ReplaceStringRangeOperation(_string_value_path(new_range), "")
 end
+
+# The keys of a type-in, as `@gestures PrimitiveString` gives a string its keys:
+# a key edits the text, or makes the value that the new text shows exactly;
+# Enter makes the value that the text parses as, and Escape drops the text. The
+# syntax leaf of a type-in reads the same keys in its own table first.
+@gestures PrimitiveInsertion begin
+    when(find_value_range(doc) !== nothing)
+    KeyPress(_, t)        => "Insert character" => make_type_in_edit_operation(doc, find_value_range(doc), t)
+    KeyDown(:backspace;)  => "Delete backward"  => _make_type_in_deletion(doc, :backspace)
+    KeyDown(:delete;)     => "Delete forward"   => _make_type_in_deletion(doc, :delete)
+    KeyDown(:return;)     => "Make the value"   => make_type_in_commit_operation(doc)
+    KeyDown(:escape;)     => "Drop the text"    => make_type_in_cancel_operation(doc)
+end
+
+function _make_type_in_deletion(ins::PrimitiveInsertion, direction::Symbol)
+    range = find_deletion_range(find_value_range(ins), length(something(ins.value, "")), direction)
+    range === nothing ? nothing : make_type_in_edit_operation(ins, range, "")
+end
+
+# A Bool switches with one key: `t` makes it true and `f` false, as a JSON
+# document takes them, and Space switches it.
+@gestures PrimitiveBool begin
+    KeyPress('t') => "Make it true"  => _make_bool_operation(doc, true)
+    KeyPress('f') => "Make it false" => _make_bool_operation(doc, false)
+    KeyPress(' ') => "Switch it"     => _make_bool_operation(doc, !doc.value)
+end
+
+# The write of `value` to a Bool, rooted at the Bool, or `nothing` when it holds
+# that value already.
+_make_bool_operation(b::PrimitiveBool, value::Bool) = b.value === value ? nothing :
+    ReplaceReferencedValueOperation(nothing, ConcreteReference(FieldReferenceStep("value"), EmptyReference()), value)
 
 # ── PrimitiveToText (composite) ──────────────────────────────────────────────
 
@@ -240,8 +366,9 @@ gives the text of each kind; with none, the texts of the default theme.
 function PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
     theme = scale_theme(theme)
     TypeDispatchingProjection(
-        PrimitiveBool   => PrimitiveBoolToText(; theme, bool_kw...),
-        PrimitiveNumber => PrimitiveNumberToText(; theme, number_kw...),
-        PrimitiveString => PrimitiveStringToTextBlock(; theme, string_kw...),
+        PrimitiveBool      => PrimitiveBoolToText(; theme, bool_kw...),
+        PrimitiveNumber    => PrimitiveNumberToText(; theme, allows_type_in = true, number_kw...),
+        PrimitiveString    => PrimitiveStringToTextBlock(; theme, string_kw...),
+        PrimitiveInsertion => PrimitiveInsertionToText(; theme),
     )
 end

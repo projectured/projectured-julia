@@ -66,14 +66,16 @@ struct InsertionToSyntaxLeaf <: Projection
     # What an empty buffer shows in place of `prefix · suffix`, in the colour of the
     # label, as the other empty fields of a domain show a hint; `nothing` keeps the
     # frame around the empty name.
-    placeholder::Union{Nothing,String}
+    # The text of an empty buffer, a function of the insertion that gives it, or
+    # `nothing` for none.
+    placeholder::Any
 end
 
 function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
                                completion = name_completion, commit_at_key = nothing,
                                cancel = nothing, theme = nothing,
                                label = nothing, value = nothing, hint = nothing,
-                               placeholder::Union{Nothing,AbstractString} = nothing)
+                               placeholder::Union{Nothing,AbstractString,Function} = nothing)
     theme = scale_theme(theme)
     InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, commit_at_key, cancel,
                           something(label, _get_syntax_style(theme, StyleText, :label_text)),
@@ -81,7 +83,7 @@ function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::Abst
                           something(hint, _get_syntax_style(theme, StyleText, :hint_text)),
                           _get_syntax_style(theme, StyleColor, :wrong_color),
                           _get_syntax_style(theme, StyleColor, :found_color),
-                          placeholder === nothing ? nothing : String(placeholder))
+                          placeholder isa AbstractString ? String(placeholder) : placeholder)
 end
 
 # ── Completion policies ───────────────────────────────────────────────────────
@@ -174,8 +176,9 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # An empty buffer with a placeholder shows the placeholder alone: it stands in
     # the span of the completion hint, and the frame of the label is empty.
-    shows_placeholder() = p.placeholder !== nothing && isempty(something(ins.value, ""))
-    hint = TextString(Cell(@computation shows_placeholder() ? p.placeholder : p.completion(ins).hint),
+    placeholder_of() = p.placeholder isa Function ? p.placeholder(ins) : p.placeholder
+    shows_placeholder() = placeholder_of() !== nothing && isempty(something(ins.value, ""))
+    hint = TextString(Cell(@computation shows_placeholder() ? placeholder_of() : p.completion(ins).hint),
                       Cell(hint_style.font),
                       Cell(@computation shows_placeholder() ? label_style.color : hint_style.color),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
@@ -322,20 +325,11 @@ _make_insertion_cancel_operation(p::InsertionToSyntaxLeaf, ins) =
 # gives for the text after the key.
 function _make_insertion_key_operation(p::InsertionToSyntaxLeaf, ins, operation)
     (p.commit_at_key === nothing || operation === nothing) && return operation
-    range = _find_value_range(operation.reference)
+    range = find_value_range(operation.reference)
     range === nothing && return operation
     text = splice_string(something(ins.value, ""), range.start, range.stop, operation.replacement)
     document = p.commit_at_key(ins, text, range.start + length(operation.replacement))
     document === nothing ? operation : replace_document(EmptyReference(), document)
-end
-
-# The range of `value{s:e}`, the path of a range of the text of an insertion, or
-# `nothing`.
-function _find_value_range(reference)
-    path = strip_reference_types(reference)
-    (path isa ConcreteReference && path.head == FieldReferenceStep("value")) || return nothing
-    tail = path.tail
-    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) ? tail.head : nothing
 end
 
 # Append the completion policy's Tab extension at the end of the buffer, caret

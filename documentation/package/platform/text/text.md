@@ -114,7 +114,7 @@ The added spans are the soft `TextNewline` of `WordWrapping` and the number pref
 
 ### Other projections
 
-`PrimitiveToText` prints a `PrimitiveBool`, `PrimitiveNumber` or `PrimitiveString` as a block of one span with no syntax leaf, for a widget label or a form field. It maps both caret forms and a range `value{s:e}`. `ReferenceToText` and `ReferenceToHumanReadableText` print a `Reference` as coloured text, and their output has no selection. `TextToString` joins the spans into a plain `String`.
+`PrimitiveToText` prints a `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString` or the type-in `PrimitiveInsertion` as a block of one span with no syntax leaf, so a string shows no quotes; the natural renderer draws every primitive that is no part of a syntax tree through it. A key whose text the number can not show makes a type-in (`make_number_edit_operation`), and `PrimitiveInsertionToText` draws the typed text in the style of the type that it parses as, red while it parses as none, and the placeholder of the type-in while it is empty. The keys of a type-in and of a Bool are document gestures in `PrimitiveToText.jl`: a key, Backspace and Delete edit the text of a type-in or make the value that it shows exactly, Enter makes the value that it parses as, and Escape drops the text; `t` makes a Bool true, `f` false, and Space switches it, and a key that would edit the text of a Bool does nothing. It maps both caret forms and a range `value{s:e}`. `ReferenceToText` and `ReferenceToHumanReadableText` print a `Reference` as coloured text, and their output has no selection. `TextToString` joins the spans into a plain `String`.
 
 ### Ranges through a projection
 
@@ -125,8 +125,9 @@ A range maps through a projection only when it lies in one span that maps to one
 `TextTheme` holds what the text projections draw on their own: the font of a text
 that no document styles (the line of a placeholder of the natural renderer), the
 caret, the dormant caret and the width of the caret, the band under a selection,
-live and dormant, and the radius of its corners, and the texts of a boolean, a
-number and a string that `PrimitiveToText` prints. The fonts and the colors of a
+live and dormant, and the radius of its corners, the texts of a boolean, a
+number and a string that `PrimitiveToText` prints, and the color of a type-in
+that is no value yet and the text of its placeholder. The fonts and the colors of a
 text document stay as its author set them, so a scale of the font changes a text
 that a domain styles from its theme, and not a text that a document styles.
 `TextToGraphics(; measure, theme)` and the primitive leaves take the theme; with

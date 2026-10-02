@@ -67,7 +67,7 @@ export TextFiltering, TextFilteringIoMap
 export TextFirstLine, TextFirstLineIoMap
 export TextHighlighting, TextHighlightingIoMap, HighlightSegment
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
-export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveToText
+export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText
 export TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument
 export FaultToText

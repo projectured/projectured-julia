@@ -1,14 +1,28 @@
 # The type-in of a number: a key whose text the number can not show replaces the
 # number with a `PrimitiveInsertion` of that text, and the type-in becomes a number
 # again at the key whose text a number shows exactly, and at Enter. The tests type
-# through a real editor on the natural renderer, which prints a number with
-# `PrimitiveToSyntax`.
+# through a real editor, on the natural renderer, which draws a primitive through
+# the text domain, and on a renderer that draws it through the syntax domain.
+
+# The natural renderer with a row that draws each primitive on its own through
+# the syntax domain. Inside a syntax tree, which a collection of the syntax
+# domain prints, the tree maps a key back itself, so the reader of the leaf, and
+# the rule of the type-in, do not run there.
+_ti_syntax_renderer() = NaturalToGraphics(measure = FontFileMeasure(), extra = Pair{Type,Any}[
+    PrimitiveDocument => ChainingProjection(
+        RecursiveProjection(TypeDispatchingProjection(
+            ProjecturedPlatform.SyntaxModule.make_natural_to_syntax_dispatch(; appearance = Appearance()))),
+        RecursiveProjection(ProjecturedPlatform.SyntaxModule.SyntaxToText()),
+        TextToGraphics(; measure = FontFileMeasure()))])
+
+_ti_renderers() = (("the text domain", () -> NaturalToGraphics(measure = FontFileMeasure())),
+                   ("the syntax domain", _ti_syntax_renderer))
 
 # An editor on `document` with no window and no feature of a window, after its
 # first frame.
-function _ti_editor(document; keywords...)
+function _ti_editor(document; projection = NaturalToGraphics(measure = FontFileMeasure()), keywords...)
     backend = HeadlessBackend()
-    editor = build_editor(document, NaturalToGraphics(measure = FontFileMeasure());
+    editor = build_editor(document, projection;
                           backend, devices = ProjecturedKernel.DeviceModule.Device[Keyboard(), Mouse(), Display()],
                           window = false, appearance = false, settings = false, tabs = false,
                           focus_cycling = false, keywords...)
@@ -28,9 +42,10 @@ _ti_caret(k; prefix = ()) =
 
 _ti_selection(editor) = repr(strip_reference_types(get_selection(editor.document)))
 
-# A list of two numbers, with the caret at `k` in the first, in an editor.
-function _ti_list_editor(k; keywords...)
-    list = CellVector(Any[PrimitiveNumber(12), PrimitiveNumber(7)])
+# A list of two values, numbers by default, with the caret at `k` in the first,
+# in an editor.
+function _ti_list_editor(k; values = Any[PrimitiveNumber(12), PrimitiveNumber(7)], keywords...)
+    list = CellVector(values)
     editor, backend = _ti_editor(list; keywords...)
     root = editor.document
     prefix = root === list ? () : (FieldReferenceStep("content"),)
@@ -58,8 +73,9 @@ function test_primitive_type_in()
     @test get_primitive_text(PrimitiveNumber(nothing)) == ""
 end
 
-@testset "keys that a number can not show make a type-in, and a number comes back" begin
-    editor, backend, list = _ti_list_editor(2)
+@testset "keys that a number can not show make a type-in, and a number comes back, in $domain" for
+        (domain, renderer) in _ti_renderers()
+    editor, backend, list = _ti_list_editor(2; projection = renderer())
     steps = [(_ti_down(:backspace), PrimitiveNumber,    1,       "[1].value{1}"),
              (_ti_down(:backspace), PrimitiveInsertion, "",      "[1].value{0}"),
              (_ti_key('-'),         PrimitiveInsertion, "-",     "[1].value{1}"),
@@ -104,8 +120,9 @@ end
     @test leaf.completion(limited("1.50")).state === :unambiguous
 end
 
-@testset "Escape in a type-in puts an empty number, which takes a digit" begin
-    editor, backend, list = _ti_list_editor(2)
+@testset "Escape in a type-in puts an empty number, which takes a digit, in $domain" for
+        (domain, renderer) in _ti_renderers()
+    editor, backend, list = _ti_list_editor(2; projection = renderer())
     _ti_press!(editor, backend, _ti_key('e'))
     @test list[1] isa PrimitiveInsertion
     _ti_press!(editor, backend, _ti_down(:escape))
@@ -139,6 +156,40 @@ end
 @testset "only a dispatch that prints the type-in turns it on" begin
     @test !PrimitiveNumberToSyntaxLeaf().allows_type_in
     @test PrimitiveNumberToSyntaxLeaf(; allows_type_in = true).allows_type_in
+    @test !PrimitiveNumberToText().allows_type_in
+end
+
+@testset "a Bool switches with one key, in $domain" for (domain, renderer) in _ti_renderers()
+    editor, backend, list = _ti_list_editor(0; values = Any[PrimitiveBool(false), PrimitiveBool(true)],
+                                            projection = renderer())
+    for (event, value) in ((_ti_key('t'), true), (_ti_key('f'), false), (_ti_key(' '), true),
+                           (_ti_key(' '), false), (_ti_key('x'), false))
+        _ti_press!(editor, backend, event)
+        @test list[1] isa PrimitiveBool && list[1].value === value
+    end
+    @test list[2].value === true
+end
+
+# The texts that a graphics tree draws, in their order.
+function _ti_texts(node, found = String[])
+    if node isa GraphicsCanvas
+        foreach(element -> _ti_texts(element, found), node.elements)
+    elseif node isa GraphicsViewport
+        _ti_texts(node.content, found)
+    elseif node isa GraphicsText
+        push!(found, string(node.text))
+    end
+    found
+end
+
+@testset "the natural renderer draws a primitive with no quotes, and a type-in its placeholder" begin
+    natural = NaturalToGraphics(measure = FixedMeasure(8, 12, 4, 0))
+    drawn(document) = join(_ti_texts(print_document(natural, document).output))
+    @test drawn(PrimitiveString("item 1")) == "item 1"
+    @test drawn(CellVector(Any[PrimitiveString("a"), PrimitiveNumber(2), PrimitiveBool(true)])) == "a2true"
+    @test drawn(PrimitiveInsertion(; allowed_types = (PrimitiveNumber,))) == "enter a value"
+    @test drawn(PrimitiveInsertion(; allowed_types = (PrimitiveNumber,), placeholder = "missing")) == "missing"
+    @test drawn(PrimitiveInsertion(; value = "1e", allowed_types = (PrimitiveNumber,))) == "1e"
 end
 
 end # @testset

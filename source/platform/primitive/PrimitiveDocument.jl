@@ -48,17 +48,20 @@ end
 """
     PrimitiveInsertion(; value = nothing,
                        allowed_types = (PrimitiveNumber, PrimitiveBool, PrimitiveString),
-                       selection = nothing)
+                       placeholder = nothing, selection = nothing)
 
 The type-in of the primitive domain: the text that a person types before it is
 a value, in `value`, which is `nothing` while nothing is typed. `allowed_types`
 limits what the text can become, in the order of a try: a number that can not
 show a key becomes a type-in limited to `PrimitiveNumber`, so its text can not
-become a string where a number belongs.
+become a string where a number belongs. `placeholder` is what an empty type-in
+shows, such as `missing` in a cell of a data frame, or `nothing` for the text of
+[`get_type_in_placeholder`](@ref).
 """
 @document struct PrimitiveInsertion <: PrimitiveDocument
     value::Any = nothing
     allowed_types::Tuple = (PrimitiveNumber, PrimitiveBool, PrimitiveString)
+    placeholder::Union{Nothing, String} = nothing
 end
 
 
@@ -418,3 +421,96 @@ with_value_caret(document::PrimitiveDocument, k::Integer) =
     with_selection(document, annotate_reference_types(document,
         ConcreteReference(FieldReferenceStep("value"),
                           ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))))
+
+"""
+    get_type_in_placeholder(insertion) -> String
+
+What an empty type-in shows: its own `placeholder`, or `enter a value`.
+"""
+get_type_in_placeholder(insertion::PrimitiveInsertion) = something(insertion.placeholder, "enter a value")
+
+"""
+    make_empty_primitive_document(type) -> PrimitiveDocument
+
+A document of `type` with no value and its caret at the start, what Escape in a
+type-in puts in its place. A Bool always has a value, so it is a whole `false`.
+"""
+make_empty_primitive_document(::Type{PrimitiveNumber}) = with_value_caret(PrimitiveNumber(nothing), 0)
+make_empty_primitive_document(::Type{PrimitiveString}) = with_value_caret(PrimitiveString(""), 0)
+make_empty_primitive_document(::Type{PrimitiveBool}) =
+    (document = PrimitiveBool(false); with_selection(document, annotate_reference_types(document, EmptyReference())))
+
+"""
+    find_value_range(document) -> Union{RangeReferenceStep, Nothing}
+
+The range of the value of `document`, a primitive document, that its own
+selection holds, `value{s:e}`, or `nothing` when it holds none.
+"""
+find_value_range(document::PrimitiveDocument) = find_value_range(getfield(document, :selection)[])
+
+"""
+    find_value_range(reference) -> Union{RangeReferenceStep, Nothing}
+
+The range of `reference` when it is `value{s:e}`, the path of a range of the
+value of a primitive document, typed or not; `nothing` for any other path.
+"""
+function find_value_range(reference)
+    reference isa Reference || return nothing
+    path = strip_reference_types(reference)
+    (path isa ConcreteReference && path.head == FieldReferenceStep("value")) || return nothing
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) ? tail.head : nothing
+end
+
+"""
+    find_deletion_range(range, count, direction) -> Union{RangeReferenceStep, Nothing}
+
+The range that Backspace (`:backspace`) or Delete (`:delete`) removes from a text
+of `count` characters with the selection `range`: the selected range, or the
+character before or after a caret; `nothing` at the edge of the text.
+"""
+function find_deletion_range(range::RangeReferenceStep, count::Integer, direction::Symbol)
+    range.start != range.stop && return range
+    direction === :backspace && return range.start > 0 ? RangeReferenceStep(range.start - 1, range.start) : nothing
+    range.stop < count ? RangeReferenceStep(range.stop, range.stop + 1) : nothing
+end
+
+"""
+    make_type_in_edit_operation(insertion, range, replacement) -> Operation
+
+The edit of the text of `insertion` that puts `replacement` in `range`: a
+replace of the type-in with the document of the first allowed type that shows the
+new text exactly, with the caret after the replacement, or else the edit of the
+text itself.
+"""
+function make_type_in_edit_operation(insertion::PrimitiveInsertion, range::RangeReferenceStep,
+                                     replacement::AbstractString)
+    text = splice_string(something(insertion.value, ""), range.start, range.stop, replacement)
+    document = find_exact_primitive_document(insertion.allowed_types, text)
+    document === nothing ||
+        return replace_document(EmptyReference(), with_value_caret(document, range.start + length(replacement)))
+    ReplaceStringRangeOperation(ConcreteReference(FieldReferenceStep("value"),
+                                                  ConcreteReference(range, EmptyReference())), replacement)
+end
+
+"""
+    make_type_in_commit_operation(insertion) -> Union{Operation, Nothing}
+
+The commit of a type-in, which Enter makes: a replace of it with the document of
+the first allowed type that its text parses as, with the caret at its end, or
+`nothing` when the text parses as none.
+"""
+function make_type_in_commit_operation(insertion::PrimitiveInsertion)
+    document = find_primitive_document(insertion.allowed_types, something(insertion.value, ""))
+    document === nothing && return nothing
+    replace_document(EmptyReference(), with_value_caret(document, length(get_primitive_text(document))))
+end
+
+"""
+    make_type_in_cancel_operation(insertion) -> Operation
+
+What Escape in a type-in makes: a replace of it with the first allowed type with
+no value.
+"""
+make_type_in_cancel_operation(insertion::PrimitiveInsertion) =
+    replace_document(EmptyReference(), make_empty_primitive_document(first(insertion.allowed_types)))

@@ -73,12 +73,15 @@ The `make` of a row of the rung table takes the same keywords: `(; appearance)` 
 1. `extra`, the rows of the caller, so an application can replace any row;
 2. the layouts, then the widgets;
 3. `get_natural_graphics_entries`: the domains that draw themselves;
-4. the fallback rows for exact types;
-5. `DocumentNothing` as the phrase "empty document", a `GraphicsDocument` as itself through `GraphicsToGraphics`, `TextDocument` as prose with optional word wrap, and a `CellVector` as a stack of blocks, one for each element;
-6. the fallback rows for `Any`;
-7. `Any` as the phrase "no natural rendering for T".
+4. a `PrimitiveDocument` as plain text, through `PrimitiveToText` and `TextToGraphics`;
+5. the fallback rows for exact types;
+6. `DocumentNothing` as the phrase "empty document", a `GraphicsDocument` as itself through `GraphicsToGraphics`, `TextDocument` as prose with optional word wrap, and a `CellVector` as a stack of blocks, one for each element;
+7. the fallback rows for `Any`;
+8. `Any` as the phrase "no natural rendering for T".
 
-The syntax rows reach the renderer through the fallback. The syntax slice registers a fallback whose `Any` row is the syntax fabric: `make_natural_to_syntax_dispatch(; appearance)`, then `SyntaxToText`, then `TextToGraphics`. That dispatch starts with `get_natural_syntax_entries(; appearance)` and ends with the collection rows and the reflection table of `ObjectToSyntax`. So a `JsonObject` in a tab matches no row above step 6, goes into the fabric, and draws through `JsonToSyntax`. A value of no domain draws as its reflected fields; see [reflection.md](../reflection/reflection.md). A session that loads no platform at all has no fallback at all: the same document then draws as the phrase of step 7, and the renderer never raises an error.
+**A primitive document draws as plain text** (row 4). A cell of a table, an element of a collection and a value in a tab show a string with no quotes, because the column, the field or the tab says the type. A primitive inside a syntax tree keeps its syntax leaf and its quotes: the syntax table prints that tree child by child, and there the quotes tell `"2"` from `2`. The text domain has the type-in of a number and the keys of a Bool; see [primitive.md](../primitive/primitive.md).
+
+The syntax rows reach the renderer through the fallback. The syntax slice registers a fallback whose `Any` row is the syntax fabric: `make_natural_to_syntax_dispatch(; appearance)`, then `SyntaxToText`, then `TextToGraphics`. That dispatch starts with `get_natural_syntax_entries(; appearance)` and ends with the collection rows and the reflection table of `ObjectToSyntax`. So a `JsonObject` in a tab matches no row above step 7, goes into the fabric, and draws through `JsonToSyntax`. A value of no domain draws as its reflected fields; see [reflection.md](../reflection/reflection.md). A session that loads no platform at all has no fallback at all: the same document then draws as the phrase of step 8, and the renderer never raises an error.
 
 A `ListNode` stays in the syntax fabric and does not become a stack of blocks, because a list can be lazy or infinite. A conversation or a pane is not drawn by this dispatcher: its own projection makes widgets, and a caller that needs one inside a content slot adds a row with `extra`.
 

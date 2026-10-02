@@ -154,6 +154,12 @@ function NaturalToGraphics(; measure::TextMeasure,
                                                         appearance = appearance)
                        for type in collect_graphics_projection_types()],
         get_natural_graphics_entries(measure = measure, appearance = appearance),
+        # A primitive document that is no part of a syntax tree draws as plain
+        # text, with no quotes: a cell of a table, an element of a collection, a
+        # value in a tab. A column or a field says its type, so no quote has to.
+        # A primitive inside a syntax tree keeps its syntax leaf, because the
+        # syntax table prints that tree, child by child.
+        Pair{Type,Any}[PrimitiveDocument => ChainingProjection(PrimitiveToText(; theme = text_theme), text)],
         # A fallback's own rows: the placeholders only it can draw. They name
         # exact types, so they come before the abstract rows below — a
         # `TextInsertion` is a `TextDocument`, and prose is not what it is, and a

@@ -94,6 +94,7 @@ function _walk_strings!(node, path, visited, refs)
     node isa Function     && return
     node isa Reference && return
     node isa StyleFont    && return     # font metadata, not editable content
+    node isa Type         && return     # a type, such as an allowed type of a type-in
 
     id = objectid(node)
     id in visited && return

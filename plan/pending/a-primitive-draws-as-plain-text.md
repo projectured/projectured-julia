@@ -1,6 +1,6 @@
 # A primitive document draws as plain text
 
-Status: a design that the owner decided on 2026-10-02 (§4); not started. Written 2026-10-02 in step 4.3 of
+Status: done 2026-10-02 (§5). Written 2026-10-02 in step 4.3 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md), at the owner's
 word: the cells of a data frame are primitive documents (R2), "but we need to
 fix the projections". Each point is the writer's unless the owner made it.
@@ -91,3 +91,50 @@ fix the projections". Each point is the writer's unless the owner made it.
    space"): §2.3.
 3. **A number in full**, with no display format (the owner: "yes"; the writer's
    recommendation, because a cell is edited as it is shown).
+
+## 5. What was done, 2026-10-02
+
+Steps 1 to 3 are done, with these facts:
+
+- **The text domain.** `PrimitiveInsertionToText` draws the typed text in the
+  style of the type that it parses as (the style of a number, a Bool or a
+  string), red while it parses as none, and the placeholder of the type-in
+  while it is empty; a place in an empty type-in maps back to its start. The
+  writer chose the style of the type over the green of the syntax type-in, so a
+  type-in that parses looks like what it becomes. The text theme has two new
+  fields, `wrong_color` and `placeholder_text`. `PrimitiveNumberToText` has
+  `allows_type_in`, on in `PrimitiveToText`, which has the row of the type-in.
+- **The parts that the two domains share** are in the primitive slice:
+  `make_type_in_edit_operation`, `make_type_in_commit_operation`,
+  `make_type_in_cancel_operation`, `make_empty_primitive_document`,
+  `find_value_range` (of a selection or of a path), `find_deletion_range` and
+  `get_type_in_placeholder`. The keys of a type-in in the text domain are
+  `@gestures PrimitiveInsertion`, and a text edit from a later stage takes the
+  same rule; the syntax leaf reads its own table first. `InsertionToSyntaxLeaf`
+  takes a placeholder that is a function of the insertion, so the syntax
+  type-in shows the placeholder of its document too.
+- **A Bool** has `@gestures PrimitiveBool` (`t`, `f`, Space), which both domains
+  read, and both of its printers drop a range edit.
+- **The natural renderer** has the row of §2.1 after the rows of the domains
+  that draw themselves and before the fallback rows.
+- **Inside a syntax tree the rule of the type-in does not run.** A collection
+  that the syntax domain prints maps a key back itself, so the reader of the
+  leaf is not asked. The natural renderer draws a collection as a stack of
+  blocks, each element on its own, so it is not such a tree; a number inside
+  one, such as a field of a reflected struct, keeps the edit of its text.
+- **The catalog** has the atom `primitive/insertion`. A type-in becomes
+  another primitive at a key, so its text variant goes through
+  `PrimitiveToText()` (`_text_sequence` in `Catalog.jl`), not the printer of one
+  type. Its text is `-.`, because the sweep of the type-in round trip expects
+  every key that types one character to be an edit of the text, and no such key
+  makes `-.` a number. The string walker of that sweep skips a type, a value of
+  `allowed_types`.
+- **Tests:** `test_primitive_type_in()` 115, which runs the keys of a number,
+  Escape and the keys of a Bool through the natural renderer, so the text
+  domain, and through a renderer that draws each primitive through the syntax
+  domain, and checks a string with no quotes and the placeholder; the platform
+  86,727 (8 broken); markdown 233; data frames 289; the primitive catalog
+  6,191; its type-in sweep 48; the natural sweeps over every atom. The umbrella
+  integration has only the failures of main: the catalog coverage (its list
+  without `PrimitiveInsertion` once the atom is in), the history sweep (2), the
+  click round trip (3 errors) and the JSON string cell (3 and 1).

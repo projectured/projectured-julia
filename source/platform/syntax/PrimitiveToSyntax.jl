@@ -53,6 +53,10 @@ function read_intent(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::Repla
     path === nothing ? nothing : make_path_operation(op, path)
 end
 
+# A key that would edit the text of a Bool does nothing: a Bool switches by the
+# keys of `@gestures PrimitiveBool` (`PrimitiveToText.jl`).
+read_intent(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, ::ReplaceRangeOperation) = nothing
+
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
 # With `allows_type_in`, a key whose text the number can not show, such as `-` or
@@ -175,13 +179,14 @@ The type-in of a `PrimitiveInsertion`: a source insertion whose text is green
 when it parses as one of the allowed types of the insertion and red when it does
 not. A key whose text one of them shows exactly replaces the insertion with it at
 once; Enter replaces it with the first that the text parses as, so `1.50` becomes
-`1.5`; Escape puts the first allowed type with no value.
+`1.5`; Escape puts the first allowed type with no value. An empty type-in shows
+its placeholder.
 """
 PrimitiveInsertionToSyntaxLeaf(; theme = nothing) =
     InsertionToSyntaxLeaf(_commit_primitive_text; completion = _get_primitive_completion,
                           commit_at_key = _commit_exact_primitive_text,
-                          cancel = ins -> _make_empty_primitive_document(first(ins.allowed_types)),
-                          placeholder = "enter a value", theme)
+                          cancel = ins -> make_empty_primitive_document(first(ins.allowed_types)),
+                          placeholder = get_type_in_placeholder, theme)
 
 function _commit_primitive_text(ins, text)
     document = find_primitive_document(ins.allowed_types, text)
@@ -199,10 +204,6 @@ function _get_primitive_completion(ins)
     found = find_primitive_document(ins.allowed_types, text) !== nothing
     (state = found ? :unambiguous : :invalid, hint = "", extension = "")
 end
-
-_make_empty_primitive_document(::Type{PrimitiveNumber}) = with_value_caret(PrimitiveNumber(nothing), 0)
-_make_empty_primitive_document(::Type{PrimitiveString}) = with_value_caret(PrimitiveString(""), 0)
-_make_empty_primitive_document(::Type{PrimitiveBool}) = @with_selection PrimitiveBool(false)
 
 # ── PrimitiveToSyntax (composite) ────────────────────────────────────────────
 

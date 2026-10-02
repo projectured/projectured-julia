@@ -56,6 +56,7 @@ using ..DomainModule
 using ..GraphicsModule
 using ..IoMapModule
 using ..LayoutModule
+using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..StyleModule
