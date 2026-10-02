@@ -147,8 +147,8 @@ function _content_offset(p, w::WidgetDocument; variant = nothing)
     (box.margin[1] + box.border[1] + box.padding[1], box.margin[2] + box.border[2] + box.padding[2])
 end
 
-function _inset_total(p, w::WidgetDocument)
-    box = _get_box_insets(p, w)
+function _inset_total(p, w::WidgetDocument; variant = nothing)
+    box = _get_box_insets(p, w; variant)
     (sum(sides -> sides[1] + sides[3], box), sum(sides -> sides[2] + sides[4], box))
 end
 
@@ -541,7 +541,8 @@ WidgetTooltipToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
 end
 
 WidgetMenuToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
-                           margin = inset_default, border = inset_default, padding = inset_default,
+                           margin = inset_default, border = inset_default,
+                           padding = _themed(Inset, theme, t -> t.menu_bar_padding),
                            vertical_border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
                            vertical_padding = _themed(Inset, theme, t -> _make_uniform_inset(t.item_gap)),
                            margin_color = color_transparent, border_color = color_transparent,
@@ -556,11 +557,14 @@ WidgetMenuToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                vertical_border_color, vertical_padding_color,
                                vertical_content_color, font, bar_gap)
 
+# An item that opens a menu is the name of the menu on a bar, the variant
+# `submenu`; any other item is a command of a menu. Each takes its own padding.
 @projection UntrackedCell struct WidgetMenuItemToGraphicsCanvas
     measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
+    submenu_padding::Inset
     margin_color::StyleColor
     border_color::StyleColor
     padding_color::StyleColor
@@ -574,7 +578,9 @@ WidgetMenuToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
 end
 
 WidgetMenuItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
-                               margin = inset_default, border = inset_default, padding = inset_default,
+                               margin = inset_default, border = inset_default,
+                               padding = _themed(Inset, theme, t -> t.menu_item_padding),
+                               submenu_padding = _themed(Inset, theme, t -> t.menu_name_padding),
                                margin_color = color_transparent, border_color = color_transparent,
                                padding_color = color_transparent, content_color = color_transparent,
                                label_text = _themed(StyleText, theme, _get_body_text),
@@ -584,8 +590,9 @@ WidgetMenuItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                label_gap = _themed(Int, theme, t -> t.label_gap),
                                popup_gap = _themed(Int, theme, t -> t.item_gap),
                                icon_scale = _themed(Float64, theme, _get_icon_scale)) =
-    WidgetMenuItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                                   padding_color, content_color, label_text, label_disabled_text,
+    WidgetMenuItemToGraphicsCanvas(measure, margin, border, padding, submenu_padding, margin_color,
+                                   border_color, padding_color, content_color, label_text,
+                                   label_disabled_text,
                                    layer_hovered_color, label_gap, popup_gap, icon_scale)
 
 @projection UntrackedCell struct WidgetToolbarItemToGraphicsCanvas
@@ -604,7 +611,8 @@ WidgetMenuItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
 end
 
 WidgetToolbarItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
-                                  margin = inset_default, border = inset_default, padding = inset_default,
+                                  margin = inset_default, border = inset_default,
+                                  padding = _themed(Inset, theme, t -> t.toolbar_item_padding),
                                   margin_color = color_transparent, border_color = color_transparent,
                                   padding_color = color_transparent, content_color = color_transparent,
                                   label_text = _themed(StyleText, theme, _get_body_text),
@@ -820,7 +828,8 @@ WidgetTransformPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
 end
 
 WidgetToolbarToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
-                              margin = inset_default, border = inset_default, padding = inset_default,
+                              margin = inset_default, border = inset_default,
+                              padding = _themed(Inset, theme, t -> t.toolbar_padding),
                               margin_color = color_transparent, border_color = color_transparent,
                               padding_color = color_transparent, content_color = color_transparent,
                               font = _themed(StyleFont, theme, t -> t.font),
@@ -2546,6 +2555,9 @@ _menu_item_command(w::WidgetMenuItem) = w.action::Action
 _menu_item_enabled(w::WidgetMenuItem) =
     !(w.enabled === false) && !(_menu_item_command(w).enabled === false)
 _menu_item_icon(w::WidgetMenuItem) = _menu_item_command(w).icon
+# The variant of the item: `submenu` for an item that opens a menu, the name of
+# the menu on a bar, and `nothing` for a command.
+_get_menu_item_variant(w::WidgetMenuItem) = w.submenu === nothing ? nothing : :submenu
 
 function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -2558,8 +2570,9 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # offer, because a dropdown reads the width each item needs to offer every item
     # the widest.
     measured = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
-        inset_width, inset_height = _inset_total(p, w)
+        variant = _get_menu_item_variant(w)
+        content_x, content_y = _content_offset(p, w; variant)
+        inset_width, inset_height = _inset_total(p, w; variant)
         command = _menu_item_command(w)
         enabled = _menu_item_enabled(w)
         state = enabled ? nothing : :disabled
@@ -2594,7 +2607,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             cw += icon_w + gap
         end
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
-         enabled, elements = elems, child_iomaps)
+         enabled, elements = elems, child_iomaps, variant)
     end)
     build = Cell(@computation begin
         needed = measured[]
@@ -2603,7 +2616,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         # A clear surface over the whole item: a press or a move anywhere on it
         # hits the item, and not only on its label, also where the padding is.
         final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
-        _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
+        _push_box_parts!(final, _get_box_insets(p, w; needed.variant), _get_box_colors(p, w),
                          control_w - needed.inset_width, control_h - needed.inset_height)
         # The layer of the light of an enabled item, drawn over the box and under
         # the content. It reads the mouse target in cells of its own, so a light
@@ -5917,7 +5930,8 @@ end
 end
 
 WidgetStatusBarToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
-                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin = inset_default, border = inset_default,
+                                padding = _themed(Inset, theme, t -> t.status_bar_padding),
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = _themed(StyleColor, theme, t -> t.muted),
                                 content_color = _themed(StyleColor, theme, t -> t.muted),

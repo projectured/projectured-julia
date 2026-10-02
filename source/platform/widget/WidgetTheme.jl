@@ -84,6 +84,18 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     container_padding::Spacing = Spacing(16)
     "The space inside a badge."
     compact_padding::Spacing = Spacing(Inset(3, 3, 10, 10))
+    "The space inside a command of a menu and of a context menu."
+    menu_item_padding::Spacing = Spacing(Inset(4, 4, 12, 12))
+    "The space inside the name of a menu on a menu bar: an item that opens a menu."
+    menu_name_padding::Spacing = Spacing(Inset(4, 4, 6, 6))
+    "The space inside a menu bar."
+    menu_bar_padding::Spacing = Spacing(Inset(2, 2, 2, 2))
+    "The space inside a toolbar."
+    toolbar_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
+    "The space inside a button of a toolbar."
+    toolbar_item_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
+    "The space inside a status bar."
+    status_bar_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space between the items of a bar, a list or a popup."
     item_gap::Spacing = Spacing(4)
     "The space under a title."
@@ -106,7 +118,7 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     border_width::LineWidth = LineWidth(1)
     "The width of a checkmark, of the ring of a radio button and of the ring of a knob."
     stroke::LineWidth = LineWidth(2)
-    "The width of a focus ring and of a selection ring."
+    "The width of a focus ring."
     ring_width::LineWidth = LineWidth(2)
     # ── Parts of controls ──
     "The size of the box of a checkbox and of the circle of a radio button."

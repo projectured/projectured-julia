@@ -27,8 +27,10 @@ end
 @testset "a menu maps to the item under the point" begin
     menu = WidgetMenu(Any[WidgetMenuItem("Alpha"), WidgetMenuItem("Beta"),
                           WidgetMenuItem("Gamma")]; orientation = :vertical)
-    @test _map(menu, 5, 30) == _path(FieldReferenceStep("elements"), _at(2))
-    @test _map(menu, 5, 60) == _path(FieldReferenceStep("elements"), _at(3))
+    # The rows start 5 down, and each is 32 high: a line of 24 and the padding
+    # of a command, 4 above and 4 below.
+    @test _map(menu, 5, 50) == _path(FieldReferenceStep("elements"), _at(2))
+    @test _map(menu, 5, 80) == _path(FieldReferenceStep("elements"), _at(3))
 end
 
 @testset "a list maps to the item of the row under the point" begin

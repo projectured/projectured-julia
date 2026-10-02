@@ -23,15 +23,7 @@ make_window_command(label, callback; icon = nothing, shortcut = nothing,
                     tooltip = nothing) =
     WidgetMenuItem(label; action = Action(label; icon = icon, shortcut = shortcut,
                                           callback = callback),
-                          tooltip = tooltip,
-                          # Room around the label: the rows stand apart, and the
-                          # hover surface is larger than the words.
-                          padding = Inset(4, 4, 12, 12))
-
-# The room around the name of a menu on the bar. It is as tall as the room
-# around a command, so a row of the menu that opens below it is as tall as the
-# name.
-const _WINDOW_MENU_PADDING = Inset(4, 4, 6, 6)
+                          tooltip = tooltip)
 
 """
     make_window_file_menu() -> WidgetMenuItem
@@ -40,7 +32,7 @@ The File menu: the name on the bar, and the menu that opens below it. Its
 commands open a tab in the focused group and close the focused tab.
 """
 make_window_file_menu() =
-    WidgetMenuItem("File"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
+    WidgetMenuItem("File"; submenu = WidgetMenu(Any[
         make_window_command("New tab", _open_tab!;
                             shortcut = Shortcut(:t; ctrl = true)),
         make_window_command("Close tab", _close_tab!;
@@ -67,7 +59,7 @@ record has no item for a log that stays empty.
 and the scales, each with its buttons.
 """
 make_window_view_menu(; recorded = RECORDED_TOOLS) =
-    WidgetMenuItem("View"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
+    WidgetMenuItem("View"; submenu = WidgetMenu(Any[
         make_window_command("Split vertically",
                             editor -> _split!(editor, :vertical);
                             shortcut = Shortcut(:backslash; ctrl = true)),
@@ -112,7 +104,7 @@ shortcut, because the key reaches the wrapper itself, and its tooltip names the
 key.
 """
 make_window_help_menu(; about = _ -> AboutPage(), gesture_help = false, command_palette = false) =
-    WidgetMenuItem("Help"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
+    WidgetMenuItem("Help"; submenu = WidgetMenu(Any[
         (gesture_help ? (make_window_command("Gestures",
                              editor -> _post_shell_content_operation!(
                                  editor, ToggleGestureHelpOperation(), "Open or close the gesture help");
@@ -166,7 +158,7 @@ make_window_menu_bar(; recorded = RECORDED_TOOLS, extra = [], about = _ -> About
                      gesture_help = false, command_palette = false) =
     WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(; recorded), extra...,
                    make_window_help_menu(; about, gesture_help, command_palette)];
-               orientation = :horizontal, padding = Inset(2, 2, 2, 2))
+               orientation = :horizontal)
 
 """
     make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORDED_TOOLS,
@@ -224,7 +216,7 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, recorded = RECORD
                                  tooltip = "Settings: how this editor works",
                                  make = _find_tool_settings),
         extra...,
-    ]; padding = Inset(4, 4, 4, 4))
+    ])
 
 """
     RECORDED_TOOLS
@@ -280,10 +272,7 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
                          make = _make_default_tool(type)) =
     WidgetToolbarItem(label; action = Action(label; icon = icon,
                                              callback = editor -> _reach_tool!(editor, type, make)),
-                             tooltip = tooltip,
-                             # Room around the picture: the buttons stand apart,
-                             # and the hover surface is larger than the glyph.
-                             padding = Inset(4, 4, 4, 4))
+                             tooltip = tooltip)
 
 _make_default_tool(type::Type) = _ -> make_insertion_document(type)
 
@@ -446,10 +435,7 @@ A window that holds no pane tree says nothing about a tab it does not have.
 make_window_status_bar(document; extra = String[]) =
     WidgetStatusBar(Any[Cell(@computation _window_status_title(document)),
                         Cell(@computation _window_status_selection(document)),
-                        extra...];
-                    # Room around the text, so the line does not touch the
-                    # window's edges or the panes above it.
-                    padding = Inset(4, 4, 8, 8))
+                        extra...])
 
 # The pane tree of the window `document`, or `nothing` when it holds none.
 function _find_window_tree(document)

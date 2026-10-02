@@ -75,7 +75,7 @@ end
 @testset "a menu item and a toolbar item light" begin
     menu = WidgetMenu(Any[WidgetMenuItem("New"), WidgetMenuItem("Open")])
     editor, move! = _pl_make_editor(menu)
-    move!(5, 30)
+    move!(5, 50)
     @test get_mouse_target(menu) == _pl_path(_pl_element("elements", 2)...)
     @test _pl_count_lights(editor) == 1
     move!(390, 290)
