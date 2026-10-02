@@ -2,7 +2,7 @@
 
 > **Status (2026-09-27): pending. Nothing of it is started.** The owner chose on
 > 2026-09-27 to do the introduced reference now (option 1 of Q17 in
-> [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)) and
+> [events-gestures-and-the-pointer.md](../done/events-gestures-and-the-pointer.md)) and
 > to plan this, option 2, as its own work. Every decision below waits for the
 > owner.
 

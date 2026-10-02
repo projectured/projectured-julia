@@ -13,7 +13,7 @@ A person runs "Show the tooltip" from the command palette on the selection, or
 an agent runs it. The answer has no point, because no pointer rested. The
 tooltip window must open beside the part, in screen coordinates.
 
-D73 of [events-gestures-and-the-pointer.md](../pending/events-gestures-and-the-pointer.md)
+D73 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
 says how: at the forward image of the part. The tooltip wrapper already asks
 for it (`find_part_point` in `source/screen/WindowLayers.jl`). But no widget
 reference has a forward image today, so the window opens at the corner of the
@@ -401,7 +401,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   which projections map forward, and how a caller finds the place of a part.
   The feature "the place of a part" gets its design and user interface
   documents as step 11 of
-  [events-gestures-and-the-pointer.md](../pending/events-gestures-and-the-pointer.md) lists
+  [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
   them.
   Done: reference.md has a section "The place of a part": what the forward map
   answers (the node that draws a part, the characters of a text, a region, and

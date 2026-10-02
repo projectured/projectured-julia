@@ -1,7 +1,7 @@
 # Tab and the arrows reach every part that takes the keyboard
 
 > **Status (2026-09-26): deferred by the owner.** The owner focuses on
-> [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md), and
+> [events-gestures-and-the-pointer.md](../done/events-gestures-and-the-pointer.md), and
 > every decision of this plan waits, except the one step that the other plan
 > needs (§5). This plan was split on the same day from that plan, where its
 > decisions N1 to N6 were D33 and D35 to D39. The two subjects are unrelated (D2
@@ -141,7 +141,7 @@ container needs code for Tab. The owner rejected it for the reasons of N7.
 
 ## 5. The one step that the other plan needs
 
-The refactor of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
+The refactor of [events-gestures-and-the-pointer.md](../done/events-gestures-and-the-pointer.md)
 removes `WidgetHoverTrackingProjection`, which holds the start over at the ends
 of Tab today. So that start over must leave it first, or in the same change,
 into a small wrapping step of its own. Otherwise Tab stops at the ends.

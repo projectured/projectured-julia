@@ -49,6 +49,7 @@ Each client message holds `t`: the time of its browser event in milliseconds sin
 | `keydown`, `keyup` | `KeyDown`, `KeyUp`, through `convert_web_key_to_symbol` |
 | `keypress` | `KeyPress` |
 | `resize`, `close`, `blur` | `WindowResize`, `WindowClose`, `WindowDefocus` |
+| `leave` (the `mouseleave` of a canvas) | `WindowLeave` |
 | `quit` | `WindowQuit` |
 | `resync` | no event; the next frame goes in full |
 

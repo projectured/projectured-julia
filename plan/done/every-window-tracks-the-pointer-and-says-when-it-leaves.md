@@ -6,6 +6,8 @@
 > same day, and it takes over the rest: step 3 of this plan is its step 8, step 4
 > is its step 11, and the live check of step 5 is part of its step 8. This plan
 > moves to `plan/done/` with that plan.
+>
+> **Done (2026-10-02)** with step 12 of that plan.
 
 Follows [a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md](../done/a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md).
 The owner found that a row of a popup menu does not light under the pointer.
@@ -108,8 +110,10 @@ waits for it.
 
 ## Steps (for the recommended choices)
 
-- [ ] 0. Unseal `event/WindowEvent.jl` and `event/EventModule.jl` in
+- [x] 0. Unseal `event/WindowEvent.jl` and `event/EventModule.jl` in
   `SEALING.md`, in a commit that names the owner's permission.
+
+  Done: both files are unsealed in `SEALING.md` (D34 of the events plan).
 - [x] 1. **H2.** Event 13 becomes `WindowDefocus`, 12 nothing. Test: an SDL
   window event 13 pushed into the queue reads as `WindowDefocus`, and 12 reads as
   nothing.
@@ -133,16 +137,33 @@ waits for it.
   `test_input_coalescing`, `test_web_backend` and `test_native_window`, 99 pass;
   the event module, the patterns, the export collisions and the kernel layering,
   90 pass; the naming guard passes.
-- [ ] 3. **H1 and H3, the tracking.** The tracking of the chosen place: a move
+- [x] 3. **H1 and H3, the tracking.** The tracking of the chosen place: a move
   over a row of the popup lights it, a move to the next row moves the light, and
   the leave of the window unlights it; the first window keeps its hover and its
   wrap-around of Tab.
-- [ ] 4. The documents: `devices-and-backends.md` (the window events),
+
+  Done by the events plan and by
+  [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md):
+  every move writes the mouse target, and the screen gives the window that the
+  pointer leaves a move to a point off it (`_read_window_leave` of
+  `ScreenToScreen.jl`), also for `WindowLeave`. The wrap-around of Tab is the
+  `focus_cycling` wrapper of `build_editor`.
+- [x] 4. The documents: `devices-and-backends.md` (the window events),
   `screen.md`, `widget.md`, `sdl.md`, `web.md`.
-- [ ] 5. A live check on the display. Pushed SDL events do not move the real
+
+  Done in step 11 of the events plan; `web.md` names the `leave` message
+  (2026-10-02).
+- [x] 5. A live check on the display. Pushed SDL events do not move the real
   pointer; with the owner's word, the XTest library moves it, and the script
   clicks only where the window under the pointer is the application's.
-- [ ] 6. The verification against `main`, and the move of this plan to
+
+  Done without XTest, which the owner refuses (2026-09-27): pushed SDL events,
+  `SDL_WINDOWEVENT_LEAVE` among them, checked the light and the leave on
+  2026-09-28 (7 of 7), and the live check of step 12 of the events plan
+  (2026-10-02, 18 of 18).
+- [x] 6. The verification against `main`, and the move of this plan to
   `plan/done/`. `WindowEvent.jl` and `EventModule.jl` stay unsealed: the owner
   said on 2026-09-26 that the files of the refactor stay unsealed (D34 of
   [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)).
+
+  Done with step 12 of the events plan (2026-10-02).

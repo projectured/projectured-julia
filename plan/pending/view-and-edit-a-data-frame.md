@@ -1265,7 +1265,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       does, and the drag writes the width of the column. The view keeps it
       by name. **Deferred** (the owner, 2026-10-01): "defer the column drag
       until the drag refactor lands in main", the drag tracking of
-      [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
+      [events-gestures-and-the-pointer.md](../done/events-gestures-and-the-pointer.md)
       (D14, D20). How a person finds the edge (G3) is decided then.
       Taken up 2026-10-02 (the owner: "Let's do 5.7 first", after the drag
       refactor landed). The design (mine):

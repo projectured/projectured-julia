@@ -162,7 +162,7 @@ All of them are from 2026-09-26.
   tracking packages, and they do not depend on it.
 - **D33.** Keyboard navigation between parts is a projection step of its own,
   outside the hover tracker. Its design is the plan
-  [tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md](tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md), split from this plan on 2026-09-26 with the decisions D35 to D39.
+  [tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md](../pending/tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md), split from this plan on 2026-09-26 with the decisions D35 to D39.
 - **D34.** The owner allows the unsealing of every kernel file that the design
   needs, and the files stay unsealed after the work. Unsealed in `SEALING.md` on
   2026-09-26: `event/EventInterface.jl`, `event/KeyboardEvent.jl`,
@@ -478,7 +478,7 @@ All of them are from 2026-09-26.
   sends every event through it before `read_intent` (`ReadEvaluatePrint.jl:28`).
   Two tests use it too. No layer below it and nothing in omnet-julia uses it.
 - The chord table is empty in every running editor. Only the recognizer test
-  fills it, and [key-chords-from-bindings.md](key-chords-from-bindings.md) is
+  fills it, and [key-chords-from-bindings.md](../pending/key-chords-from-bindings.md) is
   deferred (2026-09-25). So the chord exists only in tests.
 - `KeyPress` comes from the input method of the platform (`SDL_TEXTINPUT` in
   SDL). Readers act on `KeyDown`, which holds the flag of the auto-repeat. No
@@ -695,7 +695,7 @@ The direction that follows from the decisions so far:
   from the dirty walk, which then runs in both modes.
 
 - **Q17 (answered 2026-09-27: the introduced reference now, the domain part
-  later in [a-view-names-the-domain-part-under-a-point.md](a-view-names-the-domain-part-under-a-point.md)).
+  later in [a-view-names-the-domain-part-under-a-point.md](../pending/a-view-names-the-domain-part-under-a-point.md)).
   The part at a point inside a view that maps nothing back (found in step 4f).** A view prints a domain document as widgets, and its
   `map_reference_backward` answers `nothing` on purpose, with comments such as
   "no caret into a log (v1)". A point on a button of such a view stops there,
@@ -1052,7 +1052,7 @@ it holds the example.
     The views that print a domain document as widgets mapped nothing back on
     purpose ("no caret into the view"), so a point stopped at them (Q17). The
     owner chose the introduced reference now, and a plan of its own for the
-    domain part: [a-view-names-the-domain-part-under-a-point.md](a-view-names-the-domain-part-under-a-point.md).
+    domain part: [a-view-names-the-domain-part-under-a-point.md](../pending/a-view-names-the-domain-part-under-a-point.md).
     `find_introduced_path(projection, reference)` (kernel, beside
     `make_introduced_reference`) gives the output path of an introduced
     reference of `projection`, and `nothing` for any other. Each view now maps
@@ -1380,7 +1380,7 @@ it holds the example.
     row turns off; a click opens the popup, and its item Close tab lights (H1);
     the leave of the window turns every light off (H3). A pushed event does not
     pass the X server, so a fault of the window manager stays out of reach.
-- [ ] 9. **The probes go away (D7, D63 to D75).** A tooltip is the meaning of a
+- [x] 9. **The probes go away (D7, D63 to D75).** A tooltip is the meaning of a
   `MouseDwell` at the part, given by the part's gesture table (D63); the feed,
   the probe, `TooltipRest` and `PointerRest` of the tooltip package go away. The
   hover inspector goes away (D75). The context menu is the meaning of a right
@@ -1460,14 +1460,17 @@ it holds the example.
       substrate (+5) and the shell (265 passes and the one broken placement,
       no failure); the naming guard passes; the omnet tests of step 8 pass
       (186 in 8 tests).
-  - [ ] **D76 changes 9a to 9c.** The dwell travels by position, as a click
+  - [x] **D76 changes 9a to 9c.** The dwell travels by position, as a click
     does: the target tracker no longer sends it by route (`_read_dwell` goes).
     The outward reading of the gesture tables (D64) then runs in the shared
     helpers that hand a pointer gesture to the child at its point, in the
     widget and the layout packages, as D64 named; when no gesture travels by
     route, the walk in `read_routed_child` of 9a has no use, unless Q35 keeps
     the crossings routed.
-  - [ ] 9b′. **Replaced before it started** by
+    Done by step 7 of
+    [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)
+    (2026-10-01): the dwell and the right click travel by position.
+  - [x] 9b′. **Replaced before it started** by
     [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)
     (owner 2026-09-28): every document stores the path of the part under the
     pointer like its selection, a move becomes that path as a click becomes the
@@ -1507,7 +1510,7 @@ it holds the example.
     `ReferenceInspectorTest.jl`; the Selection tool and `ReferenceInspector`
     stay. The repls, the application, the gallery wrappers and the platform
     pass as before.
-  - [ ] 9f. The hosts, the checks and the documents.
+  - [x] 9f. The hosts, the checks and the documents.
     **Settled** (owner 2026-10-02: "Agreed", on Claude's option a): the tooltip
     window and the context menu window are two wrappers of `build_editor`,
     `tooltip` and `context_menu`, on by default. Each adds its window function
@@ -1530,7 +1533,8 @@ it holds the example.
     longer; the gallery, which calls `make_tracking_screen` itself, passes them;
     the omnet IDE passes them no longer. Test: `test_tracking_screen` checks the
     order of the states and the two keywords off; an application test counts two
-    more levels.- [x] 10. **Replaced by step 5b of
+    more levels.
+- [x] 10. **Replaced by step 5b of
   [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md)**
   (Q13 there, settled 2026-10-01: the drag wrapper keeps the path of the part
   whose drag is on, local drags keep their own state, the part under the
@@ -1546,7 +1550,7 @@ it holds the example.
   drag state goes away. Tests: each drag; a short press on a tab still selects
   it; a drag over a button does not light it; a drag that leaves the window
   ends in one defined way.
-- [ ] 11. **The rules and the documents (D16, D40).** `PAR-NO-NEW-SYNTHETIC-EVENT`
+- [x] 11. **The rules and the documents (D16, D40).** `PAR-NO-NEW-SYNTHETIC-EVENT`
   is written again; the rules of D40 and D44 join the invariants; the concepts (event,
   gesture, tracking projection) go into the design documents; the documents of
   the kernel, the widgets, the screen, the tooltip, the dragging and the
@@ -1632,7 +1636,7 @@ it holds the example.
   - Written (2026-10-02) in `architecture-invariants.md`: the two rules again and
     `PAR-LIGHT-KEEPS-LAYOUT`, with their rows in the table;
     `mouse-target.md` and `widget.md` link the new rule.
-- [ ] 12. **The check against `main`, and the move of this plan and of the plan of
+- [x] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
   Decided (owner 2026-10-02, "Agreed", on Claude's option a): after 9f, the
   rules and the moves of the browser are built, the check runs the suites of
@@ -1663,6 +1667,17 @@ it holds the example.
     events: the wheel and the move after a changed frame read the position of the
     real pointer (`SDL_GetMouseState`, `SDL_GetMouseFocus`), and pushed events do
     not move it. `ScrollPaneHoverTest` keeps the check without a window.
+  The sweep (2026-10-02, projectured at `d0c5ee124`, omnet main): platform
+  85430 pass, 1 fail (the file system test under `unshare -r`), 8 broken (older
+  markers); display 28; chart 361; web 118; data frames 267; application 344 and 2
+  broken; `test_repls` 23172 and 5 broken; the argument guard 6 (the 2 new ones
+  in `Theme.jl` came with the appearance work), the export guard 4. omnet: campaign
+  188; text clipboard 9; `test_view_lights` 3 and 1 fail (the catalog draws two
+  lists now, and both light; the test counts one); `test_legacy` 7 fail and 120
+  errors (the NED reader 114, a list table printed with no offered height 5, the
+  run table 4 known since 2026-09-23, layout widths and a collapse mapping);
+  `test_ide` 3 fail and 10 errors, all from the settings wrapper (`slice`, `log`,
+  the Settings tool). By the messages, none comes from the pointer work.
 
 Not in the steps: the web client sends no motion while no button is held (study
 §4), so the browser has no hover. That needs a decision of its own. Decided (owner
