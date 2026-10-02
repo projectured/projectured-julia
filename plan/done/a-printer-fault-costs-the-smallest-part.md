@@ -3,7 +3,7 @@
 > **Status:** done. Written 2026-10-01, landed on `main` on 2026-10-02. The owner
 > decided the direction on 2026-10-01 and 2026-10-02 (§5), and accepted the cost
 > of step 6c with the landing. §11 holds what is left for later. This plan holds D3, D4 and D6
-> of [a-fault-is-easy-to-see-and-stays-small.md](a-fault-is-easy-to-see-and-stays-small.md).
+> of [a-fault-is-easy-to-see-and-stays-small.md](../pending/a-fault-is-easy-to-see-and-stays-small.md).
 
 ## 1. The request
 

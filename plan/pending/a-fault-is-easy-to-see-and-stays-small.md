@@ -2,7 +2,7 @@
 
 > **Status:** pending. Written 2026-09-26. Not started. The decisions below are
 > proposals; the owner decides them (§6). On 2026-10-02 the owner moved D3, D4
-> and D6 to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md), which decides them.
+> and D6 to [a-printer-fault-costs-the-smallest-part.md](../done/a-printer-fault-costs-the-smallest-part.md), which decides them.
 
 ## 1. The request
 
@@ -71,10 +71,10 @@ names the fault, so a take always ends.
 ## 4. The problems
 
 - **P1. No barrier in the pipelines of the application.** One bad node takes
-  the whole window. [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md) handles it.
+  the whole window. [a-printer-fault-costs-the-smallest-part.md](../done/a-printer-fault-costs-the-smallest-part.md) handles it.
 - **P2. A printer fault is counted as a device fault** when it throws while the
   device reads the output. The safe mode starts only on `:print`, so it never
-  starts, and the device stops after eight. [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md)
+  starts, and the device stops after eight. [a-printer-fault-costs-the-smallest-part.md](../done/a-printer-fault-costs-the-smallest-part.md)
   handles it: a fault that a barrier noted is not a device fault.
 - **P3. A half of the device that stopped is never tried again.** Its count
   resets only after a call that works, and no call is made. A repaired document
@@ -111,14 +111,14 @@ Each one is a proposal of the author, for the owner to decide.
   which stays until the log is opened or the line is dismissed. Nothing of it
   can stop a paint: the button and the line read the log, which the frame writes
   outside every thunk.
-- **D3. A fault stays at the node that failed.** Moved to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md).
+- **D3. A fault stays at the node that failed.** Moved to [a-printer-fault-costs-the-smallest-part.md](../done/a-printer-fault-costs-the-smallest-part.md).
 - **D4. The renderer of the device skips an element that it can not read.**
-  Moved to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md).
+  Moved to [a-printer-fault-costs-the-smallest-part.md](../done/a-printer-fault-costs-the-smallest-part.md).
 - **D5. A half of the device that stopped is tried again after the document
   changes.** After the next operation that the editor applies, the editor calls
   that half one time. If it throws again, it stays stopped until the next
   change. The safe mode keeps its rule: Escape leaves it.
-- **D6. The keys stay alive.** Moved to [a-printer-fault-costs-the-smallest-part.md](a-printer-fault-costs-the-smallest-part.md).
+- **D6. The keys stay alive.** Moved to [a-printer-fault-costs-the-smallest-part.md](../done/a-printer-fault-costs-the-smallest-part.md).
 - **D7. The one who made the change is told.** `execute_julia_code` and the
   tools of the MCP server wait for the next frame after the code ran and add
   each new fault of that frame to their answer, with the whole text of D1 and a
