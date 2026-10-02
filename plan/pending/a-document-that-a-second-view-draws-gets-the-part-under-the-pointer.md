@@ -69,7 +69,7 @@ input. It needs its own question after the choice above.
 - [x] 1. The owner chooses (a), (b) or (c). Decided (owner 2026-10-02, "agreed"):
   (a), with the helper. Rejected: (b), the view prints the shadow itself; (c),
   the walk in the default of the kernel.
-- [ ] 2. The fix and its test, in the repository that the choice names.
+- [x] 2. The fix and its test, in the repository that the choice names.
   - [x] 2a. projectured: the helper in the focus slice, beside
     `follow_output_mouse_target!`. `find_output_node_path(root, node)` finds the
     path from the output of a view to a document that the output holds, by
@@ -84,9 +84,17 @@ input. It needs its own question after the choice above.
     default backward map (no row lights) and passes with the helper (76 in
     `test_mouse_target_move`). `focus.md` and `mouse-target.md` describe the
     helper, and the limit of `mouse-target.md` names only the case of step 3.
-  - [ ] 2b. omnet, after 2a is on main: `SimulationInspectorToWidget` maps a
+  - [x] 2b. omnet, after 2a is on main: `SimulationInspectorToWidget` maps a
     path of the shadow forward and back with the helper, and a test moves onto
     a row of the inspector.
+    Built (2026-10-02, omnet `fbe953a1`): the forward map puts the path to the
+    shadow before a path of the shadow, and the backward map answers the rest
+    of a path through it, else the default. `test_view_lights` has the case
+    "the inspector: the tree of the reflected object", which passes. Two other
+    cases of that test fail on omnet main for causes of other work: the catalog
+    draws two lists now (the count says one), and the workbench stops at
+    `Projectured` in `DoctypeLookup.jl:41`, which the umbrella of the kernel and
+    the platform no longer holds.
 - [ ] 3. The question of the topology graph.
 - [ ] 4. The documents: `mouse-target.md` drops its limit, and the move of this
   plan to `plan/done/`.
