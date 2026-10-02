@@ -7,22 +7,27 @@
 The theme of the YAML projections. `@theme` declares it, so `ScaledYamlTheme`
 holds each value times its scale, and `YamlTheme()` is the default theme.
 
-- `null_text`, `bool_text`, `number_text` and `string_text` — a value of each kind.
-- `key_text` — the key of a mapping entry.
-- `delimiter_text` — the brackets of a flow sequence, the braces of a flow
-  mapping, and the `- ` marker of a block sequence.
-- `separator_text` — a comma, and the colon of a mapping entry.
+The fields are the text styles of a value of each kind, a mapping's key, a
+delimiter and a separator. Each field has a docstring that says what it
+draws, which the appearance tab shows as its tooltip.
 
 A YAML projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct YamlTheme
+    "A null value."
     null_text::StyleText      = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    "A boolean value."
     bool_text::StyleText      = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    "A number value."
     number_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    "A string value."
     string_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "The key of a mapping entry."
     key_text::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    "The brackets of a flow sequence, the braces of a flow mapping, and the `- ` marker of a block sequence."
     delimiter_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    "A comma, and the colon of a mapping entry."
     separator_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 

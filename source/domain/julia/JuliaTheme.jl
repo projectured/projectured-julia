@@ -8,37 +8,38 @@
 The theme of the Julia projections. `@theme` declares it, so `ScaledJuliaTheme`
 holds each value times its scale, and `JuliaTheme()` is the default theme.
 
-- `identifier_text` — a variable, and the label of an object that stands in the
-  code, such as a widget a person pasted into a form.
-- `literal_text` — a number, a string, a character, a chunk of an interpolated
-  string, the quotes of a string interpolation, and a docstring.
-- `punctuation_text` — a quote, a delimiter, a separator, a brace and a fence.
-- `keyword_text` — a keyword, `true`, `false` and `nothing`.
-- `symbol_text` — a symbol, `<:`, `->`, and the `\$` of a string interpolation.
-- `operator_text` — an operator, the dot of a field access, a range, `::`, `=`
-  and `?:`.
-- `callee_text` — the called function, and the name of a macro.
-- `name_text` — the name of a module.
-- `plain_text` — the path of a `using`, and the typed text of the insertion.
-- `hint_text` — the completion that the insertion offers.
-- `wrong_color` and `found_color` — the color of the typed text of the
-  insertion while it names nothing, and while it names one thing.
+The fields are the text styles of the tokens of the Julia syntax, and the
+colors of the typed text of the insertion hole by its commitability. Each
+field has a docstring that says what it draws, which the appearance tab shows
+as its tooltip.
 
 A Julia projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct JuliaTheme
+    "A variable, and the label of an object that stands in the code, such as a widget pasted into a form."
     identifier_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+    "A number, a string, a character, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
     literal_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "A quote, a delimiter, a separator, a brace and a fence."
     punctuation_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    "A keyword, `true`, `false` and `nothing`."
     keyword_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_magenta)
+    "A symbol, `<:`, `->`, and the dollar sign of a string interpolation."
     symbol_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    "An operator, the dot of a field access, a range, `::`, `=` and `?:`."
     operator_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    "The called function, and the name of a macro."
     callee_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    "The name of a module."
     name_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "The path of a `using`, and the typed text of the insertion."
     plain_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    "The completion that the insertion offers."
     hint_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_completion_hint)
+    "The color of the typed text of the insertion while it names nothing."
     wrong_color::StyleColor = color_solarized_red
+    "The color of the typed text of the insertion while it names one thing."
     found_color::StyleColor = color_solarized_green
 end
 

@@ -9,57 +9,56 @@
 The theme of the RST projections. `@theme` declares it, so `ScaledRstTheme`
 holds each value times its scale, and `RstTheme()` is the default theme.
 
-- `marker_text` — a marker: an insertion placeholder, a tick, an emphasis or
-  strong marker, a bullet, a transition, a comment, a directive's `.. `
-  chrome, and every other marker with no role of its own below.
-- `source_text` — the text itself, the root, a value and an argument, all in
-  the source form.
-- `literal_text` — a literal, a literal block, and a code block's code.
-- `target_text` — a role name, a target, a path, and a role definition.
-- `value_text` — a role's value and a math block.
-- `reference_text` — a reference, a footnote label, a field name, a toctree
-  entry, and a section's adornment.
-- `substitution_text` — a substitution reference and a substitution
-  definition's name.
-- `directive_text` — a directive's name and a code block's language.
-- `admonition_text` — an admonition's `.. kind::` marker.
-- `title_text` — the title of a section, in the source form.
-- `body_text` — the plain prose of the rendered form.
-- `bold_font`, `italic_font` — the font a bold or an italic run takes in the
-  rendered form.
-- `title_1_font`, `title_2_font`, `title_3_font`, `title_font` — the font of a
-  section title in the rendered form, by level (`title_font` is every level
-  past the third).
-- `title_color` — the color of a section title in the rendered form.
-- `caption_text` — the caption under a rendered figure.
-- `rendered_marker_text` — a marker of the rendered form: a transition rule,
-  the arrow of a literal include.
-- `block_gap` — the gap between the blocks of an RST page.
+The fields are in two groups: the text and the fonts of the source form, and
+the fonts and the colors of the rendered form, plus the gap between the
+blocks of a page. Each field has a docstring that says what it draws, which
+the appearance tab shows as its tooltip.
 
 An RST projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct RstTheme
+    "A marker: an insertion placeholder, a tick, an emphasis or strong mark, a bullet, a transition, a comment, a directive's chrome, or any other marker."
     marker_text::StyleText          = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    "The text, the root, a value and an argument, in the source form."
     source_text::StyleText          = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    "A literal, a literal block, and a code block's code."
     literal_text::StyleText         = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "A role name, a target, a path, and a role definition."
     target_text::StyleText          = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+    "A role's value and a math block."
     value_text::StyleText           = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
+    "A reference, a footnote label, a field name, a toctree entry, and a section's adornment."
     reference_text::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    "A substitution reference and the name of a substitution definition."
     substitution_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_orange)
+    "The name of a directive and the language of a code block."
     directive_text::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    "The `.. kind::` marker of an admonition."
     admonition_text::StyleText      = StyleText(font_ubuntu_monospace_bold_20, color_solarized_yellow)
+    "The title of a section, in the source form."
     title_text::StyleText           = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "The plain prose of the rendered form."
     body_text::StyleText            = StyleText(font_ubuntu_regular_20, color_black)
+    "The font a bold run takes in the rendered form."
     bold_font::StyleFont            = font_ubuntu_bold_20
+    "The font an italic run takes in the rendered form."
     italic_font::StyleFont          = font_ubuntu_italic_20
+    "The font of a level 1 section title in the rendered form."
     title_1_font::StyleFont         = font_ubuntu_bold_36
+    "The font of a level 2 section title in the rendered form."
     title_2_font::StyleFont         = font_ubuntu_bold_24
+    "The font of a level 3 section title in the rendered form."
     title_3_font::StyleFont         = font_ubuntu_bold_22
+    "The font of a section title past the third level, in the rendered form."
     title_font::StyleFont           = font_ubuntu_bold_18
+    "The color of a section title in the rendered form."
     title_color::StyleColor         = color_solarized_blue
+    "The caption under a rendered figure."
     caption_text::StyleText         = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    "A marker of the rendered form: a transition rule, and the arrow of a literal include."
     rendered_marker_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    "The gap between the blocks of an RST page."
     block_gap::Spacing              = Spacing(8)
 end
 

@@ -7,21 +7,23 @@
 The theme of the gesture log. `@theme` declares it, so `ScaledGestureLogTheme`
 holds each value times its scale, and `GestureLogTheme()` is the default theme.
 
-- `index_text` — the number of the entry.
-- `gesture_text` — what the user did.
-- `operation_text` — the operation it made.
-- `muted_text` — a line that records a selection, which is context and not a
-  change.
-- `empty_text` — the line the log shows while it holds no gesture.
+The fields are the text styles of a gesture log entry's index, gesture,
+operation, muted line and empty line. Each field has a docstring that says
+what it draws, which the appearance tab shows as its tooltip.
 
 A gesture log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct GestureLogTheme
+    "The number of the entry."
     index_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    "The gesture that the entry records."
     gesture_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    "The operation the gesture makes."
     operation_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    "A line that records a selection, which is context and not a change."
     muted_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    "The line the log shows while it holds no gesture."
     empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 

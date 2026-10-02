@@ -8,38 +8,42 @@ The theme of the gesture map and the command palette. `@theme` declares it, so
 `ScaledGestureHelpTheme` holds each value times its scale, and
 `GestureHelpTheme()` is the default theme.
 
-- `map_header_text` — the heading of a domain's group of rows in the gesture map.
-- `map_gesture_text` — a gesture that can fire.
-- `map_description_text` — what a gesture does.
-- `map_muted_text` — a row that cannot fire for the current selection.
-- `palette_query_text` — the line the person types into.
-- `palette_header_text` — the heading of a domain's group of rows in the palette.
-- `palette_selected_text` — the chosen row.
-- `palette_command_text` — a row that can run.
-- `palette_muted_text` — a row that cannot run right now.
-- `palette_background` and `palette_border` — the fill and the border of the
-  panel the palette draws itself on.
-- `palette_radius` — the radius of the corners of the panel.
-- `palette_border_width` — the width of the border of the panel.
-- `palette_padding` — the room between the edge of the panel and its text.
+The fields are in two groups: the text of the gesture map's rows, and the
+text, the fill, the border and the spacing of the command palette and its
+panel. Each field has a docstring that says what it draws, which the
+appearance tab shows as its tooltip.
 
 A gesture-help projection reads the scaled theme through its `UntrackedCell`
 style fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct GestureHelpTheme
+    "The heading of a domain's group of rows in the gesture map."
     map_header_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "A gesture that can fire."
     map_gesture_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    "What a gesture does."
     map_description_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    "A row that cannot fire for the current selection."
     map_muted_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    "The line the person types into."
     palette_query_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_blue)
+    "The heading of a domain's group of rows in the palette."
     palette_header_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_violet)
+    "The chosen row."
     palette_selected_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_green)
+    "A row that can run."
     palette_command_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_default)
+    "A row that cannot run right now."
     palette_muted_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    "The fill of the panel the palette draws itself on."
     palette_background::StyleColor = color_solarized_background_lighter
+    "The border of the panel the palette draws itself on."
     palette_border::StyleColor = color_solarized_blue
+    "The radius of the corners of the panel."
     palette_radius::Radius = Radius(6)
+    "The width of the border of the panel."
     palette_border_width::LineWidth = LineWidth(2)
+    "The space between the edge of the panel and its text."
     palette_padding::Spacing = Spacing(10)
 end
 

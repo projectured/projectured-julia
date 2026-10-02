@@ -8,16 +8,19 @@ The theme of the statistics table. `@theme` declares it, so
 `ScaledFrameStatisticsTheme` holds each value times its scale, and
 `FrameStatisticsTheme()` is the default theme.
 
-- `header_text` — the head line and the column header.
-- `row_text` — one measurement.
-- `empty_text` — the line the table shows while it holds no frame.
+The fields are the text styles of the table's header, its rows and its empty
+line. Each field has a docstring that says what it draws, which the
+appearance tab shows as its tooltip.
 
 The statistics table reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FrameStatisticsTheme
+    "The head line and the column header."
     header_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    "One measurement."
     row_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    "The line the table shows while it holds no frame."
     empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 

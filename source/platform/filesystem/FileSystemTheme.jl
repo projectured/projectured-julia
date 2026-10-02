@@ -8,15 +8,18 @@ The theme of the file-system tree, as syntax. `@theme` declares it, so
 `ScaledFileSystemTheme` holds each value times its scale, and
 `FileSystemTheme()` is the default theme.
 
-- `file_text` — the basename of a file.
-- `directory_text` — the name of a directory.
+The fields are the text styles of a file and a directory. Each field has a
+docstring that says what it draws, which the appearance tab shows as its
+tooltip.
 
 A file-system projection reads the scaled theme through its `UntrackedCell`
 style fields; with no theme it holds the plain values of the default theme.
 The widget tree of the file system follows the widget theme instead.
 """
 @theme struct FileSystemTheme
+    "The basename of a file."
     file_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    "The name of a directory."
     directory_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
 end
 

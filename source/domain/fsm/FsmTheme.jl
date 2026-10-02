@@ -8,27 +8,25 @@
 The theme of the Fsm projections. `@theme` declares it, so `ScaledFsmTheme`
 holds each value times its scale, and `FsmTheme()` is the default theme.
 
-- `keyword_text` — `component`, `variable`, `timer`, `event`, `machine`,
-  `state`, `initial`, `on`, `when`, `stay`, `ignore`, `entry` and `ignoring
-  unhandled`.
-- `name_text` — the name of a component, a variable, a timer, an event, a
-  machine or a state.
-- `reference_text` — a trigger, a target and an `initial`, read from the
-  referenced part, and the reference of a transition label in a diagram.
-- `chrome_text` — the punctuation around a part, and the chrome of a
-  transition label in a diagram.
-- `state_label_text` — the name of a state in a diagram.
-- `trigger_text` — the keyword of a transition label in a diagram.
+The fields are the text styles of a keyword, a name, a reference, chrome, and
+the label and the trigger of a diagram. Each field has a docstring that says
+what it draws, which the appearance tab shows as its tooltip.
 
 A Fsm projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FsmTheme
+    "`component`, `variable`, `timer`, `event`, `machine`, `state`, `initial`, `on`, `when`, `stay`, `ignore`, `entry` and `ignoring unhandled`."
     keyword_text::StyleText     = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "The name of a component, a variable, a timer, an event, a machine or a state."
     name_text::StyleText        = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "A trigger, a target and an `initial`, read from the referenced part, and the reference of a transition label in a diagram."
     reference_text::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+    "The punctuation around a part, and the chrome of a transition label in a diagram."
     chrome_text::StyleText      = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    "The name of a state in a diagram."
     state_label_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    "The keyword of a transition label in a diagram."
     trigger_text::StyleText     = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 

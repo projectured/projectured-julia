@@ -10,33 +10,30 @@ The theme of [`ReferenceToText`](@ref) and [`ReferenceToHumanReadableText`](@ref
 `@theme` declares it, so `ScaledReferenceTheme` holds each value times its
 scale, and `ReferenceTheme()` is the default theme.
 
-- `font` — the body of both forms.
-- `aside_font` — the italic "which is" that connects one line of the
-  human-readable form to the line below it.
-- `punctuation_color` — a delimiter (`.`, `[`, `]`, `{`, `}`, `::`, `<`, `>`, a
-  comma, a colon) and the plain words of a phrase ("the ", " of ", "a ", "no
-  selection", "∅", …).
-- `name_color` — the name of a field or of a step.
-- `index_color` — an element index, a position, a range bound, or a point
-  coordinate.
-- `type_color` — the `::Type` a step descends from, or the parent type of a
-  step, when it is known.
-- `projection_color` — the name of a projection.
-- `unknown_color` — a step of a kind neither form knows how to describe, and a
-  type that could not be found.
+The fields are the fonts of the body and the connector, and the colors of
+each kind of token. Each field has a docstring that says what it draws,
+which the appearance tab shows as its tooltip.
 
 Both projections hold the scaled theme as one `UntrackedCell` style field, read
 once at each print with `unwrap_cell`; with no theme they hold the plain values
 of the default theme.
 """
 @theme struct ReferenceTheme
+    "The body of both forms."
     font::StyleFont = font_ubuntu_monospace_regular_20
+    "The italic \"which is\" that connects one line of the human-readable form to the line below it."
     aside_font::StyleFont = font_ubuntu_monospace_italic_20
+    "A delimiter, a comma or a colon, and the plain words of a phrase, such as \"the \" or \"of \"."
     punctuation_color::StyleColor = color_solarized_gray
+    "The name of a field or of a step."
     name_color::StyleColor = color_solarized_cyan
+    "An element index, a position, a range bound, or a point coordinate."
     index_color::StyleColor = color_solarized_magenta
+    "The type that a step descends from, or the parent type of a step, when it is known."
     type_color::StyleColor = color_solarized_orange
+    "The name of a projection."
     projection_color::StyleColor = color_solarized_yellow
+    "A step of a kind neither form describes, and a type that is not found."
     unknown_color::StyleColor = color_solarized_red
 end
 

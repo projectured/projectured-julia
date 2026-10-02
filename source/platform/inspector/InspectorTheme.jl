@@ -10,16 +10,19 @@ The theme of [`ReferenceInspectorToText`](@ref) and
 `ScaledInspectorTheme` holds each value times its scale, and
 `InspectorTheme()` is the default theme.
 
-- `font` — the body: the compact reference and the human-readable narrative.
-- `header_font` and `header_color` — the "Compact" and "Human-readable" section
-  headers.
+The fields are the font of the body, and the font and the color of a section
+header. Each field has a docstring that says what it draws, which the
+appearance tab shows as its tooltip.
 
 An inspector reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct InspectorTheme
+    "The body: the compact reference and the human-readable narrative."
     font::StyleFont = font_ubuntu_monospace_regular_20
+    "The \"Compact\" and \"Human-readable\" section headers."
     header_font::StyleFont = font_liberation_sans_bold_30
+    "The \"Compact\" and \"Human-readable\" section headers."
     header_color::StyleColor = color_solarized_blue
 end
 

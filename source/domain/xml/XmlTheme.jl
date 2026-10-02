@@ -7,22 +7,25 @@
 The theme of the XML projections. `@theme` declares it, so `ScaledXmlTheme`
 holds each value times its scale, and `XmlTheme()` is the default theme.
 
-- `content_text` — the text of a text node.
-- `tag_text` — the name of an element's opening and closing tag.
-- `delimiter_text` — the angle brackets of a tag.
-- `attribute_name_text` — the name of an attribute.
-- `quote_text` — the quotes around an attribute value.
-- `attribute_value_text` — the value of an attribute.
+The fields are the text styles of a text node, a tag, a delimiter, an
+attribute name, a quote and an attribute value. Each field has a docstring
+that says what it draws, which the appearance tab shows as its tooltip.
 
 An XML projection reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct XmlTheme
+    "The text of a text node."
     content_text::StyleText         = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    "The name of an element's opening and closing tag."
     tag_text::StyleText             = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "The angle brackets of a tag."
     delimiter_text::StyleText       = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    "The name of an attribute."
     attribute_name_text::StyleText  = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "The quotes around an attribute value."
     quote_text::StyleText           = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    "The value of an attribute."
     attribute_value_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 

@@ -9,22 +9,26 @@ The theme of the Formula projections. `@theme` declares it, so
 `ScaledFormulaTheme` holds each value times its scale, and `FormulaTheme()` is
 the default theme.
 
-- `insertion_text` — the "insert formula" placeholder.
-- `reference_text` — a reference to another formula, by its current name.
-- `name_text` — the name of a formula.
-- `operator_text` — the `=` and the `⇒` of a formula's line.
-- `result_text` — the value of a formula.
-- `plain_font` — the font the lines of an environment separate on.
+The fields are the text styles of the insertion placeholder, a reference, a
+name, an operator and a result, and the plain font of an environment's lines.
+Each field has a docstring that says what it draws, which the appearance tab
+shows as its tooltip.
 
 A Formula projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FormulaTheme
+    "The \"insert formula\" placeholder."
     insertion_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    "A reference to another formula, by its current name."
     reference_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_violet)
+    "The name of a formula."
     name_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "The `=` and the `⇒` of a formula's line."
     operator_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    "The value of a formula."
     result_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "The font the lines of an environment separate on."
     plain_font::StyleFont = font_ubuntu_monospace_regular_20
 end
 

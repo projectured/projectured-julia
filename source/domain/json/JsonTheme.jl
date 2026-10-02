@@ -7,23 +7,29 @@
 The theme of the JSON projections. `@theme` declares it, so `ScaledJsonTheme`
 holds each value times its scale, and `JsonTheme()` is the default theme.
 
-- `null_text`, `bool_text`, `number_text` and `string_text` — a value of each kind.
-- `quote_text` — the quotes around a string.
-- `key_text` — the key of an object member, with its quotes.
-- `delimiter_text` — the brackets of an array and the braces of an object.
-- `separator_text` — a comma, and the colon of a member.
+The fields are the text styles of a value of each kind, a string's quotes, an
+object's key, a delimiter and a separator. Each field has a docstring that
+says what it draws, which the appearance tab shows as its tooltip.
 
 A JSON projection reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct JsonTheme
+    "A null value."
     null_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    "A boolean value."
     bool_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    "A number value."
     number_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    "A string value."
     string_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    "The quotes around a string."
     quote_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    "The key of an object member, with its quotes."
     key_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    "The brackets of an array and the braces of an object."
     delimiter_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_gray)
+    "A comma, and the colon of a member."
     separator_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
 end
 

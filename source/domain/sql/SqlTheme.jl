@@ -7,17 +7,19 @@
 The theme of the SQL projections. `@theme` declares it, so `ScaledSqlTheme`
 holds each value times its scale, and `SqlTheme()` is the default theme.
 
-- `keyword_text` — a reserved word: `SELECT`, `FROM`, `WHERE`, `AND`, …
-- `plain_text` — a column, a value, a raw expression, a data type, or any other
-  identifier that is not a keyword or a table name.
-- `name_text` — a table name.
+The fields are the text styles of a keyword, plain text and a table name.
+Each field has a docstring that says what it draws, which the appearance tab
+shows as its tooltip.
 
 A SQL projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct SqlTheme
+    "A reserved word, such as `SELECT`, `FROM`, `WHERE` or `AND`."
     keyword_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "A column, a value, a raw expression, a data type, or any other identifier that is not a keyword or a table name."
     plain_text::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    "A table name."
     name_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
 end
 

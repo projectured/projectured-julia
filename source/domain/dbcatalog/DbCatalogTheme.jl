@@ -9,21 +9,23 @@ The theme of the DbCatalog projections. `@theme` declares it, so
 `ScaledDbCatalogTheme` holds each value times its scale, and
 `DbCatalogTheme()` is the default theme.
 
-- `column_text` — a column, with its type.
-- `table_text` — the name of a table.
-- `schema_text` — the name of a schema.
-- `database_text` — the name of a database and of an RDBMS.
-- `keyword_text` — the keyword that opens a group of children, such as
-  "Columns", "Tables", "Schemas" or "Databases".
+The fields are the text styles of a column, a table, a schema, a database and
+the keyword that opens a group of children. Each field has a docstring that
+says what it draws, which the appearance tab shows as its tooltip.
 
 A DbCatalog projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct DbCatalogTheme
+    "A column, with its type."
     column_text::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    "The name of a table."
     table_text::StyleText    = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    "The name of a schema."
     schema_text::StyleText   = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    "The name of a database and of an RDBMS."
     database_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+    "The keyword that opens a group of children, such as \"Columns\", \"Tables\", \"Schemas\" or \"Databases\"."
     keyword_text::StyleText  = StyleText(font_ubuntu_monospace_regular_20, color_default)
 end
 
