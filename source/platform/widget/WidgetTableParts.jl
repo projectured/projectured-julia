@@ -469,6 +469,51 @@ function _find_table_column_edge_at(st::WidgetTablePartsState, x::Int)
     nothing
 end
 
+# The reference of the right edge of column `c`: the width of the column, which
+# a drag of the edge sets. A point on the edge maps to it, so the edge is the
+# part under the pointer, and it lights.
+_wt_edge_ref(c::Int) =
+    ConcreteReference(FieldReferenceStep("column_policies"), ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+
+# The x of the rule at the right edge of column `c`, in the coordinates of the
+# rules, or `nothing` when the table places no such column.
+function _get_table_column_edge_x(st::WidgetTablePartsState, c::Int)
+    hgap = 2 * st.pad_x + st.bw
+    if !st.column_list
+        edges = st.edges[]
+        return 1 <= c < length(edges) ? edges[c + 1] : nothing
+    end
+    node = _get_table_column_head(st)
+    node isa ListNode || return nothing
+    for _ in 2:c
+        node = node.next
+        node === nothing && return nothing
+    end
+    for _ in c:0
+        node = node.prev
+        node === nothing && return nothing
+    end
+    Int(node.value.x) + Int(node.value.w) + hgap
+end
+
+# The light of the right edge of the column whose width is the mouse target of
+# the table: a bar over the rule, as tall as `height`, so a person sees where a
+# drag of the edge starts.
+function _make_column_edge_light(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
+                                 st::WidgetTablePartsState, height::Cell)
+    stroke = p.edge_hovered_stroke
+    place = Cell(@computation begin
+        c = _widget_element_selected(get_mouse_target(w), "column_policies")
+        x = c == 0 ? nothing : _get_table_column_edge_x(st, c)
+        x === nothing ? (0, 0) : (x + st.bw ÷ 2 - Int(stroke.width) ÷ 2, Int(stroke.width))
+    end)
+    rect = GraphicsRect(0, 0, 0, 0; color = stroke.color)
+    set_cell_computation!(getfield(rect, :x), () -> Int32(place[][1]))
+    set_cell_computation!(getfield(rect, :w), () -> Int32(place[][2]))
+    set_cell_computation!(getfield(rect, :h), () -> Int32(place[][2] == 0 ? 0 : Int(height[])))
+    rect
+end
+
 # The left edge and the width of the band that `named` draws in row `k`, or in
 # the header row for `k === nothing`; `(0, 0)` for no band there. The table and
 # a column band every row and the header row, a row and a cell only their own
@@ -653,6 +698,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
         band_height = Cell(@computation Int(header_height[]) - bw)
         bands = Any[_make_row_band(p, w, st, nothing, band_height, :light),
                     _make_row_band(p, w, st, nothing, band_height, :selection)]
+        edge_light = _make_column_edge_light(p, w, st, Cell(@computation Int(header_height[])))
         header_graphics = CellVector(@computation begin
             width = last(edges[]) + bw
             h = Int(header_height[])
@@ -661,6 +707,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
             for edge in edges[]
                 push!(out, GraphicsRect(edge, 0, bw, h; color = divider))
             end
+            push!(out, edge_light)
             out
         end)
         header_region = _make_part_region(column_header_pane, header_graphics;
@@ -880,11 +927,12 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
                 _make_row_band(p, w, st, nothing, band_height, :selection)]
     span = Cell(@computation _get_table_row_span(st))
     header_rules = _make_column_rules(st, column_header_pane.content_iomap, Cell(0), header_height, divider)
+    edge_light = _make_column_edge_light(p, w, st, Cell(@computation Int(header_height[])))
     header_graphics = CellVector(@computation begin
         left, row_width = span[]
         h = Int(header_height[])
         Any[GraphicsRect(left, 0, row_width, h; color = header_row_color), bands...,
-            GraphicsRect(left, 0, row_width, bw; color = divider), header_rules]
+            GraphicsRect(left, 0, row_width, bw; color = divider), header_rules, edge_light]
     end)
     header_region = _make_part_region(column_header_pane, header_graphics;
                                       x = parts_x, y = Cell(Int32(content_y)), pad_x, pad_y, bw)
@@ -1080,6 +1128,10 @@ function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTab
         k = _find_table_row_at(st, y)
         return k === nothing ? nothing : ConcreteReference(FieldReferenceStep("row_headers"),
             ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))
+    end
+    if part === :header
+        edge = _find_table_column_edge_at(st, x)
+        edge === nothing || return _wt_edge_ref(first(edge))
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
@@ -1485,6 +1537,18 @@ function _read_table_column_edge_press(p::WidgetTableToGraphicsCanvas, iomap::Wi
         StartDragOperation(EmptyReference(), nothing)])
 end
 
+# A rest of the pointer on the right edge of a header says what a drag there
+# does, as a tooltip of the edge; `nothing` anywhere else.
+function _read_table_column_edge_dwell(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
+                                       g::MouseDwell)
+    found = _find_table_part_at(p, iomap, g.x, g.y)
+    (found === nothing || found[1] !== :header) && return nothing
+    edge = _find_table_column_edge_at(iomap.state, found[2])
+    edge === nothing && return nothing
+    tooltip = make_tooltip_operation(iomap.input, PrimitiveString("Drag to set the width"), g)
+    reroot_operation(tooltip, (FieldReferenceStep("column_policies"), RangeReferenceStep(first(edge) - 1, first(edge))))
+end
+
 """
     read_table_column_drag(table, gesture) -> Operation or nothing
 
@@ -1517,6 +1581,10 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
             op = _read_table_column_edge_press(p, iomap, g)
             op === nothing || return Intent(g, op)
         end
+        if g isa MouseDwell
+            op = _read_table_column_edge_dwell(p, iomap, g)
+            op === nothing || return Intent(g, op)
+        end
         g isa MouseClick && g.button === :left && return Intent(g, _read_table_parts_press(p, iomap, g))
         # A pointer motion does not go into the cells: the part under the pointer
         # is the backward map of the point. A dwell goes to the cell under it.
@@ -1540,6 +1608,10 @@ function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap
     _outside_widget(iomap, event) && return nothing
     if event isa MouseDown && event.button === :left
         op = _read_table_column_edge_press(p, iomap, event)
+        op === nothing || return op
+    end
+    if event isa MouseDwell
+        op = _read_table_column_edge_dwell(p, iomap, event)
         op === nothing || return op
     end
     if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||

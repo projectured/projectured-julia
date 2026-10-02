@@ -846,6 +846,37 @@ end
     @test !(away isa CompoundOperation && any(op -> op isa StartDragOperation, away.operations))
 end
 
+@testset "the right edge of a header lights under the pointer, and a rest there says what a drag does" begin
+    table = WidgetTable(; column_headers = Any[WidgetLabel("name"), WidgetLabel("age")],
+                        rows = make_list(5, texts_of), column_count = 2, column_policies = policies)
+    io = print_document(rec, nothing, table, context())
+    (x1, y1) = text_at(io, "name")
+    (x2, _) = text_at(io, "age")
+    edge = x2 - io.state.pad_x - io.state.bw
+    point(x, y) = ConcreteReference(PointReferenceStep(x, y), EmptyReference())
+    # A point on the edge maps to the width of the column, and a point beside it
+    # to the header.
+    edge_ref = ConcreteReference(FieldReferenceStep("column_policies"),
+                                 ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+    @test map_reference_backward(io.projection, io, point(edge, y1 + 2)) == edge_ref
+    @test map_reference_backward(io.projection, io, point(x1 + 10, y1 + 2)) ==
+          ConcreteReference(FieldReferenceStep("column_headers"),
+                            ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+    # The edge that is the mouse target lights: a bar over its rule.
+    light = last(header_graphics(io))
+    @test Int(light.w[]) == 0
+    getfield(table, :mouse_target)[] = edge_ref
+    @test Int(light.w[]) == 3 && Int(light.h[]) > 0
+    @test abs(Int(light.x[]) + 1 - (Int(io.state.edges[][2]) + io.state.bw ÷ 2)) <= 1
+    getfield(table, :mouse_target)[] = nothing
+    @test Int(light.w[]) == 0
+    # A rest on the edge says what a drag there does.
+    tooltip = read(io, MouseDwell(edge, y1 + 2; time = 0.0))
+    @test get_wrapped_operation(tooltip) isa OpenTooltipOperation
+    layers = get_wrapped_operation(tooltip).layers
+    @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "Drag to set the width", layers)
+end
+
 @testset "a table whose columns are a list takes the width of a column from its owner" begin
     widths = make_list_of(1_000, c -> c == 2 ? Fixed(100) : nothing)
     table = make_wide_table(100, 1_000)

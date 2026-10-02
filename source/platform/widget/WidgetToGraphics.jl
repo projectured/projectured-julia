@@ -8766,6 +8766,7 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
     header_row_color::StyleColor        # header strip background
     row_selected_color::StyleColor      # the band of the selected row, column or cell
     layer_hovered_color::StyleColor     # over a hovered row, column or cell, behind the band
+    edge_hovered_stroke::StyleStroke    # over the right edge of a header that the pointer is on
     cell_padding::Inset                 # inside a cell: top and bottom, left and right
     row_radius::Int                     # corner radius of the hover and the selection band
 end
@@ -8778,11 +8779,12 @@ WidgetTableToGraphicsCanvas(theme::ScaledWidgetTheme;
                             header_row_color = _themed(StyleColor, theme, t -> t.muted),
                             row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
                             layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                            edge_hovered_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, 3)),
                             cell_padding = _themed(Inset, theme, t -> t.control_padding),
                             row_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetTableToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, divider_stroke, header_row_color, row_selected_color,
-                                layer_hovered_color, cell_padding, row_radius)
+                                layer_hovered_color, edge_hovered_stroke, cell_padding, row_radius)
 
 # The geometry of a table as if it were not scrolled, in the coordinates of its
 # content. `col_x` / `row_y` are the cumulative left/top edges, length
