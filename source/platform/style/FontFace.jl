@@ -133,6 +133,16 @@ The families of the bundled faces, each one time, in the order of their names.
 get_font_families() = sort!(unique!([face.family for face in _FONT_FACES]))
 
 """
+    get_font_weights(family) -> Vector{Int}
+
+The weights of the bundled faces of `family`, upright or italic, each one time,
+from the lightest. Empty when no bundled face has the family. The family name
+matches with no regard to case.
+"""
+get_font_weights(family::AbstractString) =
+    sort!(unique!([Int(face.weight) for face in _FONT_FACES if _is_same_family(face.family, family)]))
+
+"""
     get_font_face_path(face) -> String
 
 The path of the file of `face`: its file under `asset/font/`, or under the font

@@ -410,8 +410,13 @@ inet-julia uses, the same step changes them, so that they always load.
   the upright regular face. For every bundled face this gives the files that
   the rule on the file name gave, italic text included: its fallback glyphs
   stand upright. The fallback section is in `FontFace.jl`.
-- [ ] **F4.** The appearance tab chooses a family, a weight, a slant and a size,
-  in place of the steps through the files.
+- [x] **F4.** The appearance tab chooses a family, a weight, a slant and a size,
+  in place of the steps through the files. *Done:* the font control has two
+  rows: "‹ family ›", then "− weight +", a checkbox for italic and the spin box
+  of the size. The weight steps through the weights of the family, from
+  `get_font_weights(family)`, and stops at the lightest and the heaviest. The
+  checkbox goes through the `writes` of the tab, as a spin box does. A select
+  does not: it answers from its popup window, so it is not used.
 - [ ] **F5.** Each use of a font constant becomes a description, in all three
   repositories. The 143 constants and their exports go.
 

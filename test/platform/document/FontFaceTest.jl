@@ -27,6 +27,13 @@ function test_font_face()
         @test find_font_face("DejaVu Sans", 400, true).file == "DejaVuSans-Oblique.ttf"
     end
 
+    @testset "the families and the weights of the bundled faces" begin
+        @test "Ubuntu Mono" in get_font_families() && issorted(get_font_families())
+        @test get_font_weights("Ubuntu") == [300, 400, 500, 700]
+        @test get_font_weights("dejavu sans") == [400, 700]
+        @test isempty(get_font_weights("Helvetica"))
+    end
+
     @testset "the family matches with no regard to case" begin
         @test find_font_face("ubuntu mono", 400, false).file == "UbuntuMono-R.ttf"
         @test find_font_face("lucide", 400, false).file == "lucide.ttf"

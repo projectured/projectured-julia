@@ -122,6 +122,19 @@ end
                      unwrap(op).reference.head == FieldReferenceStep("font"))
     next_font = unwrap(font_step).value
     @test next_font.size == theme.font.size && next_font.family != theme.font.family
+    # The step of a weight goes to the next weight of the family: Ubuntu has a
+    # medium face between the regular and the bold.
+    # The "+" of a scale row adjusts a scale; the "+" of the font writes the theme.
+    writes_font(op) = unwrap(op) isa ReplaceReferencedValueOperation && unwrap(op).document === theme &&
+                      unwrap(op).reference.head == FieldReferenceStep("font")
+    weight_step = only(op for (action, op) in tab.commands if action.label == "+" && writes_font(op))
+    heavier = unwrap(weight_step).value
+    @test (heavier.family, heavier.size, heavier.weight) == (theme.font.family, theme.font.size, 500)
+    # The checkbox of the font makes it italic and keeps the rest.
+    italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_font(write(true)))
+    italic = unwrap(translate(ReplaceReferencedValueOperation(italic_box, "content", true))).value
+    @test italic.italic && (italic.family, italic.size, italic.weight) ==
+                           (theme.font.family, theme.font.size, theme.font.weight)
 end
 
 @testset "the sections are in three groups, the editor themes first, and each folds" begin

@@ -107,6 +107,28 @@ function _step_font_family(font::StyleFont, delta::Integer)
               weight = font.weight, italic = font.italic)
 end
 
+# The names of the weights on the scale of CSS.
+const _FONT_WEIGHT_NAMES = Dict(100 => "Thin", 200 => "Extra Light", 300 => "Light",
+                                400 => "Regular", 500 => "Medium", 600 => "Semi Bold",
+                                700 => "Bold", 800 => "Extra Bold", 900 => "Black")
+
+_get_font_weight_name(weight::Integer) = get(_FONT_WEIGHT_NAMES, Int(weight), string(weight))
+
+# The font `delta` weights of its family away from `font`: one heavier for 1, one
+# lighter for -1, and no further than the heaviest or the lightest. A weight that
+# the family does not have steps from the nearest one that it has.
+function _step_font_weight(font::StyleFont, delta::Integer)
+    weights = get_font_weights(font.family)
+    isempty(weights) && return font
+    i = something(findfirst(==(Int(font.weight)), weights), argmin(abs.(weights .- font.weight)))
+    StyleFont(font.family, font.size; weight = weights[clamp(i + delta, 1, length(weights))],
+              italic = font.italic)
+end
+
+# `font` upright, or italic when `italic` is true.
+_with_font_italic(font::StyleFont, italic::Bool) =
+    StyleFont(font.family, font.size; weight = font.weight, italic)
+
 # A size of a theme with `part` replaced by `value`: a part of an inset, of a
 # point, or the size itself.
 _replace_length_part(inset::Inset, part::Symbol, value) =
@@ -142,6 +164,12 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         writes[box] = write
         box
     end
+    # A checkbox of `value`; a click answers `write(!value)`.
+    function checkbox(value, write)
+        box = WidgetCheckbox(value)
+        writes[box] = write
+        box
+    end
     # A choice of `labels`, with none chosen; the choice of an index answers
     # `write(index)`.
     function choice(labels, write)
@@ -157,7 +185,7 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
             _compute_color_edit(read, write, start, stop, replacement)
         text
     end
-    controls = (; button, spin_box, choice, color_text, theme, appearance, folds)
+    controls = (; button, spin_box, checkbox, choice, color_text, theme, appearance, folds)
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
         push!(cells, WidgetLabel(name),
@@ -303,17 +331,28 @@ end
 
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
-# The controls of the font that `read()` answers: buttons that step through the font
-# families, its family, and a spin box for its size. `write(font)` is the operation that
-# sets a new font.
+# The controls of the font that `read()` answers. The first row steps through the
+# families and names the family of the font. The second row steps through the
+# weights of the family and names the weight, then a checkbox chooses italic and a
+# spin box the size. `write(font)` is the operation that sets a new font.
 function _make_font_control(controls, read, write)
     font = read()
-    HorizontalLayout(Any[
-        controls.button("‹", write(_step_font_family(font, -1))),
-        WidgetLabel(font.family),
-        controls.button("›", write(_step_font_family(font, 1))),
-        controls.spin_box(font.size, v -> write(with_font_size(read(), v)); min = 6, max = 96),
-    ]; gap = controls.theme.label_gap, vertical_align = :center)
+    gap = controls.theme.label_gap
+    VerticalLayout(Any[
+        HorizontalLayout(Any[
+            controls.button("‹", write(_step_font_family(font, -1))),
+            WidgetLabel(font.family),
+            controls.button("›", write(_step_font_family(font, 1))),
+        ]; gap, vertical_align = :center),
+        HorizontalLayout(Any[
+            controls.button("−", write(_step_font_weight(font, -1))),
+            WidgetLabel(_get_font_weight_name(font.weight)),
+            controls.button("+", write(_step_font_weight(font, 1))),
+            controls.checkbox(font.italic, v -> write(_with_font_italic(read(), v))),
+            WidgetLabel("italic"),
+            controls.spin_box(font.size, v -> write(with_font_size(read(), v)); min = 6, max = 96),
+        ]; gap, vertical_align = :center),
+    ]; gap)
 end
 
 # The controls of the colour that `read()` answers: its swatch, with a border so a
