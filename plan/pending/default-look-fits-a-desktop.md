@@ -519,8 +519,20 @@ inet-julia uses, the same step changes them, so that they always load.
     and the fault mark of the graphics and layout slices, below every theme;
     the colors of `compute_code_pieces`.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
-  workbench views, and the values move into them.
-- [ ] **T4.** inet-julia: the theme of the packet diagram.
+  workbench views, and the values move into them. *In progress:* omnet-julia
+  `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
+  `SimulationTheme` for the legacy views; the NED, INI and result domains take
+  them from the appearance. The theme modules need `using ..CellModule`,
+  `..DocumentModule` and `..ReferenceModule`, because `@theme` declares a
+  document. Images of 8 legacy examples at the density 1 and 2: 14 of 16 equal
+  to the base; the simulation cards differ (section 10, step T3). The legacy
+  tests pass, except two failures that the base has too. Left: the presentation
+  views (workbench, module, page, execution, parameter, capture, telemetry and
+  the result charts), which wait for the answer about the documents that
+  builders make.
+- [x] **T4.** inet-julia: the theme of the packet diagram. *Done:* inet-julia
+  `887a204`: `PacketDiagramTheme` with the font and four colors;
+  `GUTTER_WIDTH` counts characters and stays. The packet diagram tests pass.
 - [ ] **T5.** The guard of section 3.5 in each repository.
 
 ### Part V: the new defaults
@@ -630,3 +642,12 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
   (`asset/precompile/PrecompileStatements.jl`) skip 7,272 of 10,857
   statements. Only 287 statements name `StyleFont`, so at least 6,985 were
   stale before this work. The recording needs a new run, best after Part V.
+
+### Step T3
+
+- A caller that builds a widget theme with a base font other than the
+  default, such as `WidgetToGraphics(StyleFont("Ubuntu", 24))`, now gets
+  `font_small` and `font_bold` that follow that base: 22 px and Ubuntu Bold
+  24, where they were Ubuntu 18 and Ubuntu Bold 20. This is the role model of
+  D8. It shows in the simulation cards of omnet-julia, whose fixture passes
+  Ubuntu 24; the projectured-julia examples pass no such font.
