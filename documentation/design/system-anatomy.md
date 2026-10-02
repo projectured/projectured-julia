@@ -270,6 +270,7 @@ composes with any higher-order projection.
 | `NestingProjection` | Scopes an inner projection to a sub-document |
 | `WindowManagingProjection` | Passthrough printer; reader applies window open/close ops to the `ScreenDocument` |
 | `WindowInputUnwrappingProjection` | Passthrough printer; reader strips the `WindowInput` off the gesture — the window-input-unwrap seam for pipelines with no screen/window layer (e.g. the `ConsoleBackend`'s) |
+| `FaultCatchingProjection` | The fault barrier of one part at a recursion point: a fault in a cell that the part built draws the mark of the output domain in place of the part |
 | `TooltipDecoratorProjection` | Dispatches on `TooltipSource`; reader runs a show/hide state machine |
 | `DraggingProjection` | Dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` |
 | `ProjectionConfiguringProjection` | Extends the inner projection's output with an editable parameter-control bar |

@@ -2,13 +2,13 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [editor.md](../../kernel/editor.md), [projection-system.md](../../kernel/projection-system.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
-A fault in a printer, a reader, an operation, a backend or a tool does not stop the editor, which contains, reports and repairs it. The kernel layer `fault` holds what a fault is, and the fault slice of `ProjecturedPlatform` holds what a fault looks like. This document says how the two catch, report and repair, and why a printer needs two catches.
+A fault in a printer, a reader, an operation, a backend or a tool does not stop the editor, which contains, reports and repairs it. The kernel layer `fault` holds what a fault is, the projection algebra holds the barrier that a pipeline puts at each recursion point, and the fault slice of `ProjecturedPlatform` holds the log and the safe mode. This document says how they catch, report and repair, and how a fault in a printer reaches the barrier of the part that built the cell that failed.
 
 ## How it works
 
 ### Two halves
 
-The kernel's `FaultModule` holds the record, the store, the policy, the barrier and the report. It names no document and no projection. `FaultViewModule` in this package holds the documents, the projections that catch and draw, and the safe mode, and it answers the seams of the kernel. The split is the same as the split between the kernel's `ProjectionModule` and the platform's `ProjectionAlgebraModule`.
+The kernel's `FaultModule` holds the record, the store, the policy, the barrier of the editor loop and the report. It names no document and no projection. The kernel's cell layer holds the fault scope of a computation, and its projection layer the seams of a barrier. The platform's `ProjectionAlgebraModule` holds the barrier inside a pipeline and the report that it leaves, and each output domain holds the mark that draws the report. `FaultViewModule` in this package holds the log, the panel, the safe mode and the gestures of a mark, and it answers the seams of the kernel.
 
 | Where | What |
 | --- | --- |
@@ -18,17 +18,21 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 | `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier!`, the catch of the editor loop |
 | `source/kernel/fault/FaultCascade.jl` | `report_fault!` and its tiers |
 | `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `make_safe_mode_projection`, `is_passthrough_exception` |
-| `source/platform/fault/FaultDocument.jl` | `FaultReport`, `FaultLog`, `FaultLogEntry` |
-| `source/platform/fault/Catching.jl` | `FaultCatchingProjection`, the barrier inside a chain |
-| `source/platform/fault/FaultToSyntax.jl` and its three neighbours | one mark for each output domain |
+| `source/kernel/cell/CellFaultScope.jl` | `run_in_fault_scope`, `record_computation_fault!`, `RecordedFaultException`, `find_fault_scope` |
+| `source/kernel/projection/ProjectionInterface.jl` | the seams of a barrier: `show_barrier_mark!`, `retry_barrier_print!`, `get_content_iomap` |
+| `source/kernel/editor/FaultBarriers.jl` | the barriers of the editor, the drain that draws the marks, and the retry after an operation |
+| `source/platform/projection/higherorder/FaultCatching.jl` | `FaultCatchingProjection`, the barrier inside a pipeline, and `RetryBarrierPrintOperation` |
+| `source/platform/projection/ProjectionDocument.jl` | `FaultReport`, the report that a barrier leaves |
+| `source/platform/syntax/FaultToSyntax.jl`, `text/FaultToText.jl`, `widget/FaultToWidget.jl`, `graphics/FaultToGraphics.jl` | one mark for each output domain |
+| `source/platform/fault/FaultDocument.jl` | `FaultLog`, `FaultLogEntry`, and the gestures of a `FaultReport` |
 | `source/platform/fault/FaultLogOverlay.jl` | the log as a panel over a window |
 | `source/platform/fault/FaultSafeMode.jl` | what the editor shows when nothing else prints |
 
-The package has [the shared shape](../gesturelog/gesturelog.md#the-shared-shape) of the tool decorators: `FaultLog` is the document, `FaultCatchingProjection` is the decorator that catches, and `FaultLogOverlayProjection` is the panel. Unlike the gesture log panel, this panel is not there while the log is empty, so a program that works shows no extra pixel. Its default corner is the bottom left, which the gesture log panel does not use.
+The package has [the shared shape](../gesturelog/gesturelog.md#the-shared-shape) of the tool decorators: `FaultLog` is the document, `FaultCatchingProjection` of the projection algebra is the decorator that catches, and `FaultLogOverlayProjection` is the panel. Unlike the gesture log panel, this panel is not there while the log is empty, so a program that works shows no extra pixel. Its default corner is the bottom left, which the gesture log panel does not use.
 
 ### Turn it on
 
-`Editor(…)` starts with `make_strict_fault_policy()`: no barrier catches, so a broken projection fails its test. `make_editor` turns the barriers on: it gives the editor `FaultPolicy()`, because a loop that a person sits in front of must survive. `run_editor!` keeps the policy of its editor, and its keyword `fault_policy` replaces it. `print!` puts the policy of the editor in the printer context under `:fault_policy`, beside the store under `:fault_store`, so a barrier in a chain follows the same policy as the barriers of the editor. A context with no policy, such as one that a test makes by hand, counts as the strict policy.
+`Editor(…)` starts with `make_strict_fault_policy()`: no barrier catches, so a broken projection fails its test. `make_editor` turns the barriers on: it gives the editor `FaultPolicy()`, because a loop that a person sits in front of must survive. `run_editor!` keeps the policy of its editor, and its keyword `fault_policy` replaces it. `print!` puts the policy of the editor in the printer context under `:fault_policy`, the store under `:fault_store` and the list of the barriers that took a fault under `:noted_barriers`, so a barrier in a pipeline follows the same policy as the barriers of the editor. A context with no policy, such as one that a test makes by hand, counts as the strict policy. Under the strict policy a barrier sets no scope and catches nothing, and it still wraps the IoMap of its part, so a test sees the IO maps of a running editor.
 
 ```julia
 editor = make_editor(document, projection; backend)            # barriers on
@@ -36,7 +40,7 @@ run_editor!(editor)                                             # barriers stay 
 run_editor!(editor; fault_policy = make_strict_fault_policy())  # barriers off
 ```
 
-A barrier inside a chain is opt-in, one for each step. Give each one a `substitute`; a section below says why.
+Each recursion point of a pipeline that a person sees has a barrier, with the mark of its output domain as the `substitute`: the natural renderer (`NaturalToGraphics`), the two recursive stages of the syntax fabric, the pane stage, the renderer of the tabs that `build_editor` adds, and the rows of the application and of the conversation. A pipeline of your own puts its barriers the same way when it builds itself. Give each one a `substitute`; a section below says why.
 
 ```julia
 ChainingProjection(
@@ -68,21 +72,29 @@ The editor reports a fault at the first tier that works. A tier that fails falls
 
 `report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier!` and `FaultCatchingProjection` let `InterruptException`, `StackOverflowError`, `OutOfMemoryError` and the request to quit through, by `is_passthrough_exception`.
 
-### Why a printer needs two catches
+### How a fault in a printer reaches its barrier
 
-A printer does not throw when `print_document` runs. It builds a graph of computations and returns. It throws later, inside a computation, while the renderer pulls the output, one frame later or a hundred. So a `try` around `print_document` catches almost nothing.
+A printer does not throw when `print_document` runs. It builds a graph of computations and returns. It throws later, inside a computation, while the renderer pulls the output, one frame later or a hundred. By then the barrier has returned as well, so it is not on the stack of the read that fails, and a `try` around `print_document` catches only a fault in the print itself. The cells of a part travel by reference through the stages after it, so the stack of the read that fails can hold no other barrier at all.
 
-`FaultCatchingProjection` catches in both places: around `print_document` of the inner projection, and inside the computed cell that reads the inner output. Its catch returns a value, the mark, and not an exception. The reactive engine then does three things with no more code:
+So the relation is kept from the moment a cell is built:
 
-- **The repeat stops.** The engine caches the mark, so the computation does not run and throw again on every frame.
-- **The node heals.** The mark has the dependencies that the real value had. When the input that caused the fault changes, the computation runs again and the real output comes back.
-- **The fault stays local.** The exception never leaves the cell, so no other read stops and the rest of the graph stays valid.
+1. Each call of `print_document` of a barrier makes the IoMap of one part, and prints the part inside `run_in_fault_scope`, with that IoMap as the scope.
+2. A `Computation` made in the scope keeps it, and so does a computation that `set_cell_computation!` gives a cell. A computation made inside another computation takes the scope of that computation.
+3. The innermost computation in a scope that throws calls `record_computation_fault!` with its scope. The barrier records the fault in the store and puts itself on the list of the editor. The computation then throws a `RecordedFaultException`, which no barrier above records again. A `MethodError` in an older world passes, so the cell runs the computation again in the newest world.
+4. The frame that read the cell loses that read. The device barrier skips the paint for a `RecordedFaultException` and counts no device fault, so the screen keeps the frame before it.
+5. Between two frames, `report_frame_faults!` calls `show_barrier_mark!` for each barrier on the list. The barrier writes its output cell with the mark, outside every computation, so the parent reads the mark and nothing reads the cells that failed.
+
+A barrier that can not draw its mark, because its substitute throws, records that fault, and its later faults go to the barrier that held the scope when it printed: `find_fault_scope()` answers that one. So the fault follows the nesting of the barriers, and the mark stands in a larger place.
+
+The mark stays until the part is tried again, in three ways. After the operations of a frame, the editor calls `retry_barrier_print!` for each barrier that draws a mark. A plain click on the mark tries its part at once, and so does "Try again" in the menu of the mark. A retry runs the function of the computation that failed again, or prints the part again when the print failed; a retry that fails records nothing and keeps the mark. A parent that prints the part again, from a new object, makes a new barrier, which tries by itself.
+
+While its part prints, a barrier adds nothing to it. `get_content_iomap(child)` answers the IoMap of the part, for a reader that checks the type of a child. A property that the IoMap of the barrier does not have is read from the IoMap of the part, and its field `inner_iomap` holds that IoMap, as other transparent wrappers keep theirs. A parent reads `.output` through the barrier, so the mark shows.
 
 The reader and the two reference mappers catch too. A reader that throws returns `Intent(gesture, nothing)`, so the layer above gets its turn. A mapper that throws returns `nothing`, the normal answer for a node with no image, so no edit can address a node whose value nobody could draw.
 
-**A mark is a thing on the screen like any other, so an Alt+press names it.** The report is no child of the node that failed, and no field or index reaches it, so the path is a drawn-object step (`OutputReferenceStep`) from that node to the report. The barrier keeps the report it printed, because a selection names an object by identity: a report made again for each press would name a different object every frame, and the selection would be lost. The barrier maps that path forward to the whole image of the node, so the container that holds the mark rings it.
+**A mark is a thing on the screen like any other, so an Alt+press names it, and a plain click tries its part again.** The report is no child of the node that failed, and no field or index reaches it, so the path is a drawn-object step (`OutputReferenceStep`) from that node to the report. The barrier keeps the report it printed, because a selection names an object by identity: a report made again for each press would name a different object every frame, and the selection would be lost. The barrier maps that path forward to the whole image of the node, so the container that holds the mark rings it.
 
-**A mark says the whole fault when the pointer rests on it.** A mark draws one line, which a long message does not fit in. The tooltip binding of a `FaultReport`, "Show the fault", answers what failed, where it was caught and the whole message, as a `TextString`. `FaultToWidget` gives its alert the same text as its own `tooltip` as well, so the widget answers whether the press names the alert or the report.
+**A mark says the whole fault when the pointer rests on it, and a right click opens its menu.** A mark draws one line, which a long message does not fit in. The tooltip binding of a `FaultReport`, "Show the fault", answers what failed, where it was caught and the whole message, as a `TextString`. `FaultToWidget` gives its alert the same text as its own `tooltip` as well, so the widget answers whether the press names the alert or the report. The menu binding has one item, "Try again", which evaluates the operation that the barrier put in the field `retry` of its report. The reader of the barrier passes every gesture on a mark other than an Alt+press and a plain click to `read_gesture` on the report. A click reaches the reader of the barrier where a container routes a click by its point, as the containers of the widget and graphics stages do. A mark of a syntax stage is reached through the selection.
 
 ### Why the store is not made of cells
 
@@ -108,10 +120,13 @@ A chain limits how far a fault spreads downward. Nothing limits how far it sprea
 | an operation fault | applies the inverse that it took before the change |
 | an operation fault | drops the projection, so the next frame prints from the start |
 | an operation fault | clears a selection that no longer resolves |
+| a fault in a cell of a part | draws the mark of that part between two frames |
+| an operation | tries each part that draws a mark again |
+| a click on a mark, or "Try again" | tries that part again |
 | eight device faults in a row | stops calling that half of the backend |
 | four print faults in a row | enters the safe mode |
 
-The editor layer holds one limit for each counter, and `get_consecutive_fault_limit(counter)` reads it: `:print`, `:device_read` and `:device_write`. `FaultPolicy` holds only the switches that the fault layer reads. In the safe mode the editor puts its projection aside and prints `make_safe_mode_projection(store)`, which this package answers with a `FaultSafeModeProjection`. It ignores its input, draws a new log filled from the store, and returns no operation for any gesture. Escape leaves the safe mode and puts the projection back. A substitute that itself throws is not caught a second time. Its exception reaches the frame barrier of the editor, and the print-failure count climbs until the safe mode starts.
+The editor layer holds one limit for each counter, and `get_consecutive_fault_limit(counter)` reads it: `:print`, `:device_read` and `:device_write`. `FaultPolicy` holds only the switches that the fault layer reads. In the safe mode the editor puts its projection aside and prints `make_safe_mode_projection(store)`, which this package answers with a `FaultSafeModeProjection`. It ignores its input, draws a new log filled from the store, and returns no operation for any gesture. Escape leaves the safe mode and puts the projection back. A substitute that throws while a print fails goes on up as the fault of that print. A substitute that throws when the editor draws a mark is recorded, and the barrier around it draws the mark in its place.
 
 ### The `fault_log` wrapper of `build_editor`
 
@@ -125,7 +140,7 @@ default values. The registration of the fault log gives the scaled theme of the 
 
 ## How it fits
 
-The kernel layer `fault` is the lowest layer of the kernel and imports nothing. The fault slice depends on the kernel and on the collection, domain, graphics, natural, projection, serialization, style, syntax, text and widget slices. It needs the four output domains for the four marks.
+The kernel layer `fault` is the lowest layer of the kernel and imports nothing. The cell layer uses it for `is_passthrough_exception`. The barrier is in the projection algebra and each mark in its own domain, so every slice that builds a recursion point names its barrier when it builds the pipeline. The fault slice depends on the kernel and on the collection, domain, focus, graphics, natural, projection, serialization, settings, style, syntax, text, tooltip and widget slices.
 
 The `fault_log` wrapper attaches the session's fault log when a window starts, and the shell slice's toolbar has a Fault log button that opens it only when the wrapper is on; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
 
@@ -135,10 +150,13 @@ The fault slice registers the natural row `:fault` for `FaultLog`, the title `Fa
 
 - **The name is fault, not error.** `Error` and `Exception` are words of Julia itself, and `Fault` composes into `FaultRecord` and `FaultStore` with no collision. See [plan/done/the-editor-survives-a-fault.md](../../../../plan/done/the-editor-survives-a-fault.md).
 - **The kernel records and the package shows.** The kernel names no document or projection, so the view of a fault must live above it.
-- **The catch returns a value.** The reactive engine then caches, heals and contains the fault; a catch that only logs would throw again on every frame.
+- **A fault goes to the barrier of the part that built the cell that failed.** A computation keeps its scope from the moment it is made, so the pull stack does not decide which barrier draws the mark. The reactive engine does not change.
+- **The editor draws a mark between two frames.** A computation must not write a cell, so the barrier only records the fault and puts itself on a list.
+- **A mark tries again after an operation and on a click, not by itself.** The cell that failed is not read again until then, so a fault does not run on each frame.
+- **A barrier is a projection of the algebra, and each domain draws its own mark.** A pipeline is built with its barriers before it prints.
 - **The store is outside the reactive graph.** A computation may write it, and the frame drains it into the log.
 - **The key holds no reference.** One bug is one record, whatever the size of the document.
-- **A barrier in a chain is opt-in.** A pipeline without one behaves as before. The strict policy keeps every barrier off under test, the barriers in a chain too.
+- **The strict policy keeps every barrier off under test.** A barrier still wraps the IoMap of its part there, so a test sees the same IO maps as a running editor.
 - **The fault log is not saved.** The faults of one session say nothing about the next one.
 
 ## Usage
@@ -153,9 +171,14 @@ run_fault_tool_example()             # a tool throws; the same panel reports it
 ```
 
 - Examples: `example/platform/fault/FaultExamples.jl`. The four `Example` constants are not in the example registry, because each one throws on purpose and a sweep over every example would stop there.
-- Test: `test_fault()` in `ProjecturedFaultTest` runs the layering guard, the store, the report ladder, the barrier in a chain, the safe mode against a real editor, and `make_fault_tolerant_projection`. The most important test raises the fault inside the output cell and not in `print_document`, because a real printer fails there.
+- Test: `test_fault()` in `ProjecturedPlatformTest` runs the barrier in a pipeline, the safe mode against a real editor, `test_fault_part()` and `make_fault_tolerant_projection`. `test_fault_part()` drives a real editor over a JSON pipeline whose last stage joins the text into one string, so a paint reads every cell. Its faults happen in a cell of the output, while a paint reads it, because a real printer fails there. `test_cell_fault_scope()` in `ProjecturedKernelTest` tests the scope.
 
 ## Limits
 
+- The frame that meets a fault first is lost: the screen keeps the frame before it. One frame finds one fault, because the read stops at the first.
+- The mark takes the place of the whole part, and it has its own size, so the siblings can move.
+- A stage with no recursion point, such as `TextToGraphics`, is one part. A barrier around it costs that stage of the pane.
+- A parent that reads the inner fields of a child, as a table reads the grid of its pane, fails with the child, so its own barrier draws the mark.
+- `WorkspaceToFileSystem` has no mark of its own, so a fault in it costs the workspace.
 - A `CompoundOperation` is not atomic and gets no rollback. Only `evaluate_invertible_operation!` builds its way back member by member.
 - A parse error is not a fault. A parser that returns a partial document is a separate concern.

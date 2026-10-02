@@ -3,7 +3,7 @@
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../../design/system-anatomy.md)
 
 Higher-order projections compose other projections. Each one lives in its own
-module under its package's projection folder: the eight domain-independent
+module under its package's projection folder: the nine domain-independent
 combinators in `source/platform/projection/higherorder/`, and four decorators beside the
 domain each one touches — `source/platform/screen/`, `source/platform/tooltip/`,
 `source/platform/dragging/`, `source/platform/widget/`. Each implements
@@ -11,7 +11,7 @@ domain each one touches — `source/platform/screen/`, `source/platform/tooltip/
 functions. Most never touch any specific domain — their argument is always
 some other projection.
 
-There are twelve higher-order projections in ProjecturEd:
+There are thirteen higher-order projections in ProjecturEd:
 
 | Projection | Selects by | Key file |
 |---|---|---|
@@ -24,6 +24,7 @@ There are twelve higher-order projections in ProjecturEd:
 | `NestingProjection` | nests by element list, with recursion fallback | `Nesting.jl` |
 | `WindowManagingProjection` | passthrough printer; reader applies `OpenWindowOperation`/`CloseWindowOperation` to the `ScreenDocument` | `WindowManaging.jl` |
 | `WindowInputUnwrappingProjection` | passthrough printer; reader strips the `WindowInput` off the gesture for pipelines with no screen/window layer | `WindowInputUnwrapping.jl` |
+| `FaultCatchingProjection` | passthrough printer for one part; a fault in a cell that the part built draws the `substitute` mark of the output domain in place of the part | `FaultCatching.jl` |
 | `TooltipDecoratorProjection` | dispatches on `TooltipSource`; reader runs a show/hide state machine | `TooltipDecorator.jl` |
 | `DraggingProjection` | dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` | `Dragging.jl` |
 | `ProjectionConfiguringProjection` | extends the inner projection's output with an editable parameter-control bar | `ProjectionConfiguring.jl` |
@@ -217,6 +218,16 @@ re-rooting the reference up through the projections above. `evaluate_operation`
 then lifts the raw `Cell`s out of the source and `insert!`s them at the
 destination, preserving cell identity. `DragCancel` clears the press and moves
 nothing.
+
+## FaultCatchingProjection
+
+A barrier at a recursion point: `RecursiveProjection(FaultCatchingProjection(inner
+= SyntaxToText(), substitute = FaultToText()))`. Each call of its printer makes the
+IoMap of one part and prints the part in a fault scope, so a fault in any cell
+that the part built goes to that IoMap, whatever reader reached the cell. The
+editor then draws the `substitute` mark in place of the part. While the part
+prints, the IoMap of the barrier adds nothing to it. The whole design is in
+[fault.md](../fault/fault.md).
 
 ## Compound combinators
 

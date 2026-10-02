@@ -89,6 +89,21 @@ This is the pull-based, lazy strategy. The projection printer depends on it to
 stay incremental: a part of the output that nothing reads does not compute again,
 also when its inputs change.
 
+## A computation that throws
+
+A computation that throws leaves its cell invalid, so the next read runs it
+again, and the exception goes up the stack of the reads. The engine keeps no
+exception.
+
+A computation also keeps its **fault scope**: the scope that held when its
+`Computation` was made, or when `set_cell_computation!` gave it to a cell. A fault
+barrier prints its part inside `run_in_fault_scope`. When a computation in a scope
+throws, it calls `record_computation_fault!` with the scope, and then throws a
+`RecordedFaultException`, which a computation above passes on unchanged. A
+computation made outside every scope keeps a bare function, so a cell outside
+every barrier runs as before. The barrier and its scope are in
+[fault.md](../platform/fault/fault.md).
+
 ## Invariants the engine relies on
 
 The code keeps these invariants, but nothing checks them. When code breaks one,
@@ -184,6 +199,7 @@ cell/CellModule.jl                (CellModule): the cell kinds, one file each
         ├─ CellInterface.jl   : AbstractCell{T} and the generics that every kind answers
         ├─ CellComputation.jl : Computation and @computation, the marker of a computation
         ├─ ReactiveCell.jl    : the pull-based reactive engine
+        ├─ CellFaultScope.jl  : the fault scope that a computation keeps, and where its fault goes
         ├─ MutableCell.jl     : a plain mutable box, with no reactive bookkeeping
         ├─ ImmutableCell.jl   : a read-only box
         └─ CellDefaults.jl    : the bodies of the other generics, one method for each kind

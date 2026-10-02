@@ -438,6 +438,15 @@ a character offset.
 The `@iomap` macro (parallel to `@document`) generates an IoMap struct whose
 `::Cell` fields are accessed transparently — see [the macros guide](macros.md).
 
+A fault barrier wraps the IoMap of each part at a recursion point, so the IoMap
+of a child can be the IoMap of a barrier. While the part prints, the barrier adds
+nothing to it: it keeps the IoMap of the part in `inner_iomap`, and a property
+that it does not have is read from that IoMap. Read `.output` of a child through
+the barrier, so a mark shows when the part fails. Where a reader or a printer
+checks the type of the IoMap of a child, call `get_content_iomap(child)`, which
+answers the IoMap of the part, or the barrier while it draws a mark. The fault
+guide says why: [fault.md](../platform/fault/fault.md).
+
 ### Stable identity, reactive fields
 
 An IoMap keeps its **identity** for the life of its projection instance. A change

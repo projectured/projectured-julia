@@ -589,6 +589,12 @@ runs2[]               # 3: each pull runs the computation again
         - `main` moved about 30 commits on (the wrappers of `build_editor`, the
           umbrella extensions), and 13 files of this branch changed there too.
           The branch is rebased after step 6c, and the tests run again.
+        Rebased on 2026-10-02 onto aa7ce9223, with conflicts only in lists of
+        exports, imports and slice edges, and in the workspace row of
+        `Application.jl`, whose history wrap is now `make_history_wrap(settings)`.
+        On the rebased branch `test_platform()` has 84780 pass and 8 broken. The
+        four export findings and the four argument findings of `test/suite` are
+        in `main` as well.
   - [x] 6c. The count of cells and objects for each node, before and after.
         Done, as allocations, which do not depend on the load of the machine.
         A JSON array of `n` arrays of three values (4n + 1 nodes), printed
@@ -609,6 +615,14 @@ runs2[]               # 3: each pull runs the computation again
         machine and the owner's word. Whether this is too costly, and option b
         of §5 point 6 is needed, is the owner's decision.
 - [ ] **Step 7: the renderer catch** around each element, with the frame time.
-- [ ] **Step 8: the documentation**: `fault.md` (the pull stack, the scope, the
+- [x] **Step 8: the documentation**: `fault.md` (the pull stack, the scope, the
       heal that does not happen, the test), `cell.md` (a computation keeps its
       scope), `projection-system.md`.
+      Done on the rebased branch: `fault.md` (the places of the code, the
+      barriers of the pipelines, how a fault reaches its barrier, the gestures of
+      a mark, the repairs, the design decisions, the tests and the limits),
+      `cell.md` (a computation that throws, and its fault scope),
+      `projection-system.md` (a barrier around the IoMap of a child, and
+      `get_content_iomap`), `higher-order-projections.md` and
+      `system-anatomy.md` (the barrier among the higher-order projections). The
+      guard of the documents passes. The debugging guide stays true as it is.
