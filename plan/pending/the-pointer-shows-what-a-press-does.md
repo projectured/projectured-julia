@@ -124,7 +124,8 @@ pointer is outside it.
 The busy shape is a state of the editor and not of a part, so it has no region.
 The backend shows the hourglass while the loop is in a frame that takes longer
 than a threshold, and the shape at the pointer again after it. The web backend
-already sends a message of a busy editor to the client.
+sends the hourglass in the message of the pointer of step 3. Its message `busy`
+says that another client is connected, and is not a busy editor.
 
 ## 5. The vocabulary of the shapes
 
