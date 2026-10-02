@@ -80,8 +80,12 @@ give their one child the whole range that they were given:
   place, so a child that has its own position draws outside the box of the menu,
   and a right click there opens no menu (the live check of 2026-10-02). That is
   a question of its own for the owner, and this step does not change it.
-- [ ] 2. Build it, one widget at a time, with a size test for each, as
+- [x] 2. Build it, one widget at a time, with a size test for each, as
   `test_size_range_composite()` tests the composite.
+  Check (2026-10-02): `test_platform` 85527 pass, 1 fail (the file system test
+  under `unshare -r`), 8 broken, with `PlatformExamples` at 77832 as before;
+  `test_application` 344 and 2 broken; `test_repls` 23172 and 5 broken.
+  `widget.md` says what a widget with one child gives it.
   - [x] `WidgetTitlePane` (2026-10-02). The pane resolves its own extent from its
     range (`_resolve_width`, `_resolve_height`): it measured only what it drew, so
     in a slot of 300 by 200 it was 40 by 54. Its content gets
