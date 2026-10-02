@@ -34,6 +34,11 @@ end
     line::StyleColor = color_black
 end
 
+@theme struct ThUndocumented
+    "The gap."
+    gap::Spacing = Spacing(4)
+end
+
 function test_theme()
 @testset "Theme" begin
 
@@ -43,6 +48,10 @@ function test_theme()
     @test find_theme_field_text(ThDocumented, :plain) === nothing
     @test find_theme_field_text(ThDocumented, :line) == "The color of a line,\nin two lines."
     @test find_theme_field_text(ThSample, :gap) === nothing
+    @test get_theme_field_texts(ThDocumented) ==
+          (gap = "The space between two items.", line = "The color of a line,\nin two lines.")
+    # A theme with no docstring of its own keeps the docstrings of its fields.
+    @test find_theme_field_text(ThUndocumented, :gap) == "The gap."
     @test make_scaled_theme(ThDocumented(), Appearance(spacing_scale = 2.0)).gap == 8
     @test_throws "as its docstring" macroexpand(@__MODULE__,
         :(@theme struct ThWrong; 1 + 2; gap::Spacing = Spacing(4); end))

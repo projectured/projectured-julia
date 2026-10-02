@@ -154,23 +154,17 @@ get_theme_presets(::Type) = Pair{String,Any}[]
     find_theme_field_text(T, name) -> String | Nothing
 
 The docstring of the field `name` of the theme type `T`: the string before the
-field in its `@theme` declaration. A field with no docstring, and a type whose
-declaration has no docstring of its own, answer `nothing`, because Julia records
-the docstrings of the fields with the docstring of the type.
+field in its `@theme` declaration, or `nothing` for a field with none.
 """
-function find_theme_field_text(T::Type, name::Symbol)
-    binding = Base.Docs.Binding(parentmodule(T), nameof(T))
-    for m in Base.Docs.modules
-        multidoc = get(Base.Docs.meta(m), binding, nothing)
-        multidoc === nothing && continue
-        for docstr in values(multidoc.docs)
-            fields = get(docstr.data, :fields, nothing)
-            fields isa AbstractDict && haskey(fields, name) &&
-                return String(strip(string(fields[name])))
-        end
-    end
-    nothing
-end
+find_theme_field_text(T::Type, name::Symbol) = get(get_theme_field_texts(T), name, nothing)
+
+"""
+    get_theme_field_texts(T) -> NamedTuple
+
+The docstrings of the fields of the theme type `T`, by the name of the field.
+`@theme` adds the method; a type with no method has none.
+"""
+get_theme_field_texts(::Type) = (;)
 
 """
     get_base_theme(scaled) -> Theme
@@ -285,7 +279,9 @@ Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
   `get_theme_field_names(T)` answers the names of the fields, and
   `get_theme_type(theme)` answers `T`.
 - A string before a field is the docstring of the field, as in a plain struct.
-  `find_theme_field_text(T, name)` answers it, and the appearance tab shows it.
+  `get_theme_field_texts(T)` holds them by name, so a type with no docstring of
+  its own keeps them too; `find_theme_field_text(T, name)` answers one, and the
+  appearance tab shows it.
 
 A projection reads a scaled theme, not a theme.
 
@@ -310,8 +306,11 @@ macro theme(definition)
     definition.args[2] = Expr(:(<:), name, GlobalRef(StyleModule, :Theme))
     fields = Symbol[]
     types = Any[]
+    texts = Pair{Symbol,String}[]
+    text = nothing
     for line in definition.args[3].args
-        (line isa LineNumberNode || line isa String) && continue
+        line isa LineNumberNode && continue
+        line isa String && (text = String(strip(line)); continue)
         declaration = line isa Expr && line.head === :(=) ? line.args[1] : line
         (declaration isa Expr && declaration.head === :(::) && declaration.args[1] isa Symbol) ||
             throw(ArgumentError("@theme: each field is `name::Type = default`, " *
@@ -326,6 +325,8 @@ macro theme(definition)
                                 "a document keeps its own `$(declaration.args[1])` under that name"))
         push!(fields, declaration.args[1])
         push!(types, declaration.args[2])
+        text === nothing || push!(texts, declaration.args[1] => text)
+        text = nothing
     end
     scaled_name = Symbol("Scaled", name)
     theme = gensym(:theme)
@@ -349,6 +350,7 @@ macro theme(definition)
         $StyleModule.make_scaled_theme($theme::$name, $appearance::$Appearance) =
             $scaled_name($theme, $appearance, $(cells...))
         $StyleModule.get_theme_field_names(::Type{$name}) = $(Tuple(fields))
+        $StyleModule.get_theme_field_texts(::Type{$name}) = $(NamedTuple(texts))
         $StyleModule.get_theme_type(::$name) = $name
         $name
     end)
