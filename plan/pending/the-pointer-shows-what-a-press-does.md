@@ -1,7 +1,7 @@
 # The pointer shows what a press does there
 
 Status: in progress on the branch `pointer-shape` (worktree
-`.claude/worktrees/pointer-shape`). Steps 1 to 3 are done (§6). The owner decided
+`.claude/worktrees/pointer-shape`). Steps 1 to 4 are done (§6). The owner decided
 P1 to P4 on 2026-10-02 (§8). Written 2026-10-02 at the owner's word ("c affects
 many other places, needs a plan"), after G3 of step 5.7 of
 [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) chose a lit edge
@@ -210,8 +210,19 @@ arrow.
    a full resend and at a close, and sends the message after the `update` of the
    same frame. Tests: a set in `test_web_backend()`; `test_web()` passes, 127 of
    127.
-4. **The video backend.** It draws the pointer of each shape: an image for each
+4. ✅ **The video backend.** It draws the pointer of each shape: an image for each
    of the nine, in the style of the arrow it draws now (P4).
+
+   Done. Each frame draws the picture of the shape that `find_pointer_shape`
+   finds at the pointer of the timeline, in the canvas of the window. Six shapes
+   are polygons in the style of the arrow, white with a black border
+   (`_POINTER_OUTLINES`; the crossed circle adds a ring of two circles). The three
+   hands are the Lucide glyphs `pointer`, `hand` and `grab` at 22 pixels, black
+   with a white outline of eight copies, and the hot spot of the pointing hand is
+   the tip of its finger (0.34, 0.04 of the em). Tests:
+   `test_video_pointer_shape()` checks the picture that the backend chooses, and
+   renders each of the nine to a BMP and counts its black and white pixels around
+   the hot spot.
 5. **The parts.** The edge of a column (a region of 7 pixels around each edge of
    the header row), the divider of a split pane, the text of a text field, a text
    area and a text document that a person edits, a button, a link and a tab, and

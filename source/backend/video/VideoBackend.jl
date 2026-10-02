@@ -55,9 +55,10 @@ as that frame, so the timeline goes on, and the entries after it fire as they
 are due.
 
 With `pointer = true` each frame shows the mouse pointer where the last mouse
-event of the timeline left it, from the first mouse event on: an arrow, a ring
-around its tip while the left button is held, and the ring fading out for 0.3 s
-after a release or a click. The pointer is drawn over the window in a canvas of
+event of the timeline left it, from the first mouse event on: the picture of the
+shape that `find_pointer_shape` finds there in the window, an arrow where no
+region says a shape, a ring around its hot spot while the left button is held,
+and the ring fading out for 0.3 s after a release or a click. The pointer is drawn over the window in a canvas of
 the frame's own, so nothing of it enters the document of the application. The
 rendering itself is `ProjecturedSDL`'s
 offscreen renderer (`open_offscreen_renderer`), opened here and closed by
@@ -336,9 +337,57 @@ const _POINTER_RING_RADIUS = 11
 const _POINTER_RING_WIDTH = 3
 const _POINTER_FADE_SECONDS = 0.3
 
-# The shapes of the pointer where the timeline left it: the ring while the left
-# button is held or while it fades out, and the arrow on top.
-function _make_pointer_graphics(backend::VideoBackend)
+# The outline of each shape of the pointer that is drawn as a polygon, around its
+# hot spot at (0, 0), in the style of the arrow: white with a black border.
+const _POINTER_OUTLINES = Dict{Symbol,Vector{Tuple{Int,Int}}}(
+    :arrow => _POINTER_ARROW,
+    :ibeam => [(-4, -10), (4, -10), (4, -8), (1, -8), (1, 8), (4, 8), (4, 10), (-4, 10),
+               (-4, 8), (-1, 8), (-1, -8), (-4, -8)],
+    :double_arrow_horizontal => [(-11, 0), (-6, -5), (-6, -2), (6, -2), (6, -5), (11, 0),
+                                 (6, 5), (6, 2), (-6, 2), (-6, 5)],
+    :double_arrow_vertical => [(0, -11), (5, -6), (2, -6), (2, 6), (5, 6), (0, 11),
+                               (-5, 6), (-2, 6), (-2, -6), (-5, -6)],
+    :hourglass => [(-6, -10), (6, -10), (6, -8), (1, 0), (6, 8), (6, 10), (-6, 10), (-6, 8),
+                   (-1, 0), (-6, -8)],
+    :crossed_circle => [(-6, -5), (-5, -6), (6, 5), (5, 6)])
+
+# The shapes of the pointer that are drawn as a glyph of the Lucide font, black with
+# a white outline, and where the hot spot is in the em of the glyph, as a part of
+# its size: the tip of the finger of the pointing hand, the middle of a hand.
+const _POINTER_GLYPHS = Dict{Symbol,Tuple{Char,Float64,Float64}}(
+    :pointing_hand => (Char(0xe1e8), 0.34, 0.04),
+    :open_hand     => (Char(0xe1d7), 0.5, 0.5),
+    :closed_hand   => (Char(0xe1e6), 0.5, 0.5))
+const _POINTER_GLYPH_SIZE = 22
+
+# The picture of the pointer of `shape` with its hot spot at `(x, y)`: the arrow
+# for `:default` and for a shape that this backend does not draw.
+function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int)
+    if haskey(_POINTER_GLYPHS, shape)
+        glyph, across, down = _POINTER_GLYPHS[shape]
+        font = StyleFont(font_lucide_icons_20.filename, _POINTER_GLYPH_SIZE)
+        left = x - round(Int, across * _POINTER_GLYPH_SIZE)
+        top = y - round(Int, down * _POINTER_GLYPH_SIZE)
+        outline = Any[GraphicsText(string(glyph), left + dx, top + dy; font, color = color_white)
+                      for dx in -1:1, dy in -1:1 if (dx, dy) != (0, 0)]
+        return Any[outline; GraphicsText(string(glyph), left, top; font, color = color_black)]
+    end
+    elements = Any[]
+    shape === :crossed_circle &&
+        append!(elements, Any[GraphicsCircle(x, y, 8; color = color_transparent,
+                                             border_width = 4, border_color = color_black),
+                              GraphicsCircle(x, y, 7; color = color_transparent,
+                                             border_width = 2, border_color = color_white)])
+    outline = get(_POINTER_OUTLINES, shape, _POINTER_ARROW)
+    push!(elements, GraphicsPolygon([(x + dx, y + dy) for (dx, dy) in outline];
+                                    color = color_white, border_width = 1, border_color = color_black))
+    elements
+end
+
+# The pointer where the timeline left it, over `canvas`, the window of the frame:
+# the ring while the left button is held or while it fades out, and the picture of
+# the shape at the pointer on top.
+function _make_pointer_graphics(backend::VideoBackend, canvas::GraphicsCanvas)
     x, y = backend.pointer_x, backend.pointer_y
     ring = color_solarized_orange
     since_release = _get_schedule_seconds(backend) - backend.pointer_released_at
@@ -352,8 +401,7 @@ function _make_pointer_graphics(backend::VideoBackend)
         push!(elements, GraphicsCircle(x, y, _POINTER_RING_RADIUS + 6 * (1 - left); color = color_transparent,
                                        border_width = _POINTER_RING_WIDTH, border_color = faded))
     end
-    push!(elements, GraphicsPolygon([(x + dx, y + dy) for (dx, dy) in _POINTER_ARROW];
-                                    color = color_white, border_width = 1, border_color = color_black))
+    append!(elements, _make_pointer_shape_graphics(find_pointer_shape(canvas, x, y), x, y))
     elements
 end
 
@@ -399,7 +447,8 @@ function write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument
             _write_partial_frame!(backend, canvas, window.bg)
         else
             if backend.pointer && backend.pointer_x >= 0
-                canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend)]; w = backend.width, h = backend.height)
+                canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend, canvas)];
+                                        w = backend.width, h = backend.height)
             end
             write_offscreen_frames!(backend.off, canvas; background = window.bg,
                                     folder = backend.frames_dir, frame = backend.frame)
@@ -486,7 +535,7 @@ function _write_partial_frame!(backend::VideoBackend, canvas::GraphicsCanvas, ba
     state = backend.paint_state
     painted = render_offscreen_changes!(backend.off, state, canvas; background)
     pointer = backend.pointer && backend.pointer_x >= 0 ?
-              GraphicsCanvas(_make_pointer_graphics(backend); w = backend.width, h = backend.height) :
+              GraphicsCanvas(_make_pointer_graphics(backend, canvas); w = backend.width, h = backend.height) :
               nothing
     outline = backend.debug_dirty ? _get_held_outline(backend, painted, state.last_rects) :
               NTuple{4,Int}[]
