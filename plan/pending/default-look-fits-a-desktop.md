@@ -383,7 +383,11 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
 - **D18** (2026-10-02, T2). A widget document that sets no padding takes the
   padding of its kind from `WidgetTheme`, as a browser takes a default style
   for each kind of element. The builders of window chrome, of the assistant
-  and of a card leave the padding out. The owner: "yes".
+  and of a card leave the padding out. The owner: "yes". This also gives
+  padding to the widgets of these kinds that now set none, such as the
+  context menus and the menus of the data frame and of the fault log, so they
+  change on the screen. The owner accepted that change: "Yes for the menu
+  question".
 - **D19** (2026-10-02, T2). A small `GraphicsTheme` in the graphics slice holds
   the selection ring and the fault mark of the graphics and layout slices,
   which lie below every other theme; `WidgetTheme` reads the ring from it and
@@ -525,7 +529,31 @@ inet-julia uses, the same step changes them, so that they always load.
   - Open questions for the owner: the documents that the chrome builders make
     (window chrome, assistant, object card, pane border); the selection ring
     and the fault mark of the graphics and layout slices, below every theme;
-    the colors of `compute_code_pieces`.
+    the colors of `compute_code_pieces`. The owner did not understand the
+    question about the colors of `compute_code_pieces` (2026-10-02). It stays
+    open, and no step does work on it.
+  - The graphics theme (D19): `GraphicsTheme` in the graphics slice holds
+    `font`, `fault_text`, `selection_ring` and `selection_ring_width`.
+    `SELECTION_RING_COLOR` and `WidgetTheme.selection_ring` go.
+    `make_selection_ring_stroke(theme)` gives the stroke of the ring: a theme
+    cell for a scaled theme, the plain default stroke for `nothing`.
+    `LayoutToGraphics(; theme)` takes the theme in place of the keyword
+    `selection_ring_stroke`. The widgets read the graphics theme of the
+    appearance of their own theme (`_get_graphics_theme`), for the ring and
+    for the band of a selected row. `NaturalToGraphics` and the tabs wrapper
+    pass the scaled theme of their appearance; the appearance tab shows it in
+    the group "Editor". `FaultToGraphics` takes its defaults from the theme,
+    as `FaultToText` and `FaultToSyntax` do. omnet-julia: the qtenv widget
+    theme names no ring, and the select-and-paste test reads the default.
+    Left: the radius 3 of the ring stays a literal of `make_selection_ring`,
+    because the stroke that the containers hold has no radius (T5 lists it).
+    Check: the images are 315 of 315 equal. The platform suite passes after
+    one change of `PLATFORM_SLICE_EDGES`: the appearance slice may use the
+    graphics slice, because its tab names `GraphicsTheme`. The conversation
+    transcript test passes. In omnet-julia the ring test of
+    `test_select_and_paste` passes; 9 other assertions of it fail, because
+    the window content is now a `SettingsDocument`, which the test does not
+    expect yet. D19 does not touch that.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
@@ -650,6 +678,14 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
   (`asset/precompile/PrecompileStatements.jl`) skip 7,272 of 10,857
   statements. Only 287 statements name `StyleFont`, so at least 6,985 were
   stale before this work. The recording needs a new run, best after Part V.
+
+### Step T2, the graphics theme
+
+- `NaturalToGraphics` puts the rows of `LayoutToGraphics()` before the rows of
+  the widgets, and the first row that matches wins. So in the natural view
+  every layout drew its ring with the constant, and the ring of the widget
+  theme reached only the layouts of a bare `WidgetToGraphics`. Now both read
+  the one graphics theme of the appearance.
 
 ### Step T3
 
