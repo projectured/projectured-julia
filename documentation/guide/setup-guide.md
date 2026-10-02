@@ -6,7 +6,7 @@ What you need, how to start the application, and how to open the same views from
 
 ## What you need
 
-- **Julia 1.11 or later.** The packages are linked by `[sources]` path entries, which Julia 1.11 is the first to read. The environment of this repository is resolved with 1.13.
+- **Julia 1.12 or later.** The code uses what Julia 1.12 adds, such as the `gc_safe` option of `@ccall`, and the packages are linked by `[sources]` path entries. The environment of this repository is resolved with 1.13.
 - **SDL2 and SDL_ttf**, for the native window. On Debian or Ubuntu: `apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0`.
 - **Ollama with a pulled model**, or an `ANTHROPIC_API_KEY`, for the assistant. [assistant-guide.md](assistant-guide.md) says which model and how to pull it. Without either, everything else works.
 

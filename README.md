@@ -42,7 +42,7 @@ The AI assistant runs inside the application, with a local model through Ollama 
 
 ## Quick start
 
-You need Julia 1.11 or later, and SDL2 with SDL_ttf for a native window. The packages are not in the General registry, so clone the repository.
+You need Julia 1.12 or later, and SDL2 with SDL_ttf for a native window. The packages are not in the General registry, so clone the repository.
 
 ```sh
 git clone https://github.com/projectured/projectured-julia

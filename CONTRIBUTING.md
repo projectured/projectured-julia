@@ -13,8 +13,8 @@ way or leave the change out.
 
 ## Prerequisites
 
-- Julia 1.11 or later. The `Project.toml` files use `[sources]` path
-  dependencies, which older versions of Pkg do not read.
+- Julia 1.12 or later. The code uses what Julia 1.12 adds, and the
+  `Project.toml` files use `[sources]` path dependencies.
 - SDL2 and SDL_ttf (`apt install libsdl2-dev libsdl2-ttf-dev` on
   Debian/Ubuntu). They are needed only for the SDL backend. The test suite runs
   without them.

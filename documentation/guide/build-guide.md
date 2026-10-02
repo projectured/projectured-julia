@@ -173,7 +173,7 @@ tree for as long as the version exists.
    folder. `results` lists each package with its status and its version,
    dependencies first.
 3. Commit the release repository, and push it. The push starts the workflow: a
-   job for each package with tests, on Julia 1.11, the oldest version that the
+   job for each package with tests, on Julia 1.12, the oldest version that the
    packages name.
    Wait until it passes before you register. A job sends its coverage to
    Codecov; the upload needs the Codecov app on `projectured/Projectured.jl`,

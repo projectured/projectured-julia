@@ -354,10 +354,11 @@ const PROJECTURED_PACKAGE_ASSETS = Dict(
     PROJECTURED_JULIA_COMPAT
 
 The oldest Julia that a released package of this repository names in its
-`[compat]`. The packages reach each other by `[sources]`, which Julia 1.11 is
-the first to read.
+`[compat]`. The code uses what Julia 1.12 adds: the `gc_safe` option of
+`@ccall`, so that a collection on another thread goes on while SDL waits, and the
+world of a binding, which the completion by reflection reads names in.
 """
-const PROJECTURED_JULIA_COMPAT = "1.11"
+const PROJECTURED_JULIA_COMPAT = "1.12"
 
 """
     PROJECTURED_CI_JULIA_VERSIONS
@@ -650,6 +651,11 @@ function _format_projectured_release_workflow(jobs)
             with:
               version: \${{ matrix.julia }}
           - uses: julia-actions/cache@v3
+            with:
+              # A key with the matrix would hold the list of folders, which is
+              # longer than a key may be.
+              include-matrix: false
+              cache-name: julia-cache;package=\${{ matrix.package }};julia=\${{ matrix.julia }}
           - name: Develop the packages that the test needs
             run: >-
               julia --project="\$RUNNER_TEMP/environment"
