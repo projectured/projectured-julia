@@ -2,19 +2,26 @@
 # view of the settings tab.
 
 """
-    SettingsToWidget()
+    SettingsToWidget(; theme = nothing)
 
 The settings tab: the `Settings` of an editor as widgets, in a pane that scrolls.
-One card for each group, in the order of their names, with one row for each
-setting: its label, whose tooltip says what it does, its control, and a button
-that resets it. Under the cards, a button resets all of them, and two buttons save
-the settings to their file and load them from it; these two are off for settings
-with no file.
+One card for each group, in the order of their names. A card starts with the
+summary of its group type, the first paragraph of its docstring. It has one row
+for each setting: its label, its control, and a button that resets it; under that
+row, across the card, the description of the setting, the text of its docstring
+after the label. Under the cards, a button resets all of them, and two buttons
+save the settings to their file and load them from it; these two are off for
+settings with no file.
+
+`theme` is the scaled `WidgetTheme` of the tab, or `nothing` for the default
+values: a summary and a description take its small font and its muted color, as
+the description of a card does.
 
 - A `Bool` is a switch, a number is a spin box with the step of its values, a
   `Symbol` is a choice of its values, and a `String` is a text.
 - A group that no target of the editor applies, such as the render settings of a
-  backend that draws no windows, says so on its card, and its controls are off.
+  backend that draws no windows, says so on its card, on a line under the
+  summary, and its controls are off.
 - Each control shows the value of its setting and follows a change of it.
 - A group that the application reads when it starts says so on its card.
 - The selection of the settings holds a path in the widgets of the tab, as a path
@@ -29,7 +36,11 @@ The view holds no effect of a setting. A control edit and a reset become the
 normal edit of a group, a `ReplaceReferencedValueOperation` of one setting, and
 the `settings` wrapper turns it into an applied setting.
 """
-struct SettingsToWidget <: Projection end
+struct SettingsToWidget <: Projection
+    theme::Any        # the scaled widget theme of the tab, or nothing
+end
+
+SettingsToWidget(; theme = nothing) = SettingsToWidget(theme)
 
 # `controls` holds `(control, group, name, convert)` for each control of a setting,
 # so the reader turns the write of a control into the write of its setting:
@@ -50,7 +61,8 @@ const _COLUMN_GAP = 12
 function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     controls = Tuple{Any,Any,Symbol,Any}[]
     groups = get_settings_groups(settings)
-    cards = Any[_make_group_card(settings, group, controls) for group in groups]
+    caption = _get_caption_style(p.theme)
+    cards = Any[_make_group_card(settings, group, controls, caption) for group in groups]
     reset = _make_command_button("Reset all", "Give every setting its default.",
                                () -> _make_reset_operation(groups))
     save = _make_command_button("Save", "Write the settings to their file.",
@@ -69,32 +81,48 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     SettingsToWidgetIoMap(p, settings, output, controls)
 end
 
-# A card of one group: its name, a note when the editor does not use it, and a row
-# for each setting. The note and the state of the controls follow the unused types
-# of the settings, which the start step of the editor finds after the first print.
-function _make_group_card(settings::Settings, group, controls)
+# The style of a summary and of a description: the small font and the muted color
+# of the widget theme, as the description of a card.
+function _get_caption_style(theme)
+    values = theme === nothing ? get_theme_defaults(WidgetTheme) : theme
+    StyleText(values.font_small, values.muted_foreground)
+end
+
+# A card of one group: its name, the summary of its type and a note when the
+# editor does not use it, and for each setting a row and its description under it,
+# across the three columns. The note and the state of the controls follow the
+# unused types of the settings, which the start step of the editor finds after the
+# first print.
+function _make_group_card(settings::Settings, group, controls, caption::StyleText)
     T = get_settings_group_type(group)
     is_used = () -> !(T in settings.unused_types)
     cells = Any[]
     for description in get_setting_descriptions(T)
         control, convert = _make_setting_control(group, description, is_used)
         push!(controls, (control, group, description.name, convert))
-        push!(cells, WidgetLabel(description.label; tooltip = description.text))
+        push!(cells, WidgetLabel(description.label))
         push!(cells, control)
         reset = _make_command_button("Reset", "Give \"$(description.label)\" its default.",
                                    () -> _make_reset_operation(group, description))
         set_cell_computation!(getfield(reset, :enabled), is_used)
         push!(cells, reset)
+        text = uppercasefirst(strip_code_marks(description.text))
+        isempty(text) ||
+            push!(cells, LayoutConstraint(WidgetLabel(text; text_style = caption); column_span = 3))
     end
     grid = GridLayout(cells, 3; horizontal_gap = _COLUMN_GAP, vertical_gap = _ROW_GAP,
                       vertical_align = :center)
     card = WidgetCard(; title = WidgetLabel(_make_group_title(T)),
                       content = WidgetComposite(Any[grid]))
+    summary = strip_code_marks(compute_docstring_summary(T))
     note = is_settings_group_read_at_start(T) ?
         "These settings take effect at the next start." :
         "This editor does not use these settings."
-    set_cell_computation!(getfield(card, :description),
-                          () -> (is_used() && !is_settings_group_read_at_start(T)) ? nothing : note)
+    set_cell_computation!(getfield(card, :description), function ()
+        shows_note = !is_used() || is_settings_group_read_at_start(T)
+        lines = filter(!isempty, String[summary, shows_note ? note : ""])
+        isempty(lines) ? nothing : join(lines, "\n")
+    end)
     card
 end
 

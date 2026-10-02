@@ -110,6 +110,23 @@ function test_settings_tab()
     @test "Reset all" in texts && "Reset" in texts
 end
 
+@testset "a setting shows its description under its label, and a card the summary of its group" begin
+    settings = make_settings()
+    editor, backend = _stab_editor(settings, settings)
+    texts = _stab_texts(backend)
+    label = only(t for t in texts if t[1] == "Log faults")
+    # The description, the text of the docstring after the label, starts on a line
+    # under the label, at the start of the row.
+    description = only(t for t in texts if t[1] == "Write each new fault to the log.")
+    @test description[3] > label[3]
+    @test description[2] == label[2]
+    # The card of the group starts with the summary of its type.
+    summary = compute_docstring_summary(FaultSettings)
+    @test !isempty(summary)
+    @test any(t -> length(t[1]) > 10 && startswith(summary, t[1]), texts)
+    @test !any(t -> occursin('`', t[1]), texts)
+end
+
 @testset "a press on a switch changes its setting, and the editor applies it" begin
     settings = make_settings()
     editor, backend = _stab_editor(settings, settings)
@@ -268,7 +285,12 @@ end
     bottom = place("Reset all")
     @test bottom > 400
     (_, x, y) = only(text for text in drawn() if text[1] == "Catch faults")
-    send!((MouseScroll(0, -1, x, y, ModifierKeys(); time = Float64(i)) for i in 1:3)...)
+    # The wheel scrolls the tab until the row of the undo steps is in the window.
+    for i in 1:20
+        place("Undo steps") <= 350 && break
+        send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 0.1 * i))
+    end
+    @test 0 < place("Undo steps") <= 350
     scrolled = place("Reset all")
     @test scrolled < bottom
     # The step up of the undo steps is the upper arrow in the row of its label.
@@ -282,6 +304,7 @@ end
     # flag, which a report reads from the editor: the view does not print again.
     fault = get_settings_group!(settings, FaultSettings)
     row = place("Log faults")
+    @test 0 < row < 400
     for (i, px) in enumerate(100:4:400)
         fault.is_console_enabled || break
         send!(MouseDown(:left, px, row + 6, ModifierKeys(); time = 10.0 + i),

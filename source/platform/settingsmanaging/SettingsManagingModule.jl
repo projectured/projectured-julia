@@ -40,6 +40,7 @@ using ..ScreenModule
 using ..SelectionModule
 using ..SettingsModule
 using ..StyleModule
+using ..ToolModule
 using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document
@@ -65,7 +66,8 @@ function __init__()
     register_natural_graphics!(:settings, (; measure, appearance) -> begin
         widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme))
         pane = last(only(row for row in widgets.dispatch if first(row) === WidgetScrollPane))
-        Pair{Type,Any}[Settings => ChainingProjection(SettingsToWidget(), pane)]
+        Pair{Type,Any}[Settings => ChainingProjection(
+            SettingsToWidget(; theme = get_scaled_theme!(appearance, WidgetTheme)), pane)]
     end)
 end
 
