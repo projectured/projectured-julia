@@ -1086,7 +1086,7 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     `julia_theme` and `syntax_theme` on to `JuliaToSyntax`.
   - Three agents run one after another, because the platform slices are one
     package and a second agent would compile it while the first edits it.
-- [ ] **Open: the graph domain** has no step in Part P. Its look (the border,
+- [x] **Open: the graph domain** (done as Q2) has no step in Part P. Its look (the border,
   the fill, the radius and the padding of a box, the color and the width of an
   edge and of an arrow, the highlight) is a set of module consts in
   `GraphLayoutToGraphics.jl`, and the diagrams of process and FSM draw through
@@ -1163,6 +1163,41 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   - Tests: Save writes the file. Load gives the pixels of an editor that starts
     with that file. A new editor reads it. A missing key takes the default. A
     file with an unknown key loads.
+
+### Part Q: the open items after Part P
+
+The owner asked for these after the landing of Part P (2026-10-02): "Landing
+first, then all of the open items. Grouping the theme is great. Does Julia have
+field documentation? It could help the theme UI".
+
+- [x] **Q1. A field of a theme has a docstring, and the tab shows it.** `@theme`
+  takes a string before a field as the docstring of that field, as a plain struct
+  does. `find_theme_field_text(T, name)` reads it, and the name of a field in the
+  appearance tab has it as its tooltip, as the label of a setting has the text of
+  its description. A field with no docstring has no tooltip. `WidgetTheme` has a
+  docstring for each of its 54 fields; finding 34.
+- [x] **Q2. The graph domain has a theme.** `GraphTheme` holds the fill, the
+  border, the border width, the radius and the padding of the box of a node; the
+  color and the width of an edge and the size of an arrowhead; and the color, the
+  width and the gap of the highlight. `GraphLayoutToGraphicsCanvas(; theme)` holds
+  the values as one `NamedTuple`, as the chart does, and the natural row and
+  `GraphToGraphics` pass the scaled theme. The defaults are the old constants;
+  finding 34.
+- [x] **Q3. The tab groups its sections, and a section folds.** Three groups:
+  "Editor" (the widget, the text, the syntax and the reference themes, in this
+  order), "Tools" (the other themes of `ProjecturedPlatform`) and "Documents" (the
+  themes of the other packages); each in the order of the names. Each theme is a
+  collapsible `WidgetCard`, closed at the start. The open sections are view state
+  of the `Appearance`, as its scroll position is, because the tab prints again
+  after each write; a save does not write them; finding 34.
+- [ ] **Q4. Ctrl+Z takes back a change in the theme tab** (finding 29). The tab
+  answers a plain write of the theme, so a history around the tab records it.
+  The `appearance` wrapper turns each write of a theme into a
+  `ReplaceThemeValueOperation`, the counterpart of `ApplySettingOperation`: it
+  writes and then prints the view again, and its inverse writes the old value and
+  prints the view again.
+- [ ] **Q5. omnet passes the themes of its appearance** to its charts, its
+  sequence charts, its FSM diagrams and its topology graph.
 
 ### Part G: the guides
 
@@ -1551,3 +1586,23 @@ as large. omnet-julia and inet-julia follow where they build these projections.
       help, palette and inspector projections kept theirs.
     - The catalog has no design document, so its theme is described only in its
       docstring.
+34. **Q1 to Q3: field docstrings, the graph theme, and the groups of the tab**
+    (2026-10-02). The tests of the theme, the tab, the wrapper, the guards and
+    the graph give 464 pass. Facts found:
+    - Julia records the docstring of a field with the docstring of its type,
+      under the key `:fields` of `Base.Docs.meta`. `@document` keeps a string in
+      the body, as the cell struct plan does, so `@theme` only had to skip it.
+      A theme with no docstring of its own keeps none of its fields.
+    - The appearance slice uses the text and the syntax slices for the order of
+      the group "Editor", so it loads after the syntax slice; only the shell
+      slice uses it, and it loads later still.
+    - A card folds by `ToggleCollapseOperation(card)`. The tab answers it with a
+      write of `open_sections`, as view state, and the `collapsed` cell of the
+      card is computed from it, so the card follows it with no new print.
+      `is_appearance_change` leaves out a write of `scroll_position` or of
+      `open_sections`, because neither changes a look.
+    - The row of the font scale and the card of `TextTheme` are both "Text". The
+      tests find the row of a scale as the topmost text of that name.
+    - `GraphLayoutToGraphicsCanvas` prints the content of its vertices only when
+      its elements are read; a test that reads them prints with no recursion,
+      so its vertices hold no content.
