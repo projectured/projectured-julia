@@ -1,8 +1,8 @@
 # A setting says what it sets
 
-> **Status:** pending, not started. Written on 2026-10-02 at the owner's
+> **Status:** pending, in progress. Written on 2026-10-02 at the owner's
 > request, after a discussion of the appearance tab and the settings tab. The
-> owner decided D1 to D3; section 5 lists the points that are still open.
+> owner decided D1 to D8 on 2026-10-02 and asked for the work.
 
 ## 1. The request
 
@@ -51,19 +51,35 @@ chose:
 
 ### 4.1 A field shows its description under its name
 
-Each field of both tabs is a block (D1, D2; the form is open, O1):
+Each field of both tabs keeps its row of the grid: the name and the control, and
+in the settings tab the reset button. Under that row, the grid has a row of its
+own for the description, which spans every column of the grid (D1, D2, D4). The
+description is in the small font and the muted color of the widget theme, and
+it breaks at word boundaries to the width of the columns that it spans. So the
+names and the controls line up in their columns, and a description reads as a
+part of the field above it.
 
-1. the name of the field;
-2. its description, in the small font and the muted color of the widget theme,
-   broken at word boundaries to the width of the card;
-3. its control, and in the settings tab the reset button beside it.
+A field with no description has no description row. The text drops the Markdown
+code marks (the backticks) that some docstrings hold, so `<:` shows as `<:`.
 
-A field with no description has no line 2. The text drops the Markdown code
-marks (the backticks) that some docstrings hold, so `<:` shows as `<:`.
+### 4.1a The grid spans a child over columns
 
-The alternative form keeps the name and the control on one line and puts the
-description under both. It is more compact, but the controls of two fields no
-longer line up, because a grid can not span the description over both columns.
+`LayoutConstraint(child; column_span = n)` says that `child` takes `n` columns of
+a `GridLayout` (D4). The grid fills its rows in order, as now; a child with a
+span takes its column and the `n - 1` columns after it, and starts a new row when
+the row has not that many columns left. A span past the number of columns takes
+the rest of the row.
+
+- A spanning child adds nothing to the width of a `Content` column: it is offered
+  the width of the columns that it spans, with the gaps between them, and a
+  text in it breaks its lines there. So a long description does not widen the
+  column of the names.
+- It adds to the height of its row, as every child does.
+- With no span, every child takes one column, and the grid lays out as before:
+  the images of all examples stay equal, and the tables, which build grids, do
+  not change.
+- A grid whose children are a list (`GridColumnList.jl`) takes no span; the
+  constraint is ignored there.
 
 ### 4.2 A label can wrap
 
@@ -72,7 +88,7 @@ width that its container offers (`ctx.maximum_width`), with the same
 `_text_lines` that the card uses. With no offered width it draws one line, as
 now. The default stays `false`, so every label that exists draws as before.
 
-This is a new field of a widget, so it needs the owner's approval (O4).
+This is a new field of a widget, which the owner approved (D7).
 
 ### 4.3 A card says what it holds
 
@@ -81,7 +97,7 @@ The summary of the type is the description of the card (D3):
 - the card of a theme takes the summary of its theme type;
 - the card of a settings group takes the summary of its group type, and its
   note ("This editor does not use these settings.") follows on a line of its own
-  (O3).
+  (D6).
 
 The first paragraph of each theme docstring and of each settings group docstring
 becomes a text for a person: one or two sentences that say what the values of
@@ -92,12 +108,12 @@ programmer moves to the paragraphs after it. A writing rule says so, in
 The display reads the summary with `compute_docstring_summary`. The help slice
 holds it now, and neither tab can reach the help slice without a new edge. It
 moves to the documentation tool of the kernel, `tool/Documentation.jl`, which
-every slice reaches and which reads docstrings already (O5).
+every slice reaches and which reads docstrings already (D8).
 
 ### 4.4 The tooltip
 
 With the description visible, the tooltip of a name says the same text again.
-It goes (O2).
+It goes (D5).
 
 ## 5. The decision log
 
@@ -109,16 +125,16 @@ It goes (O2).
   a text that is a part of the documentation of the type, and the display finds
   it there.
 
-Open, with my recommendation:
-
-- **O1. The form of a field.** Recommended: the name, the description, then the
-  control (4.1), as the settings of VS Code show them. The other form keeps the
-  name and the control on one line.
-- **O2. The tooltip of a name goes.** Recommended: yes.
-- **O3. The note of a settings card follows the summary** on a line of its own.
-  Recommended: yes.
-- **O4. `WidgetLabel` takes `wrap`** (4.2). A new field of a widget.
-- **O5. `compute_docstring_summary` moves to the kernel** (`tool/Documentation.jl`,
+- **D4. The description has a row of its own under the row of the name and the
+  control, and spans the columns of the grid**, so the names and the controls
+  line up. The grid gains a column span, `LayoutConstraint(child;
+  column_span)`; the owner asked for it as a layout constraint. Rejected: the
+  name, the description and the control one under the other, as VS Code shows
+  them, whose controls do not line up.
+- **D5. The tooltip of a name goes.**
+- **D6. The note of a settings card follows the summary** on a line of its own.
+- **D7. `WidgetLabel` takes `wrap`** (4.2).
+- **D8. `compute_docstring_summary` moves to the kernel** (`tool/Documentation.jl`,
   not sealed). Rejected: an edge from the appearance and the settings-managing
   slices to the help slice, which pulls the syntax and the text slices into the
   settings tab.
@@ -127,11 +143,17 @@ Open, with my recommendation:
 
 All the work is in a worktree, and each step is a commit.
 
-- [ ] **S1. A label wraps** (O4). `WidgetLabel(…; wrap)`, its print with
+- [ ] **S0. The grid spans a child over columns** (4.1a). `column_span` of
+  `LayoutConstraint`, and the placement, the widths, the offers and the row
+  count of `GridLayoutToGraphicsCanvas`. Tests: a spanning child starts a new
+  row when its row is short, adds nothing to a `Content` column, is offered the
+  width of its columns and the gaps, and a grid with no span draws as before
+  (the images of all examples equal, and the table tests pass).
+- [ ] **S1. A label wraps** (D7). `WidgetLabel(…; wrap)`, its print with
   `_text_lines`, and its measure in a layout. Tests: a long text breaks at word
   boundaries inside the offered width, keeps one line with no offered width, and
   a label with no `wrap` draws as before (the images of all examples equal).
-- [ ] **S2. The summary reader moves to the kernel** (O5), with its test; the
+- [ ] **S2. The summary reader moves to the kernel** (D8), with its test; the
   help list calls it there.
 - [ ] **S3. The first paragraphs.** The docstrings of the 29 themes and of every
   settings group start with a text for a person. A Sonnet sub-agent writes them
