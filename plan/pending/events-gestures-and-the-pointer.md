@@ -1606,6 +1606,14 @@ it holds the example.
     an operation, a request or a question; a new gesture type only with the
     owner's agreement, as for the three drag gestures. Rejected: option b, the
     rule as it was with a list of accepted exceptions.
+  - 4b ("Agreed", on Claude's option a): `PAR-NO-GLOBAL-ROUTING` names the drag
+    as the second case of a fixed route: a route is fixed in advance only to
+    return an operation from one place, or to give a drag to the part that
+    started it. The part answers `StartDragOperation` with its own path, and the
+    drag wrapper sends it the parts of its drag by that path until the drag
+    ends; the part chose the route, so no global component chooses the part,
+    and the raw events of the drag still go by position. Rejected: option b, an
+    accepted exception below the rule.
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
 
