@@ -49,11 +49,11 @@ The sentence and the document of each package come from one table in
 without an entry stops the build, and a test checks that every entry names a
 document that exists.
 
-## 4. Open decisions
+## 4. Decisions
 
-| # | Question | Recommendation (mine, not decided) |
+| # | Question | Decision |
 | --- | --- | --- |
-| M1 | Where the sentence of a package comes from. | The table, written for a user. The other way is to cut the first sentence out of the design document: one source, but the cut is fragile, the sentence is written for a developer, and five packages have no document of their own. The table costs 32 sentences to keep true; the test catches a package without one. |
+| M1 | Where the sentence of a package comes from. | The table, written for a user (the owner, 2026-10-02: "agree"). The other way was to cut the first sentence out of the design document: one source, but the cut is fragile, the sentence is written for a developer, and five packages have no document of their own. The test catches a package without an entry. |
 
 ## 5. Steps
 
@@ -71,4 +71,9 @@ document that exists.
 
 ## 6. Decisions made during the work
 
-(filled in as the work goes)
+### 6.1 The check of Step B4
+
+The release plan holds the results: the READMEs went into a local
+`ProjecturedRegistry` with the 32 packages, and each package folder showed its
+README. The install line of a README, `add Projectured ProjecturedJSON
+ProjecturedSDL` with the SDL backend added, installed and opened a window.
