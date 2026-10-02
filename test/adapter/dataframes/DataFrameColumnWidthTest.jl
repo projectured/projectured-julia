@@ -60,6 +60,15 @@ function test_data_frame_column_width()
         # The right edge of the column `id` is the rule before the header of `name`.
         edge = name_x - state.pad_x - state.bw
 
+        @testset "the edge lights under the pointer" begin
+            send!(MouseMove(edge, name_y + 2; time = 0.5))
+            target = table_iomap.input.mouse_target
+            @test target isa ConcreteReference && target.head == FieldReferenceStep("column_policies")
+            send!(MouseMove(name_x + 20, name_y + 2; time = 0.6))
+            target = table_iomap.input.mouse_target
+            @test !(target isa ConcreteReference && target.head == FieldReferenceStep("column_policies"))
+        end
+
         @testset "a drag of the edge sets the width, and the view keeps it by name" begin
             send!(MouseDown(:left, edge, name_y + 2, none; time = 1.0))
             send!(MouseMove(edge + 40, name_y + 2, MouseButtons(:left), none; time = 1.1))

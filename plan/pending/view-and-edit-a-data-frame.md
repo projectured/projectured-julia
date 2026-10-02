@@ -1290,7 +1290,21 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         the writer: the edge lights under the pointer, and a rest there says
         "Drag to set the width"; the resize shape of the pointer later, for
         the edge and the divider together).
-      - Done 2026-10-02 as designed, but G3, which waits for the owner.
+      - G3 decided (the owner, 2026-10-02: "Agreed, but c affects many other
+        places, needs a plan"): (b) now, and the shape of the pointer (c) as
+        a plan of its own. Done the same day: a point within 3 pixels of the
+        edge maps back to `column_policies[c]`, the width of the column, so the
+        edge is the mouse target and lights as a bar of 3 pixels in the ring
+        color of the theme over its rule, a new stroke of the printer of the
+        table; a rest there answers the tooltip "Drag to set the width". Found:
+        the table of a data frame view had no mouse target of its own, because
+        the view holds the mouse target as a path into its output, so no row,
+        column or edge of it lit under the pointer. The view computes the
+        mouse target of its table from its own now, as it computes its
+        selection. Tests: the table 209, the data frames 267 (the edge is the
+        mouse target after a move through a real editor), the platform suite
+        84,646. A picture shows the lit edge and a lit row.
+      - Done 2026-10-02 as designed.
         Found while implementing:
         - A part that a projection made is reached by the path of its input
           document: the route of a drag follows the inputs only, as the

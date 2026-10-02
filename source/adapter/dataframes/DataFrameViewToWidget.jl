@@ -148,6 +148,17 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
                         Cell(nothing), getfield(view, :scroll_position),
                         getfield(view, :top_row), Cell(nothing), Cell(nothing),
                         Cell(@computation _get_table_selection(view, false)))
+    set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
+    table
+end
+
+# The part of the table under the pointer: the mouse target of the view names a
+# part of the output of the view, and the part of the table is that path from the
+# table on. So the table lights the row, the column or the edge of a column under
+# the pointer, as it lights its selection from the selection of the view.
+function _get_table_mouse_target(view::DataFrameView)
+    target = view.mouse_target
+    target isa Reference ? _find_table_path(target) : nothing
 end
 
 # The policy of the width of column `name`: `Fixed` at the width that a person
@@ -198,6 +209,8 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                         Cell(nothing), getfield(view, :scroll_position),
                         getfield(view, :top_row), Cell(nothing), Cell(nothing),
                         Cell(@computation _get_table_selection(view, true)))
+    set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
+    table
 end
 
 # The selection of the table that shows the selection of `view`: the header of
