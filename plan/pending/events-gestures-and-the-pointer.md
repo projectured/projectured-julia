@@ -1625,7 +1625,14 @@ it holds the example.
   `WindowLeave` to `plan/done/`.**
 
 Not in the steps: the web client sends no motion while no button is held (study
-§4), so the browser has no hover. That needs a decision of its own.
+§4), so the browser has no hover. That needs a decision of its own. Decided (owner
+2026-10-02, "Agreed", on Claude's option a): the browser sends every move. The
+client sends a move with no button held at most once per animation frame
+(`requestAnimationFrame`), and the server stops dropping it, so the light, the
+tooltip, the lit brackets and the light during a drag work in the browser as on
+SDL. Facts: `asset/web/client.js` sent a move only while a button was held, and
+`WebBackend.jl` dropped a move with no button too; the leave of the window is
+sent already. Rejected: option b, no hover in the browser as a documented limit.
 
 Also open: Q15 of
 [a-document-knows-the-part-under-the-pointer.md](../done/a-document-knows-the-part-under-the-pointer.md),
