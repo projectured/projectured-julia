@@ -22,22 +22,9 @@
 # is computed from the view window rather than carried as an affine transform, so
 # zooming in re-derives ticks and decimation instead of magnifying pixels.
 # ── Theme defaults ───────────────────────────────────────────────────────
-# A `nothing` style field means "whatever the theme says"; these are that.
-
-const _BACKGROUND = color_solarized_background_lighter
-const _PLOT_BACKGROUND = StyleColor(1.0, 1.0, 1.0, 1.0)
-const _AXIS = color_solarized_content_dark
-const _GRID = StyleColor(0.0, 0.0, 0.0, 0.10)
-const _TEXT = color_solarized_content_darker
-const _SELECTION = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x60 / 255)
-const _SELECTION_EDGE = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.9)
-const _HOVER = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x28 / 255)
-
-# Frame metrics, in logical pixels.
-const _PAD = 8            # breathing room around the whole chart
-const _TICK = 4           # length of a tick mark outside the plot frame
-const _LABEL_GAP = 3      # between a tick mark and its label
-const _TICK_TARGET_PX = 70   # aim for roughly one tick per this many pixels
+# A `nothing` style field of a `ChartStyle` means "whatever the theme says";
+# `ChartTheme` carries the colors, the fonts and the lengths a chart draws with
+# when its style names none of its own.
 
 _or(value, fallback) = value === nothing ? fallback : value
 
@@ -62,13 +49,17 @@ function _draw_color(g, index::Int, own)
 end
 
 """
-    ChartPlotToGraphicsCanvas(; measure, width=760, height=460)
+    ChartPlotToGraphicsCanvas(; measure, width=760, height=460, theme=nothing)
 
 The chart renderer. `measure::TextMeasure` is how tick and title text is sized:
 `FontFileMeasure()`, as every backend draws, or a `FixedMeasure` in a test.
 
 `width`/`height` are the fallback canvas size, used when the printer context
 carries no allocation from a parent layout.
+
+`theme` is a [`ChartTheme`](@ref), a scaled one, or `nothing` for the default
+values; `style` holds every value of the theme as one `NamedTuple`, read once at
+each print with `unwrap_cell`.
 
 A plain struct rather than an `@projection`: `measure` is fixed at
 construction and needs no reactive field.
@@ -77,10 +68,12 @@ struct ChartPlotToGraphicsCanvas <: Projection
     measure::TextMeasure
     width::Int
     height::Int
+    style::Any
 end
 
-ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::Integer=460) =
-    ChartPlotToGraphicsCanvas(measure, Int(width), Int(height))
+ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::Integer=460, theme=nothing) =
+    ChartPlotToGraphicsCanvas(measure, Int(width), Int(height),
+                              make_theme_values_field(ChartTheme, scale_theme(theme)))
 
 @iomap struct ChartPlotToGraphicsCanvasIoMap
     projection::Any
@@ -246,9 +239,10 @@ end
 # ── Layout ───────────────────────────────────────────────────────────────
 
 # Ticks for one axis over the visible window, at a density suited to the pixels
-# the axis actually spans.
-function _axis_ticks(axis, lo::Real, hi::Real, span_px::Real)
-    target = clamp(round(Int, span_px / _TICK_TARGET_PX), 2, 12)
+# the axis actually spans. `tick_spacing` is the target pixel distance between
+# two ticks.
+function _axis_ticks(axis, lo::Real, hi::Real, span_px::Real, tick_spacing::Real)
+    target = clamp(round(Int, span_px / tick_spacing), 2, 12)
     (axis isa ChartAxis && axis.log) ? log_ticks(lo, hi) : compute_nice_ticks(lo, hi, target)
 end
 
@@ -265,19 +259,19 @@ _axis_grid(axis) = axis isa ChartAxis ? axis.grid : :none
 # category axis puts one tick per slot and thins the labels to whatever fits,
 # which is what keeps a ten-thousand-category axis from emitting ten thousand
 # text elements.
-function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font)
+function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font, t)
     if axis isa ChartCategoryAxis
         cats = axis.categories
         n = length(cats)
         (n == 0 || !axis.show_labels) && return (Float64[], String[])
         widest = maximum((first(compute_text_extent(p.measure, String(c), font)) for c in cats); init=0)
-        k = label_step(n, span_px, widest + _PAD)
+        k = label_step(n, span_px, widest + t.padding)
         idx = [i for i in 1:k:n if view.x_min <= i <= view.x_max]
         (Float64.(idx), String[String(cats[i]) for i in idx])
     else
-        ticks = _axis_ticks(axis, view.x_min, view.x_max, span_px)
+        ticks = _axis_ticks(axis, view.x_min, view.x_max, span_px, t.tick_spacing)
         step = _tick_step(ticks)
-        (ticks, _axis_shows_labels(axis) ? [format_tick(t, step) for t in ticks] : String[])
+        (ticks, _axis_shows_labels(axis) ? [format_tick(tick, step) for tick in ticks] : String[])
     end
 end
 
@@ -295,12 +289,6 @@ function _reference_series_index(chart::Chart, reference)
 end
 
 # ── Legend ───────────────────────────────────────────────────────────────
-
-const _SWATCH = 14        # width of a legend item's colour sample
-const _LEGEND_GAP = 6     # between swatch and label, and between columns
-# A strip's own swatch: neutral, because the band is many colours and any one of
-# them would misname the rest.
-const _STRIP_SWATCH = StyleColor(0.5, 0.5, 0.5, 0.55)
 
 _series_label(s) = hasproperty(s, :label) ? String(s.label) : ""
 
@@ -324,13 +312,13 @@ A zero index is an entry that names no series, which is what keeps a state entry
 inert without the reader knowing about states: zero already reads as "inside the
 legend but on nothing", so such an entry neither toggles nor hovers.
 """
-function _legend_items(chart::Chart, series)
+function _legend_items(chart::Chart, series, t)
     cycle = chart.style.color_cycle
     items = Tuple{Int,String,Any}[]
     states = Tuple{Int,String,Any}[]
     for (index, s) in series
         if s isa ChartStripSeries
-            push!(items, (index, _series_label(s), _STRIP_SWATCH))
+            push!(items, (index, _series_label(s), t.strip_swatch))
             for code in 1:length(s.states)
                 label = strip_state_name(s, code)
                 color = strip_state_color(s, code, cycle)
@@ -345,49 +333,51 @@ function _legend_items(chart::Chart, series)
 end
 
 # The legend's items and the box that holds them, before it is positioned, in
-# series order unless the legend asks for a dictionary sort.
+# series order unless the legend asks for a dictionary sort. `font` is the
+# legend's own font, which may differ from the axis font the frame draws with.
 function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
-                      font::StyleFont, w::Int, h::Int)
+                      font::StyleFont, w::Int, h::Int, t)
     legend = chart.legend
     legend isa ChartLegend || return nothing
     legend.visible || return nothing
-    items = _legend_items(chart, series)
+    items = _legend_items(chart, series, t)
     isempty(items) && return nothing
     legend.sort && sort!(items; by = it -> it[2])
 
     sizes = Tuple{Int,Int}[_get_text_size(p.measure, it[2], font) for it in items]
     horizontal = legend.position in (:above, :below) ||
                  (legend.position === :inside && legend.anchor in (:north, :south))
-    area_w = horizontal ? w - 2 * _PAD : w ÷ 3
-    area_h = horizontal ? h ÷ 3 : h - 2 * _PAD
-    box = compute_legend_layout(sizes; horizontal, area_w, area_h, swatch=_SWATCH,
-                                gap=_LEGEND_GAP)
+    area_w = horizontal ? w - 2 * t.padding : w ÷ 3
+    area_h = horizontal ? h ÷ 3 : h - 2 * t.padding
+    box = compute_legend_layout(sizes; horizontal, area_w, area_h, swatch=t.swatch,
+                                gap=t.legend_gap)
     (; position = legend.position, anchor = legend.anchor, border = legend.border,
        font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
-       x = 0, y = 0)
+       gap = t.legend_gap, x = 0, y = 0)
 end
 
 # Put the box where `position` and `anchor` say. An outside legend is anchored
 # within the strip already reserved for it; an inside one within the plot
 # rectangle itself.
-function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right)
+function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t)
     plan === nothing && return nothing
     bw, bh = plan.box_w, plan.box_h
+    pad = t.padding
     if plan.position === :inside
-        dx, dy = get_anchor_offset(plan.anchor, plot_w - 2 * _PAD, plot_h - 2 * _PAD, bw, bh)
-        x, y = plot_x + _PAD + dx, plot_y + _PAD + dy
+        dx, dy = get_anchor_offset(plan.anchor, plot_w - 2 * pad, plot_h - 2 * pad, bw, bh)
+        x, y = plot_x + pad + dx, plot_y + pad + dy
     elseif plan.position === :above
         dx, _ = get_anchor_offset(plan.anchor, plot_w, bh, bw, bh)
-        x, y = plot_x + dx, top - bh - _PAD
+        x, y = plot_x + dx, top - bh - pad
     elseif plan.position === :below
         dx, _ = get_anchor_offset(plan.anchor, plot_w, bh, bw, bh)
-        x, y = plot_x + dx, h - bottom + _PAD
+        x, y = plot_x + dx, h - bottom + pad
     elseif plan.position === :left
         _, dy = get_anchor_offset(plan.anchor, bw, plot_h, bw, bh)
-        x, y = _PAD, plot_y + dy
+        x, y = pad, plot_y + dy
     else
         _, dy = get_anchor_offset(plan.anchor, bw, plot_h, bw, bh)
-        x, y = w - right + _PAD, plot_y + dy
+        x, y = w - right + pad, plot_y + dy
     end
     merge(plan, (; x, y))
 end
@@ -407,7 +397,7 @@ function get_legend_item_rects(plan)
     for k in 1:min(box.shown, length(plan.items))
         col = (k - 1) ÷ box.rows
         row = (k - 1) % box.rows
-        x = plan.x + pad + col * (box.col_w + _LEGEND_GAP)
+        x = plan.x + pad + col * (box.col_w + plan.gap)
         y = plan.y + pad + row * box.row_h
         push!(out, (plan.items[k][1], x, y, box.col_w, box.row_h))
     end
@@ -418,15 +408,16 @@ function _legend_elements!(out, g)
     plan = g.legend
     plan === nothing && return out
     style = g.style
-    text_color = _or(style.title_color, _TEXT)
+    t = g.theme
+    text_color = _or(style.title_color, t.text_color)
     box = plan.box
 
     # Opaque, because a bordered rect paints the border colour underneath its
     # fill: a translucent legend background would take on the border's colour.
     push!(out, GraphicsRect(plan.x, plan.y, plan.box_w, plan.box_h;
-                            color = _PLOT_BACKGROUND, radius = 3,
+                            color = t.plot_background, radius = 3,
                             border_width = plan.border ? 1 : 0,
-                            border_color = plan.border ? _AXIS : nothing))
+                            border_color = plan.border ? t.axis : nothing))
 
     rects = get_legend_item_rects(plan)
     for (k, (index, x, y, item_w, row_h)) in enumerate(rects)
@@ -437,16 +428,16 @@ function _legend_elements!(out, g)
         # names no series has nothing to call out.
         if index != 0
             if index == g.selected_index
-                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = _SELECTION, radius = 3))
+                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = t.selected_fill, radius = 3))
             elseif index == g.lit_index
-                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = _HOVER, radius = 3))
+                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = t.hover_fill, radius = 3))
             end
         end
-        push!(out, GraphicsRect(x, cy - 4, _SWATCH, 8; color, radius = 2))
-        # `plan.font` is `axis_font`, the font `g.measure_label` is bound to.
-        line = g.measure_label(label)
+        push!(out, GraphicsRect(x, cy - 4, t.swatch, 8; color, radius = 2))
+        # `plan.font` is `legend_font`, the font `g.measure_legend_label` is bound to.
+        line = g.measure_legend_label(label)
         th = line.height
-        push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2 + line.text_y;
+        push!(out, GraphicsText(label, x + t.swatch + t.legend_gap, cy - th ÷ 2 + line.text_y;
                                 font = plan.font, color = text_color))
     end
 
@@ -455,9 +446,9 @@ function _legend_elements!(out, g)
         hidden = length(plan.items) - box.shown
         col = box.shown ÷ box.rows
         row = box.shown % box.rows
-        x = plan.x + 6 + col * (box.col_w + _LEGEND_GAP)
+        x = plan.x + 6 + col * (box.col_w + t.legend_gap)
         y = plan.y + 6 + row * box.row_h
-        line = g.measure_label("… and $hidden more")
+        line = g.measure_legend_label("… and $hidden more")
         push!(out, GraphicsText("… and $hidden more", x, y + line.text_y;
                                 font = plan.font, color = text_color))
     end
@@ -466,12 +457,13 @@ end
 
 # The whole frame in one pass: ranges, then ticks, then the margins the measured
 # tick labels imply, then the plot rectangle and the two scales.
-function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
+function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, t)
     chart = plot.chart
     chart isa Chart || return nothing
     style = chart.style
-    title_font = _or(style.title_font, font_ubuntu_bold_16)
-    axis_font = _or(style.axis_font, font_ubuntu_regular_14)
+    title_font = _or(style.title_font, t.title_font)
+    axis_font = _or(style.axis_font, t.axis_font)
+    legend_font = _or(style.legend_font, t.legend_font)
 
     view = resolve_view(plot)
     x_axis, y_axis = chart.x_axis, chart.y_axis
@@ -483,7 +475,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
         title_text_y = 0
     else
         title_line = compute_line_box(p.measure, title, title_font)
-        title_h = title_line.height + _PAD ÷ 2
+        title_h = title_line.height + t.padding ÷ 2
         title_text_y = title_line.text_y
     end
 
@@ -508,8 +500,8 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
 
     # Provisional plot extent, used only to pick a tick density. The ticks then
     # decide the real margins, and those give the final extent.
-    prov_w = max(w - 2 * _PAD - 60, 40)
-    prov_h = max(h - 2 * _PAD - title_h - y_title_h - x_title_h - 24, 40)
+    prov_w = max(w - 2 * t.padding - 60, 40)
+    prov_h = max(h - 2 * t.padding - title_h - y_title_h - x_title_h - 24, 40)
 
     # Row-label mode: when the chart is nothing but strips, the y axis is the
     # list of strips, so it carries their labels instead of numbers. Any other
@@ -521,11 +513,11 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
         yticks = Float64[Float64(strip_rows[i]) for (i, _) in series]
         ylabels = _axis_shows_labels(y_axis) ? [_series_label(s) for (_, s) in series] : String[]
     else
-        yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h)
+        yticks = _axis_ticks(y_axis, view.y_min, view.y_max, prov_h, t.tick_spacing)
         ylabels = _axis_shows_labels(y_axis) ?
-            [format_tick(t, _tick_step(yticks)) for t in yticks] : String[]
+            [format_tick(tick, _tick_step(yticks)) for tick in yticks] : String[]
     end
-    xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font)
+    xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font, t)
 
     # Measure each label once, here, and carry the boxes forward — the frame
     # needs them again when it places the text.
@@ -535,26 +527,26 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     ylabel_w = isempty(ysizes) ? 0 : maximum(sz.width for sz in ysizes)
     xlabel_last_w = isempty(xsizes) ? 0 : last(xsizes).width
 
-    left = _PAD + ylabel_w + (isempty(ylabels) ? 0 : _LABEL_GAP) + _TICK
-    right = _PAD + xlabel_last_w ÷ 2
-    top = _PAD + title_h + y_title_h
-    bottom = _PAD + x_title_h + (isempty(xlabels) ? 0 : label_h + _LABEL_GAP) + _TICK
+    left = t.padding + ylabel_w + (isempty(ylabels) ? 0 : t.label_gap) + t.tick_length
+    right = t.padding + xlabel_last_w ÷ 2
+    top = t.padding + title_h + y_title_h
+    bottom = t.padding + x_title_h + (isempty(xlabels) ? 0 : label_h + t.label_gap) + t.tick_length
 
     # An outside legend reserves a strip, shrinking the plot; an inside one
     # overlays it and takes nothing.
-    legend = _legend_plan(p, chart, series, axis_font, w, h)
+    legend = _legend_plan(p, chart, series, legend_font, w, h, t)
     if legend !== nothing && legend.position !== :inside
-        legend.position === :above && (top += legend.box_h + _PAD)
-        legend.position === :below && (bottom += legend.box_h + _PAD)
-        legend.position === :left && (left += legend.box_w + _PAD)
-        legend.position === :right && (right += legend.box_w + _PAD)
+        legend.position === :above && (top += legend.box_h + t.padding)
+        legend.position === :below && (bottom += legend.box_h + t.padding)
+        legend.position === :left && (left += legend.box_w + t.padding)
+        legend.position === :right && (right += legend.box_w + t.padding)
     end
 
     plot_x = left
     plot_y = top
     plot_w = max(w - left - right, 20)
     plot_h = max(h - top - bottom, 20)
-    legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right)
+    legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t)
 
     xlog = x_axis isa ChartAxis && x_axis.log
     ylog = y_axis isa ChartAxis && y_axis.log
@@ -566,6 +558,9 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     whole_selected = chart.selection isa EmptyReference
 
     measure_label = label -> compute_line_box(p.measure, label, axis_font)
+    # The legend draws with its own font, which may differ from the axis font
+    # `measure_label` is bound to.
+    measure_legend_label = label -> compute_line_box(p.measure, label, legend_font)
     # Decimated series geometry is wanted by the printer once per repaint and by
     # the reader on every pointer move, so it is memoized here — inside the
     # layout, which already dies and is rebuilt whenever the data, the window or
@@ -576,13 +571,13 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
         i => _compute_strip_spans(xs, view, s)
         for (i, s) in series if s isa ChartStripSeries && haskey(strip_rows, i))
 
-    (; w, h, chart, style, view, series, legend,
+    (; w, h, chart, style, theme = t, view, series, legend,
        selected_index, selected_part, whole_selected,
-       measure_label,
+       measure_label, measure_legend_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        point_cache, strip_spans, strip_rows, strip_count, strip_only,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
-       title, title_font, axis_font, title_h, title_text_y,
+       title, title_font, axis_font, legend_font, title_h, title_text_y,
        x_title, y_title, x_title_h, y_title_h, x_title_text_y, y_title_text_y)
 end
 
@@ -590,12 +585,13 @@ end
 
 function _frame_elements!(out, g)
     style = g.style
-    grid_color = _or(style.grid_color, _GRID)
-    text_color = _or(style.title_color, _TEXT)
+    t = g.theme
+    grid_color = _or(style.grid_color, t.grid)
+    text_color = _or(style.title_color, t.text_color)
     px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
 
-    push!(out, GraphicsRect(0, 0, g.w, g.h; color = _or(style.background, _BACKGROUND)))
-    push!(out, GraphicsRect(px, py, pw, ph; color = _or(style.plot_background, _PLOT_BACKGROUND)))
+    push!(out, GraphicsRect(0, 0, g.w, g.h; color = _or(style.background, t.background)))
+    push!(out, GraphicsRect(px, py, pw, ph; color = _or(style.plot_background, t.plot_background)))
 
     chart = g.chart
     grid_x = _axis_grid(chart.x_axis)
@@ -604,55 +600,55 @@ function _frame_elements!(out, g)
     # In row-label mode the y ticks name the strips rather than measuring
     # anything, so a gridline through each would just underline the bands.
     if grid_y !== :none && !g.strip_only
-        for t in g.yticks
-            y = round(Int, to_pixel(g.ys, t))
+        for tick in g.yticks
+            y = round(Int, to_pixel(g.ys, tick))
             (py <= y <= py + ph) || continue
             push!(out, GraphicsLine(px, y, px + pw, y; color = grid_color, dash=(2, 3)))
         end
     end
     if grid_x !== :none
-        for t in g.xticks
-            x = round(Int, to_pixel(g.xs, t))
+        for tick in g.xticks
+            x = round(Int, to_pixel(g.xs, tick))
             (px <= x <= px + pw) || continue
             push!(out, GraphicsLine(x, py, x, py + ph; color = grid_color, dash=(2, 3)))
         end
     end
 
     # The two axis lines, drawn over the grid.
-    push!(out, GraphicsLine(px, py + ph, px + pw, py + ph; color = _AXIS))
-    push!(out, GraphicsLine(px, py, px, py + ph; color = _AXIS))
+    push!(out, GraphicsLine(px, py + ph, px + pw, py + ph; color = t.axis))
+    push!(out, GraphicsLine(px, py, px, py + ph; color = t.axis))
 
     # Tick marks and their labels.
     for i in eachindex(g.ylabels)
         y = round(Int, to_pixel(g.ys, g.yticks[i]))
         (py - 1 <= y <= py + ph + 1) || continue
-        push!(out, GraphicsLine(px - _TICK, y, px, y; color = _AXIS))
+        push!(out, GraphicsLine(px - t.tick_length, y, px, y; color = t.axis))
         line = g.ysizes[i]
         tw, th = line.width, line.height
-        push!(out, GraphicsText(g.ylabels[i], px - _TICK - _LABEL_GAP - tw, y - th ÷ 2 + line.text_y;
+        push!(out, GraphicsText(g.ylabels[i], px - t.tick_length - t.label_gap - tw, y - th ÷ 2 + line.text_y;
                                 font = g.axis_font, color = text_color))
     end
     for i in eachindex(g.xlabels)
         x = round(Int, to_pixel(g.xs, g.xticks[i]))
         (px - 1 <= x <= px + pw + 1) || continue
-        push!(out, GraphicsLine(x, py + ph, x, py + ph + _TICK; color = _AXIS))
+        push!(out, GraphicsLine(x, py + ph, x, py + ph + t.tick_length; color = t.axis))
         line = g.xsizes[i]
-        push!(out, GraphicsText(g.xlabels[i], x - line.width ÷ 2, py + ph + _TICK + _LABEL_GAP + line.text_y;
+        push!(out, GraphicsText(g.xlabels[i], x - line.width ÷ 2, py + ph + t.tick_length + t.label_gap + line.text_y;
                                 font = g.axis_font, color = text_color))
     end
 
     _selection_elements!(out, g)
 
     isempty(g.title) ||
-        push!(out, GraphicsText(g.title, px, _PAD + g.title_text_y; font = g.title_font, color = text_color))
+        push!(out, GraphicsText(g.title, px, t.padding + g.title_text_y; font = g.title_font, color = text_color))
     # No rotated text: the backends only honour the translate+scale subset of an
     # affine transform, so the y-axis title sits above the axis rather than
     # running up its side.
     isempty(g.y_title) ||
-        push!(out, GraphicsText(g.y_title, px, _PAD + g.title_h + g.y_title_text_y;
+        push!(out, GraphicsText(g.y_title, px, t.padding + g.title_h + g.y_title_text_y;
                                 font = g.axis_font, color = text_color))
     isempty(g.x_title) ||
-        push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - _PAD - g.x_title_h + 2 + g.x_title_text_y;
+        push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - t.padding - g.x_title_h + 2 + g.x_title_text_y;
                                 font = g.axis_font, color = text_color))
     out
 end
@@ -663,23 +659,25 @@ end
 # the whole chart gets a frame of its own.
 function _selection_elements!(out, g)
     px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
+    t = g.theme
     if g.whole_selected
-        _outline!(out, 1, 1, g.w - 2, g.h - 2)
+        _outline!(out, 1, 1, g.w - 2, g.h - 2, t.selected_edge)
         return out
     end
     part = g.selected_part
     if part == 1 && !isempty(g.title)
         line = g.measure_label(g.title)
         tw, th = line.width, line.height
-        push!(out, GraphicsRect(px - 3, _PAD - 2, tw + 6, g.title_h + 2; color = _SELECTION, radius = 3))
+        push!(out, GraphicsRect(px - 3, t.padding - 2, tw + 6, g.title_h + 2; color = t.selected_fill, radius = 3))
     elseif part == 2
-        push!(out, GraphicsRect(px, py + ph + _TICK, pw, g.h - (py + ph + _TICK) - _PAD ÷ 2;
-                                color = _SELECTION, radius = 3))
+        push!(out, GraphicsRect(px, py + ph + t.tick_length, pw, g.h - (py + ph + t.tick_length) - t.padding ÷ 2;
+                                color = t.selected_fill, radius = 3))
     elseif part == 3
-        push!(out, GraphicsRect(_PAD ÷ 2, py, px - _TICK - _PAD ÷ 2, ph; color = _SELECTION, radius = 3))
+        push!(out, GraphicsRect(t.padding ÷ 2, py, px - t.tick_length - t.padding ÷ 2, ph;
+                                color = t.selected_fill, radius = 3))
     elseif part == 4 && g.legend !== nothing
         plan = g.legend
-        _outline!(out, plan.x - 3, plan.y - 3, plan.box_w + 6, plan.box_h + 6)
+        _outline!(out, plan.x - 3, plan.y - 3, plan.box_w + 6, plan.box_h + 6, t.selected_edge)
     end
     out
 end
@@ -687,11 +685,11 @@ end
 # An outline drawn as its four edges. A rect with a border paints the border
 # colour across the whole shape and insets the fill on top, so it cannot express
 # "outline only" over content that has to stay visible.
-function _outline!(out, x::Integer, y::Integer, w::Integer, h::Integer)
-    push!(out, GraphicsLine(x, y, x + w, y; color = _SELECTION_EDGE, width=2))
-    push!(out, GraphicsLine(x, y + h, x + w, y + h; color = _SELECTION_EDGE, width=2))
-    push!(out, GraphicsLine(x, y, x, y + h; color = _SELECTION_EDGE, width=2))
-    push!(out, GraphicsLine(x + w, y, x + w, y + h; color = _SELECTION_EDGE, width=2))
+function _outline!(out, x::Integer, y::Integer, w::Integer, h::Integer, color::StyleColor)
+    push!(out, GraphicsLine(x, y, x + w, y; color, width=2))
+    push!(out, GraphicsLine(x, y + h, x + w, y + h; color, width=2))
+    push!(out, GraphicsLine(x, y, x, y + h; color, width=2))
+    push!(out, GraphicsLine(x + w, y, x + w, y + h; color, width=2))
     out
 end
 
@@ -893,7 +891,7 @@ function _bar_elements!(out, g, bar_series)
     bl = round(Int, baseline)
     if 0 <= bl <= g.plot_h
         push!(out, GraphicsLine(0, bl, g.plot_w, bl;
-                                color = _or(chart.bar_baseline_color, _AXIS)))
+                                color = _or(chart.bar_baseline_color, g.theme.axis)))
     end
     out
 end
@@ -934,7 +932,7 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
             y0, y1 = min(ytop, ybot, baseline), max(ytop, ybot, baseline)
             push!(out, GraphicsRect(l, round(Int, y0), max(r - l, 1),
                                     max(round(Int, y1 - y0), 1); color,
-                                    border_width=1, border_color=_AXIS))
+                                    border_width=1, border_color=g.theme.axis))
         end
     end
 
@@ -971,7 +969,6 @@ end
 # Half the height of a band, in rows. Bands are placed in data coordinates so
 # they scale with a y zoom like everything else.
 const _STRIP_HALF = 0.4
-const _STRIP_EDGE = StyleColor(0.0, 0.0, 0.0, 0.10)
 
 # The band a strip occupies, in absolute pixels, or `nothing` when the series
 # has no row — hidden, or not a strip at all.
@@ -1031,9 +1028,9 @@ function _compute_strip_spans(xs::AxisScale, view, s::ChartStripSeries)
 end
 
 # Enough contrast to read a state name against whatever colour that state took.
-_strip_label_color(color::StyleColor) =
+_strip_label_color(color::StyleColor, text_color::StyleColor) =
     (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) > 0.55 ?
-    _TEXT : StyleColor(1.0, 1.0, 1.0, 1.0)
+    text_color : StyleColor(1.0, 1.0, 1.0, 1.0)
 
 function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     band = _strip_band(g, index)
@@ -1049,7 +1046,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
         color = _veiled(strip_state_color(s, code, cycle), veiled)
         push!(out, s.draw_edges ?
             GraphicsRect(l - ox, top - oy, max(r - l, 1), height; color,
-                         border_width=1, border_color=_STRIP_EDGE) :
+                         border_width=1, border_color=g.theme.strip_edge) :
             GraphicsRect(l - ox, top - oy, max(r - l, 1), height; color))
     end
 
@@ -1066,7 +1063,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
             color = strip_state_color(s, code, cycle)
             push!(out, GraphicsText(name, l - ox + (r - l - tw) ÷ 2,
                                     top - oy + (height - th) ÷ 2 + line.text_y;
-                                    font = g.axis_font, color = _strip_label_color(color)))
+                                    font = g.axis_font, color = _strip_label_color(color, g.theme.text_color)))
         end
     end
     out
@@ -1076,9 +1073,6 @@ end
 #
 # What is drawn over the series inside the plot viewport: the crosshair with its
 # value readout, and the rubber band while a zoom drag is in progress.
-
-const _CROSSHAIR = StyleColor(0xdc / 255, 0x32 / 255, 0x2f / 255, 0.7)
-const _BAND_FILL = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x30 / 255)
 
 # The data point nearest the cursor, within a small halo, so the readout snaps to
 # real samples instead of reporting wherever the pointer happens to be. The
@@ -1096,6 +1090,7 @@ function _snap_point(g, lx::Int, ly::Int)
 end
 
 function _overlay_elements!(out, g, plot::ChartPlot)
+    t = g.theme
     rect = plot.drag_rect
     if rect !== nothing
         rx, ry, rw, rh = rect
@@ -1103,7 +1098,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         # with the fill inset on top of it, so a translucent fill would show the
         # border colour through the whole band rather than around it.
         push!(out, GraphicsRect(rx - g.plot_x, ry - g.plot_y, max(rw, 1), max(rh, 1);
-                                color = _BAND_FILL))
+                                color = t.band_fill))
     end
 
     # The selected sample, called out whether or not the pointer is near it.
@@ -1121,7 +1116,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                 sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
                 color = get_series_color(series.color, sample[1], g.style.color_cycle)
                 push!(out, GraphicsCircle(sx, sy, 6; color = color_transparent,
-                                          border_width=2, border_color=_SELECTION_EDGE))
+                                          border_width=2, border_color=t.selected_edge))
                 push!(out, GraphicsCircle(sx, sy, 3; color))
             end
         end
@@ -1131,11 +1126,11 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     cursor === nothing && return out
     cx = round(Int, to_pixel(g.xs, cursor[1])) - g.plot_x
     cy = round(Int, to_pixel(g.ys, cursor[2])) - g.plot_y
-    push!(out, GraphicsLine(cx, 0, cx, g.plot_h; color = _CROSSHAIR, dash=(3, 3)))
-    push!(out, GraphicsLine(0, cy, g.plot_w, cy; color = _CROSSHAIR, dash=(3, 3)))
+    push!(out, GraphicsLine(cx, 0, cx, g.plot_h; color = t.crosshair, dash=(3, 3)))
+    push!(out, GraphicsLine(0, cy, g.plot_w, cy; color = t.crosshair, dash=(3, 3)))
 
     snapped = _snap_point(g, cx, cy)
-    text_color = _or(g.style.title_color, _TEXT)
+    text_color = _or(g.style.title_color, t.text_color)
     if snapped === nothing
         # Inside a band, the y coordinate is a row number and reading it back as
         # a value would be meaningless — the state holding there is the answer.
@@ -1148,7 +1143,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
 
     index, px, py = snapped
     color = get_series_color(g.chart.series[index].color, index, g.style.color_cycle)
-    push!(out, GraphicsCircle(px, py, 4; color, border_width=1, border_color=_PLOT_BACKGROUND))
+    push!(out, GraphicsCircle(px, py, 4; color, border_width=1, border_color=t.plot_background))
     label = string(_series_label(g.chart.series[index]), "  ",
                    format_tick(to_data(g.xs, px + g.plot_x)), ", ",
                    format_tick(to_data(g.ys, py + g.plot_y)))
@@ -1158,7 +1153,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     tw, th = line.width, line.height
     lx = px + tw + 12 > g.plot_w ? px - tw - 8 : px + 8
     push!(out, GraphicsRect(lx - 4, py - th - 8, tw + 8, th + 6;
-                            color = _PLOT_BACKGROUND, radius = 3, border_width=1, border_color=_AXIS))
+                            color = t.plot_background, radius = 3, border_width=1, border_color=t.axis))
     push!(out, GraphicsText(label, lx, py - th - 5 + line.text_y; font = g.axis_font, color = text_color))
     out
 end
@@ -1182,7 +1177,7 @@ function _selected_strip!(out, g, index::Int, s::ChartStripSeries, k::Integer)
         end
     end
     _outline!(out, left - g.plot_x, band[1] - g.plot_y,
-              max(right - left, 1), max(band[2] - band[1], 1))
+              max(right - left, 1), max(band[2] - band[1], 1), g.theme.selected_edge)
 end
 
 # What the pointer is over inside a band: the strip and the state holding at
@@ -1233,14 +1228,15 @@ function _canvas_size(p::ChartPlotToGraphicsCanvas, ctx)
 end
 
 function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot, ctx)
+    t = unwrap_cell(p.style)
     geometry = Cell(@computation begin
         w, h = _canvas_size(p, ctx)
-        _layout(p, plot, w, h)
+        _layout(p, plot, w, h, t)
     end)
 
     elements = CellVector(@computation begin
         g = geometry[]
-        g === nothing && return _empty_elements(p, plot, ctx)
+        g === nothing && return _empty_elements(p, plot, ctx, t)
         # The series that the pointer is on lights, and the others are veiled. The
         # element pass reads it, which each move of the cursor runs, and the
         # layout does not.
@@ -1282,12 +1278,12 @@ end
 # A chart-shaped placeholder for a `ChartNothing`/`ChartInsertion` root, so an
 # empty chart still occupies its space and reads as a chart rather than
 # vanishing.
-function _empty_elements(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, ctx)
+function _empty_elements(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, ctx, t)
     w, h = _canvas_size(p, ctx)
-    Any[GraphicsRect(0, 0, w, h; color = _BACKGROUND),
-        GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD; color = _PLOT_BACKGROUND, radius = 4,
-                     border_width=1, border_color=_AXIS),
-        GraphicsText("empty chart", _PAD * 2, h ÷ 2; font = font_ubuntu_regular_14, color = _TEXT)]
+    Any[GraphicsRect(0, 0, w, h; color = t.background),
+        GraphicsRect(t.padding, t.padding, w - 2 * t.padding, h - 2 * t.padding; color = t.plot_background, radius = 4,
+                     border_width=1, border_color=t.axis),
+        GraphicsText("empty chart", t.padding * 2, h ÷ 2; font = t.axis_font, color = t.text_color)]
 end
 
 # A chart part is not a cursor position: there is nowhere in the canvas for a

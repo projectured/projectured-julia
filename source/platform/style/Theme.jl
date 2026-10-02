@@ -232,6 +232,22 @@ make_style_field(::Type{K}, theme::ScaledTheme, ::Type{T}, name::Symbol) where {
     make_theme_cell(T, theme, scaled -> getproperty(scaled, name))
 
 """
+    make_theme_values_field(K, theme) -> NamedTuple or UntrackedCell{NamedTuple}
+
+The style field of a projection that holds every value of the theme type `K` as
+one `NamedTuple`, by the names of the fields. With a scaled theme of `K`, it is a
+cell that reads the values of `theme` at each read, with no edge; with `nothing`,
+it is the plain values of the default theme. A printer with many helpers reads
+the field once at each print, with `unwrap_cell`, and gives the tuple to them.
+"""
+function make_theme_values_field(::Type{K}, theme) where {K}
+    theme === nothing && return get_theme_defaults(K)
+    names = get_theme_field_names(K)
+    make_theme_cell(NamedTuple, theme,
+                    scaled -> NamedTuple{names}(Tuple(getproperty(scaled, name) for name in names)))
+end
+
+"""
     @theme struct T … end
 
 Declare the theme `T` of a domain, and its scaled theme `ScaledT`.

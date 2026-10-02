@@ -91,6 +91,19 @@ The cost of a chart depends on the size of its plot rectangle, not on the length
 
 `test_chart_scale()` holds a million-sample line, a million-point scatter, a million-sample strip, a ten-thousand-category bar chart and a ten-thousand-bin histogram each under 4,000 graphics elements. A click finds a sample with a binary search too, so it costs the same on a million samples as on a hundred.
 
+### The theme
+
+`ChartTheme` holds what `ChartPlotToGraphicsCanvas` draws when the chart says
+nothing: the colors of the backgrounds, the axis, the grid, the text, a selection,
+the hover, a strip and the crosshair band, the title, axis and legend fonts, and
+the padding, the tick length, the gap of a label, the spacing of the ticks, the
+swatch and the gap of the legend. A value that `ChartStyle` sets keeps its
+priority; the legend draws with `legend_font`. The printer takes `theme`, holds
+all its values as one style field, reads it once at each print, and gives the
+tuple to its helpers. The natural registration of a frame time series gives the
+scaled theme of the `Appearance`. The colors and the symbols that cycle over the
+series are the chart's own (`ChartStyle.color_cycle`), not the theme's.
+
 ## How it fits
 
 `ProjecturedChart` depends on the kernel and the platform. It registers one natural row, `:frame_time_series`: `FrameTimeSeriesToChart` draws the `FrameTimeSeries` of the statistics as a chart, one line for each time measurement. The projection lives here and not in the statistics slice, because the statistics are a part of the platform, which depends on no domain; see [statistics.md](../../platform/statistics/statistics.md). For a chart of its own, a caller builds the chain, or adds one entry to the natural renderer to draw a chart inside another document:

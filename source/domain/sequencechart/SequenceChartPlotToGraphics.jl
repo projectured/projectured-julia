@@ -32,33 +32,11 @@
 # range, a lane column shorter than the event table — none of these throw. They
 # are drawn as far as they make sense and skipped where they do not, because a
 # chart is often being watched while something upstream is still writing it.
-# ── Theme defaults ───────────────────────────────────────────────────────
-# A `nothing` style field means "whatever the theme says"; these are that.
-
-const _BACKGROUND = color_solarized_background_lighter
-const _BODY_BACKGROUND = StyleColor(1.0, 1.0, 1.0, 1.0)
-const _AXIS = color_solarized_content_dark
-const _TEXT = color_solarized_content_darker
-const _GUTTER = StyleColor(1.0, 1.0, 0.94, 1.0)
-const _GUTTER_BORDER = StyleColor(0.0, 0.0, 0.0, 0.25)
-const _HAIRLINE = StyleColor(0.0, 0.0, 0.0, 0.14)
-const _ZERO_TIME = StyleColor(0.0, 0.0, 0.0, 0.055)
-const _ARROW = color_solarized_blue
-const _EVENT = StyleColor(0xd3 / 255, 0x36 / 255, 0x82 / 255, 1.0)
-
-# Frame metrics, in logical pixels.
-const _PAD = 8              # breathing room around the whole chart
-const _GUTTER_PAD = 3       # inside a gutter, above and below its text
-const _LABEL_GAP = 4        # between a lane and its label
-const _TICK_TARGET_PX = 100 # aim for roughly one tick per this many pixels
-const _LANE_MIN_SPACING = 16
-const _LANE_OFFSET = 14     # from the body edge to the first lane
-const _BAND_HEIGHT = 12     # a state strip's thickness
 
 _or(value, fallback) = value === nothing ? fallback : value
 
 """
-    SequenceChartPlotToGraphicsCanvas(; measure, width=900, height=520)
+    SequenceChartPlotToGraphicsCanvas(; measure, width=900, height=520, theme=nothing)
 
 The sequence chart renderer. `measure::TextMeasure` is how tick, lane and arrow
 text is sized: `FontFileMeasure()`, as every backend draws, or a `FixedMeasure`
@@ -67,6 +45,10 @@ in a test.
 `width`/`height` are the fallback canvas size, used when the printer context
 carries no allocation from a parent layout.
 
+`theme` is a `SequenceChartTheme`, a scaled one, or `nothing` for the default
+values. A chart's own `SequenceChartStyle`, and a kind's own color, still take
+priority over it; the theme only replaces what neither names.
+
 A plain struct rather than an `@projection`: `measure` is fixed at
 construction and needs no reactive field.
 """
@@ -74,11 +56,13 @@ struct SequenceChartPlotToGraphicsCanvas <: Projection
     measure::TextMeasure
     width::Int
     height::Int
+    style::Any
 end
 
 SequenceChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=900,
-                                  height::Integer=520) =
-    SequenceChartPlotToGraphicsCanvas(measure, Int(width), Int(height))
+                                  height::Integer=520, theme=nothing) =
+    SequenceChartPlotToGraphicsCanvas(measure, Int(width), Int(height),
+                                      make_theme_values_field(SequenceChartTheme, scale_theme(theme)))
 
 @iomap struct SequenceChartPlotToGraphicsCanvasIoMap
     projection::Any
@@ -148,14 +132,14 @@ end
 # Deliberately independent of the pointer: hover, selection and the cursor are
 # read by the element pass instead, so moving the mouse never lands here.
 function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
-                 timeline, w::Int, h::Int)
+                 timeline, w::Int, h::Int, t)
     chart = plot.chart
     chart isa SequenceChart || return nothing
     timeline === nothing && return nothing
     style = chart.style
-    label_font = _or(style.label_font, font_ubuntu_regular_14)
-    axis_font = _or(style.axis_label_font, font_ubuntu_regular_14)
-    title_font = font_ubuntu_bold_16
+    label_font = _or(style.label_font, t.label_font)
+    axis_font = _or(style.axis_label_font, t.axis_font)
+    title_font = t.title_font
 
     times, coordinates = timeline.times, timeline.coordinates
     vertical = chart.orientation === :vertical
@@ -163,7 +147,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     hi > lo || (hi = lo + 1.0)
 
     title = chart.title
-    title_h = isempty(title) ? 0 : compute_line_box(p.measure, title, title_font).height + _PAD ÷ 2
+    title_h = isempty(title) ? 0 : compute_line_box(p.measure, title, title_font).height + t.padding ÷ 2
 
     order = get_axis_display_order(chart)
     labels = String[String(chart.axes[i].label) for i in order]
@@ -172,21 +156,21 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     label_h = compute_line_box(p.measure, "0", axis_font).height
 
     gutter = chart.gutter
-    gutter_h = gutter.visible ? label_h + 2 * _GUTTER_PAD : 0
+    gutter_h = gutter.visible ? label_h + 2 * t.gutter_padding : 0
 
     # The lane labels take a strip beside the body when time runs across, and a
     # header band above it when time runs down — in both cases outside the body,
     # so they stay put while the content scrolls.
     if vertical
-        left = _PAD
-        right = _PAD
-        top = _PAD + title_h + label_h + _LABEL_GAP + gutter_h
-        bottom = _PAD + gutter_h
+        left = t.padding
+        right = t.padding
+        top = t.padding + title_h + label_h + t.label_gap + gutter_h
+        bottom = t.padding + gutter_h
     else
-        left = _PAD + label_w + _LABEL_GAP
-        right = _PAD
-        top = _PAD + title_h + gutter_h
-        bottom = _PAD + gutter_h
+        left = t.padding + label_w + t.label_gap
+        right = t.padding
+        top = t.padding + title_h + gutter_h
+        bottom = t.padding + gutter_h
     end
 
     body_x = left
@@ -203,11 +187,11 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     scale = AxisScale(lo, hi, flow_lo, flow_hi)
 
     # A lane carrying a band needs room for the strip as well as the line.
-    band_heights = Float64[_lane_band_height(chart.axes[i]) for i in order]
+    band_heights = Float64[_lane_band_height(chart.axes[i], t.band_height) for i in order]
     lanes = get_axis_cross_positions(length(order), band_heights, cross_lo, cross_hi;
                                  spacing=style.axis_spacing,
-                                 minimum_spacing=_LANE_MIN_SPACING,
-                                 offset=_LANE_OFFSET)
+                                 minimum_spacing=t.lane_spacing,
+                                 offset=t.lane_offset)
     # Lane identity → cross position, so an event finds its lane by the index it
     # actually carries rather than by where it happens to be drawn.
     lane_of = Dict{Int,Float64}()
@@ -233,9 +217,9 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
                            candidates, horizon, style)
 
     ticks = flow_ticks(times, coordinates; scale, mode = chart.timeline.mode,
-                       target_px=_TICK_TARGET_PX)
+                       target_px=t.tick_spacing)
     neighbourhood = _tick_neighbourhood(times, coordinates, scale, ticks)
-    raw_labels = String[get_honest_tick_label(t, neighbourhood) for (_, t) in ticks]
+    raw_labels = String[get_honest_tick_label(tick_time, neighbourhood) for (_, tick_time) in ticks]
     prefix, tick_labels = tick_common_prefix(raw_labels)
 
     zero_spans = style.zero_time_shading ? get_zero_time_spans(times, coordinates, lo, hi) :
@@ -249,10 +233,18 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
        gutter_h, ticks, tick_labels, prefix, zero_spans,
        visible_events, shapes, bands,
        body_x, body_y, body_w, body_h,
-       measure = p.measure)
+       measure = p.measure,
+       background = t.background, body_background = t.body_background,
+       axis = t.axis, text_color = t.text_color,
+       gutter = t.gutter, gutter_border = t.gutter_border,
+       hairline = t.hairline, zero_time = t.zero_time,
+       arrow = t.arrow, event = t.event,
+       selected = t.selected, hover = t.hover,
+       padding = t.padding, gutter_padding = t.gutter_padding,
+       label_gap = t.label_gap, band_height = t.band_height)
 end
 
-_lane_band_height(axis::SequenceChartAxis) = length(axis.bands) > 0 ? Float64(_BAND_HEIGHT) : 0.0
+_lane_band_height(axis::SequenceChartAxis, band_height) = length(axis.bands) > 0 ? Float64(band_height) : 0.0
 
 # How much time one tick's pixel stands for — what decides how many digits a
 # tick label may honestly show.
@@ -366,15 +358,15 @@ _kind_color(kind, index::Integer, cycle, fallback) =
 # labels. Everything here lives outside the scrolling body, so it stays put.
 function _frame_elements!(out, g)
     style = g.style
-    push!(out, GraphicsRect(0, 0, g.w, g.h; color = _or(style.background, _BACKGROUND)))
+    push!(out, GraphicsRect(0, 0, g.w, g.h; color = _or(style.background, g.background)))
     push!(out, GraphicsRect(round(Int, g.body_x), round(Int, g.body_y),
                             round(Int, g.body_w), round(Int, g.body_h);
-                            color = _BODY_BACKGROUND))
+                            color = g.body_background))
 
-    text_color = _or(style.tick_color, _TEXT)
+    text_color = _or(style.tick_color, g.text_color)
     isempty(g.title) || begin
         title_line = compute_line_box(g.measure, g.title, g.title_font)
-        push!(out, GraphicsText(g.title, _PAD, _PAD + title_line.text_y;
+        push!(out, GraphicsText(g.title, g.padding, g.padding + title_line.text_y;
                                 font = g.title_font, color = text_color))
     end
 
@@ -390,19 +382,19 @@ function _gutter_elements!(out, g)
     gutter = g.chart.gutter
     gutter.visible || return out
     style = g.style
-    background = _or(style.gutter_background, _GUTTER)
-    text_color = _or(style.tick_color, _TEXT)
+    background = _or(style.gutter_background, g.gutter)
+    text_color = _or(style.tick_color, g.text_color)
     height = g.gutter_h
 
     for (strip_x, strip_y, strip_w, strip_h) in _gutter_rects(g, height)
         push!(out, GraphicsRect(round(Int, strip_x), round(Int, strip_y),
                                 round(Int, strip_w), round(Int, strip_h);
-                                color = background, border_width=1, border_color=_GUTTER_BORDER))
+                                color = background, border_width=1, border_color=g.gutter_border))
     end
 
     isempty(g.prefix) || begin
         prefix_line = compute_line_box(g.measure, g.prefix, g.axis_font)
-        push!(out, GraphicsText(g.prefix, round(Int, g.body_x), _PAD + g.title_h + prefix_line.text_y;
+        push!(out, GraphicsText(g.prefix, round(Int, g.body_x), g.padding + g.title_h + prefix_line.text_y;
                                 font = g.axis_font, color = text_color))
     end
 
@@ -417,17 +409,17 @@ function _gutter_elements!(out, g)
         line = compute_line_box(g.measure, text, g.axis_font)
         if g.vertical
             y = round(Int, flow + g.body_y - line.height / 2) + line.text_y
-            push!(out, GraphicsText(text, round(Int, g.body_x - line.width - _LABEL_GAP),
+            push!(out, GraphicsText(text, round(Int, g.body_x - line.width - g.label_gap),
                                     y; font = g.axis_font, color = text_color))
-            push!(out, GraphicsText(text, round(Int, g.body_x + g.body_w + _LABEL_GAP),
+            push!(out, GraphicsText(text, round(Int, g.body_x + g.body_w + g.label_gap),
                                     y; font = g.axis_font, color = text_color))
         else
             x = round(Int, flow + g.body_x - line.width / 2)
             push!(out, GraphicsText(text, x,
-                                    round(Int, g.body_y - height + _GUTTER_PAD) + line.text_y;
+                                    round(Int, g.body_y - height + g.gutter_padding) + line.text_y;
                                     font = g.axis_font, color = text_color))
             push!(out, GraphicsText(text, x,
-                                    round(Int, g.body_y + g.body_h + _GUTTER_PAD) + line.text_y;
+                                    round(Int, g.body_y + g.body_h + g.gutter_padding) + line.text_y;
                                     font = g.axis_font, color = text_color))
         end
     end
@@ -449,7 +441,7 @@ end
 # A lane's name, beside its line when time runs across and above the body when
 # time runs down. Horizontal in both cases — the backends do not rotate text.
 function _lane_label_elements!(out, g)
-    text_color = _or(g.style.axis_color, _TEXT)
+    text_color = _or(g.style.axis_color, g.text_color)
     for (position, identity) in enumerate(g.order)
         position <= length(g.lanes) || break
         label = g.labels[position]
@@ -458,10 +450,10 @@ function _lane_label_elements!(out, g)
         cross = g.lanes[position]
         if g.vertical
             push!(out, GraphicsText(label, round(Int, cross + g.body_x - line.width / 2),
-                                    round(Int, g.body_y - g.label_h - _LABEL_GAP) + line.text_y;
+                                    round(Int, g.body_y - g.label_h - g.label_gap) + line.text_y;
                                     font = g.axis_font, color = text_color))
         else
-            push!(out, GraphicsText(label, round(Int, g.body_x - line.width - _LABEL_GAP),
+            push!(out, GraphicsText(label, round(Int, g.body_x - line.width - g.label_gap),
                                     round(Int, cross + g.body_y - line.height / 2) + line.text_y;
                                     font = g.axis_font, color = text_color))
         end
@@ -492,7 +484,7 @@ function _zero_time_elements!(out, g)
         f1 - f0 >= 1 || continue
         x, y, w, h = flow_rect(g.frame, f0, cross_lo, f1 - f0, cross_hi - cross_lo)
         push!(out, GraphicsRect(round(Int, x), round(Int, y),
-                                round(Int, w), round(Int, h); color = _ZERO_TIME))
+                                round(Int, w), round(Int, h); color = g.zero_time))
     end
     out
 end
@@ -506,14 +498,14 @@ function _hairline_elements!(out, g)
         x1, y1 = flow_point(g.frame, flow, cross_hi)
         push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
                                 round(Int, x1), round(Int, y1);
-                                color = _HAIRLINE, width = 1, dash = (2, 3)))
+                                color = g.hairline, width = 1, dash = (2, 3)))
     end
     out
 end
 
 function _lane_elements!(out, g)
     flow_lo, flow_hi = frame_flow_span(g.frame)
-    default = _or(g.style.axis_color, _AXIS)
+    default = _or(g.style.axis_color, g.axis)
     for (position, identity) in enumerate(g.order)
         position <= length(g.lanes) || break
         axis = g.chart.axes[identity]
@@ -540,18 +532,18 @@ function _band_elements!(out, g)
             width = f1 - f0
             width >= 1 || continue
             color = _band_color(document, value, cycle)
-            x, y, w, h = flow_rect(g.frame, f0, band.cross - _BAND_HEIGHT - 2,
-                                   width, _BAND_HEIGHT)
+            x, y, w, h = flow_rect(g.frame, f0, band.cross - g.band_height - 2,
+                                   width, g.band_height)
             push!(out, GraphicsRect(round(Int, x), round(Int, y),
                                     round(Int, w), round(Int, h); color))
             g.style.band_labels || continue
             name = get_band_state_name(document, value)
             isempty(name) && continue
-            line = compute_line_box(g.measure, name, g.axis_font)
+            line = compute_line_box(g.measure, name, g.label_font)
             line.width + 6 <= w || continue
             push!(out, GraphicsText(name, round(Int, x + (w - line.width) / 2),
                                     round(Int, y + (h - line.height) / 2) + line.text_y;
-                                    font = g.axis_font, color = _TEXT))
+                                    font = g.label_font, color = g.text_color))
         end
     end
     out
@@ -575,7 +567,7 @@ function _arrow_elements!(out, g)
     cycle = style.color_cycle
     for shape in g.shapes
         kind = shape.kind
-        color = _kind_color(kind, shape.index, cycle, _ARROW)
+        color = _kind_color(kind, shape.index, cycle, g.arrow)
         dash = _line_dash(kind === nothing ? :solid : kind.line_style)
         head = kind === nothing ? true : kind.arrowhead
         if shape.route === :arc
@@ -645,14 +637,14 @@ function _arrow_label!(out, g, shape, color)
     (label === nothing || isempty(label)) && return out
     mid_flow = (shape.f0 + shape.f1) / 2
     mid_cross = (shape.c0 + shape.c1) / 2
-    line = compute_line_box(g.measure, label, g.axis_font)
+    line = compute_line_box(g.measure, label, g.label_font)
     x, y = flow_point(g.frame, mid_flow, mid_cross)
     # An arrow can sit against an edge of the window while its label does not
     # fit there; nudging the text back inside keeps it readable rather than
     # letting the viewport cut it in half.
     x = clamp(x - line.width / 2, 0, max(g.body_w - line.width, 0))
     y = clamp(y - line.height - 3, 0, max(g.body_h - line.height, 0))
-    push!(out, GraphicsText(label, round(Int, x), round(Int, y) + line.text_y; font = g.axis_font, color = _TEXT))
+    push!(out, GraphicsText(label, round(Int, x), round(Int, y) + line.text_y; font = g.label_font, color = g.text_color))
     out
 end
 
@@ -669,7 +661,7 @@ function _event_elements!(out, g)
         haskey(g.lane_of, lane) || continue
         kind_index = get_event_kind(events, i)
         kind = _event_kind_document(g.chart, kind_index)
-        color = _kind_color(kind, max(kind_index, 1), cycle, _EVENT)
+        color = _kind_color(kind, max(kind_index, 1), cycle, g.event)
         flow = to_pixel(g.scale, g.coordinates[i])
         x, y = flow_point(g.frame, flow, g.lane_of[lane])
         symbol = kind === nothing ? :circle : kind.symbol
@@ -678,7 +670,7 @@ function _event_elements!(out, g)
         label = get_event_label(events, i)
         (label === nothing || isempty(label)) && continue
         push!(out, GraphicsText(label, round(Int, x + radius + 2),
-                                round(Int, y + radius); font = g.axis_font, color = _TEXT))
+                                round(Int, y + radius); font = g.label_font, color = g.text_color))
     end
     out
 end
@@ -708,9 +700,6 @@ end
 # a long trace that often is the difference between a chart that follows the
 # mouse and one that trails it.
 
-const _SELECTION = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.9)
-const _HOVER = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.45)
-
 # Which occurrence and arrow a reference names, once the plot's own `chart` step
 # is off. Selection arrives already in the plot's vocabulary, so both are peeled
 # the same way.
@@ -738,11 +727,11 @@ function _overlay_elements!(out, g, plot)
     # A selected occurrence gets a ring around it rather than a different fill:
     # the mark's own colour carries its kind, and overwriting that to say
     # "selected" would cost the reader the very thing they selected it to see.
-    for (row, color) in ((selected_event_row, _SELECTION), (lit_event, _HOVER))
+    for (row, color) in ((selected_event_row, g.selected), (lit_event, g.hover))
         row == 0 && continue
         _event_ring!(out, g, row, color)
     end
-    for (row, color) in ((selected_arrow_row, _SELECTION), (lit_arrow, _HOVER))
+    for (row, color) in ((selected_arrow_row, g.selected), (lit_arrow, g.hover))
         row == 0 && continue
         _arrow_highlight!(out, g, row, color)
     end
@@ -799,7 +788,7 @@ function _cursor_elements!(out, g, plot)
     x1, y1 = flow_point(g.frame, flow, cross_hi)
     push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
                             round(Int, x1), round(Int, y1);
-                            color = _SELECTION, width = 1, dash = (3, 3)))
+                            color = g.selected, width = 1, dash = (3, 3)))
     out
 end
 
@@ -809,7 +798,7 @@ end
 function _readout_elements!(out, g, plot)
     gutter = g.chart.gutter
     gutter.visible || return out
-    text_color = _or(g.style.tick_color, _TEXT)
+    text_color = _or(g.style.tick_color, g.text_color)
 
     if gutter.cursor_readout && plot.cursor !== nothing
         text = get_honest_tick_label(plot.cursor, _cursor_neighbourhood(g))
@@ -817,15 +806,15 @@ function _readout_elements!(out, g, plot)
         flow = to_pixel(g.scale, time_to_coordinate(g.times, g.coordinates, plot.cursor))
         if g.vertical
             y = round(Int, flow + g.body_y - line.height / 2)
-            push!(out, GraphicsRect(round(Int, g.body_x - line.width - _LABEL_GAP - 2), y - 1,
-                                    line.width + 4, line.height + 2; color = _SELECTION))
-            push!(out, GraphicsText(text, round(Int, g.body_x - line.width - _LABEL_GAP),
-                                    y + line.text_y; font = g.axis_font, color = _BODY_BACKGROUND))
+            push!(out, GraphicsRect(round(Int, g.body_x - line.width - g.label_gap - 2), y - 1,
+                                    line.width + 4, line.height + 2; color = g.selected))
+            push!(out, GraphicsText(text, round(Int, g.body_x - line.width - g.label_gap),
+                                    y + line.text_y; font = g.axis_font, color = g.body_background))
         else
             x = round(Int, flow + g.body_x - line.width / 2)
-            y = round(Int, g.body_y - g.gutter_h + _GUTTER_PAD)
-            push!(out, GraphicsRect(x - 2, y - 1, line.width + 4, line.height + 2; color = _SELECTION))
-            push!(out, GraphicsText(text, x, y + line.text_y; font = g.axis_font, color = _BODY_BACKGROUND))
+            y = round(Int, g.body_y - g.gutter_h + g.gutter_padding)
+            push!(out, GraphicsRect(x - 2, y - 1, line.width + 4, line.height + 2; color = g.selected))
+            push!(out, GraphicsText(text, x, y + line.text_y; font = g.axis_font, color = g.body_background))
         end
     end
 
@@ -836,8 +825,8 @@ function _readout_elements!(out, g, plot)
                                         _cursor_neighbourhood(g)),
                       " … Δ", get_honest_tick_label(span, _cursor_neighbourhood(g)))
         line = compute_line_box(g.measure, text, g.axis_font)
-        push!(out, GraphicsText(text, round(Int, g.w - line.width - _PAD),
-                                _PAD + line.text_y; font = g.axis_font, color = text_color))
+        push!(out, GraphicsText(text, round(Int, g.w - line.width - g.padding),
+                                g.padding + line.text_y; font = g.axis_font, color = text_color))
     end
     out
 end
@@ -876,18 +865,23 @@ end
 
 function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
                         plot::SequenceChartPlot, ctx)
+    # Read once for the whole print: every helper below takes this tuple rather
+    # than reading `p.style` again, so a theme costs one read per print, not one
+    # per computed cell.
+    t = unwrap_cell(p.style)
+
     # One cumulative pass over the trace, isolated so that looking at the chart
     # never re-runs it.
     timeline = Cell(@computation _timeline(plot.chart))
 
     geometry = Cell(@computation begin
         w, h = _canvas_size(p, ctx)
-        _layout(p, plot, timeline[], w, h)
+        _layout(p, plot, timeline[], w, h, t)
     end)
 
     elements = CellVector(@computation begin
         g = geometry[]
-        g === nothing && return _empty_elements(p, plot, ctx)
+        g === nothing && return _empty_elements(p, plot, ctx, t)
         out = Any[]
         _frame_elements!(out, g)
 
@@ -924,13 +918,14 @@ end
 
 # A chart-shaped placeholder for an empty or not-yet-typed root, so it still
 # occupies its space and reads as a chart rather than vanishing.
-function _empty_elements(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot, ctx)
+function _empty_elements(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot, ctx, t)
     w, h = _canvas_size(p, ctx)
-    Any[GraphicsRect(0, 0, w, h; color = _BACKGROUND),
-        GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD; color = _BODY_BACKGROUND, radius = 4,
-                     border_width=1, border_color=_AXIS),
-        GraphicsText("empty sequence chart", _PAD * 2, h ÷ 2;
-                     font = font_ubuntu_regular_14, color = _TEXT)]
+    Any[GraphicsRect(0, 0, w, h; color = t.background),
+        GraphicsRect(t.padding, t.padding, w - 2 * t.padding, h - 2 * t.padding;
+                     color = t.body_background, radius = 4,
+                     border_width=1, border_color=t.axis),
+        GraphicsText("empty sequence chart", t.padding * 2, h ÷ 2;
+                     font = t.axis_font, color = t.text_color)]
 end
 
 """
@@ -1073,8 +1068,8 @@ Which state-band sample is under a canvas point.
 function find_band_hit(g, plot, x::Real, y::Real)
     flow, cross = _local_flow_cross(g, plot, x, y)
     for band in g.bands
-        top = band.cross - _BAND_HEIGHT - 2
-        (top <= cross <= top + _BAND_HEIGHT) || continue
+        top = band.cross - g.band_height - 2
+        (top <= cross <= top + g.band_height) || continue
         for (c0, c1, _, index) in band.intervals
             f0 = to_pixel(g.scale, c0); f1 = to_pixel(g.scale, c1)
             (f0 <= flow <= f1) || continue
@@ -1108,10 +1103,10 @@ end
 # alone, since there is no line there to be near.
 function _label_strip_lane(g, x::Real, y::Real)
     if g.vertical
-        (g.body_y - g.label_h - _LABEL_GAP <= y < g.body_y) || return nothing
+        (g.body_y - g.label_h - g.label_gap <= y < g.body_y) || return nothing
         cross = Float64(x) - g.body_x
     else
-        (g.body_x - g.label_w - _LABEL_GAP <= x < g.body_x) || return nothing
+        (g.body_x - g.label_w - g.label_gap <= x < g.body_x) || return nothing
         cross = Float64(y) - g.body_y
     end
     best = nothing; best_distance = Inf

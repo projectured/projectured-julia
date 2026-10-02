@@ -93,6 +93,20 @@ The amount of output depends on the size of the chart, not on the length of the 
 
 `test_sequencechart_scale()` draws a trace of 20,000 events on eight lanes at 900 pixels wide in fewer than 6,000 graphics elements, and 20,000 spread arrows in fewer than 8,000. A zoom to ten events draws every one of them. A click tests what was drawn, not what exists.
 
+### The theme
+
+`SequenceChartTheme` holds what `SequenceChartPlotToGraphicsCanvas` draws when the
+document says nothing: the colors of the backgrounds, the axis, the text, the
+gutter and its border, the hairlines, the shading of time zero, an arrow, an
+event, a selection and the hover, the title, axis and label fonts, and the
+padding, the padding of the gutter, the gap of a label, the spacing of the ticks
+and of the lanes, the offset of a lane and the height of a band. A value that
+`SequenceChartStyle`, a kind or an axis sets keeps its priority; the labels of the
+events, the arrows and the bands draw with `label_font`. The printer takes
+`theme`, holds all its values as one style field, reads it once at each print,
+and gives the tuple to its layout. The sequence chart has no natural
+registration, so a builder passes the theme.
+
 ## How it fits
 
 `ProjecturedSequenceChart` depends on the kernel and the platform. No package of this repository depends on it. It is a target language: a domain upstream, such as a trace of a simulation or a protocol log, prints a sequence chart as the JSON domain prints syntax.

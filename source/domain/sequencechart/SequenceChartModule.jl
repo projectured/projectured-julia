@@ -66,6 +66,7 @@ export SequenceChartAxis, SequenceChartEvents, SequenceChartArrows,
        get_next_event_on_lane, get_arrow_from_event, get_arrow_into_event
 export SequenceChartView, get_sequence_chart_view, view_contains
 export SequenceChartToSequenceChartPlot, SequenceChartToSequenceChartPlotIoMap
+export SequenceChartTheme, ScaledSequenceChartTheme
 export SequenceChartPlotToGraphicsCanvas, SequenceChartPlotToGraphicsCanvasIoMap,
        resolve_window, get_lane_cross_position,
        find_event_hit, find_arrow_hit, find_band_hit, find_lane_hit, lift_sequence_chart_reference
@@ -77,6 +78,7 @@ include("SequenceChartRowReferenceStep.jl")
 include("SequenceChartDocument.jl")
 include("SequenceChartPlot.jl")
 include("SequenceChartToSequenceChartPlot.jl")
+include("SequenceChartTheme.jl")
 include("SequenceChartPlotToGraphics.jl")
 
 end # module

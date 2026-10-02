@@ -31,6 +31,7 @@ using ..PlatformModule
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export ChartSampleReferenceStep
+export ChartTheme, ScaledChartTheme
 export ChartSeries, get_chart_series_family, get_chart_axis_family,
        get_selected_series_index, move_series, remove_series,
        collect_chart_parts, get_chart_part_index,
@@ -47,6 +48,7 @@ include("ChartSampleReferenceStep.jl")
 include("ChartDocument.jl")
 include("ChartPlot.jl")
 include("ChartToChartPlot.jl")
+include("ChartTheme.jl")
 include("ChartPlotToGraphics.jl")
 include("FrameTimeSeriesToChart.jl")
 
@@ -55,7 +57,8 @@ include("FrameTimeSeriesToChart.jl")
 function __init__()
     register_natural_graphics!(:frame_time_series, (; measure, appearance) -> Pair{Type,Any}[
         FrameTimeSeries => ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
-                                              ChartPlotToGraphicsCanvas(measure = measure)),
+                                              ChartPlotToGraphicsCanvas(measure = measure,
+                                                  theme = get_scaled_theme!(appearance, ChartTheme))),
     ])
 end
 

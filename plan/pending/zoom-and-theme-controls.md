@@ -1047,7 +1047,21 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   - `draw_font_sizes` in `ProjecturedPlatformTest` draws a document with the
     natural renderer, and each domain test checks a font scale of 1.5.
   - JSON is the model (`12ebb11c2`); the other nine follow it.
-- [ ] **P3. The charts:** `chart`, `sequencechart`, `plot`, `graphics`.
+- [x] **P3. The charts:** `chart`, `sequencechart`, `plot`, `graphics`. Done with this form (finding 30):
+  - `graphics` holds the output primitives, whose values their callers resolve,
+    and `plot` is the arithmetic and the cycles of colors and symbols that a
+    chart document holds as its own defaults; neither draws a look of its own,
+    so neither has a theme.
+  - `ChartTheme` and `SequenceChartTheme` hold what the printer draws when the
+    document says nothing: the colors of the backgrounds, the axis, the grid, the
+    text, the selection and the hover, the title, axis and label fonts, and the
+    paddings, gaps, tick lengths, swatches and lane spacings. A value that a
+    document sets in its style keeps its priority.
+  - A printer has many helpers, so it holds all values of its theme as one
+    style field (`make_theme_values_field`), reads it once at each print, and
+    gives the tuple to the helpers in place of the module consts.
+  - `ChartStyle.legend_font` and `SequenceChartStyle.label_font` were read by
+    nothing; the legend and the labels of events, arrows and bands draw with them.
 - [ ] **P4. The tools and the overlays:** `fault`, `gesturelog`,
   `gesturehelp` (with the command palette), `inspector`, `log`, `statistics`,
   `undo`, `process`, `fsm`, `help`, `dbcatalog`, `filesystem`.
@@ -1459,3 +1473,24 @@ as large. omnet-julia and inet-julia follow where they build these projections.
       which reads no projection.
     - `test_formula()` prints "detected a stack overflow" before its summary, as on
       `main`; all its tests pass.
+30. **P3: the charts have themes** (2026-10-02). `ChartTheme` has 21 values and
+    `SequenceChartTheme` 22; each default is the module const or the fallback font
+    that it takes the place of, so the images of all 94 examples that draw as one
+    image, the 12 charts and sequence charts among them, equal those of
+    `9b5d1210a` byte for byte. The chart suite gives 361 pass and the sequence
+    chart suite 290. Facts found:
+    - The printers hold all values of a theme as one style field
+      (`make_theme_values_field`) and read it once at each print: the helpers
+      take the tuple, or the layout tuple `g` that carries it, in place of the
+      module consts. The behaviour consts (the veil, the zoom and pan steps, the
+      tolerance of a hit, the levels of density) stay.
+    - The legend of a chart drew with the axis font and the labels of the events,
+      arrows and bands of a sequence chart with the axis label font, so
+      `ChartStyle.legend_font` and `SequenceChartStyle.label_font` were read by
+      nothing. They draw with them now; no document of the examples or of
+      omnet-julia sets them, so no image changes.
+    - The title font of a sequence chart has no field in `SequenceChartStyle`; the
+      theme gives it one.
+    - The sequence chart has no natural registration, so only a builder that
+      passes `theme` themes it; omnet-julia builds both printers with keywords and
+      passes no theme yet.

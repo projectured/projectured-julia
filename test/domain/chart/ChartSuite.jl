@@ -25,8 +25,9 @@ function test_chart()
         test_chart_layering()
         test_chart_projection()
         test_chart_scale()
+        test_chart_theme()
     end
 end
 
 export test_chart, test_chart_layering, test_chart_projection, test_chart
-export test_chart_scale
+export test_chart_scale, test_chart_theme
