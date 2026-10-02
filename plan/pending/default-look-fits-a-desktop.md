@@ -554,6 +554,21 @@ inet-julia uses, the same step changes them, so that they always load.
     `test_select_and_paste` passes; 9 other assertions of it fail, because
     the window content is now a `SettingsDocument`, which the test does not
     expect yet. D19 does not touch that.
+  - The padding of a kind (D18), the window chrome: `WidgetTheme` gets
+    `menu_item_padding` (4, 4, 12, 12), `menu_name_padding` (4, 4, 6, 6),
+    `menu_bar_padding` (2), `toolbar_padding` (4), `toolbar_item_padding` (4)
+    and `status_bar_padding` (4, 4, 8, 8), the values that the window chrome
+    set. The printers of these kinds take them as defaults, and the window
+    chrome sets no padding. A menu item that opens a menu is the name of a menu
+    on a bar, the variant `submenu`; any other item is a command. No menu
+    opens a menu from inside a dropdown, so the rule reads only the item.
+    Check: 4 examples change (`widget`, `widget_menu`, `widget_shell`,
+    `widget_toolbar`), the other 101 are equal. Three tests pressed fixed
+    points on menus with no padding; they now press the middle of each row.
+    Left for D18: the assistant (scroll panes with padding 5), the tab page of
+    a pane (border 8), the text boxes of two omnet forms (padding 2, 2, 5, 5).
+    Each kind default would change every widget of that kind, which the
+    owner's answer about the menus does not cover.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
