@@ -992,7 +992,7 @@ factory take the theme from the `Appearance`. Tests for each domain: at the
 default theme, the pixels of B0; at a font scale of 1.5, its text is 1.5 times
 as large. omnet-julia and inet-julia follow where they build these projections.
 
-- [x] **P1. Text and syntax:** `text`, `syntax`, `natural`. Done with this form (finding 28):
+- [x] **P1. Text and syntax:** `text`, `syntax`, `natural`. Done with this form (finding 30):
   - `make_theme_cell(T, scaled, f)` in the style slice makes a style field of any
     scaled theme; `_themed` of the widgets calls it.
   - A projection takes `theme`. With a theme or a scaled theme, each style field
@@ -1025,7 +1025,7 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   - Open: the caret of a widget text field, which the widgets print with their own
     `TextToGraphics`, keeps the default text theme.
 - [x] **P2. The document domains:** `json`, `xml`, `yaml`, `sql`, `julia`,
-  `markdown`, `rst`, `book`, `math`, `formula`. The form (finding 29):
+  `markdown`, `rst`, `book`, `math`, `formula`. The form (finding 31):
   - Each domain declares `<Domain>Theme` with `@theme` in a fragment of its own,
     with one value for each role that its projections draw, named by meaning
     (`keyword_text`, `delimiter_text`, `heading_color`, `block_gap`, …). The
@@ -1047,7 +1047,7 @@ as large. omnet-julia and inet-julia follow where they build these projections.
   - `draw_font_sizes` in `ProjecturedPlatformTest` draws a document with the
     natural renderer, and each domain test checks a font scale of 1.5.
   - JSON is the model (`12ebb11c2`); the other nine follow it.
-- [x] **P3. The charts:** `chart`, `sequencechart`, `plot`, `graphics`. Done with this form (finding 30):
+- [x] **P3. The charts:** `chart`, `sequencechart`, `plot`, `graphics`. Done with this form (finding 32):
   - `graphics` holds the output primitives, whose values their callers resolve,
     and `plot` is the arithmetic and the cycles of colors and symbols that a
     chart document holds as its own defaults; neither draws a look of its own,
@@ -1065,12 +1065,13 @@ as large. omnet-julia and inet-julia follow where they build these projections.
 - [x] **P4. The tools and the overlays:** `fault`, `gesturelog`,
   `gesturehelp` (with the command palette), `inspector`, `log`, `statistics`,
   `undo`, `process`, `fsm`, `help`, `dbcatalog`, `filesystem`. Done with this
-  form (finding 31):
+  form (finding 33):
   - A theme for each slice, with the roles that its projections draw, in the form
     of P2. A theme reaches a projection where its builder has an `Appearance`:
-    the natural registrations, `make_window_wrap` (the command palette and the
-    gesture help decorator) and `make_opened_window_projections` (the window of
-    the gesture map). These also pass the syntax and the text themes to the
+    the natural registrations, the wrappers `command_palette` and `gesture_help`
+    of `build_editor`, which read it from the arguments of the build, and
+    `make_opened_window_projections` of the shell wrapper (the window of the
+    gesture map). These also pass the syntax and the text themes to the
     chains that they build, so the palette and the F1 window scale.
   - The overlays of the fault log and of the gesture log, and the substitutes of
     a fault barrier (`FaultToSyntax`, `FaultToText`, `FaultToGraphics`), have no
@@ -1435,7 +1436,7 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     W3 takes the same answer. This changes the last point of 4.8 for W3: a write
     from the theme tab is a step of the window history. For the inverse to bring
     the view back, the step must print the view again, as the forward write does.
-28. **P1: the text and the syntax have themes** (2026-10-01). `TextTheme` has
+30. **P1: the text and the syntax have themes** (2026-10-01). `TextTheme` has
     nine values and `SyntaxTheme` eighteen; each value is one that a view of the
     platform draws now, and its default is that value, so the images of all 94
     examples that draw as one image are equal, byte for byte, to those of
@@ -1465,7 +1466,7 @@ as large. omnet-julia and inet-julia follow where they build these projections.
       and an empty placeholder draw their text 1.5 times as large; a change of the
       scale reaches the next print; the caret and the band follow the line and
       the radius scales; a projection with no theme has the default values.
-29. **P2: the ten document domains have themes** (2026-10-02). Each theme has
+31. **P2: the ten document domains have themes** (2026-10-02). Each theme has
     3 (SQL) to 21 (RST) values, one for each role; every style default of every
     projection matched a role, so the images of all 94 examples that draw as one
     image equal those of `9b5d1210a` byte for byte. The domain suites give 2841
@@ -1498,7 +1499,7 @@ as large. omnet-julia and inet-julia follow where they build these projections.
       which reads no projection.
     - `test_formula()` prints "detected a stack overflow" before its summary, as on
       `main`; all its tests pass.
-30. **P3: the charts have themes** (2026-10-02). `ChartTheme` has 21 values and
+32. **P3: the charts have themes** (2026-10-02). `ChartTheme` has 21 values and
     `SequenceChartTheme` 22; each default is the module const or the fallback font
     that it takes the place of, so the images of all 94 examples that draw as one
     image, the 12 charts and sequence charts among them, equal those of
@@ -1519,7 +1520,7 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     - The sequence chart has no natural registration, so only a builder that
       passes `theme` themes it; omnet-julia builds both printers with keywords and
       passes no theme yet.
-31. **P4: the tools and the overlays have themes** (2026-10-02). Thirteen themes:
+33. **P4: the tools and the overlays have themes** (2026-10-02). Thirteen themes:
     `FaultTheme`, `GestureLogTheme`, `MessageLogTheme`, `FrameStatisticsTheme`,
     `UndoTheme`, `FileSystemTheme`, `GestureHelpTheme`, `HelpTheme`,
     `InspectorTheme`, `ReferenceTheme` (text slice), `ProcessTheme`, `FsmTheme`
@@ -1531,9 +1532,13 @@ as large. omnet-julia and inet-julia follow where they build these projections.
     umbrella tests of the tools, the application and the guards (2 old broken
     markers of the navigator). Facts found:
     - The shell slice uses the syntax and the text slices, because
-      `make_window_wrap` and `make_opened_window_projections` pass their themes
-      to the command palette and to the window of the gesture map. The table of
-      the slice edges names the two new edges.
+      `make_opened_window_projections` passes their themes to the window of the
+      gesture map. The table of the slice edges names the two new edges.
+    - `main` replaced `make_window_wrap` with the wrappers of `build_editor`
+      while P4 was written, so at the rebase onto `160be101d` the wrappers
+      `command_palette` and `gesture_help` take the themes from the
+      `Appearance` in the arguments of the build (`_get_gesture_help_themes`),
+      and with no `appearance` wrapper they pass none.
     - `GestureHelpDecoratorProjection` only opens the window of a gesture map;
       the renderer of that window takes the themes, so the decorator has none.
     - A style field that holds a `NamedTuple` of values is declared
