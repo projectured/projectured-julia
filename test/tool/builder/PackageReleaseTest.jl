@@ -55,6 +55,11 @@ function _make_release_repository()
                         "Registered" => "00000000-0000-0000-0000-00000000000d",
                         "Dates" => "ade2ca70-3891-5945-98fb-dc099432e06a"])
     _write_release_fixture_extension(root)
+    # The recorded precompile statements of `FakeTop`, which AutoPrecompile reads
+    # from the folder of a loaded package.
+    mkpath(joinpath(root, "package", "FakeTop", "precompile"))
+    write(joinpath(root, "package", "FakeTop", "precompile", "scenario.txt"),
+          "Tuple{typeof(FakeTop.top)}\n")
     _write_release_fixture_tests(root)
     mkpath(joinpath(root, "environment"))
     write(joinpath(root, "environment", "Manifest.toml"), """
@@ -210,6 +215,9 @@ function test_package_release()
                                         "WeakTrigger" => "2.0.0", "julia" => "1.11")
             @test top["extensions"] == Dict("FakeTopWeakTriggerExt" => "WeakTrigger")
             @test isfile(joinpath(output, "FakeTop", "ext", "FakeTopWeakTriggerExt.jl"))
+            @test read(joinpath(output, "FakeTop", "precompile", "scenario.txt"), String) ==
+                  "Tuple{typeof(FakeTop.top)}\n"
+            @test !isdir(joinpath(output, "FakeBase", "precompile"))
             # One folder for each package, the support packages in `test/` and
             # `example/`, and the licence files and the workflow at the root.
             @test sort(readdir(output)) ==
@@ -507,6 +515,8 @@ function test_package_release()
                             startswith(result.folder, "test/") ||
                             startswith(result.folder, "example/"), results)
         @test !any(name -> isdir(joinpath(output, name, "test", "support")), names)
+        # A released package carries its statement files, which AutoPrecompile reads.
+        @test isfile(joinpath(output, "ProjecturedPlatform", "precompile", "readme-data-frame.txt"))
         @test all(result -> result.status === :new, results)
         # Each package that has tests has a workflow of its own, on each Julia
         # version, and its job develops the packages that its test needs.

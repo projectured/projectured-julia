@@ -526,6 +526,11 @@ function _write_package_content(context::BuildContext, name, destination;
     # The extensions of a package include nothing of the repository.
     isdir(joinpath(context.root, package, "ext")) &&
         _copy_tracked_files(context, joinpath(package, "ext"), joinpath(destination, "ext"))
+    # The recorded precompile statements of a package, which AutoPrecompile reads
+    # from the folder of a loaded package.
+    isdir(joinpath(context.root, package, "precompile")) &&
+        _copy_tracked_files(context, joinpath(package, "precompile"),
+                            joinpath(destination, "precompile"))
     for (from, to) in assets
         _copy_tracked_files(context, from, joinpath(destination, to))
     end
