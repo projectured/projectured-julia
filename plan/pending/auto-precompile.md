@@ -234,6 +234,14 @@ The owner, 2026-10-03, later:
 18. The load of a valid leaf writes no log line, because it is fast. The build
     writes the lines.
 
+The owner, 2026-10-03, on the result of step 8:
+
+19. AutoPrecompile gets no workload of its own and no cache of parsed lines: it
+    has too few functions for that to be worth it.
+20. The release keeps every recording, "examples" too, so the leaf of the README
+    set holds all of them for now.
+21. The version of AutoPrecompile stays 0.1.0 until the public announcement.
+
 ## 5. Steps
 
 Each step is a commit. Mark it here when it is done.
@@ -484,7 +492,9 @@ Each step is a commit. Mark it here when it is done.
    2026-10-03 at the owner's word: commit `fcbf66b` in the clone
    `~/.julia/registries/ProjecturedRegistry`, made with LocalRegistry.jl from
    `@localregistry` as for AutoIntegrations, tree `4c5c951b…` of `688a8e2`. The
-   owner pushed it the same day. So
+   owner pushed it the same day. The registered 0.1.0 is still the
+   version that does nothing; by decision 21 the version stays until the public
+   announcement, so this step waits for it. So
    the first version that works needs a new number, for example 0.2.0.
 
 ## 6. Open questions
