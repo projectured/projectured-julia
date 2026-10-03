@@ -560,6 +560,9 @@ function test_package_release()
         front = read(joinpath(output, "README.md"), String)
         @test count("/actions/workflows/", front) == 2 * length(tested)
         @test occursin("| Package | &nbsp;", front)
+        # The front page says which repository is which.
+        @test occursin("| [projectured-julia]($PROJECTURED_SOURCE) |", front) &&
+              occursin("| [AutoIntegrations.jl]($AUTOINTEGRATIONS_URL) |", front)
         @test occursin("| [ProjecturedJSON](ProjecturedJSON) | [![tests](" *
                        "$PROJECTURED_RELEASE_URL/actions/workflows/ProjecturedJSON.yml/badge.svg)]", front)
         @test all(name -> occursin("| [$name]($name) | ", front), names)

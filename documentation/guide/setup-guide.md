@@ -10,6 +10,8 @@ What you need, how to start the application, and how to open the same views from
 - **SDL2 and SDL_ttf**, for the native window. On Debian or Ubuntu: `apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0`.
 - **Ollama with a pulled model**, or an `ANTHROPIC_API_KEY`, for the assistant. [assistant-guide.md](assistant-guide.md) says which model and how to pull it. Without either, everything else works.
 
+To use the packages in a project of your own, without the source, add them from the registry `ProjecturedRegistry`: [own-project-guide.md](own-project-guide.md) says how. This guide runs the application from a clone of the source.
+
 ## Start the application
 
 ```sh

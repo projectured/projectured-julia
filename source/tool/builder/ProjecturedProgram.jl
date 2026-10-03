@@ -802,6 +802,15 @@ function _format_projectured_release_overview(context::BuildContext, names)
     `disk_limit_mb` of the table `[AutoPrecompile]` in `LocalPreferences.toml`
     sets another limit.
 
+    ## Which repository is which
+
+    | Repository | What it is |
+    | --- | --- |
+    | [projectured-julia]($PROJECTURED_SOURCE) | The source: the application, the examples, the tests and the guides. A change belongs there. |
+    | [Projectured.jl]($PROJECTURED_RELEASE_URL) | This repository: the released packages, which the release writes from projectured-julia. |
+    | [ProjecturedRegistry]($PROJECTURED_REGISTRY_URL) | The Julia registry that names each version of these packages. |
+    | [AutoIntegrations.jl]($AUTOINTEGRATIONS_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
+
     ## The packages
 
     | Package | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tests&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | What it holds or does |

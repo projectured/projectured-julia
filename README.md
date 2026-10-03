@@ -42,7 +42,26 @@ The AI assistant runs inside the application, with a local model through Ollama 
 
 ## Quick start
 
-You need Julia 1.12 or later, and SDL2 with SDL_ttf for a native window. The packages are not in the General registry, so clone the repository, and AutoIntegrations beside it: the umbrella names that folder.
+There are two ways to start: add the packages to a project of your own, or run the application from the source. You need Julia 1.12 or later, and SDL2 with SDL_ttf for a native window. [Which repository is which](#which-repository-is-which) says where each part lives.
+
+### The packages in your own project
+
+The packages are in the registry `ProjecturedRegistry`, not in the General registry. Add it once, with General, then add the packages that your program uses by name:
+
+```
+pkg> registry add General
+pkg> registry add https://github.com/projectured/ProjecturedRegistry
+pkg> add Projectured ProjecturedSDL ProjecturedDataFrames DataFrames SimpleDirectMediaLayer
+
+julia> using Projectured, DataFrames, SimpleDirectMediaLayer
+julia> display_in_editor(DataFrame(n = 1:1000, square = (1:1000) .^ 2))
+```
+
+`using Projectured` loads ProjecturedSDL and ProjecturedDataFrames by itself, because their triggers are loaded. The [front page of Projectured.jl](https://github.com/projectured/Projectured.jl) lists the packages, and says how to load each one by name instead. Update all ProjecturEd packages together, with `pkg> update`: each version of a package is made for the versions of the other packages of the same release.
+
+### The application from the source
+
+Clone the repository, and AutoIntegrations beside it: the umbrella names that folder.
 
 ```sh
 git clone https://github.com/projectured/AutoIntegrations.jl auto-integrations
@@ -115,6 +134,15 @@ The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes nex
 **To show your own data**: [concepts.md](documentation/design/concepts.md), then [view-your-data-guide.md](documentation/guide/view-your-data-guide.md) and [own-project-guide.md](documentation/guide/own-project-guide.md).
 
 **To work on ProjecturEd**: [concepts.md](documentation/design/concepts.md), [engineer-tour.md](documentation/design/engineer-tour.md), [system-anatomy.md](documentation/design/system-anatomy.md), then [CONTRIBUTING.md](CONTRIBUTING.md) and the rules in [documentation/rule/](documentation/rule/). [The guide index](documentation/README.md) lists every document.
+
+## Which repository is which
+
+| Repository | What it is | Who uses it |
+|---|---|---|
+| [projectured-julia](https://github.com/projectured/projectured-julia) | This repository: the source, the application, the examples, the tests and the guides | a person who runs the application from the source, or changes ProjecturEd |
+| [Projectured.jl](https://github.com/projectured/Projectured.jl) | The released packages, one folder for each, which the release writes from this repository | Pkg, when you add a package; a change belongs here, not there |
+| [ProjecturedRegistry](https://github.com/projectured/ProjecturedRegistry) | The Julia registry that names each version of the released packages | Pkg, after you add the registry once |
+| [AutoIntegrations.jl](https://github.com/projectured/AutoIntegrations.jl) | The package that loads an installed package when its triggers are loaded; `Projectured` depends on it | Pkg installs it; a clone of this repository needs it beside it, in `auto-integrations` |
 
 ## Repository layout
 

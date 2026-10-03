@@ -2,15 +2,28 @@
 
 > **Kind:** procedure · **Status:** current · **Stands on:** [package-rules.md](../rule/package-rules.md)
 
-How to use ProjecturEd from a project of your own: which package to load, how to reach it while it is not in the General registry, and how to open a window from your code.
+How to use ProjecturEd from a project of your own: how to reach the packages, which package to load, and how to open a window from your code.
 
 ## Reach the packages
 
-The packages are not in the General registry yet. A project reaches them by path, the way this repository reaches its own packages.
+The packages are in the registry `ProjecturedRegistry`, not in the General registry. Add the registry once, with General for the packages that ProjecturEd depends on, then add each package that your program uses by name:
 
-1. Clone ProjecturEd beside your project:
+```
+pkg> registry add General
+pkg> registry add https://github.com/projectured/ProjecturedRegistry
+pkg> add Projectured ProjecturedJSON ProjecturedSDL SimpleDirectMediaLayer
+```
+
+A `using` line reaches only the packages that you added: a package that another one installs as its dependency is not enough. Update all ProjecturEd packages together, with `pkg> update`, because each version of a package is made for the versions of the other packages of the same release. The [front page of Projectured.jl](https://github.com/projectured/Projectured.jl), where the released packages are, lists them.
+
+### From a clone of the source
+
+A contributor reaches the packages by path instead, the way this repository reaches its own packages.
+
+1. Clone ProjecturEd beside your project, and AutoIntegrations beside it, because the umbrella names that folder:
 
    ```sh
+   git clone https://github.com/projectured/AutoIntegrations.jl auto-integrations
    git clone https://github.com/projectured/projectured-julia
    ```
 
@@ -39,8 +52,10 @@ The packages are not in the General registry yet. A project reaches them by path
 | `Projectured` | the umbrella: the essential names, `ProjecturedPlatform.EssentialsModule` ([essentials.md](../package/platform/essentials/essentials.md)), and AutoIntegrations to load an installed package when its triggers are loaded ([autointegrations.md](../package/autointegrations/autointegrations.md)) |
 | `ProjecturedSDL` | the native window |
 | `ProjecturedWeb` | the browser backend |
-| `ProjecturedExample` | the examples, the gallery, `run_value_viewer` and the application |
+| `ProjecturedExample` | from a clone of the source only: the examples, the gallery and `run_value_viewer` |
 | one domain, for example `ProjecturedJSON` | the names of that domain, with the kernel and the platform below it |
+
+The application, with its file navigator, its tabs and its assistant, is no package to load: it runs from a clone of the source (`bin/projectured`), or as a binary that `bin/build_projectured` builds ([build-guide.md](build-guide.md)).
 
 `add Projectured` installs the kernel, the platform and `AutoIntegrations`, and nothing more. Add each domain that your program shows, and the console or the PDF backend if you use one. AutoIntegrations loads each one that you installed when `Projectured` is loaded, because a domain declares `Projectured` as its trigger with the default `auto` ([autointegrations.md](../package/autointegrations/autointegrations.md)). The names of a domain stay in its package: to write `JsonString`, add `using ProjecturedJSON`.
 

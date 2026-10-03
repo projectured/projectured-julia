@@ -856,19 +856,25 @@ The install lines of the guides wait for Step B6: before it, they would name
 a registry that does not exist. They land with the release, as the guides of
 Step A6 do.
 
-- [ ] `README.md` and [setup-guide.md](../../documentation/guide/setup-guide.md):
-      the install line. With General (R21) it needs no registry line:
+- [x] `README.md` and [setup-guide.md](../../documentation/guide/setup-guide.md):
+      the install line. Done on 2026-10-03, with the two lines of
+      `ProjecturedRegistry`, because the registry comes before General; the
+      README has the two ways to start and a table of which repository is which,
+      as the front page of `Projectured.jl` has. With General (R21) it needs no registry line:
 
       ```julia
       pkg> add Projectured ProjecturedSDL
       ```
 
-- [ ] [own-project-guide.md](../../documentation/guide/own-project-guide.md):
-      the registry first; the clone with `[sources]` stays for a contributor.
+- [x] [own-project-guide.md](../../documentation/guide/own-project-guide.md):
+      the registry first (done on 2026-10-03; `ProjecturedExample` is "from a
+      clone of the source only", although the registry holds it as a support
+      package of the tests); the clone with `[sources]` stays for a contributor.
       The table "Which package to load" must not send a registry user to
       `ProjecturedExample` or `run_value_viewer`, because the registry does
       not hold them (R16). For the application, it names the binary.
-- [ ] The guides say: update all Projectured packages together (R11).
+- [x] The guides say: update all Projectured packages together (R11). Done on
+      2026-10-03: the README and the own-project guide.
 - [x] [build-guide.md](../../documentation/guide/build-guide.md): a section on
       how to make a package release: generate, commit, register, push. Done on
       2026-09-29 (commit `abe2c9557`), with the release copy in
