@@ -662,6 +662,24 @@ inet-julia uses, the same step changes them, so that they always load.
     table: tooltip uses style, appearance uses tooltip. Check: the images are
     equal; the platform suite, the tooltip window test and the application
     test pass, and omnet-julia precompiles.
+  - D23, a filling column with no offer: the grid gives a weighted column or
+    row (`Fill`, `Relative`) on an axis that it was offered no extent on the
+    extent of its cells (`_gl_unoffered_policy`), as a stack already does for
+    a weighted child; no new policy. The object form gives its control column
+    `Fill`, so its cards fill a pane and keep their width where nothing is
+    offered (a test form: 448 pixels wide with no offer, where it collapsed
+    to 114).
+  - D24: the column chooser is a row of labelled checkboxes; a press runs
+    `choose` through the gestures of the box. New test `test_column_chooser`.
+  - Check: the images are equal (the image check offers each example a
+    width); the platform, data frame, chart and sequence chart suites and the
+    application test pass, and omnet-julia precompiles. The example walker has
+    80 fewer tests, measured per example against the commit before:
+    `object_field_form` 1968 to 1918 and `widget` 10212 to 10182. Both hold a
+    `FormLayout` with a `Fill` field column, which the walker prints with no
+    offer: the column collapsed to 0 and the grid wrapped each field in a
+    clipping viewport, 10 checks each (5 and 3 fields). Now the fields keep
+    their width and need no wrapper.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
