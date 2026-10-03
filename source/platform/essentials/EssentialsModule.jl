@@ -9,18 +9,15 @@ that needs more names loads `ProjecturedPlatform`.
 """
 module EssentialsModule
 
-# Show a value in a window.
-using ..DisplayModule: EditorDisplay, display_in_editor, close_display_editor!,
-    refresh_display_editor!
-# Open an editor on a document.
-using ..EditorModule: Editor, build_editor, run_editor!
-# Make a document from text, and draw it.
-using ..NaturalModule: parse_natural_text, NaturalToGraphics
-using ..StyleModule: FontFileMeasure
-# Make a view with no window, and write it as an image.
-using ..ProjectionModule: print_document
-using ..BackendModule: write_image
+using ..BackendModule
+using ..DisplayModule
+using ..EditorModule
+using ..NaturalModule
+using ..ProjectionModule
+using ..StyleModule
 
+# Show a value in a window; open an editor on a document; make a document from
+# text and draw it; make a view with no window, and an image of it.
 export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!,
        Editor, build_editor, run_editor!,
        parse_natural_text, NaturalToGraphics, FontFileMeasure,

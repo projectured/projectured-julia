@@ -548,10 +548,28 @@ The README of each released package changes too
       this worktree (`/var/tmp/down3/run.sh`): omnet-julia precompiles 108
       packages in 140 s, inet-julia 12 in 77 s, with no error. Neither loads
       the umbrella, so AutoIntegrations is not in their manifests.
-- [ ] **Step 10, the check.** A new user in an empty depot, from a local
+- [x] **Step 10, the check.** A new user in an empty depot, from a local
       registry, for the manual way, the automatic way, the setting and
       `ProjecturedIntegrations`. The suites of the changed packages,
       `test_builder()` and `test_repository()`.
+      Done, as a sample (the owner, 2026-10-03: "the complete long running
+      tests should be done before the final publication of the registry and
+      the module, make this development process fast by only testing minimal
+      stuff that tells we are on the right track"):
+      - the new user (`/var/tmp/b4a/run.sh`), on `5814b9df3`: 35 packages
+        released and registered by LocalRegistry; the five cases pass,
+        `display_in_editor` opens offscreen in the manual way, and
+        `Pkg.test("AutoIntegrations")` of the released package passes;
+      - the 10 test packages of the changed packages load;
+      - `test_platform_layering()` (it found the `using` list of
+        `EssentialsModule`, now a bare `using` of each owner),
+        `test_platform_slice_edges()`, `test_console()` 140, `test_pdf()` 50,
+        `test_autointegrations()` 22, `test_builder()` 473,
+        `test_package_release()` 61 and 156, `test_package_graph()` 373, the
+        four loading tests, and the naming, tree and documentation guards.
+- [ ] **Step 10b, before the publication.** The full suites: each package
+      suite in its own environment as CI runs them, `test_integration()`, and
+      the comparison with `main` for each failure.
 - [ ] **Step 11, cleanup, after the owner's word.** The branch
       `integration-shells`, its worktree and the two downstream branches. A
       new private release from the new head, with the commands for the owner.
