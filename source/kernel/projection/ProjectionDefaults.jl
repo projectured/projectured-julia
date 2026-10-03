@@ -135,10 +135,10 @@ answers `true` for it, as for `DoNothingOperation` and `ToggleCollapseOperation`
 and returns `nothing` otherwise.
 """
 function read_intent(projection::Projection, iomap, operation)
-    # INVARIANT: the set of reference-carrying operation types handled here must
-    # stay in sync with `reroot_operation` (OperationModule, operation/Rerooting.jl).
-    # A new path-bearing operation missing from either is silently passed through
-    # with its reference left in the wrong domain. See
+    # A path-bearing operation that the kernel does not name reaches the `else`
+    # branch through the pair `operation_reference` / `retarget_operation`, the
+    # same pair through which `reroot_operation` reroots it (operation/Rerooting.jl).
+    # A type with no pair is dropped here. See
     # documentation/package/kernel/operation.md.
     if operation isa Union{KeyPress, KeyDown, Gesture, CollectIntents}
         # Generic event fallback: a leaf projection with no authoring reader of

@@ -194,8 +194,11 @@ function child_reference_steps end
 """
     reroot_operation(op, steps::Tuple) -> op
 
-Prepend `steps` to the reference inside a path-bearing operation. Open generic:
-new path-bearing operation types add methods for themselves.
+Prepend `steps` to the reference inside a path-bearing operation. The catch-all
+reroots the reference that [`operation_reference`](@ref) reports and rebuilds the
+operation with [`retarget_operation`](@ref), so a path-bearing type registers with
+that pair and adds no method here. An operation that reports no reference comes
+back unchanged.
 """
 function reroot_operation end
 
@@ -204,9 +207,10 @@ function reroot_operation end
 
 The reference that `op` targets, or `nothing` when `op` carries none. Open
 generic: a path-bearing operation type defined in a higher package adds a method
-for itself. The default `read_intent` uses this pair of seams to re-target an
-operation it does not name, so a projection stays generic over operation types
-the kernel cannot enumerate.
+for itself, with [`retarget_operation`](@ref). The pair registers the operation:
+the catch-all `reroot_operation` reroots the reference, and the default
+`read_intent` maps it back through a projection, so a projection stays generic
+over operation types the kernel cannot enumerate.
 """
 function operation_reference end
 

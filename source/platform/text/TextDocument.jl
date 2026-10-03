@@ -1173,8 +1173,11 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     set_selection!(document, newref)
 end
 
-reroot_operation(op::ReplaceTextRangeOperation, steps::Tuple) =
-    ReplaceTextRangeOperation(reroot_reference(op.reference, steps), op.replacement)
+# The pair registers the flat edit: the kernel reroots its reference and maps it
+# back through a projection.
+operation_reference(op::ReplaceTextRangeOperation) = op.reference
+retarget_operation(op::ReplaceTextRangeOperation, reference::Reference) =
+    ReplaceTextRangeOperation(reference, op.replacement)
 
 # Lower a flat `ReplaceTextRangeOperation` to the structural single-span
 # `ReplaceStringRangeOperation` (`.elements[i].content[s:e]`) over `block`, so the

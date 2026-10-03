@@ -273,20 +273,13 @@ end
 # Primitive's own methods for the open reference-rewrite generics. Both
 # operation types carry a reference field named `reference` (as
 # opposed to `path` on ReplaceSelectionOperation), so their reroot forms
-# prepend the container's steps onto that reference. Every path-bearing
-# operation type must add a method here; missing methods fall through to
-# the catch-all in `operation/Rerooting.jl` and are returned unchanged.
+# prepend the container's steps onto that reference.
 
-reroot_operation(op::ReplaceStringRangeOperation, steps::Tuple) =
-    ReplaceStringRangeOperation(reroot_reference(op.reference, steps), op.replacement)
-reroot_operation(op::ReplaceNumberRangeOperation, steps::Tuple) =
-    ReplaceNumberRangeOperation(reroot_reference(op.reference, steps), op.replacement)
-
-# `operation_reference` / `retarget_operation` is what lets the default
-# `read_intent` in the kernel map these two operations back through a projection.
-# The kernel cannot name them, and a `read_intent(::Projection, iomap, ::TheOp)`
-# method here would be ambiguous with the catch-all reader of every concrete
-# projection.
+# `operation_reference` / `retarget_operation` registers these two operations: the
+# catch-all `reroot_operation` of the kernel reroots their reference, and the
+# default `read_intent` maps it back through a projection. The kernel cannot name
+# them, and a `read_intent(::Projection, iomap, ::TheOp)` method here would be
+# ambiguous with the catch-all reader of every concrete projection.
 operation_reference(op::ReplaceStringRangeOperation) = op.reference
 operation_reference(op::ReplaceNumberRangeOperation) = op.reference
 

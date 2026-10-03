@@ -20,29 +20,22 @@ end
 # is rooted in the *child's* domain; to forward it up, the container prepends the
 # step(s) that lead from itself to that child (e.g. `elements[i]`, `children[i]`).
 #
-# `reroot_operation` is an *open* generic rather than a closed `if op isa …` chain
-# because path-bearing operation types defined in higher packages must be able to
-# add their own method — the kernel cannot enumerate them. The base methods for
-# the cross-domain operations live here.
-#
-# INVARIANT: a new path-bearing operation type must add a `reroot_operation`
-# method. A missing method falls through to the catch-all and is returned
-# unchanged — the reference is not rerooted. Kept in sync with the default
-# `read_intent`, which enumerates the same operations; see
-# `documentation/package/kernel/operation.md`. An operation that HOLDS another
-# needs no method of its own: it subtypes `WrappingOperation` and answers the two
-# generics of the contract, and the method below serves it.
+# An operation that carries a path registers once, with the pair
+# `operation_reference` / `retarget_operation`: the catch-all below reroots the
+# reference that it reports, and the default `read_intent` maps the same reference
+# back through a projection. An operation that reports no reference is returned
+# unchanged. A `ReplacePathOperation` registers through `get_operation_path` and
+# `make_path_operation`, and an operation that HOLDS another subtypes
+# `WrappingOperation` and answers the two generics of that contract; each family
+# has its one method below. See `documentation/package/kernel/operation.md`.
 reroot_operation(::Nothing, steps::Tuple) = nothing
-reroot_operation(op, steps::Tuple) = op          # catch-all: unchanged
+function reroot_operation(op, steps::Tuple)
+    reference = operation_reference(op)
+    reference === nothing && return op
+    retarget_operation(op, reroot_reference(reference, steps))
+end
 reroot_operation(op::ReplacePathOperation, steps::Tuple) =
     make_path_operation(op, reroot_reference(get_operation_path(op), steps))
-function reroot_operation(op::ReplaceReferencedValueOperation, steps::Tuple)
-    # Self-contained (carries its own root): pass through. Document-rooted
-    # (`document === nothing`): reroot the reference.
-    op.document === nothing || return op
-    ReplaceReferencedValueOperation(nothing, reroot_reference(op.reference, steps),
-                                    op.value)
-end
 reroot_operation(op::CompoundOperation, steps::Tuple) =
     CompoundOperation(Any[reroot_operation(o, steps) for o in op.operations])
 # One method for every wrapper there will ever be: a `WrappingOperation` holds one

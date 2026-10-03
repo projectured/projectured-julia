@@ -35,7 +35,7 @@ import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..GraphicsModule: map_operation_position
-import ..OperationModule: is_collecting_operation, join_collected_operations, reroot_operation,
+import ..OperationModule: is_collecting_operation, join_collected_operations,
                           operation_reference, retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps

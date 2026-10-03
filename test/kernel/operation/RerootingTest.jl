@@ -1,9 +1,10 @@
 """
 `OperationModule` — the open `reroot_operation` seam. Verifies the base
 methods land here (Nothing, catch-all, ReplaceSelectionOperation,
-ReplaceReferencedValueOperation, CompoundOperation, WrappingOperation) and that
-a **test-local** path-bearing operation can register its own reroot
-method — that is exactly the seam pressure that keeps the generic honest. A
+CompoundOperation, WrappingOperation) and that a **test-local** path-bearing
+operation registers with the pair `operation_reference` / `retarget_operation`
+alone, and the catch-all reroots it — that is exactly the seam pressure that
+keeps the generic honest. A
 test-local wrapper applies the same pressure to the `WrappingOperation`
 contract: it declares the two generics and nothing else, and the one base method
 must carry it.
@@ -21,13 +22,20 @@ using ProjecturedKernel.IntentModule
 using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.ProjectionModule: Projection, read_intent
 
-# A test-local path-bearing operation: registering a `reroot_operation` method
-# for it below is exactly the seam pressure that keeps the generic open.
+# A test-local path-bearing operation. It answers the pair and nothing else, and
+# the catch-all `reroot_operation` must reroot it: exactly the seam pressure that
+# keeps the generic open.
 struct ToyPathOperation <: Operation
     reference::Reference
 end
-ProjecturedKernel.OperationModule.reroot_operation(op::ToyPathOperation, s::Tuple) =
-    ToyPathOperation(reroot_reference(op.reference, s))
+ProjecturedKernel.OperationModule.operation_reference(op::ToyPathOperation) = op.reference
+ProjecturedKernel.OperationModule.retarget_operation(op::ToyPathOperation, reference::Reference) =
+    ToyPathOperation(reference)
+
+# A test-local operation that answers no seam.
+struct ToyBareOperation <: Operation
+    reference::Reference
+end
 
 # A test-local wrapper: it answers the two generics of the `WrappingOperation`
 # contract and declares no `reroot_operation` method of its own. The one base
@@ -96,8 +104,9 @@ function test_rerooting()
     # An operation type of a package above names its place through the seams, or
     # takes the defaults: no reference, the same operation, and no travel.
     @testset "the seams answer the defaults for an operation that adds no method" begin
-        operation = ToyPathOperation(strip_reference_types(@reference ::RL.leaf::RN))
+        operation = ToyBareOperation(strip_reference_types(@reference ::RL.leaf::RN))
         @test operation_reference(operation) === nothing
+        @test reroot_operation(operation, (FieldReferenceStep("outer"),)) === operation
         @test retarget_operation(operation, Reference(FieldReferenceStep("other"))) ===
               operation
         @test !operation_travels_unchanged(operation)
@@ -171,8 +180,8 @@ function test_rerooting()
         @test plain.operation isa DoNothingOperation
     end
 
-    @testset "test-local Operation type adds its own reroot method" begin
-        # ToyPathOperation is declared at file scope; the method registration above.
+    @testset "a test-local operation that answers the pair is rerooted by the catch-all" begin
+        # ToyPathOperation is declared at file scope, with the pair and no reroot method.
         r = reroot_operation(ToyPathOperation(strip_reference_types(@reference ::RL.leaf::RN)), steps)
         @test r isa ToyPathOperation
         @test r.reference == ConcreteReference(FieldReferenceStep("outer"),

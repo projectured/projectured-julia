@@ -436,32 +436,36 @@ edge. The open generic form avoids it, with the base methods in
 ```julia
 function reroot_operation end
 reroot_operation(::Nothing, steps) = nothing
-reroot_operation(op, steps) = op                      # catch-all: unchanged
+reroot_operation(op, steps) = ...   # through operation_reference / retarget_operation
 reroot_operation(op::ReplacePathOperation, steps) = ...   # every kind of path, once
-reroot_operation(op::ReplaceReferencedValueOperation, steps) = ...
 reroot_operation(op::CompoundOperation, steps) = ...
 reroot_operation(op::WrappingOperation, steps) = ...   # every wrapper, once
 ```
 
-The `Primitive` methods live in `primitive/PrimitiveDocument.jl` beside the
-operation type declarations:
+The catch-all asks `operation_reference` for the reference of the operation,
+prepends the steps, and rebuilds the operation with `retarget_operation`. An
+operation that reports no reference comes back unchanged. So a path-bearing
+operation type registers **once, with the pair**: the catch-all reroots it, and
+the default `read_intent` maps it back through a projection. The `Primitive`
+operations do this in `primitive/PrimitiveDocument.jl`, beside their type
+declarations:
 
 ```julia
 # primitive/PrimitiveDocument.jl:
-reroot_operation(op::ReplaceStringRangeOperation, steps) =
-    ReplaceStringRangeOperation(reroot_reference(op.reference, steps), op.replacement)
-reroot_operation(op::ReplaceNumberRangeOperation, steps) = ...
+operation_reference(op::ReplaceStringRangeOperation) = op.reference
+retarget_operation(op::ReplaceStringRangeOperation, reference::Reference) =
+    ReplaceStringRangeOperation(reference, op.replacement)
 ```
 
-A new path-bearing operation type MUST add a `reroot_operation` method; missing
-methods fall through to the catch-all and are returned unchanged, so their
-reference is never rerooted. This is one half of the [reference-carrying
-registration invariant](#two-invariants-every-operation-must-respect) above (the
-other half is the default `read_intent`).
+A type with no pair reports no reference, so its reference is never rerooted and
+the default reader drops it. A family with a contract of its own registers through
+that contract: a `ReplacePathOperation` answers `get_operation_path` and
+`make_path_operation`, and a wrapper answers `get_wrapped_operation` and
+`rewrap_operation`.
 
 **Testing pressure.** `test/kernel/operation/RerootingTest.jl` declares a test-local
-`ToyPathOperation <: Operation` and registers its own `reroot_operation` method,
-proving the seam is genuinely open: you cannot depend on a concrete
+`ToyPathOperation <: Operation` that answers only the pair, and the catch-all
+reroots it, proving the seam is genuinely open: you cannot depend on a concrete
 higher-layer type at layer 13.
 
 ### An operation that names no place: `operation_travels_unchanged`

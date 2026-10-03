@@ -34,10 +34,6 @@ join_collected_operations(inner::OpenContextMenuOperation,
     OpenContextMenuOperation(vcat(inner.layers, outer.layers), inner.source,
                              inner.point === nothing ? outer.point : inner.point)
 
-reroot_operation(operation::OpenContextMenuOperation, steps::Tuple) =
-    OpenContextMenuOperation(operation.layers, reroot_reference(operation.source, steps),
-                             operation.point)
-
 operation_reference(operation::OpenContextMenuOperation) = operation.source
 
 retarget_operation(operation::OpenContextMenuOperation, reference) =

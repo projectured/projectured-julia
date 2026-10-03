@@ -33,9 +33,6 @@ join_collected_operations(inner::OpenTooltipOperation, outer::OpenTooltipOperati
     OpenTooltipOperation(vcat(inner.layers, outer.layers), inner.source,
                          inner.point === nothing ? outer.point : inner.point)
 
-reroot_operation(operation::OpenTooltipOperation, steps::Tuple) =
-    OpenTooltipOperation(operation.layers, reroot_reference(operation.source, steps), operation.point)
-
 operation_reference(operation::OpenTooltipOperation) = operation.source
 
 retarget_operation(operation::OpenTooltipOperation, reference) =

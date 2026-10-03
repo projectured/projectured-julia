@@ -885,12 +885,15 @@ cross-domain ones).
 
 ### PAR-REGISTER-NEW-OPERATION
 
-**A new reference-carrying operation must be registered in both the default
-`read_intent` and `reroot_operation`.** Both enumerate the path-bearing
-operation types explicitly; an operation missing from either is silently passed
-through *unmapped*, leaving its reference in the wrong domain with no error. An
-operation that carries its own root (`document !== nothing`) needs no rerooting
-and should be preferred when targeting a carried object.
+**A new reference-carrying operation registers once, with the pair
+`operation_reference` / `retarget_operation`.** The catch-all `reroot_operation`
+reroots the reference that the pair reports, and the default `read_intent` maps
+it back through a projection. An operation with no pair reports no reference, so
+it is never rerooted and the default reader drops it, with no error. An operation
+that carries its own root (`document !== nothing`) reports no reference, needs no
+rerooting, and should be preferred when targeting a carried object. A
+`ReplacePathOperation` registers through `get_operation_path` and
+`make_path_operation`, the two functions of its family.
 
 An operation that **holds another operation** registers itself differently, and
 once: it subtypes `WrappingOperation` and answers `get_wrapped_operation` and

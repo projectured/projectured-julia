@@ -1356,7 +1356,8 @@ The owner decided 37 questions of the table below between 2026-09-30 and 2026-10
   - **L11-5 in part.** Only the stop exceptions pass now. The `MethodError` half waits for the owner: the docstring of `TypeReferenceStep` promises that `get_valid_reference_prefix` cuts a path at an unfolded type token, which has no `evaluate_reference_step` on purpose, and `TypeReferenceTest.jl:68` asserts it. Option B would make that token a fault of the program.
 - [ ] **D3. POLICY-1 in the fault layer** (L01-8). Sealed: FaultCascade.jl, FaultStore.jl, FaultRecord.jl.
 - [ ] **D4. Every default fault policy is strict** (L01-5), with the programs that a person starts in the three repositories.
-- [ ] **D5. One pair registers an operation that carries a path** (L13-8).
+- [x] **D5. One pair registers an operation that carries a path** (L13-8).
+  *Done:* the catch-all `reroot_operation` reroots the reference that `operation_reference` reports, through `retarget_operation`. The methods for `ReplaceReferencedValueOperation` (kernel), the two primitive edits, `OpenTooltipOperation` and `OpenContextMenuOperation` go, because their pair already gives the same result; `ReplaceTextRangeOperation` gets the pair in place of its method, so the default reader now maps it back too. The kernel changed after the audit: the family `ReplacePathOperation` registers through `get_operation_path` and `make_path_operation`, and keeps its one method, as `CompoundOperation` and `WrappingOperation` do; the law names that family. The four packages import only the names that they still extend. Tests: Rerooting 56, the text tests, test_platform 86942 pass and 8 broken.
 - [ ] **D6. The template walk reads the blueprint with `peek`** (L17-15).
 - [ ] **D7. `ChildrenContainer.jl` goes** (L17-16), with its line and a new sentence in SEALING.md.
 - [ ] **D8. A kernel docstring shows kernel names only** (L11-17). Sealed: the docstrings of ReferenceInterface.jl and ReferenceSearch.jl.

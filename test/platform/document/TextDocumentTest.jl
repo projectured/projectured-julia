@@ -116,6 +116,11 @@ motion(f, key) = cflat(read_bound_gesture(caret(f), KeyDown(key, ModifierKeys();
 b = caret(fb(Int[2, 1], 6))
 op = read_bound_gesture(b, KeyPress('!'; time = 0.0))
 @test op isa ReplaceTextRangeOperation
+# The pair registers the flat edit, so the catch-all of the kernel reroots it.
+outer = (FieldReferenceStep("outer"),)
+@test operation_reference(op) === op.reference
+@test reroot_operation(op, outer).reference == reroot_reference(op.reference, outer)
+@test reroot_operation(op, outer).replacement == op.replacement
 evaluate_operation((document = b,), op)
 @test b.elements[2].elements[1].content == "second!"
 @test get_flat_selection(b) == (21, 21, true)
