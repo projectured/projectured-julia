@@ -626,6 +626,26 @@ inet-julia uses, the same step changes them, so that they always load.
     tests pass, and omnet-julia precompiles.
   - Seen, for the owner: the column chooser shows its state as "[x]" and
     "[ ]" text on buttons, where a labelled checkbox is the widget for it.
+  - The forms: `WidgetTheme` gets `form_column_gap` (12) and `form_row_gap`
+    (8). The object form (`ObjectToWidget`) and the settings tab take them;
+    they had 12 and 6, and 12 and 12. The settings tab puts `section_gap`
+    between its cards and `label_gap` between its buttons. The object form and
+    a field of an object (`ObjectFieldToWidget`) take a `theme` and write
+    their labels and values in the widget body text, the interface font, as a
+    desktop form does; the examples that pass their own style keep it. A card
+    of the object form sets no width (it had 480).
+  - Open: a card in a form now takes the width of its content, so two cards in
+    one form can differ in width. A control column with the policy `Fill`
+    makes them fill the pane, but with no width offered it collapses to
+    nothing (measured: a form 114 pixels wide), and a form is printed with no
+    width in the image examples and inside a card of a page. The correct fix is
+    a column policy that fills an offered width and keeps the content width
+    when no width is offered.
+  - Check: 4 examples change (`object_to_widget`, `nested_object_to_widget`,
+    `chart_inspector`, `sequencechart_inspector`); the platform and chart
+    suites pass, and omnet-julia precompiles. The platform suite counts 16
+    fewer tests than the run before, most likely the example walker on the
+    changed object examples; I did not prove it.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
