@@ -398,6 +398,14 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   "Backward compatibility is not a goal, we should make it correct and
   beautiful first". The image check still finds the changes, to show which ones
   were not intended.
+- **D21** (2026-10-03, T2). A builder that makes widgets outside a printer (a
+  dialog, a bar of the pager, of a filter or of a column chooser, the value
+  list of a data frame) takes the theme from the place that calls it: the
+  view, the editor or the page. A button that it makes takes the size of its
+  label. The owner: "yes".
+- **D22** (2026-10-03, T2). A checkbox and a switch carry a label of their own,
+  as in a desktop toolkit, at the gap of the theme from the mark. A builder no
+  longer puts a label beside them in a layout. The owner: "yes".
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
