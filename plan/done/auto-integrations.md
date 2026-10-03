@@ -593,7 +593,9 @@ The README of each released package changes too
       registry that holds AutoIntegrations from `~/workspace/auto-integrations`
       and the 34 released packages; `Pkg.test("AutoIntegrations")` runs the
       tests of the new repository.
-- [ ] **Step 10b, before the publication.** The full suites: each package
+- [x] **Step 10b, before the publication.** Moved to the release plan,
+      [release-the-binary-and-the-packages.md](../pending/release-the-binary-and-the-packages.md),
+      which holds the full suites before the announcement. The full suites: each package
       suite in its own environment as CI runs them, `test_integration()`, and
       the comparison with `main` for each failure.
 - [x] **Step 10e, two gaps of the release (the owner, 2026-10-03).** The
@@ -622,7 +624,13 @@ The README of each released package changes too
       suite there. The release: 34 packages at the root, 32 in `test/`, 23 in
       `example/`, 49 MB and 1767 files. `test_package_release()` passes 67 of 67
       and 160 of 160.
-- [ ] **Step 11, cleanup, after the owner's word.** The branch
+- [x] **Step 11, cleanup, after the owner's word.** Done on 2026-10-03: the
+      worktrees and branches `julia-112`, `integration-shells`,
+      `auto-integrations`, `release-fixes` and `ci-failures` here, and
+      `integration-shells` in omnet-julia and inet-julia, are removed; the plan
+      of design B is kept as
+      [integrations-install-with-the-umbrella.md](integrations-install-with-the-umbrella.md).
+      The new private release is in the release plan. The branch
       `integration-shells`, its worktree and the two downstream branches. A
       new private release from the new head, with the commands for the owner.
 

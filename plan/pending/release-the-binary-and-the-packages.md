@@ -1378,6 +1378,28 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       `projectured/ProjecturedRegistry` (R10). Done on 2026-10-01, private and
       empty. Its content, `Registry.toml` with the uuid of the registry, comes
       from `LocalRegistry.create_registry` in the test of the item above.
+- [x] The release under the design of AutoIntegrations, private, on
+      2026-10-03: [auto-integrations.md](../done/auto-integrations.md). The
+      registry holds AutoIntegrations from its own repository and 89 packages:
+      34 at the root of `Projectured.jl`, 32 test packages in `test/` and 23
+      example packages in `example/`. Each package with tests has a workflow
+      and a badge of its own, which runs when a folder that its test develops
+      changes.
+- [ ] **Until the first announcement, each release overwrites both
+      repositories as a fresh 0.1.0** (the owner, 2026-10-03: "until the first
+      announcement of the registry we can always nuke the existing versions and
+      overwrite it, there's no reason to keep the old versions, nobody uses them
+      yet"). A new registry keeps the name, the uuid, the URL and the README of
+      `ProjecturedRegistry`; AutoIntegrations is registered first, then the
+      release in its order, and both repositories are pushed with `--force`.
+- [ ] Before the announcement, the full suites: each test package in its own
+      environment, `test_integration()`, and each failure compared with `main`.
+      The release CI covers each package but the umbrella. The umbrella fails
+      on two faults of `main` (2026-10-03): a typed character in a JSON string
+      cell of a table gives no operation, because the projection of the JSON
+      string in the cell reads no key with the caret before its opening quote;
+      and 3 `@test_broken` of `test_click_roundtrips()` pass in the full run
+      only.
 - [ ] The owner pushes the release copy and the registry, and makes both
       repositories public.
 - [x] The build guide names `ProjecturedRegistry` where it says `<registry>`.
