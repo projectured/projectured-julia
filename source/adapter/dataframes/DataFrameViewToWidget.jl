@@ -559,8 +559,11 @@ function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
         path === nothing && return nothing
         target = _find_view_path(iomap, path)
     end
-    (target isa ConcreteReference && target.head == FieldReferenceStep("query")) || return nothing
     view = iomap.input
+    # An edit of the find text is an edit of its field only.
+    target isa ConcreteReference && target.head == FieldReferenceStep("find_text") &&
+        return ReplaceStringRangeOperation(annotate_reference_types(view, target), operation.replacement)
+    (target isa ConcreteReference && target.head == FieldReferenceStep("query")) || return nothing
     _make_query_edit_operation(view, ReplaceStringRangeOperation(annotate_reference_types(view, target),
                                                                  operation.replacement))
 end

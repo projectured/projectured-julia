@@ -156,22 +156,32 @@ end
 const _EXPRESSION_FIELD_WIDTH = 480
 
 # The bar above the table: the field of the expression of the query, after the
-# words that it ends, so it reads "Rows where age > 30", and at the right end
-# the glyph that reads the frame again, as F5 does. The field is Julia code,
-# which the Julia domain colors when it is loaded. An empty field shows an
-# example made of the columns of the frame. The bar is a grid of one row, whose
-# third column takes the room between the field and the glyph.
+# words that it ends, so it reads "Rows where age > 30", the find field, and at
+# the right end the glyph that reads the frame again, as F5 does. The field of
+# the expression is Julia code, which the Julia domain colors when it is loaded.
+# An empty field shows an example made of the columns of the frame. The bar is a
+# grid of one row, whose third column takes the room between the two fields.
 function _make_expression_bar(view)
     field = _make_query_field(() -> view.query.expression, () -> _find_query_text_range(view, :expression),
                               () -> last(view.expression_result); width = _EXPRESSION_FIELD_WIDTH,
                               language = :julia,
                               placeholder = () -> (view.frame_version; _make_expression_example(view.frame)))
-    bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), _make_refresh_glyph(view)], 4;
+    find = _make_query_field(() -> view.find_text, () -> _find_find_range(view), () -> _get_find_reason(view);
+                             width = _FIND_FIELD_WIDTH, placeholder = () -> "Find (Ctrl+F)")
+    bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), find, _make_refresh_glyph(view)], 5;
                      horizontal_gap = 8, vertical_align = :center,
-                     column_policies = Any[Content, Content, Fill, Content])
-    set_cell_computation!(getfield(bar, :selection), () -> _make_field_child_reference(field.selection))
+                     column_policies = Any[Content, Content, Fill, Content, Content])
+    set_cell_computation!(getfield(bar, :selection), () -> begin
+        inner = _make_field_child_reference(field.selection)
+        inner === nothing || return inner
+        find.selection === nothing ? nothing :
+            ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(3, 4), find.selection))
+    end)
     bar
 end
+
+# The width of the find field.
+const _FIND_FIELD_WIDTH = 160
 
 # The glyph that reads the frame of `view` again: a flat toolbar item, whose
 # tooltip names the key that does the same.
@@ -182,13 +192,16 @@ function _make_refresh_glyph(view)
     WidgetToolbarItem("Read the frame again (F5)"; icon = :refresh, gestures)
 end
 
-# The path in the view of a path in the grid of the view that goes into the
-# field of the expression, `children[0].children[1].content[a:b]`, with the same
-# range in the text of the expression; `nothing` for any other path.
+# The path in the view of a path in the grid of the view that goes into a field
+# of the bar above the table, `children[0].children[k].content[a:b]`, with the
+# same range in its text: the expression of the query for the second child, and
+# the find text for the fourth; `nothing` for any other path.
 function _find_expression_path(path)
     steps = get_reference_steps(strip_reference_types(path))
-    length(steps) == 6 && steps[1] == FieldReferenceStep("children") && steps[2] == RangeReferenceStep(0, 1) &&
-        steps[3] == FieldReferenceStep("children") && steps[4] == RangeReferenceStep(1, 2) &&
-        steps[5] == FieldReferenceStep("content") && steps[6] isa RangeReferenceStep || return nothing
-    _make_expression_reference(steps[6])
+    (length(steps) == 6 && steps[1] == FieldReferenceStep("children") && steps[2] == RangeReferenceStep(0, 1) &&
+     steps[3] == FieldReferenceStep("children") && steps[5] == FieldReferenceStep("content") &&
+     steps[6] isa RangeReferenceStep) || return nothing
+    steps[4] == RangeReferenceStep(1, 2) && return _make_expression_reference(steps[6])
+    steps[4] == RangeReferenceStep(3, 4) && return Reference(FieldReferenceStep("find_text"), steps[6])
+    nothing
 end

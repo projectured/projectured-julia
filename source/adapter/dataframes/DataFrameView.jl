@@ -21,6 +21,8 @@ and `columns`, which hold a [`DataFrameViewRows`](@ref) and a
 and a scroll do not change what a path names. `edits` holds a
 [`DataFrameCellEdit`](@ref) for each cell that a person opened and did not
 commit: `rows[r][c]` gives its document, and the table shows it in its cell.
+`find_text` is the text of the find field, and `find_reason` is `(text,
+"no match")` after a find of `text` that found no cell, or `nothing`.
 
 `anchor` is the place, among the kept rows, of the row at the head of the list
 of rows, and `scroll_position` is the offset of the table from that row, in
@@ -55,6 +57,8 @@ the data of the frame reads `frame_version` too.
     rows::Any
     columns::Any
     edits::Vector{Any}
+    find_text::String
+    find_reason::Any
 end
 
 """
@@ -85,7 +89,7 @@ function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anc
     view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
                          Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
                          Cell(Dict{String,Int}()), Cell(0), Cell(nothing), Cell(nothing), Cell(nothing),
-                         Cell(Any[]), Cell(nothing))
+                         Cell(Any[]), Cell(""), Cell(nothing), Cell(nothing))
     _set_path_fields!(_set_kept_row_computations!(view))
 end
 
@@ -235,6 +239,15 @@ const _DATA_FRAME_VIEW_MENU =
     KeyDown(:home; ctrl) => "Jump to the first row" => jump_to_row(doc, 1)
     KeyDown(:end; ctrl) => "Jump to the last row" => jump_to_row(doc, length(doc.kept_rows))
     KeyDown(:f5) => "Read the frame again" => RefreshDataFrameViewOperation(doc)
+    KeyDown(:f; ctrl) => "Find a value" => _make_find_field_selection(doc)
+    # A key with Shift comes before the same key without it, which also
+    # matches it.
+    KeyDown(:f3; shift) => "Find the previous match" => _make_find_operation(doc, true)
+    KeyDown(:f3) => "Find the next match" => _make_find_operation(doc, false)
+    KeyDown(:return; shift) => "Find the previous match from the find field" =>
+        _find_find_range(doc) === nothing ? nothing : _make_find_operation(doc, true)
+    KeyDown(:return) => "Find the next match from the find field" =>
+        _find_find_range(doc) === nothing ? nothing : _make_find_operation(doc, false)
     splice(_DATA_FRAME_VIEW_MENU)
 end
 

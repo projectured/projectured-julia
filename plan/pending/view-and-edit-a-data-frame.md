@@ -2064,9 +2064,9 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     change. inet-julia's presentation tests have 8 errors, all
     `make_natural_to_syntax_dispatch()` without the `appearance` that main's
     theme work (`b964b257f`) requires; inet-julia does not follow it yet.
-- [ ] **6. Find.** §4.5, without replace. **The first release, proposed
-  2026-10-03 (mine, waiting for the word of the owner)**: find the next
-  cell, and no more.
+- [x] **6. Find.** §4.5, without replace. **The first release, proposed
+  2026-10-03 (mine), accepted by the owner the same day ("it's enough, we can
+  defer the later part")**: find the next cell, and no more.
   - Ctrl+F in the view opens a find bar, a text field above the table, as the
     expression bar is. The text of the bar is state of the view, as the
     query is, so a duplicate keeps its own.
@@ -2084,6 +2084,35 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   - Later: a regular expression and an exact value, the scope of a column or
     a range, "match k of n", the marks of the visible matches, "filter to
     matches", and replace.
+  - Done 2026-10-03, with these changes to the proposal (mine):
+    - The find field is always shown, at the right end of the bar above the
+      table, after the field of the expression, with "Find (Ctrl+F)" as its
+      placeholder; Ctrl+F puts the caret at the end of its text. So the view
+      has no open or closed bar to keep, and Escape keeps its meaning. The
+      paths of the table, child 3 of the grid, stay as they are.
+    - The view has `find_text`, the text of the field, and `find_reason`,
+      `(text, "no match")` after a find of `text` that found no cell; the field
+      shows the mark only while its text is that text. A key in the field is
+      an edit of `find_text` only, and a step of undo, as a key in the field of
+      the expression is; a find is none.
+    - Ctrl+F, F3, Shift+F3, and Enter and Shift+Enter in the field are in the
+      gesture table of the view, so the gesture help lists them. A key with
+      Shift comes before the same key without it, because a pattern with no
+      modifier matches the key with Shift too.
+    - A find starts at the cell of the selection, or before the first cell of
+      the row of the selection, or at the row at the head of the list when the
+      selection is in no row, such as in the field. The text that a cell shows
+      is the string, `missing`, a number by `string`, or the compact print of
+      any other value.
+    - The view jumps to the row of a match that is not at the head of the
+      list, so the match stands at the top; a match on the screen below the
+      head moves to the top too.
+    - Open: a find from an open cell moves the selection out of it with no
+      commit, so the cell stays open.
+    - Tests: `test_data_frame_find()`: the order round the end and back, a
+      number, the case; the sort and a hidden column; "no match" and its end;
+      Ctrl+F, keys in the field, Enter and Shift+Enter; the jump; a real
+      editor (Ctrl+F, a key, Enter, F3, Ctrl+Z). The data frames 527.
 - [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
   their own (D8).
 - [ ] **8. Pivot.** §4.7, with row headers on a list and the spanning header
